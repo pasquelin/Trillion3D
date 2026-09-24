@@ -1,7 +1,7 @@
 // Page side of the water-pass proof: the real WebGPU engine (`webgpuPagesBackend`), a real device,
 // a real reread image. A transmissive tile in front of an opaque ground, or of nothing, rendered
 // through the water pass and read at its centre; nothing internal is inspected.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import {
   VIEWPORT,
@@ -19,25 +19,25 @@ import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backen
 
 function scene(pagine: boolean, kase: WaterCase): ScenePreparee {
   const bati = batisseur();
-  const fond = new THREE.Mesh(
+  const fond = G.mesh(
     carre(4),
-    new THREE.MeshBasicMaterial({
-      color: new THREE.Color(...GROUND.color),
-      side: THREE.DoubleSide,
+    G.basicSurface({
+      color: new G.Color(GROUND.color),
+      side: G.DOUBLE_SIDE,
     }),
   );
   fond.name = 'fond';
   fond.position.set(kase.groundX, 0, -GROUND.depth);
   bati.source.add(fond);
   bati.ajoute(fond, 'exact-clusters', 4);
-  const eau = new THREE.Mesh(
+  const eau = G.mesh(
     carre(1),
     Object.assign(
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(...WATER.tint),
+      G.physicalSurface({
+        color: new G.Color(WATER.tint),
         transparent: true,
         opacity: 1,
-        side: THREE.DoubleSide,
+        side: G.DOUBLE_SIDE,
         roughness: 0.05,
       }),
       {
@@ -45,7 +45,7 @@ function scene(pagine: boolean, kase: WaterCase): ScenePreparee {
         ior: WATER.ior,
         thickness: kase.thickness,
         attenuationDistance: WATER.attenuationDistance,
-        attenuationColor: new THREE.Color(...WATER.attenuationColor),
+        attenuationColor: new G.Color(WATER.attenuationColor),
       },
     ),
   );

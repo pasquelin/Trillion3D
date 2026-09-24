@@ -4,7 +4,7 @@
 // verdict, image after image, as a fresh structure.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { sameHizView } from '../../../hiz/hiz.ts';
 import { invalidateOccluderHistory, invalidateTemporalPyramid } from '../io/drops.ts';
 import {
@@ -21,9 +21,9 @@ import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts';
 
 function poses(n: number) {
-  const cams: THREE.PerspectiveCamera[] = [];
+  const cams: G.GraphCamera[] = [];
   for (let i = 0; i < n; i++) {
-    const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+    const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
     cam.position.set(Math.sin(i * 0.7) * 3, 0, 6 + i * 0.001);
     if (i % 5 === 0) cam.fov = 40 + i; // occasional projection change
     cam.updateProjectionMatrix();
@@ -61,7 +61,7 @@ test('the kept camera is the same object across frames: never reallocated, never
 });
 
 test('a repeated identical pose is stable, and NaN in the world matrix never reports a false match', () => {
-  const a = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const a = G.perspectiveCamera(55, 1, 0.1, 100);
   a.position.z = 5;
   a.lookAt(0, 0, 0);
   a.updateMatrixWorld();

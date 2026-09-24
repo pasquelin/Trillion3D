@@ -6,7 +6,7 @@
 //
 // This module is SERVED to the harness page and imported by its URL: the materials are built
 // in the page, with the `three` of its import map, the one the SDK under `dist/` also loads.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { VIEWPORT } from './sharedSceneProof.ts';
 import * as img from './materialImages.ts';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
@@ -46,7 +46,7 @@ export const ANISOTROPY_GAIN = 64;
 
 export interface Fixture {
   name: string;
-  material: () => THREE.Material;
+  material: () => G.GraphSurface;
   lit?: boolean;
   points: number[][];
   difference: number[];
@@ -62,11 +62,11 @@ export interface Fixture {
 /** An unlit fixture: a basic material, read within one level unless `extra` says otherwise. */
 const unlit = (
   name: string,
-  params: () => THREE.MeshBasicMaterialParameters,
+  params: () => G.SurfaceParameters,
   extra: Partial<Fixture> = {},
 ): Fixture => ({
   name,
-  material: () => new THREE.MeshBasicMaterial(params()),
+  material: () => G.basicSurface(params()),
   points: INSIDE,
   ...QUANTISATION,
   ...extra,
@@ -75,11 +75,11 @@ const unlit = (
 /** A lit fixture: a standard material under the sun, read within one level. */
 const lit = (
   name: string,
-  params: () => THREE.MeshStandardMaterialParameters,
+  params: () => G.SurfaceParameters,
   extra: Partial<Fixture> = {},
 ): Fixture => ({
   name,
-  material: () => new THREE.MeshStandardMaterial(params()),
+  material: () => G.standardSurface(params()),
   lit: true,
   points: INSIDE,
   ...QUANTISATION,
@@ -87,7 +87,7 @@ const lit = (
 });
 
 /** The blended square: pure red at half opacity, whatever it is composed over. */
-const BLEND = (): THREE.MeshBasicMaterialParameters => ({
+const BLEND = (): G.SurfaceParameters => ({
   color: 0xff2020,
   transparent: true,
   opacity: 0.5,
@@ -141,8 +141,8 @@ export const fixtures: Fixture[] = [
     'map repeated and turned',
     () => {
       const map = img.colourMap(img.FOUR_COLOURS);
-      map.wrapS = map.wrapT = THREE.RepeatWrapping;
-      map.magFilter = THREE.LinearFilter;
+      map.wrapS = map.wrapT = G.HOST_WRAP_REPEAT;
+      map.magFilter = G.HOST_FILTER_LINEAR;
       map.repeat.set(4, 4);
       map.rotation = Math.PI / 6;
       return { map };
@@ -179,13 +179,13 @@ export const fixtures: Fixture[] = [
       reason: 'the same leaves and gaps, a leaf edge mixed by two footprints: no hole',
     }),
   ),
-  unlit('double-sided back face', () => ({ color: 0x2299cc, side: THREE.DoubleSide }), {
+  unlit('double-sided back face', () => ({ color: 0x2299cc, side: G.DOUBLE_SIDE }), {
     back: true,
   }),
   unlit('single-sided back face', () => ({ color: 0x2299cc }), { back: true }),
   lit(
     'double-sided back face, lit',
-    () => ({ color: 0x2299cc, roughness: 1, side: THREE.DoubleSide }),
+    () => ({ color: 0x2299cc, roughness: 1, side: G.DOUBLE_SIDE }),
     { back: true },
   ),
   lit('rough dielectric', () => ({ color: 0x808080, roughness: 1, metalness: 0 })),

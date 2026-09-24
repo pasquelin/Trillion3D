@@ -1,3 +1,4 @@
+import type { GraphScene } from '../../host/graph/scene.ts';
 import {
   colouredTwin,
   hostPageBytes,
@@ -11,12 +12,11 @@ import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/s
 import type { HostGeometry, HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
 import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
-import type { HostDrawScene } from '../../host/scene/graphNodes.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 
 type GeometryEnvironment = {
-  scene: HostDrawScene;
+  scene: GraphScene;
   allPages: PageRec[];
   bootstrap: PageRec[];
   shown: PageRec[];
@@ -73,8 +73,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
-    // The host declaration, not the engine's surface record: the record has no `visible`
-    // flag, and the host library silently drops every mesh whose material lacks one.
+    // The declaration, not the engine's surface record: the record has no `visible` flag, and
+    // the program submits nothing for a surface that is not visible.
     rec.mesh ??= hostPageMesh(rec.geometry, rec.declaration, rec.renderOrder);
     setHostPose(rec.mesh, rec.matrix);
     if (!rec.attached) {

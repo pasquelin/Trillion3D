@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exactPagesBackend } from '../measurement/measurement.ts';
+import { exactPagesBackend } from '../../../../bench/witnesses/measurement.ts';
 import { clusterSphere, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
 import {
   quadScene,

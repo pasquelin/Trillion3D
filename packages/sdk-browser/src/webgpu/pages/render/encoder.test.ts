@@ -3,7 +3,7 @@
 // camera's world pose discriminates — the host camera's local pose does not move.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera, disposeQuadRun, quadBackend } from '../testScenes.fixture.ts';
@@ -26,17 +26,13 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
     await backend.prepare();
     // Rig nobody else walks: the local host camera stays at the origin, only the rig carries the
     // translation. The traced pose must follow the rig, not the camera's local pose.
-    const rig = new THREE.Object3D();
+    const rig = new G.GraphNode();
     rig.position.set(7, -1, 4);
-    const hostCamera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+    const hostCamera = G.perspectiveCamera(55, 1, 0.1, 100);
     rig.add(hostCamera);
     rig.updateWorldMatrix(true, false);
-    const attendu = hostCamera.getWorldPosition(new THREE.Vector3()).toArray();
-    assert.notDeepEqual(
-      attendu,
-      hostCamera.position.toArray(),
-      'witness: the rig does move the eye',
-    );
+    const attendu = G.worldPosition(hostCamera, new G.Vector3()).toArray();
+    assert.notDeepEqual(attendu, G.xyz(hostCamera.position), 'witness: the rig does move the eye');
 
     backend.render(hostCamera);
     await backend.flush?.();

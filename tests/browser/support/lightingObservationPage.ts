@@ -2,6 +2,9 @@
 // material that drew it before: same GLSL, same meshes, same textures and uniforms, one image
 // drawn twice — by the engine on its context, by the host renderer on its own canvas.
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { threeGeometry } from '../../../bench/witnesses/three/fromGraph.ts';
+import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts';
 import { experimentScene, hostSource, renderState } from './lightingObservationScene.ts';
 import { createLightingExperimentBackend } from '../../kit/lighting/experimentBackend.ts';
 import { createObservationResources } from '../../kit/lighting/resources.ts';
@@ -37,7 +40,7 @@ const floatTexture = ({ data, width, height }: ObservationTexture) => {
 function witnessPixels(
   resources: ObservationResources,
   meshes: ObservationMeshes,
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
 ) {
   const renderer = new THREE.WebGLRenderer({ canvas: canvas(), antialias: false });
   renderer.setSize(SIZE, SIZE, false);
@@ -62,13 +65,11 @@ function witnessPixels(
     useBvh: { value: uniforms.useBvh },
   };
   for (const copy of meshes.copies) {
-    // `copy.geometry` is the engine's low-level contract (`WholeMesh['geometry']`), but it is
-    // built straight from a source `THREE.Mesh`'s own geometry (`createObservationMeshes`),
-    // never rebuilt: the witness needs the real instance back to draw it with the library.
-    if (!(copy.geometry instanceof THREE.BufferGeometry))
-      throw new Error('the observed copy did not keep its source geometry instance');
+    // `copy.geometry` is the engine's low-level contract (`WholeMesh['geometry']`), built
+    // straight from a source mesh's own geometry (`createObservationMeshes`): the witness draws
+    // the library's copy of it.
     const mesh = new THREE.Mesh(
-      copy.geometry,
+      threeGeometry(copy.geometry as G.GraphGeometry),
       new THREE.ShaderMaterial({
         vertexShader,
         fragmentShader: fragmentShader(resources.surfaceCount),
@@ -80,7 +81,7 @@ function witnessPixels(
     mesh.matrix.fromArray(copy.matrix.elements);
     scene.add(mesh);
   }
-  renderer.render(scene, camera);
+  renderer.render(scene, threeCamera(camera));
   const context = renderer.getContext();
   if (!(context instanceof WebGL2RenderingContext))
     throw new Error('the witness renderer requires a WebGL2 context');
@@ -106,7 +107,7 @@ export async function execute() {
   const scene = experimentScene(),
     state = renderState(scene),
     source = hostSource(scene),
-    camera = new THREE.PerspectiveCamera(60, 1, 0.1, 20);
+    camera = G.perspectiveCamera(60, 1, 0.1, 20);
   camera.updateMatrixWorld();
   // The engine's pass alone, on the records the backend builds.
   const resources = createObservationResources(state),

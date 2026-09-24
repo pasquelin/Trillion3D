@@ -3,7 +3,7 @@
 // per frame. Oracle: the reference from before batch A in `../../../../bench/oracles/browser/occlusion.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { buildHizPyramid, countUnoccluded, createHizCounts, type HizPage } from './hiz.ts';
 import { splitOccludersInto } from './split.ts';
 import {
@@ -13,21 +13,26 @@ import {
 import { cameraAt } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
+import { asHostLibrary } from '../host/resources.ts';
 
 function box(min: number[], max: number[], tag: number) {
-  return { min, max, matrix: new THREE.Matrix4(), tag } as HizPage & { tag: number };
+  return { min, max, matrix: new G.Matrix4(), tag } as HizPage & { tag: number };
 }
 
 /** Splits `pages` with both implementations and asserts the same occluders and rest, by tag. */
 function assertSplitAgrees(
   pages: (HizPage & { tag: number })[],
-  cam: THREE.PerspectiveCamera,
+  cam: G.GraphCamera,
   viewport: [number, number],
 ) {
   const occluders: (HizPage & { tag: number })[] = [],
     rest: (HizPage & { tag: number })[] = [];
   splitOccludersInto(pages, cameraMoteur(cam), viewport, occluders, rest);
-  const reference = referenceSplitOccluders(pages, cam, viewport);
+  const reference = referenceSplitOccluders(
+    pages,
+    asHostLibrary<Parameters<typeof referenceSplitOccluders>[1]>(cam),
+    viewport,
+  );
   assert.deepEqual(
     occluders.map((p) => p.tag),
     reference.occluders.map((p: { tag: number }) => p.tag),
@@ -80,7 +85,13 @@ test('countUnoccluded on an empty pyramid-worthy cut matches the reference, epoc
     rejected: 0,
     rejectedTriangles: 0,
   };
-  const referenceKept = referenceCountUnoccluded(pages, pyramid, cam, viewport, countsReference);
+  const referenceKept = referenceCountUnoccluded(
+    pages,
+    pyramid,
+    asHostLibrary<Parameters<typeof referenceCountUnoccluded>[2]>(cam),
+    viewport,
+    countsReference,
+  );
   assert.deepEqual(
     kept.map((p: HizPage & { tag: number }) => p.tag),
     referenceKept.map((p: { tag: number }) => p.tag),

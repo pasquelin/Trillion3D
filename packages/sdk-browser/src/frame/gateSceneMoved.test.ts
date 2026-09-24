@@ -4,13 +4,13 @@
 // change. These tests hold that separation on the public entry, never on an internal counter.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { createFrameGateCore } from './gateCore.ts';
 
 /** A source graph and the entry list that names the node the engine draws. */
 function scene() {
-  const source = new THREE.Group(),
-    mesh = new THREE.Mesh();
+  const source = new G.GraphGroup(),
+    mesh = G.mesh();
   mesh.name = 'drawn';
   source.add(mesh);
   return { source, drawn: [{ sourceMesh: mesh }] };
@@ -66,7 +66,7 @@ test('both announce the scene: a held frame is refused after either of them', ()
 
 test('a host write of its own is still taken after a move: the watch keeps listening', () => {
   const { source, drawn } = scene();
-  const mesh = (drawn[0] as { sourceMesh: THREE.Mesh }).sourceMesh;
+  const mesh = (drawn[0] as { sourceMesh: G.GraphMesh }).sourceMesh;
   const gate = createFrameGateCore(1);
   gate.readScene(source, drawn);
   gate.sceneMoved();
@@ -80,7 +80,7 @@ test('a host write of its own is still taken after a move: the watch keeps liste
 
 test('a move announced before the first image still has the watched set built', () => {
   const { source, drawn } = scene();
-  const mesh = (drawn[0] as { sourceMesh: THREE.Mesh }).sourceMesh;
+  const mesh = (drawn[0] as { sourceMesh: G.GraphMesh }).sourceMesh;
   const gate = createFrameGateCore(1);
   gate.sceneMoved();
   gate.readScene(source, drawn);
@@ -93,7 +93,7 @@ test('a move announced before the first image still has the watched set built', 
 test('a reshape then a move before the same image: the node the reshape brought in is hooked', () => {
   const { source, drawn } = scene();
   const gate = createFrameGateCore(1);
-  const entrant = new THREE.Mesh();
+  const entrant = G.mesh();
   const list = [...drawn, { sourceMesh: entrant }];
   gate.readScene(source, drawn);
   source.add(entrant);

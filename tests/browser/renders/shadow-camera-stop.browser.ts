@@ -116,7 +116,7 @@ try {
       return { settledStart, pending, pendingAtCapture: metrics.shadowPagesPending ?? 0 };
     },
     {
-      sdkUrl: '/sdk/sdk-browser/src/measurement/measurement.js',
+      sdkUrl: '/sdk/witnesses/measurement.js',
       posesUrl: '/runner/poses.ts',
       manifestUrl: assetsManifest(DEFAULT_SCENE, true),
       width: WIDTH,

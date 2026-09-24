@@ -13,7 +13,7 @@
 // so the expected equality is that of recentering and not of a lenient rounding.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { multiplyMatrix4, worldToRenderOrigin } from '../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
 import { sameRenderOrigin } from './renderOrigin.ts';
@@ -37,12 +37,12 @@ function memesNombres(obtenu: ArrayLike<number>, attendu: ArrayLike<number>, quo
 /** What a frame sends to the cut kernel for a scene offset by `offset`: the sixteen
  *  single-precision numbers of a world matrix brought back to the eye, and the camera uniforms. */
 function envoi(offset: readonly [number, number, number]) {
-  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.5, 1000);
+  const camera = G.perspectiveCamera(55, 16 / 9, 0.5, 1000);
   camera.position.set(OEIL[0] + offset[0], OEIL[1] + offset[1], OEIL[2] + offset[2]);
   camera.lookAt(CIBLE[0] + offset[0], CIBLE[1] + offset[1], CIBLE[2] + offset[2]);
   camera.updateMatrixWorld(true);
   const cam = cameraMoteur(camera);
-  const world = new THREE.Matrix4()
+  const world = new G.Matrix4()
     .makeRotationY(0.7)
     .setPosition(POSE[0] + offset[0], POSE[1] + offset[1], POSE[2] + offset[2]);
   const worlds = new Float32Array(16);
@@ -69,14 +69,14 @@ test('the published frame origin is the eye world position, not a zero', () => {
 });
 
 test('camera at the world origin: nothing changes by a bit', () => {
-  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.5, 1000);
+  const camera = G.perspectiveCamera(55, 16 / 9, 0.5, 1000);
   camera.lookAt(CIBLE[0], CIBLE[1], CIBLE[2]);
   camera.updateMatrixWorld(true);
   const cam = cameraMoteur(camera);
   memesNombres(cam.eye, [0, 0, 0], 'the eye is at world zero');
   memesNombres(cam.viewRelative, cam.view, 'the relative view IS the view');
   memesNombres(cam.planesRelative, cam.planes, 'the relative planes ARE the planes');
-  const world = new THREE.Matrix4().makeRotationZ(-0.4).setPosition(POSE[0], POSE[1], POSE[2]);
+  const world = new G.Matrix4().makeRotationZ(-0.4).setPosition(POSE[0], POSE[1], POSE[2]);
   const ramene = worldToRenderOrigin(new Float64Array(16), world.elements, cam.eye);
   memesNombres(ramene, world.elements, 'the world matrix is returned as-is');
 });
@@ -105,7 +105,7 @@ test('a held view keeps its render frame: holdCameraWorld copies it too', () => 
   memesNombres(gelee.planesRelative, source.planesRelative, 'held relative planes');
   // The source is rewritten by the next frame: the held copy still describes its own.
   const avant = [...gelee.viewRelative];
-  const tournee = new THREE.PerspectiveCamera(55, 16 / 9, 0.5, 1000);
+  const tournee = G.perspectiveCamera(55, 16 / 9, 0.5, 1000);
   tournee.lookAt(1, 2, 3);
   tournee.updateMatrixWorld(true);
   readCameraWorld(source, tournee);

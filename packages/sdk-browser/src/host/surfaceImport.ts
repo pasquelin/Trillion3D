@@ -24,6 +24,7 @@ import {
   hostSurfaceModel,
   litModel,
   shininessRoughness,
+  metalRough,
 } from '../scene/surfaceModel.ts';
 
 const map = (texture: unknown) => (texture ? importHostTexture(texture as HostTexture) : undefined);
@@ -51,8 +52,8 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
   // apart, Phong as the physical model at the roughness of its exponent, the others unlit.
   const model = hostSurfaceModel(first),
     lit = litModel(first, model),
-    standard = !!first.isMeshStandardMaterial,
-    physical = !!first.isMeshPhysicalMaterial,
+    standard = metalRough(first),
+    physical = first.family === 'physical',
     side = sideOf(first),
     emissive = lit && isHostColour(first.emissive) ? first.emissive : undefined,
     glow = emissive ? (first.emissiveIntensity ?? 1) : 0,
@@ -62,7 +63,7 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     metalness: standard ? (first.metalness ?? 0) : 0,
     roughness: standard
       ? (first.roughness ?? 1)
-      : first.isMeshPhongMaterial
+      : first.family === 'phong'
         ? shininessRoughness(first.shininess ?? 30)
         : 1,
     lit,

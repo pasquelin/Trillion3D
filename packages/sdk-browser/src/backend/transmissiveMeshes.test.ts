@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
 import { collectClusterPages } from '../page/selection/selection.ts';
 import { asHostLibrary } from '../host/resources.ts';
@@ -8,19 +8,16 @@ import { createBlendCopy } from '../cluster/blendCopyMesh.ts';
 import { dagRoots, DAG } from './pagesBackend.fixture.ts';
 
 test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2]);
-  const material = new THREE.MeshPhysicalMaterial({
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0], 3));
+  geometry.setIndex(G.indices([0, 1, 2]));
+  const material = G.physicalSurface({
     transmission: 1,
     thickness: 0.02,
     roughness: 0,
   });
-  const mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  const mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const pages = [
     { id: 0, url: '0', count: 3, min: [-1, -1, 0], max: [1, 1, 0], bytes: 12, sha256: 'x' },
@@ -53,7 +50,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   const witness = collectClusterPages(source, manifest, indices, associations, {
     blendCopy: createBlendCopy,
   });
-  assert.equal(asHostLibrary<THREE.Mesh>(witness.blendCopies[0]).material, material);
+  assert.equal(asHostLibrary<G.GraphMesh>(witness.blendCopies[0]).material, material);
   geometry.dispose();
   material.dispose();
 });

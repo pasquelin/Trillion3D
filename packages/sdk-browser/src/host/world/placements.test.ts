@@ -5,7 +5,7 @@
 // non-uniform scales, and a node whose host set the matrix itself.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { hostWorldPlacements } from './placements.ts';
@@ -15,16 +15,16 @@ import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 /** A host scene that NOBODY has walked up: rotated root, parent with negative and non-uniform
  *  scale, leaf sheared by that scale, plus a node whose matrix is set. */
 function scene() {
-  const racine = new THREE.Group(),
-    parent = new THREE.Group(),
-    feuille = new THREE.Mesh(),
-    pose = new THREE.Group();
+  const racine = new G.GraphGroup(),
+    parent = new G.GraphGroup(),
+    feuille = G.mesh(),
+    pose = new G.GraphGroup();
   racine.position.set(3, -4, 5);
-  racine.quaternion.setFromEuler(new THREE.Euler(0.4, 0.1, -0.2));
+  racine.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.4, 0.1, -0.2)));
   parent.scale.set(-2, 0.5, 3);
   parent.position.set(-0, 7, 0.25);
   feuille.position.set(1, 2, -3);
-  feuille.quaternion.setFromEuler(new THREE.Euler(-0.3, 0.7, 0.9));
+  feuille.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(-0.3, 0.7, 0.9)));
   feuille.scale.set(1, 1, -1);
   pose.matrixAutoUpdate = false;
   pose.matrix.set(1, 3, 0, 2, 0, 1, 0, -1, 0, 0, 1, 4, 0, 0, 0, 1);
@@ -50,7 +50,7 @@ test("the host's world matrix is neither read nor written: it stays the identity
   worlds.refresh();
   assert.deepEqual(
     Array.from(feuille.matrixWorld.elements),
-    Array.from(new THREE.Matrix4().elements),
+    Array.from(new G.Matrix4().elements),
     'the engine wrote nothing into the host scene',
   );
   assert.notDeepEqual(
@@ -76,7 +76,7 @@ test('`refresh` rewrites the returned matrix instead of returning another: the h
 test('a node outside the indexed subtree is refused by a named error', () => {
   const { racine } = scene();
   const worlds = hostWorldPlacements(racine);
-  const etranger = new THREE.Group();
+  const etranger = new G.GraphGroup();
   etranger.name = 'foreign';
   assert.throws(
     () => worlds.of(etranger),
@@ -86,7 +86,7 @@ test('a node outside the indexed subtree is refused by a named error', () => {
 
 test("page records and cluster roots carry the engine's matrix, not the host's", () => {
   const fixture = blendFixture();
-  const parent = new THREE.Group();
+  const parent = new G.GraphGroup();
   parent.scale.set(2, -1, 0.5);
   parent.add(fixture.source);
   fixture.mesh.position.set(4, -2, 7);

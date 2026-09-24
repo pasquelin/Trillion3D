@@ -1,4 +1,8 @@
-export function multiplyMatrix4(out: Float32Array, a: ArrayLike<number>, b: ArrayLike<number>) {
+export function multiplyMatrix4<T extends Float32Array | Float64Array>(
+  out: T,
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+) {
   for (let column = 0; column < 4; column++)
     for (let row = 0; row < 4; row++) {
       let value = 0;

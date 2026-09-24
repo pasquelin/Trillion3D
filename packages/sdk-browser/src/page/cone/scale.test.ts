@@ -5,7 +5,7 @@
 // confirm that reject remains possible for any uniform scale and rotation, as before this batch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import {
   coneContextFor,
   coneCullsPageWith,
@@ -27,7 +27,7 @@ const MAX = [1e6, 1e6, 0];
 
 /** Camera of the trigger case: the face of both triangles faces it, in the frustum. */
 function camera() {
-  const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+  const cam = G.perspectiveCamera(60, 1, 0.1, 100);
   cam.position.set(6, 0, -9);
   cam.lookAt(0, 0, -0.5);
   cam.updateMatrixWorld(true);
@@ -35,7 +35,7 @@ function camera() {
 }
 
 /** A single cluster, the full CPU cut — only the fields `selectFlat` actually reads. */
-function trianglesGardes(world: THREE.Matrix4, cone: NormalCone, cam: THREE.PerspectiveCamera) {
+function trianglesGardes(world: G.Matrix4, cone: NormalCone, cam: G.GraphCamera) {
   const page = {
     min: MIN,
     max: MAX,
@@ -50,7 +50,7 @@ function trianglesGardes(world: THREE.Matrix4, cone: NormalCone, cam: THREE.Pers
 
 test('non-uniform scale at small scale (1e-8, 1e-6, 1e-6), trigger case: both triangles stay', () => {
   const cone = triangleCone(POSITIONS, INDICES);
-  const world = new THREE.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
+  const world = new G.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
   const cam = camera();
   const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
   assert.equal(
@@ -69,7 +69,7 @@ test('a degenerate 3×3 (null scale on one axis, hence a null column) is not con
     [1, 0, 1],
     [1, 1, 0],
   ] as const) {
-    const world = new THREE.Matrix4().makeScale(echelle[0], echelle[1], echelle[2]);
+    const world = new G.Matrix4().makeScale(echelle[0], echelle[1], echelle[2]);
     const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
     assert.equal(ctx.conformal, false, `scale ${echelle}`);
     assert.equal(
@@ -88,7 +88,7 @@ test('a 3×3 with a NaN or infinite term is not conformal: the cluster stays', (
     [5, Infinity],
     [10, -Infinity],
   ] as const) {
-    const world = new THREE.Matrix4();
+    const world = new G.Matrix4();
     world.elements[index] = valeur;
     const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
     assert.equal(ctx.conformal, false, `term ${index} = ${valeur}`);
@@ -107,19 +107,20 @@ test('uniform scale from 1e-8 to 1e3, with rotation: a face with its back to the
       [0, 0, 0],
       [0.3, -0.5, 0.2],
     ] as const) {
-      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...euler));
-      const world = new THREE.Matrix4().compose(
-        new THREE.Vector3(),
+      const q = new G.Quaternion().setFromEuler(new G.Euler(...euler));
+      const world = new G.Matrix4().compose(
+        new G.Vector3(),
         q,
-        new THREE.Vector3(echelle, echelle, echelle),
+        new G.Vector3(echelle, echelle, echelle),
       );
       const conforme = coneContextFor(createConeContext(), world, cameraMoteur(camera()).eye);
       assert.equal(conforme.conformal, true, `scale ${echelle} rotation ${euler}`);
       // The context's normal matrix is flat: the test puts it back in an object to apply it.
-      const normale = new THREE.Matrix3().fromArray([...conforme.normal]);
-      const axeMonde = new THREE.Vector3(...cone.axis).applyMatrix3(normale).normalize();
+      const normale = new G.Matrix3();
+      normale.elements.set(conforme.normal);
+      const axeMonde = new G.Vector3(...cone.axis).applyMatrix3(normale).normalize();
       const distance = Math.max(5, echelle * 2000);
-      const cam = new THREE.PerspectiveCamera(55, 1, 0.1, distance * 100);
+      const cam = G.perspectiveCamera(55, 1, 0.1, distance * 100);
       cam.position.copy(axeMonde).multiplyScalar(-distance);
       cam.lookAt(0, 0, 0);
       cam.updateMatrixWorld(true);

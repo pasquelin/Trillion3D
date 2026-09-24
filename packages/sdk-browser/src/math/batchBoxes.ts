@@ -9,7 +9,7 @@ import type { ClusterRoot, PageRec } from '../page/selection/types.ts';
 
 /**
  * World boxes computed IN BATCHES: two utilities shared by sites uniting bounds
- * (`../backend/exact/bounds.ts`, `../host/world/bounds.ts`), and the buffer of selection roots.
+ * (`../world/scene/pagesBounds.ts`, `../host/world/bounds.ts`), and the buffer of selection roots.
  *
  * World boxes of selection roots, computed IN BATCHES by governor: single buffer
  * allocated during setup, zero allocation afterward. Loading runs it once on all roots;

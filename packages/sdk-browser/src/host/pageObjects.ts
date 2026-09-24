@@ -1,50 +1,45 @@
 /**
- * THE HOST-LIBRARY OBJECTS THE WEBGL2 PAGE PATH DRAWS WITH.
+ * THE OBJECTS THE WEBGL2 PAGE PATH DRAWS WITH.
  *
  * The autonomous WebGL2 backend is a shipping path, not a witness: it is what `chooseBackends`
- * picks on a machine that grants no WebGPU device. Its image is nonetheless drawn by the HOST
- * renderer — the shared adapter of `three/sceneAdapter.ts`, with the host lights the contract
- * installs — so a resident page has to exist as a host mesh, holding a host geometry and the
- * host declaration it was collected with. Making those objects is a boundary, exactly as making
- * the explorer's camera is (`scene/graphObjects.ts`, which builds what the EXPLORER publishes to
- * its host; this file builds what a BACKEND draws). Since #78 lot 3 the path itself —
- * `../backend/autonomous/pages.ts`, `../backend/autonomous/geometry.ts`, `../backend/autonomous/instances.ts` — names no library:
- * it holds these objects through the shapes of `resources.ts` and hands them back here.
+ * picks on a machine that grants no WebGPU device. Its image is drawn by the engine's own
+ * program (`../webgl/cluster/sceneDraw.ts`), which reads the display graph by shape, so a
+ * resident page is a mesh of the engine's own graph (`graph/`), holding a geometry of that graph
+ * and the declaration it was collected with. The path itself (`../backend/autonomous/`) holds
+ * these objects through the shapes of `resources.ts` and hands them back here.
  *
  * Nothing is decided here: the pose, the component counts, the box and the surface parameters
- * all arrive computed. And every value handed to a host method below is an object THIS file
- * built: `Object3D.add` drops any node that does not carry the host's own `isObject3D` brand,
- * silently, so `hostPageMesh` is the single writer of the mesh a page is drawn as.
+ * all arrive computed.
  */
-import * as THREE from 'three';
 import type { Material } from '../../../sdk-core/src/index.ts';
-import type { HostDrawScene } from './scene/graphNodes.ts';
-import {
-  asHostLibrary,
-  type HostGeometry,
-  type HostMaterial,
-  type HostMaterials,
-  type HostMesh,
-} from './resources.ts';
+import type { HostGeometry, HostMaterial, HostMaterials } from './resources.ts';
 import type { HostGraphGeometry } from './scene/graphResources.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
-import { hostSide } from '../scene/materialSide.ts';
 import { geometryBytes } from '../scene/meshes.ts';
-import { setGeometryBounds } from './three/bounds.ts';
+import { hostSide } from '../scene/materialSide.ts';
+import { setGeometryBounds } from './geometryBounds.ts';
+import { GraphScene } from './graph/scene.ts';
+import { GraphInstancedMesh, GraphMesh } from './graph/mesh.ts';
+import { GraphGeometry } from './graph/geometry.ts';
+import { GraphAttribute, type GraphArray } from './graph/attributes.ts';
+import { GraphSurface } from './graph/surface.ts';
+import type { GraphNode } from './graph/node.ts';
 
-/** The display graph a backend drawn by the host renderer hangs its pages on, holding from the
- *  start the transparent copies it draws whole (`../cluster/blendCopyMesh.ts`). */
-export function hostPageScene(copies: readonly object[] = []): HostDrawScene {
-  const scene = new THREE.Scene();
-  for (const copy of copies) scene.add(asHostLibrary<THREE.Object3D>(copy));
+type Surfaces = GraphSurface | GraphSurface[];
+
+/** The display graph the page path hangs its pages on, holding from the start the transparent
+ *  copies it draws whole (`../cluster/blendCopyMesh.ts`). */
+export function hostPageScene(copies: readonly object[] = []): GraphScene {
+  const scene = new GraphScene();
+  for (const copy of copies) scene.add(copy as unknown as GraphNode);
   return scene;
 }
 
 /**
  * The mesh one resident page is drawn as: the geometry decoded for it, and the declaration it
  * was collected with — never the engine's surface record, which carries no `visible` flag and
- * would have the host drop every mesh wearing it. The pose is written term by term, so nothing
+ * would have the program skip every mesh wearing it. The pose is written term by term, so nothing
  * recomposes it from a position and a rotation, and the renderer culls nothing again: the cut
  * has already decided which pages are drawn.
  */
@@ -52,10 +47,10 @@ export function hostPageMesh(
   geometry: HostGeometry,
   declaration: HostMaterials,
   renderOrder: number,
-): HostMesh {
-  const mesh = new THREE.Mesh(
-    asHostLibrary<THREE.BufferGeometry>(geometry),
-    asHostLibrary<THREE.Material | THREE.Material[]>(declaration),
+): GraphMesh {
+  const mesh = new GraphMesh(
+    geometry as unknown as GraphGeometry,
+    declaration as unknown as Surfaces,
   );
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
@@ -73,13 +68,12 @@ export function hostPageInstances(
   declaration: HostMaterials,
   renderOrder: number,
   capacity: number,
-): HostMesh {
-  const mesh = new THREE.InstancedMesh(
-    asHostLibrary<THREE.BufferGeometry>(geometry),
-    asHostLibrary<THREE.Material | THREE.Material[]>(declaration),
+): GraphInstancedMesh {
+  const mesh = new GraphInstancedMesh(
+    geometry as unknown as GraphGeometry,
+    declaration as unknown as Surfaces,
     capacity,
   );
-  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -87,30 +81,29 @@ export function hostPageInstances(
 }
 
 /** Placement `index` of an instanced page: the sixteen floats of its row. */
-export const setHostInstance = (mesh: HostMesh, index: number, pose: MatrixElements) => {
-  asHostLibrary<THREE.InstancedMesh>(mesh).instanceMatrix.array.set(pose.elements, index * 16);
+export const setHostInstance = (mesh: GraphInstancedMesh, index: number, pose: MatrixElements) => {
+  mesh.instanceMatrix.array.set(pose.elements, index * 16);
 };
 
 /** How many placements the instanced page draws this frame; its matrices go up once. */
-export const setHostInstanceCount = (mesh: HostMesh, count: number) => {
-  const instanced = asHostLibrary<THREE.InstancedMesh>(mesh);
-  instanced.count = count;
-  instanced.instanceMatrix.needsUpdate = true;
+export const setHostInstanceCount = (mesh: GraphInstancedMesh, count: number) => {
+  mesh.count = count;
+  mesh.instanceMatrix.needsUpdate = true;
 };
 
 /** Gives an instanced page's matrices back; its geometry and surface are released by theirs. */
-export const releaseHostInstances = (mesh: HostMesh) => {
-  asHostLibrary<THREE.InstancedMesh>(mesh).dispose();
+export const releaseHostInstances = (mesh: GraphInstancedMesh) => {
+  mesh.dispose();
 };
 
 /** The pose a drawn page wears: the sixteen floats the engine composed for it. */
-export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
-  asHostLibrary<THREE.Mesh>(mesh).matrix.fromArray(pose.elements);
+export const setHostPose = (mesh: GraphMesh, pose: MatrixElements) => {
+  mesh.matrix.fromArray(pose.elements);
 };
 
 /** The surface a drawn page wears once its primitive has been repainted. */
-export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
-  asHostLibrary<THREE.Mesh>(mesh).material = asHostLibrary<THREE.Material>(declaration);
+export const setHostSurface = (mesh: GraphMesh, declaration: HostMaterials) => {
+  mesh.material = declaration as unknown as Surfaces;
 };
 
 /**
@@ -124,17 +117,17 @@ export function hostPageGeometry(
   min: ArrayLike<number>,
   max: ArrayLike<number>,
 ): HostGeometry {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setIndex(new THREE.BufferAttribute(page.indices, 1));
+  const geometry = new GraphGeometry();
+  geometry.setIndex(new GraphAttribute(page.indices, 1));
   for (const [name, array] of Object.entries(page.attributes))
-    geometry.setAttribute(name, new THREE.BufferAttribute(array, itemSize(name)));
+    geometry.setAttribute(name, new GraphAttribute(array as GraphArray, itemSize(name)));
   setGeometryBounds(geometry, min, max);
   return geometry as unknown as HostGeometry;
 }
 
 /** A page geometry of an instance's own: a copy that shares no buffer with the model's. */
 export const copyHostGeometry = (geometry: HostGeometry): HostGeometry =>
-  asHostLibrary<THREE.BufferGeometry>(geometry).clone() as unknown as HostGeometry;
+  (geometry as unknown as GraphGeometry).clone() as unknown as HostGeometry;
 
 /** Buffers already counted, reused across calls: a page geometry owns its own, so the set is
  *  empty again at every call and nothing is allocated to count one. */
@@ -147,26 +140,31 @@ export function hostPageBytes(geometry: HostGeometry) {
   return geometryBytes(geometry as HostGraphGeometry, counted);
 }
 
-/** Gives a page geometry back to the library that owns it. */
+/** Gives a page geometry back: the draw frees its buffers. */
 export const releaseHostGeometry = (geometry: HostGeometry) => {
-  asHostLibrary<THREE.BufferGeometry>(geometry).dispose();
+  (geometry as unknown as GraphGeometry).dispose();
 };
 
-/** The host surface the engine's own material parameters describe, given back to the library
- *  that will draw with it. The face constant is the host's, named where the engine already
- *  names it (`../scene/materialSide.ts`); nothing else is converted. */
-export function hostPageSurface(material: Material, vertexColors: boolean): HostMaterial {
-  return new THREE.MeshStandardMaterial({
-    color: new THREE.Color(...material.baseColor),
-    emissive: new THREE.Color(...material.emissive),
+/** The standard (or physical) surface the engine's material parameters describe. The face
+ *  constant is the engine's (`../scene/materialSide.ts`); nothing else is converted. */
+export function hostPageSurface(
+  material: Material,
+  vertexColors: boolean,
+  family: 'standard' | 'physical' = 'standard',
+) {
+  const [r, g, b] = material.baseColor,
+    [er, eg, eb] = material.emissive;
+  return new GraphSurface(family, {
+    color: { r, g, b },
+    emissive: { r: er, g: eg, b: eb },
     metalness: material.metalness,
     roughness: material.roughness,
     opacity: material.opacity,
     transparent: material.alphaMode === 'blend',
     alphaTest: material.alphaMode === 'mask' ? material.alphaCutoff : 0,
-    side: asHostLibrary<THREE.Side>(hostSide(material.side)),
+    side: hostSide(material.side),
     vertexColors,
-  });
+  }) as unknown as GraphSurface & HostMaterial;
 }
 
 /**
@@ -187,14 +185,14 @@ export function colouredTwin(
 /** The same surface, reading the colour attribute a decoded page carries: a new clone, or `into`
  *  taking the original's values again once it was repainted in place. */
 export function colouredHostSurface(original: HostMaterial, into?: HostMaterial): HostMaterial {
-  const source = asHostLibrary<THREE.Material>(original);
-  const twin = into ? asHostLibrary<THREE.Material>(into).copy(source) : source.clone();
-  (twin as THREE.MeshStandardMaterial).vertexColors = true;
+  const source = original as unknown as GraphSurface;
+  const twin = into ? (into as unknown as GraphSurface).copy(source) : source.clone();
+  twin.vertexColors = true;
   twin.needsUpdate = true;
-  return twin;
+  return twin as unknown as HostMaterial;
 }
 
-/** Gives a surface this engine built back to the library that owns it. */
+/** Gives a surface this engine built back. */
 export const releaseHostSurface = (material: HostMaterial) => {
-  asHostLibrary<THREE.Material>(material).dispose();
+  (material as unknown as GraphSurface).dispose();
 };

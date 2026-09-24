@@ -4,14 +4,14 @@
 // pass did before it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { linearToSrgb } from '../../../../sdk-core/src/index.ts';
 import type { HostDrawOutput, RenderBackend } from '../../backend/types.ts';
 import { createFrameComposer } from './compose.ts';
 import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 
-const camera = new THREE.PerspectiveCamera();
+const camera = G.perspectiveCamera();
 
 /** An engine that draws on the host surface, recording what it was told. */
 function engine(options: { lit?: boolean; held?: boolean; background?: unknown } = {}) {

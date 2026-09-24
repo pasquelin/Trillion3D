@@ -6,17 +6,28 @@ import {
   frustumExcludesBox,
 } from '../../../../sdk-core/src/index.ts';
 import { multiplyMatrix4 } from './matrices.ts';
+import { placementsSphere } from './meshDepth.ts';
 import { readHostBox } from '../../host/boxBounds.ts';
 import { isTransmissive } from '../../visibility/shader/material.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 
-/** What the cull reads of a scene copy: its declared culling, its local bounds, its placement. */
+type Centre = { x: number; y: number; z: number };
+/** What the cull reads of a scene copy: its declared culling, its local bounds, its world
+ *  placement — and, drawn at several placements, the placements themselves. */
 type CulledCopy = {
   frustumCulled: boolean;
-  matrix: { elements: ArrayLike<number> };
-  geometry: { boundingBox: Parameters<typeof readHostBox>[1] | null; computeBoundingBox(): void };
+  matrixWorld: { elements: ArrayLike<number> };
+  geometry: {
+    boundingBox: Parameters<typeof readHostBox>[1] | null;
+    computeBoundingBox(): void;
+    boundingSphere?: { center: Centre; radius: number } | null;
+    computeBoundingSphere?(): void;
+  };
+  readonly kind?: string;
+  readonly instanceMatrix?: { readonly array: ArrayLike<number>; readonly version?: number };
+  readonly count?: number;
 };
 /** A scene copy the owner draws: a host mesh drawn whole, culled as the host would. Its
  *  `material` is the HOST MESH's own field, not a page's `declaration`: a diagnostic mode
@@ -40,11 +51,22 @@ class WebglClusterCopyCulling {
   }
   visible(copy: CulledCopy) {
     if (!copy.frustumCulled) return true;
-    if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
     const box = this.box;
-    readHostBox(box, copy.geometry.boundingBox!);
-    boxTransform(box, 0, box, 0, copy.matrix.elements);
+    if (copy.kind === 'instancedMesh' && copy.instanceMatrix) this.placementsBox(copy);
+    else {
+      if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
+      readHostBox(box, copy.geometry.boundingBox!);
+    }
+    boxTransform(box, 0, box, 0, copy.matrixWorld.elements);
     return !frustumExcludesBox(this.planes, box[0], box[1], box[2], box[3], box[4], box[5]);
+  }
+  /** The box around the union of the placements' spheres — the sphere the depth sorts on —
+   *  never the geometry's box alone, which a placement carries elsewhere. */
+  private placementsBox(copy: CulledCopy) {
+    const geometry = copy.geometry;
+    if (!geometry.boundingSphere) geometry.computeBoundingSphere?.();
+    const { centre: c, radius: r } = placementsSphere(copy, geometry.boundingSphere!);
+    this.box.set([c.x - r, c.y - r, c.z - r, c.x + r, c.y + r, c.z + r]);
   }
 }
 

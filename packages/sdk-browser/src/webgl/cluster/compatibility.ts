@@ -1,4 +1,4 @@
-import type { BatchPage } from '../../cluster/batches.ts';
+import type { BatchPage } from '../../cluster/batchRange.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
 import { isTransmissive } from '../../visibility/shader/material.ts';
 import { unsupportedClusterLight, type WebglClusterScene } from './lights.ts';

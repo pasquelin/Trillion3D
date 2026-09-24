@@ -5,15 +5,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import { hookHostNode, unhookHostNode } from './hooks.ts';
 import type { WriteRevision } from './hookCore.ts';
 
 const mark = (): WriteRevision => ({ revision: 0 });
 
 function hooked() {
-  const parent = new THREE.Group();
-  const mesh = new THREE.Mesh();
+  const parent = new G.GraphGroup();
+  const mesh = G.mesh();
   parent.add(mesh);
   const revision = mark();
   for (const node of [parent, mesh]) hookHostNode(node, revision);
@@ -29,7 +29,8 @@ const WRITES: Array<{ name: string; write: (s: Scene) => void }> = [
   { name: 'a rotation Euler component', write: ({ mesh }) => void (mesh.rotation.y = 1) },
   {
     name: 'quaternion.setFromAxisAngle',
-    write: ({ mesh }) => void mesh.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 1),
+    write: ({ mesh }) =>
+      void mesh.quaternion.copy(new G.Quaternion().setFromAxisAngle(new G.Vector3(0, 1, 0), 1)),
   },
   { name: 'an ancestor pose', write: ({ parent }) => void (parent.position.z = -4) },
 ];
@@ -45,22 +46,22 @@ for (const { name, write } of WRITES)
   });
 
 test('a vector the host kept from before the hook still drives the node, and is seen', () => {
-  const mesh = new THREE.Mesh();
+  const mesh = G.mesh();
   const kept = mesh.position;
   const revision = mark();
   hookHostNode(mesh, revision);
   kept.x = 5;
   kept.fromArray([5, 6, 7]);
   assert.equal(revision.revision, 3, 'each write through the kept object bumps');
-  assert.deepEqual(mesh.position.toArray(), [5, 6, 7], 'the node reads what was written');
-  assert.deepEqual(kept.toArray(), [5, 6, 7], 'and the kept object reads the node');
+  assert.deepEqual(G.xyz(mesh.position), [5, 6, 7], 'the node reads what was written');
+  assert.deepEqual(G.xyz(kept), [5, 6, 7], 'and the kept object reads the node');
 });
 
 test('a hooked node and its vectors keep fast properties for the reference to walk', () => {
   const probe = `
-    import * as THREE from 'three';
+    import * as G from ${JSON.stringify(new URL('../graph/graph.fixture.ts', import.meta.url).href)};
     import { hookHostNode } from ${JSON.stringify(new URL('./hooks.ts', import.meta.url).href)};
-    const mesh = new THREE.Mesh();
+    const mesh = G.mesh();
     hookHostNode(mesh, { revision: 0 });
     mesh.position.x = 1;
     console.log(JSON.stringify([mesh, mesh.position, mesh.scale].map((o) => %HasFastProperties(o))));`;
@@ -104,17 +105,13 @@ test('the hooked fields read back what was written, for the host and for the ref
   mesh.position.set(1, 2, 3);
   mesh.rotation.set(0.1, 0.2, 0.3);
   mesh.scale.set(2, 2, 2);
-  const twin = new THREE.Mesh();
+  const twin = G.mesh();
   twin.position.set(1, 2, 3);
   twin.rotation.set(0.1, 0.2, 0.3);
   twin.scale.set(2, 2, 2);
   mesh.updateMatrix();
   twin.updateMatrix();
   assert.deepEqual(mesh.matrix.elements, twin.matrix.elements, 'the same composed matrix');
-  assert.ok(mesh.position.isVector3 && mesh.position instanceof THREE.Vector3);
-  assert.deepEqual(
-    mesh.clone().position.toArray(),
-    [1, 2, 3],
-    'a clone copies through the accessors',
-  );
+  assert.ok(mesh.position instanceof G.GraphVector);
+  assert.deepEqual(G.xyz(mesh.clone().position), [1, 2, 3], 'a clone copies through the accessors');
 });

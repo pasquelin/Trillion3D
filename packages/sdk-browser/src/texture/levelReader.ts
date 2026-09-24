@@ -32,8 +32,8 @@ export const closeTextureLevel = (level: TextureLevel) => {
 /**
  * Reader of a cache's baked levels, built by the explorer that knows the manifest address; the
  * engine itself only receives the function. A lossless level decodes as the browser does, off
- * the main thread, with exactly the options Three's glTF loader uses for the source image
- * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`): the bytes that reach the atlas
+ * the main thread, with exactly the options the prepared scene decodes its source images with
+ * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the bytes that reach the atlas
  * by this path are those that reached it by the other. A block level is read as bytes; the
  * write that cuts tiles from it checks their length against the level's geometry.
  */

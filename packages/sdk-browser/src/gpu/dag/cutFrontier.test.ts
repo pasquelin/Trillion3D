@@ -16,7 +16,7 @@
 import test from 'node:test';
 import { asHostLibrary } from '../../host/resources.ts';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection, packedWorldsToRenderOrigin } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
@@ -33,7 +33,7 @@ const pages = scenePages(16384, 8);
 function montage(parNiveaux: boolean) {
   const roots = sceneRoots(
     pages,
-    Array.from({ length: 12 }, () => new THREE.Matrix4()),
+    Array.from({ length: 12 }, () => new G.Matrix4()),
     parNiveaux,
   );
   // Packing derives page bounds and stores the floor in the node
@@ -44,7 +44,7 @@ const MONTAGES = [
   ['packing hierarchy', montage(false)],
   ['compiler hierarchy (one node per level)', montage(true)],
 ] as const;
-const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 
 /** One frame: camera set, world matrices rebased on the eye, then counted descent. */
 function image(
@@ -56,7 +56,7 @@ function image(
 ) {
   const { roots, packed } = m;
   for (let w = 0; w < roots.length; w++)
-    asHostLibrary<THREE.Matrix4>(roots[w].world).makeTranslation(
+    asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
       (w % 4) * 6.5 - 9.75 + deplacement,
       Math.floor(w / 4) * 6.5 - 6.5,
       0,

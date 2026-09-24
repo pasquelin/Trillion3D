@@ -7,13 +7,13 @@
 // strictly identical.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createSelectionResult, selectVisiblePages } from '../selection/selection.ts';
 import { dag, racine, type DagPage } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
 function camera() {
-  const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
+  const cam = G.perspectiveCamera(60, 16 / 9, 0.1, 200);
   cam.position.set(0, 0, 9);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -35,7 +35,7 @@ function ask(pixelError: number, pageBudget: number) {
  *  result length alone decides whether it is redone at double the threshold. */
 function relanceComplete(
   roots: ReturnType<typeof racine>[],
-  cam: THREE.PerspectiveCamera,
+  cam: G.GraphCamera,
   pixelError0: number,
   budget: number,
 ) {

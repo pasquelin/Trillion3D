@@ -107,9 +107,9 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
-  /** Whether the glTF loader opens the source images. `'cache'`, the default: an image whose
+  /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
-   *  levels, which it does whatever this option says. `'host'`: the loader reads and decodes
+   *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
    *  every source image, what an engine that draws the host scene (the Three witness)
    *  requires; the engine still reads the baked levels, so such a session pays for the images
    *  twice and asks for them on purpose. `'cache'` holds only where every mounted backend

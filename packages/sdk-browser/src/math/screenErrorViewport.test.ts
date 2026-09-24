@@ -4,7 +4,7 @@
 // generale views, one triangle count on both sides (#11); proved here at the formula site.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { maxStretch } from '../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
 import { cutSelects, projectedClusterError } from '../page/selection/math.ts';
@@ -14,7 +14,7 @@ const FULL: [number, number] = [2496, 1404],
   HALF: [number, number] = [1248, 702];
 
 function camera() {
-  const cam = new THREE.PerspectiveCamera(55, FULL[0] / FULL[1], 0.05, 2000);
+  const cam = G.perspectiveCamera(55, FULL[0] / FULL[1], 0.05, 2000);
   cam.position.set(3, 1.6, 7);
   cam.lookAt(-4, 1, -20);
   cam.updateMatrixWorld(true);

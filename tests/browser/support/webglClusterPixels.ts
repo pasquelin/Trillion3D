@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
@@ -15,27 +15,21 @@ export function pixel(gl: WebGL2RenderingContext, x = 16, y = 16): number[] {
 
 /** A quad facing the camera at depth `z`, with the normal a lit surface needs. */
 export const quad = (z: number, half = 1) => {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
-      [-half, -half, z, half, -half, z, half, half, z, -half, half, z],
-      3,
-    ),
+    G.floatAttribute([-half, -half, z, half, -half, z, half, half, z, -half, half, z], 3),
   );
-  geometry.setAttribute(
-    'normal',
-    new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3),
-  );
+  geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
   // A 32-bit index, the one the owner's multi-draw ranges address.
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2, 0, 2, 3]), 1));
+  geometry.setIndex(new G.GraphAttribute(new Uint32Array([0, 1, 2, 0, 2, 3]), 1));
   return geometry;
 };
 
 /** A batch record as the owner receives it: index ranges given in indices, held in bytes. */
 export const clusterRecord = (
-  geometry: THREE.BufferGeometry,
-  material: THREE.Material | THREE.Material[],
+  geometry: G.GraphGeometry,
+  material: G.GraphSurface | G.GraphSurface[],
   starts: number[] = [0],
   counts: number[] = [6],
 ): ClusterDrawMesh => {
@@ -54,7 +48,7 @@ export const clusterRecord = (
 };
 
 /** A `ClusterDrawMesh` matrix field, `elements` a `Float64Array` as the renderer reads it, kept
- *  in sync with a private `THREE.Matrix4` so a proof can still pose it with the usual helpers. */
+ *  in sync with a private `G.Matrix4` so a proof can still pose it with the usual helpers. */
 export interface DrawMatrix {
   elements: Float64Array<ArrayBuffer>;
   makeTranslation(x: number, y: number, z: number): void;
@@ -65,7 +59,7 @@ export interface DrawMatrix {
 
 export function drawMatrix(): DrawMatrix {
   // Identity from the start, as a host matrix is: a zero matrix collapses every vertex to one point.
-  const scratch = new THREE.Matrix4(),
+  const scratch = new G.Matrix4(),
     elements = new Float64Array(scratch.elements);
   const sync = () => elements.set(scratch.elements);
   return {
@@ -101,11 +95,11 @@ export function mountClusterRenderer() {
   const gl = canvas.getContext('webgl2');
   if (!gl) return null;
   gl.viewport(0, 0, 32, 32);
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10);
+  const camera = G.perspectiveCamera(60, 1, 0.1, 10);
   return {
     gl,
     renderer: new WebglClusterRenderer(gl),
-    scene: new THREE.Scene(),
+    scene: new G.GraphScene(),
     camera,
     drawCamera: readHostDrawCamera(createHostDrawCamera(), camera),
   };

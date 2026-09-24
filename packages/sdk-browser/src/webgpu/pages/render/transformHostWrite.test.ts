@@ -4,16 +4,16 @@
 // its old world, corners and windings in the visibility table while the GPU cut saw it moved.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { setWebgpuTransform } from './transform.ts';
 import { runtime } from '../../core/transformShear.fixture.ts';
 import { hostWorldPlacements } from '../../../host/world/placements.ts';
 
 /** Two drawn models, A and B, watched by the gate as the first image leaves them. */
 function twoModels() {
-  const source = new THREE.Object3D(),
-    a = new THREE.Mesh(),
-    b = new THREE.Mesh();
+  const source = new G.GraphGroup(),
+    a = G.mesh(),
+    b = G.mesh();
   a.name = 'A';
   b.name = 'B';
   source.add(a, b);

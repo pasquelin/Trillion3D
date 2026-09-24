@@ -1,5 +1,5 @@
 import test from 'node:test';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
@@ -59,7 +59,7 @@ test('a repaint writes a map’s sampling and placement in place, nothing sent a
     ['repeat', 'nearest', 'nearest-mip-nearest', 8],
   );
   assert.deepEqual([record.sampling, record.placement], [sampling + 1, placement + 1]);
-  const [a, b, , c] = record.transform;
+  const [a, b, , c] = Array.from(record.transform);
   assert.ok(Math.abs(a - 4 * Math.cos(Math.PI / 6)) < 1e-9, 'repeat and rotation composed');
   assert.ok(Math.abs(b + 4 * Math.sin(Math.PI / 6)) < 1e-9);
   assert.ok(Math.abs(c - 4 * Math.sin(Math.PI / 6)) < 1e-9);
@@ -84,7 +84,7 @@ test('a repaint sends a map’s picture again at every version, with its values'
     assert.ok(host.version > version, `${change}: sent again`);
     assert.equal(host.image, map.image, 'the picture the texture shows');
     assert.ok((surface.version as number) > surfaceVersion, 'the values written');
-    assert.equal((surface.color as THREE.Color).getHex(), 0xff0000);
+    assert.equal((surface.color as G.Color).getHex(), 0xff0000);
   }
 });
 

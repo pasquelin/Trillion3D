@@ -1,4 +1,5 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
+import type { GraphMesh } from '../../host/graph/mesh.ts';
 import type {
   HostAttributes,
   HostGeometry,
@@ -61,7 +62,8 @@ export type PageRec = {
   windingEpoch?: number;
   renderOrder: number;
   geometry?: HostGeometry;
-  mesh?: HostMesh;
+  /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
+  mesh?: GraphMesh;
   attached: boolean;
   resident?: boolean;
   cone?: NormalCone;

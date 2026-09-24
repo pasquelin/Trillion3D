@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { createProjectionHold } from './projectionHold.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 
 function camera() {
-  const view = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
+  const view = G.perspectiveCamera(55, 16 / 9, 0.1, 1000);
   view.position.set(0, 1, 5);
   view.updateMatrixWorld();
   return view;
@@ -61,7 +61,7 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
     // host is not required to walk anything up. The cache must still start over, otherwise the
     // Hi-Z test would receive the previous view's rectangles.
     const { hold, view } = settled();
-    const rig = new THREE.Group();
+    const rig = new G.GraphGroup();
     rig.add(view);
     rig.position.x = 3;
     hold.reframe(cameraMoteur(view), 1280, 720, 1);

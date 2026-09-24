@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   dagFixture,
   wideCamera,
@@ -24,7 +24,7 @@ export function fixture() {
       { url: 'bundle-mid', sha256: 'mid', bytes: 24, count: 2 },
     ],
   };
-  return { ...scene, material: scene.mesh.material as THREE.Material };
+  return { ...scene, material: scene.mesh.material as G.GraphSurface };
 }
 
 export function camera() {

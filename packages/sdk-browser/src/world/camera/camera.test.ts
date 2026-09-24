@@ -7,14 +7,17 @@ import * as THREE from 'three';
 import { createExplorerCamera } from './camera.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
+import * as G from '../../host/graph/graph.fixture.ts';
+import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement;
 
 /** The old non-autonomous path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
-function referenceFraming(source: THREE.Object3D) {
+function referenceFraming(graph: G.GraphNode) {
+  const source = threeGraph(graph);
   const bounds = new THREE.Box3();
   source.updateMatrixWorld(true); // the old `objects()` of ../../scene/meshes.ts resolved the subtree before walking it
-  source.traverse((o) => {
+  source.traverse((o: THREE.Object3D) => {
     if ((o as THREE.Mesh).isMesh) bounds.expandByObject(o as THREE.Mesh);
   });
   const center = bounds.getCenter(new THREE.Vector3()),
@@ -24,16 +27,16 @@ function referenceFraming(source: THREE.Object3D) {
 
 /** Hostile subtree, depth 3: negative then non-uniform scale. */
 function hostileScene() {
-  const racine = new THREE.Group();
+  const racine = new G.GraphGroup();
   racine.scale.set(-3, 1, 1);
-  const enfant = new THREE.Group();
+  const enfant = new G.GraphGroup();
   enfant.position.set(2, -4, 6);
   enfant.scale.set(1, 0.25, 5);
   racine.add(enfant);
-  const petitEnfant = new THREE.Group();
+  const petitEnfant = new G.GraphGroup();
   petitEnfant.position.set(1, 1, 1);
   enfant.add(petitEnfant);
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 4), new THREE.MeshBasicMaterial());
+  const mesh = G.mesh(G.boxGeometry(2, 3, 4), G.basicSurface());
   mesh.position.set(-1, 2, -3);
   petitEnfant.add(mesh);
   return racine;
@@ -62,16 +65,16 @@ test('createExplorerCamera (non-autonomous) yields the same bounds, centre and r
   assert.ok(Object.is(rendu.radius, radius), `rayon : ${rendu.radius} !== ${radius}`);
 });
 
-test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference exactPagesBounds/expandByObject', () => {
-  const geometry = new THREE.BufferGeometry();
-  const source = new THREE.Group();
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference pagesBounds/expandByObject', () => {
+  const geometry = new G.GraphGeometry();
+  const source = new G.GraphGroup();
+  const mesh = G.mesh(geometry, G.basicSurface());
   mesh.position.set(4, -2, 0);
   source.add(mesh);
   const metadata = {
     primitives: [{ mesh: 0, primitive: 0, pages: [{ id: 0, min: [-1, -1, -1], max: [1, 1, 1] }] }],
   } as unknown as ClusterManifest;
-  const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
   const rendu = createExplorerCamera(source, true, associations, metadata, canvas, {
@@ -80,19 +83,18 @@ test('createExplorerCamera (autonomous) yields the same bounds, centre and radiu
   // Reference: the same page transformed by the mesh world matrix, via Box3.applyMatrix4.
   // The witness resolves the graph itself: since batch 8, the engine no longer composes the host's.
   source.updateMatrixWorld(true);
-  const attendu = new THREE.Box3(
-    new THREE.Vector3(-1, -1, -1),
-    new THREE.Vector3(1, 1, 1),
-  ).applyMatrix4(mesh.matrixWorld);
-  const center = attendu.getCenter(new THREE.Vector3()),
-    radius = attendu.getSize(new THREE.Vector3()).length() / 2;
+  const attendu = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1)).applyMatrix4(
+    mesh.matrixWorld,
+  );
+  const center = attendu.getCenter(new G.Vector3()),
+    radius = attendu.getSize(new G.Vector3()).length() / 2;
   assertBits([rendu.center.x, rendu.center.y, rendu.center.z], [center.x, center.y, center.z]);
   assert.ok(Object.is(rendu.radius, radius));
 });
 
 test('createExplorerCamera throws on a scene with no geometry, empty bounds', () => {
-  const source = new THREE.Group();
-  source.add(new THREE.Group());
+  const source = new G.GraphGroup();
+  source.add(new G.GraphGroup());
   assert.throws(
     () =>
       createExplorerCamera(

@@ -1,9 +1,11 @@
 /**
- * THE MEASUREMENT ENTRY. What the bench, the proofs and the comparison views name and a host
- * never does: the engine paths and the witnesses they are compared against, and the session
- * that takes an explicit list of them — beside everything the published entry exports. The
- * published entry (`../index.ts`) draws with one code and lets the engine choose the path; this one
- * exists so the witnesses stay nameable for the campaigns without being handed to every page.
+ * THE MEASUREMENT SEAM. What the bench, the proofs and the comparison views name and a host
+ * never does: the engine's own paths, and the session that takes an explicit list of backends —
+ * beside everything the published entry exports. The published entry (`../index.ts`) draws with
+ * one code and lets the engine choose the path; this one lets a caller hand the session any
+ * `BackendFactory` it likes. The witnesses the engine is compared against are such factories, and
+ * they live beside the bench, not here: `bench/witnesses/measurement.ts` re-exports this entry
+ * with them added. Nothing reached from this file imports the host library.
  */
 export * from '../index.ts';
 import { openMeasuredWorld } from '../world/session/explorer.ts';
@@ -16,9 +18,6 @@ export type { MeasuredWorldTarget } from '../world/session/target.ts';
 export type { RenderBackend, BackendFactory, MeasuredWorldOptions } from '../backend/types.ts';
 export { replicateInstances } from '../scene/replicateInstances.ts';
 export { autonomousPagesBackend } from '../backend/autonomous/pages.ts';
-export { referenceBackend } from '../backend/referenceBackend.ts';
-export { exactPagesBackend } from '../backend/exact/backend.ts';
-export { threeLodBackend } from '../host/three/lod.ts';
 export { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
 
 /** Browser job adapter. A completed session is owned by the caller; cancel/fail after construct disposes it. */

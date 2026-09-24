@@ -28,6 +28,7 @@
   "files": [
     "dist",
     "!dist/site",
+    "!dist/witnesses",
     "README.md",
     "docs/SDK.md",
     "LICENSE",
@@ -36,7 +37,7 @@
   ],
   "scripts": {
     "pnpm:devPreinstall": "node scripts/setup-development.ts",
-    "build": "node -e \"for (const p of ['sdk', 'sdk-core', 'sdk-browser', 'sdk-node']) require('fs').rmSync('dist/' + p, { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.ts && node scripts/copy-resources.ts && node scripts/write-build-provenance.ts",
+    "build": "node -e \"for (const p of ['sdk', 'sdk-core', 'sdk-browser', 'sdk-node', 'witnesses']) require('fs').rmSync('dist/' + p, { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.ts && node scripts/copy-resources.ts && node scripts/write-build-provenance.ts && node scripts/build-witnesses.ts",
     "build:native": "cargo build --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "build:wasm": "node scripts/build-wasm.ts",
     "build:physics": "node scripts/build-physics-wasm.ts",
@@ -94,9 +95,6 @@
       "bench/core/**",
       "site/assets/**"
     ]
-  },
-  "peerDependencies": {
-    "three": "^0.174.0"
   },
   "dependencies": {
     "meshoptimizer": "~0.18.1"

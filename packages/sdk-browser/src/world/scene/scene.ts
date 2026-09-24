@@ -1,10 +1,8 @@
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { meshes as objects } from '../../scene/meshes.ts';
 import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import { assertFiniteTransform } from '../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { exactPagesBounds, exactPagesLot } from '../../backend/exact/bounds.ts';
+import { pagesBounds, pagesLot } from './pagesBounds.ts';
 import { replicateInstances } from '../../scene/replicateInstances.ts';
 import { hostBoundsLot, hostWorldBounds } from '../../host/world/bounds.ts';
 import { hostWorldLot } from '../../host/world/tree.ts';
@@ -17,9 +15,8 @@ import { createMultiplyLot } from '../../math/batchRuntime.ts';
 import { prepareMathBatch } from '../../math/batchState.ts';
 import type { BackendContext, MeasuredWorldOptions } from '../../backend/types.ts';
 import type { ExplorerEmitters } from '../session/session.ts';
-import { checked } from '../../cluster/pages.ts';
-import { bakedImageUrls, PLACEHOLDER_IMAGE } from '../../texture/skip.ts';
-import { checkPreparedScene, loadPreparedSceneTables } from '../../scene/tables.ts';
+import { loadPreparedSceneTables } from '../../scene/tables.ts';
+import { buildPreparedScene } from '../../host/prepared/build.ts';
 
 /** World matrix of a mesh at load, reused from mesh to mesh. */
 const monde = new Float64Array(MATRIX_VALUES);
@@ -39,7 +36,35 @@ function sceneBoundsLot(
   metadata: ClusterManifest,
   autonomous: boolean,
 ) {
-  return autonomous ? exactPagesLot(source, associations, metadata) : hostBoundsLot(source);
+  return autonomous ? pagesLot(source, associations, metadata) : hostBoundsLot(source);
+}
+
+/** Counts the resources a preparation reads, and tells the host of each as it lands. */
+function resourceProgress(
+  options: MeasuredWorldOptions,
+  diagnose: ExplorerEmitters['diagnose'],
+  scope: string,
+  signal: AbortSignal | undefined,
+) {
+  let total = 0,
+    completed = 0;
+  return <T>(resource: string, read: Promise<T>) => {
+    total++;
+    return read.finally(() => {
+      completed++;
+      if (signal?.aborted) return;
+      const message = `Loaded resource: ${decodeURIComponent(resource.split('/').at(-1) ?? resource)}`;
+      options.onPreparation?.({ phase: 'resources', completed, total, message });
+      diagnose('preparation', message, {
+        kind: 'preparation',
+        phase: 'resources',
+        completed,
+        total,
+        resource,
+        scope,
+      });
+    });
+  };
 }
 
 export async function loadPreparedScene(
@@ -57,50 +82,43 @@ export async function loadPreparedScene(
   // first lot, and `configureExplorer` will tell it again without changing anything. Module
   // load starts here and overlaps with the scene's, which lasts much longer.
   const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
-  const manager = new THREE.LoadingManager();
-  manager.onProgress = (_url, loaded, total) => {
-    if (!signal?.aborted) {
-      const message = `Loaded resource: ${decodeURIComponent(_url.split('/').at(-1) ?? _url)}`;
-      options.onPreparation?.({ phase: 'resources', completed: loaded, total, message });
-      diagnose('preparation', message, {
-        kind: 'preparation',
-        phase: 'resources',
-        completed: loaded,
-        total,
-        resource: _url,
-        scope,
-      });
-    }
-  };
-  // Images whose chain is baked are not read: the loader receives a white pixel in their
-  // place, and the engine reads their levels from the cache — which it does either way, so
-  // fetching them here would buy nothing. `textureSource` arrives resolved against the paths
-  // that will draw (`resolveTextureSource`): it reads `'host'` wherever one of them samples
-  // the images themselves, and the images are then read as they always were.
-  // GLTFLoader has no AbortSignal in this Three version; dispose late results after loading settles.
-  const sceneUrl = new URL(sceneFile, base).href;
-  const loader = new GLTFLoader(manager);
-  let gltf: Awaited<ReturnType<GLTFLoader['loadAsync']>>;
-  if (options.textureSource !== 'host' && metadata.textures) {
-    // The glTF is read once, here: its image list says which to skip, then the loader parses
-    // it as-is, without asking the network again.
-    const text = await (await checked(sceneUrl, signal)).text();
-    const gltfJson = JSON.parse(text) as { images?: { uri?: string }[] };
-    // The address to skip is the one the loader will ask for, by its own resolution rule.
-    const path = THREE.LoaderUtils.extractUrlBase(sceneUrl);
-    const skipped = bakedImageUrls(metadata, gltfJson.images, (uri) =>
-      THREE.LoaderUtils.resolveURL(uri, path),
-    );
-    diagnose('preparation', `Images read from the cache: ${skipped.size}`, {
+  // The scene is built from the cache alone: its tables, the binary of the document it draws and
+  // the images they locate. Images whose chain is baked are not read: a white pixel stands in
+  // their place, and the engine reads their levels from the cache — which it does either way.
+  // `textureSource` arrives resolved against the paths that will draw (`resolveTextureSource`):
+  // it reads `'host'` wherever one of them samples the images themselves.
+  const readAt = performance.now();
+  const { tables, bytes } = await loadPreparedSceneTables(base, signal);
+  const buildAt = performance.now();
+  const skipBaked = options.textureSource !== 'host';
+  const built = await buildPreparedScene({
+    tables,
+    metadata,
+    sceneFile,
+    base,
+    skipBaked,
+    signal,
+    track: resourceProgress(options, diagnose, scope, signal),
+  });
+  if (skipBaked && metadata.textures)
+    diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
       kind: 'preparation',
       phase: 'resources',
-      bakedImages: skipped.size,
+      bakedImages: built.bakedImages,
       scope,
     });
-    manager.setURLModifier((url) => (skipped.has(url) ? PLACEHOLDER_IMAGE : url));
-    gltf = await loader.parseAsync(text, path);
-  } else gltf = await loader.loadAsync(sceneUrl);
-  let source: HostGraphNode = gltf.scene;
+  const { associations, textureIndices } = built;
+  let source = built.source;
+  diagnose('prepared-scene', 'Scene built from the cache tables', {
+    kind: 'preparation',
+    scope,
+    nodes: tables.nodes.length,
+    materials: tables.materials.length,
+    textures: textureIndices.size,
+    bytes,
+    readMs: buildAt - readAt,
+    buildMs: performance.now() - buildAt,
+  });
   registerSource(source);
   // No non-finite pose enters the engine: each mesh world matrix is computed once by the
   // engine, from the host's local poses. Without this refusal, a host NaN would come out as
@@ -109,46 +127,6 @@ export async function loadPreparedScene(
     assertFiniteTransform(hostWorldChainInto(monde, mesh), mesh.name);
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
-  const associations = gltf.parser.associations as BackendContext['associations'];
-  // The sidecar names its previews by glTF texture rank; that is the only table that ties
-  // them to the objects the loader built.
-  const textureIndices = new Map<THREE.Texture, number>();
-  for (const [object, reference] of gltf.parser.associations as Map<object, { textures?: number }>)
-    if (object instanceof THREE.Texture && typeof reference?.textures === 'number')
-      textureIndices.set(object, reference.textures);
-  // The source each image record names, which is what the loader keys its texture cache on: a
-  // document may name one file from several records, and the check has to read the two ranks
-  // that folded into one object as the loader read them. The kind is part of the key, so no
-  // address can read as a buffer view.
-  const images = (gltf.parser.json as { images?: { uri?: string; bufferView?: number }[] }).images;
-  const imageSources = (images ?? []).map((image) =>
-    image.uri !== undefined
-      ? `uri:${image.uri}`
-      : typeof image.bufferView === 'number'
-        ? `view:${image.bufferView}`
-        : null,
-  );
-  // What the cache says this scene is, checked against the scene just built — before any
-  // replication, which is the host's own copy of it. This batch draws nothing from the tables:
-  // it proves them, and a divergence refuses the session by name rather than passing silently.
-  const readAt = performance.now();
-  const { tables, bytes } = await loadPreparedSceneTables(base, signal);
-  const checkAt = performance.now();
-  const agreement = checkPreparedScene({
-    tables,
-    source,
-    associations,
-    textureIndices,
-    imageSources,
-  });
-  diagnose('prepared-scene', 'Cache tables checked against the loaded scene', {
-    kind: 'preparation',
-    scope,
-    ...agreement,
-    bytes,
-    readMs: checkAt - readAt,
-    checkMs: performance.now() - checkAt,
-  });
   await calculEnLot;
   const replicas = options.replicaCount ?? 1;
   // Load buffers, reserved before they are written and returned as soon as they are read:
@@ -161,7 +139,7 @@ export async function loadPreparedScene(
   // Buffer of the world matrices the engine composes itself, at the subtree size.
   const mondes = !autonomous && replicas > 1 ? await hostWorldLot(source) : null;
   const preparedBounds = autonomous
-    ? exactPagesBounds(source, associations, metadata, manquante, undefined, bornes)
+    ? pagesBounds(source, associations, metadata, manquante, undefined, bornes)
     : replicas > 1
       ? hostWorldBounds(source, undefined, bornes, mondes)
       : undefined;

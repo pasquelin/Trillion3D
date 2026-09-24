@@ -1,7 +1,7 @@
 // Batch F fixtures: a cluster manifest and the Three.js scene that goes with it, drawn from a
 // seeded generator. Loading reads them once, so the fixture must be large: hundreds of
 // primitives, thousands of pages, and the exact coverage the collector checks.
-import * as THREE from 'three';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { graine } from '../../../core/index.ts';
 import { materiau, porte } from './scenesCut.ts';
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
@@ -87,8 +87,8 @@ export function manifesteEtScene({
   seed = 4201,
 }: { primitives?: number; pages?: number; triangles?: number; seed?: number } = {}) {
   const alea = graine(seed);
-  const source = new THREE.Group();
-  const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>();
+  const source = new G.GraphGroup();
+  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>();
   const indices = new Map<string, Uint32Array>();
   const liste: LoadedPrimitive[] = [];
   let idPage = 0;
@@ -118,10 +118,10 @@ export function manifesteEtScene({
       sourceIndex.set(bloc, at);
       at += bloc.length;
     }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setIndex(new THREE.BufferAttribute(sourceIndex, 1));
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sommet * 3), 3));
-    const mesh = new THREE.Mesh(geometry, materiau(p));
+    const geometry = new G.GraphGeometry();
+    geometry.setIndex(new G.GraphAttribute(sourceIndex, 1));
+    geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(sommet * 3), 3));
+    const mesh = G.mesh(geometry, materiau(p));
     mesh.position.set(p % 10, Math.floor(p / 10), 0);
     source.add(mesh);
     associations.set(mesh, { meshes: p, primitives: 0 });
@@ -155,7 +155,7 @@ export function manifesteEtScene({
 }
 
 /** Fields the cones/catalogue paths never read: shared across every fixture page. */
-const DUMMY_MATRIX = new THREE.Matrix4();
+const DUMMY_MATRIX = new G.Matrix4();
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 
 /** Pages of a manifest seen as an engine catalogue: bytes, materials, attributes. */
@@ -166,11 +166,11 @@ export function catalogueDePages({
 }: { pages?: number; materiaux?: number; seed?: number } = {}): PageRec[] {
   const alea = graine(seed);
   const liste: PageRec[] = [];
-  const attributs: { position: THREE.BufferAttribute }[] = [];
+  const attributs: { position: G.GraphAttribute }[] = [];
   for (let i = 0; i < materiaux; i++) {
     const positions = new Float32Array(3 * 3 * 64);
     for (let k = 0; k < positions.length; k++) positions[k] = alea() * 4 - 2;
-    attributs.push({ position: new THREE.BufferAttribute(positions, 3) });
+    attributs.push({ position: new G.GraphAttribute(positions, 3) });
   }
   for (let i = 0; i < pages; i++) {
     const array = i % 9 ? new Uint32Array(3 * (1 + (i % 12))) : undefined;

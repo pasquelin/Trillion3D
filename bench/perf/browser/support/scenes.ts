@@ -2,11 +2,11 @@ import { surfaceOf, type PageSurface } from '../../../../packages/sdk-browser/sr
 // Bench inputs: realistic (a cut of thousands of pages in front of a camera) and hostile
 // (degenerate triangles, vertices behind the camera, NaN, Infinity, -0, empty or inverted boxes).
 // Everything comes from a seeded generator: two runs see the exact same floats.
-import * as THREE from 'three';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { graine } from '../../../core/index.ts';
 
 export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
-  const cam = new THREE.PerspectiveCamera(55, aspect, near, 200);
+  const cam = G.perspectiveCamera(55, aspect, near, 200);
   cam.position.set(0, 0, z);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -18,8 +18,8 @@ const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 /** A page of triangles as `coupe` produces it: geometry, material and its world-space box. */
 export interface ScenePage {
   array: Uint32Array;
-  attributes: { position: THREE.BufferAttribute };
-  matrix: THREE.Matrix4;
+  attributes: { position: G.GraphAttribute };
+  matrix: G.Matrix4;
   material: PageSurface;
   clusterId: string;
   url: string;
@@ -32,7 +32,7 @@ export interface ScenePage {
 export interface SceneBox {
   min: number[];
   max: number[];
-  matrix: THREE.Matrix4;
+  matrix: G.Matrix4;
   url: string;
   array: Uint32Array;
 }
@@ -50,7 +50,7 @@ function page(
   index: number,
   triangles: number,
   hostile: boolean,
-  material: THREE.Material,
+  material: G.GraphSurface,
   size: number,
 ): ScenePage {
   const positions = new Float32Array(triangles * 3 * 3),
@@ -93,11 +93,11 @@ function page(
     if (!Number.isFinite(min[axe])) min[axe] = 0;
     if (!Number.isFinite(max[axe])) max[axe] = 0;
   }
-  const attributes = { position: new THREE.BufferAttribute(positions, 3) };
+  const attributes = { position: new G.GraphAttribute(positions, 3) };
   return {
     array: indices,
     attributes,
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     material: surfaceOf(material),
     clusterId: `0/0/${index}`,
     url: `page-${index}.bin`,
@@ -121,10 +121,10 @@ export function coupe({
   hostile?: boolean;
   seed?: number;
   size?: number;
-  material?: THREE.Material;
+  material?: G.GraphSurface;
 } = {}): ScenePage[] {
   const alea = graine(seed),
-    mat = material ?? new THREE.MeshBasicMaterial({ color: 0x88aa44 });
+    mat = material ?? G.basicSurface({ color: 0x88aa44 });
   const liste: ScenePage[] = [];
   for (let i = 0; i < pages; i++) liste.push(page(alea, i, triangles, hostile, mat, size));
   return liste;
@@ -165,7 +165,7 @@ export function boites({
     liste.push({
       min,
       max,
-      matrix: new THREE.Matrix4(),
+      matrix: new G.Matrix4(),
       url: `boite-${i}.bin`,
       array: new Uint32Array(3 * (1 + (i % 40))),
     });

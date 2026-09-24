@@ -3,7 +3,7 @@
 // a contract, and these three tests hold both ends — who writes it, who reads it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
 import type { ClusterRoot } from './types.ts';
@@ -13,7 +13,7 @@ import { cameraMoteur } from '../../camera/camera.fixture.ts';
  *  rejects it; ignored, it stays. The material is single-sided, without which cone reject has
  *  nothing to say. */
 function fixtureAvecCone() {
-  const fixture = blendFixture(new THREE.MeshBasicMaterial({ side: THREE.FrontSide }));
+  const fixture = blendFixture(G.basicSurface({ side: G.FRONT_SIDE }));
   const collected = collectClusterPages(
     fixture.source,
     fixture.metadata,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import {
   unpackVisibilityId,
   rasterVisibilityIds,
@@ -13,7 +13,7 @@ import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 
 test('MeshStandardMaterial pure metal retains the punctual specular highlight', () => {
-  const metalMat = new THREE.MeshStandardMaterial({
+  const metalMat = G.standardSurface({
     color: 0xffd700,
     metalness: 1.0,
     roughness: 0.1,
@@ -47,44 +47,41 @@ test('vis shader instances pages from the page table', () => {
 });
 
 test('MASK alpha-test punches a visbuffer hole before shading', () => {
-  const map = new THREE.DataTexture(
+  const map = G.dataTexture(
     new Uint8Array([255, 0, 0, 255, 0, 255, 0, 0, 0, 0, 255, 0, 255, 255, 0, 0]),
     2,
     2,
-    THREE.RGBAFormat,
+    G.HOST_FORMAT_RGBA,
   );
-  map.magFilter = THREE.NearestFilter;
-  map.minFilter = THREE.NearestFilter;
+  map.magFilter = G.HOST_FILTER_NEAREST;
+  map.minFilter = G.HOST_FILTER_NEAREST;
   map.flipY = false;
   map.needsUpdate = true;
-  const mask = new THREE.MeshBasicMaterial({ color: 0xffffff, map, alphaTest: 0.5 });
-  const solid = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  const geometry = new THREE.BufferGeometry();
+  const mask = G.basicSurface({ color: 0xffffff, map, alphaTest: 0.5 });
+  const solid = G.basicSurface({ color: 0x00ff00 });
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
+    G.floatAttribute(
       [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1],
       3,
     ),
   );
   geometry.setAttribute(
     'uv',
-    new THREE.Float32BufferAttribute(
-      [0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0, 0, 1, 0, 1, 1, 0, 1],
-      2,
-    ),
+    G.floatAttribute([0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0, 0, 1, 0, 1, 1, 0, 1], 2),
   );
   const far: VisPage = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     material: surfaceOf(solid),
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([4, 5, 6, 4, 6, 7]),
     attributes: geometry.attributes,
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     material: surfaceOf(mask),
     clusterId: 'near',
   };
@@ -108,7 +105,7 @@ test('standard-material irradiance matches the Three.js linear capture without a
     [0x808080, 1, 0.5, [52, 52, 52]],
     [0x993322, 0, 0.5, [137, 50, 37]],
   ] as const) {
-    const material = new THREE.MeshStandardMaterial({ color, metalness, roughness });
+    const material = G.standardSurface({ color, metalness, roughness });
     const { pages, geometry } = quadPages(material);
     const cam = camera();
     cam.position.z = 3;

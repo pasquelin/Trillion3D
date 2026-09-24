@@ -5,7 +5,7 @@
 // applies, not the one a test recomposes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { createFrameGateCore } from './gateCore.ts';
 import { createWebglFrameGate } from '../webgl/core/frameGate.ts';
 import type { CameraMotion } from '../camera/world.ts';
@@ -23,7 +23,7 @@ const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose;
 
 test('enterFrame copies the pose before the view fingerprint: a rig moved alone, never walked by the host, replays the frame', () => {
   const gate = createWebglFrameGate();
-  const source = new THREE.Object3D();
+  const source = new G.GraphNode();
   const rig = creeRig();
   const motion: CameraMotion = {};
   const image = () => {
@@ -46,7 +46,7 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
 
 test('enterFrame resolves the pose before the adaptive threshold: the measured speed is that of the world eye', () => {
   const gate = createFrameGateCore(1);
-  const source = new THREE.Object3D();
+  const source = new G.GraphNode();
   const rig = creeRig();
   const motion: CameraMotion = {};
   poseRig(rig, DEPLACE_ET_TOURNE, false); // never walked: only `enterFrame` can see it.
@@ -59,7 +59,7 @@ test('enterFrame resolves the pose before the adaptive threshold: the measured s
   );
   assert.notDeepEqual(
     [...(motion.last ?? [])],
-    rig.camera.position.toArray(),
+    G.xyz(rig.camera.position),
     'witness: without prior resolution, this would be the local pose under the rig',
   );
 });
