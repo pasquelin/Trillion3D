@@ -923,9 +923,9 @@
       "WEBGPU_LOST": "WebGPU가 장치를 잃었거나, 장치의 오류로 아무것도 그릴 수 없는 상태가 되었습니다. `render`, `flush` 및 장치가 필요한 읽기에서 발생하며, 진단 `gpu-device-lost`가 이 이름으로 알리고, 이 때문에 세션을 열 수 없었을 때 `world.diagnostic.error`에 나타납니다.",
       "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
+      "PHYSICS_NESTED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
+      "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다."
     }
   },
   "EngineProfiler": {
@@ -1889,10 +1889,10 @@
       "surface": "이 재질에 대한, 엔진 고유의 물리적 표면 기록(`contracts/material.ts`). 물리 계열 밖의 종류는 그 이름을 가진 호스트 계열을 통해 그려지며, 엔진은 그것을 자신의 하나뿐인 라이팅 모델에 매핑한다(`surfaceModel.ts`).",
       "clone": "같은 종류, 같은 값을 가진 새 재질.",
       "dispose": "착용자들을 잊는다: dispose된 재질은 누구도 다시 그리지 않는다.",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "이것을 입은 물체의 물리 재질 프리셋.",
+      "density": "kg/m³, 물체의 질량에 쓰입니다.",
+      "friction": "물리 마찰.",
+      "restitution": "물리 반발."
     }
   },
   "MaterialParameters": {
@@ -2064,7 +2064,7 @@
       "geometry": "메시의 형태; 다른 지오메트리를 설정하면 바뀐다.",
       "material": "메시의 재질, 또는 그룹당 하나씩; 다른 것을 설정하면 바뀐다.",
       "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다.",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "월드 물리의 물체로서의 메시, 아니면 `null`. `'static'`, `'dynamic'`, `'kinematic'` 또는 옵션을 설정하세요. 모양은 지오메트리에서 추론됩니다."
     }
   },
   "Mixer": {
@@ -3962,7 +3962,7 @@
       "texturePoolCeiling": "월드가 요청할 수 있는 최대 텍스처 풀, 바이트 단위.",
       "geometryPool": "지오메트리 페이지용으로 유지되는 GPU 메모리 바이트 수; 설정하면 그 범위가 바뀐다.",
       "texturePool": "텍스처 페이지용으로 유지되는 GPU 메모리 바이트 수; 설정하면 그 범위가 바뀐다.",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "물리의 한계(물체, 삼각형, 장식 물체, 메모리). 시작할 때 한 번 읽으며, 넘으면 `PHYSICS_BUDGET`이 발생합니다."
     }
   },
   "world.diagnostic": {
@@ -4127,7 +4127,7 @@
       "pixelRatio": "화면 픽셀 하나당 이미지 픽셀 수.",
       "controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
       "signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다."
     }
   },
   "WorldPageSource": {
@@ -4760,7 +4760,7 @@
       "options.pixelRatio": "화면 픽셀 하나당 이미지 픽셀 수.",
       "options.controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
       "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다."
     }
   },
   "crossVector3": {
@@ -6987,15 +6987,15 @@
     "description": "방향은 입구에서 단위 벡터로 바뀌므로, 페이지가 준 길이와 관계없이 모든 `distance`는 월드 단위입니다. 숨겨진 하위 트리는 건너뜁니다 — 숨겨진 조상 아래의 루트도 — 그리고 `skip`이 가리키는 노드도 하위 트리와 함께 건너뜁니다: 페이지가 작업에 쓰는 표시이지, 결코 그 내용이 아닙니다."
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "물리의 물체, 중력, 시간(Jolt, worker 안).",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "물체를 시뮬레이션할지 여부. 처음 켜면 물리를 불러옵니다.",
+      "gravity": "m/s² 단위 중력, 살아 있는 벡터. 프리셋(`'earth'`, `'moon'`, `'mars'`, `'none'`)이나 벡터를 설정하세요.",
+      "paused": "시간이 멈췄는지 여부. 쓰기는 여전히 물체에 닿습니다.",
+      "timeScale": "실제 1초당 시뮬레이션 초: 0.25는 슬로 모션입니다.",
+      "budget": "고정 한계(`budget.physics`), 물리가 시작될 때 한 번 읽습니다.",
+      "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`."
     }
   }
 }

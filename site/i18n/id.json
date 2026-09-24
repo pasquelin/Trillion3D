@@ -1639,7 +1639,6 @@
       "sort-and-reduce": "API compute GPU",
       "a-software-rasteriser": "API compute GPU",
       "sound-from-the-gpu": "API compute GPU",
-      "falling-boxes": "integrasi fisika",
       "breaking-things": "integrasi fisika",
       "cloth-and-rope": "integrasi fisika",
       "soft-bodies": "integrasi fisika",

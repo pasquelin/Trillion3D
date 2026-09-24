@@ -930,9 +930,9 @@
       "WEBGPU_LOST": "WebGPU ने अपना डिवाइस खो दिया, या उस पर हुई किसी त्रुटि ने ऐसी स्थिति छोड़ी जिससे कुछ भी नहीं खींचा जा सकता: `render`, `flush` और डिवाइस की ज़रूरत वाली रीडिंग इसे फेंकती हैं, डायग्नॉस्टिक `gpu-device-lost` इसे इसी नाम से बताता है, और जब इस कारण कोई सत्र नहीं खुल सका तो यह `world.diagnostic.error` पर दिखता है।",
       "UNSUPPORTED_SCENE_FORMAT": "सहेजा गया दृश्य किसी दूसरे फ़ॉर्मैट या वर्ज़न का है, या उसमें ऐसा कुछ है जो सहेजा गया दृश्य रख नहीं सकता।",
       "SCENE_NOT_SAVABLE": "सहेजा गया दृश्य किसी दूसरे फ़ॉर्मैट या वर्ज़न का है, या उसमें ऐसा कुछ है जो सहेजा गया दृश्य रख नहीं सकता।",
-      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
-      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+      "PHYSICS_BUDGET": "भौतिकी से उसकी किसी सीमा से आगे माँगा गया (`world.budget.physics`: पिंड, त्रिभुज, सजावटी पिंड, मेमोरी), या कोई गतिशील पिंड दृश्य का सीधा बच्चा नहीं था (`PHYSICS_NESTED`), या भौतिकी मॉड्यूल विफल हुआ (`PHYSICS_FAILED`): `world.physics.error` पर।",
+      "PHYSICS_NESTED": "भौतिकी से उसकी किसी सीमा से आगे माँगा गया (`world.budget.physics`: पिंड, त्रिभुज, सजावटी पिंड, मेमोरी), या कोई गतिशील पिंड दृश्य का सीधा बच्चा नहीं था (`PHYSICS_NESTED`), या भौतिकी मॉड्यूल विफल हुआ (`PHYSICS_FAILED`): `world.physics.error` पर।",
+      "PHYSICS_FAILED": "भौतिकी से उसकी किसी सीमा से आगे माँगा गया (`world.budget.physics`: पिंड, त्रिभुज, सजावटी पिंड, मेमोरी), या कोई गतिशील पिंड दृश्य का सीधा बच्चा नहीं था (`PHYSICS_NESTED`), या भौतिकी मॉड्यूल विफल हुआ (`PHYSICS_FAILED`): `world.physics.error` पर।"
     }
   },
   "EngineProfiler": {
@@ -1894,10 +1894,10 @@
       "surface": "इस सामग्री का इंजन का भौतिक सतह रिकॉर्ड (`contracts/material.ts`)। भौतिक परिवार के बाहर एक तरह होस्ट के उसी नाम वाले परिवार से बनाई जाती है, जिसे इंजन अपने एक रोशनी मॉडल पर मैप करता है (`surfaceModel.ts`)।",
       "clone": "उसी तरह की एक नई सामग्री, वही मान लिए।",
       "dispose": "पहनने वालों को भूल जाता है: फेंकी सामग्री किसी को नहीं रंगती।",
-      "physics": "Physics matter preset of the bodies wearing it.",
-      "density": "kg/m³, for a body's mass.",
-      "friction": "Physics friction.",
-      "restitution": "Physics restitution."
+      "physics": "इसे पहनने वाले पिंडों का भौतिक पदार्थ प्रीसेट।",
+      "density": "kg/m³, पिंड के द्रव्यमान के लिए।",
+      "friction": "भौतिक घर्षण।",
+      "restitution": "भौतिक उछाल।"
     }
   },
   "Material-common": {
@@ -2082,7 +2082,7 @@
       "geometry": "मेश का आकार; बदलने के लिए दूसरी ज्यामिति सेट करें।",
       "material": "मेश की सामग्री, या हर समूह के लिए एक; बदलने के लिए दूसरी सेट करें।",
       "localBounds": "इस नोड की अपनी सामग्री का बॉक्स, लोकल फ़्रेम; एक सादा नोड कुछ नहीं रखता।",
-      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
+      "physics": "दुनिया की भौतिकी में पिंड के रूप में मेश, न हो तो `null`। `'static'`, `'dynamic'`, `'kinematic'` या विकल्प दें; आकार ज्यामिति से निकाला जाता है।"
     }
   },
   "Mixer": {
@@ -4123,7 +4123,7 @@
       "pixelRatio": "प्रति स्क्रीन पिक्सेल कितने इमेज पिक्सेल।",
       "controls": "वह कंट्रोलर जो canvas से कैमरा हिलाता है; `world.controls.kind` इसे बाद में बदलता है।",
       "signal": "सिग्नल रद्द होने पर दुनिया के लोड रोकता है।",
-      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "physics": "भौतिकी चालू करता है (`world.physics`): `true`, या गुरुत्व और बजट। Jolt तभी लोड होता है।"
     }
   },
   "WorldPageSource": {
@@ -4770,7 +4770,7 @@
       "options.pixelRatio": "प्रति स्क्रीन पिक्सेल कितने छवि पिक्सेल।",
       "options.controls": "वह नियंत्रक जो कैनवस से कैमरे को हिलाता है; `world.controls.kind` इसे बाद में बदलता है।",
       "options.signal": "सिग्नल रद्द होने पर world के लोड रोकता है।",
-      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      "options.physics": "भौतिकी चालू करता है (`world.physics`): `true`, या गुरुत्व और बजट। Jolt तभी लोड होता है।"
     }
   },
   "crossVector3": {
@@ -6731,7 +6731,7 @@
       "texturePoolCeiling": "सबसे बड़ा texture पूल जो एक world माँग सकता है, बाइट्स में।",
       "geometryPool": "ज्यामिति पृष्ठों के लिए रखी गई GPU मेमोरी के बाइट्स; लिफ़ाफ़ा बदलने के लिए इसे सेट करें।",
       "texturePool": "texture पृष्ठों के लिए रखी गई GPU मेमोरी के बाइट्स; लिफ़ाफ़ा बदलने के लिए इसे सेट करें।",
-      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      "physics": "भौतिकी की सीमाएँ (पिंड, त्रिभुज, सजावटी पिंड, मेमोरी), शुरू में एक बार पढ़ी जाती हैं; किसी को पार करने पर `PHYSICS_BUDGET` आता है।"
     }
   },
   "world.camera": {
@@ -6988,15 +6988,15 @@
     }
   },
   "world.physics": {
-    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "summary": "भौतिकी के पिंड, गुरुत्व और समय (Jolt, एक worker में)।",
     "members": {
-      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
-      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
-      "paused": "Whether time stands still; writes still reach the bodies.",
-      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
-      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
-      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
-      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      "enabled": "क्या पिंडों का अनुकरण होता है। पहली बार चालू करने पर भौतिकी लोड होती है।",
+      "gravity": "m/s² में गुरुत्व, एक जीवित सदिश; प्रीसेट (`'earth'`, `'moon'`, `'mars'`, `'none'`) या सदिश दें।",
+      "paused": "क्या समय रुका है; लिखावट फिर भी पिंडों तक पहुँचती है।",
+      "timeScale": "प्रति वास्तविक सेकंड अनुकरित सेकंड: 0.25 धीमी गति है।",
+      "budget": "स्थिर सीमाएँ (`budget.physics`), भौतिकी शुरू होने पर एक बार पढ़ी जाती हैं।",
+      "stats": "गिनतियाँ और दोनों घड़ियाँ: प्रति चरण worker मिलीसेकंड, प्रति फ़्रेम पेज मिलीसेकंड।",
+      "error": "भौतिकी की अंतिम त्रुटि (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), या `null`।"
     }
   }
 }

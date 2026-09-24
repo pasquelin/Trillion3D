@@ -92,7 +92,9 @@ function tick() {
     owed = Math.min(owed + ((now - last) / 1000) * timeScale, MAX_CATCH_UP_STEPS * PHYSICS_STEP);
   last = now;
   try {
-    if (queued.length && (paused || owed < PHYSICS_STEP)) run(0);
+    // Paused, commands still reach the bodies; running, they wait for the next step, so a
+    // kinematic move is a move over a step (pushing what it meets), never a teleport.
+    if (queued.length && paused) run(0);
     while (!paused && owed >= PHYSICS_STEP) {
       run(PHYSICS_STEP);
       owed -= PHYSICS_STEP;
@@ -144,7 +146,11 @@ scope.onmessage = ({ data: message }) => {
     if (poseCount || eventCount) post();
   } else if (message.type === 'commands') {
     queued.push(message.words);
-    if (timer === null) last = performance.now();
+    // A resting world steps at once: the command's step is owed now, not a frame later.
+    if (timer === null) {
+      last = performance.now();
+      if (!paused) owed = Math.max(owed, PHYSICS_STEP);
+    }
     schedule(0);
   } else {
     paused = message.paused;
