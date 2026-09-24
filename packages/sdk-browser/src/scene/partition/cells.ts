@@ -131,7 +131,7 @@ export function createPartitionCells(inputs: Inputs) {
      *  then those ahead, and those already read are placed within `budgetMs` — one at least. */
     frame(
       eye: ArrayLike<number>,
-      reach: (size: number) => number,
+      reach: number,
       /** What a frame reads and writes through the session: the verified bytes the streamer
        *  holds, whether it is reading an address, a request — `ahead` for cells read before they
        *  are needed —, rows written, and a buffer grown; without `grow`, a mesh short of rows
@@ -174,11 +174,7 @@ export function createPartitionCells(inputs: Inputs) {
     },
     /** Reads and places every cell a camera at `eye` needs — within its reach, none ahead —,
      *  before the session reads the rows; resolves with the bytes read. */
-    async prime(
-      eye: ArrayLike<number>,
-      reach: (size: number) => number,
-      read: (url: string) => Promise<Uint8Array>,
-    ) {
+    async prime(eye: ArrayLike<number>, reach: number, read: (url: string) => Promise<Uint8Array>) {
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
       const { visible } = planCells(cells, local.eye, local.reach, new Set(held.keys()));
       const bodies = await Promise.all(visible.map((cell) => read(cells[cell].url)));

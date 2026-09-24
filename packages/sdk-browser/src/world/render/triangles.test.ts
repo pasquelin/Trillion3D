@@ -22,6 +22,7 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
   };
   const render = createExplorerRender(session, {
     check: () => {},
+    followCells: null,
     state: {
       measuring: false,
       diagnostic: 'beauty',

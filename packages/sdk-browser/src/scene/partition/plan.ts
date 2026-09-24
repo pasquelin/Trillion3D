@@ -1,29 +1,24 @@
 /**
  * WHICH CELLS OF A PARTITIONED SCENE ARE READ, derived and never tuned (#404).
  *
- * A cell is needed while one of its objects can colour a pixel beyond the error target. Its
- * largest object has diagonal `size`; seen from a distance `d` to the cell's box, at the focal
- * `f = H / (2·tan(fov/2))` pixels, anywhere in the frustum — the off-axis stretch of a pinhole is
- * at most `1 + tan²θ`, `θ` the half diagonal of the field, the same majorant the certified cluster
- * error takes (`screenErrorBound.ts`) — it covers at most `size·f·(1 + tan²θ) / d` pixels. Past
- * `size·f·(1 + tan²θ) / pixelError` it covers less than the error the cut itself leaves on screen
- * (a cluster whose error projects below it is replaced by its coarser parent): its absence is
- * within the image the engine converges to. Past the far plane — met on the frustum's diagonal at
- * `far·√(1 + tan²θ)` — nothing of it is drawn at all. With no error target (`pixelError` 0, the
- * exact image) only the far plane bounds the reach; an orthographic camera does not shrink what it
- * sees with distance, so every cell of its scene is read.
+ * A cell is read while the camera can draw any of it: until its box is past the far plane — met
+ * on the frustum's diagonal at `far·√(1 + tan²θ)`, `θ` the half diagonal of the field, the same
+ * off-axis majorant the certified cluster error takes (`screenErrorBound.ts`). Nothing coarser
+ * stands for a cell that is not read (its merged proxy is #23), so its objects are drawn wherever
+ * the far plane lets them be, however small they project: dropping one below the error target
+ * would leave it out of the image for good, not replace it by a coarser one. An orthographic
+ * camera does not shrink what it sees with distance, so every cell of its scene is read.
  *
- * A frame asks for the cells within their reach first, then — at the prefetch priority — those
- * within one cell diagonal past it, and a read cell leaves two diagonals past it: a camera that
- * crosses less than a cell while a cell loads never waits for one, and one that hovers on a border
- * does not read it again at every step. The first frame reads only what it draws.
+ * A frame asks for the cells within the reach first, then — at the prefetch priority — those
+ * within one cell diagonal past it, and a read cell leaves two diagonals past it, so one that
+ * hovers on a border is not read again at every step. The first frame reads only what it draws.
  */
 import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 
 const inverse = new Float64Array(MATRIX_VALUES);
 
-/** What the reach reads of a camera: its optics, whether it is orthographic, the drawn height. */
+/** What the reach reads of a camera: its optics and whether it is orthographic. */
 export type PartitionOptics = {
   fov: number;
   aspect: number;
@@ -31,43 +26,26 @@ export type PartitionOptics = {
   orthographic?: unknown;
 };
 
-/** The distance past which a cell whose largest object has diagonal `size` changes no pixel
- *  beyond `pixelError`, for `optics` drawn `height` pixels high. */
-export function cellReach(
-  size: number,
-  optics: PartitionOptics,
-  height: number,
-  pixelError: number,
-) {
+/** The distance past which nothing `optics` sees is drawn. */
+export function cellReach(optics: PartitionOptics) {
   if (optics.orthographic) return Infinity;
   const tangent = Math.tan((optics.fov * Math.PI) / 360);
-  const widen = 1 + tangent * tangent * (1 + optics.aspect * optics.aspect);
-  const far = optics.far * Math.sqrt(widen);
-  if (!(pixelError > 0)) return far;
-  const focal = height / (2 * tangent);
-  return Math.min(far, (size * focal * widen) / pixelError);
+  return optics.far * Math.sqrt(1 + tangent * tangent * (1 + optics.aspect * optics.aspect));
 }
 
 /**
  * `eye` and `reach` in the frame the cells' boxes are written in — the scene root's, whose world
  * matrix `world` a world may pose, turn and scale. A world distance is at least the root's smallest
- * stretch times the distance there, and a world size at most its largest stretch times the size
- * there: what this reach reads holds every cell the world's reach needs.
+ * stretch times the distance there: what this reach reads holds every cell the world's reach needs.
  */
-export function inCellFrame(
-  world: ArrayLike<number>,
-  eye: ArrayLike<number>,
-  reach: (size: number) => number,
-) {
-  const stretch = [0, 4, 8].map((c) => Math.hypot(world[c], world[c + 1], world[c + 2]));
-  const least = Math.min(...stretch),
-    most = Math.max(...stretch);
+export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, reach: number) {
+  const least = Math.min(...[0, 4, 8].map((c) => Math.hypot(world[c], world[c + 1], world[c + 2])));
   invertMatrix4(inverse, world);
   const local = [0, 1, 2].map(
     (a) =>
       inverse[a] * eye[0] + inverse[4 + a] * eye[1] + inverse[8 + a] * eye[2] + inverse[12 + a],
   );
-  return { eye: local, reach: (size: number) => reach(size * most) / least };
+  return { eye: local, reach: reach / least };
 }
 
 /** Distance from `eye` to the box `[minX, minY, minZ, maxX, maxY, maxZ]`, 0 inside it. */
@@ -89,29 +67,27 @@ export function boxDiagonal(bounds: readonly number[]) {
 }
 
 /**
- * The cells `held` does not hold that a frame needs — `visible`, within their reach — and those it
+ * The cells `held` does not hold that a frame needs — `visible`, within `reach` — and those it
  * reads ahead — `ahead`, within one diagonal past it —, each nearest first; and the held cells
- * past their reach plus two diagonals, which leave. `reach` maps a largest-object diagonal to its
- * distance (`cellReach` for the frame's camera).
+ * past the reach plus two diagonals, which leave. `reach` is the frame camera's (`cellReach`).
  */
 export function planCells(
   cells: readonly TableCell[],
   eye: ArrayLike<number>,
-  reach: (size: number) => number,
+  reach: number,
   held: ReadonlySet<number>,
 ) {
   const visible: { cell: number; distance: number }[] = [],
     ahead: { cell: number; distance: number }[] = [];
   const leave: number[] = [];
   for (let cell = 0; cell < cells.length; cell++) {
-    const { bounds, size } = cells[cell];
+    const { bounds } = cells[cell];
     const distance = boxDistance(bounds, eye),
-      limit = reach(size),
       margin = boxDiagonal(bounds);
     if (held.has(cell)) {
-      if (distance > limit + 2 * margin) leave.push(cell);
-    } else if (distance <= limit) visible.push({ cell, distance });
-    else if (distance <= limit + margin) ahead.push({ cell, distance });
+      if (distance > reach + 2 * margin) leave.push(cell);
+    } else if (distance <= reach) visible.push({ cell, distance });
+    else if (distance <= reach + margin) ahead.push({ cell, distance });
   }
   const nearest = (list: typeof visible) =>
     list.sort((a, b) => a.distance - b.distance).map((entry) => entry.cell);

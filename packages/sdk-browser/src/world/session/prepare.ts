@@ -125,8 +125,6 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     const bytes = await primePartitions(
       loadedScene.partitions,
       cameraState.camera,
-      canvas.height,
-      options.pixelError ?? 0,
       pageSources.streamer,
       signal,
     );
