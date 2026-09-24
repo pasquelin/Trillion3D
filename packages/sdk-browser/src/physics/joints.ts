@@ -9,7 +9,6 @@ import {
   type Joint,
   type JointMotor,
 } from '../../../sdk-core/src/physics/index.ts';
-import type { JointHost } from '../../../sdk-core/src/physics/joint.ts';
 import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 import { normalizeVector3 } from '../../../sdk-core/src/math/primitives/vector.ts';
 import { readVec3 } from '../../../sdk-core/src/world/math/vector3.ts';
@@ -74,7 +73,7 @@ export function createPhysicsJoints(
   const slots: (Joint | null)[] = [];
   const generation: number[] = [];
   const free: number[] = [];
-  const host: JointHost = {
+  const host: NonNullable<Joint['_host']> = {
     motor(joint) {
       const { mode, target, maxForce } = motorOf(joint.motor);
       writer.motor(joint._id, mode, target, maxForce);
