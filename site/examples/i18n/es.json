@@ -1187,7 +1187,6 @@
     }
   },
   "migrating-from-three": {
-    "banner": "Arrastra para rodear el busto, la caja y la bola de vidrio.",
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caja de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
     }

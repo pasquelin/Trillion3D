@@ -1187,7 +1187,6 @@
     }
   },
   "migrating-from-three": {
-    "banner": "Тяни, чтобы облететь бюст, ящик и стеклянный шар.",
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; ящик: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
     }

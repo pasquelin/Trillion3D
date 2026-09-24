@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, texture, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, opening, ease } from '../runtime/kit.js';
+      import { controls, readout, seeded, opening, ease, mix } from '../runtime/kit.js';
 
       const next = seeded(12);
 
@@ -186,7 +186,7 @@
       const from = [0, 22, 4], to = [11, 4.2, 15];
       opening(world, (time) => {
         const e = ease.out(time / 4);
-        world.camera.position.set(...from.map((value, k) => value + (to[k] - value) * e));
+        world.camera.position.set(...mix(from, to, e));
         return time < 4;
       });
       let time = 0;

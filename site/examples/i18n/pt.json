@@ -1187,7 +1187,6 @@
     }
   },
   "migrating-from-three": {
-    "banner": "Arraste para girar em volta do busto, da caixa e da bola de vidro.",
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caixote de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
     }

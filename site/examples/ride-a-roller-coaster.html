@@ -135,8 +135,8 @@
         const [liftStart, liftEnd] = track.lift, chain = 4.5;
         if (s < liftEnd) return s < liftStart ? 5 : chain;
         const free = Math.sqrt(Math.max(chain * chain, chain * chain + 2 * G * (TOP - y - 0.02 * (s - liftEnd))));
-        const braking = Math.min(1, Math.max(0, (s - track.brake) / 30));
-        return free + (5 - free) * braking * braking * (3 - 2 * braking);
+        const braking = ease.smooth((s - track.brake) / 30);
+        return free + (5 - free) * braking;
       }
 
       // The track's meshes: two rails and a spine swept along the samples, ties every few metres.
