@@ -27,8 +27,9 @@ export interface BackendSceneUpdates {
   setTemporalAntialiasing?(on: boolean): void;
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
-   *  again at the next frame, no table rebuilt. Absent, the owner opens the session again. */
-  refreshMaterials?(): void;
+   *  again at the next frame, no table rebuilt. Absent, or false for this change — a map whose
+   *  picture changed size where its layout is fixed (#362) —, the owner opens the session again. */
+  refreshMaterials?(): boolean | void;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

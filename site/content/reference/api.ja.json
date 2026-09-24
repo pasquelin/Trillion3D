@@ -3438,7 +3438,8 @@
       "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。固定予算のもとで。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
-      "textureScratchBuilds": "構築された作業用テクスチャ数。"
+      "textureScratchBuilds": "構築された作業用テクスチャ数。",
+      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。`texturePoolBytes` から差し引かれます。"
     }
   },
   "TextureLayout": {
@@ -3994,6 +3995,7 @@
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
+      "textureLiveBytes": "ライブテクスチャが保持するバイト数。それぞれ自身のサイズの作業用テクスチャを1つ持ちます。`texturePoolBytes` から差し引かれます。",
       "gpuAllocatedBytes": "デバイス上の、すべてのリソースにわたる現在の割り当てバイト数。",
       "gpuAllocatedByLabel": "リソースラベルごとにまとめた割り当てバイト数。ラベルのない割り当ては'unlabeled'にまとめられる。",
       "gpuAllocationsUnknownFormat": "認識できないフォーマットを持つテクスチャの数。期待値は0。",
@@ -6431,7 +6433,7 @@
   },
   "texture": {
     "summary": "`texture`ファミリー: 画像と、それがどうサンプリングされるか。",
-    "description": "カラー画像はsRGB、データ画像は線形; ピクセルを書き込んだ後の`needsUpdate`により、サンプラーがそれらを読み直す。"
+    "description": "カラー画像はsRGB、データ画像は線形です。ピクセルを書き込んだ後の`needsUpdate`によりサンプラーがそれらを読み直し、GPU上にすでにあるテクスチャへその場でコピーされます。作り直すのはサイズが変わったときだけです。動画はライブで、フレームは自動で届きます。"
   },
   "texture.image": {
     "summary": "すでにページ内にある画像からのカラーテクスチャ: 画像、ビットマップ、あるいはビデオフレーム。",
@@ -6450,12 +6452,14 @@
   },
   "texture.canvas": {
     "summary": "canvasが保持しているものを表示するテクスチャ。",
+    "description": "キャンバスに描き直した後に`needsUpdate`を設定します。新しいピクセルはGPU上にすでにあるテクスチャへコピーされ、何も作り直されません。",
     "parameters": {
       "c": "表示するcanvas。"
     }
   },
   "texture.video": {
-    "summary": "再生中の動画を表示するテクスチャ。",
+    "summary": "再生中の動画、または動画で再生したカメラ映像を表示するテクスチャ。",
+    "description": "新しいフレームはそれぞれGPU上にすでにあるテクスチャへ自動でコピーされます。一時停止中の動画には何のコストもかかりません。",
     "parameters": {
       "v": "表示する動画。"
     }
