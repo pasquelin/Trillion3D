@@ -51,7 +51,9 @@ export const FOG_MODE = { none: 0, linear: 1, exponential: 2 } as const;
 /** Floats of a fog in a GPU block: the colour and the mode, then the law's three parameters. */
 export const SCENE_FOG_FLOATS = 8;
 
-const finite = (value: unknown): value is number => typeof value === 'number' && isFinite(value);
+/** A finite number, the one test every scene contract field is read with. */
+export const finite = (value: unknown): value is number =>
+  typeof value === 'number' && isFinite(value);
 const refuse = (message: string, fog: unknown): never => {
   throw new EngineError('INVALID_SCENE_ENVIRONMENT', `fog: ${message}`, { fog });
 };
