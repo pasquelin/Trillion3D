@@ -1336,7 +1336,9 @@
       "projection": "İzdüşüm.",
       "world": "Kameranın dünya matrisi.",
       "view": "View matrisi.",
-      "eye": "Gözün nerede olduğu."
+      "eye": "Gözün nerede olduğu.",
+      "near": "En yakın mesafe.",
+      "far": "En uzak mesafe."
     }
   },
   "HostDrawOutput": {
