@@ -6,8 +6,17 @@ import { startDocsServer } from './docs-serve.ts';
 import { openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
 
-/** The examples that turn physics on: the only pages that fetch the worker and Jolt's module. */
-const PHYSICS = new Set(['falling-boxes', 'ten-thousand-bodies']);
+/** The examples that turn physics on: the only pages that fetch the physics session's code, the
+ *  worker and Jolt's module. */
+const PHYSICS = new Set([
+  'falling-boxes',
+  'ten-thousand-bodies',
+  'rolling-on-terrain',
+  'a-walker-among-balls',
+  'walk-with-collisions',
+  'walk-through-a-temple',
+  'create-and-dispose',
+]);
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -70,9 +79,10 @@ test('every example file renders an image on its own, fetching Jolt only when it
           blank.push(
             `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors[0] ? `: ${opened.errors[0]}` : ''}`,
           );
-        // #395: Jolt is fetched by a page that turns physics on, and by no other.
+        // #395, #397: Jolt, and the page's code that drives it, are fetched by a page that turns
+        // physics on, and by no other.
         const fetched = opened.requests.some((url) =>
-          /physicsWorker\.js|joltPhysics\w*\.wasm/.test(url),
+          /physicsWorker\.js|joltPhysics\w*\.wasm|\/session-\w+\.js/.test(url),
         );
         if (fetched !== PHYSICS.has(example.id))
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);

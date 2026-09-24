@@ -5,7 +5,8 @@ import type { PhysicsBodyOptions, PhysicsOption, PhysicsShape, PhysicsType } fro
 
 /** What a contact hands its listeners: the other object, the impulse and where it touched. */
 export interface ContactEvent {
-  /** The object touched; `null` once it has left the scene. */
+  /** The object touched, the camera when the character touched it; `null` once it has left the
+   *  scene. */
   other: Object3D | null;
   /** N·s: the approach speed along the normal times the pair's reduced mass, estimated before
    *  the solver runs; 0 on `leave`. */

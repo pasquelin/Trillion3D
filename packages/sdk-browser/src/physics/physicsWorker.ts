@@ -12,6 +12,7 @@ import { openJolt, startJolt, type JoltModule } from './joltModule.ts';
 import { runJoltThread, type JoltThreadStart } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
+import { createCharacterDriver } from './characterDriver.ts';
 import { createWaterStep } from './water.ts';
 
 const scope = globalThis as unknown as {
@@ -25,6 +26,7 @@ let jolt: JoltModule | null = null,
 const buffers: ArrayBuffer[] = [];
 const water = createWaterStep();
 const queued: Uint32Array[] = [];
+const character = createCharacterDriver();
 let paused = false,
   timeScale = 1,
   last = 0,
@@ -47,10 +49,13 @@ function fail(error: unknown) {
 /** Runs the queued commands and one step; `stepMs` counts the step and its buoyancy, the clock
  *  the bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results. */
 function run(dt: number) {
+  const move = dt > 0 ? character.command(dt, jolt!.active() > 0) : null;
+  if (move) queued.push(move);
   const words = queued.length ? concat(queued.splice(0)) : null;
   const t = performance.now();
   const count = water.step(jolt!, words, dt);
   stepMs += performance.now() - t;
+  character.read(jolt!.character(), dt);
   results!.gather(count);
 }
 
@@ -87,12 +92,22 @@ function tick() {
     return fail(error);
   }
   post();
-  if ((active > 0 || owing) && !paused)
+  if ((active > 0 || owing || character.moving()) && !paused)
     schedule(Math.max(1, ((PHYSICS_STEP - owed) * 1000) / timeScale));
 }
 
 function post() {
-  if (results?.post(steps, stepMs, active)) steps = stepMs = 0;
+  if (results?.post(steps, stepMs, active, character.report)) steps = stepMs = 0;
+}
+
+/** A resting world steps at once: what the page just sent is owed now, not a frame later. */
+function wake() {
+  if (!jolt) return;
+  if (timer === null) {
+    last = performance.now();
+    if (!paused) owed = Math.max(owed, PHYSICS_STEP);
+  }
+  schedule(0);
 }
 
 function schedule(ms: number) {
@@ -133,16 +148,30 @@ scope.onmessage = ({ data: message }) => {
   } else if (message.type === 'water') {
     water.set(message.water);
     schedule(0);
+  } else if (message.type === 'cast') {
+    // Between two ticks, against the last step's bodies; the commands still queued are applied
+    // first, so a query sees the tiles restored with it.
+    if (!jolt) return;
+    try {
+      if (queued.length && results!.room()) run(0);
+      const hits = jolt.cast(message.queries);
+      scope.postMessage({ type: 'cast', id: message.id, hits }, [hits.buffer]);
+    } catch (error) {
+      fail(error);
+    }
   } else if (message.type === 'commands') {
     // Only a running simulation queues them: the page sends none before `ready`.
     if (!jolt) return;
     queued.push(message.words);
-    // A resting world steps at once: the command's step is owed now, not a frame later.
-    if (timer === null) {
-      last = performance.now();
-      if (!paused) owed = Math.max(owed, PHYSICS_STEP);
-    }
-    schedule(0);
+    wake();
+  } else if (message.type === 'character') {
+    // Kept before `ready` too: the module makes the body before its first step.
+    const words = character.configure(message.settings, message.feet);
+    if (words) queued.push(words);
+    wake();
+  } else if (message.type === 'input') {
+    character.press(message.input, message.jumps);
+    wake();
   } else {
     paused = message.paused;
     timeScale = message.timeScale;
