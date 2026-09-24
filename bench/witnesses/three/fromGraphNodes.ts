@@ -6,13 +6,12 @@
  */
 import * as THREE from 'three';
 import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
-import type {
-  GraphAmbientLight,
-  GraphLight,
-  GraphLightProbe,
-  GraphRectLight,
-} from '../../../packages/sdk-browser/src/host/graph/light.ts';
-import { isPlacedLight } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
+import type { GraphLight } from '../../../packages/sdk-browser/src/host/graph/light.ts';
+import {
+  isInstancedNode,
+  isPlacedLight,
+  type GraphAnyLight,
+} from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
 import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
@@ -22,19 +21,23 @@ import { threeGeometry, threeMaterials } from './fromGraph.ts';
 
 const cameras = new WeakMap<GraphCamera, THREE.PerspectiveCamera | THREE.OrthographicCamera>();
 
-/** A mesh of the library drawing an engine mesh's geometry and surface, posed by its caller. */
+/** A mesh of the library drawing an engine mesh's geometry and surface, posed by its caller;
+ *  an instanced one keeps its placements' matrices and count. */
 export function threeMeshCopy(mesh: {
   geometry: unknown;
   material: unknown;
 }): THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]> {
-  return new THREE.Mesh(
-    threeGeometry(mesh.geometry as GraphGeometry),
-    threeMaterials(mesh.material as HostMaterials),
-  );
+  const geometry = threeGeometry(mesh.geometry as GraphGeometry),
+    material = threeMaterials(mesh.material as HostMaterials);
+  if (!isInstancedNode(mesh)) return new THREE.Mesh(geometry, material);
+  const made = new THREE.InstancedMesh(geometry, material, mesh.instanceMatrix.count);
+  made.instanceMatrix.array.set(mesh.instanceMatrix.array);
+  made.count = mesh.count;
+  return made;
 }
 
 /** The optics and pose fields every node kind shares, copied from the engine's node. */
-function place(into: THREE.Object3D, node: GraphNode) {
+function place<T extends THREE.Object3D>(into: T, node: GraphNode): T {
   into.name = node.name;
   into.up.copy(node.up);
   into.position.copy(node.position);
@@ -54,8 +57,9 @@ function place(into: THREE.Object3D, node: GraphNode) {
 }
 
 /** The library's light of an engine light: its kind, colour, strength, reach and cone. */
-export function threeLight(light: GraphLight | THREE.Light): THREE.Light {
+export function threeLight(light: GraphAnyLight | THREE.Light): THREE.Light {
   if (light instanceof THREE.Light) return light.clone();
+  if (!isPlacedLight(light)) return place(threeSurroundingLight(light), light);
   const colour = new THREE.Color().setRGB(light.color.r, light.color.g, light.color.b);
   const made =
     light.kind === 'directional'
@@ -79,7 +83,7 @@ export function threeLight(light: GraphLight | THREE.Light): THREE.Light {
 }
 
 /** The library's light of an engine light that takes no aim: ambient, rectangle or probe. */
-function threeSurroundingLight(light: GraphAmbientLight | GraphRectLight | GraphLightProbe) {
+function threeSurroundingLight(light: Exclude<GraphAnyLight, GraphLight>) {
   const colour = new THREE.Color().setRGB(light.color.r, light.color.g, light.color.b);
   if (light.kind === 'ambient') return new THREE.AmbientLight(colour, light.intensity);
   if (light.kind === 'rect')
@@ -109,19 +113,15 @@ function threeNode(node: GraphNode): THREE.Object3D {
     }
     case 'directional':
     case 'point':
-    case 'spot': {
-      const light = threeLight(node as GraphLight);
+    case 'spot':
+    case 'ambient':
+    case 'rect':
+    case 'probe': {
+      const light = threeLight(node as GraphAnyLight);
       // The target is a node of the graph: the copy of the graph places it, not the light.
       if ('target' in light) (light as THREE.DirectionalLight).target = new THREE.Object3D();
       return light;
     }
-    case 'ambient':
-    case 'rect':
-    case 'probe':
-      return place(
-        threeSurroundingLight(node as GraphAmbientLight | GraphRectLight | GraphLightProbe),
-        node,
-      );
     case 'camera':
       return place(threeCameraOf(node as GraphCamera), node);
     case 'group':
