@@ -1,4 +1,4 @@
-import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../light/contracts.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../light/contracts.ts';
 
 /**
  * THE VIRTUAL LAYOUT OF SHADOW MAPS: what a page of each light is, and where its word sits in
@@ -75,6 +75,11 @@ export const LAMP_FACE_ENTRIES = (() => {
   for (let mip = 0; mip < LAMP_MIPS; mip++) total += (LAMP_SIDE >> mip) ** 2;
   return total;
 })();
+/** Words of the page table each slice owns: the largest range a light needs, a whole sun or a
+ *  point light's six faces — so a slice of any kind always finds its window. */
+export const SHADOW_TABLE_STRIDE = Math.max(SUN_ENTRIES, POINT_FACES * LAMP_FACE_ENTRIES);
+/** Words of the whole page table: one window per shadow slice, one slice per light. */
+export const SHADOW_TABLE_ENTRIES = MAX_SHADOW_SLICES * SHADOW_TABLE_STRIDE;
 /** A table word: the physical page in the low bits, `PAGE_MAPPED` while it holds one, and
  *  `PAGE_VALID` while its depth may be read — set once its draw has landed, cleared while what it
  *  holds is wrong and waits to be drawn again (`pool.withdraw`). A page not valid hands the point

@@ -59,15 +59,13 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
         }
       return -1;
     },
-    /** Gives `slice` the table range a light of kind `rank` needs; false when none fits. */
+    /** Gives `slice` the table range a light of kind `rank` needs, inside its own window. */
     fit(slice: number, rank: number) {
-      if (kind[slice] === rank && table.baseOf(slice) >= 0) return true;
+      if (kind[slice] === rank && table.baseOf(slice) >= 0) return;
       dropPages(slice);
       kind[slice] = rank;
       last[slice] = null;
-      if (table.claim(slice, tableEntriesOf(rank))) return true;
-      free(slice);
-      return false;
+      table.claim(slice, tableEntriesOf(rank));
     },
     /** True when the light is new, or moved or changed shape since its last plan (`sameShadowShape`):
      *  an intensity or a colour is no move. Notes it. */

@@ -117,11 +117,12 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
         let slice = store.sliceOf(slot);
         if (slice < 0 && (slice = records.claim()) >= 0) posed[slice] = frame;
-        if (slice < 0 || !records.fit(slice, rank)) {
+        if (slice < 0) {
           counts.deny();
           store.assignSlice(slot, -1);
           continue;
         }
+        records.fit(slice, rank);
         store.assignSlice(slot, slice);
         const light = store.light(store.ids[slot]);
         if (!light) continue;
