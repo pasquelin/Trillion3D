@@ -67,7 +67,7 @@ function openOnMockGpu(camera: ReturnType<typeof G.perspectiveCamera>, node: str
       if (under(root.pages[0]?.sourceMesh, graph))
         for (const page of root.pages) opened.nodeUrls.add(page.url);
     const limits = { maxBufferSize: 1 << 28, maxStorageBufferBindingSize: 1 << 28 };
-    const gpu = mockGpu(limits, packDagSelection(roots));
+    const gpu = mockGpu({ limits, packed: packDagSelection(roots) });
     const backend = webgpuPagesBackend({
       source: scene.source,
       metadata,
