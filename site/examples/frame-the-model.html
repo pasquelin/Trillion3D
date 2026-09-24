@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words, opening, ease, circling } from '../runtime/kit.js';
+      import { controls, readout, words, opening, ease, circling, mix } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -114,8 +114,8 @@
       const glide = opening(world, (time) => {
         if (!flight) return false;
         const e = ease.inOut(time / flight.span), { from, to } = flight;
-        const target = from.target.map((v, k) => v + (to.target[k] - v) * e);
-        const d = from.d.map((v, k) => v + (to.d[k] - v) * e), n = Math.hypot(...d);
+        const target = mix(from.target, to.target, e);
+        const d = mix(from.d, to.d, e), n = Math.hypot(...d);
         place(target, d.map((v) => v / n), Math.exp(Math.log(from.length) + (Math.log(to.length) - Math.log(from.length)) * e));
         if (time < flight.span) return true;
         world.controls.minDistance = flight.nearest;

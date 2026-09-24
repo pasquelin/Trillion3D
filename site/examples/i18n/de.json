@@ -1187,7 +1187,6 @@
     }
   },
   "migrating-from-three": {
-    "banner": "Ziehe, um Büste, Kiste und Glaskugel zu umkreisen.",
     "words": {
       "credit": "Marble Bust 01 von Rico Cilliers, Poly Haven, CC0; Kiste von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
     }

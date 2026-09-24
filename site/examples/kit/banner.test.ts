@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import english from '../i18n/en.json' with { type: 'json' };
 import { announce } from './banner.ts';
@@ -7,9 +7,14 @@ import { overlay } from './overlay.ts';
 
 test('every example gives the banner a line of what to do', () => {
   const words = english as Record<string, { banner?: unknown }>;
-  const silent = readdirSync(new URL('..', import.meta.url))
+  const examplesDir = new URL('..', import.meta.url);
+  const silent = readdirSync(examplesDir)
     .filter((name) => name.endsWith('.html'))
     .map((name) => name.slice(0, -'.html'.length))
+    // An example that never loads the kit draws no banner, and carries none.
+    .filter((id) =>
+      readFileSync(new URL(`${id}.html`, examplesDir), 'utf8').includes('runtime/kit.js'),
+    )
     .filter((id) => typeof words[id]?.banner !== 'string' || !words[id].banner);
   assert.deepEqual(silent, []);
 });
