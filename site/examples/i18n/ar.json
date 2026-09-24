@@ -1859,27 +1859,5 @@
       "fieldOfView": "مجال الرؤية",
       "dollyZoom": "تكبير دولي"
     }
-  },
-  "openworld": {
-    "banner": "امشِ بالمفاتيح W A S D. اضغط E قرب سيارة أو طائرة لتركبها.",
-    "controls": {
-      "keys": "WASD للمشي · Shift للركض · مسافة للقفز · C للانحناء · E لركوب سيارة أو طائرة أو النزول منها",
-      "teleport": "انتقال",
-      "timeOfDay": "الوقت من اليوم",
-      "daySpeed": "سرعة اليوم",
-      "pause": "إيقاف مؤقت",
-      "rain": "مطر",
-      "geometryMB": "الهندسة ميغابايت",
-      "textureMB": "الخامات ميغابايت",
-      "view": "العرض"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "البث"
-    }
   }
 }
