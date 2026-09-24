@@ -5231,6 +5231,7 @@
       "counts": "Nombres pour le diagnostic.",
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
+      "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",
       "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : l’union tenue entre tout de suite dans la liste, où la lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
       "observeCost": "Minuterie de la passe Ombres d’une image, rapportée aux pages qu’elle a redessinées.",
@@ -6864,7 +6865,9 @@
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`."
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
+      "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }
   },
   "ContactEvent": {
@@ -7045,7 +7048,9 @@
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`."
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
+      "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }
   },
   "WorldPhysicsOptions": {
@@ -7309,6 +7314,77 @@
       "x": "De gauche à droite.",
       "y": "De bas en haut.",
       "z": "D’arrière en avant."
+    }
+  },
+  "Joint": {
+    "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",
+    "description": "Elle tient tant que les deux corps sont simulés, et jusqu’à ce qu’elle rompe.",
+    "parameters": {
+      "options": "Ce qu’accepte `joint.*`. Points et axes sont dans le monde, lus quand la liaison est créée pour la première fois.",
+      "options.anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance sur `a`.",
+      "options.anchorB": "Le bout d’une distance sur `b`.",
+      "options.axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône.",
+      "options.limits": "Charnière, glissière, distance et cône : jusqu’où elle bouge. Une distance garde par défaut sa longueur.",
+      "options.spring": "Charnière, glissière et distance : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
+      "options.motor": "Charnière et glissière : un moteur, modifiable à tout moment par `joint.motor`.",
+      "options.breakForce": "Newtons de traction au-delà desquels la liaison rompt ; absent, jamais."
+    },
+    "members": {
+      "kind": "Ce qu’est la liaison.",
+      "a": "Le premier corps.",
+      "b": "Le second corps, ou `null` pour le monde.",
+      "options": "Ce avec quoi elle a été créée.",
+      "motor": "Le moteur, d’une charnière ou d’une glissière ; `null` la laisse tourner ou glisser librement.",
+      "broken": "Si elle a rompu : tirée au-delà de sa `breakForce`. Une liaison rompue ne tient plus rien.",
+      "on": "Appelle `handler` quand la liaison rompt."
+    }
+  },
+  "JointKind": {
+    "summary": "Les liaisons entre corps, chacune une contrainte de Jolt."
+  },
+  "JointLimits": {
+    "summary": "Jusqu’où une liaison peut bouger : en radians pour une charnière, en mètres pour une glissière ou une distance, le demi-angle du cône (`max`) pour un cône.",
+    "members": {
+      "min": "Celle d’une charnière de −π à 0, celle d’une glissière 0 ou moins.",
+      "max": "Celle d’une charnière de 0 à π, celle d’une glissière 0 ou plus."
+    }
+  },
+  "JointMotor": {
+    "summary": "Le moteur d’une charnière ou d’une glissière : il entraîne la liaison vers une vitesse ou une position.",
+    "members": {
+      "mode": "`'velocity'` : rad/s ou m/s ; `'position'` : radians ou mètres depuis la pose où la liaison a été créée.",
+      "target": "La vitesse ou la position à atteindre.",
+      "maxForce": "N·m pour une charnière, N pour une glissière ; absent, sans borne."
+    }
+  },
+  "JointOptions": {
+    "summary": "Ce qu’accepte `joint.*`.",
+    "description": "Points et axes sont dans le monde, lus quand la liaison est créée pour la première fois.",
+    "members": {
+      "anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance sur `a`.",
+      "anchorB": "Le bout d’une distance sur `b`.",
+      "axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône.",
+      "limits": "Charnière, glissière, distance et cône : jusqu’où elle bouge. Une distance garde par défaut sa longueur.",
+      "spring": "Charnière, glissière et distance : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
+      "motor": "Charnière et glissière : un moteur, modifiable à tout moment par `joint.motor`.",
+      "breakForce": "Newtons de traction au-delà desquels la liaison rompt ; absent, jamais."
+    }
+  },
+  "joint": {
+    "summary": "La famille `joint` : deux corps reliés, ou un corps et le monde (`b` à null).",
+    "members": {
+      "fixed": "Les soude : ils bougent comme un seul.",
+      "point": "Une rotule en `anchor` : ils tournent librement autour.",
+      "hinge": "Un axe en `anchor` le long de `axis` : une porte, une roue. `limits` en radians.",
+      "slider": "Un rail le long de `axis` : un tiroir, un piston. `limits` en mètres.",
+      "distance": "Garde `anchor` sur `a` et `anchorB` sur `b` à leur distance, ou dans `limits`.",
+      "cone": "Une rotule dont l’`axis` oscille dans un cône de demi-angle `limits.max`."
+    }
+  },
+  "JointHost": {
+    "summary": "Le côté monde d’une liaison : ce qu’une écriture sur elle demande à la simulation.",
+    "members": {
+      "motor": "Le moteur a changé."
     }
   }
 }

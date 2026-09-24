@@ -1,5 +1,6 @@
 import type { HostColour, HostPlaced, HostTraversable } from '../host/resources.ts';
 import { isLightNode, isPlacedLight, type GraphAnyLight } from '../host/graph/kinds.ts';
+import { shownChain } from '../placement/hidden.ts';
 
 /**
  * Browser boundary: the lights a source graph declares, placed in the graph an engine publishes.
@@ -45,14 +46,6 @@ function sceneLights(source: HostTraversable): GraphAnyLight[] {
   });
   return lights;
 }
-function visible(light: GraphAnyLight) {
-  let node: HostPlaced | null = light;
-  while (node) {
-    if (!node.visible) return false;
-    node = node.parent;
-  }
-  return true;
-}
 /** World position of a placed object: the translation column of its resolved world matrix. */
 function placeAt(into: AimNode, from: HostPlaced) {
   const elements = from.matrixWorld.elements;
@@ -97,7 +90,7 @@ export function installSceneLighting(
       copy.color.g = original.color.g;
       copy.color.b = original.color.b;
       copy.intensity = original.intensity;
-      copy.visible = enabled && visible(original);
+      copy.visible = enabled && shownChain(original);
       if (aim) {
         aim.from.updateWorldMatrix(true, false);
         placeAt(aim.to, aim.from);

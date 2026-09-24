@@ -1963,5 +1963,20 @@
       "awake": "Wach",
       "step": "Schritt"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Öffne die Tür und die Schublade, lass die Kette schwingen, dann lass den Stein auf die Brücke fallen und sieh zu, wie sie bricht.",
+    "controls": {
+      "openDoor": "Tür öffnen",
+      "openDrawer": "Schublade öffnen",
+      "strength": "Brückenfestigkeit (N)",
+      "swingChain": "Kette schwingen",
+      "dropStone": "Stein fallen lassen",
+      "rebuild": "Brücke neu bauen"
+    },
+    "readouts": {
+      "joints": "Gelenke",
+      "broken": "Gebrochen"
+    }
   }
 }

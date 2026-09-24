@@ -1963,5 +1963,20 @@
       "awake": "Acordados",
       "step": "Passo"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Abra a porta e a gaveta, balance a corrente e depois solte a pedra sobre a ponte e veja-a quebrar.",
+    "controls": {
+      "openDoor": "Abrir a porta",
+      "openDrawer": "Abrir a gaveta",
+      "strength": "Resistência da ponte (N)",
+      "swingChain": "Balançar a corrente",
+      "dropStone": "Soltar a pedra",
+      "rebuild": "Reconstruir a ponte"
+    },
+    "readouts": {
+      "joints": "Juntas",
+      "broken": "Quebradas"
+    }
   }
 }
