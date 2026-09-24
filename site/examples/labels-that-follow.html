@@ -61,7 +61,7 @@
     <div id="labels"></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, words, language } from '../runtime/kit.js';
+      import { controls, words, language, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -173,37 +173,32 @@
       world.camera.position.set(0, 70, 8);
       world.camera.lookAt(0, 0, 0);
       world.controls.update();
-      let opening = 0, aligning = -1;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (opening = -1), { passive: true });
+      const fall = opening(world, (time) => {
+        const t = ease.inOut(time / 4.5), around = 0.9 * t, reach = math.lerp(71, 40, t), up = math.lerp(1.45, 0.42, t);
+        world.camera.position.set(reach * Math.cos(up) * Math.sin(around), reach * Math.sin(up), reach * Math.cos(up) * Math.cos(around));
+        return time < 4.5;
+      });
+      let aligning = -1;
 
       const ui = controls({
-        mouse: 'Drag to turn around the Sun, wheel to come closer; the labels ride on the planets',
         show: Object.keys(FACTS),
         speed: [0, 4, 1],
         lineThemUp: () => ((aligning = 0), world.invalidate()),
       }, () => world.invalidate(), world);
 
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
       let starts = [], placed = false;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
-        if (opening >= 0 && opening < 1) {
-          opening = Math.min(1, opening + step / 4.5);
-          const t = ease(opening), around = 0.9 * t, reach = math.lerp(71, 40, t), up = math.lerp(1.45, 0.42, t);
-          world.camera.position.set(reach * Math.cos(up) * Math.sin(around), reach * Math.sin(up), reach * Math.cos(up) * Math.cos(around));
-          world.controls.update();
-        }
         // An inner planet goes round faster (Kepler: the year grows as the orbit's power 1.5);
         // the button eases every planet onto one line from the Sun, then lets them go again.
-        const moving = (opening >= 0 && opening < 1) || aligning >= 0 || ui.speed > 0 || !placed;
+        const moving = fall.gliding || aligning >= 0 || ui.speed > 0 || !placed;
         placed = true;
         if (aligning === 0) starts = bodies.map(({ angle }) => angle);
         if (aligning >= 0) {
           aligning = Math.min(1, aligning + step / 2.5);
           bodies.forEach((body, k) => {
             const goal = Math.ceil(starts[k] / (Math.PI * 2)) * Math.PI * 2 + 0.6;
-            body.angle = math.lerp(starts[k], goal, ease(aligning));
+            body.angle = math.lerp(starts[k], goal, ease.inOut(aligning));
           });
           if (aligning === 1) aligning = -1;
         } else for (const body of bodies) body.angle += step * ui.speed * 0.9 * (5 / body.orbit) ** 1.5;
