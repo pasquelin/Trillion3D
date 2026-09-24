@@ -7002,7 +7002,6 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
-      "budget": "固定上限（`budget.physics`），物理启动时读取一次。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。"
     }
@@ -7025,7 +7024,10 @@
       "triangles": "所有静态三角形形状的三角形总数。",
       "decorative": "同时存在的装饰物体。",
       "memoryBytes": "物理模块的内存字节数：硬上限，模块无法超出。",
-      "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。"
+      "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
+      "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
     }
   },
   "GRAVITY_PRESETS": {
@@ -7096,7 +7098,10 @@
       "triangles": "所有静态三角形形状的三角形总数。",
       "decorative": "同时存在的装饰物体。",
       "memoryBytes": "物理模块的内存字节数：硬上限，模块无法超出。",
-      "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。"
+      "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
+      "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
     }
   },
   "PhysicsHost": {
@@ -7136,7 +7141,8 @@
       "stepMs": "worker 每个固定步的毫秒数，最近一次 tick：worker 自己的时钟，从不与页面时钟相加。",
       "mainMs": "物理在最近一帧占用的页面毫秒数（CPU 阶段 `physics`）。",
       "poses": "最近一次 tick 返回的姿态。",
-      "events": "最近一次 tick 返回的接触事件。"
+      "events": "最近一次 tick 返回的接触事件。",
+      "droppedEvents": "物理启动以来，一步中超出 `budget.physics.contactEvents` 而被丢弃的 `enter` 事件（其 `leave` 永不发送）。"
     }
   },
   "PhysicsType": {
@@ -7149,7 +7155,6 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
-      "budget": "固定上限（`budget.physics`），物理启动时读取一次。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。"
     }
