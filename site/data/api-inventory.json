@@ -484,7 +484,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/scene/materialBlending.ts",
-        "packages/sdk-browser/src/scene/materialSide.ts"
+        "packages/sdk-browser/src/scene/materialSide.ts",
+        "packages/sdk-browser/src/webgpu/blend/pipelines.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/constants/index\".Blending"
