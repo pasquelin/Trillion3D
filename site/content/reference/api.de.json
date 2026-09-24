@@ -193,15 +193,6 @@
   "batch": {
     "summary": "Die Familie `batch`: tausend Matrizen auf einmal statt einer Schleife, aufbauend auf den Batch-Kernen des Kerns (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` für `count` Matrizen, spaltenweise flach angeordnet.",
-    "parameters": {
-      "out": "Wohin die Produkte gehen.",
-      "a": "Die Matrizen links.",
-      "b": "Die Matrizen rechts.",
-      "count": "Wie viele Produkte."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` für `count` Punkte, drei Zahlen pro Punkt angeordnet.",
     "parameters": {
@@ -6335,7 +6326,8 @@
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
       "geometryPool": "GPU-Speicher-Bytes, die für Geometrieseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
       "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
-      "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus."
+      "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
+      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern."
     }
   },
   "world.diagnostic": {

@@ -3835,7 +3835,8 @@
       "texturePoolCeiling": "O maior pool de textura que um mundo pode pedir, em bytes.",
       "geometryPool": "Bytes de memória de GPU mantidos para páginas de geometria; defina para mudar o envelope.",
       "texturePool": "Bytes de memória de GPU mantidos para páginas de textura; defina para mudar o envelope.",
-      "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`."
+      "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
+      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope."
     }
   },
   "world.diagnostic": {
@@ -4191,15 +4192,6 @@
   },
   "batch": {
     "summary": "A família `batch`: mil matrizes de uma vez em vez de um laço, sobre os kernels em lote do núcleo (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
-  },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` para `count` matrizes em ordem de coluna guardadas de forma linear.",
-    "parameters": {
-      "out": "Para onde vão os produtos.",
-      "a": "As matrizes da esquerda.",
-      "b": "As matrizes da direita.",
-      "count": "Quantos produtos."
-    }
   },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` para `count` pontos guardados com três números cada.",
