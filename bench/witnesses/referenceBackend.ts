@@ -1,10 +1,8 @@
 import { meshes as objects, geometryBytes } from '../../packages/sdk-browser/src/scene/meshes.ts';
 import { copyElements } from '../../packages/sdk-browser/src/math/matrixElements.ts';
 import { threeMeshCopy } from './three/fromGraphNodes.ts';
-import {
-  baseCapabilities,
-  DEFAULT_CLEAR_COLOR,
-} from '../../packages/sdk-browser/src/backend/common.ts';
+import { DEFAULT_CLEAR_COLOR } from '../../packages/sdk-browser/src/backend/common.ts';
+import { baseCapabilities } from './capabilities.ts';
 import { hostBackground, lighting } from './three/displayObjects.ts';
 import { sceneLightingApi } from '../../packages/sdk-browser/src/lighting/sceneLighting.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './three/sceneAdapter.ts';

@@ -1,10 +1,8 @@
 /**
- * The frame constants and the capability sheet every engine shares: sizes, budgets, batch
- * ceilings. Nothing here builds or reads a host object, so this module names no rendering
- * library — the host-library objects a witness publishes live in `../host/scene/objects.ts`.
+ * The frame constants every engine shares: sizes, budgets, batch ceilings. Nothing here builds or
+ * reads a host object, so this module names no rendering library — the host-library objects a
+ * witness publishes live in `../host/scene/objects.ts`.
  */
-import type { BackendCapabilities } from '../../../sdk-core/src/index.ts';
-
 export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,
   DEFAULT_WIDTH = 960,
@@ -34,25 +32,6 @@ export const WEBGPU_REQUIRED_LIMITS = [
   'maxStorageBufferBindingSize',
   'maxBufferSize',
 ] as const;
-export const baseCapabilities: BackendCapabilities = {
-  renderer: 'Engine WebGL2 graph',
-  materials: 'Converted glTF PBR, textures, alpha and double-sided flags preserved; no shadow map',
-  hierarchy: false,
-  gpuDriven: false,
-  simplification: false,
-  eviction: false,
-  unsupported: [
-    // Light-contract calls exist on the host and do not fail here: they are ignored.
-    'contract scene lights with shadow atlas',
-    'named node transforms',
-    'general mesh LOD simplification',
-    'GPU-driven selection/indirect draw',
-    'occlusion culling',
-    'bounded GPU eviction',
-    'physical VRAM instrumentation',
-  ],
-};
-
 /**
  * True when the work under `signal` was cancelled: an error then is its cancellation, whatever its
  * name — no failure is diagnosed, nothing falls back. An `AbortError` under a live signal is a
