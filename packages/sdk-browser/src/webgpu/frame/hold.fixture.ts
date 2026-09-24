@@ -97,3 +97,40 @@ export function settledRt() {
   };
   return rt as unknown as WebgpuPagesRuntime & typeof rt;
 }
+
+/**
+ * Fake GPUDevice whose `createRenderPipelineAsync` distinguishes the variant by the module name
+ * (set by `createCheckedShaderModule` via `${label}_LIGHTING` / `${label}_COMPOSE`): UNLIT resolves
+ * at once, DIRECT and BOUNCE stay pending until `finishCompilation()` has been called, exactly like
+ * a real compilation that lasts several frames.
+ */
+export function deferredLightingHarness() {
+  let resolveGate: () => void;
+  const gate = new Promise<void>((resolve) => {
+    resolveGate = resolve;
+  });
+  const device = {
+    createBuffer: () => ({ destroy() {} }),
+    createShaderModule: (desc: { label?: string }) => ({
+      label: desc.label,
+      getCompilationInfo: async () => ({ messages: [] }),
+    }),
+    createBindGroupLayout: () => ({}),
+    createTexture: () => ({ createView: () => ({}), destroy() {} }),
+    createSampler: () => ({}),
+    createPipelineLayout: () => ({}),
+    async createRenderPipelineAsync(descriptor: { fragment?: { module?: { label?: string } } }) {
+      const label = descriptor.fragment?.module?.label ?? '';
+      if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate;
+      return {};
+    },
+    createBindGroup: () => ({}),
+    queue: { writeBuffer() {} },
+  } as unknown as GPUDevice;
+  return { device, finishCompilation: () => resolveGate() };
+}
+
+export const view = () => ({}) as GPUTextureView;
+export const surface = { views: () => [view(), view(), view(), view()] } as unknown as Parameters<
+  Awaited<ReturnType<typeof createDeferredLighting>>['bind']
+>[0];
