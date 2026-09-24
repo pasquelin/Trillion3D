@@ -3,8 +3,8 @@
 //!
 //! Two things hold a position still: a position another group of the level also uses is locked so
 //! the cut stays watertight, and a position the group writes under several texture coordinates is
-//! a seam corner the fallback weld keeps apart, so a coarse level never draws one side of a seam
-//! with the other's texture. The reduction that stalled is rerun with each constraint lifted in
+//! a seam corner the reduction protects, so a coarse level never draws one side of a seam with the
+//! other's texture. The reduction that stalled is rerun with each constraint lifted in
 //! turn: with no lock, if it then advances the border shared with the neighbours held the group
 //! (`border-locked`); with no lock and every position copy welded across the seams of every
 //! texture set, if it then advances the seams held it (`seam-locked`); if neither advances, the
@@ -61,26 +61,25 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
     }
 }
 
-/// Names why the group stalled. `last` holds the indices of the attempt that stalled, rerun
-/// without locks, then without locks on positions welded across seams.
+/// Names why the group stalled. Its live triangles are rerun without locks, then without locks on
+/// positions welded across seams.
 pub(super) fn stalled(
     input: &GroupReductionInput,
     live: &[u32],
-    last: &[u32],
     children: usize,
     stop: Stop,
 ) -> Result<GroupOutcome> {
     let advances = |indices: &[u32]| -> Result<bool> {
-        Ok(matches!(attempt(input, indices, false)?, Ok(a) if a.progresses(children)))
+        Ok(matches!(attempt(input, indices, false, 0.0)?, Ok(a) if a.progresses(children)))
     };
     let cause = match stop {
         Stop::TooSmall => StallCause::TooSmall,
         Stop::BorderLost => StallCause::BorderLost,
-        Stop::NoCollapse if advances(last)? => StallCause::BorderLocked,
+        Stop::NoCollapse if advances(live)? => StallCause::BorderLocked,
         Stop::NoCollapse => {
             let welded = live_triangles(live.iter().map(|&i| input.weld[i as usize]));
             // Without a texture set, or without a seam, the weld changes nothing: same rerun.
-            if welded != last && advances(&welded)? {
+            if welded != live && advances(&welded)? {
                 StallCause::SeamLocked
             } else {
                 StallCause::Unreducible
