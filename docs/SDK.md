@@ -278,7 +278,7 @@ world.camera.set(pose.fromBounds(math.box3().setFromObject(set)));
 
 ```js
 // batch — a thousand matrices at once instead of a loop
-batch.multiplyMatrix4(outputs, parents, locals, 1000);
+batch.composeMatrix4(outputs, positions, quaternions, scales, 1000);
 ```
 
 | Family       | Members                                                                                       | What it does                                                                       |
@@ -290,7 +290,7 @@ batch.multiplyMatrix4(outputs, parents, locals, 1000);
 | `capability` | `detect`, `lighting`                                                                          | what the machine grants, before an image is promised                               |
 | `capture`    | `surface`, `buffer`                                                                           | an image taken aside, at another resolution, without touching the view             |
 | `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                                    | named poses, automatic framing, replaying a path                                   |
-| `batch`      | `multiplyMatrix4`, `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                     | a thousand matrices at once instead of a loop                                      |
+| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                                        | a thousand matrices at once instead of a loop                                      |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
 `budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`.
@@ -441,7 +441,10 @@ world units whatever its length. A canvas point is read on the CSS box and aimed
 frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
-ray through a point of the picture. Live example: [click to pick](../site/examples/click-to-pick.html).
+ray through a point of the picture. A mesh's triangle tree is kept for the next ray, within
+`world.budget.raycastTrees` bytes (64 MiB by default, settable): past it the tree cast at least
+recently is dropped, and `geometry.dispose()` drops its own at once. Live example:
+[click to pick](../site/examples/click-to-pick.html).
 
 ```js
 world.canvas.addEventListener('click', (event) => {

@@ -6,6 +6,7 @@ import { transformPointsBatch } from '../../math/batch/points.ts';
 import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
 import { applyMatrix3Vector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 import { computeNormals } from './normals.ts';
+import { forgetTree } from '../object/raycastTrees.ts';
 
 /** The shape alone: named per-vertex attributes, an optional triangle index, material groups. */
 export class Geometry {
@@ -155,9 +156,10 @@ export class Geometry {
     copy.recipe = this.recipe && { type: this.recipe.type, args: [...this.recipe.args] };
     return copy;
   }
-  /** Forgets the holders: a disposed geometry is drawn by nobody. */
+  /** Forgets the holders and the raycast tree: a disposed geometry is drawn and cast at by nobody. */
   dispose() {
     this._listeners.clear();
+    forgetTree(this);
   }
 }
 
