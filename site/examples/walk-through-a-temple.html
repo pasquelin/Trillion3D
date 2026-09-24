@@ -185,8 +185,11 @@
 
       const matte = (color, roughness = 0.9, metalness = 0) => material.meshStandard({ color, roughness, metalness });
       const glowing = (emissive, emissiveIntensity) => material.meshStandard({ color: '#000000', emissive, emissiveIntensity });
-      const stone = matte('#5a4d43'), darkStone = matte('#3a302b', 0.95), marble = matte('#efe8da', 0.3);
-      const bronze = matte('#8a6334', 0.4, 0.8);
+      // The temple is stone and its bands bronze: their matter is what the soles grip on, so a
+      // stop glides a little on the stone (`physics`, the physics materials' friction).
+      const rock = (color, roughness) => material.meshStandard({ color, roughness, metalness: 0, physics: 'stone' });
+      const stone = rock('#5a4d43', 0.9), darkStone = rock('#3a302b', 0.95), marble = rock('#efe8da', 0.3);
+      const bronze = material.meshStandard({ color: '#8a6334', roughness: 0.4, metalness: 0.8, physics: 'metal' });
       function put(shape, matter, at, parent = world.scene) {
         const mesh = object.mesh(shape, matter);
         mesh.position.set(...at);

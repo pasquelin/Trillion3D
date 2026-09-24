@@ -6288,7 +6288,7 @@
       "jumpSpeed": "Solo personaje: velocidad ascendente con la que empieza un salto, en m/s; `sqrt(2 g h)` alcanza `h`, 1,1 m por defecto.",
       "gravity": "Solo personaje: aceleración hacia abajo, en m/s²; 9,80665 por defecto.",
       "airControl": "Solo personaje: qué tan rápido dirigen las teclas en el aire, como fracción de la respuesta en tierra; 0,3 por defecto, 0 es balístico.",
-      "responseTime": "Solo personaje: segundos para alcanzar el 95 % de la velocidad deseada, o para detenerse, en el suelo; por defecto un paso de zancada (1 / 1,8 s).",
+      "responseTime": "Solo personaje: segundos que tardan las piernas en alcanzar el 95 % de la velocidad deseada, en el suelo; 0,12 por defecto. La fricción del suelo limita primero el arranque: una suela empuja como mucho `μ g`, `μ` el agarre de una suela de goma sobre el `material.physics` del suelo (piedra sin física), así que un trote se alcanza en 0,45 s sobre piedra y 2,2 s sobre hielo.",
       "capsuleRadius": "Solo personaje: radio del cuerpo, en metros; media anchura de hombros (0,23 m) por defecto.",
       "capsuleHeight": "Solo personaje: altura del cuerpo, en metros; 1,75 por defecto.",
       "eyeHeight": "Solo personaje: altura de la cámara sobre los pies, en metros; 1,64 por defecto.",
@@ -6300,7 +6300,7 @@
       "onJump": "Solo personaje: se llama cuando el cuerpo deja el suelo en un salto; `null` por defecto.",
       "stride": "Solo personaje: la fase de la zancada en radianes, un pie golpea en 0 y en π; 0 en otro caso.",
       "fallGravity": "Solo personaje: aceleración hacia abajo mientras cae, en m/s²; 1,6 g por defecto, para que un salto no flote.",
-      "stopTime": "Solo personaje: segundos para perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,08 por defecto.",
+      "stopTime": "Solo personaje: segundos que tardan las piernas en perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,12 por defecto. La fricción del suelo limita primero la parada: un trote se desliza `v² / (2 μ g)`, 0,8 m sobre piedra y 3,8 m sobre hielo; un tiempo más largo frena con más suavidad.",
       "headBob": "Solo personaje: metros que sube y baja el ojo en cada paso al trote; 0,035 por defecto, 0 lo mantiene nivelado.",
       "landingDip": "Solo personaje: segundos desde el contacto con el suelo hasta el punto más bajo de la caída de aterrizaje del ojo, tan profunda como rápido sea el impacto; 0,06 por defecto, 0 lo desactiva.",
       "mass": "Solo personaje, con física: kilogramos que el cuerpo apoya sobre lo que pisa; 80 por defecto.",
@@ -6648,7 +6648,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UN PERSONAJE, visto a través de sus ojos: un cuerpo con masa que camina, corre, salta y cae, y choca con los triángulos del mundo como una cápsula vertical.",
-    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
+    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, nunca más rápido de lo que la fricción de su suelo deja empujar a una suela, así que una parada se desliza un poco sobre la piedra y lejos sobre el hielo, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
     "members": {
       "velocity": "La velocidad del cuerpo en metros por segundo, en vivo: `[x, y, z]`, y hacia arriba.",
       "onGround": "Si los pies están sobre un suelo.",
