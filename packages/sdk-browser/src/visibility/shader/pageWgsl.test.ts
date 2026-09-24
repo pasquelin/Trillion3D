@@ -130,7 +130,7 @@ test('atlas reads receive their map nibble and mix four taps', () => {
     // anything else; any other reaches its transform and filter word, blended and shadow alike.
     assert.match(
       bloc,
-      /let s=(color|data)Slot\(slot\);\n if\(s\.sampling==0u\)\{return \w+Tap\(s,uv,wrap,slotLod\(s,ddx,ddy\),false\);\}\n let r=(color|data)Read\(slot,s,uv,ddx,ddy\);/,
+      /let s=(color|data)Slot\(slot\);\n if\(s\.sampling==0u\)\{return \w+Tap\(s,uv,wrap,slotLod\(s,ddx,ddy\),false\);\}\n let r=(color|data)Read\(slot,s,uv,ddx,ddy,(true|false)\);/,
       `${nom} must read its sampling after the default read`,
     );
     assert.match(bloc, /if\(!t\.couture\|\|nearest\)\{return /, `${nom} must keep the unique read`);
