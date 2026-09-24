@@ -1,15 +1,14 @@
 /**
  * THE HOST TEXTURES OF A WORLD'S MATERIALS: each engine texture uploaded once through the host
  * library, its addressing, filters and placement written in the host's words, and written again
- * in place when a repaint moves them (#335, #360, #361). A picture that changed — which only a
- * new upload shows — is left as it was uploaded: textures that change their pixels live are
- * #362's.
+ * in place when a repaint moves them (#335, #360, #361). Every version a texture moves to sends
+ * its picture again — nothing tells pixels written in place under the same image from a sampler
+ * change —, except a move of its placement alone, which the host reads at every draw.
  */
 import * as THREE from 'three';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
-import { pictureWords, textureChange } from '../../../../sdk-core/src/texture/contract.ts';
 import {
   HOST_FILTER_LINEAR,
   HOST_FILTER_LINEAR_MIP_LINEAR,
@@ -66,40 +65,40 @@ const addressingHeld = (host: THREE.Texture, texture: Texture) =>
   host.magFilter === FILTER[texture.magFilter] &&
   host.anisotropy === texture.anisotropy;
 
-/**
- * True when the picture a host texture shows is no longer the texture's (`textureChange`, the rule
- * the WebGL2 binder reads too): another image, flip, colour space or UV set — or a version that
- * moved with neither its sampling nor its placement, the pixels written in place then
- * `needsUpdate`. Only a new upload would show it.
- */
-const pictureMoved = (host: THREE.Texture, texture: Texture) =>
-  textureChange(
-    host.userData as { version: number; picture: unknown[] },
-    texture,
-    !placementHeld(host, texture) || !addressingHeld(host, texture),
-  ) === 'picture';
+/** True when a host texture shows the texture's picture: its image, flip and colour space. */
+const pictureHeld = (host: THREE.Texture, texture: Texture, colour: boolean) =>
+  host.image === texture.image &&
+  host.flipY === texture.flipY &&
+  host.colorSpace === colourSpace(texture, colour);
+
+const colourSpace = (texture: Texture, colour: boolean) =>
+  texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
 
 /**
- * Writes how a host texture samples, and only what moved. The placement of the picture is its UV
- * matrix, which the import recomposes at its next read (`importHostTexture`). Addressing and filters are the host
- * texture's sampler state: a change there bumps its version, which refills its engine record
- * (`../../host/surfaceImport.ts`); the pixels stay, the WebGL2 binder sets the sampler on the
- * texture it holds (`../../webgl/cluster/textures.ts`). A repaint of a colour alone changes
- * nothing here.
+ * Writes a texture's version into the host texture built for it — all of it on a texture just
+ * built. Its placement is the UV matrix the import recomposes at its next read
+ * (`../../host/surfaceImport.ts`): moved alone, it uploads nothing. Any other move sends the
+ * picture again with its sampler state, as the host does on `needsUpdate`.
  */
-function writeHostSampling(host: THREE.Texture, texture: Texture) {
+function writeHostTexture(host: THREE.Texture, texture: Texture, colour: boolean) {
+  const placementOnly =
+    host.userData.version !== undefined &&
+    !placementHeld(host, texture) &&
+    addressingHeld(host, texture) &&
+    pictureHeld(host, texture, colour);
   host.userData.version = texture.version;
-  if (!placementHeld(host, texture)) {
-    host.repeat.set(texture.repeat.x, texture.repeat.y);
-    host.offset.set(texture.offset.x, texture.offset.y);
-    host.rotation = texture.rotation;
-  }
-  if (addressingHeld(host, texture)) return;
+  host.repeat.set(texture.repeat.x, texture.repeat.y);
+  host.offset.set(texture.offset.x, texture.offset.y);
+  host.rotation = texture.rotation;
+  if (placementOnly) return;
   host.wrapS = WRAP[texture.wrapS];
   host.wrapT = WRAP[texture.wrapT];
   host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
   host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
   host.anisotropy = texture.anisotropy;
+  host.image = texture.image as THREE.Texture['image'];
+  host.flipY = texture.flipY;
+  host.colorSpace = colourSpace(texture, colour);
   host.needsUpdate = true;
 }
 
@@ -114,28 +113,18 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
     texture.layout === 'data'
       ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
       : new THREE.Texture(texture.image as THREE.Texture['image']);
-  writeHostSampling(host, texture);
-  host.colorSpace =
-    texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
-  host.flipY = texture.flipY;
   host.name = texture.name;
-  host.userData.picture = pictureWords(texture);
-  host.needsUpdate = true;
+  writeHostTexture(host, texture, colour);
   built.set(key, host);
   return host;
 }
 
-/**
- * Writes the sampling of a material's maps into the host textures a surface holds. A map whose
- * picture moved (`pictureMoved`) is left as uploaded, sampling included, as before #360: a
- * repaint never uploads, nor reopens the session — a video or a canvas reassigned at every frame
- * would reopen it at every frame. Live pictures are #362's.
- */
+/** Writes the version of each map of a material into the host texture a surface holds. */
 export function repaintHostMaps(into: Record<string, unknown>, material: Material) {
   for (const field of HOST_MAPS) {
     const texture = material[field] as Texture | undefined,
       host = into[field] as THREE.Texture | null | undefined;
-    if (texture?.isTexture && host?.isTexture && !pictureMoved(host, texture))
-      writeHostSampling(host, texture);
+    if (texture?.isTexture && host?.isTexture && host.userData.version !== texture.version)
+      writeHostTexture(host, texture, COLOUR_MAPS.has(field));
   }
 }
