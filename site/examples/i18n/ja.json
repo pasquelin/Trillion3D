@@ -1908,6 +1908,40 @@
       }
     }
   },
+  "rolling-on-terrain": {
+    "banner": "地面をクリックすると、そこにボールを落とします。「雨」でさらに20個落とします。",
+    "controls": {
+      "matter": "素材",
+      "rain": "雨"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "ゴム",
+        "stone": "石",
+        "ice": "氷"
+      }
+    },
+    "words": {
+      "credit": "この例のためにコードでモデリングした谷、CC0 — assets/examples/CREDITS.md を参照"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "歩く人はホールを回り、ボールを押します。「ボール」でさらに20個。",
+    "controls": {
+      "walking": "歩く",
+      "balls": "ボール"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ"
+    }
+  },
   "walk-with-collisions": {
     "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押そう。",
     "controls": {

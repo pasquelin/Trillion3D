@@ -8,8 +8,7 @@ import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './world
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, type LoadOptions } from './scene.ts';
 import { worldModelLoader } from './worldLoader.ts';
-import { worldRaycast, type CanvasPoint, type RaycastOptions } from './worldRaycast.ts';
-import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
+import { createWorldRaycast } from './worldRaycast.ts';
 import { awaitViewPages, registerWorld } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
@@ -154,8 +153,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     diagnostic: diagnostic.handle,
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
-    raycast: (at: CanvasPoint | Ray, options?: RaycastOptions) =>
-      worldRaycast(scene, camera, canvas, at, options),
+    raycast: createWorldRaycast(scene, () => camera, canvas, physics.session),
     /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
     onFrame: frames.add,
     /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.

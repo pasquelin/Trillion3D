@@ -1908,6 +1908,40 @@
       }
     }
   },
+  "rolling-on-terrain": {
+    "banner": "Haz clic en el suelo para soltar una pelota allí. Lluvia suelta veinte más.",
+    "controls": {
+      "matter": "Materia",
+      "rain": "Lluvia"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "goma",
+        "stone": "piedra",
+        "ice": "hielo"
+      }
+    },
+    "words": {
+      "credit": "Valle modelado en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "El caminante rodea la sala y empuja las pelotas. Pelotas añade veinte más.",
+    "controls": {
+      "walking": "Caminar",
+      "balls": "Pelotas"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "awake": "Despiertos",
+      "step": "Paso"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas.",
     "controls": {
