@@ -919,6 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
+      "SESSION_OPEN_FAILED": "A sessão do mundo não pôde abrir, por um motivo sem código próprio (`world.diagnostic.error`): o erro lançado está em `details.cause`.",
+      "WEBGPU_LOST": "O WebGPU perdeu o seu dispositivo, ou um erro nele deixou um estado a partir do qual nada pode desenhar: lançado por `render`, `flush` e pelas leituras que precisam do dispositivo, nomeado pelo diagnóstico `gpu-device-lost`, e em `world.diagnostic.error` quando uma sessão não pôde abrir por isso.",
       "UNSUPPORTED_SCENE_FORMAT": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
       "SCENE_NOT_SAVABLE": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar."
     }
@@ -3938,10 +3940,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "O que a página contém: o modo, lido e escrito.",
+    "summary": "O que a página contém: o modo de visualização, lido e escrito; as sessões abertas e por que a última falhou, somente leitura.",
     "members": {
       "mode": "O modo de visão: `'beauty'` para a imagem normal, ou um modo que mostra como o motor funciona.",
       "sessions": "As sessões que o mundo abriu até agora: uma mudança que reabre uma aparece aqui.",
+      "error": "Porque a última sessão não pôde abrir, como erro nomeado do motor: o seu `code` é um dos documentados em `EngineError` (`WEBGPU_LOST` quando o WebGPU perdeu o dispositivo), ou `SESSION_OPEN_FAILED` para um motivo sem código próprio. Um `EngineError` de código documentado é o que foi lançado; qualquer outro erro é convertido, e o erro lançado fica então em `details.cause`. `null` desde o início de cada abertura, e quando nada é tentado.",
       "modes": "Cada modo de visão que o renderizador atual oferece."
     }
   },

@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, readout, seeded, words, language } from '../runtime/kit.js';
+      import { controls, readout, seeded, words, language, circling } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -192,7 +192,6 @@
       for (let k = 0; k < KINDS.length * PER_KIND; k++) launch(false, random() * 5);
 
       const ui = controls({
-        mouse: 'Drag to walk around the fountain · scroll to come closer',
         perSecond: [0, 60, 30, 1],
         copies: ['share', 'fresh'],
         burst: () => {
@@ -208,9 +207,7 @@
       const memory = readout('gpuMemory');
 
       // The camera circles slowly until the first press or wheel on the canvas.
-      let circling = true;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
+      circling(world, 0.12);
 
       // A steady stream at the chosen rate, for as long as the page is open.
       let owed = 0, clock = 0, shown = 0;
@@ -222,12 +219,6 @@
         for (let i = live.length - 1; i >= 0; i--) {
           fly(live[i], step);
           if (live[i].age > live[i].life + 0.6) retire(i);
-        }
-        if (circling) {
-          const { position } = world.camera, { target } = world.controls, turn = step * 0.12;
-          const x = position.x - target.x, z = position.z - target.z;
-          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
-          world.controls.update();
         }
         // The counters, four times a second; a value the engine did not measure says so.
         clock += delta;

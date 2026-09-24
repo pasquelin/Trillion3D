@@ -194,7 +194,7 @@ export async function createGpuHiz(
     };
     return gpu;
   } catch {
-    await cleanupFailedHiz(device, buffers, level0, pyramid);
+    cleanupFailedHiz(buffers, level0, pyramid);
     return undefined;
   }
 }

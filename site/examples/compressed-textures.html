@@ -30,7 +30,7 @@
     <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout, words, language } from '../runtime/kit.js';
+      import { controls, readout, words, language, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -50,7 +50,6 @@
 
       // The sun moves only when a slider does: low, it rakes the relief of every paver and brick.
       controls({
-        mouse: 'Drag to walk round the fountain; scroll down to one tile and watch its detail arrive',
         sunTurn: [0, 360, 215, 1],
         sunHeight: [0.05, 1.5, 0.3],
       }, (values) => {
@@ -82,25 +81,13 @@
       // finest level of the tiles is asked for and streams in. A press or a wheel stops the glide.
       const START = { eye: [5.8, 4.4, 8.6], look: [0, 0.6, 0] };
       const END = { eye: [1.7, 0.42, 2.5], look: [0.1, 0.25, 0.4] };
-      let gliding = true, time = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (gliding = false), { passive: true });
-      world.camera.position.set(...START.eye);
-      world.controls.target.set(...START.look);
-      world.controls.update();
-      const ease = (t) => t * t * (3 - 2 * t);
-      world.onFrame(({ delta }) => {
-        if (!gliding) return;
-        time += Math.min(delta, 0.1);
-        const t = ease(math.clamp((time - 1) / 6, 0, 1));
+      opening(world, (time) => {
+        const t = ease.smooth((time - 1) / 6);
         const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
         world.camera.position.set(...at(START.eye, END.eye));
         world.controls.target.set(...at(START.look, END.look));
-        world.controls.update();
-        gliding = t < 1;
-        world.invalidate();
+        return t < 1;
       });
-      world.invalidate();
     </script>
   </body>
 </html>

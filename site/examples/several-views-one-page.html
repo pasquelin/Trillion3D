@@ -63,7 +63,7 @@
     <div class="pane"><canvas id="side"></canvas><p class="label" data-words="side"></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, ease } from '../runtime/kit.js';
 
       // A windmill on its island, drawn by four worlds at once: one looks through a perspective
       // lens the viewer turns, the three others through orthographic cameras from above, the
@@ -205,7 +205,7 @@
         world.onFrame(() => {
           advance();
           // The opening: the mill starts pulled apart and settles together in every view at once.
-          const settle = 1 - Math.min(1, state.time / 3.5), lift = Math.max(state.explode, settle * settle * (3 - 2 * settle));
+          const settle = 1 - Math.min(1, state.time / 3.5), lift = Math.max(state.explode, ease.smooth(settle));
           for (const [part, [y, rise]] of Object.entries(PARTS)) mill[part].position.y = y + rise * lift;
           mill.sails.position.z = 4.8 + 3 * lift;
           mill.cap.rotation.set(0, state.wind, 0);
@@ -218,7 +218,6 @@
 
       let rpm = null;
       controls({
-        mouse: 'Drag the big view to turn it; wheel and drag the small ones to zoom and slide, double-click to reset',
         explode: [0, 1, 0, 0.01],
         windFrom: [-180, 180, 0, 1],
         windSpeed: [0, 2, 0.6, 0.05],

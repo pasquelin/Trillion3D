@@ -36,6 +36,7 @@ const runtimeOf = (
   ready: Promise<void>,
   failed: (error: unknown) => void,
   open?: Parameters<typeof createWorldRuntime>[0]['open'],
+  opening: () => void = () => {},
 ) =>
   createWorldRuntime({
     canvas: { width: 1, height: 1 } as HTMLCanvasElement,
@@ -44,12 +45,11 @@ const runtimeOf = (
     open,
     camera: () => new Camera('perspective'),
     options: () => ({ manifestUrl: '' }),
-    failed,
     opened: () => {},
     frame: () => {},
     drawn: () => false,
     display: () => ({ exposure: 1, toneMapping: 'aces' }),
-    notices: createWorldNotices(),
+    diagnostic: { notices: createWorldNotices(), failed, opening },
   });
 const until = async (done: () => boolean) => {
   for (let waited = 0; !done() && waited < 5000; waited += 20)
@@ -60,14 +60,24 @@ test('a model loaded after the lights still opens a session', async () => {
   const ready = Promise.resolve();
   const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
   let attempted = false;
+  const said: string[] = [];
   // A canvas stand-in makes the opening fail: that it was attempted is what is asserted.
-  const runtime = runtimeOf(scene, ready, () => (attempted = true));
+  const runtime = runtimeOf(
+    scene,
+    ready,
+    () => ((attempted = true), said.push('failed')),
+    undefined,
+    () => said.push('opening'),
+  );
   // The lights alone open nothing; the model that follows must open the session.
   scene.add(light.directional({ intensity: 3 }), light.hemisphere({ intensity: 1 }));
   await scene.load(`${HOST}assets/examples/detail-by-pixel-error/cache/native/full/manifest.json`);
   await until(() => attempted);
   runtime.dispose();
   assert.equal(attempted, true);
+  // Every opening, the lights' included, first clears the failure a previous one left.
+  assert.equal(said.at(-1), 'failed');
+  assert.equal(said.at(-2), 'opening');
 });
 
 test('a resolution that throws is reported, and the next change resolves again', async () => {

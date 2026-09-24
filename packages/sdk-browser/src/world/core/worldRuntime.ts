@@ -14,7 +14,7 @@ import { copyWorldCamera, createCanvasFit, drawnAspect } from './worldCamera.ts'
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { Scene } from './scene.ts';
-import type { WorldNotices } from '../diagnostic/worldNotices.ts';
+import type { worldDiagnostic } from './worldHandles.ts';
 
 type Inputs = {
   canvas: HTMLCanvasElement;
@@ -31,9 +31,8 @@ type Inputs = {
   drawn: () => boolean;
   /** Settles once the world's renderer — and its device — is granted, a lost one asked again. */
   ready: () => Promise<unknown>;
-  /** A session that failed to open, or a scene that failed to resolve: reported, scene kept. */
-  failed: (error: unknown) => void;
-  notices: WorldNotices;
+  /** The world's notices; each opening, tried or not; a session or a scene that failed, kept. */
+  diagnostic: Pick<ReturnType<typeof worldDiagnostic>, 'notices' | 'failed' | 'opening'>;
   /** Opens a session; stands for the engine's own. */
   open?: typeof openMeasuredWorld;
 };
@@ -48,7 +47,7 @@ type Inputs = {
  */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
-  const contents = createWorldContents(scene, inputs.notices),
+  const contents = createWorldContents(scene, inputs.diagnostic.notices),
     lights = createWorldLights();
   const { poses, cuts } = contents;
   let explorer: MeasuredWorld | null = null,
@@ -88,6 +87,7 @@ export function createWorldRuntime(inputs: Inputs) {
     for (const [node, twin] of twins) poses.writeTwin(node, twin, contents.shown(node));
     lights.reset();
     lightsChanged = true;
+    inputs.diagnostic.opening();
     if (!built) {
       closed = 'nothing to draw: the scene holds no mesh and no loaded model';
       return;
@@ -100,7 +100,7 @@ export function createWorldRuntime(inputs: Inputs) {
       explorer = await open(canvas, { ...inputs.options(), scope }, built.source);
     } catch (error) {
       closed = 'its session failed to open';
-      if (!disposed) inputs.failed(error); // cut short by disposal, it failed nothing
+      if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing
       return;
     }
     if (disposed) return explorer.dispose();
@@ -109,8 +109,7 @@ export function createWorldRuntime(inputs: Inputs) {
     invalidate();
     inputs.opened(explorer);
   };
-  const reopens = createRequestLoop(reopen),
-    requestReopen = reopens.request;
+  const reopens = createRequestLoop(reopen);
   // Every change made before the renderer is granted, and while a resolution runs, is folded into
   // the next one. One that throws is reported and ends the burst; the next change starts another.
   const resolve = async () => {
@@ -125,7 +124,8 @@ export function createWorldRuntime(inputs: Inputs) {
     } catch (error) {
       closed = 'the scene could not be resolved';
       lightsChanged = true; // a light taken with the burst that threw is written all the same
-      if (!disposed) inputs.failed(new Error('World scene resolution failed', { cause: error }));
+      if (!disposed)
+        inputs.diagnostic.failed(new Error('World scene resolution failed', { cause: error }));
     }
     resolving = null;
   };
@@ -139,12 +139,12 @@ export function createWorldRuntime(inputs: Inputs) {
     if (seatWanted) {
       seatWanted = false;
       contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
-      if (contents.reopenNeeded() || (!session && !reopens.running)) requestReopen();
+      if (contents.reopenNeeded() || (!session && !reopens.running)) reopens.request();
       // A material written on its values alone repaints the surface already built (#335).
       const painted = contents.repainted().filter((entry) => mirror?.repaint(entry.material));
       // A reopen requested above disposed `session` at once: the next one is built repainted.
       if (painted.length && session && explorer === session && !session.refreshMaterials())
-        requestReopen();
+        reopens.request();
     }
     if (!session || explorer !== session) return;
     if (poses.pending)
@@ -172,7 +172,7 @@ export function createWorldRuntime(inputs: Inputs) {
     beforeFrame,
     invalidate,
     /** A session option changed: the next opening takes it, whatever the scene holds. */
-    renew: requestReopen,
+    renew: reopens.request,
     /** Exposure or curve changed: written with the lights before the next frame. */
     displayChanged: relight,
     get explorer() {

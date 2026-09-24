@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, language } from '../runtime/kit.js';
+      import { controls, readout, seeded, language, ease, opening } from '../runtime/kit.js';
 
       // A bell curve drawn from a seeded sequence (the kit's `seeded`): the same sky on every run.
       const next = seeded(21);
@@ -163,7 +163,6 @@
         groupCount?.(String(current.layers.length));
       };
       const ui = controls({
-        mouse: 'Drag to turn around the cloud; pick another shape and the old one winds away as the new one unfolds',
         shape: Object.keys(SHAPES),
         spin: true,
       }, (values, key) => {
@@ -176,15 +175,17 @@
 
       // The opening: the camera falls from high above the disc to a three-quarter view.
       const from = [0, 34, 30], to = [2, 6, 13.5];
-      let intro = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
-      const ease = (t) => 1 - (1 - t) ** 3;
+      const intro = opening(world, (time) => {
+        const k = ease.out(time / 4);
+        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        world.controls.target.set(0, 0, 0);
+        return time < 4;
+      });
       let time = 0, waited = 0;
       world.onFrame(({ delta }) => {
         // Nothing turning, growing, joining or gliding: no new frame.
         const settled = (shape) => !shape.root.visible || shape.grow === (shape === current ? 1 : 0);
-        if (!ui.spin && !steps.length && intro >= 1 && Object.values(SHAPES).every(settled)) return;
+        if (!ui.spin && !steps.length && !intro.gliding && Object.values(SHAPES).every(settled)) return;
         const step = Math.min(delta, 0.05);
         if (ui.spin) time += step;
         // The next step joins once the frame before it has drawn, a second apart.
@@ -196,18 +197,11 @@
         for (const shape of Object.values(SHAPES)) {
           if (!shape.root.visible) continue;
           shape.grow = shape === current ? Math.min(1, shape.grow + step / 2.2) : Math.max(0, shape.grow - step / 1.1);
-          const g = ease(shape.grow);
+          const g = ease.out(shape.grow);
           shape.root.scale.setScalar(Math.max(0.001, g));
           shape.root.rotation.set(shape.tilt, (1 - g) * 2.4, 0);
           shape.layers.forEach(([layer, speed], index) => (layer.rotation.y = time * speed + (1 - g) * (index + 1) * 0.6));
           if (shape !== current && shape.grow === 0) shape.root.visible = false;
-        }
-        if (intro < 1) {
-          intro = Math.min(1, intro + step / 4);
-          const k = ease(intro);
-          world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
-          world.controls.target.set(0, 0, 0);
-          world.controls.update();
         }
         world.invalidate();
       });

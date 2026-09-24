@@ -33,11 +33,17 @@
       "CPU frame": "CPU frame",
       "page hooks": "page hooks",
       "engine CPU": "engine CPU"
+    },
+    "failure": {
+      "title": "This example stopped on an error"
+    },
+    "banner": {
+      "close": "Close"
     }
   },
   "a-city-from-rules": {
+    "banner": "Drag to fly around. Move a slider and the city builds itself again.",
     "controls": {
-      "mouse": "Drag to fly around; every control rebuilds the city from its rules",
       "blocks": "Blocks",
       "maxHeight": "Max height",
       "density": "Density",
@@ -52,8 +58,8 @@
     }
   },
   "a-cloud-of-points": {
+    "banner": "Drag to turn around the cloud. Pick another shape and watch it change.",
     "controls": {
-      "mouse": "Drag to turn around the cloud; pick another shape and the old one winds away as the new one unfolds",
       "shape": "Shape",
       "spin": "Spin"
     },
@@ -71,6 +77,7 @@
     }
   },
   "a-colour-ramp-in-linear-light": {
+    "banner": "Pick a colour and see how the light fades it from dark to bright.",
     "controls": {
       "colour": "Colour",
       "glow": "Glow",
@@ -78,6 +85,7 @@
     }
   },
   "a-field-of-pebbles": {
+    "banner": "Drag to look around. Move the sun and watch the pebbles' shadows.",
     "controls": {
       "sunTurn": "Sun turn",
       "sunHeight": "Sun height",
@@ -86,13 +94,14 @@
     }
   },
   "a-first-world": {
+    "banner": "Drag to turn around the cube. Pick a new colour for it.",
     "controls": {
       "colour": "Colour"
     }
   },
   "a-game-board-seen-from-above": {
+    "banner": "Drag to slide the board. Scroll or pinch to zoom. Use the arrow keys to pan.",
     "controls": {
-      "mouse": "Drag to slide the board · scroll or pinch to zoom · arrow keys to pan",
       "play": "Play",
       "speed": "Speed",
       "follow": "Follow",
@@ -106,6 +115,7 @@
     }
   },
   "a-lamp-in-its-glass": {
+    "banner": "Drag to look around. Swing the lantern and watch the light move.",
     "controls": {
       "swing": "Swing",
       "lamp": "Lamp",
@@ -114,6 +124,7 @@
     }
   },
   "a-lighthouse-beam": {
+    "banner": "Drag to look around. Make the beam turn faster or wider.",
     "controls": {
       "turnsPerMinute": "Turns per minute",
       "beamWidth": "Beam width",
@@ -121,8 +132,8 @@
     }
   },
   "a-long-shadowed-street": {
+    "banner": "Drag to look down the street. Slide the hour to stretch the shadows. Scroll to move.",
     "controls": {
-      "mouse": "Drag to look round the avenue, scroll to move; slide the hour and the shadows stretch across the street and climb the facades",
       "hour": "Hour",
       "traffic": "Traffic",
       "flyAgain": "Fly again"
@@ -133,8 +144,8 @@
     }
   },
   "a-matcap-sculpture": {
+    "banner": "Drag to walk around the sculpture. Its light turns with you.",
     "controls": {
-      "mouse": "Drag to walk around the sculpture: its light turns with you, because it lives in the picture",
       "matcap": "Matcap",
       "sculpture": "Sculpture",
       "gallery": "Gallery",
@@ -157,8 +168,8 @@
     }
   },
   "a-mesh-built-by-hand": {
+    "banner": "Drag to turn around the gems. Each one is built point by point. Switch sharp facets off to share the corners.",
     "controls": {
-      "mouse": "Drag to turn around the gems; tick sharp facets off to share the corners",
       "points": "Points",
       "waist": "Waist",
       "height": "Height",
@@ -172,8 +183,8 @@
     }
   },
   "a-model-from-obj": {
+    "banner": "Drag to turn around the board. Scroll to lean in close.",
     "controls": {
-      "mouse": "Drag to turn round the board, scroll to lean in: see what the OBJ became",
       "view": "View",
       "sunAngle": "Sun angle",
       "sunHeight": "Sun height",
@@ -192,8 +203,8 @@
     }
   },
   "a-model-from-usdz": {
+    "banner": "Drag to walk around the chess set. Scroll down to the pieces.",
     "controls": {
-      "mouse": "Drag to walk round the board; scroll down to the pieces",
       "view": "View",
       "turn": "Turn"
     },
@@ -216,8 +227,8 @@
     }
   },
   "a-molecule": {
+    "banner": "Drag to turn around the molecule. Pick another one and watch the atoms fly.",
     "controls": {
-      "mouse": "Drag to turn around the molecule; pick another and its atoms fly to their new places",
       "molecule": "Molecule",
       "style": "Style",
       "spin": "Spin"
@@ -241,6 +252,7 @@
     }
   },
   "a-neon-sign": {
+    "banner": "Drag to look around. Make the neon glow and blink.",
     "controls": {
       "star": "Star",
       "wave": "Wave",
@@ -261,6 +273,7 @@
     }
   },
   "a-ring-of-lamps": {
+    "banner": "Drag to look around. Add lamps and make them spin.",
     "controls": {
       "lamps": "Lamps",
       "speed": "Speed",
@@ -269,6 +282,7 @@
     }
   },
   "a-robot-that-walks-and-waves": {
+    "banner": "Drag to look around. Mix walking, waving and dancing.",
     "controls": {
       "walk": "Walk",
       "wave": "Wave",
@@ -278,6 +292,7 @@
     }
   },
   "a-scene-of-your-own": {
+    "banner": "Drag to look around. Change the hour, the wind and the roof.",
     "controls": {
       "hour": "Hour",
       "wind": "Wind",
@@ -285,8 +300,8 @@
     }
   },
   "a-softbox-panel": {
+    "banner": "Drag to walk around. Make the light panel bigger to soften the shine.",
     "controls": {
-      "mouse": "Drag to walk round the set; grow the panel and watch the highlights soften",
       "panelWidth": "Panel width",
       "power": "Power",
       "colour": "Colour",
@@ -298,6 +313,7 @@
     }
   },
   "a-staircase-from-one-step": {
+    "banner": "Drag to look around. Change the steps and the stairs rebuild.",
     "controls": {
       "climb": "Climb",
       "turnPerStep": "Turn per step",
@@ -305,6 +321,7 @@
     }
   },
   "a-terrain-from-a-height-map": {
+    "banner": "Drag to fly over the mountains. Slide the hour of the day.",
     "controls": {
       "hour": "Hour",
       "sunColour": "Sun colour",
@@ -312,8 +329,8 @@
     }
   },
   "a-texture-turned-and-tiled": {
+    "banner": "Drag to look around. Turn and repeat the picture on the walls. The panel at the back shows the picture as painted.",
     "controls": {
-      "mouse": "Drag to look around; the panel at the back is the tile as painted",
       "tile": "Tile",
       "wrap": "Wrap",
       "tilesAcross": "Tiles across",
@@ -342,8 +359,8 @@
     }
   },
   "a-tube-along-a-spline": {
+    "banner": "Drag to look around. The beads ride along the tube.",
     "controls": {
-      "mouse": "Drag to look around; the beads ride the spline the tube follows",
       "path": "Path",
       "radius": "Radius",
       "sides": "Sides",
@@ -364,6 +381,7 @@
     }
   },
   "a-vase-turned-on-the-lathe": {
+    "banner": "Drag to look around. Change a vase's width and height.",
     "controls": {
       "width": "Width",
       "height": "Height",
@@ -372,8 +390,8 @@
     }
   },
   "a-video-on-a-screen": {
+    "banner": "Drag to look around the room. The screen plays a real video.",
     "controls": {
-      "mouse": "Drag to look around the room; the screen plays a real video element",
       "playing": "Playing",
       "openVideo": "Open video"
     },
@@ -387,8 +405,8 @@
     }
   },
   "a-video-panorama": {
+    "banner": "Drag to look all around you. Open your own video if you like. The view turns on its own until you press.",
     "controls": {
-      "mouse": "Drag to look around; the view turns on its own until you press",
       "playing": "Playing",
       "fieldOfView": "Field of view",
       "openVideo": "Open video"
@@ -402,8 +420,8 @@
     }
   },
   "a-wall-of-cameras": {
+    "banner": "Click a small screen to show it big. Choose what each camera watches.",
     "controls": {
-      "mouse": "Click a feed to put it on the big screen; tell the cameras what to watch",
       "watch": "Watch"
     },
     "choices": {
@@ -431,6 +449,7 @@
     }
   },
   "a-wave-across-a-grid": {
+    "banner": "Drag to look around. Make the wave of cubes higher or faster.",
     "controls": {
       "height": "Height",
       "speed": "Speed",
@@ -440,8 +459,8 @@
     }
   },
   "a-world-of-blocks": {
+    "banner": "Drag to fly around the island. Raise the sea to flood the valleys.",
     "controls": {
-      "mouse": "Drag to fly around the island; raise the sea and watch the valleys flood",
       "seed": "Seed",
       "seaLevel": "Sea level",
       "hour": "Hour",
@@ -452,8 +471,8 @@
     }
   },
   "before-and-after-slider": {
+    "banner": "Drag the round knob to compare. Drag the picture to turn around.",
     "controls": {
-      "mouse": "Drag the round knob to move the split; drag the picture to turn around the square",
       "before": "Before"
     },
     "choices": {
@@ -473,8 +492,8 @@
     }
   },
   "blobs-that-merge": {
+    "banner": "Drag to walk around the lamp. Heat it up and the blobs melt together.",
     "controls": {
-      "mouse": "Drag to walk around the lamp; raise the stickiness and the drops melt into each other",
       "stickiness": "Stickiness",
       "heat": "Heat",
       "wax": "Wax"
@@ -484,6 +503,7 @@
     }
   },
   "bricks-with-a-normal-map": {
+    "banner": "Drag to look around. Move the lamp and watch the bricks' bumps.",
     "controls": {
       "sweep": "Sweep",
       "lamp": "Lamp",
@@ -492,9 +512,7 @@
     }
   },
   "click-to-pick": {
-    "controls": {
-      "help": "Click a shape: it lights up, and the panel says where the ray met it."
-    },
+    "banner": "Click a shape. It lights up and the panel says where you hit it.",
     "readouts": {
       "picked": "Picked",
       "point": "Point",
@@ -511,8 +529,8 @@
     }
   },
   "colours-on-the-vertices": {
+    "banner": "Drag to turn the planet. Every corner carries its own colour.",
     "controls": {
-      "mouse": "Drag to turn the planet; each vertex carries its own colour",
       "palette": "Palette",
       "seaLevel": "Sea level",
       "relief": "Relief",
@@ -528,8 +546,8 @@
     }
   },
   "compressed-textures": {
+    "banner": "Drag to walk around the fountain. Scroll close to see the detail arrive.",
     "controls": {
-      "mouse": "Drag to walk round the fountain; scroll down to one tile and watch its detail arrive",
       "sunTurn": "Sun turn",
       "sunHeight": "Sun height"
     },
@@ -548,8 +566,8 @@
     }
   },
   "copies-along-a-path": {
+    "banner": "Drag to look around the park. Add copies until they make a tunnel.",
     "controls": {
-      "mouse": "Drag to look around the park; raise the copies until the arches close into a tunnel",
       "copies": "Copies",
       "twist": "Twist",
       "speed": "Speed",
@@ -560,6 +578,7 @@
     }
   },
   "crates-under-a-spotlight": {
+    "banner": "Drag to look around. Change the spotlight's angle and colour.",
     "controls": {
       "angle": "Angle",
       "softness": "Softness",
@@ -571,8 +590,8 @@
     }
   },
   "create-and-dispose": {
+    "banner": "Drag to walk around. Watch pieces appear and disappear all the time. Scroll to come closer.",
     "controls": {
-      "mouse": "Drag to walk around the fountain · scroll to come closer",
       "perSecond": "Per second",
       "copies": "Copies",
       "burst": "Burst",
@@ -595,8 +614,8 @@
     }
   },
   "curved-surfaces": {
+    "banner": "Drag to walk around. Lower the grid to see the triangles in each curve.",
     "controls": {
-      "mouse": "Drag to walk around the gallery; slide the grid down to see the triangles every curve is made of",
       "grid": "Grid",
       "facets": "Facets",
       "turntable": "Turntable"
@@ -614,8 +633,8 @@
     }
   },
   "dashed-lines": {
+    "banner": "Drag to turn around the sun. Change the dashes and the gaps.",
     "controls": {
-      "mouse": "Drag to turn around the sun; change the dash and the gap and every orbit follows",
       "lines": "Lines",
       "dash": "Dash",
       "gap": "Gap",
@@ -632,8 +651,8 @@
     }
   },
   "detail-by-pixel-error": {
+    "banner": "Drag to walk down the avenue. Scroll close to an urn, then far away.",
     "controls": {
-      "mouse": "Drag to walk around the avenue; scroll close to one urn, then far away",
       "pixelError": "Pixel error",
       "view": "View"
     },
@@ -656,8 +675,8 @@
     }
   },
   "edges-and-wireframe": {
+    "banner": "Drag to look around. Raise the threshold to keep only sharp edges.",
     "controls": {
-      "mouse": "Drag to look around; raise the threshold to keep only the sharp creases",
       "view": "View",
       "threshold": "Threshold",
       "lines": "Lines",
@@ -678,8 +697,8 @@
     }
   },
   "every-image-format": {
+    "banner": "Drag to walk along the easels. Lower the quality and look closely.",
     "controls": {
-      "mouse": "Drag to walk along the easels; lower the quality and look closely at JPEG and WebP",
       "quality": "Quality",
       "lookAt": "Look at"
     },
@@ -720,8 +739,8 @@
     }
   },
   "flat-shadows-on-the-floor": {
+    "banner": "Drag to walk around the sundial. Slide the hour to swing the shadows.",
     "controls": {
-      "mouse": "Drag to walk around the sundial; slide the hour and every shadow swings with the sun",
       "hour": "Hour",
       "darkness": "Darkness",
       "timeLapse": "Time lapse",
@@ -735,6 +754,7 @@
     }
   },
   "fly-over-a-model-town": {
+    "banner": "Fly the jet through the rings. Push the throttle up to take off.",
     "choices": {
       "view": {
         "cockpit": "Cockpit",
@@ -800,8 +820,8 @@
     }
   },
   "four-ways-to-blend": {
+    "banner": "Drag to look from the side. Each panel mixes colours its own way. Left to right: normal, additive, subtractive, multiply.",
     "controls": {
-      "mouse": "Left to right: normal, additive, subtractive, multiply; drag to look at them from the side",
       "inks": "Inks",
       "opacity": "Opacity",
       "circle": "Circle"
@@ -815,8 +835,8 @@
     }
   },
   "frame-the-model": {
+    "banner": "Double-click an object to zoom onto it. Drag to turn. Scroll to zoom.",
     "controls": {
-      "mouse": "Double-click an object to frame it; drag to turn, wheel to zoom",
       "model": "Model",
       "margin": "Margin",
       "drift": "Drift"
@@ -845,8 +865,8 @@
     }
   },
   "from-a-grain-to-a-planet": {
+    "banner": "Scroll to zoom from a grain of sand to the whole planet. Drag to turn.",
     "controls": {
-      "mouse": "Scroll to zoom anywhere from a grain of sand to the whole planet; drag to turn",
       "toTheGrain": "To the grain",
       "toTheBeach": "To the beach",
       "toTheIsland": "To the island",
@@ -867,6 +887,7 @@
     }
   },
   "from-clay-to-chrome": {
+    "banner": "Drag to look around. See the same colour as clay, metal and chrome.",
     "controls": {
       "colour": "Colour",
       "lamps": "Lamps",
@@ -874,6 +895,7 @@
     }
   },
   "from-noon-to-dusk": {
+    "banner": "Drag to look around. Slide the hour from noon to night.",
     "controls": {
       "speed": "Speed",
       "hour": "Hour",
@@ -881,6 +903,7 @@
     }
   },
   "glass-on-the-table": {
+    "banner": "Drag to look around. Change how the glass bends the light.",
     "controls": {
       "refraction": "Refraction",
       "thickness": "Thickness",
@@ -889,8 +912,8 @@
     }
   },
   "helpers-to-see-the-scene": {
+    "banner": "Drag to walk around. Switch the helpers off to see the plain picture.",
     "controls": {
-      "mouse": "Drag to walk around the set; switch the helpers off to see the shot as it is",
       "helpers": "Helpers",
       "dolly": "Dolly",
       "bulb": "Bulb"
@@ -908,8 +931,8 @@
     }
   },
   "inside-a-panorama": {
+    "banner": "Drag to turn around. Scroll to come closer. Pick another sky.",
     "controls": {
-      "mouse": "Drag to turn around · scroll to come closer",
       "sky": "Sky",
       "fieldOfView": "Field of view"
     },
@@ -925,8 +948,8 @@
     }
   },
   "inside-the-g-buffer": {
+    "banner": "Drag to walk around. Pick a buffer to peek inside the picture.",
     "controls": {
-      "mouse": "Drag to walk around the court · pick a buffer to look inside the frame",
       "buffer": "Buffer",
       "turning": "Turning"
     },
@@ -954,8 +977,8 @@
     }
   },
   "instances-in-colour": {
+    "banner": "Drag to tilt the galaxy. Scroll to dive into it.",
     "controls": {
-      "mouse": "Drag to tilt the galaxy; scroll to dive into it",
       "count": "Count",
       "arms": "Arms",
       "twist": "Twist",
@@ -969,8 +992,8 @@
     }
   },
   "keyframes-by-hand": {
+    "banner": "Drag to turn around the desk. Watch the lamp hop from key to key. Show the keys to see one hop as pale copies of the lamp.",
     "controls": {
-      "mouse": "Drag to turn around the desk; show the keys of one hop as pale copies of the lamp",
       "timing": "Timing",
       "onionSkin": "Onion skin",
       "speed": "Speed"
@@ -997,8 +1020,8 @@
     }
   },
   "labels-that-follow": {
+    "banner": "Drag to turn around the Sun. The labels ride on the planets. Scroll to come closer.",
     "controls": {
-      "mouse": "Drag to turn around the Sun, wheel to come closer; the labels ride on the planets",
       "show": "Show",
       "speed": "Speed",
       "lineThemUp": "Line them up"
@@ -1034,6 +1057,7 @@
     }
   },
   "leaves-cut-by-alpha": {
+    "banner": "Drag to look around. Slide the cutoff and watch the leaves' edges.",
     "controls": {
       "branches": "Branches",
       "leaves": "Leaves",
@@ -1042,6 +1066,7 @@
     }
   },
   "letters-carved-in-relief": {
+    "banner": "Drag to look around. Move the light across the carved letters.",
     "controls": {
       "rake": "Rake",
       "warm": "Warm",
@@ -1050,8 +1075,8 @@
     }
   },
   "light-from-a-probe": {
+    "banner": "Drag to turn around the garden. Pick a place and see its light.",
     "controls": {
-      "mouse": "Drag to turn round the garden; pick a place and the sculptures take on its light",
       "place": "Place",
       "turn": "Turn",
       "strength": "Strength",
@@ -1071,8 +1096,8 @@
     }
   },
   "light-in-real-units": {
+    "banner": "Drag to walk around the square. Pick a moment, from noon to moonlight.",
     "controls": {
-      "mouse": "Drag to walk round the square; pick a moment and watch the camera adapt, from 100,000 lux down to a moonlit night",
       "moment": "Moment",
       "lampLumens": "Lamp lumens",
       "autoExposure": "Auto exposure",
@@ -1100,6 +1125,7 @@
     }
   },
   "lights-from-the-scene-file": {
+    "banner": "Drag to look around. These lamps came inside the model file.",
     "controls": {
       "lamp": "Lamp",
       "power": "Power",
@@ -1107,8 +1133,8 @@
     }
   },
   "lines-in-colour": {
+    "banner": "Drag to turn around. Pick another rule and watch the pen draw it.",
     "controls": {
-      "mouse": "Drag to turn around the figure; pick another rule and the pen draws it from the start",
       "figure": "Figure",
       "palette": "Palette",
       "pace": "Pace",
@@ -1134,6 +1160,7 @@
     }
   },
   "marble-bust-on-its-pedestal": {
+    "banner": "Drag to turn around the bust. Move the lamp around its head.",
     "controls": {
       "lampTurn": "Lamp turn",
       "lampHeight": "Lamp height",
@@ -1146,6 +1173,7 @@
     }
   },
   "memory-on-a-budget": {
+    "banner": "Drag to look around. Give less memory and watch what stays sharp.",
     "controls": {
       "memory": "Memory",
       "view": "View"
@@ -1164,8 +1192,8 @@
     }
   },
   "move-rotate-scale-gizmo": {
+    "banner": "Drag a handle to move, turn or grow the object. Drag beside it to look around.",
     "controls": {
-      "help": "Drag a handle. Drag beside it to turn the camera.",
       "mode": "Mode",
       "axes": "Axes",
       "snap": "Snap"
@@ -1187,8 +1215,8 @@
     }
   },
   "no-hitch-on-first-draw": {
+    "banner": "Drag to look around. The graph shows the time between pictures.",
     "controls": {
-      "mouse": "Drag to look around the gallery · the graph is the time between frames",
       "turning": "Turning",
       "revealAgain": "Reveal again"
     },
@@ -1203,8 +1231,8 @@
     }
   },
   "normals-and-depth-seen": {
+    "banner": "Drag to walk around. Switch the view to see what the renderer stores.",
     "controls": {
-      "mouse": "Drag to walk round the court; switch the view to see the surfaces as the renderer stores them",
       "see": "See",
       "spin": "Spin"
     },
@@ -1225,6 +1253,7 @@
     }
   },
   "observatory-streamed": {
+    "banner": "Drag to look around. Switch the view to see how the model is cut up.",
     "controls": {
       "view": "View",
       "pixelError": "Pixel error"
@@ -1240,8 +1269,8 @@
     }
   },
   "one-clip-many-objects": {
+    "banner": "Drag to turn around the stadium. Choose how the wave runs through the fans.",
     "controls": {
-      "mouse": "Drag to turn around the arena; pick how the one clip is spread over the fans",
       "pattern": "Pattern",
       "speed": "Speed"
     },
@@ -1258,6 +1287,7 @@
     }
   },
   "openworld": {
+    "banner": "Walk with W A S D. Press E near a car or a plane to get in.",
     "controls": {
       "keys": "WASD walk · Shift run · Space jump · C crouch · E get in or out of a car or a plane",
       "teleport": "Teleport",
@@ -1279,8 +1309,8 @@
     }
   },
   "orbit-around-a-clockwork": {
+    "banner": "Drag to turn around. Right-drag to slide. Scroll to zoom on the gears.",
     "controls": {
-      "mouse": "A product viewer: drag to turn around · right-drag to slide · scroll to zoom in on the teeth",
       "view": "View",
       "speed": "Speed",
       "brass": "Brass"
@@ -1295,6 +1325,7 @@
     }
   },
   "painted-and-textured": {
+    "banner": "Drag to look around. Change the paint and the checks on the shapes.",
     "controls": {
       "checks": "Checks",
       "paint": "Paint",
@@ -1303,8 +1334,8 @@
     }
   },
   "reading-pixels-back": {
+    "banner": "Drag to look around. The small picture is the view read back as numbers.",
     "controls": {
-      "mouse": "Drag to look around · the picture bottom right is the view read back as numbers",
       "sunHeight": "Sun height",
       "live": "Live",
       "turning": "Turning",
@@ -1321,8 +1352,8 @@
     }
   },
   "ride-a-roller-coaster": {
+    "banner": "Drag to turn your head on the ride. Switch the ride off to look around the park.",
     "controls": {
-      "mouse": "On the ride, drag to turn your head. Switch the ride off to orbit the park",
       "ride": "Ride",
       "loops": "Loops"
     },
@@ -1332,8 +1363,8 @@
     }
   },
   "save-the-scene": {
+    "banner": "Knock the tower down, then open the saved scene again.",
     "controls": {
-      "help": "Knock the tower down, then open the saved scene again.",
       "knockDown": "Knock down",
       "save": "Save",
       "open": "Open"
@@ -1346,8 +1377,8 @@
     }
   },
   "scattered-on-a-surface": {
+    "banner": "Drag to turn the planet. Let the forest climb the mountains.",
     "controls": {
-      "mouse": "Drag to turn around the planet; raise the steepest slope and the forest climbs the mountains",
       "trees": "Trees",
       "rocks": "Rocks",
       "steepest": "Steepest",
@@ -1360,8 +1391,8 @@
     }
   },
   "see-the-triangles": {
+    "banner": "Scroll out and in. Far away, the bust needs fewer, bigger triangles.",
     "controls": {
-      "mouse": "Scroll out and in: far away the bust needs fewer, bigger triangles",
       "view": "View",
       "pixelError": "Pixel error",
       "sideBySide": "Side by side"
@@ -1384,8 +1415,8 @@
     }
   },
   "select-with-a-box": {
+    "banner": "Drag a box to select. Shift adds, Alt removes. Switch to turn to look around.",
     "controls": {
-      "help": "Select: drag a box; Shift adds, Alt removes. Turn: drag to fly round the garden",
       "mouse": "Mouse",
       "selectAll": "Select all",
       "clear": "Clear"
@@ -1401,8 +1432,8 @@
     }
   },
   "several-views-one-page": {
+    "banner": "Drag the big view to turn it. Scroll and drag the small ones. They zoom and slide; double-click one to reset it.",
     "controls": {
-      "mouse": "Drag the big view to turn it; wheel and drag the small ones to zoom and slide, double-click to reset",
       "explode": "Explode",
       "windFrom": "Wind from",
       "windSpeed": "Wind speed"
@@ -1418,8 +1449,8 @@
     }
   },
   "shadows-from-the-sun": {
+    "banner": "Drag to walk around the garden. Slide the hour to swing the shadows.",
     "controls": {
-      "mouse": "Drag to walk round the garden; slide the hour and every shadow swings, the obelisk tip walking over its hour stones",
       "hour": "Hour",
       "day": "Day",
       "latitude": "Latitude",
@@ -1451,8 +1482,8 @@
     }
   },
   "shapes-cut-and-extruded": {
+    "banner": "Drag to look around. Make the depth zero to see the flat shape.",
     "controls": {
-      "mouse": "Drag to look around; a depth of zero leaves the flat cut-out shape",
       "depth": "Depth",
       "bevel": "Bevel",
       "bevelSize": "Bevel size",
@@ -1465,6 +1496,7 @@
     }
   },
   "shapes-on-a-turntable": {
+    "banner": "Drag to look around. Change the colour and the spin.",
     "controls": {
       "colour": "Colour",
       "speed": "Speed",
@@ -1472,8 +1504,8 @@
     }
   },
   "side-by-side-stereo": {
+    "banner": "Drag the left picture to turn. Cross your eyes until the two dots meet.",
     "controls": {
-      "mouse": "Drag on the left picture to turn; cross your eyes until the two dots become one",
       "viewing": "Viewing",
       "separation": "Separation",
       "speed": "Speed"
@@ -1490,8 +1522,8 @@
     }
   },
   "sky-and-ground-light": {
+    "banner": "Drag to look from below and above. Pick a place to change its sky.",
     "controls": {
-      "mouse": "Drag to look from below and above; each place paints the tops with its sky and the undersides with its ground",
       "place": "Place",
       "skyStrength": "Sky strength",
       "sun": "Sun",
@@ -1513,8 +1545,8 @@
     }
   },
   "smooth-edges-over-time": {
+    "banner": "Drag to look at the wires. Switch smoothing off and see the steps.",
     "controls": {
-      "mouse": "Drag to look at the wires; switch the smoothing off and watch them break into steps",
       "smoothing": "Smoothing",
       "circle": "Circle"
     },
@@ -1527,8 +1559,8 @@
     }
   },
   "snow-of-sprites": {
+    "banner": "Drag to walk around the cabin. Turn the snow into a blizzard.",
     "controls": {
-      "mouse": "Drag to walk round the cabin; turn it into a blizzard and the flakes thicken and fly sideways",
       "weather": "Weather",
       "wind": "Wind"
     },
@@ -1544,8 +1576,8 @@
     }
   },
   "sound-made-visible": {
+    "banner": "Click the stage to hear a melody. Drag to walk around the stage: the bars are the pitches, the pearls the wave itself.",
     "controls": {
-      "mouse": "Drag to walk round the stage; the bars are the pitches, the pearls the wave itself",
       "layout": "Layout",
       "height": "Height",
       "playMelody": "Play melody",
@@ -1560,20 +1592,20 @@
       }
     },
     "words": {
-      "hint": "Click the stage to hear a melody",
       "listening": "Listening to the microphone: sing, whistle, clap",
       "refused": "The microphone was refused: the melody plays instead",
       "silence": "Silence. Click the stage to hear the melody again"
     }
   },
   "spin-an-astrolabe": {
+    "banner": "Drag to spin it any way, even upside down. Scroll to zoom.",
     "controls": {
-      "mouse": "Drag to spin it any way, even upside down · scroll to zoom",
       "turning": "Turning",
       "sun": "Sun"
     }
   },
   "street-lamp-at-night": {
+    "banner": "Drag to look around. Switch the night on and light the lamp.",
     "controls": {
       "night": "Night",
       "bounce": "Bounce",
@@ -1585,8 +1617,8 @@
     }
   },
   "ten-thousand-objects": {
+    "banner": "Drag to turn around the planet. Scroll into the ring of rocks.",
     "controls": {
-      "mouse": "Drag to turn around the planet; scroll into the ring until one rock fills the view",
       "view": "View",
       "pixelError": "Pixel error",
       "drift": "Drift"
@@ -1610,8 +1642,8 @@
     }
   },
   "texture-filters-compared": {
+    "banner": "Drag to look along the lanes. Each lane smooths the picture its own way. Left to right: nearest, linear, trilinear, anisotropic.",
     "controls": {
-      "mouse": "Drag to look along the lanes; left to right: nearest, linear, trilinear, anisotropic",
       "picture": "Picture",
       "anisotropy": "Anisotropy"
     },
@@ -1626,8 +1658,8 @@
     }
   },
   "the-material-family": {
+    "banner": "Drag to walk around. Turn the light to night and see what still shines.",
     "controls": {
-      "mouse": "Drag to walk round the family; turn the light to night and see which kinds still shine",
       "light": "Light",
       "shape": "Shape",
       "lookAt": "Look at",
@@ -1678,8 +1710,8 @@
     }
   },
   "the-webcam-as-a-texture": {
+    "banner": "Press the button to use your camera. Drag to look along the wall.",
     "controls": {
-      "mouse": "Drag to look along the wall; your camera is only asked for when you press the button",
       "useMyCamera": "Use my camera",
       "layout": "Layout",
       "mirror": "Mirror"
@@ -1701,8 +1733,8 @@
     }
   },
   "toon-shading": {
+    "banner": "Drag to turn around the island. Switch the shading to cartoon bands.",
     "controls": {
-      "mouse": "Drag to turn around the island; switch the shading and watch light fall into bands",
       "shading": "Shading",
       "outlines": "Outlines",
       "sun": "Sun",
@@ -1717,8 +1749,8 @@
     }
   },
   "turn-toward-a-target": {
+    "banner": "Drag to look around. Switch on the pointer to steer the drone.",
     "controls": {
-      "mouse": "Drag to look around; switch on the pointer and steer the drone, every dish follows",
       "turn": "Turn",
       "turnSpeed": "Turn speed",
       "followPointer": "Follow pointer"
@@ -1735,8 +1767,8 @@
     }
   },
   "two-lenses-one-scene": {
+    "banner": "Drag to turn around the town. Switch the lens and watch the streets.",
     "controls": {
-      "mouse": "Drag to turn round the town; switch the lens and watch the streets straighten",
       "lens": "Lens",
       "fieldOfView": "Field of view",
       "isometric": "Isometric",
@@ -1757,8 +1789,8 @@
     }
   },
   "uvs-of-every-shape": {
+    "banner": "Drag to look around. A letter and a number name every square.",
     "controls": {
-      "mouse": "Drag to look around; a letter and a digit name every cell of the picture",
       "pattern": "Pattern",
       "repeat": "Repeat",
       "slide": "Slide",
@@ -1773,6 +1805,7 @@
     }
   },
   "walk-through-a-temple": {
+    "banner": "Press Play, then run with W A S D and jump with Space.",
     "controls": {
       "keys": "The engine's character control: the menu's Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.",
       "look": "Look",
@@ -1799,8 +1832,8 @@
     }
   },
   "waves-of-points": {
+    "banner": "Drag to turn around the field. Pick a pattern to change the waves.",
     "controls": {
-      "mouse": "Drag to turn around the field; pick a pattern and the waves change shape under the buoys",
       "pattern": "Pattern",
       "height": "Height",
       "speed": "Speed"
@@ -1819,8 +1852,8 @@
     }
   },
   "what-hides-what": {
+    "banner": "Drag to look around. The hedges hide the golden knots.",
     "controls": {
-      "mouse": "Drag to look around; the hedges hide the gilded knots at the dead ends",
       "hedgeHeight": "Hedge height",
       "view": "View",
       "aboveOrInside": "Above or inside"
@@ -1842,6 +1875,7 @@
     }
   },
   "zoom-down-the-colonnade": {
+    "banner": "Press Dolly zoom and watch the columns stretch.",
     "controls": {
       "fieldOfView": "Field of view",
       "dollyZoom": "Dolly zoom"
