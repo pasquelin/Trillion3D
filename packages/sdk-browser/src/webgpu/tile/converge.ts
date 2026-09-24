@@ -84,7 +84,7 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       renderWebgpuPages(rt, rt.run.lastCamera!);
       await gpuDevice.queue.onSubmittedWorkDone();
       await lights.pageRequests?.settled();
-      await lights.lightCut?.reports.settled();
+      await lights.lightCut?.settled();
       offered = !!lights.lightCut?.reports.takeOffered();
       await services.residency.pending;
     }

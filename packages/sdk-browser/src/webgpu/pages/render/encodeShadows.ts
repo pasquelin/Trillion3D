@@ -8,6 +8,7 @@ import { createShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
+import { redrawDroppedPages } from '../../shadow/casters.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -82,6 +83,7 @@ export function planShadowRegions(
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
   const box = lights.sceneBox(rt.layout);
   ensureStaticLayer(rt);
+  redrawDroppedPages(rt, frame, nowMs);
   plan.plan(store, view, box.min, box.max, frame, nowMs);
   const slots = writeShadowRecords(lights);
   const count = writeShadowPages(lights, slots, cam.eye, pixelError);

@@ -6,6 +6,7 @@ import {
   SHADOW_CULL_FLOATS,
   SHADOW_CULL_VIEW,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
+import { STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 /** Where the current face's list lies, rewritten face by face: a frame allocates no record. */
 const source = {} as ShadowCullSource;
@@ -61,6 +62,9 @@ export function encodeShadowCasters(
     // A copy still being read keeps its settlement pending: only a new copy takes its place.
     const settle = light.reports.encodeReadback(encoder);
     if (settle) timing.shadowRequests = settle;
+    const { list, count } = lights.plan.admission;
+    const drop = runs.count ? light.drops.encode(encoder, list, count) : undefined;
+    if (drop) timing.shadowDrops = drop;
     return true;
   }
   cull.begin(regions, setup.maxCorners);
@@ -79,4 +83,24 @@ export function encodeShadowCasters(
   }
   lights.lightRuns = runs.count;
   return true;
+}
+
+/**
+ * Before a plan: the pages a frame drew while its light cut dropped work go stale again, whole,
+ * and the pages a frame may draw follow the cut's limit (`../../gpu/dag/lightCutDrops.ts`).
+ */
+export function redrawDroppedPages(rt: WebgpuPagesRuntime, frame: number, nowMs: number) {
+  const { plan } = rt.lights,
+    drops = rt.lights.lightCut?.drops;
+  if (!drops) return;
+  const { pool } = plan;
+  const pages = drops.takeRedraw((page) => {
+    if (pool.owner[page] >= 0) pool.stale(page, nowMs, frame, STALE_FULL);
+  });
+  plan.admission.setLimit(drops.pageLimit);
+  if (pages)
+    rt.diag.engineDiagnostic('light-cut-work-dropped', 'The light cut dropped casters', {
+      pages,
+      pageLimit: drops.pageLimit,
+    });
 }

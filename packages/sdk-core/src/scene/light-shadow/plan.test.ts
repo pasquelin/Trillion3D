@@ -35,6 +35,16 @@ test('the pages the shading reads are mapped and drawn the frame their report co
   assert.equal(plan.counts.poolPages, 3);
 });
 
+test('a frame admits no more pages than its limit, the rest wait for the next', () => {
+  const { store, plan, pages } = sunScene();
+  report(plan, store, 0, pages);
+  plan.admission.setLimit(1);
+  assert.equal(planFrame(plan, store, 1), 1, 'one page under a limit of one');
+  plan.commit();
+  plan.admission.setLimit(24);
+  assert.equal(planFrame(plan, store, 2), 2, 'the two that waited');
+});
+
 test('a page nobody reads is never drawn, and a still scene draws nothing', () => {
   const { store, plan, pages } = sunScene();
   let frame = 1;

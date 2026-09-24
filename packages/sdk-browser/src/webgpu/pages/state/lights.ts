@@ -187,14 +187,14 @@ export function noteShadowFrame(lights: WebgpuLightState, pagesSlot: number, enc
 /**
  * True while the shadow pages can still change what the image shows: a page stale and read, a
  * representation change waiting for the camera to rest, a request report — the shading's, or a
- * light cut's, whose casters may still load — on its way, or no report yet proving that the image
- * reads only pages already drawn. A scene without a shadow
- * light, or an unlit view, reads no page and waits for nothing.
+ * light cut's, whose casters may still load, or its drop flag — on its way, or no report yet
+ * proving that the image reads only pages already drawn. A scene without a shadow light, or an
+ * unlit view, reads no page and waits for nothing.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
   const { plan, store, shadows, pageRequests } = lights;
   if (plan.deferredChanges || plan.counts.pendingPages > 0) return true;
   if (!shadows || !store.count || store.unlit || !plan.records.count) return false;
-  if ((pageRequests?.inFlight ?? 0) > 0 || lights.lightCut?.reports.unsettled) return true;
+  if ((pageRequests?.inFlight ?? 0) > 0 || lights.lightCut?.unsettled) return true;
   return !plan.settled(store);
 }

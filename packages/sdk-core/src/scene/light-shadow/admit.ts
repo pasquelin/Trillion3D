@@ -21,7 +21,8 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
   const candidates = new Int32Array(capacity),
     score = new Float64Array(poolPages),
     list = new Int32Array(capacity);
-  let count = 0;
+  let count = 0,
+    limit = capacity;
   const coarseness = (records: ShadowRecords, sun: SunLevels, page: number, pool: ShadowPool) => {
     const slice = pool.slice[page];
     if (records.kind[slice] === LIGHT_KIND.directional)
@@ -54,9 +55,9 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
           (frame - pool.sinceFrame[page]) * LIGHT_SETTINGS.shadowAgingPerFrame;
         score[page] = value;
         found++;
-        // Only the best `capacity` can be drawn: kept in order, a tie behind the earlier page.
+        // Only the best `limit` can be drawn: kept in order, a tie behind the earlier page.
         let at = kept;
-        if (kept === capacity) {
+        if (kept === limit) {
           if (!(value > score[candidates[kept - 1]])) continue;
           at--;
         } else kept++;
@@ -75,6 +76,11 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     },
     reset() {
       count = 0;
+    },
+    /** Pages a frame may draw from now on, at most `capacity`: fewer while the light cut drops
+     *  work drawing that many at once. */
+    setLimit(pages: number) {
+      limit = Math.max(1, Math.min(capacity, Math.floor(pages)));
     },
   };
 }

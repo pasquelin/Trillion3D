@@ -1,11 +1,9 @@
 import { createDagOutputScratch, parseDagOutput } from './uniforms.ts';
-import { WORK_DROPPED } from './shader/viewsWgsl.ts';
-import { OUT_FLAGS } from './layout.ts';
 
 /**
  * What a light cut reports to the host: the pages its views asked for — the lower residency tier
- * (`../../webgpu/residency/shadowTier.ts`) — and whether it dropped work, copied once a frame and
- * read back after submission. One copy is read at a time; a frame that finds it still being read
+ * (`../../webgpu/residency/shadowTier.ts`) —, copied once a frame and read back after submission
+ * (its drops: `lightCutDrops.ts`). One copy is read at a time; a frame that finds it still being read
  * copies nothing, and the next one reports.
  *
  * A report changes the world only once taken: its casters load, a page enters residency, and the
@@ -23,7 +21,6 @@ export function createLightCutReports(
   });
   const scratch = createDagOutputScratch();
   let mapped = false,
-    dropped = false,
     offered = false,
     reading = Promise.resolve(),
     requests: readonly number[] | null = null;
@@ -47,8 +44,6 @@ export function createLightCutReports(
             const bytes = readback.getMappedRange();
             const parsed = parseDagOutput(bytes, 0, bytes.byteLength, 0, scratch);
             requests = parsed ? parsed.pageIds.slice() : null;
-            if ((new Uint32Array(bytes, 0, OUT_FLAGS + 1)[OUT_FLAGS] & WORK_DROPPED) !== 0)
-              dropped = true;
             readback.unmap();
           })
           .catch(() => {})
@@ -62,12 +57,6 @@ export function createLightCutReports(
       const taken = requests;
       requests = null;
       offered ||= taken !== null;
-      return taken;
-    },
-    /** Whether a read frame dropped work since the last call: its lists or queues were full. */
-    takeDropped() {
-      const taken = dropped;
-      dropped = false;
       return taken;
     },
     /** Resolves once the copy being read is delivered. */

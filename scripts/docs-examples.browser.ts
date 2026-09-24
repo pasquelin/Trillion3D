@@ -42,7 +42,8 @@ test('every example file renders an image on its own, and the portal page fills 
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await page.goto(`http://127.0.0.1:${port}/#/en/examples/${entry.id}`);
     const frame = page.locator('[data-demo] iframe');
-    assert.equal(await frame.getAttribute('src'), entry.file);
+    // The portal hands the example its language (`?lang=`): the file is the path before it.
+    assert.equal((await frame.getAttribute('src'))?.split('?')[0], entry.file);
     // The live render is the page: the iframe takes most of the height under the header.
     const view = await frame.boundingBox();
     assert.ok(view && view.height > 900 * 0.7, `the demo fills the content area (${view?.height})`);

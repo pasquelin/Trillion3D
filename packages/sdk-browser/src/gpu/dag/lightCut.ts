@@ -1,6 +1,7 @@
 import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
 import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
 import { createLightCutReports } from './lightCutReports.ts';
+import { createLightCutDrops } from './lightCutDrops.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
@@ -108,6 +109,7 @@ export function createDagLightCut(resources: DagResources) {
   const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
   const reports = createLightCutReports(own, output, outputBytes);
+  const drops = createLightCutDrops(own, output, capacity);
   return {
     /** Catalogue pages the logs index. */
     pageCount,
@@ -133,7 +135,15 @@ export function createDagLightCut(resources: DagResources) {
       }
       encodeDagKernels(encoder, view);
     },
-    /** Its requests and drops, read back after submission (`lightCutReports.ts`). */
+    /** Its requests, read back after submission (`lightCutReports.ts`). */
     reports,
+    /** The pages drawn by a frame that dropped work, to draw again (`lightCutDrops.ts`). */
+    drops,
+    /** A report or a drop flag on its way, or read and not yet taken. */
+    get unsettled() {
+      return reports.unsettled || drops.unsettled;
+    },
+    /** Resolves once every report and drop flag copied so far is read. */
+    settled: () => Promise.all([reports.settled(), drops.settled()]),
   };
 }

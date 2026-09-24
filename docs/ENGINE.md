@@ -243,8 +243,10 @@ own per-primitive threshold, fallback and planes (`gpu/dag/shader/viewsWgsl.ts`)
 waits between the cut's dispatches once, not once per view. Each view's drawn clusters land in their
 own range of one log, which the light compaction walks view by view. Its budget is fixed: the lists
 and queues are the camera cut's size whatever the view count (at most `shadowPagesPerFrame`, since a
-view holds at least one drawn page); work several views together push past them is dropped and
-reported (`light-cut-work-dropped`). A run's window is the square that bounds its pages, cut in eight by eight cells
+view holds at least one drawn page); work several views together push past them is dropped. The
+pages a frame drew while its cut dropped work are drawn again, and the pages a frame may draw halve
+until a frame keeps all its casters, then double back (`gpu/dag/lightCutDrops.ts`,
+`light-cut-work-dropped`). A run's window is the square that bounds its pages, cut in eight by eight cells
 of whole pages; a node or cluster that covers no cell a drawn page lies in is dropped. Its error is
 counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
 reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The

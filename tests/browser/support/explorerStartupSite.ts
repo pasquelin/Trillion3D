@@ -11,8 +11,8 @@ export async function startupSite(page: Page, base: string, out: string) {
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`${base}/site/index.html#/${locale}/learn/create-a-world`);
-      const code = page.locator('main pre code').last();
-      await code.waitFor();
+      // A hash change keeps the last page on screen until the chapter renders: wait for its code.
+      await page.locator('main pre code', { hasText: "createWorld('view'" }).first().waitFor();
       assert.equal(
         await page.evaluate(() =>
           [...document.styleSheets].some(
