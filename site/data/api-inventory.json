@@ -4266,17 +4266,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".Joint"
     },
     {
-      "name": "JointHost",
-      "kind": "type",
-      "definingModule": "packages/sdk-core/src/physics/joint.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointHost"
-    },
-    {
       "name": "JointKind",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/physics/joint.ts",
@@ -4453,7 +4442,6 @@
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
         "bench/oracles/browser/gpuLightTileColumnOracle.ts",
-        "packages/sdk-browser/src/gpu/dag/lightCutRedraws.ts",
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
@@ -5325,6 +5313,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/joints.ts",
         "packages/sdk-browser/src/visibility/shader/shadingNormal.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts",
         "scripts/ltc-fit.ts"
