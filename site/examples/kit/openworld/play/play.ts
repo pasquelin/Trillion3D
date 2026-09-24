@@ -63,7 +63,7 @@ export function createPlay(options: PlayOptions) {
   const camera = cameraState();
   let mode: Mode = 'foot';
   let [views, idle] = [0, 0];
-  world.onFrame(({ delta }) => {
+  const unhook = world.onFrame(({ delta }) => {
     const mouse = keys.take();
     const vehicle = mode === 'car' || mode === 'plane';
     look.yaw -= mouse.dx * 0.0022;
@@ -162,6 +162,7 @@ export function createPlay(options: PlayOptions) {
       };
     },
     dispose() {
+      unhook();
       sim.dispose();
       keys.dispose();
       hud.dispose();

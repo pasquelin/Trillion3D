@@ -4,6 +4,22 @@ import type { ColorSpace, Filter, Wrap } from '../constants/index.ts';
 
 let nextTexture = 1;
 
+/** What a write moves, by field: its addressing, filters and anisotropy count as `sampling`, its
+ *  placement as `placement`; any other field — the picture and how it is read — as `version`. */
+const COUNTER: Record<string, 'sampling' | 'placement'> = {
+  wrap: 'sampling',
+  wrapS: 'sampling',
+  wrapT: 'sampling',
+  minFilter: 'sampling',
+  magFilter: 'sampling',
+  anisotropy: 'sampling',
+  repeat: 'placement',
+  offset: 'placement',
+  rotation: 'placement',
+};
+/** The counters themselves, never counted. */
+const COUNTERS = new Set(['version', 'sampling', 'placement']);
+
 /**
  * An image and how it is sampled, in a page's words (`wrap`, `filter`, `colorSpace`). Any write
  * reaches the materials that sample it.
@@ -20,9 +36,9 @@ export class Texture {
   /** How the picture repeats bottom to top. */
   wrapT: Wrap = 'clamp';
   /** How many times the picture fits across and up. */
-  readonly repeat = new Vector2(1, 1);
+  repeat = new Vector2(1, 1);
   /** How far the picture is slid, across and up. */
-  readonly offset = new Vector2(0, 0);
+  offset = new Vector2(0, 0);
   /** How far the picture is turned, in radians. */
   rotation = 0;
   /** How pixels are picked when the picture looks smaller than it is. */
@@ -37,8 +53,13 @@ export class Texture {
   anisotropy = 1;
   /** Which set of UVs of the geometry the texture follows. */
   channel = 0;
-  /** Bumped by every write: what a material compares to resample. */
+  /** Bumped by a write of the picture or of how it is read: what a material compares to send the
+   *  picture again. */
   version = 0;
+  /** Bumped by a write of the addressing, the filters or the anisotropy: set again, nothing sent. */
+  sampling = 0;
+  /** Bumped by a write of `repeat`, `offset` or `rotation`: placed again, nothing sent. */
+  placement = 0;
   readonly _listeners = new Set<() => void>();
 
   /** The picture itself: an image, a canvas, a video or raw pixels. */
@@ -51,14 +72,17 @@ export class Texture {
     this.image = image;
     this.layout = layout;
     this.format = format;
-    const changed = () => this.touch();
-    listen(this.repeat, changed);
-    listen(this.offset, changed);
-    // A sampling word written after creation reaches the materials that sample this texture.
+    const placed = () => this.touch('placement');
+    listen(this.repeat, placed);
+    listen(this.offset, placed);
+    // A word written after creation reaches the materials that sample this texture; a new vector
+    // for `repeat` or `offset` is heard like the one it replaces.
     return new Proxy(this, {
       set(target, key, value) {
         Reflect.set(target, key, value);
-        if (key !== 'version') target.touch();
+        if (typeof key !== 'string' || COUNTERS.has(key)) return true;
+        if (key === 'repeat' || key === 'offset') listen(value, placed);
+        target.touch(COUNTER[key] ?? 'version');
         return true;
       },
     });
@@ -69,7 +93,6 @@ export class Texture {
   }
   set wrap(mode: Wrap) {
     this.wrapS = this.wrapT = mode;
-    this.touch();
   }
   /** Width of the picture, in pixels. */
   get width(): number {
@@ -86,8 +109,8 @@ export class Texture {
   get needsUpdate() {
     return false;
   }
-  private touch() {
-    this.version++;
+  private touch(counter: 'version' | 'sampling' | 'placement' = 'version') {
+    this[counter]++;
     for (const listener of this._listeners) listener();
   }
   /** A new texture showing the same picture with the same settings. */
