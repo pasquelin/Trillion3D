@@ -150,21 +150,22 @@ fn ${k}SampleAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blen
 /** Color-atlas sample: `colorSample(slot, uv, wrap, ddx, ddy)`. The colour atlas has no
  *  two-channel texture; its read is generated all the same, so the two atlases share one text. */
 export const COLOR_SAMPLE_WGSL = `${kind('color')}
-${atlasReadWgsl('colorSample', 'color', 'vec4f')}`;
+${atlasReadWgsl('colorSample', 'color', 'vec4f', true)}`;
 
 /**
  * Cutout of a masked material: `maskAlpha(slot, uv, wrap, ddx, ddy)`, the base-map alpha read
- * exactly as the materials pass reads its colour — same level, same mix — at the derivatives of the
- * pass that reads. `finest` is the shadow pass's fallback rule (see the header); the camera raster
+ * as the materials pass reads its colour — same transform, filter and mix — at the derivatives of
+ * the pass that reads, in one tap at the isotropic level: a cutout only compares a threshold, and
+ * the visibility and shadow passes that read it do not pay for anisotropy's taps. `finest` is the shadow pass's fallback rule (see the header); the camera raster
  * does not have it: its tiles are the ones it requested. Requires `COLOR_SAMPLE_WGSL`.
  */
 export const maskAlphaWgsl = (finest: boolean) =>
   `fn maskAlphaAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->f32{return colorBlend(s,uv,lod,nearest,${finest}).w;}
-${atlasReadWgsl('maskAlpha', 'color', 'f32')}`;
+${atlasReadWgsl('maskAlpha', 'color', 'f32', false)}`;
 
 /** Data-atlas sample: `dataSample(slot, uv, wrap, ddx, ddy)`. */
 export const DATA_SAMPLE_WGSL = `${kind('data')}
-${atlasReadWgsl('dataSample', 'data', 'vec4f')}`;
+${atlasReadWgsl('dataSample', 'data', 'vec4f', true)}`;
 
 /** Atlas declarations: one pool per lane and the page table, at the bindings the layout gives. */
 export const tileDeclarations = (bindings: AtlasBindings, name: string) =>

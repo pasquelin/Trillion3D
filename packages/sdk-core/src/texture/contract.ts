@@ -58,3 +58,13 @@ export interface Texture {
   /** UV transform of the sampler, `KHR_texture_transform` composed into three rows of three. */
   readonly transform: readonly number[];
 }
+
+/**
+ * Anisotropy a texture is sampled with, on both GPU paths, as the Three witness grants it
+ * (`WebGLTextures.setTextureParameters`): only a linear magnification over a chain mixed across
+ * levels (`*-mip-linear`) takes it, clamped to `ceiling`; any other filter reads one tap.
+ */
+export function grantedAnisotropy(texture: Texture, ceiling: number) {
+  if (texture.magFilter === 'nearest' || !texture.minFilter.endsWith('mip-linear')) return 1;
+  return Math.min(ceiling, Math.max(1, texture.anisotropy));
+}

@@ -21,7 +21,7 @@ const request = (
  var at=uv;var lod=0.0;
  if(s.sampling==0u){lod=slotLod(s,ddx,ddy);}
  else{
-  let r=${k}Read(slot,s,uv,ddx,ddy);
+  let r=${k}Read(slot,s,uv,ddx,ddy,true);
   lod=r.lod;
   at=r.uv+r.axis*(f32(i32(along)-1)*(0.5-0.5/f32(r.taps)));
  }
