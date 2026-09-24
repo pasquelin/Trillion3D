@@ -86,7 +86,7 @@ async function firstFrame(t: TestContext, pointer: URL) {
   const streamer = createPageStreamer(cells.pages, base);
   const reach = REACH;
   const eye = [48 * SPACING, 2, 48 * SPACING];
-  await cells.prime(eye, reach, (url) => streamer.readBytes(url));
+  await cells.prime(eye, reach, (url) => streamer.readBytes(url), true);
   const all = cells.pages.reduce((sum, page) => sum + page.bytes, 0);
   const { held, rows } = cells.stats();
   // The widest cell the compiler cut, read off disk and not counted: its split counts bytes.

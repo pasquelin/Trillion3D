@@ -126,6 +126,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       loadedScene.partitions,
       cameraState.camera,
       pageSources.streamer,
+      !!options.onRowsOutgrown,
       signal,
     );
     diagnose('partition', 'Cells read before the first frame', {
