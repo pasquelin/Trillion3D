@@ -33,7 +33,7 @@ export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.ma
  * and its optics, at the shape of the canvas. The session's camera is its own object; the world's
  * is copied onto it number by number, never handed in.
  */
-export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
+function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   camera.updateWorldMatrix(true, false);
   camera.matrixWorld.decompose(position, rotation, scale);
   into.position.set(position.x, position.y, position.z);
