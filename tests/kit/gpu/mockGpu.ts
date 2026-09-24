@@ -1,7 +1,7 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
-import { untaggedLabel } from '../../../packages/sdk-browser/src/gpu/core/deviceOwners.ts';
+import { untaggedLabel } from '../../../packages/sdk-browser/src/gpu/core/sessionHandle.ts';
 
 export function mockGpu(
   limits: Record<string, number> = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
