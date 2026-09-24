@@ -11,7 +11,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { hasBody, type createPhysicsBodies } from './bodies.ts';
-import { extraOf, framesOf, sixDofAxis } from './jointFrames.ts';
+import { framesOf, sixDofAxis } from './jointFrames.ts';
 
 const motorOf = (motor: JointMotor | null) => ({
   mode: motor ? MOTOR[motor.mode] : MOTOR.off,
@@ -83,7 +83,7 @@ export function createPhysicsJoints(
       limits: [min, max, spring?.frequency ?? 0, spring?.damping ?? 0],
       motor: motorOf(joint.motor),
       breakForce: joint.options.breakForce ?? 0,
-      extra: extraOf(joint),
+      extra: frames.extra,
     });
     slots[index] = joint;
     made.set(joint, { a, b });
