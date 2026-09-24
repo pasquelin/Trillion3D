@@ -2570,7 +2570,7 @@
         "packages/sdk-browser/src/cluster/batches.ts",
         "packages/sdk-browser/src/cluster/checked.test.ts",
         "packages/sdk-browser/src/cluster/pages.ts",
-        "packages/sdk-browser/src/host/prepared/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/accessors.ts",
         "packages/sdk-browser/src/host/world/matrices.test.ts",
         "packages/sdk-browser/src/host/world/matrices.ts",
         "packages/sdk-browser/src/host/world/placements.test.ts",
