@@ -1,5 +1,5 @@
 import { TransformNode } from './transformNode.ts';
-import { createSceneRoot } from '../../scene/core/root.ts';
+import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts';
 import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
 import * as read from '../../math/transform-tree/read.ts';
 import { Vector3 } from '../math/vector3.ts';
@@ -11,8 +11,6 @@ import type { Box3 } from '../math/box3.ts';
 import type { SceneLink } from './sceneLink.ts';
 export type { SceneLink } from './sceneLink.ts';
 
-/** The transform hierarchy every scene object is a node of; a new node is a detached root of it. */
-const space = createSceneRoot({ id: 'world-objects' });
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),
   turn = new Quaternion(),
@@ -40,9 +38,9 @@ export class Object3D extends TransformNode {
   /** The world this node is drawn by; set on attach, cleared on detach. */
   _link: SceneLink | null = null;
   constructor() {
-    const slot = space.reserve();
+    const slot = reserveSlot();
     super(slot.state, slot.id, slot.index, slot.visible);
-    space.register(this);
+    collectSlot(this, slot);
     const pose = () => this._link?.pose(this);
     listen(this.position, () => {
       this.setPosition(this.position.x, this.position.y, this.position.z);
@@ -101,6 +99,11 @@ export class Object3D extends TransformNode {
     }
     this._link?.structure(this);
     return this;
+  }
+  /** Frees the node and all below it now, rather than when they are collected. */
+  override destroy() {
+    this.traverse(uncollectSlot);
+    super.destroy();
   }
   /** Takes the node off its parent. */ removeFromParent() {
     this.parent?.remove(this);
