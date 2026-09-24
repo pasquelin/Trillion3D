@@ -3520,7 +3520,7 @@
       "textureLevelsDecoded": "Các mức đã giải mã.",
       "textureLevelCacheBytes": "Số byte của các mức đã giải mã được giữ lại.",
       "textureScratchBuilds": "Các kết cấu công tác đã xây dựng.",
-      "textureLiveBytes": "Số byte các texture trực tiếp giữ: mỗi cái một texture làm việc, đúng kích thước của nó."
+      "textureLiveBytes": "Số byte các texture trực tiếp giữ: mỗi cái một texture làm việc, đúng kích thước của nó. Được trừ vào `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -3980,7 +3980,7 @@
       "textureLevelsDecoded": "Các mức đã giải mã.",
       "textureLevelCacheBytes": "Số byte của các mức đã giải mã được giữ lại.",
       "textureScratchBuilds": "Các kết cấu công tác đã xây dựng.",
-      "textureLiveBytes": "Số byte các texture trực tiếp giữ: mỗi cái một texture làm việc, đúng kích thước của nó.",
+      "textureLiveBytes": "Số byte các texture trực tiếp giữ: mỗi cái một texture làm việc, đúng kích thước của nó. Được trừ vào `texturePoolBytes`.",
       "gpuAllocatedBytes": "Số byte đã cấp phát đang hoạt động trên thiết bị, trên mọi tài nguyên.",
       "gpuAllocatedByLabel": "Số byte đã cấp phát được nhóm theo nhãn tài nguyên. Các cấp phát không có nhãn được nhóm là 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Số lượng kết cấu có định dạng không xác định được. Giá trị kỳ vọng là 0.",
