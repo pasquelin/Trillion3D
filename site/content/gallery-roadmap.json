@@ -1232,9 +1232,7 @@
     {
       "id": "smooth-edges-over-time",
       "theme": "effects",
-      "file": "examples/smooth-edges-over-time.html",
-      "status": "waiting-engine",
-      "issue": 363
+      "file": "examples/smooth-edges-over-time.html"
     },
     {
       "id": "tone-mapping-compared",
@@ -1469,8 +1467,7 @@
     {
       "id": "hinges-and-joints",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/hinges-and-joints.html"
     },
     {
       "id": "walk-with-collisions",

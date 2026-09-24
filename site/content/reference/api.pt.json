@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "As matrizes com que um host desenha um quadro, como o motor as entrega.",
+    "summary": "As matrizes e o intervalo de profundidade com que um host desenha um quadro, como o motor os entrega.",
     "members": {
       "projection": "A projeção.",
       "world": "A matriz de mundo da câmera.",
       "view": "A matriz de view.",
-      "eye": "Onde está o olho."
+      "eye": "Onde está o olho.",
+      "near": "Distância mais próxima.",
+      "far": "Distância mais distante."
     }
   },
   "HostDrawOutput": {
@@ -1523,8 +1525,7 @@
     "summary": "Configurações publicadas de iluminação direta.",
     "description": "Essas são escolhas de produto nomeadas, não constantes enterradas: todo limite em tempo de execução as relê, e o diagnóstico as publica como estão.",
     "members": {
-      "maxLights": "Luzes que o contrato aceita no total; além disso, `addLight` recusa.",
-      "maxLightsPerTile": "Luzes que um ladrilho de tela mantém; o laço de pixel é limitado por esse número (X2).",
+      "maxLights": "Luzes que o contrato aceita no total; além disso, `addLight` recusa. Um ladrilho de tela mantém cada uma que o toca; sua lista e o laço de pixel são limitados por esse número (X2).",
       "tileSize": "Lado em pixels de um ladrilho de tela da lista de luzes.",
       "samplesPerPixel": "Luzes sombreadas por completo — leitura de sombra incluída — por pixel de uma imagem EM MOVIMENTO (X2): as outras são pesadas sem sua sombra, e as sombreadas são desenhadas em proporção, então a estimativa é não enviesada e o antisserrilhamento temporal a faz convergir. Uma imagem parada sombreia toda luz do seu ladrilho e converge para a soma exata; ali, esse número não tem papel nenhum.",
       "shadowPage": "Lado de uma página de sombra, em texels: a unidade do pool físico, dos mapas virtuais e da invalidação. Um objeto em movimento só invalida as páginas que a sua caixa projetada cobre.",
@@ -1657,7 +1658,8 @@
       "signal": "Para o carregamento quando o sinal é abortado.",
       "scope": "`'full'` exige o cache inteiro, `'progressive'` seu recorte transmitido; um modelo de outro escopo é recusado pelo nome. Se não definido, o modelo é lido no escopo que seu ponteiro declara.",
       "stream": "Um streamer que a página configurou; a sessão do mundo transmite com o seu próprio.",
-      "position": "Para onde vai a origem do modelo na cena."
+      "position": "Para onde vai a origem do modelo na cena.",
+      "onProgress": "Ouve até onde o carregamento chegou: `manifest` quando o manifesto é lido, depois `resources` à medida que chega cada arquivo que a cena lê (`completed` de um `total` conhecido até então). O evento é um `JobProgress`: um `createJob` que envolve o carregamento passa aqui o seu `progress`."
     }
   },
   "LoadedModel": {
@@ -1668,6 +1670,7 @@
       "bounds": "A caixa que o modelo preenche, em seu próprio referencial.",
       "lights": "Luzes sob o modelo — aquelas que o arquivo de origem carregava, como nós: uma página as edita, move ou remove como se fossem suas, e elas se movem com o modelo.",
       "record": "Tudo que o mundo guarda sobre esse modelo: seus endereços, manifesto e grafo.",
+      "getObjectByName": "O primeiro nó abaixo com este nome: o modelo, um nó do seu arquivo de origem e depois qualquer outro filho — uma luz trazida pelo arquivo, um nó colocado por uma página.",
       "metadata": "O manifesto compilado do modelo — suas primitivas, `sourceTriangles` — e `clusters`, os clusters que suas páginas contêm, cada nível de seus DAGs contado.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum."
     }
@@ -2955,6 +2958,7 @@
       "counts": "O que o último plano fez, em páginas.",
       "worldChanged": "Um nó moveu-se: a sua caixa invalida as páginas que cobre no plano seguinte.",
       "representationChanged": "O mesmo mundo com outra precisão: a sua caixa espera que a câmera pare.",
+      "resting": "A câmera estava em repouso no último plano: sua vista era a do plano anterior.",
       "deferredChanges": "Verdadeiro enquanto uma mudança de representação espera que a câmera pare.",
       "releaseDeferred": "O quadro não planeja nenhuma sombra: a união retida entra na lista de imediato.",
       "observeCost": "Temporizador do passe Sombras de um quadro, repartido pelas páginas que desenhou.",
@@ -3829,6 +3833,10 @@
     "summary": "Luz refletida das superfícies, traçada contra o proxy residente; desligado por padrão.",
     "description": "Uma mudança é aplicada no lugar em um caminho que a carrega, e adotada pela próxima abertura em um que não."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Antisserrilhado temporal: deslocamento subpixel acumulado entre imagens; ativado por padrão.",
+    "description": "Escrito, tem efeito na imagem seguinte, histórico descartado, sem reabrir a sessão. Lido, é o que a imagem carrega: false no WebGL2, e enquanto o programa compila depois de ativado."
+  },
   "world.budget": {
     "summary": "Os pools de memória do mundo, lidos e definidos em bytes.",
     "members": {
@@ -4007,7 +4015,8 @@
       "pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "signal": "Para os carregamentos do mundo quando o sinal é abortado.",
-      "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado."
+      "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
+      "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4627,7 +4636,8 @@
       "options.pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "options.controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "options.signal": "Para os carregamentos do mundo quando o sinal é abortado.",
-      "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado."
+      "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
+      "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -5634,7 +5644,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Sombreia cada ponto por quão longe está da câmera.",
+    "summary": "Sombreia cada ponto por quão longe está da câmera: branco em `camera.near`, preto em `camera.far`, uma rampa reta entre eles, a mesma no WebGPU e no WebGL2.",
     "parameters": {
       "parameters": "O que uma página pode passar a um membro de material; todo campo é opcional.",
       "parameters.color": "A cor base.",
@@ -6855,7 +6865,9 @@
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
+      "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }
   },
   "ContactEvent": {
@@ -7036,7 +7048,9 @@
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`."
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
+      "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }
   },
   "WorldPhysicsOptions": {
@@ -7300,6 +7314,77 @@
       "x": "Da esquerda para a direita.",
       "y": "De baixo para cima.",
       "z": "De trás para frente."
+    }
+  },
+  "Joint": {
+    "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",
+    "description": "Ela segura enquanto os dois corpos são simulados, e até se romper.",
+    "parameters": {
+      "options": "O que `joint.*` aceita. Pontos e eixos ficam no mundo, lidos quando a junta é criada pela primeira vez.",
+      "options.anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância em `a`.",
+      "options.anchorB": "A ponta de uma distância em `b`.",
+      "options.axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone.",
+      "options.limits": "Dobradiça, corrediça, distância e cone: quanto se move. Uma distância mantém por padrão seu comprimento.",
+      "options.spring": "Dobradiça, corrediça e distância: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
+      "options.motor": "Dobradiça e corrediça: um motor, alterável a qualquer momento por `joint.motor`.",
+      "options.breakForce": "Newtons de tração a partir dos quais a junta se rompe; omitido, nunca."
+    },
+    "members": {
+      "kind": "O que a junta é.",
+      "a": "O primeiro corpo.",
+      "b": "O segundo corpo, ou `null` para o mundo.",
+      "options": "Com o que foi criada.",
+      "motor": "O motor de uma dobradiça ou de uma corrediça; `null` a deixa girar ou deslizar livremente.",
+      "broken": "Se ela se rompeu: puxada além de sua `breakForce`. Uma junta rompida não segura mais nada.",
+      "on": "Chama `handler` quando a junta se rompe."
+    }
+  },
+  "JointKind": {
+    "summary": "As juntas entre corpos, cada uma uma restrição do próprio Jolt."
+  },
+  "JointLimits": {
+    "summary": "Quanto uma junta pode se mover: radianos para uma dobradiça, metros para uma corrediça ou uma distância, o semiângulo do cone (`max`) para um cone.",
+    "members": {
+      "min": "O de uma dobradiça de −π a 0, o de uma corrediça 0 ou menos.",
+      "max": "O de uma dobradiça de 0 a π, o de uma corrediça 0 ou mais."
+    }
+  },
+  "JointMotor": {
+    "summary": "O motor de uma dobradiça ou de uma corrediça: leva a junta a uma velocidade ou a uma posição.",
+    "members": {
+      "mode": "`'velocity'`: rad/s ou m/s; `'position'`: radianos ou metros a partir de onde a junta foi criada.",
+      "target": "A velocidade ou a posição a alcançar.",
+      "maxForce": "N·m para uma dobradiça, N para uma corrediça; omitido, sem limite."
+    }
+  },
+  "JointOptions": {
+    "summary": "O que `joint.*` aceita.",
+    "description": "Pontos e eixos ficam no mundo, lidos quando a junta é criada pela primeira vez.",
+    "members": {
+      "anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância em `a`.",
+      "anchorB": "A ponta de uma distância em `b`.",
+      "axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone.",
+      "limits": "Dobradiça, corrediça, distância e cone: quanto se move. Uma distância mantém por padrão seu comprimento.",
+      "spring": "Dobradiça, corrediça e distância: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
+      "motor": "Dobradiça e corrediça: um motor, alterável a qualquer momento por `joint.motor`.",
+      "breakForce": "Newtons de tração a partir dos quais a junta se rompe; omitido, nunca."
+    }
+  },
+  "joint": {
+    "summary": "A família `joint`: dois corpos ligados, ou um corpo e o mundo (`b` null).",
+    "members": {
+      "fixed": "Solda-os: movem-se como um só.",
+      "point": "Uma junta esférica em `anchor`: giram livremente em torno dela.",
+      "hinge": "Um pino em `anchor` ao longo de `axis`: uma porta, uma roda. `limits` em radianos.",
+      "slider": "Um trilho ao longo de `axis`: uma gaveta, um pistão. `limits` em metros.",
+      "distance": "Mantém `anchor` em `a` e `anchorB` em `b` à sua distância, ou dentro de `limits`.",
+      "cone": "Uma junta esférica cujo `axis` oscila dentro de um cone de semiângulo `limits.max`."
+    }
+  },
+  "JointHost": {
+    "summary": "O lado do mundo de uma junta: o que uma escrita nela pede à simulação.",
+    "members": {
+      "motor": "O motor mudou."
     }
   }
 }

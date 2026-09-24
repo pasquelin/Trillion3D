@@ -37,6 +37,8 @@ interface JoltExports {
   jolt_cast_buffer(count: number): number;
   jolt_cast(count: number): number;
   jolt_character(): number;
+  jolt_broken_count(): number;
+  jolt_broken(i: number): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -130,6 +132,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     /** The engine ids of the bodies whose shape the last step refused. */
     refused: () =>
       Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
+    /** The ids of the joints the last step broke. */
+    broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
     active: () => jolt.jolt_active_count(),
     /** The pieces of the awake bodies reaching below `top`, cut past `sliceLength`
      *  (`WATER_PIECE_WORDS` each), valid until the next step. */

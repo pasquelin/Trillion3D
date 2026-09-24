@@ -6,6 +6,11 @@ import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { LAMP_MIPS, SUN_LEVELS, lampCoarseness, sunCoarseness } from './virtual.ts';
 
+/** The light view a page is drawn in — its light, then its sun level or lamp face and mip: the
+ *  pages of one view share one caster selection. */
+export const viewKeyOf = (pool: ShadowPool, page: number) =>
+  pool.slice[page] * 4096 + pool.view[page];
+
 /**
  * THE PAGES A FRAME DRAWS: stale pages the latest request report named — what the image reads
  * now —, by priority, until the millisecond budget or the buffer ceiling. A stale page nobody
@@ -17,14 +22,22 @@ import { LAMP_MIPS, SUN_LEVELS, lampCoarseness, sunCoarseness } from './virtual.
  * second an older depth —, a coarse page before a fine one — it covers more pixels, and the
  * finer ones fall back to it —, and the wait already suffered, which rises frame by frame and
  * prevents starvation. The first page always passes: on a device whose single page exceeds the
- * budget, the wait would otherwise never end. All arrays are allocated once.
+ * budget, the wait would otherwise never end.
+ *
+ * How many pages is the budget's alone: its fixed milliseconds over the measured cost of a page.
+ * What the light cut bounds is the light views a frame draws in (`setViewLimit`) — one view never
+ * overflows its lists —, never the pages: a view takes every page the budget pays for. A stale page
+ * whose depth is wrong, and that the frame does not draw, is hidden once the frame's pages are
+ * committed (`pool.hideStale`): the shading reads the next coarser current level, never its old
+ * depth. A page stale for detail only keeps being read until redrawn. All arrays are allocated once.
  */
 export function createShadowAdmission(capacity: number, poolPages: number) {
   const candidates = new Int32Array(capacity),
     score = new Float64Array(poolPages),
-    list = new Int32Array(capacity);
+    list = new Int32Array(capacity),
+    views = new Float64Array(capacity);
   let count = 0,
-    limit = capacity;
+    viewLimit = capacity;
   const coarseness = (records: ShadowRecords, sun: SunLevels, page: number, pool: ShadowPool) => {
     const slice = pool.slice[page];
     const steps =
@@ -38,9 +51,9 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     get count() {
       return count;
     },
-    /** Pages a frame may draw (`setLimit`). */
-    get limit() {
-      return limit;
+    /** Light views a frame may draw in (`setViewLimit`). */
+    get viewLimit() {
+      return viewLimit;
     },
     /** Picks this frame's pages into `list`; returns how many stale, asked-for pages remain. */
     run(
@@ -68,9 +81,9 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
           (frame - pool.sinceFrame[page]) * LIGHT_SETTINGS.shadowAgingPerFrame;
         score[page] = value;
         found++;
-        // Only the best `limit` can be drawn: kept in order, a tie behind the earlier page.
+        // Only the best `capacity` can be drawn: kept in order, a tie behind the earlier page.
         let at = kept;
-        if (kept === limit) {
+        if (kept === capacity) {
           if (!(value > score[candidates[kept - 1]])) continue;
           at--;
         } else kept++;
@@ -78,10 +91,18 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
           candidates[at] = candidates[at - 1];
         candidates[at] = page;
       }
-      let spent = 0;
+      let spent = 0,
+        opened = 0;
       for (let k = 0; k < kept; k++) {
         const cost = budget.estimate(1);
         if (cost !== null && count > 0 && spent + cost > budget.budgetMs) break;
+        const key = viewKeyOf(pool, candidates[k]);
+        let view = 0;
+        while (view < opened && views[view] !== key) view++;
+        if (view === opened) {
+          if (opened === viewLimit) continue;
+          views[opened++] = key;
+        }
         spent += cost ?? 0;
         list[count++] = candidates[k];
       }
@@ -90,10 +111,10 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     reset() {
       count = 0;
     },
-    /** Pages a frame may draw from now on, at most `capacity`: fewer while the light cut drops
-     *  work drawing that many at once. */
-    setLimit(pages: number) {
-      limit = Math.max(1, Math.min(capacity, Math.floor(pages)));
+    /** Light views a frame may draw in from now on, at least one: fewer while the light cut drops
+     *  work selecting for that many at once. */
+    setViewLimit(count: number) {
+      viewLimit = Math.max(1, Math.min(capacity, Math.floor(count)));
     },
   };
 }

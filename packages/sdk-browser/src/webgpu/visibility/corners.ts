@@ -1,5 +1,6 @@
 import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts';
 import { forEachRewrittenRun } from '../row/dirty.ts';
+import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from '../../hiz/hiz.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** What describes the corners already sent to the GPU: the age of the table they came from. */
@@ -15,7 +16,7 @@ export function createCornerUploadHold() {
  * dirty travel, run by run — a model whose rows are scattered sends its own and none of the rows
  * between them — and a new age asks for the drawable rows again, once.
  *
- * The corners are those double precision computes (`createBoxCorners`), each carried by TWO single-
+ * The corners are those double precision derives (`pageCornersInto`), each carried by TWO single-
  * precision values: the rounded value and its residue. The kernel reports them to the camera pose,
  * itself in two words, so world magnitude survives no subtraction and its error bound depends only
  * on cluster size (`../../gpu/partition/margins.ts`).
@@ -46,7 +47,7 @@ function forgetAndUploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 
 /** Packs the corners of rows `[from, to]` and sends them in one write. */
 function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const { rows, boxCorners, cornerPacked } = rt.layout;
+  const { rows, cornerPacked } = rt.layout;
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row];
     const base = row * CORNER_VALUES;
@@ -54,33 +55,26 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
       cornerPacked.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    packBoxCorners(
-      cornerPacked,
-      base,
-      boxCorners.corners,
-      boxCorners.at(rows.packedPageIndex[row], rec, rows.tableEpoch),
-    );
+    packPageCorners(cornerPacked, base, rec);
   }
   rt.vis.gpuPartition!.uploadCorners(cornerPacked, from, to);
 }
 
+const pageCorners = new Float64Array(BOX_CORNER_VALUES);
+
 /**
- * The eight corners of a box, read in `corners` from `at`, written in `packed` from `base`. Each
- * coordinate leaves in two words: the single-precision rounding, then what it left. The sum of the
- * two represents the original double to within a squared ulp.
+ * The eight world corners of `page`, derived by `pageCornersInto`, written in `packed` from `base`.
+ * Each coordinate leaves in two words: the single-precision rounding, then what it left. The sum of
+ * the two represents the original double to within a squared ulp.
  */
-export function packBoxCorners(
-  packed: Float32Array,
-  base: number,
-  corners: ArrayLike<number>,
-  at: number,
-) {
+export function packPageCorners(packed: Float32Array, base: number, page: HizPage) {
+  pageCornersInto(pageCorners, 0, page);
   for (let k = 0; k < 8; k++)
     for (let axis = 0; axis < 3; axis++)
       writeSplitDouble(
         packed,
         base + k * 6 + axis,
         base + k * 6 + 3 + axis,
-        corners[at + k * 3 + axis],
+        pageCorners[k * 3 + axis],
       );
 }

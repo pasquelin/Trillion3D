@@ -16,6 +16,7 @@ const PHYSICS = new Set([
   'walk-with-collisions',
   'walk-through-a-temple',
   'create-and-dispose',
+  'hinges-and-joints',
 ]);
 
 /** The centre of the render, the kit's panels outside it. */
