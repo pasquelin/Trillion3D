@@ -3519,7 +3519,8 @@
       "textureLevelReads": "Các nguồn. `textureLevelReads`: các mức đã nướng đang được đọc trong bộ nhớ đệm. `textureLevelsDecoded`: các mức đã nướng được giải mã kể từ đầu. `textureLevelCacheBytes`: số byte của ứng dụng chủ dành cho các mức đã giải mã được giữ để cắt thêm các ô từ chúng, dưới một ngân sách cố định. `textureScratchBuilds`: các kết cấu công tác được xây dựng cho một kết cấu không có chuỗi nướng sẵn, toàn bộ nguồn mỗi lần.",
       "textureLevelsDecoded": "Các mức đã giải mã.",
       "textureLevelCacheBytes": "Số byte của các mức đã giải mã được giữ lại.",
-      "textureScratchBuilds": "Các kết cấu công tác đã xây dựng."
+      "textureScratchBuilds": "Các kết cấu công tác đã xây dựng.",
+      "textureLiveBytes": "Số byte các texture trực tiếp giữ: mỗi cái một texture làm việc, đúng kích thước của nó. Được trừ vào `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -3979,6 +3980,7 @@
       "textureLevelsDecoded": "Các mức đã giải mã.",
       "textureLevelCacheBytes": "Số byte của các mức đã giải mã được giữ lại.",
       "textureScratchBuilds": "Các kết cấu công tác đã xây dựng.",
+      "textureLiveBytes": "Số byte các texture trực tiếp giữ: mỗi cái một texture làm việc, đúng kích thước của nó. Được trừ vào `texturePoolBytes`.",
       "gpuAllocatedBytes": "Số byte đã cấp phát đang hoạt động trên thiết bị, trên mọi tài nguyên.",
       "gpuAllocatedByLabel": "Số byte đã cấp phát được nhóm theo nhãn tài nguyên. Các cấp phát không có nhãn được nhóm là 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Số lượng kết cấu có định dạng không xác định được. Giá trị kỳ vọng là 0.",
@@ -6434,7 +6436,7 @@
   },
   "texture": {
     "summary": "Họ `texture`: một hình ảnh và cách nó được lấy mẫu.",
-    "description": "Hình ảnh màu là sRGB, hình ảnh dữ liệu là tuyến tính; `needsUpdate` sau khi ghi các pixel làm cho các bộ lấy mẫu đọc lại chúng."
+    "description": "Hình ảnh màu là sRGB, hình ảnh dữ liệu là tuyến tính; `needsUpdate` sau khi ghi các điểm ảnh khiến bộ lấy mẫu đọc lại chúng, được sao chép tại chỗ vào texture đã có trên GPU — chỉ kích thước mới mới dựng lại nó. Video là trực tiếp: các khung hình tự đến."
   },
   "texture.array": {
     "summary": "Một chồng các hình ảnh cùng kích thước trong một kết cấu, mỗi cái một lớp.",
@@ -6447,6 +6449,7 @@
   },
   "texture.canvas": {
     "summary": "Một kết cấu hiển thị những gì một canvas đang giữ.",
+    "description": "Sau khi vẽ lại canvas, đặt `needsUpdate`: các điểm ảnh mới được sao chép vào texture đã có trên GPU, không dựng lại gì.",
     "parameters": {
       "c": "Canvas cần hiển thị."
     }
@@ -6489,7 +6492,8 @@
     }
   },
   "texture.video": {
-    "summary": "Một kết cấu hiển thị một video đang phát.",
+    "summary": "Một texture hiển thị video đang phát, hoặc luồng camera được phát trong video.",
+    "description": "Mỗi khung hình mới tự được sao chép vào texture đã có trên GPU; video tạm dừng không tốn gì.",
     "parameters": {
       "v": "Video cần hiển thị."
     }

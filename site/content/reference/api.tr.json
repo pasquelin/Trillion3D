@@ -3438,7 +3438,8 @@
       "textureLevelReads": "Kaynaklar. `textureLevelReads`: önbellekten okunan pişirilmiş seviyeler. `textureLevelsDecoded`: başlangıçtan beri çözülen pişirilmiş seviyeler. `textureLevelCacheBytes`: sabit bir bütçe altında, onlardan daha fazla parça kesmek için tutulan çözülmüş seviyelerin host baytları. `textureScratchBuilds`: pişirilmiş zinciri olmayan bir doku için her seferinde tüm kaynaktan inşa edilen çalışma dokuları.",
       "textureLevelsDecoded": "Çözülen seviyeler.",
       "textureLevelCacheBytes": "Tutulan çözülmüş seviyelerin baytları.",
-      "textureScratchBuilds": "İnşa edilen çalışma dokuları."
+      "textureScratchBuilds": "İnşa edilen çalışma dokuları.",
+      "textureLiveBytes": "Canlı dokuların tuttuğu baytlar: her birine kendi boyutunda bir çalışma dokusu. `texturePoolBytes` değerinden düşülür."
     }
   },
   "TextureLayout": {
@@ -3997,6 +3998,7 @@
       "textureLevelsDecoded": "Çözülen seviyeler.",
       "textureLevelCacheBytes": "Tutulan çözülmüş seviyelerin baytları.",
       "textureScratchBuilds": "İnşa edilen çalışma dokuları.",
+      "textureLiveBytes": "Canlı dokuların tuttuğu baytlar: her birine kendi boyutunda bir çalışma dokusu. `texturePoolBytes` değerinden düşülür.",
       "gpuAllocatedBytes": "Tüm kaynaklarda cihazda etkin tahsis edilmiş baytlar.",
       "gpuAllocatedByLabel": "Kaynak etiketine göre gruplanmış tahsis edilmiş baytlar. Etiketsiz tahsisler 'unlabeled' olarak gruplanır.",
       "gpuAllocationsUnknownFormat": "Tanınmayan formatlara sahip dokuların sayısı. Beklenen değer 0'dır.",
@@ -6434,7 +6436,7 @@
   },
   "texture": {
     "summary": "`texture` ailesi: bir görsel ve nasıl örneklendiği.",
-    "description": "Renk görselleri sRGB'dir, veri görselleri doğrusaldır; pikselleri yazdıktan sonra `needsUpdate`, örnekleyicilerin onları yeniden okumasını sağlar."
+    "description": "Renk görselleri sRGB'dir, veri görselleri doğrusaldır; pikseller yazıldıktan sonra `needsUpdate` örnekleyicilerin onları yeniden okumasını sağlar, GPU'da zaten bulunan dokuya yerinde kopyalanır — yalnızca yeni bir boyut onu yeniden kurar. Bir video canlıdır: kareleri kendiliğinden gelir."
   },
   "texture.image": {
     "summary": "Sayfada zaten bulunan bir görselden bir renk dokusu: bir görsel, bir bitmap ya da bir video karesi.",
@@ -6453,12 +6455,14 @@
   },
   "texture.canvas": {
     "summary": "Bir canvas'ın tuttuğunu gösteren bir doku.",
+    "description": "Tuvale yeniden çizdikten sonra `needsUpdate` ayarlayın: yeni pikseller GPU'da zaten bulunan dokuya kopyalanır, hiçbir şey yeniden kurulmaz.",
     "parameters": {
       "c": "Gösterilecek canvas."
     }
   },
   "texture.video": {
-    "summary": "Oynayan bir videoyu gösteren bir doku.",
+    "summary": "Oynatılan bir videoyu ya da bir videoda oynatılan kamera akışını gösteren doku.",
+    "description": "Her yeni kare GPU'da zaten bulunan dokuya kendiliğinden kopyalanır; duraklatılmış bir video hiçbir maliyet getirmez.",
     "parameters": {
       "v": "Gösterilecek video."
     }
