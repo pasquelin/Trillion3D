@@ -2,12 +2,15 @@
  * THE ROTATION OF A POSE THE ENGINE'S OWN GRAPH HOLDS: a quaternion and its angles.
  *
  * Not a second math library: every number is the core's (`localTurnQuaternion`,
- * `writeRotationQuaternion`, the core `Euler`). What these add is the SHAPE the host-graph
+ * `multiplyQuaternion`, `writeRotationQuaternion`, the core `Euler`). What these add is the SHAPE the host-graph
  * contracts read (`../scene/graphNodes.ts`): two faces of one rotation, each announcing its
  * writes through a callback the other chains, which the watch's hook extends
  * (`../scene/hooks.ts`). The core's own `Quaternion` and `Euler` announce theirs otherwise.
  */
-import { localTurnQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
+import {
+  localTurnQuaternion,
+  multiplyQuaternion,
+} from '../../../../sdk-core/src/math/matrix/quaternion.ts';
 import { writeRotationQuaternion } from '../../../../sdk-core/src/math/matrix/matrix4Trs.ts';
 import { Euler } from '../../../../sdk-core/src/world/math/euler.ts';
 
@@ -87,14 +90,8 @@ export class GraphRotation {
   }
   /** Becomes `q` followed by this rotation, `q · this`. */
   premultiply(q: GraphRotation) {
-    const [ax, ay, az, aw] = [q._x, q._y, q._z, q._w];
-    const [bx, by, bz, bw] = [this._x, this._y, this._z, this._w];
-    return this.set(
-      ax * bw + aw * bx + ay * bz - az * by,
-      ay * bw + aw * by + az * bx - ax * bz,
-      az * bw + aw * bz + ax * by - ay * bx,
-      aw * bw - ax * bx - ay * by - az * bz,
-    );
+    multiplyQuaternion(turn, [q._x, q._y, q._z, q._w], [this._x, this._y, this._z, this._w]);
+    return this.set(turn[0], turn[1], turn[2], turn[3]);
   }
   /** Becomes the opposite turn. */
   invert() {
