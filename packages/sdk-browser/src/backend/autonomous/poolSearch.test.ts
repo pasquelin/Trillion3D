@@ -82,10 +82,8 @@ test('a refinement holds the ancestors it replaces beside their pages, then come
 test('a public scene whose coarsest cut overflows a small pool holds the threshold, and lets it go', () => {
   // Seen from inside its bounds, the scene refines pages whose parent reaches the near plane at
   // every threshold: at 256 KiB, no threshold brings its cut under the 34 slots.
-  const { pool, image } = mount(512 * 1024 * 1024, {
-    ...publicScene(fileURLToPath(new URL(SCENE, import.meta.url))),
-    rootFallback: true,
-  });
+  const scene = publicScene(fileURLToPath(new URL(SCENE, import.meta.url)));
+  const { pool, image, frame, drawn } = mount(512 * 1024 * 1024, { ...scene, rootFallback: true });
   const sequence = (bytes: number, images = 16) => {
     pool.resize(bytes);
     const thresholds: number[] = [];
@@ -96,13 +94,21 @@ test('a public scene whose coarsest cut overflows a small pool holds the thresho
     return thresholds;
   };
   assert.ok(sequence(512 * 1024 * 1024).every((threshold) => threshold === 0));
+  // The cut at the host's threshold, streamed in full: no ancestor stands in for its pages.
+  for (let images = 0; frame.stand && images < 64; images++) image(1, 16);
+  assert.equal(frame.stand, 0, "the cut at the host's threshold arrived");
+  // The pool that holds it: a slot of the largest page for each page it draws and each root page.
+  const pages = scene.primitives.flat(),
+    largest = Math.max(...pages.map((page) => scene.bytes(page.url))),
+    roots = pages.filter((page) => page.parentError == null).length,
+    fits = (drawn() + roots) * largest;
   const small = sequence(256 * 1024),
     top = small[0];
   assert.ok(top > 1 && small.every((threshold) => threshold === top), `${small}`);
   assert.equal(pool.clamp, 'root-cover', 'limited by what no threshold coarsens');
   assert.equal(pool.settling, false, 'the search is fixed');
   // A larger pool: one step of √2 finer an image, down to the host's threshold.
-  const back = sequence(2560 * 1024, 2 * Math.log2(top) + 2);
+  const back = sequence(fits, 2 * Math.log2(top) + 2);
   const settled = back.indexOf(0);
   assert.ok(settled > 0, `back at the host's threshold: ${back}`);
   for (let frame = 1; frame < settled; frame++)

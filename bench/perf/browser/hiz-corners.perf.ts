@@ -1,9 +1,5 @@
-// world-space corners of the Hi-Z cut (evaluation with/without cache).
-import {
-  HIZ_BOUNDS_VALUES,
-  createBoxCorners,
-  projectBoxesFlat,
-} from '../../../packages/sdk-browser/src/hiz/hiz.ts';
+// world-space corners of the Hi-Z cut, derived from each box's local bounds on every image (#18).
+import { HIZ_BOUNDS_VALUES, projectBoxesFlat } from '../../../packages/sdk-browser/src/hiz/hiz.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import { boites, camera } from './support/scenes.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
@@ -22,15 +18,13 @@ const hostiles = grande.slice(0, 9).map((page, i) => ({
 }));
 
 function cas(pages: HizPage[], name: string) {
-  const pageIndex = new Int32Array(pages.length).map((_, i) => i);
   return {
     name,
     size: pages.length,
     input: {
       pages,
-      sansCache: new Float64Array(Math.max(1, pages.length) * HIZ_BOUNDS_VALUES),
-      avecCache: new Float64Array(Math.max(1, pages.length) * HIZ_BOUNDS_VALUES),
-      monde: { corners: createBoxCorners(pages.length), pageIndex, epoch: 0 },
+      reference: new Float64Array(Math.max(1, pages.length) * HIZ_BOUNDS_VALUES),
+      obtenu: new Float64Array(Math.max(1, pages.length) * HIZ_BOUNDS_VALUES),
     },
   };
 }
@@ -46,12 +40,12 @@ const resCoins = await mesure({
   fichier: ['packages/sdk-browser/src/hiz/unoccluded.ts', 'packages/sdk-browser/src/hiz/split.ts'],
   cas: jeux,
   calcul: (e) => {
-    projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.avecCache);
-    return e.avecCache;
+    projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.obtenu);
+    return e.obtenu;
   },
   attendu: (e) => {
-    projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.sansCache);
-    return e.sansCache;
+    projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.reference);
+    return e.reference;
   },
   options: { tours: 40, budgetMs: 1500 },
 });
