@@ -5657,7 +5657,8 @@
     "summary": "Uno slot di mappa occupato: quale texture, quale insieme di coordinate e la trasformazione che dichiara.",
     "members": {
       "texture": "Quale texture.",
-      "texCoord": "Quale insieme di UV.",
+      "texCoord": "Quale insieme di UV viene campionato: quello della sua trasformazione quando ne nomina uno, altrimenti il proprio.",
+      "slotTexCoord": "L’insieme di UV che lo slot nomina da sé, prima di ogni trasformazione: uno slot che ne nomina uno diverso dal primo è disegnato da una copia della sua texture, che non risponde ad alcun rango.",
       "transform": "Il `KHR_texture_transform` che lo slot dichiara — spostamento, rotazione in radianti, allungamento, ciascuno `null` se taciuto — oppure `null` se non ne dichiara."
     }
   },

@@ -3374,7 +3374,8 @@
     "summary": "Um espaço de mapa preenchido: que textura, que conjunto de coordenadas e a transformação que declara.",
     "members": {
       "texture": "Qual textura.",
-      "texCoord": "Qual conjunto de UV.",
+      "texCoord": "Qual conjunto de UV é amostrado: o da sua transformação quando esta nomeia um, caso contrário o seu.",
+      "slotTexCoord": "O conjunto de UV que o próprio slot nomeia, antes de qualquer transformação: um slot que nomeia outro que não o primeiro é desenhado a partir de uma cópia da sua textura, que não responde a nenhuma posição.",
       "transform": "O `KHR_texture_transform` que o espaço declara — deslocamento, rotação em radianos, estiramento, cada um `null` quando omitido — ou `null` se não declarar nenhum."
     }
   },

@@ -102,10 +102,12 @@ export function preparedTextures(
   return async (slot: TableTextureSlot, colorSpace?: string) => {
     let texture = await textureOf(slot.texture);
     if (!texture) return null;
-    const { transform, texCoord } = slot;
+    const { transform, texCoord, slotTexCoord } = slot;
     const moved =
       !!transform && (!!transform.offset || transform.rotation !== null || !!transform.scale);
-    if (texCoord > 0 || moved) {
+    // The loader's two steps: a slot naming another set than the first reads a copy of the
+    // texture; a transform that moves the coordinates, or names another set again, a copy of that.
+    if (slotTexCoord > 0 || moved || texCoord !== slotTexCoord) {
       const rank = ranks.get(texture);
       texture = texture.clone();
       texture.channel = texCoord;
@@ -113,9 +115,9 @@ export function preparedTextures(
       if (transform && transform.rotation !== null) texture.rotation = transform.rotation;
       if (transform?.scale) texture.repeat.set(transform.scale[0], transform.scale[1]);
       if (moved) texture.needsUpdate = true;
-      // A copy that reads another coordinate set answers to no rank, as the loader published none
-      // for it; a copy that only moves the coordinates keeps its texture's.
-      if (rank !== undefined && texCoord === 0) ranks.set(texture, rank);
+      // A copy made for the slot's own set answers to no rank, as the loader published none for
+      // it; a copy the transform alone made keeps its texture's, whatever set it then reads.
+      if (rank !== undefined && slotTexCoord === 0) ranks.set(texture, rank);
     }
     if (colorSpace) texture.colorSpace = colorSpace;
     return texture;

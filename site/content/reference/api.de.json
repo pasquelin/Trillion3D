@@ -5657,7 +5657,8 @@
     "summary": "Ein belegter Map-Platz: welche Textur, welcher Koordinatensatz und die Transformation, die er deklariert.",
     "members": {
       "texture": "Welche Textur.",
-      "texCoord": "Welcher UV-Satz.",
+      "texCoord": "Welcher UV-Satz abgetastet wird: der seiner Transformation, wenn diese einen nennt, sonst sein eigener.",
+      "slotTexCoord": "Der UV-Satz, den der Slot selbst nennt, vor jeder Transformation: Ein Slot, der einen anderen als den ersten nennt, wird aus einer Kopie seiner Textur gezeichnet, die auf keinen Rang antwortet.",
       "transform": "Das `KHR_texture_transform`, das der Platz deklariert — Versatz, Drehung im Bogenmaß, Streckung, jeweils `null`, wenn nicht angegeben — oder `null`, wenn keines."
     }
   },

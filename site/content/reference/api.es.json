@@ -5657,7 +5657,8 @@
     "summary": "Una ranura de mapa ocupada: qué textura, qué conjunto de coordenadas y la transformación que declara.",
     "members": {
       "texture": "Qué textura.",
-      "texCoord": "Qué conjunto de UV.",
+      "texCoord": "Qué conjunto de UV se muestrea: el de su transformación cuando nombra uno, el suyo en otro caso.",
+      "slotTexCoord": "El conjunto de UV que nombra la propia ranura, antes de toda transformación: una ranura que nombra otro distinto del primero se dibuja desde una copia de su textura, que no responde a ningún rango.",
       "transform": "El `KHR_texture_transform` que declara la ranura — desplazamiento, giro en radianes, estiramiento, cada uno `null` cuando se omite — o `null` si no declara ninguno."
     }
   },

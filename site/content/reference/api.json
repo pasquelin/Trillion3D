@@ -14065,7 +14065,12 @@
       {
         "name": "texCoord",
         "type": "number",
-        "desc": "Which UV set."
+        "desc": "Which UV set it samples: its transform's when that one names a set, its own otherwise."
+      },
+      {
+        "name": "slotTexCoord",
+        "type": "number",
+        "desc": "The UV set the slot names itself, before any transform: a slot naming another than the first is drawn from a copy of its texture, which answers to no rank."
       },
       {
         "name": "transform",

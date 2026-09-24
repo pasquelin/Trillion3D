@@ -36,8 +36,11 @@ fn uv_transform(transform: Option<&Value>) -> Value {
     let field = |name: &str| transform.get(name).cloned().unwrap_or(Value::Null);
     json!({"offset":field("offset"),"rotation":field("rotation"),"scale":field("scale")})
 }
-/// One texture slot of a material: which texture, which coordinate set, and the transform it
-/// declares. `null` when the material leaves the slot empty, which is what the engine record holds.
+/// One texture slot of a material: which texture, which coordinate set it samples — its
+/// `KHR_texture_transform`'s when that one names a set —, the set the slot names itself, and the
+/// transform it declares. `null` when the material leaves the slot empty, which is what the engine
+/// record holds. The slot's own set is kept beside the one sampled: it is what decides whether the
+/// host reads the glTF texture itself or a copy of it, and so which texture rank the slot keeps.
 pub(super) fn slot(info: Option<&Value>) -> Value {
     let Some(info) = info else {
         return Value::Null;
@@ -46,12 +49,12 @@ pub(super) fn slot(info: Option<&Value>) -> Value {
         return Value::Null;
     };
     let transform = extension(info, "KHR_texture_transform");
+    let own = info.get("texCoord").and_then(Value::as_u64).unwrap_or(0);
     let tex_coord = transform
         .and_then(|t| t.get("texCoord"))
-        .or_else(|| info.get("texCoord"))
         .and_then(Value::as_u64)
-        .unwrap_or(0);
-    json!({"texture":index,"texCoord":tex_coord,"transform":uv_transform(transform)})
+        .unwrap_or(own);
+    json!({"texture":index,"texCoord":tex_coord,"slotTexCoord":own,"transform":uv_transform(transform)})
 }
 /// Surface parameters of one glTF material, in the fields the engine record carries.
 ///

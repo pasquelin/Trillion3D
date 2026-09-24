@@ -5665,7 +5665,8 @@
     "summary": "Un emplacement d’image rempli : quelle texture, quel jeu de coordonnées, et la transformation qu’il déclare.",
     "members": {
       "texture": "Quelle texture.",
-      "texCoord": "Quel jeu d’UV.",
+      "texCoord": "Le jeu d’UV échantillonné : celui de sa transformation quand elle en nomme un, le sien sinon.",
+      "slotTexCoord": "Le jeu d’UV que l’emplacement nomme lui-même, avant toute transformation : un emplacement qui en nomme un autre que le premier est dessiné depuis une copie de sa texture, qui ne répond à aucun rang.",
       "transform": "Le `KHR_texture_transform` que l’emplacement déclare — décalage, rotation en radians, étirement, chacun `null` quand il est tu — ou `null` s’il n’en déclare aucun."
     }
   },

@@ -75,7 +75,7 @@ fn a_blended_surface_and_its_physical_extensions_are_carried() {
         (json!("physical"), json!("BLEND"), json!(0.25))
     );
     assert_eq!(tables["textures"][0]["name"], json!("coat"));
-    let slot = json!({"texture":0,"texCoord":0,"transform":null});
+    let slot = json!({"texture":0,"texCoord":0,"slotTexCoord":0,"transform":null});
     assert_eq!(
         m["extensions"],
         json!({
