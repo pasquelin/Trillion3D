@@ -73,6 +73,8 @@ export function createExplorerMetrics(
     shadowWaitMs: null,
     gpuLightListsMs: null,
     gpuShadowsMs: null,
+    gpuShadowCullMs: null,
+    gpuShadowRasterMs: null,
     gpuLightingMs: null,
     texturePoolBytes: null,
     texturePoolFormat: null,
