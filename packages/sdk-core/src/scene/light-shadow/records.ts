@@ -1,5 +1,4 @@
-import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
-import type { SceneLight } from '../light/contracts.ts';
+import { MAX_SHADOW_SLICES, type SceneLight } from '../light/contracts.ts';
 import { sameShadowShape } from '../light/equal.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { castsShadow } from './casters.ts';
