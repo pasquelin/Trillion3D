@@ -30,6 +30,7 @@
       "geometry pool": "geometri deposu",
       "lights": "ışık",
       "GPU frame": "GPU karesi",
+      "GPU frame (last)": "GPU karesi (son)",
       "CPU frame": "CPU karesi",
       "page hooks": "sayfa kodu",
       "engine CPU": "motor CPU"

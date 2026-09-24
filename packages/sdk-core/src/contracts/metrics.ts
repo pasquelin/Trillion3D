@@ -33,8 +33,7 @@ export interface GpuPassTimings {
  * submission is one contiguous GPU execution, so passes the device runs concurrently are inside its
  * span once — unlike `gpuPassMs.totalMs`, a sum of passes, which counts an overlap twice. The host
  * time between two submissions of the same image is NOT in here; `gpuHostGapMs` carries it alone.
- * Null when a pass of the image went unmeasured, the list was truncated, or the device exposes no
- * timestamp query.
+ * Null when a pass of the image went unmeasured, the list was truncated, or no timestamp query exists.
  */
 export type GpuFrameMs = number | null;
 /** What one frame cost and held: times, triangles, pages, memory. */ export interface FrameMetrics
@@ -126,8 +125,9 @@ export type GpuFrameMs = number | null;
   streamingError?: string | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
-  /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. Null
-   *  on a device without `timestamp-query` and on WebGL2, which times no frame into the metrics. */
+  /** GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled
+   *  every few images, so a number may be a few images old. Null before the first sample, on a held
+   *  image, without `timestamp-query`, and on WebGL2, which times no frame into the metrics. */
   gpuFrameMs?: GpuFrameMs;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */
