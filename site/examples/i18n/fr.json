@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Change le niveau, les vagues, la densité et le courant de l’eau : les caisses flottent, dérivent, coulent et se posent.",
+    "controls": {
+      "level": "Niveau",
+      "waves": "Vagues",
+      "density": "Densité de l’eau",
+      "current": "Courant",
+      "drop": "Lâcher",
+      "again": "Encore",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Dix mille boîtes tombent d’un coup. Le panneau montre en direct ce que coûte la physique.",
     "controls": {

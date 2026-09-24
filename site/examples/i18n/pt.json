@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Muda o nível, as ondas, a densidade e a corrente da água: as caixas flutuam, derivam, afundam e assentam.",
+    "controls": {
+      "level": "Nível",
+      "waves": "Ondas",
+      "density": "Densidade da água",
+      "current": "Corrente",
+      "drop": "Largar",
+      "again": "De novo",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "awake": "Acordados",
+      "step": "Passo"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Dez mil caixas caem de uma vez. O painel mostra em direto quanto custa a física.",
     "controls": {

@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Cambia livello, onde, densità e corrente dell’acqua: le casse galleggiano, vanno alla deriva, affondano e si posano.",
+    "controls": {
+      "level": "Livello",
+      "waves": "Onde",
+      "density": "Densità dell’acqua",
+      "current": "Corrente",
+      "drop": "Lascia",
+      "again": "Ancora",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "awake": "Svegli",
+      "step": "Passo"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Diecimila scatole cadono insieme. Il pannello mostra dal vivo quanto costa la fisica.",
     "controls": {

@@ -78,5 +78,8 @@ test('the drawn surface is the waves buoyancy reads: its points lie at its heigh
     assert.ok(Math.abs(surface.height(p[0], p[2]) - p[1]) < 1e-3);
   }
   assert.equal(surface.crest, waves.crest);
+  // Set again with its phases carried, the surface goes on from where it was.
+  const again = new WaterSurface({ waves: surface.wavesNow(), level: 2 });
+  assert.deepEqual(again.point(3, -4, new Float64Array(3)), surface.point(3, -4, p));
   assert.throws(() => new WaterSurface({ waves: [{ ...OCEAN[0], steepness: 2 }], level: 0 }));
 });

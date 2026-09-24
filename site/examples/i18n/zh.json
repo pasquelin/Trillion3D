@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "改变水位、波浪、密度和水流：木箱会漂浮、漂移、下沉，然后静止。",
+    "controls": {
+      "level": "水位",
+      "waves": "波浪",
+      "density": "水的密度",
+      "current": "水流",
+      "drop": "投放",
+      "again": "再来",
+      "slowMotion": "慢动作"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "活动",
+      "step": "步长"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "一万个箱子同时落下，面板实时显示物理的开销。",
     "controls": {

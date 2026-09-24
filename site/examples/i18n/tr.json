@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Suyun seviyesini, dalgalarını, yoğunluğunu ve akıntısını değiştir: sandıklar yüzer, sürüklenir, batar ve durulur.",
+    "controls": {
+      "level": "Seviye",
+      "waves": "Dalgalar",
+      "density": "Su yoğunluğu",
+      "current": "Akıntı",
+      "drop": "Bırak",
+      "again": "Yeniden",
+      "slowMotion": "Ağır çekim"
+    },
+    "readouts": {
+      "bodies": "Cisimler",
+      "awake": "Uyanık",
+      "step": "Adım"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "On bin kutu aynı anda düşer. Panel fiziğin maliyetini canlı gösterir.",
     "controls": {

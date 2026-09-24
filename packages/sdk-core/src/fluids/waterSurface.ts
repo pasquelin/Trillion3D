@@ -4,10 +4,11 @@
  */
 import type { WaterSpec } from './buoyancy.ts';
 import { waveHeight } from './surface.ts';
-import { Waves } from './waves.ts';
+import { Waves, type WaveSpec } from './waves.ts';
 
 export class WaterSurface {
   private readonly waves: Waves;
+  private readonly declared: readonly WaveSpec[];
   /** Height of the surface at rest, metres. */
   readonly level: number;
   /** Highest point a crest reaches above `level`, metres. */
@@ -17,6 +18,7 @@ export class WaterSurface {
 
   /** Throws `RangeError` on a wave out of range, as `world.physics.water` does. */
   constructor(spec: WaterSpec) {
+    this.declared = spec.waves;
     this.waves = new Waves(spec.waves);
     this.level = spec.level;
     this.crest = this.waves.crest;
@@ -42,6 +44,12 @@ export class WaterSurface {
     out[1] += this.level;
     out[2] += z;
     return out;
+  }
+
+  /** The declared waves, each phase carried to this time: set again in `world.physics.water`
+   *  (whose waves start again at 0 s), the surface goes on from where it is instead of jumping. */
+  wavesNow(): WaveSpec[] {
+    return this.declared.map((wave, i) => ({ ...wave, phase: this.waves.phase[i] }));
   }
 
   /** Unit normal `[x, y, z]` of the surface at the rest point `(x, z)`, into `out`. */

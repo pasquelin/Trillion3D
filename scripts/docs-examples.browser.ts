@@ -10,6 +10,7 @@ import { readyEntries as ready } from '../site/app/examples/list.ts';
  *  worker and Jolt's module. */
 const PHYSICS = new Set([
   'falling-boxes',
+  'floating-crates',
   'ten-thousand-bodies',
   'rolling-on-terrain',
   'a-walker-among-balls',
