@@ -97,14 +97,14 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 
 /**
  * Declared lights that light a blend surface, taken from the **blend slice** of its tile
- * list: the one that goes from the near plane to the opaque background, and that takes the
- * whole frustum where no opaque covers the tile. That is the slice that is needed, because a
+ * list: the one that goes from the near plane to the opaque background, and that is the tile's
+ * whole column where any pixel sees the sky. That is the slice that is needed, because a
  * blend surface is drawn in front of its pixel's opaque: the opaque slice would take declared
  * lights away from it, and foliage placed in front of the sky would keep none.
  *
  * The loop stays **exact**, and its sum is that of the loop over every light, bit for bit:
  * a light absent from the list meets no point of the slice — its range sphere does not
- * touch the world box —, so `declaredLight` would have returned exactly `vec3f(0.0)`, and
+ * touch the slice's box or column —, so `declaredLight` would have returned exactly `vec3f(0.0)`, and
  * removing a zero from a float sum does not change it. What changes is the number of lights
  * walked, hence the number of shadow-atlas reads.
  *

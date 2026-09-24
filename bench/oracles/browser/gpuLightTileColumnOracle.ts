@@ -4,6 +4,9 @@
  * packages/sdk-browser/src/lighting/tiles/shader.ts. `inverseViewProjection` is column-major,
  * like the uniform; depth is reversed with an infinite far plane.
  */
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
+import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
+
 type Vec3 = [number, number, number];
 export type TileView = { inverseViewProjection: ArrayLike<number>; width: number; height: number };
 
@@ -21,7 +24,7 @@ function unproject(m: ArrayLike<number>, x: number, y: number, z: number): Vec3 
 }
 
 export function tileCorner(view: TileView, tile: [number, number], corner: number, z: number) {
-  const size = 16;
+  const size = LIGHT_SETTINGS.tileSize;
   const x =
     corner & 1 ? Math.min(((tile[0] + 1) * size) / view.width, 1) : (tile[0] * size) / view.width;
   const y =
@@ -38,8 +41,8 @@ function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3) {
 
 export function tileColumn(view: TileView, tile: [number, number]) {
   const order = [0, 1, 3, 2];
-  const near = order.map((c) => tileCorner(view, tile, c, 1));
-  const deep = order.map((c) => tileCorner(view, tile, c, 1 / 1024));
+  const near = order.map((c) => tileCorner(view, tile, c, DEPTH_NEAR));
+  const deep = order.map((c) => tileCorner(view, tile, c, DEPTH_NEAR / 1024));
   const inside = [0, 1, 2].map((a) => deep.reduce((s, p) => s + p[a] * 0.25, 0)) as Vec3;
   const planes = order.map((_, i) =>
     inwardPlane(cross(sub(deep[(i + 1) % 4], deep[i]), sub(deep[i], near[i])), near[i], inside),
