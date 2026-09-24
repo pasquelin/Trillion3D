@@ -74,14 +74,13 @@ test('a pebble far below any error target is read while the far plane lets it be
     sha256: '',
     bytes: 1,
     meshes: [[0, 1] as const],
-    size: 0.01,
   };
   const cells = createPartitionCells({
     partition: {
       version: 1,
       bounds: [200, 0, 0, 200.01, 0.01, 0.01],
       meshes: [0],
-      cells: [{ ...pebble, bounds: [200, 0, 0, 200.01, 0.01, 0.01] }],
+      cells: [{ ...pebble, parents: [[null, [200, 0, 0, 200.01, 0.01, 0.01]] as const] }],
     },
     base: 'https://cache.test/key/',
     root: new GraphGroup(),
@@ -129,7 +128,7 @@ function grid(side: number) {
       }));
       bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 1, nodes })));
       const bounds = [x * 10, 0, z * 10, x * 10 + 8, 1, z * 10 + 8];
-      cells.push({ url, sha256: '', bytes: 1, bounds, size: 1, meshes: [[mesh, 4]] });
+      cells.push({ url, sha256: '', bytes: 1, parents: [[null, bounds]], meshes: [[mesh, 4]] });
     }
   const partition = {
     version: 1,

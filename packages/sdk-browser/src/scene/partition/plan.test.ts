@@ -3,14 +3,7 @@ import assert from 'node:assert/strict';
 import { AHEAD, boxDistance, cellReach, KEEP, planCells, residentRows } from './plan.ts';
 
 const optics = { fov: 60, aspect: 16 / 9, far: 1e6 };
-const cell = (x: number, size = 1) => ({
-  url: `cell-${x}.json`,
-  sha256: '',
-  bytes: 1,
-  bounds: [x, 0, 0, x + 1, 1, 1],
-  size,
-  meshes: [[0, 1] as const],
-});
+const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1], meshes: [[0, 1] as const] });
 
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
   const tangent = Math.tan(Math.PI / 6);
