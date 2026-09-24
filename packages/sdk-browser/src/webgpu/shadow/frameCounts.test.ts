@@ -106,7 +106,7 @@ test('a representation change under an unlit frame stales its pages once the vie
     CAM as never,
     new Float64Array(16),
   );
-  assert.equal(plan.deferredChanges, false, 'the unlit frame holds no union');
+  assert.equal(plan.deferredChanges, false, 'the unlit frame holds no change');
   store.setView('auto');
   planAt(2);
   assert.equal(plan.counts.invalidatedPages, 2, 'the first lit plan stales the changed pages');
