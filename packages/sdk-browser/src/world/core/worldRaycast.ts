@@ -54,14 +54,14 @@ export function canvasRay(camera: Camera, canvas: HTMLCanvasElement, at: CanvasP
  * Asked `{ exact: true }` or `{ shape }`, the physics answers instead, asynchronously: a compiled
  * model is then hit on its cooked triangles (`physics.json`), a shape is swept (`physicsRaycast`).
  */
-export function worldRaycast(
+function worldRaycast(
   scene: Object3D,
   camera: Camera,
   canvas: HTMLCanvasElement,
   at: CanvasPoint | Ray,
   options?: RaycastOptions,
 ): Intersection | null;
-export function worldRaycast(
+function worldRaycast(
   scene: Object3D,
   camera: Camera,
   canvas: HTMLCanvasElement,
@@ -69,7 +69,7 @@ export function worldRaycast(
   options: PhysicsRaycastOptions,
   physics: PhysicsSession | null,
 ): Promise<PhysicsIntersection | null>;
-export function worldRaycast(
+function worldRaycast(
   scene: Object3D,
   camera: Camera,
   canvas: HTMLCanvasElement,
