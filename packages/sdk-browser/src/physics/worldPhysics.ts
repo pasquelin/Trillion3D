@@ -12,6 +12,7 @@ import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { HostCpuProfile } from '../host/cpuProfile.ts';
+import { createJointList } from './jointList.ts';
 import { physicsLink } from './physicsLink.ts';
 import type { PhysicsSession } from './session.ts';
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
@@ -51,6 +52,10 @@ export function createWorldPhysics(
     /** Told when a session starts or ends: the character's body changes with it. */
     watcher: (() => void) | null = null;
   const stopped = emptyPhysicsStats();
+  const joints = createJointList(() => {
+    session?.structure();
+    invalidate();
+  });
   const clock = () => {
     session?.setClock(paused, timeScale);
     invalidate();
@@ -74,7 +79,8 @@ export function createWorldPhysics(
       ({ createPhysicsSession }) => {
         if (!wanted || session) return;
         // The session sizes its arrays from the budget: a copy of it, frozen, for its whole life.
-        session = createPhysicsSession(root, Object.freeze({ ...budget }), invalidate, failed);
+        const frozen = Object.freeze({ ...budget });
+        session = createPhysicsSession(root, frozen, invalidate, failed, joints.joints);
         session.writer.gravity(gravity.elements);
         if (water) session.setWater(water);
         clock();
@@ -84,6 +90,7 @@ export function createWorldPhysics(
     );
   };
   const handle = {
+    ...joints.methods,
     /** Whether bodies are simulated. Turning it on fetches the physics the first time.
      *  @defaultValue false, or true with `createWorld(…, { physics })` */
     get enabled() {
