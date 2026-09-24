@@ -45,6 +45,16 @@ export function blendingOf(host: number | undefined): Blending | undefined {
   return BLEND_MODES.find((mode) => HOST[mode] === host);
 }
 
+/** The mode a transparent surface is drawn in, on every GPU path. A transmissive surface composes
+ *  by the backdrop it reads, and a mode the engine has no name for is no mode at all: both are
+ *  refused by name, never drawn as normal. */
+export function drawnBlending(blending: Blending | undefined, transmissive: boolean): Blending {
+  if (!blending) throw new Error('a transparent surface declares a blending no path draws');
+  if (transmissive && blending !== 'normal')
+    throw new Error(`a transmissive material cannot use ${blending} blending`);
+  return blending;
+}
+
 /** A mode that adds to, takes from or filters the background: it means nothing drawn opaque, so
  *  a surface declaring one is drawn in the transparent pass. */
 export const composesWithBackground = (blending: Blending) =>
