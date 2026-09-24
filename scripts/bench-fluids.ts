@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-// The fluids spike bench (#419), in Node and natively, no browser: (1) the height gap between the
-// CPU wave model and its generated shader code run in 32 bits; (2) the physics thread's buoyancy
+// The fluids spike bench (#419), in Node and natively, no browser: (1) the physics thread's buoyancy
 // for the floating scene (100 bodies: cubes, sliced planks, compound rafts, balls) in the
 // committed web modules, split into its TypeScript share (the module's pieces query and the
-// planes from the waves) and its C++ share (the BUOYANCY command); (3) the C++ share natively.
+// planes from the waves) and its C++ share (the BUOYANCY command); (2) the C++ share natively.
 // The C++ share in the module is the step with the command run twice, the second copy at density
 // 0 (every volume computed, no impulse), less the step with it once, on alternate steps.
 //   node scripts/bench-fluids.ts [--threads 1,8] [--steps 600] [--native <joltWaterBench>]
@@ -19,7 +18,7 @@ import {
   sliceLength,
   type WaterSpec,
 } from '../packages/sdk-core/src/fluids/index.ts';
-import { OCEAN, heightGap } from '../packages/sdk-core/src/fluids/waveCode.fixture.ts';
+import { OCEAN } from '../packages/sdk-core/src/fluids/waves.fixture.ts';
 import {
   DEFAULT_PHYSICS_BUDGET,
   WATER_PIECE_WORDS,
@@ -130,9 +129,6 @@ else {
     },
   });
   const steps = Number(values.steps);
-  console.log('Height gap, CPU vs generated code in 32 bits, 400² points over ±4 km, 8 waves:');
-  for (const t of [0, 3600.5, 86400.25])
-    console.log(`  t = ${t} s: ${(heightGap(OCEAN, t, 4000, 400) * 1000).toFixed(3)} mm`);
   for (const [name, spec] of TIERS) {
     console.log(`Buoyancy, ${BODIES} bodies, ${name}:`);
     for (const threads of values.threads.split(',').map(Number)) {
