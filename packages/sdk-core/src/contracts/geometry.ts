@@ -112,6 +112,8 @@ export interface ClusterStructure {
   /** Fingerprint of its bytes. */ sha256: string;
   /** Its size. */ bytes: number;
   /** Clusters it holds. */ count: number;
+  /** The bundles holding the parents of its clusters, closed up to the pinned root cover and
+   *  ascending: it is installed after every one of them. */ dependencies: number[];
 }
 /** Streaming bundles of a primitive. The first `pinned` bundles hold exactly the root clusters,
  *  so keeping them resident guarantees a complete, if coarse, cover of the primitive. */
@@ -119,6 +121,7 @@ export interface StreamCatalogue {
   /** Format version. */ version: number;
   /** Bundles always kept. */ pinned: number;
   /** Target bundle size. */ bundleBytes: number;
+  /** Largest dependency count of a bundle, as the compiler published it. */ maxDependencies: number;
   /** Every bundle. */ pages: StreamBundle[];
 }
 /** One mesh part of a compiled model, with its pages and hierarchy. */ export interface Primitive {
