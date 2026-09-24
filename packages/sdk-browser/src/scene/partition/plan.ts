@@ -18,7 +18,10 @@
  * crosses less than a cell while a cell loads never waits for one, and one that hovers on a border
  * does not read it again at every step. The first frame reads only what it draws.
  */
+import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+
+const inverse = new Float64Array(MATRIX_VALUES);
 
 /** What the reach reads of a camera: its optics, whether it is orthographic, the drawn height. */
 export type PartitionOptics = {
@@ -43,6 +46,28 @@ export function cellReach(
   if (!(pixelError > 0)) return far;
   const focal = height / (2 * tangent);
   return Math.min(far, (size * focal * widen) / pixelError);
+}
+
+/**
+ * `eye` and `reach` in the frame the cells' boxes are written in — the scene root's, whose world
+ * matrix `world` a world may pose, turn and scale. A world distance is at least the root's smallest
+ * stretch times the distance there, and a world size at most its largest stretch times the size
+ * there: what this reach reads holds every cell the world's reach needs.
+ */
+export function inCellFrame(
+  world: ArrayLike<number>,
+  eye: ArrayLike<number>,
+  reach: (size: number) => number,
+) {
+  const stretch = [0, 4, 8].map((c) => Math.hypot(world[c], world[c + 1], world[c + 2]));
+  const least = Math.min(...stretch),
+    most = Math.max(...stretch);
+  invertMatrix4(inverse, world);
+  const local = [0, 1, 2].map(
+    (a) =>
+      inverse[a] * eye[0] + inverse[4 + a] * eye[1] + inverse[8 + a] * eye[2] + inverse[12 + a],
+  );
+  return { eye: local, reach: (size: number) => reach(size * most) / least };
 }
 
 /** Distance from `eye` to the box `[minX, minY, minZ, maxX, maxY, maxZ]`, 0 inside it. */
