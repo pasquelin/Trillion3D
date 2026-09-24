@@ -6182,6 +6182,13 @@
   "object.group": {
     "summary": "Diğer nesneleri tutan, böylece birlikte hareket etmelerini sağlayan boş bir düğüm."
   },
+  "object.clone": {
+    "summary": "Bir nesnenin ve altındaki her şeyin, onunla hiçbir şey paylaşmayan bir kopyası: biçimi, malzemeleri, ışıkları ve alanları kopyalanır.",
+    "description": "Yüklenmiş bir model kopyalanmaz: onun için `null` döner ve kopyalanan bir gruba alınmaz.",
+    "parameters": {
+      "source": "Kopyalanacak nesne."
+    }
+  },
   "object.points": {
     "summary": "Bir geometrinin her köşesini bir nokta olarak çizer.",
     "parameters": {
