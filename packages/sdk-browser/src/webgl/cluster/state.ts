@@ -4,16 +4,15 @@ import { BLEND_EQUATIONS, blendingOf } from '../../scene/materialBlending.ts';
 type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 
 /** The WebGL2 enum of each blend factor and operation `BLEND_EQUATIONS` writes. */
-const glBlendEnum = (gl: WebGL2RenderingContext, name: string): number =>
-  ({
-    zero: gl.ZERO,
-    one: gl.ONE,
-    src: gl.SRC_COLOR,
-    'src-alpha': gl.SRC_ALPHA,
-    'one-minus-src-alpha': gl.ONE_MINUS_SRC_ALPHA,
-    add: gl.FUNC_ADD,
-    'reverse-subtract': gl.FUNC_REVERSE_SUBTRACT,
-  })[name]!;
+const glBlendEnums = (gl: WebGL2RenderingContext): Record<string, number> => ({
+  zero: gl.ZERO,
+  one: gl.ONE,
+  src: gl.SRC_COLOR,
+  'one-minus-src': gl.ONE_MINUS_SRC_COLOR,
+  'src-alpha': gl.SRC_ALPHA,
+  'one-minus-src-alpha': gl.ONE_MINUS_SRC_ALPHA,
+  add: gl.FUNC_ADD,
+});
 
 /** The equation of a transparent surface's mode, or `undefined` when it replaces the target. The
  *  gate (`../../host/surfaceGate.ts`) has refused a mode the engine has no name for. */
@@ -54,8 +53,11 @@ export class WebglClusterState {
   private winding = -1;
   private blend = -1;
   private gl: WebGL2RenderingContext;
+  /** The context's blend enums, by the names `BLEND_EQUATIONS` writes: built once. */
+  private blendEnums: Record<string, number>;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
+    this.blendEnums = glBlendEnums(gl);
   }
   invalidate() {
     this.cull = this.face = this.depth = this.depthFunction = -1;
@@ -89,7 +91,7 @@ export class WebglClusterState {
     this.blend = this.capability(!!equation, this.blend, gl.BLEND);
     if (equation) {
       const { color, alpha } = equation,
-        e = (name: string | undefined) => glBlendEnum(gl, name!);
+        e = (name: string | undefined) => this.blendEnums[name!];
       gl.blendEquationSeparate(e(color.operation), e(alpha.operation));
       gl.blendFuncSeparate(
         e(color.srcFactor),

@@ -14,29 +14,8 @@ import { createGpuSunFarShadow } from './sunFarShadow.ts';
 import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { createWebgpuBlendPipelines } from '../../webgpu/blend/pipelines.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
-
-/** A fake device that returns what it is asked to create, mapping included. */
-function fakeDevice(writes: Array<[number, number]> = []) {
-  return {
-    createBuffer: ({ size }: { size: number }) => {
-      const bytes = new ArrayBuffer(size);
-      return { size, getMappedRange: () => bytes, unmap() {}, destroy() {} };
-    },
-    createBindGroupLayout: (descriptor: unknown) => descriptor,
-    createPipelineLayout: () => ({}),
-    createRenderPipeline: () => ({}),
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
-    createBindGroup: (descriptor: unknown) => descriptor,
-    createTexture: () => ({ createView: () => ({}) }),
-    createSampler: () => ({}),
-    queue: {
-      writeBuffer: (_buffer: unknown, offset: number, data: { length: number }) =>
-        writes.push([offset, data.length]),
-    },
-  } as unknown as GPUDevice;
-}
 
 /** Layout entries, as the fake device received them. */
 type LayoutEntries = { entries: Array<GPUBindGroupLayoutEntry> };
@@ -88,8 +67,7 @@ test('both lighting passes fire the same ray, counters aside', () => {
 });
 
 test('the resident proxy is bound to both passes, on a single storage binding', async () => {
-  installGpuGlobals();
-  const device = fakeDevice();
+  const { device } = fakeDevice();
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
   const deferred = createDeferredLayouts(device, true, true);
   const inBlend = entriesOf(blendBindGroupLayout).filter(
@@ -121,8 +99,7 @@ test('the resident proxy is bound to both passes, on a single storage binding', 
 });
 
 test('without a proxy, both passes read the same header of zeros', () => {
-  installGpuGlobals();
-  const device = fakeDevice();
+  const { device } = fakeDevice();
   const placeholders = createDeferredPlaceholders(device);
   const remplacant = placeholders.proxy as unknown as { size: number };
   assert.ok(
