@@ -15,7 +15,8 @@ const lightsOf = () => [
 /**
  * A compiled model loaded, then its lights added (#370). The stand-in opening draws its first
  * frame before it returns, as `openMeasuredWorld` does, while the runtime holds no session yet;
- * `gate` holds the opening so lights can land while it is in flight.
+ * `gate` holds the opening so lights can land while it is in flight. `seatedFirst` says whether
+ * that first frame seated a finished resolution — the seat epoch the physics placer reads moved.
  */
 async function lightsAfterLoad(addLights: (scene: Scene, opening: Promise<void>) => Promise<void>) {
   const ready = Promise.resolve();
@@ -25,10 +26,13 @@ async function lightsAfterLoad(addLights: (scene: Scene, opening: Promise<void>)
   const gate = new Promise<void>((done) => (release = done));
   let entered = () => {};
   const opening = new Promise<void>((done) => (entered = done));
+  let seatedFirst = false;
   const open = (async () => {
     entered();
     await gate;
+    const epoch = scene._link?.seatEpoch?.();
     runtime.beforeFrame(); // the first interactive frame, drawn inside the opening
+    seatedFirst = scene._link?.seatEpoch?.() !== epoch;
     return session;
   }) as unknown as Open;
   const failures: unknown[] = [];
@@ -40,10 +44,10 @@ async function lightsAfterLoad(addLights: (scene: Scene, opening: Promise<void>)
   runtime.render();
   runtime.dispose();
   assert.deepEqual(failures, []);
-  return written;
+  return { written, seatedFirst };
 }
 
-const assertLit = (written: ReturnType<typeof sessionStandIn>['written']) => {
+const assertLit = ({ written }: Awaited<ReturnType<typeof lightsAfterLoad>>) => {
   assert.equal(written.view, 'lit');
   assert.deepEqual(
     written.lights.map((record) => record.kind),
@@ -53,20 +57,21 @@ const assertLit = (written: ReturnType<typeof sessionStandIn>['written']) => {
 };
 
 test('lights added right after a compiled model loads reach its session', async () => {
-  const written = await lightsAfterLoad(async (scene, opening) => {
+  const lit = await lightsAfterLoad(async (scene, opening) => {
     scene.add(...lightsOf());
     await opening;
   });
-  assertLit(written);
+  assertLit(lit);
 });
 
 test('lights resolved while the session opens survive its first frame', async () => {
-  const written = await lightsAfterLoad(async (scene, opening) => {
+  const lit = await lightsAfterLoad(async (scene, opening) => {
     await opening;
     scene.add(...lightsOf());
-    // Lights read no resource: their resolution runs on microtasks alone, all drained by the next
-    // turn — so it ends before the opening draws the frame that holds no session yet.
+    // Lights read no resource: their resolution runs on microtasks alone, drained by the next turn.
     await new Promise(setImmediate);
   });
-  assertLit(written);
+  // The case's own precondition: the sessionless first frame seated the lights' resolution.
+  assert.ok(lit.seatedFirst, 'the lights resolved before the opening drew its first frame');
+  assertLit(lit);
 });
