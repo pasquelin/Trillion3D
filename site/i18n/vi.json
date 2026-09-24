@@ -1509,8 +1509,6 @@
       "a-capped-section": "mặt phẳng cắt: nắp stencil",
       "decals-on-a-surface": "chọn bằng tia (raycast)",
       "sculpt-a-sphere": "chọn bằng tia (raycast)",
-      "a-texture-turned-and-tiled": "lặp lại, dịch chuyển và xoay kết cấu trên WebGPU",
-      "texture-filters-compared": "bộ lọc kết cấu và anisotropy trên WebGPU",
       "a-video-on-a-screen": "kết cấu video trực tiếp",
       "the-webcam-as-a-texture": "kết cấu video trực tiếp",
       "four-ways-to-blend": "mọi chế độ pha trộn",
