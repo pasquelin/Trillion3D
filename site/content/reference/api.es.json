@@ -1581,7 +1581,8 @@
       "SCENE_NOT_SAVABLE": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
       "PHYSICS_BUDGET": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
       "PHYSICS_NESTED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
-      "PHYSICS_FAILED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`."
+      "PHYSICS_FAILED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
+      "NO_VEHICLE": "Se asignó `'vehicle'` a `world.controls.kind` mientras `world.controls.vehicle` es `null`: no hay nada que conducir."
     }
   },
   "enginePose": {
@@ -6268,7 +6269,7 @@
       "enabled": "Si el controlador escucha el ratón y el teclado y mueve la cámara. `false` lo pausa — sin entrada, sin `update` — sin rehacerlo: velocidad, apoyo, zancada, orientación y giro se conservan, y `true` reanuda exactamente donde se detuvo.",
       "target": "El punto alrededor del cual gira un controlador de pivote.",
       "autoUpdate": "Si el bucle del mundo llama a `update` antes de cada fotograma, antes de los hooks de `world.beforeFrame`. `false` entrega el paso a la página, que llama a `update` desde uno de esos hooks, tan a menudo y con las subetapas que integre; el mundo entonces ya nunca lo hace.",
-      "colliders": "Solo personaje: las mallas con las que choca el cuerpo — un objeto o una lista, descendientes incluidos — o `null`. Asignarlas construye un árbol de triángulos estático a partir de sus triángulos en espacio mundo tal como están ahora: una pasada sobre los triángulos y una construcción `O(T log T)`, unos 52 bytes por triángulo. Los modelos compilados aún no se leen: dales una malla simple como sustituto. Un `CharacterCollision` — el mundo de un motor de física, cualquier cosa que responda a `resolveCapsule` y `groundBelow` — se usa tal cual.",
+      "colliders": "Solo personaje: las mallas con las que choca el cuerpo — un objeto o una lista, descendientes incluidos — o `null`. Asignarlas construye un árbol de triángulos estático a partir de sus triángulos en espacio mundo tal como están ahora: una pasada sobre los triángulos y una construcción `O(T log T)`, unos 52 bytes por triángulo. Los modelos compilados aún no se leen: dales una malla simple como sustituto. Un `CharacterCollision` — el mundo de un motor de física, cualquier cosa que responda a `resolveCapsule` y `groundBelow` — se usa tal cual. Sin uso mientras `world.physics` funciona: el cuerpo es entonces el de la física y se encuentra con sus cuerpos, `mesh.physics`.",
       "rebuildColliders": "Solo personaje: reconstruye el árbol de colisión, después de que los colisionadores se hayan movido o cambiado. Un `CharacterCollision` es su propio mundo y se pasa sin cambios.",
       "velocity": "Solo personaje: la velocidad del cuerpo en metros por segundo, una copia; cero en otro caso.",
       "onGround": "Solo personaje: si los pies están sobre un suelo; `false` para cualquier otro controlador.",
@@ -6316,7 +6317,10 @@
       "fallGravity": "Solo personaje: aceleración hacia abajo mientras cae, en m/s²; 1,6 g por defecto, para que un salto no flote.",
       "stopTime": "Solo personaje: segundos para perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,08 por defecto.",
       "headBob": "Solo personaje: metros que sube y baja el ojo en cada paso al trote; 0,035 por defecto, 0 lo mantiene nivelado.",
-      "landingDip": "Solo personaje: segundos desde el contacto con el suelo hasta el punto más bajo de la caída de aterrizaje del ojo, tan profunda como rápido sea el impacto; 0,06 por defecto, 0 lo desactiva."
+      "landingDip": "Solo personaje: segundos desde el contacto con el suelo hasta el punto más bajo de la caída de aterrizaje del ojo, tan profunda como rápido sea el impacto; 0,06 por defecto, 0 lo desactiva.",
+      "mass": "Solo personaje, con física: kilogramos que el cuerpo apoya sobre lo que pisa; 80 por defecto.",
+      "pushStrength": "Solo personaje, con física: newtons con los que el cuerpo empuja a otros cuerpos; 250 por defecto, el empuje sostenido de un adulto.",
+      "vehicle": "Solo vehículo: lo que conducen los controles `'vehicle'`: cualquier cosa con `drive(input)`, que recibe acelerador, freno, dirección y freno de mano cada vez que cambian las teclas. `null` por defecto, y `kind = 'vehicle'` lanza `NO_VEHICLE` mientras lo sea."
     }
   },
   "world.renderer": {
@@ -7253,6 +7257,22 @@
       "x": "De izquierda a derecha.",
       "y": "De abajo arriba.",
       "z": "De atrás hacia adelante."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Cualquier cosa que `world.controls.vehicle` pueda conducir: recibe la entrada cada vez que cambia.",
+    "members": {
+      "drive": "Recibe los pedales y el volante cada vez que una tecla los cambia."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Lo que un conductor pide a un vehículo: los pedales y el volante, tal como los fijan las teclas de `world.controls` `'vehicle'`.",
+    "description": "La física del vehículo — motor, ruedas, suspensión — les responde; este contrato es todo lo que saben los controles.",
+    "members": {
+      "throttle": "Acelerador, de 0 a 1.",
+      "brake": "Pedal de freno, de 0 a 1.",
+      "steer": "Volante, de −1 todo a la izquierda a 1 todo a la derecha.",
+      "handbrake": "Si el freno de mano está echado."
     }
   }
 }

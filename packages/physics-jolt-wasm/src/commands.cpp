@@ -77,6 +77,10 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       ++added;
       continue;
     }
+    if (op == CHARACTER || op == CHARACTER_MOVE) {
+      w += characterCommand(w);
+      continue;
+    }
     if (op == GRAVITY) {
       world.system->SetGravity(vec3(w + 1));
       w += 4;

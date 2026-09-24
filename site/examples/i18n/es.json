@@ -1907,5 +1907,17 @@
         "1000": "1.000"
       }
     }
+  },
+  "walk-with-collisions": {
+    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas.",
+    "controls": {
+      "pushStrength": "Fuerza de empuje (N)",
+      "platformSpeed": "Velocidad de la plataforma",
+      "stackAgain": "Apilar de nuevo"
+    },
+    "readouts": {
+      "awake": "Despiertos",
+      "speed": "Velocidad"
+    }
   }
 }
