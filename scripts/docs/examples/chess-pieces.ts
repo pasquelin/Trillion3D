@@ -1,4 +1,6 @@
-import { facing, lathe, merge, moved, pairs, solid, type Mesh } from './mesh.ts';
+import { facing, fromGeometry, lathe, merge, moved, pairs, solid, type Mesh } from './mesh.ts';
+import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
+import { triangulate } from '../../../packages/sdk-core/src/world/geometry/triangulate.ts';
 import { box, spline } from './solids.ts';
 
 /**
@@ -62,17 +64,13 @@ const HEAD = pairs([
 /** The turned rook, four merlons on its rim, each turned to face out along its radius. */
 function rook(turning: Turning) {
   const merlons = [0, 1, 2, 3].map((k) => {
-    const angle = (k * Math.PI) / 2 + Math.PI / 4,
-      [cx, cz] = [1.13 * Math.cos(angle), 1.13 * Math.sin(angle)],
-      merlon = moved(box(0.8, 0.6, 0.5), [cx, 5.55, cz]),
-      [c, s] = [Math.cos(-angle), Math.sin(-angle)],
-      positions = [...merlon.positions];
-    for (let v = 0; v < positions.length; v += 3) {
-      const [x, z] = [positions[v] - cx, positions[v + 2] - cz];
-      positions[v] = x * s + z * c + cx;
-      positions[v + 2] = -x * c + z * s + cz;
-    }
-    return solid(positions, merlon.indices);
+    const angle = (k * Math.PI) / 2 + Math.PI / 4;
+    return fromGeometry(
+      geometry
+        .box(0.8, 0.6, 0.5)
+        .rotateY(angle + Math.PI / 2)
+        .translate(1.13 * Math.cos(angle), 5.55, 1.13 * Math.sin(angle)),
+    );
   });
   return merge([turned(ROOK, turning), ...merlons]);
 }
@@ -83,32 +81,6 @@ function king(turning: Turning) {
     moved(box(0.36, 1.3, 0.36), [0, 8.1, 0]),
     moved(box(1, 0.36, 0.36), [0, 8.25, 0]),
   ]);
-}
-
-/** The triangles of a simple counter-clockwise polygon, one ear clipped at a time. */
-function earClip(polygon: Profile) {
-  const left = polygon.map((_, i) => i),
-    triangles: number[] = [],
-    cross = (o: readonly number[], a: readonly number[], b: readonly number[]) =>
-      (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  while (left.length > 3) {
-    const ear = left.findIndex((i1, k) => {
-      const [i0, i2] = [left.at(k - 1)!, left[(k + 1) % left.length]],
-        [a, b, d] = [polygon[i0], polygon[i1], polygon[i2]];
-      if (cross(a, b, d) <= 0) return false;
-      return !left.some(
-        (j) =>
-          ![i0, i1, i2].includes(j) &&
-          cross(a, b, polygon[j]) >= 0 &&
-          cross(b, d, polygon[j]) >= 0 &&
-          cross(d, a, polygon[j]) >= 0,
-      );
-    });
-    if (ear < 0) throw new Error('The polygon is not simple');
-    triangles.push(left.at(ear - 1)!, left[ear], left[(ear + 1) % left.length]);
-    left.splice(ear, 1);
-  }
-  return [...triangles, ...left];
 }
 
 /** The turned foot, and the horse's head in profile, 1.5 cm thick, its rim bevelled. */
@@ -148,7 +120,7 @@ function knight(turning: Turning) {
     band(1, 2, i); // the front bevel
     band(3, 0, i); // the back bevel
   }
-  const caps = earClip(HEAD);
+  const caps = triangulate(HEAD).triangles;
   for (let t = 0; t < caps.length; t += 3) {
     indices.push(2 * n + caps[t], 2 * n + caps[t + 1], 2 * n + caps[t + 2]);
     indices.push(3 * n + caps[t], 3 * n + caps[t + 2], 3 * n + caps[t + 1]);
