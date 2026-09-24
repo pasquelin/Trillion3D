@@ -12,7 +12,6 @@ const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 /** Named approximation of the shadow path, published in the diagnostic (P5). */
 const SHADOW_APPROXIMATIONS = [
   'blended clusters hold no visibility row, so they reach no shadow draw table and cast no shadow; only the opaque path casts a real cutout, and an attenuated tinted shadow is a later lot',
-  'tile light lists bound the per-pixel loop of the opaque path to the published per-tile budget; the blend pass loops over the declared lights instead, bounded by maxLights',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
   'the shadow millisecond budget folds a page fixed cost into an averaged per-page cost',
   'shadow pages are asked for by the opaque resolve alone: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
