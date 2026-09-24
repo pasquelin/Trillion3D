@@ -22,6 +22,9 @@ export async function buildRuntime(root: string, outdir: string) {
     },
     outdir,
     bundle: true,
+    // Code the engine imports on demand (the physics session) is a chunk of its own, fetched only
+    // by a page that uses it; code shared by several entries is one chunk, loaded once.
+    splitting: true,
     minify: true,
     format: 'esm',
     platform: 'browser',
@@ -41,4 +44,9 @@ export async function buildRuntime(root: string, outdir: string) {
       resolve(root, 'packages/sdk-browser/src', wasm),
       resolve(outdir, wasm.slice(wasm.lastIndexOf('/') + 1)),
     );
+  // Jolt's licence travels with the physics modules it is built into.
+  await copyFile(
+    resolve(root, 'THIRD_PARTY_NOTICES.md'),
+    resolve(outdir, 'THIRD_PARTY_NOTICES.md'),
+  );
 }

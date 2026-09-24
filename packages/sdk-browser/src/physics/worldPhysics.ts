@@ -1,4 +1,4 @@
-import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   DEFAULT_PHYSICS_BUDGET,
   GRAVITY_PRESETS,
@@ -10,7 +10,7 @@ import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D, SceneLink } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { HostCpuProfile } from '../host/cpuProfile.ts';
-import { createPhysicsSession, type PhysicsSession } from './session.ts';
+import type { PhysicsSession } from './session.ts';
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
 
 /** A gravity: a preset's name, or a vector in m/s². */
@@ -39,6 +39,8 @@ export function createWorldPhysics(
   const budget: PhysicsBudget = { ...DEFAULT_PHYSICS_BUDGET, ...settings.budget };
   const gravity = new Vector3();
   let session: PhysicsSession | null = null,
+    wanted = false,
+    loading: Promise<typeof import('./session.ts')> | null = null,
     paused = false,
     timeScale = 1,
     error: EngineError | null = null;
@@ -59,19 +61,31 @@ export function createWorldPhysics(
     // The simulation stopped: its session ends and sends nothing more; `enabled` reads false.
     if (fatal) handle.enabled = false;
   };
+  /** The session's code is fetched on the first use too: a world without physics loads none of it. */
+  const start = () => {
+    loading ??= import('./session.ts');
+    loading.then(
+      ({ createPhysicsSession }) => {
+        if (!wanted || session) return;
+        // The session sizes its arrays from the budget: a copy of it, frozen, for its whole life.
+        session = createPhysicsSession(root, Object.freeze({ ...budget }), invalidate, failed);
+        session.writer.gravity(gravity.elements);
+        clock();
+      },
+      (cause) => failed(new EngineError('PHYSICS_FAILED', `Physics: ${cause}`), true),
+    );
+  };
   const handle = {
     /** Whether bodies are simulated. Turning it on fetches the physics the first time.
      *  @defaultValue false, or true with `createWorld(…, { physics })` */
     get enabled() {
-      return session !== null;
+      return wanted;
     },
     set enabled(on: boolean) {
-      if (on === (session !== null)) return;
-      if (on) {
-        session = createPhysicsSession(root, budget, invalidate, failed);
-        session.writer.gravity(gravity.elements);
-        clock();
-      } else {
+      if (on === wanted) return;
+      wanted = on;
+      if (on) start();
+      else {
         session?.dispose();
         session = null;
       }
