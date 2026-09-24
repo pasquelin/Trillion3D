@@ -1,6 +1,6 @@
 use super::cut::tolerance;
 use super::declared::declared_matter;
-use super::stage::trs;
+use super::stage::{gathered, trs};
 use super::*;
 use crate::dag::DagCluster;
 
@@ -135,5 +135,64 @@ fn a_node_carries_the_matter_its_collider_declares() {
     assert_eq!(
         declared_matter(&g, &serde_json::json!({})),
         serde_json::json!({})
+    );
+}
+
+/// A 1 cm patch of 0.5 mm cells, bumped so no cell is flat: a chess piece's surface in metres,
+/// every triangle under the 1e-6 doubled area Jolt keeps (`abeautiful-game`, #562).
+fn fine_patch(scale: f32) -> (Vec<f32>, Vec<u32>) {
+    let (n, step) = (20u32, 0.0005f32);
+    let (mut pos, mut triangles) = (Vec::new(), Vec::new());
+    for z in 0..=n {
+        for x in 0..=n {
+            let bump = ((x * 7 + z * 3) % 5) as f32 * step * 0.2;
+            pos.extend([x as f32 * step, bump, z as f32 * step].map(|v| v * scale));
+        }
+    }
+    for z in 0..n {
+        for x in 0..n {
+            let i = z * (n + 1) + x;
+            triangles.extend([i, i + n + 1, i + 1, i + 1, i + n + 1, i + n + 2]);
+        }
+    }
+    (pos, triangles)
+}
+
+// Behaviour: a tile of small triangles keeps its whole surface — cooked scaled up by a power of
+// two, exact, the very shape of the patch drawn that much larger, wrapped back down.
+#[test]
+fn a_tile_of_small_triangles_keeps_its_surface() {
+    let (pos, triangles) = fine_patch(1.0);
+    let cooked = mesh_shape(&pos, &triangles).expect("Jolt keeps the patch");
+    let (large, _) = fine_patch(262_144.0); // 2^18: the 1 cm box brought past 2^11
+    let whole = mesh_shape(&large, &triangles).unwrap();
+    let body = &whole[whole.len() / 2..];
+    assert!(cooked.windows(body.len()).any(|w| w == body));
+}
+
+// Behaviour: a primitive whose collider Jolt refuses (every triangle of zero area) collides with
+// nothing and is named in the report with Jolt's reason; the cook does not fail.
+#[test]
+fn a_refused_collider_is_named_not_fatal() {
+    let pos = [0., 0., 0., 0., 1., 0., 0., 2., 0.];
+    let dag = [cluster(0, 0.0, f64::INFINITY)];
+    let (order, culling) = crate::dag::build_culling_bvh(&pos, &dag);
+    let o = crate::texture_preview::tests::options(&std::env::temp_dir());
+    let collision = cook_primitive(&o, &dag, &order, &culling, &pos, &[0, 1, 2]).unwrap();
+    let reason = collision["refused"].as_str().expect("refused");
+    assert!(reason.contains("Need triangles"), "{reason}");
+    let primitives = [
+        serde_json::json!({"mesh":3,"primitive":1}),
+        serde_json::json!({"mesh":4,"primitive":0}),
+    ];
+    let cooked = serde_json::json!({"kind":"mesh","tiles":[]});
+    let (colliders, slot, refused) = gathered(&primitives, &[collision.clone(), cooked]);
+    assert_eq!(
+        (colliders.len(), slot.get(&0), slot.get(&1)),
+        (1, None, Some(&0))
+    );
+    assert_eq!(
+        refused,
+        [serde_json::json!({"primitive":0,"mesh":3,"meshPrimitive":1,"reason":reason})]
     );
 }
