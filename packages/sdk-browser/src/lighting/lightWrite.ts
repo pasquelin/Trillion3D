@@ -23,9 +23,11 @@ function applyColor(light: ContractLight, source: SceneLight) {
  * Penumbra that reproduces the contract cone edge. The WebGPU path softens the cone between
  * `cos(half-angle)` and the larger of `cos(half-angle) + spotEdgeSoftness` and the declared
  * penumbra's inner cosine; the reference softens between `cos(angle)` and `cos(angle · (1 − penumbra))`.
- * Equating the cosines gives this penumbra — the same transition, not a neighbouring one.
+ * Equating the cosines gives this penumbra — the same transition, not a neighbouring one. A
+ * closed cone takes the limit, 1: both paths then light nothing off the axis, and 0/0 is no NaN.
  */
 function spotPenumbra(coneAngle: number, declared = 0) {
+  if (!(coneAngle > 0)) return 1;
   const inner = Math.acos(Math.min(1, Math.cos(coneAngle) + LIGHT_SETTINGS.spotEdgeSoftness));
   return Math.min(1, Math.max(declared, 1 - inner / coneAngle));
 }
