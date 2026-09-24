@@ -1,24 +1,24 @@
 ---
 name: Task
-about: One bounded piece of work with its proof
+about: One bounded piece of work with its proof — written as docs/roles/writer.md shows
 title: ''
 labels: ''
 ---
 
-## Problem
+## Why
 
-## Required Work
+## To do
 
 -
 
-## Code Context
+## Code context
 
-- `path/to/file.ts:line`
+- `path/to/file.ts:line` — what exists and is reused
 
 ## Proof
 
-<!-- What shows the work is done: test names, bench command, measurement to publish. -->
+<!-- What shows the work is done: test names, the browser proof and bench scene the measurer runs. -->
 
 ## Links
 
-<!-- Blocking or related issues, spec sections. -->
+<!-- Parent, blocked by, related, the issue a regression or finding comes from. -->
