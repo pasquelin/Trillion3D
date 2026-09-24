@@ -38,9 +38,11 @@ export function encodeShadowCasters(
     { gpuDraw } = vis;
   if (!cull || !spheres || !gpuDraw || !mobilityRows) return false;
   const rows = layout.rows.packedCount;
+  // A frame on the CPU cut leaves the light cut as it is: its waiting pages, its redraws and its
+  // reports belong to the GPU selection, which only a drop takes away (`../pages/io/drops.ts`).
   const selection = run.gpuFrameActive ? run.gpuSelection : undefined;
   const light = selection && lightCutOf(selection);
-  lights.lightCut = light;
+  if (light) lights.lightCut = light;
   if (light) {
     const map = gpuDraw.lightRows(light.pageCount);
     // Each region reads its own view's range of the one log the cut writes.
@@ -88,7 +90,7 @@ export function encodeShadowCasters(
 /**
  * Before a plan: the pages a light cut drew short go stale again, whole — residency having moved
  * (`residencyMoved`) when that is what they waited for —, and the pages a frame may draw follow
- * the cut's limit (`../../gpu/dag/lightCutRedraws.ts`).
+ * the cut's limit (`../../gpu/dag/lightCutRedraws.ts`); without a light cut, nothing limits them.
  */
 export function redrawShortPages(
   rt: WebgpuPagesRuntime,
@@ -98,7 +100,10 @@ export function redrawShortPages(
 ) {
   const { plan } = rt.lights,
     redraws = rt.lights.lightCut?.redraws;
-  if (!redraws) return;
+  if (!redraws) {
+    plan.admission.setLimit(Infinity);
+    return;
+  }
   if (residencyMoved) redraws.residencyChanged();
   const { pool } = plan;
   const pages = redraws.takeRedraw((page) => {

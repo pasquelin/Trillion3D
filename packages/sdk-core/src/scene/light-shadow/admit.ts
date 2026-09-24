@@ -34,6 +34,10 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     get count() {
       return count;
     },
+    /** Pages a frame may draw (`setLimit`). */
+    get limit() {
+      return limit;
+    },
     /** Picks this frame's pages into `list`; returns how many stale, asked-for pages remain. */
     run(
       pool: ShadowPool,

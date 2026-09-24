@@ -63,9 +63,10 @@ export function planShadowRegions(
   nowMs: number,
 ) {
   const { lights } = rt,
-    { shadows, plan, store, runs } = lights,
+    { shadows, plan, store, runs, regions } = lights,
     { rows, packedPages } = rt.layout;
   runs.reset();
+  regions.reset();
   // Residency the light cuts see changed since the last plan: those pages alone restale.
   let residencyMoved = false;
   lights.residence.flush(rows.residentFlags, (page) => {
@@ -95,8 +96,9 @@ export function planShadowRegions(
 
 /**
  * Plans the image's shadow pages once. The CPU cut plans them before it writes its rows — the
- * light cuts' casters need rows too —, and the direct-lighting pass then reads the same plan.
- * An unlit view, or a scene without light, plans nothing and leaves no run behind.
+ * light cuts' casters need rows too —, and the direct-lighting pass then reads the same plan:
+ * its regions, one or two per page, never its page count. An unlit view, or a scene without
+ * light, plans nothing and leaves no run behind.
  */
 export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { lights, run } = rt,
@@ -105,7 +107,7 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     lights.runs.reset();
     return 0;
   }
-  if (lights.plannedFrame === run.frame) return lights.shadowPages;
+  if (lights.plannedFrame === run.frame) return lights.regions.count;
   lights.plannedFrame = run.frame;
   return planShadowRegions(rt, cam, run.frame, performance.now());
 }

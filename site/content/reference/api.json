@@ -12774,7 +12774,7 @@
       },
       {
         "name": "admission",
-        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; run(pool: ShadowPool, records: ShadowRecords, sun: SunLevels, budget: ShadowBudget, latest: number, ...",
+        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; readonly limit: number; run(pool: ShadowPool, records: ShadowRecords, sun: SunLevels, budget: Shadow...",
         "desc": "This frame's pages, in admission order."
       },
       {
