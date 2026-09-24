@@ -1,5 +1,9 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { CommandWriter, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
+import {
+  CommandWriter,
+  type Joint,
+  type PhysicsBudget,
+} from '../../../sdk-core/src/physics/index.ts';
 import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -9,6 +13,7 @@ import { createPhysicsPoses } from './poses.ts';
 import { emptyPhysicsStats, eventsAt, type FromPhysics, type PhysicsResults } from './protocol.ts';
 import { createSessionHost } from './sessionHost.ts';
 import { startPhysicsWorker } from './sessionWorker.ts';
+import { createPhysicsJoints } from './joints.ts';
 import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
@@ -24,6 +29,8 @@ export function createPhysicsSession(
   budget: Readonly<PhysicsBudget>,
   invalidate: () => void,
   failed: (error: EngineError, fatal?: boolean) => void,
+  /** The joints `world.physics.add` holds: made once their bodies are simulated. */
+  wanted: ReadonlySet<Joint> = new Set(),
 ) {
   const writer = new CommandWriter();
   const stale = new Set<Object3D>();
@@ -40,6 +47,7 @@ export function createPhysicsSession(
   );
   const poses = createPhysicsPoses(budget.bodies, root);
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
+  const joints = createPhysicsJoints(writer, bodies, invalidate);
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
   /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
@@ -82,6 +90,7 @@ export function createPhysicsSession(
       onReady();
       invalidate();
     } else if (data.type === 'results') results(data);
+    else if (data.type === 'broken') joints.broke(data.joints);
     else if (data.type === 'cast') {
       casts.get(data.id)?.(data.hits);
       casts.delete(data.id);
@@ -90,6 +99,8 @@ export function createPhysicsSession(
       // error is fatal: then the simulation stopped, and the world ends this session.
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
       for (const mesh of refused) bodies.retire(mesh.physics._index);
+      // A joint made on a refused body is made again once the body is.
+      if (refused.length) dirty = true;
       const names = refused.map((mesh) => mesh.name);
       failed(new EngineError(data.code, data.message, names.length ? { names } : {}), data.fatal);
     }
@@ -143,6 +154,7 @@ export function createPhysicsSession(
       touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
+        joints.reconcile(wanted);
         tiles.scan(root);
         stale.clear();
         dirty = false;
@@ -171,6 +183,7 @@ export function createPhysicsSession(
     materialOf: tiles.materialOf,
     dispose() {
       tiles.clear();
+      joints.clear();
       bodies.clear();
       poses.clear();
       writer.take();

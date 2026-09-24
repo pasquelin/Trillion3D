@@ -12,13 +12,16 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
 2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), with a brief that
-   names the issue, the files to read and nothing else. It returns a pull request.
+   names the issue, the files to read and nothing else. It returns a pull request. A batch that
+   adds or changes something a page can show also asks for a live example in the same pull
+   request: `site/examples/`, the engine's public API alone, an existing example extended rather
+   than a second one written.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
 3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
    (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
    review again. Three rounds at most; past that, report to the maintainer and stop.
-4. **Merge.** With the reviewer's `OK`: bring the branch up to date with `develop`
-   (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
+4. **Merge.** With the reviewer's `OK`, and the example of step 2 when the batch has one: bring
+   the branch up to date with `develop` (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
    (`gh pr checks <pr> --watch`), then `gh pr merge <pr> --merge --delete-branch`. A red check goes back to step 3.
 5. **Hand over.** `gh issue edit <n> --remove-label "in review"`, add `to measure` for an engine
    batch (`packages/`, compiler, format, shaders, a published number), then `gh issue close <n>`.

@@ -155,6 +155,28 @@ world.controls.pushStrength = 400; // newtons: push harder`,
     ],
   },
   {
+    id: 'connect-drive-and-break',
+    example: 'hinges-and-joints',
+    code: [
+      `// A door on a hinge along its edge, pushed open by its motor.
+const hinge = joint.hinge(door, frame, {
+  anchor: [-0.6, 1, 0], // where the pin is, in the world
+  axis: [0, 1, 0], // the pin points up
+  limits: { min: 0, max: 1.6 }, // radians
+  motor: { mode: 'position', target: 0, maxForce: 600 },
+});
+world.physics.add(hinge);
+hinge.motor = { mode: 'position', target: 1.5, maxForce: 600 }; // open it
+
+// A drawer on a rail, a chain link to the ceiling (null is the world), a plank that breaks.
+world.physics.add(joint.slider(drawer, cabinet, { axis: [0, 0, 1], limits: { min: 0, max: 0.7 } }));
+world.physics.add(joint.point(link, null, { anchor: [0, 5, 0] }));
+const plank = joint.hinge(board, next, { anchor: [1, 2, 0], axis: [0, 0, 1], breakForce: 12000 });
+plank.on('break', () => console.log('snap!'));
+world.physics.add(plank);`,
+    ],
+  },
+  {
     id: 'your-own-scene',
     example: 'a-scene-of-your-own',
     code: [

@@ -1980,5 +1980,20 @@
       "awake": "Uyanık",
       "step": "Adım"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Kapıyı ve çekmeceyi aç, zinciri salla, sonra taşı köprünün üstüne bırak ve kırılışını izle.",
+    "controls": {
+      "openDoor": "Kapıyı aç",
+      "openDrawer": "Çekmeceyi aç",
+      "strength": "Köprü dayanımı (N)",
+      "swingChain": "Zinciri salla",
+      "dropStone": "Taşı bırak",
+      "rebuild": "Köprüyü yeniden kur"
+    },
+    "readouts": {
+      "joints": "Eklemler",
+      "broken": "Kırılan"
+    }
   }
 }
