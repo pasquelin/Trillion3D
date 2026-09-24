@@ -4,8 +4,7 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts';
 import { controlSettingAccessors } from './worldControlsAccessors.ts';
 import { characterSettingAccessors } from './worldCharacterAccessors.ts';
-import { controlTargets, type CharacterSource } from './worldControlTargets.ts';
-import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
+import { controlTargets, noVehicle, type CharacterSource } from './worldControlTargets.ts';
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
@@ -75,10 +74,14 @@ export function worldControlsHandle(
     }
     current?.addEventListener('change', invalidate);
   };
-  const targets = controlTargets(physics, () => {
-    targets.bind(current as Record<string, unknown> | null);
-    invalidate();
-  });
+  const targets = controlTargets(
+    physics,
+    () => {
+      targets.bind(current as Record<string, unknown> | null);
+      invalidate();
+    },
+    () => kind === 'vehicle',
+  );
   // The world's physics started or stopped: the character's body follows it.
   physics?.watch(() => {
     targets.bind(current as Record<string, unknown> | null);
@@ -91,11 +94,7 @@ export function worldControlsHandle(
       return kind;
     },
     set kind(next: WorldControls) {
-      if (next === 'vehicle' && !targets.accessors.vehicle)
-        throw new EngineError(
-          'NO_VEHICLE',
-          "world.controls: 'vehicle' drives world.controls.vehicle, which is null — set it first.",
-        );
+      if (next === 'vehicle' && !targets.accessors.vehicle) throw noVehicle();
       kind = next;
       rebuild();
     },

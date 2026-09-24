@@ -2733,7 +2733,7 @@
       {
         "name": "other",
         "type": "Object3D | null",
-        "desc": "The object touched; `null` once it has left the scene."
+        "desc": "The object touched, the camera when the character touched it; `null` once it has left the scene."
       },
       {
         "name": "impulse",
@@ -17025,7 +17025,7 @@
       {
         "name": "drive(input: Readonly<VehicleInput>)",
         "type": "void",
-        "desc": "Hears the pedals and the wheel, each time a key changes them."
+        "desc": "Hears the pedals and the wheel, each time a key changes them, when it starts to be driven, and all released when it stops being driven."
       }
     ],
     "description": ""
@@ -17466,7 +17466,7 @@
       {
         "name": "vehicle",
         "type": "VehicleDriver | null",
-        "desc": "Vehicle only: what the `'vehicle'` controls drive — anything with `drive(input)`, which hears the throttle, brake, steer and handbrake each time the keys change them. `null` by default, and `kind = 'vehicle'` throws `NO_VEHICLE` while it is."
+        "desc": "Vehicle only: what the `'vehicle'` controls drive — anything with `drive(input)`, which hears the throttle, brake, steer and handbrake each time the keys change them. `null` by default; the `'vehicle'` controls never run without one: `kind = 'vehicle'` and `createWorld(…, { controls: 'vehicle' })` throw `NO_VEHICLE` while it is `null`, and so does setting it to `null` while they drive."
       }
     ],
     "description": ""
@@ -18347,7 +18347,7 @@
       {
         "name": "controls?",
         "type": "WorldControls | undefined",
-        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later."
+        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later. `'vehicle'` throws `NO_VEHICLE` here: no vehicle is set before the world exists — set `world.controls.vehicle`, then `kind`."
       },
       {
         "name": "signal?",
@@ -22065,7 +22065,7 @@
         "name": "options.controls?",
         "type": "WorldControls",
         "default": "'none'",
-        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later."
+        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later. `'vehicle'` throws `NO_VEHICLE` here: no vehicle is set before the world exists — set `world.controls.vehicle`, then `kind`."
       },
       {
         "name": "options.signal?",
