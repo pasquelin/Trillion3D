@@ -98,3 +98,20 @@ test('only the pages of the views that escalated wait for residency', async () =
   redraws.rest();
   assert.deepEqual(taken(), [7]);
 });
+
+// Dropped work leaves pages without casters: wrong, they are hidden until redrawn. A coarse view
+// drew the same casters at another precision: its pages stay read.
+test('only the pages of a frame that dropped work are hidden until they are redrawn', async () => {
+  const flag = { value: WORK_DROPPED };
+  const { redraws, encoder } = redrawsWith(flag);
+  const drawn = async (page: number, reported: boolean) => {
+    redraws.encode(encoder, [page], [0], 1, reported)?.(true);
+    await redraws.settled();
+    const seen: [number, boolean][] = [];
+    redraws.takeRedraw((again, hide) => seen.push([again, hide]));
+    return seen;
+  };
+  assert.deepEqual(await drawn(4, true), [[4, true]], 'dropped: hidden');
+  flag.value = escalatedView(0);
+  assert.deepEqual(await drawn(5, false), [[5, false]], 'coarse: still read');
+});
