@@ -18,7 +18,7 @@ export type FakeBuffer = {
   destroy(): void;
 };
 /** A texture as the fake creates it: its descriptor, a view that carries its format. */
-export type FakeTexture = GPUTextureDescriptor & {
+type FakeTexture = GPUTextureDescriptor & {
   createView(): { format: GPUTextureFormat };
   destroy(): void;
 };
