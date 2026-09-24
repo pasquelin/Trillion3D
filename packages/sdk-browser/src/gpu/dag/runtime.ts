@@ -94,6 +94,14 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const touched = new Int32Array(Math.max(1, residentWords(pageCount)));
   const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
   const dispatch = createDagDispatch(resources, state, fail);
+  /** A placement moved: the cut is computed and read back again. The held one — and those in
+   *  flight, by the revision — go on naming what to stream, marked as cut under the old poses. */
+  const posesMoved = () => {
+    state.worldRevision++;
+    if (state.last) state.last.stalePose = true;
+    state.lastSubmitted = undefined;
+    state.lastReadback = undefined;
+  };
   const selection: GpuSelection = {
     residentCut,
     maskBuffer: flags,
@@ -118,10 +126,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteLength,
       );
       if (stretched) device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
-      state.worldRevision++;
-      state.last = null;
-      state.lastSubmitted = undefined;
-      state.lastReadback = undefined;
+      posesMoved();
       return true;
     },
     parkWorld(w, parked) {
@@ -134,10 +139,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       frameInts[at] = node;
       device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
       // The cut is another one from here: computed again and read back, as after a move.
-      state.worldRevision++;
-      state.last = null;
-      state.lastSubmitted = undefined;
-      state.lastReadback = undefined;
+      posesMoved();
     },
     updateResidency(next, changes) {
       if (state.disposed || state.dead || !residentCut) return false;

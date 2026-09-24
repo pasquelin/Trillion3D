@@ -53,7 +53,7 @@ test('unchanged uniforms skip a second GPU dispatch', async () => {
   fixture.geometry.dispose();
 });
 
-test('updating an instance world matrix invalidates the old GPU cut', async () => {
+test('updating an instance world matrix marks the old GPU cut as cut under the old pose', async () => {
   installGpuGlobals();
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
@@ -65,9 +65,10 @@ test('updating an instance world matrix invalidates the old GPU cut', async () =
   const moved = dag.worlds.slice();
   moved[12] = 1000;
   assert.equal(selection.updateWorlds(moved), true);
-  assert.equal(selection.peek(), null);
+  assert.equal(selection.peek()?.stalePose, true, 'it still names what to stream, no more');
   selection.dispatch(uniforms);
   assert.equal((await selection.flush())?.pageIds.length, 0);
+  assert.equal(selection.peek()?.stalePose, false);
   selection.dispose();
   fixture.geometry.dispose();
 });
