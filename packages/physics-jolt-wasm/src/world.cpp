@@ -69,7 +69,7 @@ extern "C" {
 uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConstraints,
                    uint32_t tempBytes, uint32_t threads) {
   trillion::World &w = world();
-  if (w.system || maxBodies > trillion::INDEX_MASK + 1) return 1;
+  if (w.system || maxBodies > trillion::INDEX_MASK) return 1;
   RegisterDefaultAllocator();
   Factory::sInstance = new Factory();
   RegisterTypes();
@@ -81,13 +81,15 @@ uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConst
   else
     w.jobs = new JobSystemSingleThreaded(cMaxPhysicsJobs);
   w.system = new PhysicsSystem();
+  // One body more than the page's: the character's inner capsule (`character.cpp`).
+  uint32_t bodies = maxBodies + 1;
   // A step that needs more scratch than `tempBytes` takes it from the heap, inside the memory budget.
-  w.system->Init(maxBodies, 0, bodyPairs, contactConstraints, trillion::broadPhaseLayers,
+  w.system->Init(bodies, 0, bodyPairs, contactConstraints, trillion::broadPhaseLayers,
                  trillion::objectVsBroadPhase, trillion::objectPairs);
   w.system->SetContactListener(&w.listener);
   w.system->SetBodyActivationListener(&w.listener);
-  w.slots.resize(maxBodies);
-  w.engineOf.assign(maxBodies, 0);
+  w.slots.resize(bodies);
+  w.engineOf.assign(bodies, 0);
   return 0;
 }
 
@@ -114,7 +116,9 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   if (!trillion::runCommands(w.buffers[0], commandWords)) return 0xFFFFFFFFu;
   // A body removed awake was put to sleep by its removal: not a body of this step.
   w.deactivated.clear();
+  trillion::moveCharacter(dt);
   if (dt > 0) w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
+  trillion::writeCharacter();
   return trillion::writePoses();
 }
 

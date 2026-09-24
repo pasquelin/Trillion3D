@@ -1,7 +1,10 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
+  CAST_WORDS,
+  CHARACTER_STATE_WORDS,
   EVENT_WORDS,
+  HIT_WORDS,
   MODULE_ERROR,
   WATER_PIECE_WORDS,
   POSE_WORDS,
@@ -31,6 +34,9 @@ interface JoltExports {
   jolt_owed_leaves(): number;
   jolt_water_query(top: number, sliceLength: number): number;
   jolt_water_pieces(): number;
+  jolt_cast_buffer(count: number): number;
+  jolt_cast(count: number): number;
+  jolt_character(): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -80,8 +86,8 @@ export async function openJolt(
  */
 export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget, threads = 1) {
   const jolt = exports as unknown as JoltExports;
-  if (budget.bodies > BODY_INDEX + 1)
-    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX + 1}.`);
+  if (budget.bodies > BODY_INDEX)
+    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`);
   jolt._initialize();
   const { bodies, bodyPairs, contactConstraints } = budget;
   if (jolt.jolt_init(bodies, bodyPairs, contactConstraints, TEMP_BYTES, threads) !== 0)
@@ -104,7 +110,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
         commandWords = count;
       }
       if (words) new Uint32Array(memory.buffer, commands, count).set(words.subarray(0, count));
-      const posed = jolt.jolt_step(count, dt);
+      // The module's `uint32_t` comes back as a signed 32-bit number: -1 is its failure.
+      const posed = jolt.jolt_step(count, dt) >>> 0;
       if (posed === 0xffffffff)
         throw new EngineError(
           'PHYSICS_FAILED',
@@ -130,6 +137,16 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
       const count = jolt.jolt_water_query(top, sliceLength);
       return new Float32Array(memory.buffer, jolt.jolt_water_pieces(), count * WATER_PIECE_WORDS);
     },
+    /** Answers scene queries (`CAST_WORDS` each) against the last step; a copy of their hits. */
+    cast(queries: Uint32Array) {
+      const count = queries.length / CAST_WORDS;
+      const at = jolt.jolt_cast_buffer(count);
+      if (!at) throw outOfMemory();
+      new Uint32Array(memory.buffer, at, queries.length).set(queries);
+      return new Uint32Array(memory.buffer, jolt.jolt_cast(count), count * HIT_WORDS).slice();
+    },
+    /** The character's state after the last step (`CHARACTER_STATE_WORDS`). */
+    character: () => new Float32Array(memory.buffer, jolt.jolt_character(), CHARACTER_STATE_WORDS),
     /** Leaves a full event buffer held back: the next step sends them first. */
     owedLeaves: () => jolt.jolt_owed_leaves(),
     /** Whether the memory has grown to its budget: a trap then is the budget, not a fault. */

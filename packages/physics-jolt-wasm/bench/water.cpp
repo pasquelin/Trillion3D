@@ -21,7 +21,7 @@ uint32_t *jolt_water_pieces();
 }
 
 /// layout.ts: OP.buoyancy, WATER_PIECE_WORDS, BUOYANCY_WORDS, PLANE_WORDS.
-constexpr uint32_t BUOYANCY = 13, PIECE_WORDS = 6, HEADER_WORDS = 8, PLANE_WORDS = 8;
+constexpr uint32_t BUOYANCY = 17, PIECE_WORDS = 6, HEADER_WORDS = 8, PLANE_WORDS = 8;
 
 int main(int argc, char **argv) {
   if (argc != 6) {

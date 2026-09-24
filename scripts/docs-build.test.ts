@@ -20,8 +20,14 @@ test('the site build writes every bundle of the published tree', async () => {
       'runtime/pageDecodeWorker.js',
       'runtime/pageIntegrationWorker.js',
       'runtime/pageCodec.wasm',
+      'runtime/joltPhysics.wasm',
+      'runtime/joltPhysicsThreads.wasm',
     ])
       assert.ok((await stat(join(temporary, file))).size > 0, `${file} is built`);
+    // Jolt's licence beside the two modules built from it.
+    const notice = await readFile(join(temporary, 'runtime/THIRD_PARTY_NOTICES.md'), 'utf8');
+    for (const name of ['joltPhysics.wasm', 'joltPhysicsThreads.wasm', 'Jorrit Rouwe'])
+      assert.ok(notice.includes(name), `the notice names ${name}`);
     // The flags the languages name, and no other, with the licence of the package they come from.
     const flags = [...new Set(LANGUAGES.map(({ flag }) => `${flag}.svg`))];
     assert.deepEqual(

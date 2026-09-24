@@ -932,7 +932,10 @@
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
       "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
-      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`."
+      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
+      "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan."
     }
   },
   "EngineProfiler": {
@@ -6804,7 +6807,10 @@
       "stride": "Hanya character: fase langkah dalam radian, satu kaki melangkah pada 0 dan π; 0 sebaliknya.",
       "velocity": "Hanya character: kecepatan tubuh dalam meter per detik, sebuah salinan; nol sebaliknya.",
       "walkSpeed": "Hanya character: meter per detik berjalan kaki; 3,5 secara default, sebuah jog.",
-      "yawInput": "Hanya flight: stick yaw dalam [-1, 1] (kiri), ditambahkan ke tombol panah; 0 secara default."
+      "yawInput": "Hanya flight: stick yaw dalam [-1, 1] (kiri), ditambahkan ke tombol panah; 0 secara default.",
+      "mass": "Hanya karakter, dengan fisika: kilogram yang ditekankan tubuh pada pijakannya; bawaan 80.",
+      "pushStrength": "Hanya karakter, dengan fisika: newton yang dipakai tubuh untuk mendorong benda; bawaan 250, dorongan berkelanjutan orang dewasa.",
+      "vehicle": "Hanya kendaraan: yang dikemudikan kontrol `'vehicle'` — apa pun yang punya `drive(input)`, yang menerima gas, rem, setir, dan rem tangan setiap kali tombol berubah. Bawaan `null`, dan selama itu `kind = 'vehicle'` melempar `NO_VEHICLE`."
     }
   },
   "world.diagnostic": {
@@ -7165,6 +7171,22 @@
     "members": {
       "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
       "gravity": "Gravitasi dunia: preset atau vektor."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Apa pun yang bisa dikemudikan `world.controls.vehicle`: menerima masukan setiap kali berubah.",
+    "members": {
+      "drive": "Menerima pedal dan setir setiap kali tombol mengubahnya."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Yang diminta pengemudi dari kendaraan: pedal dan setir, sebagaimana tombol `world.controls` `'vehicle'` mengaturnya.",
+    "description": "Fisika kendaraan itu sendiri — mesin, roda, suspensi — menjawabnya; kontrak ini adalah semua yang diketahui kontrol.",
+    "members": {
+      "throttle": "Pedal gas, 0 sampai 1.",
+      "brake": "Pedal rem, 0 sampai 1.",
+      "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
+      "handbrake": "Apakah rem tangan ditarik."
     }
   }
 }

@@ -925,7 +925,10 @@
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
       "PHYSICS_NESTED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
-      "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다."
+      "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
+      "PHYSICS_FORMAT": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
+      "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다."
     }
   },
   "EngineProfiler": {
@@ -3936,7 +3939,10 @@
       "headBob": "캐릭터 전용: 조깅 시 걸음마다 눈이 위아래로 흔들리는 미터 수; 기본값 0.035, 0이면 수평 유지.",
       "landingDip": "캐릭터 전용: 착지부터 눈의 착지 가라앉음 최저점까지의 초. 충격이 빠를수록 더 깊어진다; 기본값 0.06, 0이면 꺼짐.",
       "onLand": "캐릭터 전용: 착지 시, m/s 단위의 아래 방향 속도와 함께 호출됨; 기본값 `null`.",
-      "onJump": "캐릭터 전용: 점프로 몸체가 땅을 떠날 때 호출됨; 기본값 `null`."
+      "onJump": "캐릭터 전용: 점프로 몸체가 땅을 떠날 때 호출됨; 기본값 `null`.",
+      "mass": "캐릭터 전용, 물리 사용 시: 몸이 딛고 선 곳을 누르는 킬로그램; 기본값 80.",
+      "pushStrength": "캐릭터 전용, 물리 사용 시: 몸이 물체를 미는 뉴턴; 기본값 250, 성인이 지속적으로 미는 힘.",
+      "vehicle": "차량 전용: `'vehicle'` 컨트롤이 운전하는 대상 — `drive(input)`을 가진 무엇이든, 키가 바뀔 때마다 가속, 브레이크, 조향, 핸드브레이크를 받습니다. 기본값 `null`이며, 그동안 `kind = 'vehicle'`은 `NO_VEHICLE`을 던집니다."
     }
   },
   "world.renderer": {
@@ -7164,6 +7170,22 @@
     "members": {
       "budget": "고정 한계, 물리가 시작될 때 한 번 읽습니다.",
       "gravity": "월드의 중력: 프리셋 또는 벡터."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle`이 운전할 수 있는 모든 것: 입력이 바뀔 때마다 받습니다.",
+    "members": {
+      "drive": "키가 바꿀 때마다 페달과 핸들을 받습니다."
+    }
+  },
+  "VehicleInput": {
+    "summary": "운전자가 차량에 요구하는 것: `world.controls` `'vehicle'`의 키가 정하는 페달과 핸들.",
+    "description": "차량 자체의 물리 — 엔진, 바퀴, 서스펜션 — 가 이에 답합니다. 컨트롤이 아는 것은 이 계약뿐입니다.",
+    "members": {
+      "throttle": "가속 페달, 0에서 1.",
+      "brake": "브레이크 페달, 0에서 1.",
+      "steer": "핸들, −1 왼쪽 끝에서 1 오른쪽 끝.",
+      "handbrake": "핸드브레이크가 당겨졌는지 여부."
     }
   }
 }
