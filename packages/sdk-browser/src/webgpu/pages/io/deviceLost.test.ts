@@ -144,3 +144,23 @@ test("a session's first claim on a device already lost announces the loss and bu
   fixture.geometry.dispose();
   fixture.material.dispose();
 });
+
+test('sessions reopened on one device listen to `device.lost` once, not once each', async () => {
+  installGpuGlobals();
+  const { device } = mockGpu();
+  const lost = device.lost as Promise<unknown>,
+    then = lost.then.bind(lost);
+  let listeners = 0;
+  // `Promise.race` and `.then` both go through the instance's `then`: every listener is counted.
+  Object.defineProperty(lost, 'then', {
+    value: (...args: Parameters<typeof then>) => (listeners++, then(...args)),
+  });
+  for (let i = 0; i < 4; i++) {
+    const { fixture, backend } = quadBackend(device);
+    await backend.prepare();
+    await backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+  assert.ok(listeners <= 1, `${listeners} listeners on device.lost after 4 sessions`);
+});
