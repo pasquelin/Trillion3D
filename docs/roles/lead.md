@@ -66,7 +66,9 @@ merges keep coming back `audit ko` is stopped by the maintainer.
 ## Bounds
 
 - Never idle while your domain has work: an open issue or a pull request to unblock.
-- One issue at a time, one subagent alive at a time.
+- One subagent alive at a time. Several issues may be in flight, each with its pull request
+  waiting on CI, review or merge, up to the limit below; the loop above is run for one issue at a
+  time by that one subagent.
 - At most 3 of your pull requests open; at 3, no new coder until you are back at 2.
 - A programme's rules and order (#483) bind its children: check its checklist before each merge.
 - A subagent never launches its own subagents. A finished one is stopped.
