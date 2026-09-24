@@ -926,6 +926,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "RAYCAST_NO_VIEW": "Một điểm ảnh được yêu cầu từ một canvas không có kích thước: không có hình ảnh nào để ngắm qua.",
+      "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
+      "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ."
     }
@@ -6713,10 +6715,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Những gì trang giữ: chế độ, được đọc và ghi.",
+    "summary": "Những gì trang giữ: chế độ xem, được đọc và ghi; các phiên đã mở và lý do phiên cuối thất bại, chỉ đọc.",
     "members": {
       "mode": "Chế độ khung nhìn: `'beauty'` cho hình ảnh bình thường, hoặc một chế độ cho thấy bộ máy hoạt động như thế nào.",
       "sessions": "Các phiên mà thế giới đã mở cho đến giờ: một thay đổi làm mở lại một phiên sẽ hiện ở đây.",
+      "error": "Vì sao phiên gần nhất không thể mở, dưới dạng một lỗi có tên của engine: `code` của nó là một trong các mã được mô tả trên `EngineError` (`WEBGPU_LOST` khi WebGPU mất thiết bị), hoặc `SESSION_OPEN_FAILED` cho một lý do không có mã riêng. Một `EngineError` có mã được mô tả chính là lỗi đã ném; mọi lỗi khác được chuyển đổi, và khi đó lỗi đã ném nằm trong `details.cause`. `null` từ đầu mỗi lần mở, và khi không thử mở gì.",
       "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
     }
   },
