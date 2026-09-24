@@ -7250,17 +7250,6 @@
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
   },
-  "GraphAngles": {
-    "summary": "A mesma orientação como três ângulos e a sua ordem, anunciando as suas escritas da mesma forma.",
-    "members": {
-      "x": "O primeiro ângulo, em radianos.",
-      "set": "Escreve os três ângulos, e a ordem quando dada; anunciado uma vez.",
-      "setFromRotation": "Os ângulos de `q` nesta ordem (o `Euler` do núcleo); anunciado exceto com `quiet`.",
-      "y": "O segundo ângulo, em radianos.",
-      "z": "O terceiro ângulo, em radianos.",
-      "order": "A ordem em que os três ângulos rodam, `'XYZ'` salvo definição."
-    }
-  },
   "GraphArray": {
     "summary": "Os arrays tipados que um atributo guarda."
   },
@@ -7303,40 +7292,6 @@
   },
   "GraphNodeKind": {
     "summary": "O que um nó do grafo é: um nó simples, a raiz, um grupo, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
-  },
-  "GraphRotation": {
-    "summary": "Uma orientação `(x, y, z, w)` cujas escritas chamam `_onChangeCallback`.",
-    "members": {
-      "x": "O primeiro número.",
-      "set": "Escreve os quatro números, anunciado uma vez.",
-      "copy": "Toma os números de outra rotação.",
-      "fromArray": "Lê quatro números de uma lista.",
-      "setFromAngles": "A rotação de `angles`, na sua ordem (`localTurnQuaternion`); anunciado exceto com `quiet`.",
-      "setFromRotationMatrix": "A rotação do 3×3 superior de uma matriz por colunas cujas colunas têm comprimento unitário.",
-      "premultiply": "Torna-se `q` seguido desta rotação, `q · this`.",
-      "invert": "Torna-se a rotação oposta.",
-      "y": "O segundo número.",
-      "z": "O terceiro número.",
-      "w": "O quarto número."
-    }
-  },
-  "GraphVector": {
-    "summary": "Três números de uma pose ou de um ponto: campos de dados simples, e as operações que um controlador usa.",
-    "members": {
-      "set": "Escreve os três números.",
-      "copy": "Toma os números de outro ponto.",
-      "clone": "Uma cópia.",
-      "add": "Soma outro vetor.",
-      "sub": "Subtrai outro vetor.",
-      "multiplyScalar": "Escala os três números.",
-      "length": "O seu comprimento.",
-      "setLength": "Mantém a direção, define o comprimento.",
-      "distanceTo": "Distância a um ponto.",
-      "fromArray": "Lê três números de uma lista.",
-      "x": "Da esquerda para a direita.",
-      "y": "De baixo para cima.",
-      "z": "De trás para frente."
-    }
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",
