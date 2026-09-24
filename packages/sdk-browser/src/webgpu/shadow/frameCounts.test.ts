@@ -4,7 +4,11 @@
 // rendering until a plan consumes it, or a frame that plans no shadow releases it to the list.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebgpuLightState, noteShadowFrame } from '../pages/state/lights.ts';
+import {
+  createWebgpuLightState,
+  noteShadowFrame,
+  shadowsUnsettled,
+} from '../pages/state/lights.ts';
 import { createGpuShadowCullCounts, sumKeptClusters } from '../../gpu/shadow/cullCounts.ts';
 import { unsettledMask } from '../frame/hold.ts';
 import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
@@ -105,6 +109,21 @@ test('a representation change under an unlit frame stales its pages once the vie
   store.setView('auto');
   planAt(2);
   assert.equal(plan.counts.invalidatedPages, 1, 'the first lit plan stales the changed page');
+});
+
+test('pages a plan left pending hold nothing once the view is unlit or the light is gone', () => {
+  const lights = createWebgpuLightState(32);
+  lights.shadows = {} as never;
+  lights.store.add(SUN);
+  const view = shadowViewpointOf(CAM as never, 8);
+  lights.plan.plan(lights.store, view, BOX_MIN, BOX_MAX, 0, 0);
+  lights.plan.counts.pendingPages = 300;
+  assert.equal(shadowsUnsettled(lights), true, 'a lit view waits for its pages');
+  lights.store.setView('unlit');
+  assert.equal(shadowsUnsettled(lights), false, 'the unlit view reads none of them');
+  lights.store.setView('auto');
+  lights.store.remove(SUN.id);
+  assert.equal(shadowsUnsettled(lights), false, 'nor does a scene without light');
 });
 
 /**

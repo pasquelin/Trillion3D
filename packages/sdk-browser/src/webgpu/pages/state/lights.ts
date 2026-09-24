@@ -189,12 +189,12 @@ export function noteShadowFrame(lights: WebgpuLightState, pagesSlot: number, enc
  * representation change waiting for the camera to rest, a request report — the shading's, or a
  * light cut's, whose casters may still load, or its flag word — on its way, or no report yet
  * proving that the image reads only pages already drawn. A scene without a shadow light, or an
- * unlit view, reads no page and waits for nothing.
+ * unlit view, reads no page and waits for nothing — not even the pages the last plan left.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
   const { plan, store, shadows, pageRequests } = lights;
-  if (plan.deferredChanges || plan.counts.pendingPages > 0) return true;
+  if (plan.deferredChanges) return true;
   if (!shadows || !store.count || store.unlit || !plan.records.count) return false;
   if ((pageRequests?.inFlight ?? 0) > 0 || lights.lightCut?.unsettled) return true;
-  return !plan.settled(store);
+  return plan.counts.pendingPages > 0 || !plan.settled(store);
 }
