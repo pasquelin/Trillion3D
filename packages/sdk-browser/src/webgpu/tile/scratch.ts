@@ -49,17 +49,23 @@ export function createTileScratch(
       GPUTextureUsage.RENDER_ATTACHMENT,
   };
   const texture = device.createTexture(descriptor);
-  /** Sends the picture as it is now and builds its mips again, in the same texture. */
+  /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY`, as
+   *  the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`): the picture's last row lands at v = 0 (#362). */
   const fill = () => {
-    const rgba = textureRgba(options.map);
+    const { map } = options;
+    const rgba = textureRgba(map);
     if (rgba) {
       if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
-      writeRgba(device.queue, texture, [0, 0, 0], rgba.data, width, height);
+      const rows = map.flipY ? rowsFlipped(rgba.data, width, height) : rgba.data;
+      writeRgba(device.queue, texture, [0, 0, 0], rows, width, height);
     } else {
-      const image = options.map.image as GPUCopyExternalImageSource | undefined;
+      const image = map.image as GPUCopyExternalImageSource | undefined;
       if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
         throw new Error(options.errorCode);
-      device.queue.copyExternalImageToTexture({ source: image }, { texture }, [width, height]);
+      device.queue.copyExternalImageToTexture({ source: image, flipY: map.flipY }, { texture }, [
+        width,
+        height,
+      ]);
     }
     generateMaterialMips(device, texture, format, width, height);
   };
@@ -70,4 +76,13 @@ export function createTileScratch(
     fill,
     destroy: () => texture.destroy(),
   };
+}
+
+/** RGBA8 rows in reverse order: the texels `flipY` uploads. */
+function rowsFlipped(data: Uint8Array, width: number, height: number) {
+  const row = width * 4,
+    out = new Uint8Array(row * height);
+  for (let y = 0; y < height; y++)
+    out.set(data.subarray(y * row, (y + 1) * row), (height - 1 - y) * row);
+  return out;
 }
