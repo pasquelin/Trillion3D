@@ -167,9 +167,9 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;
       rec.mesh = undefined;
-      if (shared) continue;
-      state.allocationBytes += data.indices.byteLength;
-      for (const array of Object.values(data.attributes)) state.allocationBytes += array.byteLength;
+      // Each geometry uploads its own buffers: its bytes are counted as `releaseGeometry` gives
+      // them back.
+      if (!shared) state.allocationBytes += hostPageBytes(geometry);
     }
     return recs.length > 0;
   };

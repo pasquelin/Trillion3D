@@ -21,7 +21,7 @@ export function rootCoverInto<T extends PageRecord>(
     }
     s.shown[s.shownCount++] = rec;
     s.shownTriangles += rec.triangles;
-    if (s.budget !== 0) chargeDrawn(s, rec);
+    if (s.budget !== 0 && chargeDrawn(s, rec)) s.over = true;
   }
   return whole;
 }
@@ -59,7 +59,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
       }
       s.shown[s.shownCount++] = rec;
       s.shownTriangles += rec.triangles;
-      if (s.budget !== 0) chargeDrawn(s, rec);
+      if (s.budget !== 0 && chargeDrawn(s, rec)) s.over = true;
     }
   if (!hard) return;
   if (!rootCoverInto(s, pages, start)) s.complete = false;
