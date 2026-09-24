@@ -130,10 +130,8 @@ test('a device without compute pipelines does not create GPU draw', async () => 
 
 test('a compact shader compilation error leaves GPU draw undefined', async () => {
   const { device } = fakeDevice();
-  device.createShaderModule = () =>
-    ({
-      getCompilationInfo: async () => ({ messages: [{ type: 'error', message: 'fail' }] }),
-    }) as unknown as GPUShaderModule;
+  const failed = { getCompilationInfo: async () => ({ messages: [{ type: 'error' }] }) };
+  device.createShaderModule = () => failed as unknown as GPUShaderModule;
   assert.equal(await createGpuDraw(device, 8), undefined);
 });
 
