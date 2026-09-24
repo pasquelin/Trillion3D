@@ -37,12 +37,12 @@ test('the compute raster stipples at its footprint, and keeps the hard cutout ot
   // Without a stipple word: null gradients (level 0) and a null offset, the hard test to the bit.
   assert.match(
     small,
-    /var gx=vec2f\(0\.0\);var gy=vec2f\(0\.0\);var stipple=0\.0;\n  if\(uni\.stipple!=0u\)\{/,
+    /var gx=vec2f\(0\.0\);var gy=vec2f\(0\.0\);var stipple=0\.0;\n {2}if\(uni\.stipple!=0u\)\{/,
   );
   // With one: the footprint of the covering sub-triangle, the offset at this pixel.
   assert.match(
     small,
-    /uvFootprint\(t\.a,select\(t\.b,t\.c,second\),select\(t\.c,t\.d,second\),1\.0\/vec3f\(t\.ca\.w,qb\.w,qc\.w\),t\.ua,nb,nc,tc,inv\);\n   gx=g\[0\];gy=g\[1\];stipple=stippleOffset\(sample\);/,
+    /uvFootprint\(t\.a,select\(t\.b,t\.c,second\),select\(t\.c,t\.d,second\),1\.0\/vec3f\(t\.ca\.w,qb\.w,qc\.w\),t\.ua,nb,nc,tc,inv\);\n {3}gx=g\[0\];gy=g\[1\];stipple=stippleOffset\(sample\);/,
   );
   assert.match(small, /if\(!maskKeep\(page,tc,gx,gy,stipple\)\)\{return;\}/);
   assert.doesNotMatch(small, /maskKeep\(page,tc,vec2f\(0\.0\)/);
