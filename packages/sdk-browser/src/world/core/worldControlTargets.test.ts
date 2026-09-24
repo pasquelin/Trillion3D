@@ -7,6 +7,7 @@ import { createCharacterPort, createPhysicsCharacter } from '../../physics/physi
 import type { CharacterBodyFactory } from '../../../../sdk-core/src/collision/characterBody.ts';
 import type { ToPhysics } from '../../physics/protocol.ts';
 import { worldControlsHandle } from './worldControlsHandle.ts';
+import { createWorld } from './world.ts';
 
 test('the character is Jolt’s while the world’s physics runs, and the triangle tree’s once told it stopped', () => {
   const camera = new Camera('perspective');
@@ -67,5 +68,43 @@ test('`kind = "vehicle"` throws NO_VEHICLE without a vehicle, and drives one wit
   assert.deepEqual(heard.at(-1), { throttle: 1, brake: 0, steer: -1, handbrake: true });
   surface.key('keyup', { code: 'KeyW' });
   assert.equal(heard.at(-1)?.throttle, 0);
+  controls.dispose();
+});
+
+test('NO_VEHICLE holds on every path: the world’s option, and a vehicle taken while driving', () => {
+  assert.throws(() => createWorld('viewer', { controls: 'vehicle' }), { code: 'NO_VEHICLE' });
+  const controls = worldControlsHandle(
+    'none',
+    () => new Camera('perspective'),
+    fixtureSurface(400).element,
+    () => {},
+  );
+  controls.vehicle = { drive: () => {} };
+  controls.kind = 'vehicle';
+  assert.throws(() => (controls.vehicle = null), { code: 'NO_VEHICLE' });
+  assert.ok(controls.vehicle, 'the vehicle is kept');
+  controls.kind = 'none';
+  controls.vehicle = null;
+  controls.dispose();
+});
+
+test('a vehicle let go of hears its keys released; the next hears the keys held at once', () => {
+  const surface = fixtureSurface(400);
+  const controls = worldControlsHandle(
+    'none',
+    () => new Camera('perspective'),
+    surface.element,
+    () => {},
+  );
+  const first: VehicleInput[] = [],
+    second: VehicleInput[] = [];
+  controls.vehicle = { drive: (input) => first.push({ ...input }) };
+  controls.kind = 'vehicle';
+  surface.key('keydown', { code: 'KeyW' });
+  controls.vehicle = { drive: (input) => second.push({ ...input }) };
+  assert.deepEqual(first.at(-1), { throttle: 0, brake: 0, steer: 0, handbrake: false });
+  assert.equal(second.at(-1)?.throttle, 1, 'the key held drives the new vehicle');
+  controls.kind = 'none';
+  assert.equal(second.at(-1)?.throttle, 0, 'the controls released drive it no more');
   controls.dispose();
 });

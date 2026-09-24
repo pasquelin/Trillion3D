@@ -12,10 +12,13 @@ import type { CameraControlBase, ControlCamera } from './types.ts';
  * controls do not move the camera; a page follows the vehicle with it.
  */
 export interface VehicleCameraControls extends CameraControlBase {
-  /** What the keys drive; `null` drives nothing. */
+  /**
+   * What the keys drive. `world.controls` never runs these controls without one (`NO_VEHICLE`);
+   * made alone, `null` drives nothing. A vehicle set here hears the keys held now at once; the
+   * one it replaces, like the one in place when the controls are disposed or paused, hears its
+   * keys let go.
+   */
   vehicle: VehicleDriver | null;
-  /** The input as the keys last set it. */
-  readonly input: Readonly<VehicleInput>;
 }
 
 const WHEEL: KeyAxis = [
@@ -26,33 +29,45 @@ const WHEEL: KeyAxis = [
   BRAKE = ['KeyS', 'ArrowDown'],
   HANDBRAKE = 'Space';
 
-/** The pedals and wheel `pressed` keys (`KeyboardEvent.code`) ask for, written into `into`. */
-function vehicleInputOf(pressed: Set<string>, into: VehicleInput) {
-  into.throttle = THROTTLE.some((code) => pressed.has(code)) ? 1 : 0;
-  into.brake = BRAKE.some((code) => pressed.has(code)) ? 1 : 0;
-  into.steer = axisOf(pressed, ...WHEEL);
-  into.handbrake = pressed.has(HANDBRAKE);
-  return into;
-}
+/** Every key let go. */
+const RELEASED: Readonly<VehicleInput> = { throttle: 0, brake: 0, steer: 0, handbrake: false };
 
 export function createVehicleCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): VehicleCameraControls {
   const base = createControlBase(),
-    input: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
+    input: VehicleInput = { ...RELEASED };
+  let vehicle: VehicleDriver | null = null;
+  /** A vehicle let go of hears its keys released, unless none was held. */
+  const release = () => {
+    if (input.throttle || input.brake || input.steer || input.handbrake)
+      vehicle?.drive({ ...RELEASED });
+  };
   const api: VehicleCameraControls = {
     ...base.api,
     object: controlPose(camera).object,
-    vehicle: null,
-    input,
+    get vehicle() {
+      return vehicle;
+    },
+    set vehicle(next) {
+      if (next === vehicle) return;
+      release();
+      vehicle = next;
+      vehicle?.drive(input);
+    },
   };
+  base.undo(release);
   const keys = trackKeys(
     surface,
     base,
     () => {
-      vehicleInputOf(keys, input);
-      api.vehicle?.drive(input);
+      // The pedals and the wheel the keys (`KeyboardEvent.code`) ask for.
+      input.throttle = THROTTLE.some((code) => keys.has(code)) ? 1 : 0;
+      input.brake = BRAKE.some((code) => keys.has(code)) ? 1 : 0;
+      input.steer = axisOf(keys, ...WHEEL);
+      input.handbrake = keys.has(HANDBRAKE);
+      vehicle?.drive(input);
     },
     [WHEEL, THROTTLE, BRAKE, [HANDBRAKE]],
   );
