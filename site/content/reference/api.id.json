@@ -929,7 +929,10 @@
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
-      "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan."
+      "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
+      "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1033,7 +1036,6 @@
       "rafIntervalMs": "Waktu antara dua bingkai.",
       "cpuFrameMs": "Waktu CPU bingkai itu.",
       "cpuSubmitMs": "Waktu CPU untuk mengirim pekerjaannya.",
-      "gpuMs": "Waktu GPU bingkai itu.",
       "drawCalls": "Panggilan gambar bingkai ini, seperti dihitung mesin. `null` saat belum dihitung: nol akan terbaca sebagai bingkai tanpa gambar.",
       "autonomousClusterDrawsTotal": "Gambar cluster berhalaman yang dikeluarkan program WebGL2 milik mesin dalam sesi ini.",
       "autonomousCopyDraws": "Salinan scene — permukaan tembus cahaya — yang digambar program WebGL2 milik mesin bingkai ini.",
@@ -1066,7 +1068,7 @@
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
-      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`.",
+      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
@@ -1758,7 +1760,11 @@
       "parameters.gapSize": "Panjang celah antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "parameters.depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     },
     "members": {
       "isMaterial": "Selalu `true`: membedakan sebuah material dari yang lain.",
@@ -1780,7 +1786,11 @@
       "needsUpdate": "`material.needsUpdate = true`: mesh yang memakainya dicat ulang.",
       "surface": "Catatan permukaan fisik mesin untuk material ini (`contracts/material.ts`). Sebuah jenis di luar keluarga fisik digambar lewat keluarga host bernama sama, yang dipetakan mesin ke satu model pencahayaannya (`surfaceModel.ts`).",
       "clone": "Material baru dengan jenis yang sama, dengan nilai yang sama.",
-      "dispose": "Melupakan pemakainya: sebuah material yang dibuang tidak mengecat siapa pun."
+      "dispose": "Melupakan pemakainya: sebuah material yang dibuang tidak mengecat siapa pun.",
+      "physics": "Preset bahan fisika untuk benda yang memakainya.",
+      "density": "kg/m³, untuk massa benda.",
+      "friction": "Gesekan fisika.",
+      "restitution": "Pantulan fisika."
     }
   },
   "Material-common": {
@@ -1826,7 +1836,11 @@
       "gapSize": "Panjang celah antara dua dash.",
       "vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
-      "depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat."
+      "depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
+      "physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "density": "kg/m³, dikali volume menjadi massa.",
+      "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "MathPath": {
@@ -1960,7 +1974,8 @@
       "primitive": "Bagaimana vertex geometri dibaca: segitiga, titik atau garis.",
       "geometry": "Bentuk mesh itu; atur geometri lain untuk mengubahnya.",
       "material": "Material mesh itu, atau satu per grup; atur yang lain untuk mengubahnya.",
-      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
+      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun.",
+      "physics": "Mesh sebagai benda fisika dunia, `null` jika bukan. Isi `'static'`, `'dynamic'`, `'kinematic'` atau opsi; bentuk disimpulkan dari geometri."
     }
   },
   "Mixer": {
@@ -2820,7 +2835,7 @@
       "isScene": "Selalu `true`: membedakan root scene dari objek lain.",
       "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
       "fog": "Kabut yang memudarkan objek ke `color` antara `near` dan `far`; `null` untuk tidak ada.",
-      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, sebuah gambar, atau `null` untuk bawaan.",
+      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, atau `null` untuk bawaan. Perubahan tampil pada bingkai berikutnya, sesi tetap dipertahankan: warna baru yang diatur di sini, atau warna yang ada ditulis lewat metodenya (`set`, `setRGB`, `setHex`, `setHSL`...). Penulisan langsung ke `.r`, `.g`, atau `.b` tidak terdengar: atur ulang `background` sesudahnya. Gambar, atau nilai apa pun tanpa `getHex`, ditolak (`UNSUPPORTED_SCENE_UPDATE`): tidak ada jalur yang menggambarnya.",
       "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
       "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
       "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."
@@ -2895,7 +2910,11 @@
     "members": {
       "pose": "Sebuah node bergerak.",
       "structure": "Sebuah node mendapat atau kehilangan anak.",
-      "content": "Bentuk atau material sebuah node berubah."
+      "content": "Bentuk atau material sebuah node berubah.",
+      "posed": "Banyak node bergerak sekaligus, ditulis langsung ke pohonnya (benda fisika): diberitahukan sekali.",
+      "seat": "Baris tempat node digambar, atau `null`: enam belas float berurutan kolom mulai `row * 16` di `batch.rows.matrices`, dibaca langsung oleh perender. Pemilik yang menempatkan node ribuan sekaligus (fisika) menulis matriks dunianya sendiri di sana, berlaku selama `seatEpoch` tetap, dan menyebut baris yang ditulis lewat `placed`.",
+      "seatEpoch": "Berubah setiap kali baris diambil, dilepas, atau dialokasikan ulang: setiap jawaban `seat` sebelumnya sudah basi.",
+      "placed": "Baris `from` sampai `to` dari `batch` ditulis lewat `seat`: digambar pada frame berikutnya."
     }
   },
   "SceneNode": {
@@ -3861,12 +3880,11 @@
     "description": "`'firstPerson'` menggerakkan sebuah kamera; `'character'` menggerakkan sebuah tubuh — massa, gravitasi, lompatan, tabrakan dengan `world.controls.colliders` — dan melihat lewat matanya."
   },
   "WorldFrameMetrics": {
-    "summary": "Metrik sebuah bingkai, dengan nama yang dipakai sebuah halaman membacanya; `null` di mana jalur itu tidak menghitung.",
+    "summary": "Metrik sebuah gambar sebagaimana host menyalinnya dari mesin, dan dua yang dibaca halaman yang disusun darinya; `null` di mana jalur tidak menghitung.",
     "members": {
       "rafIntervalMs": "Waktu antara dua bingkai.",
       "cpuFrameMs": "Waktu CPU bingkai itu.",
       "cpuSubmitMs": "Waktu CPU untuk mengirim pekerjaannya.",
-      "gpuMs": "Waktu GPU bingkai itu.",
       "drawCalls": "Panggilan gambar bingkai ini, seperti dihitung mesin. `null` saat belum dihitung: nol akan terbaca sebagai bingkai tanpa gambar.",
       "autonomousClusterDrawsTotal": "Gambar cluster berhalaman yang dikeluarkan program WebGL2 milik mesin dalam sesi ini.",
       "autonomousCopyDraws": "Salinan scene — permukaan tembus cahaya — yang digambar program WebGL2 milik mesin bingkai ini.",
@@ -3899,7 +3917,7 @@
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
-      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`.",
+      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
@@ -3972,7 +3990,8 @@
       "interactive": "Apakah dunia menjalankan loop-nya sendiri: ia menggambar saat sesuatu berubah dan beristirahat setelah 120 bingkai tanpa yang baru. `false` membiarkan halaman memanggil `world.render()` sendiri.",
       "pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "controls": "Controller yang menggerakkan kamera dari canvas; `world.controls.kind` mengubahnya nanti.",
-      "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan."
+      "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
+      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
     }
   },
   "WorldPageSource": {
@@ -4614,7 +4633,8 @@
       "options.interactive": "Apakah dunia menjalankan loop-nya sendiri: ia menggambar saat sesuatu berubah dan beristirahat setelah 120 bingkai tanpa yang baru. `false` membiarkan halaman memanggil `world.render()` sendiri.",
       "options.pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "options.controls": "Pengontrol yang menggerakkan kamera dari kanvas; `world.controls.kind` mengubahnya nanti.",
-      "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan."
+      "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
+      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
     }
   },
   "crossVector3": {
@@ -5364,7 +5384,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.lineDashed": {
@@ -5398,7 +5422,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshBasic": {
@@ -5432,7 +5460,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshDepth": {
@@ -5466,7 +5498,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshLambert": {
@@ -5500,7 +5536,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshMatcap": {
@@ -5534,7 +5574,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshNormal": {
@@ -5568,7 +5612,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshPhong": {
@@ -5602,7 +5650,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshPhysical": {
@@ -5636,7 +5688,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshStandard": {
@@ -5670,7 +5726,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshToon": {
@@ -5704,7 +5764,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.points": {
@@ -5738,7 +5802,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.shadow": {
@@ -5772,7 +5840,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.sprite": {
@@ -5806,7 +5878,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "materialSide": {
@@ -6049,6 +6125,13 @@
   },
   "object.group": {
     "summary": "Sebuah node kosong yang memegang objek lain, jadi mereka bergerak bersama."
+  },
+  "object.clone": {
+    "summary": "Salinan sebuah objek dan semua yang ada di bawahnya, tanpa berbagi apa pun dengannya: bentuk, material, lampu, dan bidangnya disalin.",
+    "description": "Model yang dimuat tidak disalin: `null` untuknya, dan ia ditinggalkan dari grup yang disalin.",
+    "parameters": {
+      "source": "Objek yang disalin."
+    }
   },
   "object.line": {
     "summary": "Menggambar sebuah garis melewati vertex-vertex, satu demi satu.",
@@ -6518,7 +6601,8 @@
       "geometryPoolCeiling": "Kolam terbesar yang boleh diminta sebuah dunia: anggaran awal mesin.",
       "texturePoolCeiling": "Kolam tekstur terbesar yang boleh diminta sebuah dunia, dalam byte.",
       "geometryPool": "Byte memori GPU yang disimpan untuk halaman geometri; atur untuk mengubah amplopnya.",
-      "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya."
+      "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya.",
+      "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6772,6 +6856,177 @@
       "counts": "Untuk setiap node: jumlah segitiga sebuah daun, 0 untuk node internal.",
       "bytes": "Byte yang disimpan pohon.",
       "triangleCount": "Segitiga yang disimpan pohon."
+    }
+  },
+  "world.physics": {
+    "summary": "Benda, gravitasi, dan waktu fisika (Jolt, di worker).",
+    "members": {
+      "enabled": "Apakah benda disimulasikan. Menyalakannya memuat fisika pertama kali.",
+      "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
+      "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
+      "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+    }
+  },
+  "ContactEvent": {
+    "summary": "Apa yang diberikan kontak kepada pendengarnya: objek lain, impuls, dan titik sentuh.",
+    "members": {
+      "other": "Objek yang tersentuh; `null` setelah keluar dari adegan.",
+      "impulse": "N·s: kecepatan mendekat sepanjang normal kali massa tereduksi pasangan, diperkirakan sebelum solver; 0 pada `leave`.",
+      "point": "Titik kontak, kerangka dunia; titik asal pada `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Peristiwa benda: sentuhan pertama dengan impuls (`contact`), dan sentuhan dimulai atau berakhir."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Anggaran fisika bawaan mesin.",
+    "members": {
+      "bodies": "Benda dari semua jenis sekaligus.",
+      "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
+      "decorative": "Benda dekoratif sekaligus.",
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya.",
+      "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
+      "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Gravitasi bernama, dalam m/s² sepanjang −y.",
+    "members": {
+      "earth": "Milik Bumi.",
+      "moon": "Milik Bulan.",
+      "mars": "Milik Mars.",
+      "none": "Tanpa gravitasi."
+    }
+  },
+  "GravityInput": {
+    "summary": "Gravitasi: nama preset, atau vektor dalam m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Nama preset gravitasi."
+  },
+  "ObjectPhysics": {
+    "summary": "Fisika satu objek, seperti dipegang `obj.physics`: catatan hidup tentang apa benda itu dan apa yang dilakukannya.",
+    "description": "Penulisan sampai ke simulasi pada langkah berikutnya; `velocity` membaca apa yang ditinggalkan langkah terakhir.",
+    "members": {
+      "type": "Cara benda bergerak; tetapkan ulang `obj.physics` untuk mengubahnya.",
+      "shape": "Bentuk yang dinyatakan, jika ada.",
+      "sensor": "Apakah benda hanya melaporkan kontak.",
+      "ccd": "Apakah tabrakan kontinu aktif.",
+      "decorative": "Apakah benda adalah puing dekoratif.",
+      "velocity": "Kecepatan linear, m/s, seperti ditinggalkan langkah terakhir; tulis untuk melempar benda.",
+      "asleep": "Apakah benda tidur: diam, dan tidak disimulasikan sampai sesuatu membangunkannya.",
+      "mass": "Massa dalam kilogram; `undefined` memakai massa jenis material kali volume.",
+      "gravityScale": "Mengalikan gravitasi dunia untuk benda ini.",
+      "friction": "Gesekan paksa; `undefined` memakai milik material.",
+      "restitution": "Pantulan paksa; `undefined` memakai milik material.",
+      "applyImpulse": "Mendorong benda seketika, impuls dalam N·s melalui pusat massanya; membangunkannya.",
+      "wake": "Membangunkan benda, tidur atau tidak.",
+      "on": "Memanggil `handler` pada peristiwa kontak benda ini.",
+      "listens": "Apakah ada penangan kontak."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Bahan bernama untuk `material.physics`, dari nilai buku pegangan yang dibulatkan.",
+    "members": {
+      "wood": "Kayu.",
+      "metal": "Baja.",
+      "rubber": "Karet.",
+      "ice": "Es.",
+      "stone": "Batu.",
+      "glass": "Kaca."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Apa yang diterima `obj.physics` selain tiga katanya.",
+    "members": {
+      "type": "Cara benda bergerak.",
+      "mass": "Massa dalam kilogram; jika tidak diisi, massa jenis material kali volume bentuk.",
+      "shape": "Bentuk tabrakan; jika tidak diisi, disimpulkan dari geometri.",
+      "gravityScale": "Mengalikan gravitasi dunia untuk benda ini; 0 melayang.",
+      "sensor": "Melaporkan kontak tanpa bertabrakan: volume pemicu.",
+      "ccd": "Tabrakan kontinu, untuk benda kecil cepat yang bisa menembus dinding tipis.",
+      "decorative": "Puing: hanya bertemu dunia statis, dan hanya disimulasikan dalam jangkauan dan terlihat. Dibatasi `budget.physics.decorative`.",
+      "friction": "Mengganti gesekan material, 0 ke atas.",
+      "restitution": "Mengganti pantulan material, 0 sampai 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Batas tetap fisika sebuah dunia; tidak pernah dibaca dari mesin.",
+    "members": {
+      "bodies": "Benda dari semua jenis sekaligus.",
+      "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
+      "decorative": "Benda dekoratif sekaligus.",
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya.",
+      "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
+      "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Sisi dunia dari sebuah benda: apa yang diminta tulisan pada `obj.physics` kepada simulasi.",
+    "members": {
+      "rebuild": "Pengaturan saat benda dibuat berubah: benda dibuat ulang.",
+      "tune": "Gesekan, pantulan, atau skala gravitasi berubah.",
+      "listened": "Apakah keinginan peristiwa kontak berubah.",
+      "velocity": "Kecepatan ditulis.",
+      "impulse": "Impuls diberikan.",
+      "wake": "Benda dibangunkan."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Nama preset bahan."
+  },
+  "PhysicsMatter": {
+    "summary": "Bahan sebuah benda: massa jenis (kg/m³), gesekan, dan pantulan.",
+    "members": {
+      "density": "kg/m³, untuk massa benda.",
+      "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Apa yang bisa diisikan ke `obj.physics`."
+  },
+  "PhysicsShape": {
+    "summary": "Bentuk tabrakan, bila yang disimpulkan dari geometri tidak cocok.",
+    "description": "Ukuran berada dalam kerangka objek sendiri, sebelum skalanya."
+  },
+  "PhysicsStats": {
+    "summary": "Apa yang dilaporkan fisika dunia: hitungan tick terakhir, dan kedua jam terpisah.",
+    "members": {
+      "bodies": "Benda yang dipegang simulasi.",
+      "active": "Benda aktif setelah tick terakhir.",
+      "stepMs": "Milidetik worker per langkah tetap, tick terakhir: jam worker, tidak pernah dijumlahkan dengan jam halaman.",
+      "mainMs": "Milidetik halaman yang dipakai fisika pada bingkai terakhir (tahap CPU `physics`).",
+      "poses": "Pose yang dikirim tick terakhir.",
+      "events": "Peristiwa kontak yang dikirim tick terakhir.",
+      "droppedEvents": "Peristiwa `enter` yang dibuang sejak fisika dimulai, melampaui `budget.physics.contactEvents` dalam satu langkah (`leave`-nya tidak pernah dikirim)."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Cara benda bergerak: tidak pernah, oleh halaman (`kinematic`, mendorong yang ditemui), atau oleh simulasi."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, fisika dunia.",
+    "members": {
+      "enabled": "Apakah benda disimulasikan. Menyalakannya memuat fisika pertama kali.",
+      "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
+      "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
+      "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Apa yang diterima `createWorld(canvas, { physics })` selain `true`.",
+    "members": {
+      "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
+      "gravity": "Gravitasi dunia: preset atau vektor."
     }
   },
   "GraphAttribute": {

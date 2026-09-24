@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Metafile } from 'esbuild';
 
-export interface InstalledTools {
+interface InstalledTools {
   node: string;
   pnpm: string;
   typescript: string;

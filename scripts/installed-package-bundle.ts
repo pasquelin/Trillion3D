@@ -38,7 +38,7 @@ interface BrowserModesOptions {
   run: Run;
 }
 
-export function emitInstalledBrowserBundle({
+function emitInstalledBrowserBundle({
   fixture,
   packageName,
   bundler,

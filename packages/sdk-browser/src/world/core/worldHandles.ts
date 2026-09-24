@@ -1,3 +1,4 @@
+import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
 import {
   DIAGNOSTICS,
@@ -25,6 +26,7 @@ export function worldBudget(
   session: { readonly explorer: MeasuredWorld | null },
   frames: { readonly last: FrameMetrics | null },
   renderer: () => WorldRenderer | null,
+  physics: PhysicsBudget,
 ) {
   let pending = false;
   const rebalance = () => {
@@ -41,6 +43,9 @@ export function worldBudget(
   // What the last frame published, `null` or `undefined` when it held no such pool.
   const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   return {
+    /** The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the
+     *  physics starts; exceeding one raises `PHYSICS_BUDGET`. */
+    physics,
     /** The largest pools a world may ask for: the engine's starting budgets. */
     get geometryPoolCeiling() {
       return DEFAULT_GEOMETRY_POOL_BUDGET;
@@ -148,13 +153,13 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
       sessions++;
       if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
     },
-    /** A session that could not open: named on the handle and said on the console with the error
-     *  thrown, stack included. An engine error is kept as it is, and a bare documented code — the
-     *  `WEBGPU_LOST` of the WebGPU renderer — becomes that code; anything else is
-     *  `SESSION_OPEN_FAILED`. */
+    /** A session that could not open, or a scene that could not resolve: named on the handle and
+     *  said on the console with the error thrown, stack included. An engine error is kept as it
+     *  is, and a bare documented code — the `WEBGPU_LOST` of the WebGPU renderer — becomes that
+     *  code; anything else is `SESSION_OPEN_FAILED`. */
     failed(cause: unknown) {
       error = engineErrorOf(cause, 'SESSION_OPEN_FAILED', "The world's session failed to open");
-      console.error('World session failed to open', cause);
+      console.error('World session failed', cause);
     },
     /** A session is about to open, or none is tried: a failure that may no longer hold is no
      *  longer shown. */

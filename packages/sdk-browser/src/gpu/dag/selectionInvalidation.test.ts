@@ -53,7 +53,7 @@ test('unchanged uniforms skip a second GPU dispatch', async () => {
   fixture.geometry.dispose();
 });
 
-test('updating an instance world matrix invalidates the old GPU cut', async () => {
+test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
   installGpuGlobals();
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
@@ -65,7 +65,9 @@ test('updating an instance world matrix invalidates the old GPU cut', async () =
   const moved = dag.worlds.slice();
   moved[12] = 1000;
   assert.equal(selection.updateWorlds(moved), true);
-  assert.equal(selection.peek(), null);
+  // Still what to stream, cut under the pose before: no image is held on it (`adoption.ts`).
+  assert.equal(selection.peek()?.result.pageIds.length, 4);
+  assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision);
   selection.dispatch(uniforms);
   assert.equal((await selection.flush())?.pageIds.length, 0);
   selection.dispose();

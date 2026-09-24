@@ -30,6 +30,7 @@
       "geometry pool": "Geometriespeicher",
       "lights": "Lichter",
       "GPU frame": "GPU-Bild",
+      "GPU frame (last)": "GPU-Bild (letztes)",
       "CPU frame": "CPU-Bild",
       "page hooks": "Code der Seite",
       "engine CPU": "Engine-CPU"
@@ -1859,26 +1860,52 @@
       "dollyZoom": "Dolly-Zoom"
     }
   },
-  "openworld": {
-    "banner": "Geh mit W A S D. Drücke E bei einem Auto oder Flugzeug, um einzusteigen.",
+  "falling-boxes": {
+    "banner": "Klicke auf „Drop“ für fünfzig weitere Kisten. Ändere die Schwerkraft und sieh sie fallen.",
     "controls": {
-      "keys": "WASD gehen · Umschalt rennen · Leertaste springen · C ducken · E in ein Auto oder Flugzeug ein- oder aussteigen",
-      "teleport": "Teleport",
-      "timeOfDay": "Tageszeit",
-      "daySpeed": "Tagesgeschwindigkeit",
-      "pause": "Pause",
-      "rain": "Regen",
-      "geometryMB": "Geometrie MB",
-      "textureMB": "Texturen MB",
-      "view": "Ansicht"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
+      "matter": "Material",
+      "gravity": "Schwerkraft",
+      "drop": "Fallen lassen",
+      "jump": "Springen",
+      "slowMotion": "Zeitlupe"
     },
     "readouts": {
-      "streaming": "Streaming"
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    },
+    "choices": {
+      "matter": {
+        "wood": "Holz",
+        "rubber": "Gummi",
+        "ice": "Eis"
+      },
+      "gravity": {
+        "earth": "Erde",
+        "moon": "Mond",
+        "mars": "Mars",
+        "none": "keine"
+      }
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "Zehntausend Kisten fallen zugleich. Das Feld zeigt live, was die Physik kostet.",
+    "controls": {
+      "count": "Anzahl",
+      "again": "Nochmal"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt",
+      "page": "Seite"
+    },
+    "choices": {
+      "count": {
+        "10000": "10.000",
+        "5000": "5.000",
+        "1000": "1.000"
+      }
     }
   }
 }

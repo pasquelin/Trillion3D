@@ -1,7 +1,7 @@
 // Defect 8: the material whose six maps do not share the same wrap mode, and the addressing each
 // map's header carries. The GPU bench and the non-regression test both read
 // this fixture: one material exercised, hence one thing to reread when the modes change.
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { octetsTexture } from './addressingCases.ts';

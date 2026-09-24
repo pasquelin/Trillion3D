@@ -116,7 +116,6 @@
       Object.assign(world.controls, { pointerLook: false, autoForward: true, movementSpeed: 0, inputResponse: 0.08 });
 
       const deg = Math.PI / 180;
-      const clamp = (x, a = -1, b = 1) => Math.min(b, Math.max(a, x));
       // The kit's smoothstep, from `a` to `b` instead of 0 to 1.
       const smooth = (a, b, x) => ease.smooth((x - a) / (b - a));
       // A seeded sequence (the kit's `seeded`): the same valley on every run.
@@ -194,7 +193,7 @@
       const authority = (v) => 0.25 + 0.75 * smooth(MIN_AIR, 150, v);
       // The load the stick may ask for: in Arcade what the wing gives, up to the pilot's limit —
       // never a stall; in Expert the airframe's limit, the wing stalling past what it gives.
-      const loadCap = (S, expert) => (expert ? MAX_G : clamp(liftG(S.v), 1, PILOT_G));
+      const loadCap = (S, expert) => (expert ? MAX_G : math.clamp(liftG(S.v), 1, PILOT_G));
       const pitchLimit = (S, expert) => (S.onGround ? 10 * deg : Math.min(PITCH_RATE * authority(S.v), (loadCap(S, expert) * G) / Math.max(S.v, 1)) * (expert ? S.soft : 1));
       // Quaternions as [x, y, z, w], the engine's order; a turn `b` after `a` is `qmul(a, b)`.
       const qmul = (a, b) => [
@@ -219,7 +218,7 @@
         const forward = rotate(q, [0, 0, -1]), up = rotate(q, [0, 1, 0]), right = rotate(q, [1, 0, 0]);
         return {
           forward, up, right,
-          pitch: Math.asin(clamp(forward[1])),
+          pitch: Math.asin(math.clamp(forward[1], -1, 1)),
           bank: Math.atan2(-right[1], up[1]),
           heading: (Math.atan2(forward[0], -forward[2]) + 2 * Math.PI) % (2 * Math.PI),
         };
@@ -250,7 +249,7 @@
         const upright = rotate(S.aim, [0, 1, 0])[1] > 0.2;
         S.aim = upright ? qmul(qaxis(0, 1, 0, -dx), S.aim) : qmul(S.aim, qaxis(0, 1, 0, -dx));
         S.aim = qnorm(qmul(S.aim, qaxis(1, 0, 0, -dy)));
-        const nose = rotate(S.q, [0, 0, -1]), aim = rotate(S.aim, [0, 0, -1]), off = Math.acos(clamp(dot(nose, aim)));
+        const nose = rotate(S.q, [0, 0, -1]), aim = rotate(S.aim, [0, 0, -1]), off = Math.acos(math.clamp(dot(nose, aim), -1, 1));
         const back = off > ARCADE.cone ? off - ARCADE.cone : S.rest > 0.5 ? off * (1 - Math.exp(-dt / 2)) : 0;
         const axis = [aim[1] * nose[2] - aim[2] * nose[1], aim[2] * nose[0] - aim[0] * nose[2], aim[0] * nose[1] - aim[1] * nose[0]], length = Math.hypot(...axis);
         if (back > 0 && length > 1e-9) S.aim = qnorm(qmul(qaxis(...axis.map((v) => v / length), back), S.aim));
@@ -263,17 +262,17 @@
       // the heading error asks, within the wing's load and 70° — and level within 2° of the aim.
       function instructor(S) {
         const [x, y, z] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
-        const off = Math.acos(clamp(-z)), { bank, pitch: climb, heading } = attitude(S.q), a = authority(S.v);
+        const off = Math.acos(math.clamp(-z, -1, 1)), { bank, pitch: climb, heading } = attitude(S.q), a = authority(S.v);
         const across = Math.hypot(x, y) || 1, rate = off / ARCADE.nose, aimed = attitude(S.aim);
-        const pitch = clamp((rate * y) / across / pitchLimit(S, false), -0.5, 1);
-        const yaw = clamp((-rate * x) / across / (YAW_RATE * a));
+        const pitch = math.clamp((rate * y) / across / pitchLimit(S, false), -0.5, 1);
+        const yaw = math.clamp((-rate * x) / across / (YAW_RATE * a), -1, 1);
         // Near the vertical the heading means nothing: the bank is held and the pitch flies the loop.
         let wanted = bank;
         if (Math.abs(climb) < 60 * deg && Math.abs(aimed.pitch) < 75 * deg) {
           const most = Math.min(ARCADE.bank, Math.acos(1 / loadCap(S, false))), turn = wrap(aimed.heading - heading) / ARCADE.nose;
-          wanted = clamp(Math.atan((S.v * turn) / G), -most, most) * smooth(ARCADE.level, 3 * ARCADE.level, off);
+          wanted = math.clamp(Math.atan((S.v * turn) / G), -most, most) * smooth(ARCADE.level, 3 * ARCADE.level, off);
         }
-        return [pitch, yaw, clamp(-wrap(wanted - bank) / ARCADE.wings / Math.min(ROLL_RATE * a, ARCADE.roll))];
+        return [pitch, yaw, math.clamp(-wrap(wanted - bank) / ARCADE.wings / Math.min(ROLL_RATE * a, ARCADE.roll), -1, 1)];
       }
       // The stick for this step, signed as the controller's keys are: nose up, left, left. Arcade:
       // the mouse moves the aim and the instructor flies onto it. Expert: the mouse is the stick.
@@ -284,17 +283,17 @@
         S.rest = dx || dy ? 0 : S.rest + dt;
         // Looking around: the mouse turns the head, the jet holds its stick.
         if (input.freeLook) {
-          S.lookYaw = clamp(S.lookYaw - dx, -2.8, 2.8);
-          S.lookPitch = clamp(S.lookPitch - dy, -1.3, 1.3);
+          S.lookYaw = math.clamp(S.lookYaw - dx, -2.8, 2.8);
+          S.lookPitch = math.clamp(S.lookPitch - dy, -1.3, 1.3);
         } else [S.lookYaw, S.lookPitch] = [S.lookYaw, S.lookPitch].map((angle) => angle * Math.exp(-dt * 5));
         const [mx, my] = input.freeLook ? [0, 0] : [dx, dy];
         let stick;
         if (expert) {
           // The mouse's speed is the pitch rate, three times it the roll rate.
           const fade = Math.exp(-dt / STICK_CENTRE), reach = [pitchLimit(S, true), ROLL_RATE * authority(S.v)];
-          S.virtual = [clamp(S.virtual[0] * fade - my / STICK_CENTRE / reach[0]), clamp(S.virtual[1] * fade - (3 * mx) / STICK_CENTRE / reach[1])];
+          S.virtual = [math.clamp(S.virtual[0] * fade - my / STICK_CENTRE / reach[0], -1, 1), math.clamp(S.virtual[1] * fade - (3 * mx) / STICK_CENTRE / reach[1], -1, 1)];
           S.aim = S.q.slice();
-          stick = [S.virtual[0], 0, clamp(S.virtual[1] + key('KeyA') - key('KeyD'))];
+          stick = [S.virtual[0], 0, math.clamp(S.virtual[1] + key('KeyA') - key('KeyD'), -1, 1)];
         } else {
           aimBy(S, mx, my, dt);
           // Too near the ground and not landing: the aim is taken up, wings level (`physics`).
@@ -303,8 +302,8 @@
           const roll = key('KeyA') - key('KeyD');
           if (roll) stick = [0, 0, roll]; // The instructor lets go while the player rolls.
         }
-        stick[1] = clamp(stick[1] + key('KeyQ') - key('KeyE'));
-        if (S.onGround) stick = [S.v >= ROTATE ? clamp(stick[0], 0, 0.6) : 0, key('KeyQ') - key('KeyE'), 0];
+        stick[1] = math.clamp(stick[1] + key('KeyQ') - key('KeyE'), -1, 1);
+        if (S.onGround) stick = [S.v >= ROTATE ? math.clamp(stick[0], 0, 0.6) : 0, key('KeyQ') - key('KeyE'), 0];
         return (S.stick = stick);
       }
       // The ground's normal under a point, from its slope; a roof's edge reads as a wall.
@@ -319,19 +318,19 @@
         S.rates = [turn[0] * s, turn[1] * s, turn[2] * s];
         const pushed = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
         S.ownThrottle ||= Boolean(pushed) && !S.onGround;
-        S.throttle = clamp(S.throttle + pushed * 0.6 * dt, 0, 1);
+        S.throttle = math.clamp(S.throttle + pushed * 0.6 * dt, 0, 1);
         S.burner = keys.has('ShiftLeft') || keys.has('ShiftRight');
         S.braking = keys.has('Space');
         // Arcade, until the player touches the throttle in the air: a helper holds the corner speed.
         if (!expert && !S.onGround && !S.ownThrottle && !S.burner) {
-          const wanted = clamp((2 * CORNER - IDLE_AIR - S.v) / (MIL - IDLE_AIR), 0, 1);
+          const wanted = math.clamp((2 * CORNER - IDLE_AIR - S.v) / (MIL - IDLE_AIR), 0, 1);
           S.throttle += (wanted - S.throttle) * (1 - Math.exp(-dt));
         }
         // The stall (Expert): too slow, or asking the wing for more load than it gives. The nose
         // falls about the horizontal line across it, a wing drops, the jet sinks, and rudder held
         // into it winds the stall into a spin — until the dive gives the speed back.
         const demand = (Math.abs(S.rates[0]) * S.v) / G;
-        const lost = S.onGround || !expert ? 0 : clamp(Math.max((STALL - S.v) / (STALL - MIN_AIR), demand / liftG(S.v) - 1), 0, 1);
+        const lost = S.onGround || !expert ? 0 : math.clamp(Math.max((STALL - S.v) / (STALL - MIN_AIR), demand / liftG(S.v) - 1), 0, 1);
         if (lost && !S.stalling) S.dropSide = S.rates[2] > 0 ? 1 : -1;
         S.stalling = lost > 0;
         const nose = attitude(S.q).forward, across = Math.hypot(nose[0], nose[2]);
@@ -347,10 +346,10 @@
         // gives it, a hard turn bleeds it, the air brake takes it. It never hovers, and in Arcade
         // it never falls under the lift-off speed.
         const idle = S.onGround ? 0 : IDLE_AIR, target = S.burner ? AB_SPEED : idle + (MIL - idle) * S.throttle;
-        let accel = clamp((target - S.v) / 3.5, -10, 5 + 11 * S.throttle + (S.burner ? 12 : 0));
+        let accel = math.clamp((target - S.v) / 3.5, -10, 5 + 11 * S.throttle + (S.burner ? 12 : 0));
         if (!S.onGround) accel -= G * attitude(S.q).forward[1] + 1.2 * Math.max(0, S.load - 2);
         if (S.braking) accel -= S.onGround ? 15 : 30;
-        S.v = clamp(S.v + accel * dt, S.onGround ? 0 : expert ? MIN_AIR : ROTATE, AB_SPEED * 1.1);
+        S.v = math.clamp(S.v + accel * dt, S.onGround ? 0 : expert ? MIN_AIR : ROTATE, AB_SPEED * 1.1);
         // Touching the ground: roll on the runway and flat meadows with the wheels down, gently
         // and upright. Anything else is a crash in Expert; Arcade forgives what is no hard
         // impact — the jet scrapes along and the instructor climbs away. On the ground the jet
@@ -365,7 +364,7 @@
         } else if (agl > 0.3) S.onGround = false;
         if (S.onGround) {
           const { heading, pitch } = attitude(S.q);
-          S.q = level(heading, S.v < ROTATE ? 0 : clamp(pitch, 0, 15 * deg));
+          S.q = level(heading, S.v < ROTATE ? 0 : math.clamp(pitch, 0, 15 * deg));
         }
         if (S.gearDown && agl > 25) S.gearDown = false;
         else if (!S.gearDown && agl < 60 && S.v < 110) S.gearDown = true;
@@ -384,7 +383,7 @@
           return [Math.min(...heights) + rise - vel[1] * k - gain, Math.atan2(heights[0] + rise, flat * k)];
         });
         const slope = Math.max(...ahead.map(([, angle]) => angle)), danger = ahead.some(([over]) => over > 0);
-        S.climb = clamp(Math.max(20 * deg, slope + 10 * deg), 0, 70 * deg);
+        S.climb = math.clamp(Math.max(20 * deg, slope + 10 * deg), 0, 70 * deg);
         S.pullUp = !expert && !S.onGround && !(S.gearDown && landable) && (danger || (S.pullUp && pitch < S.climb - 2 * deg));
         const up = attitude(S.q).up;
         const lift = up.reduce((sum, u, i) => sum + u * ((vel[i] - S.vel[i]) / dt + (i === 1 ? G : 0)), 0);
@@ -412,7 +411,7 @@
       // Whether the path from `a` to `b` passes within `radius` of `centre`.
       function passes(a, b, centre, radius) {
         const along = b.map((v, i) => v - a[i]), length = along.reduce((s, v) => s + v * v, 0);
-        const t = length ? clamp(along.reduce((s, v, i) => s + v * (centre[i] - a[i]), 0) / length, 0, 1) : 0;
+        const t = length ? math.clamp(along.reduce((s, v, i) => s + v * (centre[i] - a[i]), 0) / length, 0, 1) : 0;
         return Math.hypot(...a.map((v, i) => v + along[i] * t - centre[i])) < radius;
       }
       // COCKPIT-START — the seat, in metres from the pilot's eye (x right, y up, -z ahead). The
@@ -1187,14 +1186,14 @@
         put(corner[1], 'text', clockOf(finished ?? elapsed));
         const { forward } = attitude(S.q), far = (direction) => S.pos.map((p, i) => p + direction[i] * 2000);
         const aimAt = project(far(rotate(S.aim, [0, 0, -1])), eye, turn, f), noseAt = project(far(forward), eye, turn, f);
-        const knots = S.v * KT, feet = (S.pos[1] - GEAR) * FT, scale = clamp(H / 820, 0.9, 1.7);
+        const knots = S.v * KT, feet = (S.pos[1] - GEAR) * FT, scale = math.clamp(H / 820, 0.9, 1.7);
         const inCockpit = view === 'cockpit', onHud = inCockpit && noseAt && Math.abs(noseAt[0]) < W / 2 && Math.abs(noseAt[1]) < H / 2;
         show(inside, onHud);
         show(outside, !inCockpit);
         if (onHud) {
           const [nx, ny] = noseAt, across = f * Math.tan(FIELD.across);
           const [l, r, t, b] = [nx - across, nx + across, ny - f * Math.tan(FIELD.over), ny + f * Math.tan(FIELD.under)];
-          const inset = (point, m = 18 * scale) => point && [clamp(point[0], l + m, r - m), clamp(point[1], t + m, b - m)];
+          const inset = (point, m = 18 * scale) => point && [math.clamp(point[0], l + m, r - m), math.clamp(point[1], t + m, b - m)];
           // The ladder from the camera's own attitude: conformal with the real horizon.
           const seen = attitude(turn);
           box(clips.ladder, [l + 80 * scale, t + 36 * scale, r - l - 160 * scale, b - t - 36 * scale]);
@@ -1408,10 +1407,10 @@
       // The mouse: its motion under the lock (`movementX/Y`), summed until the next step.
       addEventListener('mousemove', (event) => {
         if (!game.running) return;
-        S.mouseX += clamp(event.movementX, -250, 250);
-        S.mouseY += clamp(event.movementY, -250, 250);
+        S.mouseX += math.clamp(event.movementX, -250, 250);
+        S.mouseY += math.clamp(event.movementY, -250, 250);
       });
-      addEventListener('wheel', (event) => game.running && (zoom = clamp(zoom * Math.exp(event.deltaY * 0.001), 12, 70)), { passive: true });
+      addEventListener('wheel', (event) => game.running && (zoom = math.clamp(zoom * Math.exp(event.deltaY * 0.001), 12, 70)), { passive: true });
       // The right button held: fine aim. Its menu never opens while playing.
       for (const type of ['mousedown', 'mouseup']) addEventListener(type, (event) => event.button === 2 && (pilot.precision = type === 'mousedown' && game.running));
       addEventListener('contextmenu', (event) => game.running && event.preventDefault());
@@ -1566,7 +1565,7 @@
         const [tiltX, tiltZ] = stickTilt(S.stick);
         seat.stick.rotation.set(tiltX, 0, tiltZ);
         const knots = S.v * KT, feet = (S.pos[1] - GEAR) * FT;
-        [clamp(knots / 800, 0, 1) * 5.8, ((feet / 1000) % 1) * 2 * Math.PI, clamp(S.load / MAX_G, -0.3, 1) * 5.2, (fuel / FUEL) * 4.7].forEach((angle, k) => (seat.needles[k].rotation.z = -angle));
+        [math.clamp(knots / 800, 0, 1) * 5.8, ((feet / 1000) % 1) * 2 * Math.PI, math.clamp(S.load / MAX_G, -0.3, 1) * 5.2, (fuel / FUEL) * 4.7].forEach((angle, k) => (seat.needles[k].rotation.z = -angle));
         fuel = Math.max(0, fuel - dt * (0.8 + 4 * S.throttle + (S.burner ? 25 : 0)));
         // The camera. Cockpit: the eye, resting 5° under the axis, turned a little towards the
         // aim (the pilot looks into the turn, never past 10°) and by the free look, shaken by the
@@ -1574,7 +1573,7 @@
         // along the aim, following it on a quarter-second spring, pulled back with speed and
         // the wheel.
         const [aimX, , aimZ] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
-        headYaw += (clamp(-Math.atan2(aimX, -aimZ) * 0.3, -10 * deg, 10 * deg) - headYaw) * (1 - Math.exp(-dt * 4));
+        headYaw += (math.clamp(-Math.atan2(aimX, -aimZ) * 0.3, -10 * deg, 10 * deg) - headYaw) * (1 - Math.exp(-dt * 4));
         const look = qmul(qaxis(0, 1, 0, S.lookYaw), qaxis(1, 0, 0, S.lookPitch));
         const rough = 0.0025 * Math.max(0, S.load - 3) + (S.burner ? 0.002 : 0) + (S.onGround ? 0.003 * Math.min(1, S.v / 80) : 0) + (S.stalling ? 0.004 : 0);
         const shake = rotate(S.q, [Math.sin(time * 41) * rough, Math.sin(time * 37 + 1) * rough, 0]);

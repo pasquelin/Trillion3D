@@ -16,8 +16,6 @@
 import type { HostColour, HostMaterials, HostTexture } from './resources.ts';
 import { isHostColour, type HostShadedMaterial } from './shadedMaterial.ts';
 import { importHostTexture } from './textureImport.ts';
-
-export { importHostTexture, importWrapMode } from './textureImport.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
 import { sideOf } from '../scene/materialSide.ts';
 import type { VisMaterial } from '../visibility/types.ts';

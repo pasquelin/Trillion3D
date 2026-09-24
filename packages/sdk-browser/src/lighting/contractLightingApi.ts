@@ -6,16 +6,29 @@ import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
 import { attachContractLights, CONTRACT_LIGHTS_LIGHTING } from './contractLights.ts';
 import type { HostTraversable } from '../host/resources.ts';
 import { GraphNode } from '../host/graph/node.ts';
-import type { GraphScene } from '../host/graph/scene.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
 
 /** The render scene the contract writes into. */
 type RenderScene = Parameters<typeof attachContractLights>[0];
 
+/** The clear colour a WebGL2 engine's graph carries, the one its draw clears with: written in
+ *  place once a colour is there, nothing allocated. */
+const paint = (scene: RenderScene, clearColor: number) => {
+  if (scene.background) scene.background.setHex(clearColor);
+  else scene.background = new Color().setHex(clearColor);
+};
+
+/** What sets that colour during the session, then tells `changed` the held frame is stale: the
+ *  engine's resource revision, never its scene one — nothing else is walked again. */
+export const graphBackground = (scene: RenderScene, changed: () => void) => (hex: number) => {
+  paint(scene, hex);
+  changed();
+};
+
 /** The display graph a WebGL2 engine draws: its clear colour, then the source-graph lights
  *  copied onto it, each aiming at an empty node of the same graph. */
 export function installLighting(scene: RenderScene, clearColor: number, source: HostTraversable) {
-  (scene as unknown as GraphScene).background = new Color().setHex(clearColor);
+  paint(scene, clearColor);
   return installSceneLighting(scene, source, () => new GraphNode());
 }
 
