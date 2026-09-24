@@ -1,6 +1,7 @@
 import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
+import { followHostTexture } from '../../host/textureImport.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361): a new version uploads the picture again, a
@@ -69,6 +70,8 @@ export class WebglClusterTextures {
       this.bound[unit] = target;
       return;
     }
+    // Brought up to its host once per image, then uploaded or set again by its counters.
+    followHostTexture(texture);
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {

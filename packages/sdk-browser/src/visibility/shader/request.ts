@@ -19,7 +19,7 @@ import type { WebgpuLightState } from '../../webgpu/pages/state/lights.ts';
  * it one more lifetime on the bind group — rebuilt when a shadow is born or dies —
  * for five hundred bytes copied per frame. The host shader declares `uni.sun`, `uni.feedback`,
  * `PageInfo`, `vertUv`, `TILE_REQUEST_WGSL` and the class overrides — `HAS_UV`,
- * `HAS_MASK` and one per map (`materialClass.ts`) — before this block.
+ * `HAS_MASK`, `HAS_SAMPLING` and one per map (`materialClass.ts`) — before this block.
  */
 const HEADER_WORDS = 24;
 /** Words of the resolve uniform: the header, then the sun slice. */
@@ -53,9 +53,9 @@ fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:v
  if(p.sel>=MAP_CHOICES&&HAS_MASK){
   let uva=pageUv(page,h,i0);
   let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
-  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,g.xy,g.zw,p.next,1u,false);}
+  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,g.xy,g.zw,p.next,1u,false,HAS_SAMPLING);}
  }
- return mapRequest(p,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,ddx,ddy,HAS_MASK);
+ return mapRequest(p,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,ddx,ddy,HAS_MASK,HAS_SAMPLING);
 }`;
 
 /**

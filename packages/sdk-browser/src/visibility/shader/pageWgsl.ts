@@ -1,3 +1,4 @@
+import { FLAG_SAMPLED } from '../types.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 
 /**
@@ -81,5 +82,5 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
  // level and made the quad opaque during loading.
- return maskAlpha(page.mapIndex,uv,ddx,ddy)>=page.baseColor.w;
+ return maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)>=page.baseColor.w;
 }`;

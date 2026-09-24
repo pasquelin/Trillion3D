@@ -38,9 +38,10 @@ import { SAMPLING_WGSL, samplingReadWgsl, atlasReadWgsl } from './samplingWgsl.t
  * read it avoids.
  *
  * A texture's sampling — addressing, filters, anisotropy, UV transform — rides in the same header
- * (`sampling.ts`): its filter word and addressing nibble share the last-level word, so a texture
- * left at the default filters reads no more words than before and takes the same read, behind one
- * test of that word.
+ * (`sampling.ts`): its filter word and addressing nibble share the last-level word, so a read
+ * fetches no more words than before. Whether the filter rule runs is the page's, not the
+ * sample's (`sampled`, `samplingWgsl.ts`): a page at the default filters takes the same read, and
+ * the resolve does not even compile the other.
  *
  * Coordinates are clamped to the half-texel of the level being read: linear filtering therefore never
  * leaves a level's texels, nor a tail tile toward its neighbour, and the seam of a repeating period
@@ -150,13 +151,13 @@ fn ${k}Blend(s:TileSlot,uv:vec2f,lod:f32,nearest:bool,finest:bool)->vec4f{
 }
 fn ${k}SampleAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blend(s,uv,lod,nearest,false);}`;
 
-/** Color-atlas sample: `colorSample(slot, uv, ddx, ddy)`. The colour atlas has no
+/** Color-atlas sample: `colorSample(slot, uv, ddx, ddy, sampled)`. The colour atlas has no
  *  two-channel texture; its read is generated all the same, so the two atlases share one text. */
 export const COLOR_SAMPLE_WGSL = `${kind('color')}
 ${atlasReadWgsl('colorSample', 'color', 'vec4f', true)}`;
 
 /**
- * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy)`, the base-map alpha read
+ * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy, sampled)`, the base-map alpha read
  * as the materials pass reads its colour — same transform, filter and mix — at the derivatives of
  * the pass that reads, in one tap at the isotropic level: a cutout only compares a threshold, and
  * the visibility and shadow passes that read it do not pay for anisotropy's taps. `finest` is the shadow pass's fallback rule (see the header); the camera raster
@@ -166,7 +167,7 @@ export const maskAlphaWgsl = (finest: boolean) =>
   `fn maskAlphaAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->f32{return colorBlend(s,uv,lod,nearest,${finest}).w;}
 ${atlasReadWgsl('maskAlpha', 'color', 'f32', false)}`;
 
-/** Data-atlas sample: `dataSample(slot, uv, ddx, ddy)`. */
+/** Data-atlas sample: `dataSample(slot, uv, ddx, ddy, sampled)`. */
 export const DATA_SAMPLE_WGSL = `${kind('data')}
 ${atlasReadWgsl('dataSample', 'data', 'vec4f', true)}`;
 

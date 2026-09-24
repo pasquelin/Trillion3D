@@ -1,5 +1,5 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts';
 import type { BlendGpuItem } from './state.ts';
+import { layerSlot, sampledFlag, type MaterialLayers } from '../row/pageRowMaterial.ts';
 
 /**
  * Record of a transparent item: everything a blend draw reads about IT, and nothing that
@@ -12,11 +12,8 @@ import type { BlendGpuItem } from './state.ts';
  */
 export const BLEND_ITEM_WORDS = 40;
 
-/** Atlas tables the record cites: each texture's slot, per atlas. */
-export type BlendAtlasTables = {
-  mapLayer: Map<Texture, number>;
-  dataLayer: Map<Texture, number>;
-};
+/** Atlas tables the record cites: each texture's slot, per atlas, and the atlases. */
+export type BlendAtlasTables = MaterialLayers;
 
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer. */
 export function writeBlendItemRecord(
@@ -28,7 +25,12 @@ export function writeBlendItemRecord(
 ) {
   const base = index * BLEND_ITEM_WORDS,
     mat = item.surface;
-  const layer = item.map && tables.mapLayer.has(item.map) ? tables.mapLayer.get(item.map)! : 0;
+  const layer = layerSlot(tables.mapLayer, item.map),
+    emissive = layerSlot(tables.mapLayer, mat.emissiveMap),
+    rough = layerSlot(tables.dataLayer, mat.roughnessMap),
+    metal = layerSlot(tables.dataLayer, mat.metalnessMap),
+    normal = layerSlot(tables.dataLayer, mat.normalMap),
+    ao = layerSlot(tables.dataLayer, mat.aoMap);
   floats.set(item.matrix.elements, base);
   floats[base + 16] = item.rgba[0];
   floats[base + 17] = item.rgba[1];
@@ -38,19 +40,20 @@ export function writeBlendItemRecord(
   // carries only what belongs to the item — its indices, first vertex, flags, maps.
   ints[base + 20] = item.count;
   ints[base + 21] = item.vertexBase ?? 0;
-  ints[base + 22] = item.flags;
+  ints[base + 22] =
+    item.flags | sampledFlag(tables.textures, layer, emissive, rough, metal, normal, ao);
   ints[base + 23] = layer;
-  ints[base + 24] = mat.emissiveMap ? (tables.mapLayer.get(mat.emissiveMap) ?? 0) : 0;
+  ints[base + 24] = emissive;
   floats[base + 26] = mat.alphaTest;
   floats[base + 27] = mat.aoIntensity;
   floats[base + 28] = mat.roughness;
   floats[base + 29] = mat.metalness;
   floats[base + 30] = mat.normalScale;
   floats[base + 31] = mat.normalScaleY;
-  ints[base + 32] = mat.roughnessMap ? (tables.dataLayer.get(mat.roughnessMap) ?? 0) : 0;
-  ints[base + 33] = mat.metalnessMap ? (tables.dataLayer.get(mat.metalnessMap) ?? 0) : 0;
-  ints[base + 34] = mat.normalMap ? (tables.dataLayer.get(mat.normalMap) ?? 0) : 0;
-  ints[base + 35] = mat.aoMap ? (tables.dataLayer.get(mat.aoMap) ?? 0) : 0;
+  ints[base + 32] = rough;
+  ints[base + 33] = metal;
+  ints[base + 34] = normal;
+  ints[base + 35] = ao;
   floats[base + 36] = mat.emissive[0];
   floats[base + 37] = mat.emissive[1];
   floats[base + 38] = mat.emissive[2];

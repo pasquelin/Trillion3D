@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
-import { followHostTextures, importHostTexture } from '../../host/textureImport.ts';
+import { followHostTexture, importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 
@@ -52,7 +52,7 @@ test('a repaint writes a map’s sampling and placement in place, nothing sent a
   repaintHostSurface(surface as never, paint);
   assert.equal(host.version, version, 'no picture sent again');
   assert.equal(surface.map, host, 'the same host texture, written in place');
-  followHostTextures();
+  followHostTexture(record);
   assert.equal(importHostTexture(host), record, 'the same engine record');
   assert.deepEqual(
     [record.wrapS, record.magFilter, record.minFilter, record.anisotropy],
@@ -93,12 +93,13 @@ test('a repaint sends a map’s picture again at every version, with its values'
 test('a repaint that moves a map’s placement and its pixels together takes both', () => {
   const map = new Texture({ data: new Uint8Array(16), width: 2, height: 2 });
   const { paint, surface, host, record, version } = repainted(map);
+  const sent = record.version;
   (map.image as { data: Uint8Array }).data[0] = 255;
   map.needsUpdate = true;
   map.offset.set(0.5, 0);
   repaintHostSurface(surface as never, paint);
   assert.ok(host.version > version, 'the pixels sent again');
-  followHostTextures();
-  assert.equal(record.version, host.version, 'the record refilled at the new version');
+  followHostTexture(record);
+  assert.equal(record.version, sent + 1, 'the record refilled, its picture to send again');
   assert.equal(record.transform[6], 0.5, 'the offset reaches the record');
 });

@@ -1,8 +1,9 @@
 /**
- * The engine record of a host texture, read in one place — here — and kept ONE for the session:
+ * The engine record of a host texture, read in one place — here — and kept ONE per host texture:
  * atlas layers, preview ranks and lane pools address a texture by the identity of its record, so
- * the record is refilled in place, once per image, by `followHostTextures`. Its three counters say
- * what moved: `version` (the picture), `sampling`, `placement` (#360, #361).
+ * the record is refilled in place, once per image, by `followHostTexture`, called by each consumer
+ * on the records it holds. Its three counters say what moved: `version` (the picture), `sampling`,
+ * `placement` (#360, #361).
  */
 import type { HostTexture } from './resources.ts';
 import {
@@ -32,10 +33,25 @@ function filterOf(filter: number): TextureFilter {
 }
 
 type Editable = { -readonly [K in keyof Texture]: Texture[K] };
-/** A record and the placement its host was last composed from (`placed`). */
-type Imported = { record: Editable; placed: Float64Array };
-/** Every host texture imported, until the host disposes of it: what `followHostTextures` walks. */
-const imported = new Map<HostTexture, Imported>();
+/**
+ * A record and what it was last filled from: the host's version and image, and the placement
+ * its matrix was composed from (`placed`); `stale` when the host disposed of it since, and the
+ * image it was last followed at (`followed`).
+ */
+type Imported = {
+  host: HostTexture;
+  record: Editable;
+  hostVersion: number;
+  image: unknown;
+  placed: Float64Array;
+  stale: boolean;
+  followed: number;
+};
+/** One record per host texture, for as long as the host keeps it: an identity table, never
+ *  walked — each consumer follows the records it holds. */
+const imported = new WeakMap<HostTexture, Imported>();
+/** The same entries, by record: what `followHostTexture` looks a record up in. */
+const byRecord = new WeakMap<Texture, Imported>();
 
 /** Writes `value` at `i`; 1 when it moved. */
 function put(into: Float64Array, i: number, value: number) {
@@ -44,8 +60,9 @@ function put(into: Float64Array, i: number, value: number) {
   return 1;
 }
 
-/** Refills the record's picture fields from its host; its version is the host's. */
-function fillPicture(record: Editable, host: HostTexture) {
+/** Refills the record's picture fields from its host. */
+function fillPicture(entry: Imported) {
+  const { record, host } = entry;
   record.id = host.uuid;
   record.name = host.name;
   record.image = host.image;
@@ -54,7 +71,8 @@ function fillPicture(record: Editable, host: HostTexture) {
   record.premultiplyAlpha = host.premultiplyAlpha;
   record.generateMipmaps = host.generateMipmaps;
   record.colorSpace = host.colorSpace === 'srgb' ? 'srgb' : 'linear';
-  record.version = host.version;
+  entry.hostVersion = host.version;
+  entry.image = host.image;
 }
 
 /** Refills the record's sampler fields; 1 when one moved. */
@@ -103,60 +121,74 @@ function fillPlacement(host: HostTexture, placed: Float64Array) {
   return moved;
 }
 
-/** Brings a record up to its host; true when anything moved. Its three counters say what: the
- *  host's version (the picture sent again), `sampling`, `placement`. */
-function follow(host: HostTexture, { record, placed }: Imported) {
-  let moved = 0;
-  if (record.version !== host.version || record.image !== host.image) {
-    fillPicture(record, host);
-    moved = 1;
+/**
+ * The image a follow belongs to: one per task — the host's animation-frame callback renders
+ * every engine of its image in one —, opened by the first follow of the task and closed after
+ * it. A record is brought up to its host once per image, whichever engine asks first.
+ */
+let image = 0,
+  imageOpen = false;
+function currentImage() {
+  if (!imageOpen) {
+    imageOpen = true;
+    image++;
+    queueMicrotask(() => (imageOpen = false));
   }
-  if (fillSampling(record, host)) {
-    record.sampling++;
-    moved = 1;
-  }
-  if (fillPlacement(host, placed)) {
-    record.placement++;
-    moved = 1;
-  }
-  return moved !== 0;
+  return image;
 }
 
 /**
  * The engine record of a host texture: built once, its UV matrix composed at once — a
  * `KHR_texture_transform` is read at load (`../scene/tables.ts`) —, then brought up to its host
- * once per image by `followHostTextures`. The record ALIASES the host's UV matrix (`transform`).
+ * once per image by `followHostTexture`. The record ALIASES the host's UV matrix (`transform`).
+ * A host that disposes of a texture it still draws keeps its record: the picture is sent again at
+ * the next follow, as the host's own renderer uploads it again at its next use.
  */
 export function importHostTexture(host: HostTexture): Texture {
   const held = imported.get(host);
   if (held) return held.record;
-  const entry = {
+  const entry: Imported = {
+    host,
     record: Object.assign({} as Editable, {
+      version: 0,
       sampling: 0,
       placement: 0,
       transform: host.matrix.elements,
     }),
+    hostVersion: 0,
+    image: undefined,
     placed: new Float64Array(7).fill(NaN),
+    stale: false,
+    followed: 0,
   };
-  fillPicture(entry.record, host);
+  fillPicture(entry);
   fillSampling(entry.record, host);
   fillPlacement(host, entry.placed);
   imported.set(host, entry);
-  host.addEventListener?.('dispose', () => imported.delete(host));
+  byRecord.set(entry.record, entry);
+  host.addEventListener?.('dispose', () => (entry.stale = true));
   return entry.record;
 }
 
-/** The records the last `followHostTextures` found moved. */
-const moved = new Set<Texture>();
-
 /**
- * Brings every imported record up to its host, once per image before any backend reads it, as
- * the host's own renderer reads its textures at every draw: a new version or image, a sampler
- * field, a placement — a filter written after `needsUpdate` included. Returns the records that
- * moved, whose counters say what; a backend looks up only those it holds. Nothing allocated.
+ * Brings a record up to its host, once per image, before a consumer reads it — as the host's own
+ * renderer reads its textures at every draw: a new version, image or disposal, a sampler field, a
+ * placement, a filter written after `needsUpdate` included. Its three counters, monotonic, say
+ * what moved (`version`: the picture, `sampling`, `placement`); each consumer compares them with
+ * the ones it last read. A record that no host texture made is left as it is.
  */
-export function followHostTextures(): ReadonlySet<Texture> {
-  moved.clear();
-  for (const [host, entry] of imported) if (follow(host, entry)) moved.add(entry.record);
-  return moved;
+export function followHostTexture(record: Texture) {
+  const entry = byRecord.get(record);
+  if (!entry) return;
+  const now = currentImage();
+  if (entry.followed === now) return;
+  entry.followed = now;
+  const { host, record: into } = entry;
+  if (entry.stale || entry.hostVersion !== host.version || entry.image !== host.image) {
+    entry.stale = false;
+    fillPicture(entry);
+    into.version++;
+  }
+  if (fillSampling(into, host)) into.sampling++;
+  if (fillPlacement(host, entry.placed)) into.placement++;
 }

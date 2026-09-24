@@ -126,12 +126,18 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
     DATA_SAMPLE_WGSL,
   })) {
     assert.match(bloc, /wrapUv\(uv,s\.wrap,s\.size\)/, `${nom} must fold by its texture's nibble`);
-    // #360, #361: the header is read once, then the footprint — the default read for a zero
-    // filter word, the transform and filter rule otherwise —, blended and shadow alike.
+    // #360, #361: the header is read once, then the default read — the footprint's level, no
+    // other test — unless the page's maps take their filter rule (`sampled`), blended and
+    // shadow alike.
     assert.match(
       bloc,
-      /let s=(color|data)Slot\(slot\);\n let r=(color|data)Footprint\(slot,s,uv,ddx,ddy,(true|false)\);/,
-      `${nom} must read its footprint once`,
+      /let s=(color|data)Slot\(slot\);\n if\(sampled\)\{return \w+Sampled\(slot,s,uv,ddx,ddy\);\}\n return \w+Tap\(s,uv,slotLod\(s,ddx,ddy\),false\);/,
+      `${nom} must read its header once, then the default read`,
+    );
+    assert.match(
+      bloc,
+      /let r=(color|data)Footprint\(slot,s,uv,ddx,ddy,(true|false)\);/,
+      `${nom} must read its footprint once when sampled`,
     );
     assert.match(bloc, /if\(!t\.couture\|\|nearest\)\{return /, `${nom} must keep the unique read`);
     assert.match(

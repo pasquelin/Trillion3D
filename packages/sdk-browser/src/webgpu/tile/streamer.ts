@@ -6,8 +6,7 @@ import { createTileSources } from './sources.ts';
 import { createWebgpuTileReduce } from './reduce.ts';
 import { createTileCounters } from './counters.ts';
 import { createTileRequests } from './requests.ts';
-import { samplingHeaders } from './samplingHeaders.ts';
-import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts';
 
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
@@ -80,7 +79,7 @@ export function createWebgpuTileStreamer(options: {
     color.flush(device);
     data.flush(device);
   };
-  const headers = samplingHeaders(color, data);
+  const followHeaders = samplingHeaders(color, data);
   return {
     color,
     data,
@@ -90,7 +89,7 @@ export function createWebgpuTileStreamer(options: {
     prepare() {
       for (const atlas of [color, data])
         atlas.pinTails(device.queue, (slot, place) => sources.tail(atlas, slot, place));
-      headers.writeAll();
+      followHeaders(true);
       flushAll();
     },
     /**
@@ -145,14 +144,16 @@ export function createWebgpuTileStreamer(options: {
       counters.pass(now() - started, unbounded);
       return { served, pending: counters.pending };
     },
-    /** Writes the sampling of the records that moved (`followHostTextures`) into their headers,
-     *  and signals what moved as a landed tile is: a held image released, the cutout shadows of a
-     *  colour texture redrawn (#360, #361). */
-    followSampling(moved: ReadonlySet<Texture>) {
+    /** Follows the atlases' records and writes the headers that moved, signalled as a landed tile
+     *  is: a held image released, the cutout shadows of a colour texture redrawn (#360, #361).
+     *  True when a filter rule switched on or off: the rows that wear it change resolve class. */
+    followSampling() {
       colorChanged.clear();
-      if (!headers.follow(moved, colorChanged)) return;
+      const found = followHeaders(false, colorChanged);
+      if (!(found & HEADERS_WRITTEN)) return false;
       flushAll();
       options.onColorChanged(colorChanged);
+      return (found & HEADERS_SWITCHED) !== 0;
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
      *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */

@@ -28,7 +28,9 @@ import { wrapNibble } from '../../visibility/wrapModes.ts';
  * reads at level 0 whatever the footprint: there the rule is WebGL2's, level 0.
  *
  * Bits of the filter word, zero for the default `linear` / `linear-mip-linear` / 1 × untransformed:
- * the zero word takes the read the pools had before, and nothing else.
+ * the zero word takes the read the pools had before, and nothing else. Which read a pass compiles
+ * is not tested per sample: a page whose maps are all at zero carries no `FLAG_SAMPLED`, and its
+ * resolve class — `HAS_SAMPLING` — compiles the default read alone (`samplingWgsl.ts`).
  */
 export const SAMPLE_MAG_NEAREST = 1,
   SAMPLE_MIN_NEAREST = 2,
@@ -44,7 +46,9 @@ export const SAMPLE_MAG_NEAREST = 1,
   SAMPLE_MAG_HALF = 512,
   /** Where the addressing nibble sits, above the filter bits: outside the zero test, so a
    *  repeating texture at the default filters keeps the default read. */
-  SAMPLE_WRAP_SHIFT = 10;
+  SAMPLE_WRAP_SHIFT = 10,
+  /** The filter bits: a texture whose bits are all zero takes the default read. */
+  SAMPLE_FILTER_MASK = (1 << SAMPLE_WRAP_SHIFT) - 1;
 
 /** The most reads anisotropic filtering takes, WebGPU's `maxAnisotropy` ceiling. */
 export const MAX_ANISOTROPY = 16;

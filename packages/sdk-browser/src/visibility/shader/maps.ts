@@ -15,10 +15,10 @@ const CARTE = {
   emissive: 'emissiveIndex',
 } as const satisfies Record<keyof typeof WRAP_MAP, string>;
 
-/** Atlas read of a map: its slot — whose header carries its addressing — and the pixel's
- *  derivatives. */
+/** Atlas read of a map: its slot — whose header carries its addressing —, the pixel's
+ *  derivatives, and the class's filter rule (`HAS_SAMPLING`), folded at compile time. */
 export const lecture = (fn: string, nom: keyof typeof WRAP_MAP) =>
-  `${fn}(page.${CARTE[nom]},uv,ddx,ddy)`;
+  `${fn}(page.${CARTE[nom]},uv,ddx,ddy,HAS_SAMPLING)`;
 
 /** Class override that says the map exists (`materialClass.ts`): slot 0 is the absence
  *  of a texture, and every page of a class has the same maps, so the test folds at compile time. */
