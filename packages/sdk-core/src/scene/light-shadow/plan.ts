@@ -38,6 +38,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     thresholds = createShadowThresholds(pool);
   let byPage = true,
     report: ShadowRequestReport | null = null,
+    resting = false,
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
@@ -64,6 +65,10 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     representationChanged: changes.representationChanged,
     /** The threshold the light cuts select casters at (`thresholds.ts`). */
     setThreshold: thresholds.set,
+    /** The camera rested at the last plan: its view was the one of the plan before. */
+    get resting() {
+      return resting;
+    },
     /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
       return changes.deferred || thresholds.pending;
@@ -104,6 +109,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
       counts.beginFrame();
       records.release(store);
       const still = changes.observeView(view);
+      resting = still;
       if (!still) views++;
       for (let slot = 0; slot < store.count; slot++) {
         if (!castsShadow(store, slot)) continue;
@@ -166,10 +172,12 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         pool.drew(table, admission.list[i], modes ? modes[i] : DRAW_ALL);
         thresholds.drew(admission.list[i]);
       }
+      pool.hideStale(table);
       admission.reset();
     },
     /** The frame's pages could not be encoded: they stay stale, and wait for the next frame. */
     reissue() {
+      pool.hideStale(table);
       admission.reset();
     },
     /** Starts over. */
@@ -184,6 +192,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
       counts.reset();
       admission.reset();
       report = null;
+      resting = false;
       settledStamp = -1;
     },
   };
