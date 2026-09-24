@@ -135,7 +135,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       clamp: pools.pool.clamp,
       compression: choice,
       pools: [...textures.color.pools, ...textures.data.pools].map((pool) => ({
-        label: pool.texture.label,
+        label: pool.label,
         format: pool.texture.format,
         layers: pool.layers,
         tiles: pool.tiles,

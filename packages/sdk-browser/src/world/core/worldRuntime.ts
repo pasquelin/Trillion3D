@@ -14,7 +14,7 @@ import { copyWorldCamera, createCanvasFit, drawnAspect } from './worldCamera.ts'
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { Scene } from './scene.ts';
-import type { WorldNotices } from '../diagnostic/worldNotices.ts';
+import type { worldDiagnostic } from './worldHandles.ts';
 
 type Inputs = {
   canvas: HTMLCanvasElement;
@@ -31,9 +31,9 @@ type Inputs = {
   drawn: () => boolean;
   /** Settles once the world's renderer — and its device — is granted. */
   ready: Promise<unknown>;
-  /** A session that could not open: the world reports it, and keeps the scene. */
-  failed: (error: unknown) => void;
-  notices: WorldNotices;
+  /** Where the world says what its sessions do: its notices; each opening, tried or not; a session
+   *  that could not open, the scene kept. */
+  diagnostic: Pick<ReturnType<typeof worldDiagnostic>, 'notices' | 'failed' | 'opening'>;
 };
 
 /**
@@ -46,7 +46,7 @@ type Inputs = {
  */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera } = inputs;
-  const contents = createWorldContents(scene, inputs.notices),
+  const contents = createWorldContents(scene, inputs.diagnostic.notices),
     lights = createWorldLights();
   const { poses, cuts } = contents;
   let explorer: MeasuredWorld | null = null,
@@ -88,6 +88,7 @@ export function createWorldRuntime(inputs: Inputs) {
     for (const [node, twin] of twins) poses.writeTwin(node, twin, contents.shown(node));
     lights.reset();
     lightsChanged = true;
+    inputs.diagnostic.opening();
     if (!built) {
       closed = 'nothing to draw: the scene holds no mesh and no loaded model';
       return;
@@ -99,7 +100,7 @@ export function createWorldRuntime(inputs: Inputs) {
       explorer = await openMeasuredWorld(canvas, { ...inputs.options(), scope }, built.source);
     } catch (error) {
       closed = 'its session failed to open';
-      if (!disposed) inputs.failed(error); // cut short by disposal, it failed nothing
+      if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing
       return;
     }
     if (disposed) explorer.dispose();

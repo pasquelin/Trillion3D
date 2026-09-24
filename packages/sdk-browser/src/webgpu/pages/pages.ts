@@ -4,11 +4,10 @@ import { readPartitionAudit } from '../core/partitionAudit.ts';
 import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts';
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
+import { isCancelled } from '../../backend/common.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
-import { prepareGpuTiming, watchGpuDevice } from './prepare/timing.ts';
-import { prepareWebgpuPages } from './prepare/prepare.ts';
+import { prepareWebgpuBackend } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
-import { reserveRootBoxes } from '../../math/batchBoxes.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { captureSurfaceView } from './io/surfaceCapture.ts';
@@ -31,7 +30,9 @@ import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
-import { markWebgpuLost } from './io/lost.ts';
+import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
+import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
+import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
@@ -43,13 +44,14 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // Integer record of a request, set once per address: that is all off-thread integration
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
-  // An uncaptured error abandons the device: what follows would draw on a state no one knows.
-  // It is reported once, as the loss it is, with the error's text.
-  const onGpuError = (event: GPUUncapturedErrorEvent) =>
-    markWebgpuLost(rt, { reason: 'uncaptured-error', message: String(event.error.message) });
+  // The device this session holds until it is disposed; the preparation running, settled or not.
+  let claim: GpuDeviceClaim | undefined,
+    preparing: Promise<unknown> | undefined,
+    closing: Promise<void> | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
+    signal: rt.signal,
     scene: setup.scene,
     get presentedSurface() {
       // The host canvas needs no composition: the engine already presented into it. A lost or
@@ -86,22 +88,23 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     async prepare() {
-      context.signal?.throwIfAborted();
-      const { gpuDevice } = setup;
+      rt.signal.throwIfAborted();
+      const { gpuDevice } = context;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-      // The allocation ledger is installed before the first one: everything that follows is counted in it.
-      installGpuDeviceLedger(gpuDevice);
-      prepareGpuTiming(rt, gpuDevice);
-      watchGpuDevice(rt, gpuDevice, onGpuError);
+      // The session creates through its own handle, whose labels name it; the allocation ledger
+      // sits on it, above the tags, and carries the device's, which counts the shared caches.
+      claim = claimWebgpuDevice(rt, gpuDevice);
+      const base = installGpuDeviceLedger(gpuDevice, { counts: namesNoSession });
+      installGpuDeviceLedger(claim.device, { base });
+      const building = prepareWebgpuBackend(rt, claim.device);
+      preparing = building.catch(() => {});
       try {
-        await prepareWebgpuPages(rt, gpuDevice);
-        // The batch of root world boxes is reserved last: the module's linear memory will no
-        // longer grow behind it, and a node move will allocate nothing more.
-        context.preparationStep?.('root boxes');
-        rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
+        await building;
       } catch (error) {
-        diag.diagnosticFailure('webgpu-prepare-failed', error);
+        if (!isCancelled(rt.signal)) diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
+      } finally {
+        preparing = undefined;
       }
     },
     render(camera) {
@@ -179,12 +182,18 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       return readTransparentOcclusionAudit(rt);
     },
     shadowAtlasDigest() {
-      const device = rt.setup.gpuDevice;
-      if (!device || !rt.lights.shadows) return Promise.resolve(null);
+      const device = rt.gpu.device;
+      if (rt.run.lost || !device || !rt.lights.shadows) return Promise.resolve(null);
       return readShadowAtlasDigest(device, rt.lights.shadows);
     },
     dispose() {
-      return disposeWebgpuPages(rt, onGpuError);
+      // Inert and read as lost at once; torn down once, after the preparation stopped.
+      rt.closer.abort();
+      claim?.release();
+      markWebgpuLost(rt);
+      return (closing ??= preparing
+        ? preparing.then(() => disposeWebgpuPages(rt))
+        : disposeWebgpuPages(rt));
     },
   };
   return backend;

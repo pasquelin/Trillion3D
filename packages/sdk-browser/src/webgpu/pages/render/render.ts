@@ -20,7 +20,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  *  cut when it is available and to the CPU reference cut otherwise. */
 export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, aspect?: number) {
   const { run, gpu, vis, capture, context, blendState } = rt,
-    { gpuDevice, source } = rt.setup,
+    { source } = rt.setup,
+    gpuDevice = gpu.device,
     { selectionRoots, worldUpdates, rows } = rt.layout;
   if (capture.capturing && !capture.surfaceRenderAllowed) throw new Error('SURFACE_CAPTURE_BUSY');
   if (context.signal?.aborted) context.signal.throwIfAborted();

@@ -85,7 +85,7 @@ export function renderCpuCut(
 ) {
   const { run, gpu, timing, services } = rt,
     { bootstrapUrls, slots, viewport } = rt.setup,
-    gpuDevice = rt.setup.gpuDevice!;
+    gpuDevice = gpu.device!;
   // The CPU cut rewrites the lists itself: no held image leans on its own.
   run.gate.resourcesChanged();
   // The GPU sample no longer describes the image's arrays: this cut will write them.

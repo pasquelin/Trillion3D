@@ -146,7 +146,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // Index of the engine's world matrices: what the image walks, and what a moved node recomputes.
     // Rows, roots and transparent copies carry the matrices.
     worlds,
-    gpuDevice,
     viewport,
     clearColor,
     roots,

@@ -919,6 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
       "BATCHED_WORLD_VIEW": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
       "RAYCAST_NO_VIEW": "크기가 없는 canvas에 그림의 점을 요청했습니다: 겨눌 그림이 없습니다.",
+      "SESSION_OPEN_FAILED": "고유 코드가 없는 이유로 월드의 세션을 열 수 없었습니다(`world.diagnostic.error`). 발생한 오류는 `details.cause`에 있습니다.",
+      "WEBGPU_LOST": "WebGPU가 장치를 잃었거나, 장치의 오류로 아무것도 그릴 수 없는 상태가 되었습니다. `render`, `flush` 및 장치가 필요한 읽기에서 발생하며, 진단 `gpu-device-lost`가 이 이름으로 알리고, 이 때문에 세션을 열 수 없었을 때 `world.diagnostic.error`에 나타납니다.",
       "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다."
     }
@@ -3938,10 +3940,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "페이지가 보유하는 것: 모드, 읽고 쓸 수 있음.",
+    "summary": "페이지가 보유하는 것: 보기 모드(읽고 쓸 수 있음), 열린 세션 수와 마지막 세션이 실패한 이유(읽기 전용).",
     "members": {
       "mode": "뷰 모드: 일반 이미지면 `'beauty'`, 또는 엔진이 어떻게 작동하는지 보여주는 모드.",
       "sessions": "월드가 지금까지 연 세션: 세션을 다시 여는 변경이 여기에 보입니다.",
+      "error": "마지막 세션을 열 수 없었던 이유를 이름 있는 엔진 오류로 나타냅니다. 그 `code`는 `EngineError`에 문서화된 코드 중 하나(WebGPU가 장치를 잃었을 때는 `WEBGPU_LOST`)이거나, 고유 코드가 없는 이유에는 `SESSION_OPEN_FAILED`입니다. 문서화된 코드의 `EngineError`는 던져진 오류 그 자체이고, 그 밖의 오류는 변환되며 이때 던져진 오류는 `details.cause`에 있습니다. 각 열기가 시작될 때부터, 그리고 아무것도 시도하지 않을 때 `null`입니다.",
       "modes": "현재 렌더러가 제공하는 모든 뷰 모드."
     }
   },

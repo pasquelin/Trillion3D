@@ -4,6 +4,7 @@ import { createGpuShadowAtlas, shadowAtlasBytes } from '../../../gpu/shadow/atla
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { isCancelled } from '../../../backend/common.ts';
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
@@ -34,6 +35,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   try {
     lights.tiles = await createGpuLightTiles(device, lights.buffer);
   } catch (error) {
+    if (isCancelled(rt.signal)) throw error;
     lights.shadowReason = `light tiles unavailable: ${String(error)}`;
     diag.diagnosticFailure('light-tiles-unavailable', error);
     return;
@@ -44,6 +46,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
     lights.cull = await createGpuShadowCull(device, drawSlots);
   } catch (error) {
+    if (isCancelled(rt.signal)) throw error;
     lights.shadows?.dispose();
     lights.cull?.dispose();
     lights.shadows = undefined;

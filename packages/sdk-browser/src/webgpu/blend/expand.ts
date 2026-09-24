@@ -5,7 +5,7 @@ import {
   STORAGE_TYPES,
 } from './expandWgsl.ts';
 import { shaderFailed } from '../../gpu/core/shaderModule.ts';
-import { openValidation, validationError } from '../../gpu/core/errorScope.ts';
+import { validated } from '../../gpu/core/errorScope.ts';
 import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts';
 import { blendExpandUniform, EXPAND_PASSES, RUN_WORDS, UNI_WORDS } from './runs.ts';
 
@@ -131,56 +131,58 @@ export async function createBlendExpand(
       sizes.scratchWords * 4,
       GPUBufferUsage.STORAGE,
     );
-    openValidation(device);
-    const module = device.createShaderModule({ code: BLEND_EXPAND_SHADER });
-    if (await shaderFailed(device, module)) return bail();
-    const layout = device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNI_WORDS * 4 },
-        },
-        ...STORAGE_TYPES.map((type, index) => ({
-          binding: index + 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type },
-        })),
-      ],
+    const built = await validated(device, async () => {
+      const module = device.createShaderModule({ code: BLEND_EXPAND_SHADER });
+      if (await shaderFailed(module)) return undefined;
+      const layout = device.createBindGroupLayout({
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNI_WORDS * 4 },
+          },
+          ...STORAGE_TYPES.map((type, index) => ({
+            binding: index + 1,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type },
+          })),
+        ],
+      });
+      const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+      const pipelines = BLEND_EXPAND_ENTRIES.map((entryPoint) =>
+        device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } }),
+      );
+      // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
+      // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
+      const bindGroup = device.createBindGroup({
+        layout,
+        entries: [
+          { binding: 0, resource: { buffer: uniforms, size: UNI_WORDS * 4 } },
+          ...[
+            plan,
+            keep,
+            draws,
+            shared.counts ?? draws,
+            shared.clusters ?? draws,
+            scratch,
+            outputs.expanded,
+            outputs.args,
+          ].map((buffer, index) => ({ binding: index + 1, resource: { buffer } })),
+        ],
+      });
+      return { bindGroup, pipelines };
     });
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    const pipelines = BLEND_EXPAND_ENTRIES.map((entryPoint) =>
-      device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } }),
-    );
-    // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
-    // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
-    const bindGroup = device.createBindGroup({
-      layout,
-      entries: [
-        { binding: 0, resource: { buffer: uniforms, size: UNI_WORDS * 4 } },
-        ...[
-          plan,
-          keep,
-          draws,
-          shared.counts ?? draws,
-          shared.clusters ?? draws,
-          scratch,
-          outputs.expanded,
-          outputs.args,
-        ].map((buffer, index) => ({ binding: index + 1, resource: { buffer } })),
-      ],
-    });
-    if (await validationError(device)) return bail();
+    if (!built) return bail();
     return expandApi(
       device,
       { uniforms, plan, keep, draws },
-      bindGroup,
-      pipelines,
+      built.bindGroup,
+      built.pipelines,
       sizes.items,
       made,
     );
   } catch {
-    await cleanupFailedHiz(device, made);
+    cleanupFailedHiz(made);
     return undefined;
   }
 }

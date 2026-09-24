@@ -106,7 +106,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  *  selection readback and the explicit image readback. */
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture, timing, diag, services } = rt,
-    { gpuDevice } = rt.setup;
+    gpuDevice = gpu.device;
   // The held-image witness is NOT removed by default: a host that drains every image would then
   // never have a held image. Every drain that actually changes the image announces it itself — a
   // texture that arrives and a page that enters or leaves residency increment the resource
