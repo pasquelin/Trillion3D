@@ -1941,5 +1941,17 @@
       "awake": "活动",
       "step": "步长"
     }
+  },
+  "walk-with-collisions": {
+    "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子。",
+    "controls": {
+      "pushStrength": "推力（牛）",
+      "platformSpeed": "平台速度",
+      "stackAgain": "重新堆叠"
+    },
+    "readouts": {
+      "awake": "活动中",
+      "speed": "速度"
+    }
   }
 }

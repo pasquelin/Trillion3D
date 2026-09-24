@@ -54,7 +54,7 @@ export function flagsOf(mesh: Bodied) {
  */
 export function createPhysicsBodies(
   writer: CommandWriter,
-  budget: PhysicsBudget,
+  budget: Readonly<PhysicsBudget>,
   host: PhysicsHost,
   root: Object3D,
   state: NonNullable<ObjectPhysics['_state']>,

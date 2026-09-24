@@ -934,7 +934,8 @@
       "PHYSICS_NESTED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
       "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
       "PHYSICS_FORMAT": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
-      "PHYSICS_OFF": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`)."
+      "PHYSICS_OFF": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
+      "NO_VEHICLE": "`world.controls.kind` được đặt thành `'vehicle'` trong khi `world.controls.vehicle` là `null`: không có gì để lái."
     }
   },
   "EngineProfiler": {
@@ -6806,7 +6807,10 @@
       "stride": "Chỉ character: pha của bước chân tính bằng radian, một chân chạm đất tại 0 và π; ngược lại là 0.",
       "velocity": "Chỉ character: vận tốc của thân thể tính bằng mét trên giây, một bản sao; ngược lại là không.",
       "walkSpeed": "Chỉ character: mét trên giây khi đi bộ; mặc định là 3,5, một cuộc chạy bộ.",
-      "yawInput": "Chỉ flight: cần điều khiển yaw trong [-1, 1] (trái), được cộng vào các phím mũi tên; mặc định là 0."
+      "yawInput": "Chỉ flight: cần điều khiển yaw trong [-1, 1] (trái), được cộng vào các phím mũi tên; mặc định là 0.",
+      "mass": "Chỉ nhân vật, có vật lý: số kilôgam thân thể đè lên chỗ đứng; mặc định 80.",
+      "pushStrength": "Chỉ nhân vật, có vật lý: số newton thân thể dùng để đẩy vật thể; mặc định 250, lực đẩy liên tục của người lớn.",
+      "vehicle": "Chỉ phương tiện: thứ mà điều khiển `'vehicle'` lái — bất cứ thứ gì có `drive(input)`, nhận ga, phanh, lái và phanh tay mỗi khi phím thay đổi. Mặc định `null`, và khi đó `kind = 'vehicle'` ném `NO_VEHICLE`."
     }
   },
   "world.diagnostic": {
@@ -7167,6 +7171,22 @@
     "members": {
       "budget": "Giới hạn cố định, đọc một lần khi vật lý bắt đầu.",
       "gravity": "Trọng lực của thế giới: thiết lập sẵn hoặc vectơ."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Bất cứ thứ gì `world.controls.vehicle` có thể lái: nhận đầu vào mỗi khi nó thay đổi.",
+    "members": {
+      "drive": "Nhận bàn đạp và vô lăng mỗi khi một phím thay đổi chúng."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Điều người lái yêu cầu ở phương tiện: bàn đạp và vô lăng, như các phím của `world.controls` `'vehicle'` đặt.",
+    "description": "Vật lý của chính phương tiện — động cơ, bánh xe, hệ thống treo — đáp lại; hợp đồng này là tất cả những gì điều khiển biết.",
+    "members": {
+      "throttle": "Chân ga, từ 0 đến 1.",
+      "brake": "Bàn đạp phanh, từ 0 đến 1.",
+      "steer": "Vô lăng, từ −1 hết bên trái đến 1 hết bên phải.",
+      "handbrake": "Phanh tay có đang kéo không."
     }
   }
 }

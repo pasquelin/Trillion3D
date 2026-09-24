@@ -1474,8 +1474,7 @@
     {
       "id": "walk-with-collisions",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/walk-with-collisions.html"
     },
     {
       "id": "drive-a-car",

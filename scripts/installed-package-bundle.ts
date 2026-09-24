@@ -1,5 +1,5 @@
 import { cpSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import type { Metafile } from 'esbuild';
 import {
   proveBundledInstalledBrowser as runBundledBrowser,
@@ -22,6 +22,21 @@ function filesAt(root: string, directory = root): BundleAsset[] {
       ? filesAt(root, path)
       : [{ path: path.slice(root.length + 1), size: statSync(path).size }];
   });
+}
+
+/** The chunk that starts the physics (it names Jolt's module) finds its worker and both modules
+ *  beside it. */
+function checkPhysicsBeside(outputRoot: string, assets: BundleAsset[]) {
+  const starts = assets.filter(
+    ({ path }) =>
+      path.endsWith('.js') &&
+      readFileSync(join(outputRoot, path), 'utf8').includes('joltPhysics.wasm'),
+  );
+  if (!starts.length) throw new Error('browser bundle has no chunk that starts the physics');
+  for (const { path } of starts)
+    for (const beside of ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm'])
+      if (!assets.some((asset) => asset.path === join(dirname(path), beside)))
+        throw new Error(`browser bundle: ${path} does not find ${beside} beside it`);
 }
 
 interface EmittedBrowserBundle {
@@ -48,6 +63,7 @@ function emitInstalledBrowserBundle({
   const packageRoot = join(fixture, 'node_modules', packageName);
   const decodeRoot = join(packageRoot, 'dist/sdk-browser/src/page/decode');
   const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration');
+  const physicsRoot = join(packageRoot, 'dist/sdk-browser/src/physics');
   const explorer = join(fixture, 'explorer.ts');
   const metafile = join(outputRoot, 'metafile.json');
   mkdirSync(outputRoot, { recursive: true });
@@ -62,31 +78,46 @@ function emitInstalledBrowserBundle({
       explorer,
       join(decodeRoot, 'pageDecodeWorker.js'),
       join(integrationRoot, 'pageIntegrationWorker.js'),
+      join(physicsRoot, 'physicsWorker.js'),
       '--bundle',
       '--format=esm',
       '--platform=browser',
       '--splitting',
       '--entry-names=[name]',
-      '--chunk-names=chunks/[name]-[hash]',
+      // Chunks beside the entries: a chunk names its worker beside itself (`besideModule`), as
+      // the physics session, a chunk of its own, names `physicsWorker.js`.
+      '--chunk-names=[name]-[hash]',
       `--outdir=${outputRoot}`,
       `--metafile=${metafile}`,
     ],
     fixture,
   );
-  const wasm = join(decodeRoot, 'pageCodec.wasm');
-  for (const { path } of filesAt(outputRoot))
-    if (
-      path.endsWith('.js') &&
-      readFileSync(join(outputRoot, path), 'utf8').includes('pageCodec.wasm')
-    )
-      cpSync(wasm, join(dirname(join(outputRoot, path)), 'pageCodec.wasm'));
+  // Each WebAssembly module beside the chunk that fetches it by its own URL.
+  const modules = [
+    join(decodeRoot, 'pageCodec.wasm'),
+    join(physicsRoot, 'joltPhysics.wasm'),
+    join(physicsRoot, 'joltPhysicsThreads.wasm'),
+  ];
+  for (const { path } of filesAt(outputRoot)) {
+    if (!path.endsWith('.js')) continue;
+    const text = readFileSync(join(outputRoot, path), 'utf8');
+    for (const wasm of modules.filter((file) => text.includes(basename(file))))
+      cpSync(wasm, join(dirname(join(outputRoot, path)), basename(wasm)));
+  }
   for (const name of sceneCaches)
     cpSync(join(fixture, name), join(outputRoot, name), { recursive: true });
   cpSync(join(fixture, 'common-worker.js'), join(outputRoot, 'common-worker.js'));
   const assets = filesAt(outputRoot);
-  for (const required of ['explorer.js', 'pageDecodeWorker.js', 'pageIntegrationWorker.js'])
+  const entries = [
+    'explorer.js',
+    'pageDecodeWorker.js',
+    'pageIntegrationWorker.js',
+    'physicsWorker.js',
+  ];
+  for (const required of entries)
     if (!assets.some(({ path }) => path === required))
       throw new Error(`browser bundle did not emit ${required}`);
+  checkPhysicsBeside(outputRoot, assets);
   if (!assets.some(({ path }) => path.endsWith('/pageCodec.wasm')))
     throw new Error('browser bundle did not place pageCodec.wasm beside its referring chunk');
   return {

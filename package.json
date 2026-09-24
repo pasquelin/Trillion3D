@@ -31,6 +31,7 @@
     "README.md",
     "docs/SDK.md",
     "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
     "packages/README.md"
   ],
   "scripts": {

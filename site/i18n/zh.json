@@ -484,7 +484,6 @@
       "cloth-and-rope": "物理引擎集成",
       "soft-bodies": "物理引擎集成",
       "hinges-and-joints": "物理引擎集成",
-      "walk-with-collisions": "物理引擎集成",
       "drive-a-car": "物理引擎集成",
       "a-room-in-vr": "WebXR会话",
       "a-360-photo-in-vr": "WebXR会话",
@@ -1064,6 +1063,17 @@
           "用 <code>scene.load</code> 加载的模型用它自己的三角形碰撞，这些三角形在编译时就已准备好。<code>await world.raycast(point, { exact: true })</code> 能找到光标下的那个三角形。"
         ],
         "tryIt": "多投放些箱子，把重力换成月球，再打开慢动作。"
+      },
+      "touch-and-react": {
+        "title": "触碰与回应",
+        "description": "走进你的世界：开启物理后，角色会攀爬、搭乘并推动遇到的东西，而它们也会推回来。",
+        "steps": [
+          "用 <code>controls: 'character'</code> 和 <code>physics: true</code> 创建世界。角色现在和箱子一样，是物理中的一个物体。",
+          "把永远不动的东西标为 <code>'static'</code>：地面、台阶、墙壁。角色能登上不超过膝盖高的台阶和不超过 45° 的斜坡。",
+          "把平台标为 <code>'kinematic'</code>，并在每一帧用你的代码移动它：站在上面的东西会随之移动。",
+          "让箱子成为轻的 <code>'dynamic'</code> 物体：角色以 <code>pushStrength</code> 牛顿的力推动它们，它们会倒下、翻滚并推回来。"
+        ],
+        "tryIt": "点击画面，用 W A S D 行走，空格键跳跃。登上台阶，乘上平台，推倒那堆箱子。"
       },
       "your-own-scene": {
         "title": "属于你自己的场景",

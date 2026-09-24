@@ -6,6 +6,11 @@ import {
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { JoltThreadStart } from './joltThreads.ts';
+import type { CharacterReport } from './characterDriver.ts';
+import type {
+  CharacterInput,
+  CharacterSettings,
+} from '../../../sdk-core/src/collision/characterSettings.ts';
 
 /** Version of the page ↔ worker messages below and of the word layouts they carry. */
 export const PHYSICS_PROTOCOL = PHYSICS_LAYOUT_VERSION;
@@ -29,6 +34,10 @@ export type ToPhysics =
   | { type: 'clock'; paused: boolean; timeScale: number }
   /** Scene queries (`CAST_WORDS` each), answered against the last step by a `cast` reply. */
   | { type: 'cast'; id: number; queries: Uint32Array }
+  /** The world's character: its settings (`null` removes it), and its feet when it is put there. */
+  | { type: 'character'; settings: CharacterSettings | null; feet: number[] | null }
+  /** The character's keys, and the jump presses counted since it began. */
+  | { type: 'input'; input: CharacterInput; jumps: number }
   /** A result buffer the page has read, handed back. */
   | { type: 'buffer'; buffer: ArrayBuffer }
   /** Sent by the worker to a worker of its own: run one of the module's threads. */
@@ -50,6 +59,8 @@ export interface PhysicsResults {
   stepMs: number;
   /** Bodies awake after the tick. */
   active: number;
+  /** The character after the tick, when it has one and it stepped. */
+  character: CharacterReport | null;
 }
 
 /**

@@ -1,16 +1,7 @@
 import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
 import { besideModule } from '../host/besideModule.ts';
+import { stepThreads } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, resultWords } from './protocol.ts';
-
-/**
- * Threads the step gets: the budget's, capped by the logical cores minus the page's own; one where
- * memory cannot be shared (a page that is not cross-origin isolated) or the cores are not reported.
- */
-function stepThreads(wanted: number) {
-  const cores = navigator.hardwareConcurrency;
-  if (!globalThis.crossOriginIsolated || !Number.isInteger(cores) || cores < 2) return 1;
-  return Math.max(1, Math.min(Math.floor(wanted), cores - 1));
-}
 
 /** The physics worker, started on the module that fits the page (threaded when it can share
  *  memory) with the budget and its two result buffers. */
