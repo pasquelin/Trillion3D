@@ -43,7 +43,7 @@
     <p data-words="note"></p>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, opening } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -112,7 +112,6 @@
         world.invalidate();
       }
       const ui = controls({
-        mouse: 'Drag to look around the gallery · the graph is the time between frames',
         turning: true,
         revealAgain: () => {
           for (const exhibit of shown) exhibit.visible = false;
@@ -148,9 +147,13 @@
         graph.fillText('16.7 ms', 8, height - 16.7 * scale - 6);
       }
 
-      let circling = true;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
+      // The camera sways slowly round the hall, until the first press or wheel on the canvas.
+      const { position: eye } = world.camera, { target } = world.controls;
+      const [dx, dz] = [eye.x - target.x, eye.z - target.z];
+      opening(world, (time) => {
+        const turn = 0.48 * (1 - Math.cos(time * 0.25)), [cos, sin] = [Math.cos(turn), Math.sin(turn)];
+        eye.set(target.x + dx * cos + dz * sin, eye.y, target.z + dz * cos - dx * sin);
+      });
       world.onFrame(({ delta, time, metrics }) => {
         frameIndex++;
         const ms = metrics.rafIntervalMs;
@@ -168,12 +171,6 @@
           const grow = since < 0 ? 0 : Math.min(1, since / 30);
           exhibit.scale.setScalar(Math.max(0.001, 1 - (1 - grow) ** 3 + Math.sin(grow * Math.PI) * 0.12));
           if (ui.turning) exhibit.rotation.y += Math.min(delta, 0.05) * (0.4 + (index % 3) * 0.15);
-        }
-        if (circling) {
-          const { position } = world.camera, { target } = world.controls, turn = Math.sin(time * 0.25) * 0.002;
-          const x = position.x - target.x, z = position.z - target.z;
-          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
-          world.controls.update();
         }
         if (frameIndex % 15 === 0) {
           before(worstBefore ? `${worstBefore.toFixed(1)} ms` : say('measuring'));
