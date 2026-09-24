@@ -1,5 +1,5 @@
 /** A physics worker faked in place of `Worker`: it keeps the command words the page sends it. */
-export interface FakeWorker {
+interface FakeWorker {
   onmessage(event: { data: unknown }): void;
   words: Uint32Array[];
 }

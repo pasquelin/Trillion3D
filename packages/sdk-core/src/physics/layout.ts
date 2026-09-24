@@ -92,8 +92,6 @@ export const MOTOR = { off: 0, velocity: 1, position: 2 } as const;
  * module lists the joints pulled past their break force and takes them out (`jolt_broken`).
  */
 export const JOINT_WORDS = 31;
-export const UNJOINT_WORDS = 2;
-export const MOTOR_WORDS = 5;
 
 /** Per-body flag bits: sensor, continuous collision, contact events wanted, hidden (no pose). */
 export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8 } as const;
