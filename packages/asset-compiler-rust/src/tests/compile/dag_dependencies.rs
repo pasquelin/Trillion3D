@@ -109,9 +109,7 @@ fn every_bundle_lists_a_closure_that_reaches_the_root_cover_within_the_published
 
 #[test]
 fn a_dependency_cycle_is_refused_with_the_bundle_named() {
-    let error = close_dependencies(&[vec![], vec![2], vec![1]])
-        .err()
-        .expect("refused");
+    let error = close_dependencies(&[vec![], vec![2], vec![1]]).expect_err("refused");
     assert_eq!(error.code, "INVALID_PAGE_DEPENDENCIES");
     assert!(error.message.contains("bundle 1"), "{error}");
 }
@@ -122,8 +120,7 @@ fn a_page_whose_parent_bundle_is_not_listed_is_refused_with_the_page_named() {
     let dag = vec![cluster(1, 3, None, Some(0)), cluster(0, 3, Some(0), None)];
     let groups = vec![group(1, vec![1], vec![0])];
     let error = verify_dependencies(&dag, &groups, &[0, 1], &[0, 1], &[vec![], vec![]], 1)
-        .err()
-        .expect("refused");
+        .expect_err("refused");
     assert!(
         error.message.contains("Page 1") && error.message.contains("bundle 0"),
         "{error}"
