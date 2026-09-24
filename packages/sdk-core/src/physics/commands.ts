@@ -1,4 +1,13 @@
-import { ADD_WORDS, OP, PART_WORDS, RESTORE_WORDS, VIEW_WORDS, type SHAPE } from './layout.ts';
+import {
+  ADD_WORDS,
+  JOINT_WORDS,
+  OP,
+  PART_WORDS,
+  RESTORE_WORDS,
+  VIEW_WORDS,
+  type SHAPE,
+} from './layout.ts';
+import type { JointRecord } from './jointRecord.ts';
 
 /** One primitive part of a compound body, placed in the body's frame (`PART_WORDS`). */
 export interface CompoundPart {
@@ -163,6 +172,24 @@ export class CommandWriter {
     this.words[this.length++] = OP.gravity;
     this.floats.set(vector, this.length);
     this.length += 3;
+  }
+  /** Connects two bodies, or a body and the world. */
+  joint(j: JointRecord) {
+    const { mode, target, maxForce } = j.motor;
+    const values = [0, 0, 0, ...j.frameA, ...j.frameB, ...j.limits, 0, target, maxForce];
+    this.op(OP.joint, j.id, [...values, j.breakForce]);
+    const at = this.length - JOINT_WORDS;
+    this.words.set([j.kind, j.a >>> 0, j.b >>> 0], at + 2);
+    this.words[at + 27] = mode;
+  }
+  /** Takes a joint out; one that broke or was never made is ignored. */
+  unjoint(id: number) {
+    this.op(OP.unjoint, id, []);
+  }
+  /** Sets a hinge's or a slider's motor. */
+  motor(id: number, mode: number, target: number, maxForce: number) {
+    this.op(OP.motor, id, [0, target, maxForce]);
+    this.words[this.length - 3] = mode;
   }
   /** The words written so far, copied out, and the writer emptied. */
   take(): Uint32Array {
