@@ -1,35 +1,34 @@
 # Tests and Performance Benchmarks
 
 One command per intent, one location per nature of test. Everything below is verified:
-counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks the probe list.
+the folder tree is checked against the repository, and `tests/browser/test-gpu.test.ts` tracks the
+probe list.
 
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
 ```
-packages/
-  sdk-core/src/       83 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    391 *.test.ts
-  sdk-node/src/       10 *.test.ts
-tests/
-  integration/        20 *.test.ts — architecture, boundaries, public contracts
-  browser/renders/    43 *.browser.ts — rendering in real Chromium
-  browser/probes/     20 GPU probes + 32 support modules
-  browser/support/    71 pages and cases served to the render proofs
-  kit/                31 shared test tools: fake GPU devices, servers, assertions
-  fixtures/           12 test data builders; formats/ holds the compiler goldens
-bench/
-  core/               14 modules: measure, report, diff, ulp, baseline
-  perf/core/          14 *.perf.ts
-  perf/browser/       38 *.perf.ts + 33 support modules
-  oracles/            45 reference implementations, copied verbatim
-  runner/             84 modules: the measurement harness (README)
-  witnesses/          33 modules: the host-library witnesses, never published
+packages/sdk-core/src/       unit tests (*.test.ts), next to their source
+packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
+packages/sdk-node/src/       unit tests (*.test.ts), next to their source
+tests/integration/           architecture, boundaries, public contracts (*.test.ts)
+tests/browser/renders/       rendering in real Chromium (*.browser.ts)
+tests/browser/probes/        GPU probes and their support modules
+tests/browser/support/       pages and cases served to the render proofs
+tests/kit/                   shared test tools: fake GPU devices, servers, assertions
+tests/fixtures/              test data builders; formats/ holds the compiler goldens
+bench/core/                  measure, report, diff, ulp, baseline
+bench/perf/core/             CPU benchmarks (*.perf.ts)
+bench/perf/browser/          browser benchmarks (*.perf.ts) and their support modules
+bench/oracles/               reference implementations, copied verbatim
+bench/runner/                the measurement harness (README)
+bench/witnesses/             the host-library witnesses, never published
 ```
 <!-- tests-inventory:end -->
 
-The counts are read from the tree by `node scripts/tests-inventory.ts --write`, and
-`scripts/tests-inventory.test.ts` fails when this page and the tree disagree.
+The tree is rendered by `node scripts/tests-inventory.ts --write`, and
+`scripts/tests-inventory.test.ts` fails when this page and the repository disagree. It carries no
+file count: counts changed with every pull request and made parallel ones conflict (#452).
 
 One rule: **a unit test sits next to the file it tests; every other kind of test lives under
 `tests/`**, one folder per nature — `integration/` for architecture and public contracts,
@@ -45,12 +44,12 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 
 ## 2. The Four Commands
 
-| Command             | What it runs                                                                  |
-| ------------------- | ----------------------------------------------------------------------------- |
-| `pnpm test`         | every unit, integration, kit, bench-runner and script test                    |
-| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially          |
-| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report                  |
-| `pnpm run validate` | full pre-merge validation gate                                                |
+| Command             | What it runs                                                         |
+| ------------------- | -------------------------------------------------------------------- |
+| `pnpm test`         | every unit, integration, kit, bench-runner and script test           |
+| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially |
+| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report         |
+| `pnpm run validate` | full pre-merge validation gate                                       |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
@@ -128,6 +127,7 @@ inherited rather than the ones it caused, and the baseline lives here so the nex
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
 `TRILLION3D_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of #281: **2 fail** of
 64, always these two —
+
 - `explorer-startup`: the portal checks pass, then the geometry-garden lesson opens its world
   (`scene.load` resolves, the controls enable, a manual `world.render()` returns metrics), yet
   the world never schedules a frame: the canvas keeps its default 300 × 150 buffer under a CSS box
@@ -211,15 +211,15 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command                       | Role                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
-| `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
-| `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite     |
-| `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
-| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |
+| Command                       | Role                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
+| `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
+| `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite         |
+| `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
+| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
 | `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections |
-| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git            |
-| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
-| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links      |
+| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
+| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |

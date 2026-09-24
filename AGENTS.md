@@ -15,7 +15,9 @@ disagreement is reported to the maintainer.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
    browsers of other sessions and of the maintainer run on the same machine.
 4. **One branch, one worktree, one session.** Never commit on `develop` or `main`, never write in
-   the shared checkout, never touch another session's worktree.
+   the shared checkout, never touch another session's worktree. Every worktree lives in
+   `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
+   nothing is written beside the project or in the system's temporary folders.
 5. **Never open an issue** unless the maintainer asks. A defect found on the way is one line in
    your report. Sole exceptions: the measurer and the auditor open one per regression or finding,
    and a lead splits an issue too large for one pull request; all of them write it as the writer.
