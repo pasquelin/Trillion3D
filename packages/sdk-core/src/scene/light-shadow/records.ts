@@ -48,7 +48,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     },
     dropPages,
     free,
-    /** The first free slice, or −1 when every published slice is taken. */
+    /** The first free slice: there is one per light the store accepts (`MAX_SHADOW_SLICES`). */
     claim() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
         if (!taken[slice]) {

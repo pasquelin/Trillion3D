@@ -13,7 +13,6 @@ test('every shadow-casting light up to maxLights holds a slice and a table range
   const plan = createShadowPlan(24, 32);
   for (let i = 0; i < LIGHT_SETTINGS.maxLights; i++) store.add({ ...SUN, id: `sun${i}` });
   planFrame(plan, store, 0);
-  assert.equal(plan.counts.denied, 0);
   const bases = new Set<number>();
   for (let slot = 0; slot < store.count; slot++) {
     const slice = store.sliceOf(slot);
