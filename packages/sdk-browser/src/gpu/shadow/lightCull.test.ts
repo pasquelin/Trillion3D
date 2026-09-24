@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mockDrawDevice } from '../../../../../tests/kit/gpu/drawDevice.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createGpuDraw } from '../draw/draw.ts';
 import { createShadowLightCull } from './lightCull.ts';
 import type { DrawnLog } from '../dag/types.ts';
@@ -9,8 +8,7 @@ import type { DrawnLog } from '../dag/types.ts';
 // The light cut's casters reach the shadow pass through ONE cull pass, whatever the views and the
 // regions: no per-view list, no compaction, and a width read on the card from the drawn log.
 test('the light cull is one pass for every region, sized by the widest drawn log', async () => {
-  installGpuGlobals();
-  const { device } = mockDrawDevice();
+  const { device } = fakeDevice();
   const draw = await createGpuDraw(device, 100_000);
   assert.ok(draw);
   const map = draw.lightRows(4096);

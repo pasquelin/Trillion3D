@@ -3857,7 +3857,7 @@
       "texturePool": "Doku sayfaları için ayrılan GPU belleği baytı, doku havuzu olmayan bir motorda (WebGL2) `null`; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve geometri havuzunun yanında bıraktığı kadarıyla.",
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
-      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Asla makineden okunmaz.",
+      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
       "cpu": "Dünyanın çözülmüş sayfalarının tutabileceği CPU belleği baytı; bir sonraki sahne yüklemesinde uygulanır.",
       "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
@@ -4602,7 +4602,7 @@
   },
   "createSceneLightStore": {
     "summary": "Sabit kapasitede sahne ışıkları.",
-    "description": "Tampon, `maxLights` ışık için bir kez tahsis edilir ve asla yeniden tahsis edilmez; bir ışığı eklemek, ayarlamak ya da kaldırmak yalnızca on altı float'ını yazar ve revizyonunu artırır. Işık başına `revision`, gölge zamanlayıcısının bir ışığın değiştiğini bilmek için okuduğu şeydir: hiçbir yapı kare başına yeniden inşa edilmez."
+    "description": "Tampon, `maxLights` ışık için bir kez tahsis edilir ve asla yeniden tahsis edilmez; bir ışığı eklemek, ayarlamak ya da kaldırmak yalnızca on altı float'ını yazar ve revizyonunu artırır. Işık başına `revision`, bir okuyucuya bir ışığın değiştiğini bildirir: hiçbir yapı kare başına yeniden inşa edilmez. Gölge zamanlayıcısı ışığın biçimini kendisi okur, bu yüzden yoğunluk ya da renk değişikliği hiçbir gölge sayfasını eskitmez."
   },
   "createSceneRoot": {
     "summary": "Boş, sürümlenmiş bir sahne hiyerarşisi oluşturur.",
