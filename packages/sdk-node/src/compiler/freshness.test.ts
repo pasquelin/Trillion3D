@@ -84,3 +84,24 @@ test('no binary or no crate sources is not a refusal', async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+// Behaviour: the page codec the compiler links is built into it: an edit there is a stale build.
+test('editing the page codec beside the crate reports the compiler stale', async () => {
+  const packages = await mkdtemp(join(tmpdir(), 'trillion3d-freshness-'));
+  const root = join(packages, 'asset-compiler-rust'),
+    binary = join(root, 'target/release', binaryName),
+    codec = join(packages, 'page-codec-wasm/src/lib.rs');
+  try {
+    await mkdir(join(root, 'target/release'), { recursive: true });
+    await mkdir(join(packages, 'page-codec-wasm/src'), { recursive: true });
+    for (const file of [join(root, 'Cargo.toml'), codec, binary]) await writeFile(file, '');
+    await utimes(join(root, 'Cargo.toml'), 1_000, 1_000);
+    await utimes(codec, 1_000, 1_000);
+    await utimes(binary, 2_000, 2_000);
+    assert.equal(sourceNewerThan(binary, root), null);
+    await utimes(codec, 3_000, 3_000);
+    assert.equal(sourceNewerThan(binary, root), codec);
+  } finally {
+    await rm(packages, { recursive: true, force: true });
+  }
+});
