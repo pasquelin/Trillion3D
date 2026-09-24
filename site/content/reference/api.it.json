@@ -1581,7 +1581,8 @@
       "SCENE_NOT_SAVABLE": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "PHYSICS_BUDGET": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
       "PHYSICS_NESTED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
-      "PHYSICS_FAILED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`."
+      "PHYSICS_FAILED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
+      "NO_VEHICLE": "`world.controls.kind` è stato impostato a `'vehicle'` mentre `world.controls.vehicle` è `null`: non c’è niente da guidare."
     }
   },
   "enginePose": {
@@ -6268,7 +6269,7 @@
       "enabled": "Se il controller ascolta mouse e tastiera e muove la camera. `false` lo mette in pausa — nessun input, nessun `update` — senza ricrearlo: velocità, appoggio, passo, orientamento e rotazione restano, e `true` riprende esattamente da dove si era fermato.",
       "target": "Il punto attorno a cui ruota un controller a perno.",
       "autoUpdate": "Se il ciclo del mondo chiama `update` prima di ogni fotogramma, prima degli hook di `world.beforeFrame`. `false` affida il passo alla pagina, che chiama `update` da un tale hook, tanto spesso e con i sotto-passi che integra; il mondo allora non lo fa più mai.",
-      "colliders": "Solo personaggio: le mesh con cui collide il corpo — un oggetto o un elenco, discendenti inclusi — o `null`. Impostarle costruisce un albero di triangoli statico dai loro triangoli in spazio mondo così come stanno ora: un passaggio sui triangoli e una costruzione `O(T log T)`, circa 52 byte per triangolo. I modelli compilati non vengono ancora letti: dai loro una mesh semplice come sostituto. Un `CharacterCollision` — il mondo di un motore fisico, qualsiasi cosa risponda a `resolveCapsule` e `groundBelow` — viene usato così com'è.",
+      "colliders": "Solo personaggio: le mesh con cui collide il corpo — un oggetto o un elenco, discendenti inclusi — o `null`. Impostarle costruisce un albero di triangoli statico dai loro triangoli in spazio mondo così come stanno ora: un passaggio sui triangoli e una costruzione `O(T log T)`, circa 52 byte per triangolo. I modelli compilati non vengono ancora letti: dai loro una mesh semplice come sostituto. Un `CharacterCollision` — il mondo di un motore fisico, qualsiasi cosa risponda a `resolveCapsule` e `groundBelow` — viene usato così com'è. Inutilizzato mentre `world.physics` è attiva: il corpo è allora quello della fisica e incontra i suoi corpi, `mesh.physics`.",
       "rebuildColliders": "Solo personaggio: ricostruisce l'albero di collisione, dopo che i collisori si sono spostati o sono cambiati. Un `CharacterCollision` è il proprio mondo e viene passato invariato.",
       "velocity": "Solo personaggio: la velocità del corpo in metri al secondo, una copia; altrimenti zero.",
       "onGround": "Solo personaggio: se i piedi sono su un pavimento; `false` per ogni altro controller.",
@@ -6316,7 +6317,10 @@
       "fallGravity": "Solo personaggio: accelerazione verso il basso durante la caduta, in m/s²; 1,6 g di default, perché un salto non fluttui.",
       "stopTime": "Solo personaggio: secondi per perdere il 95 % della velocità una volta rilasciato ogni tasto, al suolo; 0,08 di default.",
       "headBob": "Solo personaggio: metri di cui l'occhio sale e scende a ogni passo al trotto; 0,035 di default, 0 lo mantiene livellato.",
-      "landingDip": "Solo personaggio: secondi dal contatto al suolo fino al punto più basso dell'abbassamento di atterraggio dell'occhio, tanto profondo quanto è veloce l'impatto; 0,06 di default, 0 lo disattiva."
+      "landingDip": "Solo personaggio: secondi dal contatto al suolo fino al punto più basso dell'abbassamento di atterraggio dell'occhio, tanto profondo quanto è veloce l'impatto; 0,06 di default, 0 lo disattiva.",
+      "mass": "Solo personaggio, con fisica: chilogrammi che il corpo preme su ciò su cui poggia; 80 per impostazione predefinita.",
+      "pushStrength": "Solo personaggio, con fisica: newton con cui il corpo spinge i corpi; 250 per impostazione predefinita, la spinta sostenuta di un adulto.",
+      "vehicle": "Solo veicolo: ciò che guidano i controlli `'vehicle'` — qualunque cosa con `drive(input)`, che riceve acceleratore, freno, sterzo e freno a mano a ogni cambio dei tasti. `null` per impostazione predefinita, e `kind = 'vehicle'` lancia `NO_VEHICLE` finché lo è."
     }
   },
   "world.renderer": {
@@ -7253,6 +7257,22 @@
       "x": "Da sinistra a destra.",
       "y": "Dal basso verso l'alto.",
       "z": "Da dietro in avanti."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Qualunque cosa `world.controls.vehicle` possa guidare: riceve l’input ogni volta che cambia.",
+    "members": {
+      "drive": "Riceve pedali e volante ogni volta che un tasto li cambia."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Ciò che un guidatore chiede a un veicolo: i pedali e il volante, come li impostano i tasti di `world.controls` `'vehicle'`.",
+    "description": "La fisica del veicolo — motore, ruote, sospensioni — risponde; questo contratto è tutto ciò che i controlli sanno.",
+    "members": {
+      "throttle": "Acceleratore, da 0 a 1.",
+      "brake": "Pedale del freno, da 0 a 1.",
+      "steer": "Volante, da −1 tutto a sinistra a 1 tutto a destra.",
+      "handbrake": "Se il freno a mano è tirato."
     }
   }
 }

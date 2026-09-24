@@ -925,7 +925,8 @@
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
       "PHYSICS_NESTED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
-      "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다."
+      "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
+      "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다."
     }
   },
   "EngineProfiler": {
@@ -3776,7 +3777,7 @@
       "zoomSpeed": "피벗 컨트롤러: 휠과 핀치의 줌 속도; 기본값은 1.",
       "autoForward": "비행 전용: 키 없이 `movementSpeed`로 전진, W로 가속, S로 정지.",
       "autoUpdate": "세계의 루프가 매 프레임, `world.beforeFrame` 훅보다 먼저 `update`를 호출하는지 여부. `false`로 하면 그 단계는 페이지에 맡겨지며, 페이지는 그런 훅에서 `update`를 호출한다; 원하는 빈도로, 원하는 하위 단계로 나누어 적분할 수 있다; 이 경우 세계가 그것을 진행시키는 일은 결코 없다.",
-      "colliders": "캐릭터 전용: 몸체가 충돌하는 메시 — 단일 객체나 목록, 그 자손들도 포함 — 또는 `null`. 이를 설정하면 지금 상태의 월드 공간 삼각형으로부터 정적인 삼각형 트리가 구축된다: 삼각형에 대한 한 번의 패스, `O(T log T)` 구축, 삼각형당 약 52바이트가 유지된다. 컴파일된 모델은 아직 읽히지 않는다: 대신 단순한 메시를 주어라. `CharacterCollision`(물리 엔진의 월드처럼 `resolveCapsule`과 `groundBelow`에 답하는 것)은 그대로 사용됩니다.",
+      "colliders": "캐릭터 전용: 몸체가 충돌하는 메시 — 단일 객체나 목록, 그 자손들도 포함 — 또는 `null`. 이를 설정하면 지금 상태의 월드 공간 삼각형으로부터 정적인 삼각형 트리가 구축된다: 삼각형에 대한 한 번의 패스, `O(T log T)` 구축, 삼각형당 약 52바이트가 유지된다. 컴파일된 모델은 아직 읽히지 않는다: 대신 단순한 메시를 주어라. `CharacterCollision`(물리 엔진의 월드처럼 `resolveCapsule`과 `groundBelow`에 답하는 것)은 그대로 사용됩니다. `world.physics`가 실행 중이면 쓰이지 않습니다: 몸은 물리의 것이 되어 그 물체들(`mesh.physics`)과 만납니다.",
       "rebuildColliders": "캐릭터 전용: 콜라이더가 움직이거나 바뀐 뒤, 충돌 트리를 재구축한다. `CharacterCollision`은 그 자체로 월드이므로 그대로 전달됩니다.",
       "velocity": "캐릭터 전용: 몸체 속도의 사본, 초당 미터; 그 외에는 0.",
       "onGround": "캐릭터 전용: 발이 바닥 위에 있는지 여부; 다른 컨트롤러에서는 `false`.",
@@ -3802,7 +3803,10 @@
       "headBob": "캐릭터 전용: 조깅 시 걸음마다 눈이 위아래로 흔들리는 미터 수; 기본값 0.035, 0이면 수평 유지.",
       "landingDip": "캐릭터 전용: 착지부터 눈의 착지 가라앉음 최저점까지의 초. 충격이 빠를수록 더 깊어진다; 기본값 0.06, 0이면 꺼짐.",
       "onLand": "캐릭터 전용: 착지 시, m/s 단위의 아래 방향 속도와 함께 호출됨; 기본값 `null`.",
-      "onJump": "캐릭터 전용: 점프로 몸체가 땅을 떠날 때 호출됨; 기본값 `null`."
+      "onJump": "캐릭터 전용: 점프로 몸체가 땅을 떠날 때 호출됨; 기본값 `null`.",
+      "mass": "캐릭터 전용, 물리 사용 시: 몸이 딛고 선 곳을 누르는 킬로그램; 기본값 80.",
+      "pushStrength": "캐릭터 전용, 물리 사용 시: 몸이 물체를 미는 뉴턴; 기본값 250, 성인이 지속적으로 미는 힘.",
+      "vehicle": "차량 전용: `'vehicle'` 컨트롤이 운전하는 대상 — `drive(input)`을 가진 무엇이든, 키가 바뀔 때마다 가속, 브레이크, 조향, 핸드브레이크를 받습니다. 기본값 `null`이며, 그동안 `kind = 'vehicle'`은 `NO_VEHICLE`을 던집니다."
     }
   },
   "world.renderer": {
@@ -7253,6 +7257,22 @@
       "x": "왼쪽에서 오른쪽으로.",
       "y": "아래에서 위로.",
       "z": "뒤에서 앞으로."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle`이 운전할 수 있는 모든 것: 입력이 바뀔 때마다 받습니다.",
+    "members": {
+      "drive": "키가 바꿀 때마다 페달과 핸들을 받습니다."
+    }
+  },
+  "VehicleInput": {
+    "summary": "운전자가 차량에 요구하는 것: `world.controls` `'vehicle'`의 키가 정하는 페달과 핸들.",
+    "description": "차량 자체의 물리 — 엔진, 바퀴, 서스펜션 — 가 이에 답합니다. 컨트롤이 아는 것은 이 계약뿐입니다.",
+    "members": {
+      "throttle": "가속 페달, 0에서 1.",
+      "brake": "브레이크 페달, 0에서 1.",
+      "steer": "핸들, −1 왼쪽 끝에서 1 오른쪽 끝.",
+      "handbrake": "핸드브레이크가 당겨졌는지 여부."
     }
   }
 }

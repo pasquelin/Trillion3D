@@ -122,3 +122,13 @@ export async function runJoltThread(start: JoltThreadStart) {
   e._emscripten_tls_init();
   (e.__indirect_function_table.get(start.entry) as (arg: number) => number)(start.arg);
 }
+
+/**
+ * Threads the step gets: the budget's, capped by the logical cores minus the page's own; one where
+ * memory cannot be shared (a page that is not cross-origin isolated) or the cores are not reported.
+ */
+export function stepThreads(wanted: number) {
+  const cores = navigator.hardwareConcurrency;
+  if (!globalThis.crossOriginIsolated || !Number.isInteger(cores) || cores < 2) return 1;
+  return Math.max(1, Math.min(Math.floor(wanted), cores - 1));
+}

@@ -8,6 +8,7 @@ import { createOrbitCameraControls } from '../../camera/controls/orbitControls.t
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
 import { createCharacterCameraControls } from '../../camera/controls/characterControls.ts';
+import { createVehicleCameraControls } from '../../camera/controls/vehicleControls.ts';
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts';
 
@@ -17,7 +18,7 @@ import { createPanZoomCameraControls } from '../../camera/controls/panZoomContro
  * `world.controls.colliders` — and looks through its eyes.
  */
 export type WorldControls =
-  'orbit' | 'fly' | 'firstPerson' | 'character' | 'trackball' | 'panZoom' | 'none';
+  'orbit' | 'fly' | 'firstPerson' | 'character' | 'vehicle' | 'trackball' | 'panZoom' | 'none';
 
 const position = new Vector3(),
   rotation = new Quaternion(),
@@ -127,6 +128,8 @@ export function worldControls(kind: WorldControls, camera: Camera, surface: HTML
       return createFirstPersonCameraControls(camera, surface);
     case 'character':
       return createCharacterCameraControls(camera, surface);
+    case 'vehicle':
+      return createVehicleCameraControls(camera, surface);
     case 'trackball':
       return createTrackballCameraControls(camera, surface);
     case 'panZoom':

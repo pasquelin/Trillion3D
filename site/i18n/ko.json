@@ -484,7 +484,6 @@
       "soft-bodies": "물리 엔진 연동",
       "rolling-on-terrain": "물리 엔진 연동",
       "hinges-and-joints": "물리 엔진 연동",
-      "walk-with-collisions": "물리 엔진 연동",
       "drive-a-car": "물리 엔진 연동",
       "a-room-in-vr": "WebXR 세션",
       "a-360-photo-in-vr": "WebXR 세션",
@@ -1063,6 +1062,17 @@
           "<code>applyImpulse</code>로 밀거나 <code>contact</code>를 들으세요. 모든 물체가 잠들면 아무것도 계산하거나 그리지 않습니다."
         ],
         "tryIt": "상자를 더 떨어뜨리고, 중력을 달로 바꾸고, 슬로 모션을 켜 보세요."
+      },
+      "touch-and-react": {
+        "title": "닿고 반응하기",
+        "description": "나만의 세계로 들어가 보세요: 물리를 켜면 캐릭터가 오르고, 올라타고, 마주친 것을 밀며, 그것들도 캐릭터를 밀어냅니다.",
+        "steps": [
+          "<code>controls: 'character'</code>와 <code>physics: true</code>로 월드를 만드세요. 이제 캐릭터는 상자처럼 물리의 물체입니다.",
+          "움직이지 않는 것(바닥, 계단, 벽)을 <code>'static'</code>으로 표시하세요. 캐릭터는 무릎 높이까지의 계단과 45°까지의 경사를 오릅니다.",
+          "발판을 <code>'kinematic'</code>으로 표시하고 매 프레임 코드로 움직이세요: 그 위에 선 것은 함께 이동합니다.",
+          "가벼운 상자를 <code>'dynamic'</code>으로 만드세요: 캐릭터가 <code>pushStrength</code> 뉴턴으로 밀면 상자는 넘어지고 구르며 되밀어냅니다."
+        ],
+        "tryIt": "그림을 클릭하고 W A S D로 걷고 스페이스로 점프하세요. 계단을 오르고, 발판에 타고, 쌓인 상자를 밀어 보세요."
       },
       "your-own-scene": {
         "title": "나만의 장면",
