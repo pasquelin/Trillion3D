@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addGpuPasses, directLightTimings, shadowPagesGpuMs } from './mapping.ts';
+import {
+  addGpuPasses,
+  directLightTimings,
+  gpuPassStageOf,
+  gpuShadowPartOf,
+  shadowPagesGpuMs,
+} from './mapping.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
@@ -117,6 +123,27 @@ test('shadow time splits into choosing the casters and drawing them, from the sa
   );
   assert.equal(unmeasured.gpuShadowCullMs, null, 'an unmeasured pass voids its part');
   assert.equal(unmeasured.gpuShadowRasterMs, 4);
+});
+
+// One table names every pass: a shadow row without its part would drop out of the split silently.
+test('every pass of a shadow stage names its shadow part, and no other pass does', () => {
+  const parts = {
+    [LIGHT_CUT_PASS]: 'cull',
+    'Trillion3D shadow cull': 'cull',
+    'Trillion3D shadow page pyramids': 'cull',
+    'Trillion3D shadow occlusion': 'cull',
+    [SHADOW_LAYER_PASS]: 'raster',
+    [SHADOW_PASS]: 'raster',
+    [LIGHT_TILES_PASS]: 'other',
+    [DEFERRED_LIGHTING_PASS]: 'other',
+    'Trillion3D DAG selection': 'other',
+    'never-seen pass': 'other',
+  };
+  for (const [label, part] of Object.entries(parts)) {
+    assert.equal(gpuShadowPartOf(label), part, label);
+    const shadowStage = ['shadows', 'shadowCasters'].includes(gpuPassStageOf(label));
+    assert.equal(part !== 'other', shadowStage, label);
+  }
 });
 
 test('the bench reference reads the same shadow split as the engine', () => {
