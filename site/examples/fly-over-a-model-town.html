@@ -232,8 +232,8 @@
         (upright ? S.aim.premultiply(sideways) : S.aim.multiply(sideways)).multiply(axisTurn(1, 0, 0, -dy)).normalize();
         const nose = rotate(S.q, [0, 0, -1]), aim = rotate(S.aim, [0, 0, -1]), off = Math.acos(math.clamp(dot(nose, aim), -1, 1));
         const back = off > ARCADE.cone ? off - ARCADE.cone : S.rest > 0.5 ? off * (1 - Math.exp(-dt / 2)) : 0;
-        const axis = [aim[1] * nose[2] - aim[2] * nose[1], aim[2] * nose[0] - aim[0] * nose[2], aim[0] * nose[1] - aim[1] * nose[0]], length = Math.hypot(...axis);
-        if (back > 0 && length > 1e-9) S.aim.premultiply(axisTurn(...axis.map((v) => v / length), back)).normalize();
+        const axis = math.vector3(...aim).cross(math.vector3(...nose));
+        if (back > 0 && axis.length() > 1e-9) S.aim.premultiply(math.quaternion().setFromAxisAngle(axis.normalize(), back)).normalize();
         const { pitch, bank } = attitude(S.aim);
         if (Math.abs(pitch) < 60 * deg && (upright || S.rest > 0.5)) S.aim.multiply(axisTurn(0, 0, 1, bank * (1 - Math.exp(-dt * 3)))).normalize();
       }
@@ -635,30 +635,36 @@
       place(geometry.box(30, 14, 24), matte('#b9b2a4', 0.7), [-70, 7, 380]);
       place(geometry.box(32, 1, 26), matte('#7a3b2e', 0.6), [-70, 14.5, 380]);
 
-      // The town: blocks of five colours with dark roofs, a church tower in the middle. Each
-      // block is kept as ground for the jet: a roof it cannot land on.
+      // The town: blocks of five colours with dark roofs, a church tower in the middle. The roofs
+      // and the spire are one shape, each laid in place first: one mesh to draw, and one triangle
+      // tree for a ray (a ray tests every node it is given, one by one).
       const walls = ['#e6dac4', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => matte(colour, 0.7));
-      const roofs = matte('#4a3d3a', 0.55), block = geometry.box(1, 1, 1), town = object.group();
-      world.scene.add(town);
+      const block = geometry.box(1, 1, 1), tops = [];
       for (let x = 330; x <= 690; x += 34)
         for (let z = -650; z <= -150; z += 34) {
           if (next() < 0.3 || Math.hypot(x - 510, z + 400) < 30) continue;
           const [width, depth, height] = [14 + next() * 10, 14 + next() * 10, 8 + next() ** 2 * 38];
           place(block, walls[Math.floor(next() * 5)], [x, height / 2, z]).scale.set(width, height, depth);
-          place(block, roofs, [x, height + 0.6, z], town).scale.set(width + 1, 1.2, depth + 1);
+          tops.push(geometry.box(width + 1, 1.2, depth + 1).translate(x, height + 0.6, z));
         }
-      place(geometry.box(12, 46, 12), walls[0], [510, 23, -400], town);
-      place(geometry.cone(8.5, 26, 4), roofs, [510, 59, -400], town).rotation.y = Math.PI / 4;
+      place(geometry.box(12, 46, 12), walls[0], [510, 23, -400]);
+      tops.push(geometry.cone(8.5, 26, 4).rotateY(Math.PI / 4).translate(510, 59, -400));
+      const joined = { position: [], normal: [], index: [] };
+      for (const top of tops) {
+        const base = joined.position.length / 3;
+        joined.position.push(...top.getAttribute('position').array);
+        joined.normal.push(...top.getAttribute('normal').array);
+        joined.index.push(...Array.from(top.index.array, (v) => v + base));
+      }
+      const roofs = place(geometry.createBuffer({ position: buffer.float32(joined.position, 3), normal: buffer.float32(joined.normal, 3), index: buffer.uint32(joined.index) }), matte('#4a3d3a', 0.55), [0, 0, 0]);
       // THE GROUND under a point, found by the engine's raycast straight down on what the valley
       // is built of — the terrain, the water, the runway, the roofs — at once, on the triangles
       // drawn: its height, and whether a jet may touch down there, the runway or a flat stretch
-      // of land. Off the map there is none. The town's roofs and tower are tested only by a ray
-      // that enters their box.
-      const open = [...land, water, runway], built = [...open, town], townBox = math.box3().setFromObject(town);
-      const down = math.ray(math.vector3(), math.vector3(0, -1, 0)), entry = math.vector3();
+      // of land. Off the map there is none.
+      const floor = [...land, water, runway, roofs], down = math.ray(math.vector3(), math.vector3(0, -1, 0));
       function ground(x, z) {
         down.origin.set(x, 10000, z);
-        const hit = world.raycast(down, { objects: down.intersectBox(townBox, entry) ? built : open });
+        const hit = world.raycast(down, { objects: floor });
         if (!hit) return [-Infinity, false];
         return [hit.point.y, hit.object === runway || (land.includes(hit.object) && hit.normal.y > 0.97)];
       }
