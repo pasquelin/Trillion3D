@@ -15,7 +15,8 @@ export interface EtalementArg {
   indirect: number[];
   clusters: number[];
   scratchWords: number;
-  types: GPUBufferBindingType[];
+  /** Group-0 layout, read from `blendExpandBindEntries`: the page has no module to import it from. */
+  layoutEntries: GPUBindGroupLayoutEntry[];
   noms: string[];
   lancements: number[];
   uniBytes: number;
@@ -50,20 +51,7 @@ async function dansLaPage(arg: EtalementArg) {
     tampon(new Uint32Array(arg.instanceWords), LU),
     tampon(new Uint32Array(arg.argsWords), LU),
   ];
-  const layout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: arg.uniBytes },
-      },
-      ...arg.types.map((type, i) => ({
-        binding: i + 1,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type },
-      })),
-    ],
-  });
+  const layout = device.createBindGroupLayout({ entries: arg.layoutEntries });
   const { module, compilation } = await appareil.compile(arg.code);
   if (compilation.length) return { compilation };
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
