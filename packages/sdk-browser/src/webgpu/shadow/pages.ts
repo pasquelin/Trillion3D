@@ -1,4 +1,5 @@
 import { LIGHT_KIND, SHADOW_CULL_FLOATS, writeFace } from '../../../../sdk-core/src/index.ts';
+import { viewKeyOf } from '../../../../sdk-core/src/scene/light-shadow/admit.ts';
 import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
@@ -107,7 +108,7 @@ export function writeShadowPages(
   if (!shadows || !cull) return 0;
   const count = admission.count,
     list = admission.list;
-  for (let i = 0; i < count; i++) keys[list[i]] = pool.slice[list[i]] * 4096 + pool.view[list[i]];
+  for (let i = 0; i < count; i++) keys[list[i]] = viewKeyOf(pool, list[i]);
   list.subarray(0, count).sort((a, b) => keys[a] - keys[b] || a - b);
   let open = -1;
   for (let i = 0; i < count; i++) {

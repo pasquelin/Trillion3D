@@ -75,10 +75,13 @@ export const LAMP_FACE_ENTRIES = (() => {
   for (let mip = 0; mip < LAMP_MIPS; mip++) total += (LAMP_SIDE >> mip) ** 2;
   return total;
 })();
-/** A table word: the physical page in the low bits, `PAGE_MAPPED` while it holds one, and
- *  `PAGE_VALID` once that page's draw has landed — the only pages a shader reads. */
+/** A table word: the physical page in the low bits, `PAGE_MAPPED` while it holds one,
+ *  `PAGE_VALID` once that page's draw has landed, and `PAGE_STALE` while what it holds no longer
+ *  describes the scene or the light and waits to be drawn again. A shader reads a page as current
+ *  only valid and not stale; a stale one hands the point to the next coarser level. */
 export const PAGE_VALID = 1 << 16;
 export const PAGE_MAPPED = 1 << 17;
+export const PAGE_STALE = 1 << 18;
 export const PAGE_INDEX_MASK = 0xffff;
 
 /** Non-negative remainder. */
