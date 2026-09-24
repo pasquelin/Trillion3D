@@ -309,7 +309,9 @@
       "texturePreviewSha": "每个纹理预览的指纹。",
       "texturePreviewPixels": "预览图的像素数据。",
       "texturePreviewBc7": "预览图的 BC7 数据块。",
-      "texturePreviewAstc": "预览图的 ASTC 数据块。"
+      "texturePreviewAstc": "预览图的 ASTC 数据块。",
+      "bundleDependencyCount": "每个包依赖多少个包。",
+      "bundleDependency": "每个包依赖的包，一直到根。"
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -652,7 +654,8 @@
       "bundles": "资源包数。",
       "previews": "纹理预览数。",
       "previewBytes": "像素列的字节数,是每个条目所有层级拼接后的总和。",
-      "previewBlockBytes": "每个数据块列的字节数:被保留的链条的尾部经过压缩,整块保留的情况下条目连续排列,而某条被同一族保持无损的链条则不占任何字节。"
+      "previewBlockBytes": "每个数据块列的字节数:被保留的链条的尾部经过压缩,整块保留的情况下条目连续排列,而某条被同一族保持无损的链条则不占任何字节。",
+      "bundleDependencies": "包的依赖，所有包的列表首尾相连。"
     }
   },
   "CpuStepSummary": {
@@ -3084,7 +3087,8 @@
       "version": "格式版本。",
       "pinned": "始终保留的资源包。",
       "bundleBytes": "目标资源包大小。",
-      "pages": "资源包的数量。"
+      "pages": "资源包的数量。",
+      "maxDependencies": "一个包的最大依赖数：编译器公布的上限。"
     }
   },
   "SlimStructure": {
@@ -3177,7 +3181,8 @@
       "url": "读取它的位置。",
       "sha256": "其字节内容的指纹。",
       "bytes": "它的大小。",
-      "count": "它所持有的簇数。"
+      "count": "它所持有的簇数。",
+      "dependencies": "存放其簇的父级的包，一直到始终加载的根，按升序：它在其中每一个之后安装。"
     }
   },
   "StreamCatalogue": {
@@ -3187,7 +3192,8 @@
       "version": "格式版本。",
       "pinned": "始终保留的资源包。",
       "bundleBytes": "目标资源包大小。",
-      "pages": "全部资源包。"
+      "pages": "全部资源包。",
+      "maxDependencies": "一个包的最大依赖数，与编译器公布的一致。"
     }
   },
   "StreamPage": {

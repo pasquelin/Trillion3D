@@ -1,8 +1,82 @@
 use super::*;
+use crate::dag::{DagCluster, DagGroup};
+
+/// Packs ranks greedily into bundles of at most `STREAM_BUNDLE_BYTES`, a bundle never empty.
+fn pack(ranks: &[usize], size: impl Fn(usize) -> usize, bundles: &mut Vec<Vec<usize>>) {
+    let mut current = Vec::new();
+    let mut held = 0usize;
+    for &rank in ranks {
+        let bytes = size(rank);
+        if !current.is_empty() && held + bytes > STREAM_BUNDLE_BYTES {
+            bundles.push(std::mem::take(&mut current));
+            held = 0;
+        }
+        current.push(rank);
+        held += bytes;
+    }
+    if !current.is_empty() {
+        bundles.push(current);
+    }
+}
+
+/// Bundles of culling ranks, the number of pinned ones, and the bundle of every DAG slot.
+///
+/// Roots come first and form their own bundles, level by level: the coarsest complete cover of the
+/// primitive is a handful of pinned requests. The other levels follow from the coarsest to the
+/// finest, a bundle holding one level only. Within a level, clusters are sorted by the first
+/// bundle holding one of their parents, then by culling rank: siblings, which share parents, land
+/// in the same bundle, and a bundle depends on as few others as the spatial order allows.
+pub(super) fn pack_bundles(
+    dag: &[DagCluster],
+    groups: &[DagGroup],
+    order: &[usize],
+) -> (Vec<Vec<usize>>, usize, Vec<usize>) {
+    let size = |rank: usize| dag[order[rank]].indices.len() * 4;
+    let mut bundles: Vec<Vec<usize>> = Vec::new();
+    let mut bundle_of = vec![usize::MAX; dag.len()];
+    let top = dag.iter().map(|cluster| cluster.level).max().unwrap_or(0);
+    let place = |ranks: &mut Vec<usize>, bundles: &mut Vec<Vec<usize>>, bundle_of: &mut [usize]| {
+        let first = bundles.len();
+        pack(ranks, size, bundles);
+        for (index, bundle) in bundles.iter().enumerate().skip(first) {
+            for &rank in bundle {
+                bundle_of[order[rank]] = index;
+            }
+        }
+        ranks.clear();
+    };
+    let mut ranks = Vec::new();
+    for level in 0..=top {
+        ranks.extend((0..order.len()).filter(|&rank| {
+            let cluster = &dag[order[rank]];
+            cluster.is_root() && cluster.level == level
+        }));
+        place(&mut ranks, &mut bundles, &mut bundle_of);
+    }
+    let pinned = bundles.len();
+    for level in (0..=top).rev() {
+        let mut keyed: Vec<(usize, usize)> = (0..order.len())
+            .filter(|&rank| {
+                let cluster = &dag[order[rank]];
+                !cluster.is_root() && cluster.level == level
+            })
+            .map(|rank| {
+                let parents = parents_of(&dag[order[rank]], groups);
+                let first = parents.iter().map(|&slot| bundle_of[slot]).min();
+                (first.unwrap_or(usize::MAX), rank)
+            })
+            .collect();
+        keyed.sort_unstable();
+        ranks.extend(keyed.into_iter().map(|(_, rank)| rank));
+        place(&mut ranks, &mut bundles, &mut bundle_of);
+    }
+    (bundles, pinned, bundle_of)
+}
 
 pub(super) fn bundle_dag_pages(
     o: &Options,
-    dag: &[crate::dag::DagCluster],
+    dag: &[DagCluster],
+    groups: &[DagGroup],
     order: &[usize],
     base_id: usize,
     pos: &[f32],
@@ -10,47 +84,18 @@ pub(super) fn bundle_dag_pages(
 ) -> Result<(Vec<Value>, i32, Value)> {
     let mut pages = Vec::new();
     let mut reused = 0i32;
-    // Bundles group clusters of one level that the culling order already placed next to each other.
-    // Root clusters come first and form their own bundles, so the coarsest complete cover of the
-    // primitive is a handful of pinned requests.
-    let mut bundle_order: Vec<usize> = (0..order.len()).collect();
-    bundle_order.sort_by_key(|&rank| {
-        let cluster = &dag[order[rank]];
-        (
-            if cluster.is_root() { 0u8 } else { 1u8 },
-            cluster.level,
-            rank,
-        )
-    });
-    // The greedy packing in `compiler_bundles.rs` is not this one: there a single
-    // size threshold closes a bundle, here a key break (root, level) closes it too.
-    // Two rules, two loops; parameterising them together would treat the key as an
-    // option.
-    let mut bundles: Vec<Vec<usize>> = Vec::new();
-    {
-        let mut current: Vec<usize> = Vec::new();
-        let mut held = 0usize;
-        let mut key = None;
-        for &rank in &bundle_order {
-            let cluster = &dag[order[rank]];
-            let next_key = (cluster.is_root(), cluster.level);
-            let size = cluster.indices.len() * 4;
-            if !current.is_empty() && (key != Some(next_key) || held + size > STREAM_BUNDLE_BYTES) {
-                bundles.push(std::mem::take(&mut current));
-                held = 0;
-            }
-            key = Some(next_key);
-            current.push(rank);
-            held += size;
-        }
-        if !current.is_empty() {
-            bundles.push(current);
-        }
-    }
-    let pinned_bundles = bundles
-        .iter()
-        .take_while(|bundle| dag[order[bundle[0]]].is_root())
-        .count();
+    let (bundles, pinned_bundles, bundle_of) = pack_bundles(dag, groups, order);
+    let direct = direct_dependencies(dag, groups, &bundle_of, bundles.len());
+    let dependencies = close_dependencies(&direct)?;
+    verify_dependencies(
+        dag,
+        groups,
+        order,
+        &bundle_of,
+        &dependencies,
+        pinned_bundles,
+    )?;
+    let max_dependencies = dependencies.iter().map(Vec::len).max().unwrap_or(0);
     struct Bundle {
         url: String,
         digest: String,
@@ -92,9 +137,9 @@ pub(super) fn bundle_dag_pages(
     }).collect::<Result<Vec<_>>>()?;
     let mut ordered: Vec<Option<Value>> = vec![None; order.len()];
     let mut streams = Vec::with_capacity(built.len());
-    for bundle in built {
+    for (bundle, dependencies) in built.into_iter().zip(dependencies) {
         reused += bundle.reused;
-        streams.push(json!({"url":bundle.url,"sha256":bundle.digest,"bytes":bundle.bytes,"count":bundle.count}));
+        streams.push(json!({"url":bundle.url,"sha256":bundle.digest,"bytes":bundle.bytes,"count":bundle.count,"dependencies":dependencies}));
         for (id, page) in bundle.pages {
             ordered[id - base_id] = Some(page);
         }
@@ -105,6 +150,6 @@ pub(super) fn bundle_dag_pages(
             CompilerError::new("INVALID_CLUSTER_PARTITION", "A cluster was not bundled")
         })?);
     }
-    let stream_report = json!({"version":STRUCTURE_VERSION,"pinned":pinned_bundles,"bundleBytes":STREAM_BUNDLE_BYTES,"pages":streams});
+    let stream_report = json!({"version":STRUCTURE_VERSION,"pinned":pinned_bundles,"bundleBytes":STREAM_BUNDLE_BYTES,"maxDependencies":max_dependencies,"pages":streams});
     Ok((pages, reused, stream_report))
 }
