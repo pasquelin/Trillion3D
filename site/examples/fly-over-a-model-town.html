@@ -108,7 +108,7 @@
       // In Expert there is no instructor: the mouse is the stick. The page adds the physics the
       // controller does not know: thrust, gravity along the path, the stall, the runway, the
       // gear, the crash.
-      const world = createWorld('view', { controls: 'fly' });
+      const world = createWorld('view', { controls: 'fly', physics: true });
       const HORIZON = '#f6c592';
       world.scene.background = math.color(HORIZON);
       const camera = world.camera, canvas = document.getElementById('view');
@@ -191,6 +191,12 @@
       // place, so a turn still needed is cloned first. Vectors stay [x, y, z].
       const axisTurn = (x, y, z, angle) => math.quaternion().setFromAxisAngle(math.vector3(x, y, z), angle);
       const rotate = (q, [x, y, z]) => math.vector3(x, y, z).applyQuaternion(q).toArray();
+      // `a` moved a fraction `t` towards `b` as a normalised blend of the two turns moves it: the
+      // engine's `slerp`, at the share of the arc that blend reaches.
+      function blendTurn(a, b, t) {
+        const cos = Math.min(1, Math.abs(a.dot(b))), angle = Math.acos(cos);
+        return a.slerp(b, angle > 1e-6 ? Math.atan2(t * Math.sin(angle), 1 - t + t * cos) / angle : t);
+      }
       const wrap = (angle) => angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI));
       const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
       // The attitude read off the axes, in radians: no angle is integrated, so it holds upside
@@ -287,9 +293,43 @@
         if (S.onGround) stick = [S.v >= ROTATE ? math.clamp(stick[0], 0, 0.6) : 0, key('KeyQ') - key('KeyE'), 0];
         return (S.stick = stick);
       }
+      // The physics answers a ground query between its steps, never at once: each place the flight
+      // reads the ground is a probe, named by its key. `ground(x, z, key)` answers at once from
+      // the probe's last answer — [x, y, z, normal x, y, z, landable], or null for none —, carried
+      // to the asked point along the answered surface's plane; `send()`, once a frame, asks each
+      // probe's next question where it will be a frame on, from its own motion, one question in
+      // flight per probe. A probe never answered reads as no ground; `ready()` says the jet's own
+      // (`under`) has answered, and `reset()` forgets every probe when the jet is moved away.
+      function groundProbes(ask) {
+        let probes = new Map();
+        function ground(x, z, key = 'under') {
+          if (!probes.has(key)) probes.set(key, { at: null, was: null, answer: undefined, waiting: false });
+          const probe = probes.get(key);
+          probe.at = [x, z];
+          if (!probe.answer) return [-Infinity, false];
+          const [ax, ay, az, nx, ny, nz, landable] = probe.answer;
+          return [ny > 0.3 ? ay - (nx * (x - ax) + nz * (z - az)) / ny : ay, landable];
+        }
+        ground.ready = () => probes.get('under')?.answer !== undefined;
+        ground.reset = () => (probes = new Map());
+        ground.send = () => {
+          for (const probe of probes.values()) {
+            if (!probe.at) continue;
+            const [x, z] = probe.at, [wx, wz] = probe.was ?? probe.at;
+            [probe.was, probe.at] = [probe.at, null];
+            if (probe.waiting) continue;
+            probe.waiting = true;
+            ask(2 * x - wx, 2 * z - wz).then(
+              (answer) => ((probe.answer = answer), (probe.waiting = false)),
+              () => (probe.waiting = false),
+            );
+          }
+        };
+        return ground;
+      }
       // The ground's normal under a point, from its slope; a roof's edge reads as a wall.
       function groundNormal(ground, x, z) {
-        const h = (dx, dz) => ground(x + dx, z + dz)[0], nx = (h(-2, 0) - h(2, 0)) / 4, nz = (h(0, -2) - h(0, 2)) / 4;
+        const h = (dx, dz) => ground(x + dx, z + dz, `side ${dx} ${dz}`)[0], nx = (h(-2, 0) - h(2, 0)) / 4, nz = (h(0, -2) - h(0, 2)) / 4;
         return Number.isFinite(nx + nz) ? [nx, 1, nz].map((v) => v / Math.hypot(nx, 1, nz)) : [0, 1, 0];
       }
       // What the controller does not know: engine and gravity along the path, the stall, the
@@ -337,10 +377,10 @@
         // impact — the jet scrapes along and the instructor climbs away. On the ground the jet
         // stays level until it has the speed to lift its nose.
         const [floor, landable] = ground(S.pos[0], S.pos[2]), agl = S.pos[1] - GEAR - floor, sink = (from[1] - S.pos[1]) / dt;
-        const vel = S.pos.map((p, i) => (p - from[i]) / dt);
+        const vel = S.pos.map((p, i) => (p - from[i]) / dt), slope = groundNormal(ground, S.pos[0], S.pos[2]);
         if (agl < 0) {
           if (landable && S.gearDown && (S.onGround || sink < HARD) && attitude(S.q).up[1] > 0.9) S.onGround = true;
-          else if (expert || -dot(vel, groundNormal(ground, S.pos[0], S.pos[2])) > HARD) return void (S.crashed = true);
+          else if (expert || -dot(vel, slope) > HARD) return void (S.crashed = true);
           else S.q = level(attitude(S.q).heading, Math.max(attitude(S.q).pitch, 5 * deg));
           S.pos[1] = floor + GEAR;
         } else if (agl > 0.3) S.onGround = false;
@@ -360,7 +400,7 @@
         const flat = S.v * Math.cos(pitch), rise = GEAR + ARCADE.floor - S.pos[1], pull = Math.min(PITCH_RATE * authority(S.v), (loadCap(S, false) * G) / S.v);
         const horizon = 1.5 + Math.max(0, -pitch) / pull;
         const ahead = Array.from({ length: Math.ceil(horizon * 2) }, (_, k) => (k + 1) / 2).map((k) => {
-          const heights = [0, turning].map((rate) => ground(S.pos[0] + Math.sin(heading + (rate * k) / 2) * flat * k, S.pos[2] - Math.cos(heading + (rate * k) / 2) * flat * k)[0]);
+          const heights = [0, turning].map((rate, path) => ground(S.pos[0] + Math.sin(heading + (rate * k) / 2) * flat * k, S.pos[2] - Math.cos(heading + (rate * k) / 2) * flat * k, `ahead ${path} ${k}`)[0]);
           const t = Math.max(0, k - 0.5), gain = (S.v / pull) * (Math.cos(pitch) - Math.cos(Math.min(pitch + pull * t, Math.PI / 2))) - S.v * t * Math.sin(pitch);
           return [Math.min(...heights) + rise - vel[1] * k - gain, Math.atan2(heights[0] + rise, flat * k)];
         });
@@ -657,17 +697,18 @@
         joined.index.push(...Array.from(top.index.array, (v) => v + base));
       }
       const roofs = place(geometry.createBuffer({ position: buffer.float32(joined.position, 3), normal: buffer.float32(joined.normal, 3), index: buffer.uint32(joined.index) }), matte('#4a3d3a', 0.55), [0, 0, 0]);
-      // THE GROUND under a point, found by the engine's raycast straight down on what the valley
-      // is built of — the terrain, the water, the runway, the roofs — at once, on the triangles
-      // drawn: its height, and whether a jet may touch down there, the runway or a flat stretch
-      // of land. Off the map there is none.
+      // THE GROUND under a point, asked of the physics: what the valley is built of — the
+      // terrain, the water, the runway, the roofs — is static in it, and an exact raycast
+      // (`world.raycast(ray, { exact: true })`) straight down from above the peaks finds, on the
+      // triangles drawn, its height and whether a jet may touch down there: the runway or a flat
+      // stretch of land. Off the map there is none.
       const floor = [...land, water, runway, roofs], down = math.ray(math.vector3(), math.vector3(0, -1, 0));
-      function ground(x, z) {
+      for (const node of floor) node.physics = 'static';
+      const ground = groundProbes(async (x, z) => {
         down.origin.set(x, 10000, z);
-        const hit = world.raycast(down, { objects: floor });
-        if (!hit) return [-Infinity, false];
-        return [hit.point.y, hit.object === runway || (land.includes(hit.object) && hit.normal.y > 0.97)];
-      }
+        const hit = await world.raycast(down, { exact: true, maxDistance: 20000 });
+        return hit && [hit.point.x, hit.point.y, hit.point.z, hit.normal.x, hit.normal.y, hit.normal.z, hit.object === runway || (land.includes(hit.object) && hit.normal.y > 0.97)];
+      });
 
       // Forests on the lower slopes, none on the canyon floor, and round trees along the river.
       const pines = [matte('#2f5a33', 0.9), matte('#3b6a38', 0.9)], pine = geometry.cone(4, 14, 7);
@@ -1341,6 +1382,7 @@
         for (const ring of rings) [ring.done, ring.todo.visible, ring.passed.visible] = [false, true, false];
         [passedCount, lastRing, airborne, elapsed, finished, phase, fuel] = [0, null, false, 0, null, 'flying', FUEL];
         park(S);
+        ground.reset();
         chaseTurn = S.aim.clone();
         banner('');
         world.invalidate();
@@ -1349,6 +1391,7 @@
         const ahead = rings.findIndex((ring) => !ring.done);
         if (lastRing === null) park(S);
         else launch(S, COURSE[lastRing], COURSE[ahead < 0 ? (lastRing + 1) % COURSE.length : ahead], 170);
+        ground.reset();
         chaseTurn = S.aim.clone();
         phase = 'flying';
         banner('');
@@ -1491,21 +1534,24 @@
       // THE STEP. The flight takes the controller's step from the world and runs it just before
       // the frame is drawn, so the jet, the cockpit, the camera and the display are placed on the
       // pose about to be drawn, never a frame late. The controller integrates the jet's pose, then
-      // the camera is moved to the view.
+      // the camera is moved to the view. The jet waits for the physics' first answer under it — at
+      // the start, while the physics loads, and after each respawn —, and the frame's ground
+      // questions leave once it is placed.
       world.controls.autoUpdate = false;
       world.beforeFrame(({ delta }) => {
         const dt = Math.min(delta, 0.05);
         if (!game.running) return world.controls.update(delta);
         time += dt;
         pilot.freeLook = pilot.keys.has('KeyV');
-        if (phase === 'flying') {
+        if (phase === 'flying' && ground.ready()) {
           const from = advance(S, (step) => world.controls.update(step), world.controls, camera, pilot, dt, ground);
           if (S.crashed) [phase, crashTime] = ['crashed', 0];
           else if (from) flyThrough(from);
           airborne ||= !S.onGround;
-        } else if ((crashTime += dt) > 1.6) respawn();
+        } else if (phase === 'crashed' && (crashTime += dt) > 1.6) respawn();
         if (airborne && finished === null) elapsed += dt;
         present(dt);
+        ground.send();
       });
       world.onFrame(() => game.running && world.invalidate());
       const redout = document.getElementById('redout');
@@ -1582,7 +1628,7 @@
           eyeAt = eye.map((p, i) => p + shake[i]);
           [camera.near, camera.fov] = [COCKPIT_NEAR, COCKPIT_FOV + 4 * smooth(100, 400, S.v)];
         } else {
-          chaseTurn.slerp(S.aim.clone().multiply(look), 1 - Math.exp(-dt / 0.25));
+          blendTurn(chaseTurn, S.aim.clone().multiply(look), 1 - Math.exp(-dt / 0.25));
           turn = chaseTurn;
           const back = rotate(turn, [0, 3.4, zoom * (1 + 0.3 * smooth(100, 400, S.v))]);
           eyeAt = S.pos.map((p, i) => p + back[i] + shake[i] * 4);
