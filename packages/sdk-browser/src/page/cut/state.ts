@@ -92,14 +92,13 @@ export interface SelectionResult<T> {
   lodLevel: number;
   complete: boolean;
   pixelError: number;
-  /** Slots the pass at the requested threshold charged to the page budget: all of them when it
-   *  fit, and at least one past the budget when it did not, its descent stopping there. `0`
-   *  without a budget. */
-  requestedSlots: number;
+  /** Slots the cut at the host's threshold charges, held ones included; `null` if it overflowed. */
+  requiredSlots: number | null;
+  /** Nothing finer is left for the budget search to try (`pageBudgetFrom`). */
+  budgetSettled: boolean;
 }
 
-/** An empty cut result, to set once per hot caller then reuse from image to image:
- *  `selectVisiblePages` rewrites every field, only the object's identity matters. */
+/** An empty cut result, set once per hot caller: `selectVisiblePages` rewrites every field. */
 export function createSelectionResult<T>(): SelectionResult<T> {
   return {
     shown: [],
@@ -112,7 +111,8 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     lodLevel: 0,
     complete: true,
     pixelError: 0,
-    requestedSlots: 0,
+    requiredSlots: null,
+    budgetSettled: true,
   };
 }
 

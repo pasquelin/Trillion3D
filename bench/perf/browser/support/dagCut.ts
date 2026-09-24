@@ -9,7 +9,10 @@ import type {
   ClusterRoot,
   PageRec,
 } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
-import type { SelectionResult } from '../../../../packages/sdk-browser/src/page/cut/state.ts';
+import {
+  createSelectionResult,
+  type SelectionResult,
+} from '../../../../packages/sdk-browser/src/page/cut/state.ts';
 
 export type DagPage = Pick<
   PageRec,
@@ -98,5 +101,26 @@ export function etatDeCoupe(result: SelectionResult<DagPage>) {
     lodLevel: result.lodLevel,
     complete: result.complete,
     pixelError: result.pixelError,
+  };
+}
+
+/** The camera the budget tests see a DAG through: nine units from its centre, 60°, 16:9. */
+export function dagCamera() {
+  const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
+  cam.position.set(0, 0, 9);
+  cam.lookAt(0, 0, 0);
+  cam.updateMatrixWorld();
+  return cam;
+}
+
+/** A cut at `pixelError` under `pageBudget` slots, into a fresh result. */
+export function dagAsk(pixelError: number, pageBudget: number) {
+  return {
+    pixelError,
+    viewport: [1280, 720] as [number, number],
+    holdResident: true,
+    pageBudget,
+    wanted: [] as DagPage[],
+    result: createSelectionResult<DagPage>(),
   };
 }

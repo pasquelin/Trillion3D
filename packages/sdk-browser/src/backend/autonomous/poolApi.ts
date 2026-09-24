@@ -8,9 +8,11 @@ import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import { createGeometryBudget, type PageCopies } from './pool.ts';
+import type { HeldFloor } from './heldFloor.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
-import { hostPageBytes } from '../../host/pageObjects.ts';
+
+export { createHeldFloor } from './heldFloor.ts';
 
 /**
  * The copies each page holds once resident (`PageCopies`), from the records collected when the
@@ -52,39 +54,6 @@ export function pageCopies(
 }
 
 /**
- * Decoded bytes nothing may evict: the root cover and the pages the host replaced, a geometry
- * several records share counted once. Read again only after `changed` — prepare, an instance
- * added or removed, rows grown, a page replaced —: a pose or a material leaves them as they are.
- */
-export function createHeldFloor(env: {
-  bootstrap: readonly PageRec[];
-  modifiedPages: ReadonlySet<string>;
-  byUrl: ReadonlyMap<string, readonly PageRec[]>;
-}) {
-  const { bootstrap, modifiedPages, byUrl } = env;
-  let revision = 0,
-    read = -1,
-    bytes = 0;
-  return {
-    changed() {
-      revision++;
-    },
-    bytes() {
-      if (read === revision) return bytes;
-      read = revision;
-      bytes = 0;
-      const seen = new Set<ArrayBufferView>();
-      const add = (rec: PageRec) => {
-        if (rec.geometry) bytes += hostPageBytes(rec.geometry, seen);
-      };
-      for (const rec of bootstrap) add(rec);
-      for (const url of modifiedPages) for (const rec of byUrl.get(url) ?? []) add(rec);
-      return bytes;
-    },
-  };
-}
-
-/**
  * The geometry pool wired into the WebGL2 backend (`pool.ts`): every record of a page names the
  * page's share of the budget, page arrivals and departures go through the pool, the host sets its
  * budget mid-session and reads it in the frame metrics.
@@ -99,7 +68,7 @@ export function createAutonomousPool(env: {
   gate: WebglFrameGate;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   residency: ReturnType<typeof createAutonomousResidency>;
-  heldFloor: ReturnType<typeof createHeldFloor>;
+  heldFloor: HeldFloor;
   instanceCount: () => number;
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
@@ -153,6 +122,12 @@ export function createAutonomousPool(env: {
       },
     },
     api: {
+      /** The pool's search has a finer threshold left to try: another image is owed. */
+      pendingFrame: async () => budget.settling,
+      /** Publishes what the images left in flight: the pool's verdict, as on WebGPU. */
+      async flush() {
+        budget.flush();
+      },
       dropPage(url: string) {
         gate.resourcesChanged();
         residency.dropPage(url);
