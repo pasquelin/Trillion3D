@@ -43,7 +43,7 @@ function frameIn(node: Object3D | null, point: Vec, axis: Vec, normal: Vec) {
 }
 
 /** Each end's frame, from the options, read in the world as the bodies stand now; `length`, a
- *  distance's or a pulley's rope. */
+ *  distance's or a pulley's rope; `extra`, the kind's own words. */
 export function framesOf(joint: Joint) {
   const { a, b, kind, options: o } = joint;
   const origin = (node: Object3D) => Array.from(worldPoseOf(node).position) as Vec;
@@ -59,7 +59,13 @@ export function framesOf(joint: Joint) {
     ? between(anchor, wheels[0]) * (o.ratio ?? 1) + between(other, wheels[1])
     : between(anchor, other);
   const normalB = axisB === axis ? normal : normalTo(axisB);
-  return { a: frameIn(a, anchor, axis, normal), b: frameIn(b, other, axisB, normalB), length };
+  const extra = extraOf(joint);
+  return {
+    a: frameIn(a, anchor, axis, normal),
+    b: frameIn(b, other, axisB, normalB),
+    length,
+    extra,
+  };
 }
 
 /** A path's points in `node`'s frame: each `position, tangent, normal`, the tangents those of a
@@ -82,7 +88,7 @@ function trackIn(node: Object3D | null, path: readonly Vec3Input[], loop: boolea
 }
 
 /** The kind's own words of the JOINT command (`layout.ts` JOINT); none for the core kinds. */
-export function extraOf(joint: Joint): number[] {
+function extraOf(joint: Joint): number[] {
   const o = joint.options;
   switch (joint.kind) {
     case 'swingTwist':
