@@ -9,6 +9,7 @@ import type { createDeferredLighting } from '../../../lighting/deferred/deferred
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
+import type { FallbackBlendPipelines } from '../prepare/pipelines.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -20,7 +21,7 @@ export interface WebgpuGpuState {
   pipelineBack: GPURenderPipeline | undefined;
   pipelineBackCw: GPURenderPipeline | undefined;
   pipelineNone: GPURenderPipeline | undefined;
-  pipelineBlend: GPURenderPipeline | undefined;
+  pipelineBlend: FallbackBlendPipelines | undefined;
   colorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   colorView: GPUTextureView | undefined;

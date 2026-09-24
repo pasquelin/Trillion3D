@@ -1,5 +1,10 @@
 import { SHADER } from './shaders.ts';
 import { DEPTH_COMPARE } from '../../../camera/depthConvention.ts';
+import { BLEND_EQUATIONS } from '../../../scene/materialBlending.ts';
+import type { Blending } from '../../../../../sdk-core/src/world/constants/index.ts';
+
+/** The fallback transparent pass's pipelines, one per blending mode (`BLEND_EQUATIONS`). */
+export type FallbackBlendPipelines = { at(mode: Blending): GPURenderPipeline };
 
 export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: number) {
   const bindGroupLayout = device.createBindGroupLayout({
@@ -47,24 +52,28 @@ export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: num
     primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
     depthStencil,
   });
-  const pipelineBlend = device.createRenderPipeline({
-    layout,
-    vertex,
-    fragment: {
-      module,
-      entryPoint: 'fs',
-      targets: [
-        {
-          format: 'rgba8unorm',
-          blend: {
-            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+  // One pipeline per blending mode, its equation read from the one table, compiled by the first
+  // draw that asks for it: a scene of plain glass compiles the normal one it always did.
+  const blendByMode = new Map<Blending, GPURenderPipeline>();
+  const pipelineBlend: FallbackBlendPipelines = {
+    at(mode) {
+      let pipeline = blendByMode.get(mode);
+      if (!pipeline) {
+        pipeline = device.createRenderPipeline({
+          layout,
+          vertex,
+          fragment: {
+            ...fragment,
+            targets: [{ ...fragment.targets[0], blend: BLEND_EQUATIONS[mode] }],
           },
-        },
-      ],
+          primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
+          depthStencil: { ...depthStencil, depthWriteEnabled: false },
+        });
+        blendByMode.set(mode, pipeline);
+      }
+      return pipeline;
     },
-    primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
-    depthStencil: { format: 'depth32float', depthWriteEnabled: false, depthCompare: DEPTH_COMPARE },
-  });
+  };
+  pipelineBlend.at('normal');
   return { bindGroupLayout, pipelineBack, pipelineBackCw, pipelineNone, pipelineBlend };
 }
