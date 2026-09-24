@@ -1690,6 +1690,10 @@
       "autoForward": "CRUCERO, desactivado por defecto: la cámara vuela hacia adelante a `movementSpeed` sin ninguna tecla pulsada, como un avión. W añade entonces `movementSpeed` (el doble de rápido) y S lo retira (la cámara se queda quieta); nunca retrocede. Nada se mueve antes del siguiente `update`, así que un host que redibuja en `change` pide un fotograma cuando activa el crucero."
     }
   },
+  "Fog": {
+    "summary": "Niebla sobre cada superficie iluminada: lineal de `near` a `far`, o que se espesa con la distancia según `density`, y se aclara en altura por encima de `baseHeight` cuando se da `heightFalloff`.",
+    "description": "El color es la luz que la niebla dispersa hacia el ojo, expuesta y pasada por la curva de visualización como la de una superficie."
+  },
   "FORMAT_VERSION": {
     "summary": "Formato de caché que lee este motor.",
     "description": "El formato 5 lleva `scene-tables.json`, las tablas de nodos y materiales contra las que se verifica la escena preparada; los formatos 3 y 4 no tienen este producto y se rechazan por su número en lugar de leerse a medias."
@@ -4950,8 +4954,8 @@
     "members": {
       "isScene": "Siempre `true`: distingue la raíz de la escena de cualquier otro objeto.",
       "environment": "Una imagen del entorno que reflejan las superficies brillantes; `null` para ninguna.",
-      "fog": "Una niebla que funde los objetos en `color` entre `near` y `far`; `null` para ninguna.",
       "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
+      "fog": "Niebla sobre cada superficie iluminada, opaca o transparente, en los dos renderizadores; `null`, el valor por defecto, para ninguna, sin coste. `{ color, near, far }` funde los objetos en `color` de `near` a `far`, distancias desde la cámara; `{ color, density }` se espesa `density` por unidad de distancia; añade `heightFalloff` (y `baseHeight`, 0 por defecto) y se posa en el suelo, aclarándose por encima de `baseHeight` — dividida por e cada `1 / heightFalloff` unidades hacia arriba. Un cambio se ve en la imagen siguiente: una niebla nueva dada aquí, o su color escrito con sus métodos. Una escritura directa de `near`, `far`, `density`... no se oye: vuelve a dar `fog` después. Una niebla fuera de rango — `far` no más allá de `near`, una densidad negativa — se rechaza (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carga un modelo compilado — la URL de su manifiesto — y lo añade a esta escena.",
       "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
       "fromJSON": "Reemplaza lo que contiene la escena por una escena guardada con `toJSON`, conservando sus marcas `helper`; se resuelve cuando sus modelos están cargados. Otro formato u otra versión se rechaza (`UNSUPPORTED_SCENE_FORMAT`). Las llamadas hechas mientras se lee una se ejecutan una tras otra, en orden, cada una sobre lo que dejó la anterior: dos escenas guardadas nunca se mezclan."
@@ -4990,8 +4994,21 @@
     "members": {
       "exposure": "Multiplicador de la radiancia lineal, aplicado antes de la curva.",
       "toneMapping": "La curva de visualización; `DEFAULT_TONE_MAPPING` si falta.",
-      "irradiance": "La irradiancia que llega desde todas las direcciones, en 27 números: nueve coeficientes, cada uno un triplete RGB, en el orden de las bandas constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, o toda nula, nada ilumina una superficie salvo las lámparas declaradas."
+      "irradiance": "La irradiancia que llega desde todas las direcciones, en 27 números: nueve coeficientes, cada uno un triplete RGB, en el orden de las bandas constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, o toda nula, nada ilumina una superficie salvo las lámparas declaradas.",
+      "fog": "Niebla de distancia o de altura sobre cada superficie iluminada (`SceneFog`); ausente, ninguna."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Niebla que se espesa con la distancia: `density` por unidad de la escena; con `heightFalloff`, se aclara por encima de `baseHeight`, dividida por e cada `1 / heightFalloff` unidades hacia arriba.",
+    "members": {
+      "color": "La radiancia hacia la que la niebla funde los objetos, en RGB lineal.",
+      "density": "Extinción por unidad de la escena, en `baseHeight`; ≥ 0.",
+      "heightFalloff": "Lo rápido que la densidad baja con la altura, por unidad de la escena; 0, el valor por defecto, la mantiene uniforme a cualquier altura.",
+      "baseHeight": "La altura a la que la densidad vale `density`; 0 por defecto."
+    }
+  },
+  "SceneFog": {
+    "summary": "Niebla de distancia o de altura, tal como la lee la iluminación."
   },
   "SceneLight": {
     "summary": "Una luz de escena, versión 2.",
@@ -5015,6 +5032,14 @@
   "SceneLightingView": {
     "summary": "Lo que el host pide ver.",
     "description": "`lit` es la iluminación real y solo ella; `unlit` es la vista de diagnóstico en albedo puro — el color del material tal cual, sin luz, sin ambiente y sin emisión — para los bancos de pruebas de geometría que comparan imágenes píxel a píxel. `auto`, por defecto, da `unlit` mientras no se declare ninguna luz y `lit` en cuanto haya una. `bounce` es la tercera vista de diagnóstico: solo la irradiancia indirecta, multiplicada por la exposición y dada en valores lineales sin ACES ni sRGB. Es lo que el banco compara con el oráculo del compilador; no es una imagen para mirar, y es negra sin rebote configurado."
+  },
+  "SceneLinearFog": {
+    "summary": "Niebla que empieza en `near` y oculta todo a partir de `far`, distancias desde el ojo.",
+    "members": {
+      "color": "La radiancia hacia la que la niebla funde los objetos, en RGB lineal.",
+      "near": "Distancia desde el ojo donde empieza la niebla.",
+      "far": "Distancia desde el ojo donde solo se ve la niebla."
+    }
   },
   "SceneLightStore": {
     "summary": "Las luces de una escena tal como las lee la GPU, ordenadas y mantenidas al día.",
@@ -6782,7 +6807,7 @@
       "format": "Siempre `'trillion3d-scene'`.",
       "formatVersion": "La versión de esta estructura; cualquier otra se rechaza.",
       "background": "El color de fondo, o `null`.",
-      "fog": "La niebla, o `null`.",
+      "fog": "La niebla, su color en componentes lineales, o `null`.",
       "camera": "La cámara guardada con la escena, o `null`.",
       "geometries": "Cada forma, una sola vez, sin importar cuántas mallas la usen.",
       "materials": "Cada material, una sola vez, sin importar cuántas mallas lo usen.",

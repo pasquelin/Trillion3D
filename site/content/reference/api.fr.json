@@ -1690,6 +1690,10 @@
       "autoForward": "CROISIÈRE, désactivée par défaut : la caméra vole vers l’avant à `movementSpeed` sans aucune touche, comme un avion. W ajoute alors `movementSpeed` (deux fois plus vite) et S le retire (la caméra reste sur place) ; elle ne recule jamais. Rien ne bouge avant le prochain `update`, donc un hôte qui redessine sur `change` demande une image quand il active la croisière."
     }
   },
+  "Fog": {
+    "summary": "Un brouillard sur chaque surface éclairée : linéaire de `near` à `far`, ou qui s’épaissit avec la distance selon `density`, et s’éclaircit en hauteur au-dessus de `baseHeight` quand `heightFalloff` est donné.",
+    "description": "La couleur est la lumière que le brouillard renvoie vers l’œil, exposée et passée par la courbe d’affichage comme celle d’une surface."
+  },
   "FORMAT_VERSION": {
     "summary": "Format de cache que lit ce moteur.",
     "description": "Le format 5 porte `scene-tables.json`, les tables de nœuds et de matériaux contre lesquelles la scène préparée est vérifiée ; les formats 3 et 4 n’ont pas ce produit et sont refusés par leur numéro plutôt qu’à moitié lus."
@@ -4958,8 +4962,8 @@
     "members": {
       "isScene": "Toujours `true` : distingue la racine de la scène de tout autre objet.",
       "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
-      "fog": "Un brouillard qui fond les objets dans `color` entre `near` et `far` ; `null` pour aucun.",
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
+      "fog": "Un brouillard sur chaque surface éclairée, opaque ou transparente, sur les deux moteurs de rendu ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
       "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
@@ -4998,8 +5002,21 @@
     "members": {
       "exposure": "Multiplicateur de la radiance linéaire, appliqué avant la courbe.",
       "toneMapping": "La courbe d’affichage ; `DEFAULT_TONE_MAPPING` si elle manque.",
-      "irradiance": "L’irradiance qui arrive de toutes les directions, en 27 nombres : neuf coefficients, chacun un triplet RVB, dans l’ordre des bandes constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absente, ou toute nulle, rien n’éclaire une surface sauf les lampes déclarées."
+      "irradiance": "L’irradiance qui arrive de toutes les directions, en 27 nombres : neuf coefficients, chacun un triplet RVB, dans l’ordre des bandes constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absente, ou toute nulle, rien n’éclaire une surface sauf les lampes déclarées.",
+      "fog": "Brouillard de distance ou de hauteur sur chaque surface éclairée (`SceneFog`) ; absent, aucun."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Un brouillard qui s’épaissit avec la distance : `density` par unité de la scène ; avec `heightFalloff`, il s’éclaircit au-dessus de `baseHeight`, divisé par e toutes les `1 / heightFalloff` unités vers le haut.",
+    "members": {
+      "color": "La radiance vers laquelle le brouillard fond les objets, en RVB linéaire.",
+      "density": "L’extinction par unité de la scène, à `baseHeight` ; ≥ 0.",
+      "heightFalloff": "La vitesse à laquelle la densité baisse avec la hauteur, par unité de la scène ; 0, la valeur par défaut, la garde uniforme à toute hauteur.",
+      "baseHeight": "La hauteur où la densité vaut `density` ; 0 par défaut."
+    }
+  },
+  "SceneFog": {
+    "summary": "Brouillard de distance ou de hauteur, tel que l’éclairage le lit."
   },
   "SceneLight": {
     "summary": "Une lumière de scène, version 2.",
@@ -5023,6 +5040,14 @@
   "SceneLightingView": {
     "summary": "Ce que l’hôte demande de voir.",
     "description": "`lit` est le vrai éclairage et lui seul ; `unlit` est la vue de diagnostic en albédo brut — la couleur du matériau telle quelle, sans lumière, sans ambiante et sans émission — pour les bancs d’essai de géométrie qui comparent des images au pixel près. `auto`, par défaut, donne `unlit` tant qu’aucune lumière n’est déclarée et `lit` dès qu’il y en a une. `bounce` est la troisième vue de diagnostic : l’irradiance indirecte seule, multipliée par l’exposition et sortie en valeurs linéaires sans ACES ni sRGB. C’est ce que le banc compare à l’oracle du compilateur ; ce n’est pas une image à regarder, et elle est noire sans rebond réglé."
+  },
+  "SceneLinearFog": {
+    "summary": "Un brouillard qui commence à `near` et cache tout à partir de `far`, distances depuis l’œil.",
+    "members": {
+      "color": "La radiance vers laquelle le brouillard fond les objets, en RVB linéaire.",
+      "near": "Distance depuis l’œil où le brouillard commence.",
+      "far": "Distance depuis l’œil où l’on ne voit plus que le brouillard."
+    }
   },
   "SceneLightStore": {
     "summary": "Les lumières d’une scène telles que le GPU les lit, rangées et tenues à jour.",
@@ -6782,7 +6807,7 @@
       "format": "Toujours `'trillion3d-scene'`.",
       "formatVersion": "La version de cette disposition ; une autre est refusée.",
       "background": "La couleur de fond, ou `null`.",
-      "fog": "Le brouillard, ou `null`.",
+      "fog": "Le brouillard, sa couleur en composantes linéaires, ou `null`.",
       "camera": "La caméra enregistrée avec la scène, ou `null`.",
       "geometries": "Chaque forme, une fois, quel que soit le nombre de maillages qui la portent.",
       "materials": "Chaque matériau, une fois, quel que soit le nombre de maillages qui le portent.",
