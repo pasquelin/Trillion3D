@@ -104,11 +104,12 @@ export function createExplorerSceneApi(inputs: Inputs) {
       return !!active.setBounce;
     },
     /** The clear colour behind the scene, `0xrrggbb` or the default, on every engine of the
-     *  session; false when the active path cannot take it in place, and only a new session will. */
+     *  session — each one a comparison shows, not the active one alone — at the next frame; false
+     *  when one of them cannot take it in place, and only a new session will. */
     setClearColor(hex = DEFAULT_CLEAR_COLOR) {
       check();
       for (const backend of backends) backend.setClearColor?.(hex);
-      return !!getActive().setClearColor;
+      return backends.every((backend) => backend.setClearColor);
     },
     /** Host surfaces rewritten in place are read again; false when the active path cannot, and
      *  only a new session will draw them. */

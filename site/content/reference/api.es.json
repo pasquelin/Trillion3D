@@ -5016,7 +5016,7 @@
       "isScene": "Siempre `true`: distingue la raíz de la escena de cualquier otro objeto.",
       "environment": "Una imagen del entorno que reflejan las superficies brillantes; `null` para ninguna.",
       "fog": "Una niebla que funde los objetos en `color` entre `near` y `far`; `null` para ninguna.",
-      "background": "Lo que llena la imagen detrás de cada objeto: un color, una imagen, o `null` para el fondo por defecto.",
+      "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
       "load": "Carga un modelo compilado — la URL de su manifiesto — y lo añade a esta escena.",
       "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
       "fromJSON": "Reemplaza lo que contiene la escena por una escena guardada con `toJSON`, conservando sus marcas `helper`; se resuelve cuando sus modelos están cargados. Otro formato u otra versión se rechaza (`UNSUPPORTED_SCENE_FORMAT`). Las llamadas hechas mientras se lee una se ejecutan una tras otra, en orden, cada una sobre lo que dejó la anterior: dos escenas guardadas nunca se mezclan."
