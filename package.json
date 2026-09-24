@@ -42,6 +42,7 @@
     "build:wasm": "node scripts/build-wasm.ts",
     "build:physics": "node scripts/build-physics-wasm.ts",
     "bench:physics": "node scripts/bench-physics.ts",
+    "bench:fluids": "node scripts/bench-fluids.ts",
     "test": "node scripts/test-unit.ts",
     "test:changed": "node scripts/check-changed.ts --tests-only",
     "test:gpu": "node tests/browser/test-gpu.ts",
