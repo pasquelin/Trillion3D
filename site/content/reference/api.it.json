@@ -1158,7 +1158,7 @@
   },
   "createSceneLightStore": {
     "summary": "Luci della scena, in numero fisso.",
-    "description": "Il buffer viene allocato una volta per `maxLights` luci e non viene mai riallocato; aggiungere, regolare o rimuovere una luce scrive solo i suoi sedici float e aumenta la sua revisione. La `revision` per luce è ciò che legge il pianificatore delle ombre per sapere che una luce è cambiata: nessuna struttura viene ricostruita per fotogramma."
+    "description": "Il buffer viene allocato una volta per `maxLights` luci e non viene mai riallocato; aggiungere, regolare o rimuovere una luce scrive solo i suoi sedici float e aumenta la sua revisione. La `revision` per luce segnala a un lettore che una luce è cambiata: nessuna struttura viene ricostruita per fotogramma. Il pianificatore delle ombre legge da sé la forma della luce, quindi un cambio di intensità o di colore non rende obsoleta alcuna pagina d’ombra."
   },
   "createSceneRoot": {
     "summary": "Crea una gerarchia di scena vuota e versionata.",

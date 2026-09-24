@@ -4591,7 +4591,7 @@
   },
   "createSceneLightStore": {
     "summary": "Luzes de cena, em capacidade fixa.",
-    "description": "O buffer é alocado uma vez para `maxLights` luzes e nunca é realocado; adicionar, definir ou remover uma luz só escreve seus dezesseis floats e incrementa sua revisão. `revision` por luz é o que o escalonador de sombras lê para saber que uma luz mudou: nenhuma estrutura é reconstruída por quadro."
+    "description": "O buffer é alocado uma vez para `maxLights` luzes e nunca é realocado; adicionar, definir ou remover uma luz só escreve seus dezesseis floats e incrementa sua revisão. `revision` por luz indica a um leitor que uma luz mudou: nenhuma estrutura é reconstruída por quadro. O escalonador de sombras lê a própria forma da luz, então uma mudança de intensidade ou de cor não torna obsoleta nenhuma página de sombra."
   },
   "createSceneRoot": {
     "summary": "Cria uma hierarquia de cena vazia e versionada.",

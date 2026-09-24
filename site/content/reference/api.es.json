@@ -1158,7 +1158,7 @@
   },
   "createSceneLightStore": {
     "summary": "Luces de la escena, en número fijo.",
-    "description": "El búfer se asigna una vez para `maxLights` luces y nunca se reasigna; añadir, ajustar o quitar una luz solo escribe sus dieciséis flotantes y aumenta su revisión. La `revision` por luz es lo que lee el planificador de sombras para saber que una luz ha cambiado: ninguna estructura se reconstruye por fotograma."
+    "description": "El búfer se asigna una vez para `maxLights` luces y nunca se reasigna; añadir, ajustar o quitar una luz solo escribe sus dieciséis flotantes y aumenta su revisión. La `revision` por luz indica a un lector que una luz ha cambiado: ninguna estructura se reconstruye por fotograma. El planificador de sombras lee la forma de la luz por sí mismo, así que un cambio de intensidad o de color no deja obsoleta ninguna página de sombra."
   },
   "createSceneRoot": {
     "summary": "Crea una jerarquía de escena vacía y versionada.",

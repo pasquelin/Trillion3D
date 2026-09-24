@@ -1158,7 +1158,7 @@
   },
   "createSceneLightStore": {
     "summary": "Lichter der Szene, in fester Anzahl.",
-    "description": "Der Puffer wird einmal für `maxLights` Lichter zugewiesen und nie neu zugewiesen; das Hinzufügen, Einstellen oder Entfernen eines Lichts schreibt nur seine sechzehn Fließkommazahlen und erhöht seine Revision. Die `revision` pro Licht ist das, was der Schattenplaner liest, um zu wissen, dass sich ein Licht geändert hat: keine Struktur wird pro Bild neu gebaut."
+    "description": "Der Puffer wird einmal für `maxLights` Lichter zugewiesen und nie neu zugewiesen; das Hinzufügen, Einstellen oder Entfernen eines Lichts schreibt nur seine sechzehn Fließkommazahlen und erhöht seine Revision. Die `revision` pro Licht zeigt einem Leser an, dass sich ein Licht geändert hat: keine Struktur wird pro Bild neu gebaut. Der Schattenplaner liest die Form des Lichts selbst, sodass eine Änderung von Intensität oder Farbe keine Schattenseite veralten lässt."
   },
   "createSceneRoot": {
     "summary": "Erstellt eine leere, versionierte Szenenhierarchie.",
