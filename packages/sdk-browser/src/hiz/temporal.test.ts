@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
 import { rasterVisibilityIds, shadeVisibility, type VisPage } from '../visibility/buffer.ts';
 import {
@@ -19,8 +19,8 @@ import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/h
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 
 test('Hi-Z remaining pages are a subset of the selected cut and never punch a beauty hole', () => {
-  const frontMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const backMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const frontMat = G.basicSurface({ color: 0xff0000 });
+  const backMat = G.basicSurface({ color: 0x00ff00 });
   const front = quad(frontMat, [-1, -1, 0], [1, 1, 0], 'front');
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const cam = cameraAt(),
@@ -65,8 +65,8 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
 });
 
 test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion smoothly', () => {
-  const frontMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const backMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const frontMat = G.basicSurface({ color: 0xff0000 });
+  const backMat = G.basicSurface({ color: 0x00ff00 });
   const front = quad(frontMat, [-1, -1, 0], [1, 1, 0], 'front');
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const size: [number, number] = [32, 32];
@@ -92,7 +92,7 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   assert.equal(res1.hizRejected, 1);
 
   // Frame 2: Camera shifts to the side so back is no longer occluded by front.
-  const cam2 = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const cam2 = G.perspectiveCamera(55, 1, 0.1, 100);
   cam2.position.set(5, 0, 2);
   cam2.lookAt(0, 0, -1);
   cam2.updateMatrixWorld();
@@ -114,11 +114,11 @@ test('flat projection and split reproduce the object forms to the bit, including
     seed = (seed * 1103515245 + 12345) >>> 0;
     return seed / 4294967296;
   };
-  const pages: (HizPage & { matrix: THREE.Matrix4 })[] = [];
+  const pages: (HizPage & { matrix: G.Matrix4 })[] = [];
   for (let i = 0; i < 300; i++) {
     const centre = [rnd() * 20 - 10, rnd() * 20 - 10, -rnd() * 40],
       half = [rnd() * 2 + 0.01, rnd() * 2 + 0.01, rnd() * 2 + 0.01];
-    const matrix = new THREE.Matrix4()
+    const matrix = new G.Matrix4()
       .makeRotationY(rnd() * 6)
       .setPosition(rnd() * 4 - 2, rnd() * 4 - 2, rnd() * 4 - 2);
     pages.push({
@@ -129,7 +129,7 @@ test('flat projection and split reproduce the object forms to the bit, including
   }
   // Copies of existing boxes give the sort exactly equal depths, where the index tie-break decides.
   for (let i = 0; i < 30; i++) pages.push({ ...pages[i] });
-  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
+  const camera = G.perspectiveCamera(60, 16 / 9, 0.1, 200);
   camera.position.set(1, 2, 3);
   camera.lookAt(0, 0, -20);
   camera.updateProjectionMatrix();

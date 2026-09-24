@@ -1,8 +1,10 @@
 import { coneSkipsPage } from '../selection/helpers.ts';
 import { frustumClipBox } from '../../../../sdk-core/src/index.ts';
+import { boxMissesLightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { frameClusterError, frameSelects } from '../selection/frame.ts';
 import { cutSelectsAtZero } from '../selection/projection.ts';
 import { drawnUnderForcing } from './logic.ts';
+import { chargeDrawn, chargeWanted } from './charge.ts';
 import {
   RESIDENT_ALL,
   residentUnder,
@@ -34,6 +36,7 @@ function keep<T extends PageRecord>(
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
+    chargeWanted(s, rec);
   }
   if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
     if (forcing) s.flatShort = true;
@@ -45,7 +48,7 @@ function keep<T extends PageRecord>(
   s.shownTriangles += triangles;
   // A pass that exceeds the budget is discarded as-is: its only result is "too many pages".
   // Knowing at the first overrun skips the rest of the descent, not a page of the cut we keep.
-  if (s.budget !== 0 && s.shownCount > s.budget) s.over = true;
+  chargeDrawn(s);
 }
 
 /** Test a cluster, except its cut when an ancestor already settled it (`settled`): the frustum and
@@ -75,6 +78,13 @@ function take<T extends PageRecord>(
       return;
     }
   } else if (!boxes && (!rec.min || !rec.max)) return;
+  if (
+    s.light &&
+    boxMissesLightPages(s.light, rec.min!, rec.max!, s.flatElements, s.cam.perspective)
+  ) {
+    s.frustumRejected++;
+    return;
+  }
   if (
     !settled &&
     !(forcing

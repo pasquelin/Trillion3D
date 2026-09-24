@@ -117,7 +117,6 @@
       // A control changes the picture or the fourth lane's anisotropy, never on its own.
       let granted = null;
       const ui = controls({
-        mouse: 'Drag to look along the lanes; left to right: nearest, linear, trilinear, anisotropic',
         picture: Object.keys(PATTERNS),
         anisotropy: [1, 16, 16, 1],
       }, (values, key) => {

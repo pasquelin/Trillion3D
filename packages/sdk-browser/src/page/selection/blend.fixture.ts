@@ -1,23 +1,20 @@
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 
 export function blendFixture(
-  material: THREE.Material = new THREE.MeshBasicMaterial({
+  material: G.GraphSurface = G.basicSurface({
     transparent: true,
-    side: THREE.DoubleSide,
+    side: G.DOUBLE_SIDE,
   }),
 ) {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
-      [-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0],
-      3,
-    ),
+    G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0], 3),
   );
-  geometry.setIndex([0, 1, 2, 3, 4, 5]);
-  const mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  geometry.setIndex(G.indices([0, 1, 2, 3, 4, 5]));
+  const mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   // Two level-0 clusters that nothing replaces: the smallest legal DAG, so both are root clusters.
   const pages = [
@@ -81,7 +78,7 @@ export function blendFixture(
 }
 
 export function camera() {
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000);
+  const camera = G.perspectiveCamera(55, 1, 0.1, 1000);
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();

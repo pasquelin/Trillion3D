@@ -44,7 +44,7 @@ export async function createWebgpuBlendPipelines(
       { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.planInstances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.clusterSpans, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      { binding: b.shadowSlices, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.shadowData, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       {
         binding: b.shadowAtlas,
         visibility: GPUShaderStage.FRAGMENT,

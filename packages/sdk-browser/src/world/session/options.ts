@@ -54,6 +54,10 @@ export interface MeasuredWorldOptions {
   lodAdaptive?: boolean;
   /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
   clearColor?: number;
+  /** The host's clear colour now, `0xRRGGBB`, `undefined` for none (the default clears): what a
+   *  diagnostic compares the pixels with once a background changed in place, `clearColor` being
+   *  only the one the session opened on. */
+  currentClearColor?: () => number | undefined;
   /** Bounded diagnostics emitted by a backend and owned by the host report. */
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
   /** Summary suppresses per-frame trace records; trace is the default with an observer. */
@@ -75,10 +79,10 @@ export interface MeasuredWorldOptions {
    *  frame, shown meanwhile by their coarser resident level; the worst pass is published as
    *  `textureUploadPeakMs`. */
   maxTextureUploadMsPerFrame?: number;
-  /** Geometry-page pool bytes of the WebGPU engine — streamed geometry memory, regardless
-   *  of the scene, like the reference's 512 MB pool. 512 MiB by default. The root cover
-   *  always fits; what a view asks beyond that draws coarser, never refused. Set during
-   *  the session by `explorer.setMemoryBudgets`. */
+  /** Geometry-page pool bytes — streamed geometry memory, regardless of the scene, like the
+   *  reference's 512 MB pool; the WebGPU and WebGL2 engines both hold it. 512 MiB by default.
+   *  The root cover always fits; what a view asks beyond that draws coarser, never refused.
+   *  Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
   /** Largest geometry pool `explorer.setMemoryBudgets` may ask for during the session —
    *  the maximum of a settings slider. The starting budget without it. */
@@ -103,9 +107,9 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
-  /** Whether the glTF loader opens the source images. `'cache'`, the default: an image whose
+  /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
-   *  levels, which it does whatever this option says. `'host'`: the loader reads and decodes
+   *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
    *  every source image, what an engine that draws the host scene (the Three witness)
    *  requires; the engine still reads the baked levels, so such a session pays for the images
    *  twice and asks for them on purpose. `'cache'` holds only where every mounted backend

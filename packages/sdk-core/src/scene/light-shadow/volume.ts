@@ -4,7 +4,7 @@ import { faceBasis } from './math.ts';
 /**
  * Rectangle of a region, in normalised face coordinates: `u0, u1, v0, v1`. The whole
  * face is `−1, 1, −1, 1`, and the volume it produces is then exactly that from before this
- * batch: the cone circumscribed to the square, or the sphere circumscribed to the cascade box.
+ * batch: the cone circumscribed to the square, or the box of the whole square of sun pages.
  */
 export const FULL_FACE = new Float64Array([-1, 1, -1, 1]);
 
@@ -67,7 +67,7 @@ export function writeConeVolume(
 }
 
 /**
- * Box that reject opposes to a region of a cascade. An orthography has no apex: the region
+ * Box that reject opposes to a square of sun pages. An orthography has no apex: the region
  * cuts a sub-box of the extent box — its rectangle on the light plane, the whole depth along
  * the axis — and that box, in the frame of the last composed face, is the volume. The cull
  * shader reads a negative half-angle as "box": centre, then the three axes with their

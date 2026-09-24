@@ -10,9 +10,11 @@
 import {
   importHostTexture,
   importWrapMode,
-} from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+} from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { threeTexture } from '../../../bench/witnesses/three/fromGraph.ts';
 import { sampleLinear, wrapTexel } from '../../../packages/sdk-browser/src/visibility/math.ts';
 import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
@@ -23,11 +25,11 @@ import { CARTES, materielMelange, TEXTURE, UV } from './addressingMaps.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 
-const textures = new Map<string, THREE.Texture>();
+const textures = new Map<string, G.GraphTexture>();
 function carte(c: AdressageCas) {
   const cle = `${c.largeur}x${c.hauteur}/${c.wrapS}/${c.wrapT}`;
   if (!textures.has(cle)) {
-    const map = new THREE.Texture();
+    const map = new G.GraphTexture();
     map.image = { data: octetsTexture(c.largeur, c.hauteur), width: c.largeur, height: c.hauteur };
     map.wrapS = c.wrapS;
     map.wrapT = c.wrapT;
@@ -42,18 +44,18 @@ function carte(c: AdressageCas) {
  * (0, 0), where weights are (1, 0, 0), carries the case coordinate as-is. A texel's
  * alpha is 10 + 10·rank; bisection on `alphaTest` recovers the rank of the texel read.
  */
-const camera = new THREE.PerspectiveCamera();
+const camera = G.perspectiveCamera();
 camera.projectionMatrix.set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.5, 0, 0, -1, 0);
-const positions = new THREE.Float32BufferAttribute([-1, 1, -1, 3, 1, -1, -1, -3, -1], 3);
+const positions = G.floatAttribute([-1, 1, -1, 3, 1, -1, -1, -3, -1], 3);
 function texelRaster(c: AdressageCas): [number, number] | null {
-  const geometrie = new THREE.BufferGeometry();
+  const geometrie = new G.GraphGeometry();
   geometrie.setAttribute('position', positions);
-  geometrie.setAttribute('uv', new THREE.Float32BufferAttribute([c.u, c.v, c.u, c.v, c.u, c.v], 2));
-  const materiau = new THREE.MeshBasicMaterial({ map: carte(c), side: THREE.DoubleSide });
+  geometrie.setAttribute('uv', G.floatAttribute([c.u, c.v, c.u, c.v, c.u, c.v], 2));
+  const materiau = G.basicSurface({ map: carte(c), side: G.DOUBLE_SIDE });
   const page = {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometrie.attributes,
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     material: surfaceOf(materiau),
   };
   const garde = (rang: number) => {
@@ -130,7 +132,7 @@ const image = {
 console.log('\nDefect 8: each map of the mixed material, read by sampleLinear (CPU)');
 for (const { nom, champ, wrapS, wrapT } of CARTES) {
   // `materielMelange` assigns a real Texture to every slot of `CARTES`: never null here.
-  const map = Object.assign(materiau[champ]!, { image, flipY: false });
+  const map = Object.assign(materiau[champ] as G.GraphTexture, { image, flipY: false });
   let ecartsCarte = 0;
   for (const [u, v] of UV) {
     const [r, g] = sampleLinear(importHostTexture(map), u, v);
@@ -145,7 +147,7 @@ for (const { nom, champ, wrapS, wrapT } of CARTES) {
 /** For the record: `Texture.transformUv`, Three's CPU rule, contradicts its own
  *  GPU on boundaries; it is not the reference, we only count. */
 const transformUv = (c: AdressageCas, k: number) => {
-  const uv = carte(c).transformUv(new THREE.Vector2(c.u, c.v));
+  const uv = threeTexture(carte(c)).transformUv(new THREE.Vector2(c.u, c.v));
   const lu = [
     Math.min(c.largeur - 1, Math.floor(uv.x * c.largeur)),
     Math.min(c.hauteur - 1, Math.floor(uv.y * c.hauteur)),

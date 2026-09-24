@@ -19,7 +19,7 @@ export function lightingSettings(
     movingLight: flags.get('lampe-mobile') === 'true',
     // `--lampes-fichier off` opens the scene without imported lights from source file.
     importedLights: (flags.get('lampes-fichier') ?? 'on') !== 'off',
-    // `--soleil` adds the generic directional light from `lamps.ts` with cascades.
+    // `--soleil` adds the generic directional light from `lamps.ts` with its shadow maps.
     sun: flags.get('soleil') === 'true',
     // Shadow stage budget in GPU milliseconds per frame.
     shadowBudgetMs: flags.has('budget-ombres') ? number('budget-ombres', 1) : null,

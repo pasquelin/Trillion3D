@@ -24,7 +24,7 @@ export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLig
   next[8] = vis.textures?.data.views;
   next[9] = vis.mapsSampler;
   next[10] = lighting?.directLights;
-  next[11] = lighting?.shadowSlices;
+  next[11] = lighting?.shadowData;
   next[12] = lighting?.shadowAtlas;
   next[13] = lighting?.shadowSampler;
   next[14] = lighting?.bounceGrid;

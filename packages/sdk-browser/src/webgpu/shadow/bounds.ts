@@ -1,4 +1,5 @@
 import { boxEmpty, boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts';
+import { forEachDirtyRun } from '../row/dirty.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -48,8 +49,8 @@ export function packClusterSpheres(
  * World sphere of every drawable row, in page-table row order.
  *
  * That is the only geometric datum the shadow pass needs to drop a cluster: its sphere against a
- * light's range and against a face's cone. It is written exactly on the row interval the page table
- * just declared dirty — a moved row, a rewritten row, a moved node — and never otherwise: an image
+ * light's range and against a face's cone. It is written exactly on the rows the page table just
+ * declared dirty — a moved row, a rewritten row, a moved node — and never otherwise: an image
  * with no change writes nothing.
  */
 function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -67,24 +68,67 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return lights.spheres;
 }
 
-/** Writes the spheres of rows `[from, to]` and pushes exactly that interval to the GPU. */
-export function uploadClusterSpheres(
+/**
+ * Writes the spheres of the rows the table declared dirty and pushes them run by run: a model whose
+ * rows are scattered sends its own and none of the rows between them.
+ */
+export function uploadClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const spheres = ensureClusterSpheres(rt, device),
+    { rows } = rt.layout;
+  forEachDirtyRun(
+    rows.dirtyMarks,
+    rows.dirtyFrom,
+    Math.min(rows.dirtyTo, spheres.rows - 1),
+    rt,
+    uploadSphereRun,
+  );
+}
+
+function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
+  const spheres = rt.lights.spheres!;
+  packClusterSpheres(rt.layout.rows.packedRecs, spheres.packed, from, to);
+  // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.
+  rt.gpu.device!.queue.writeBuffer(
+    spheres.buffer,
+    from * CLUSTER_SPHERE_FLOATS * 4,
+    spheres.packed,
+    from * CLUSTER_SPHERE_FLOATS,
+    (to - from + 1) * CLUSTER_SPHERE_FLOATS,
+  );
+}
+
+/**
+ * Mobility word of rows `[from, to]` — 1 for a row whose placement moves — pushed on the same dirty
+ * interval as the spheres, and every row once when a placement turns moving: what the page cull
+ * splits a page's casters by, static layer or moving casters.
+ */
+export function uploadRowMobility(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   from: number,
   to: number,
 ) {
-  const spheres = ensureClusterSpheres(rt, device);
-  const last = Math.min(to, spheres.rows - 1);
-  if (last < from) return;
-  packClusterSpheres(rt.layout.rows.packedRecs, spheres.packed, from, last);
-  // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.
-  device.queue.writeBuffer(
-    spheres.buffer,
-    from * CLUSTER_SPHERE_FLOATS * 4,
-    spheres.packed,
-    from * CLUSTER_SPHERE_FLOATS,
-    (last - from + 1) * CLUSTER_SPHERE_FLOATS,
+  const { lights, layout } = rt,
+    { drawSlots, rows, selectionRoots } = layout;
+  const { mobility } = lights;
+  mobility.ensure(selectionRoots.length, drawSlots, (rank) => selectionRoots[rank].world.elements);
+  if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
+    lights.mobilityRows?.destroy();
+    lights.mobilityRows = device.createBuffer({
+      label: 'Trillion3D shadow row mobility v1',
+      size: mobility.rowWords.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    from = 0;
+    to = drawSlots - 1;
+  }
+  const buffer = lights.mobilityRows;
+  mobility.writeRows(
+    (row) => rows.packedRecs[row]?.placementIndex ?? -1,
+    drawSlots,
+    from,
+    to,
+    (first, count) => device.queue.writeBuffer(buffer, first * 4, mobility.rowWords, first, count),
   );
 }
 
@@ -103,8 +147,8 @@ export const changeBox = new Float64Array(6),
   changeMax = changeBox.subarray(3, 6);
 
 /**
- * A page enters residency or leaves it, or enters or leaves the drawn cut: the scene is drawn
- * at another precision where it is, so the shadow maps of lights whose range touches this box
+ * A page entered residency or left it since the last plan: the scene is drawn at another
+ * precision where it is, so the shadow maps of lights whose range touches this box
  * no longer describe it exactly and become candidates again — once the camera rests, since
  * the change is one of representation, not of the world. Without that, a settled map would
  * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The

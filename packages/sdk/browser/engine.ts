@@ -22,6 +22,12 @@ export type {
   TriangleCollision,
 } from '../../sdk-core/src/collision/characterCollision.ts';
 export type { ComparisonLayout } from '../../sdk-browser/src/measurement/comparison.ts';
+export { ObjectPhysics } from '../../sdk-core/src/physics/objectPhysics.ts';
+export type {
+  ContactEvent,
+  ContactEventName,
+  PhysicsHost,
+} from '../../sdk-core/src/physics/objectPhysics.ts';
 export type { CpuStepSummary } from '../../sdk-browser/src/stage/cpuProfile.ts';
 export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts';
 export type {
@@ -32,6 +38,21 @@ export type {
 export { createGpuPageCache, httpPageSource } from '../../sdk-browser/src/gpu/page/pages.ts';
 export { createPageStreamer } from '../../sdk-browser/src/streaming/pages.ts';
 export type { DecodedGeometryPage } from '../../sdk-browser/src/page/decode/geometryPage.ts';
+export {
+  DEFAULT_PHYSICS_BUDGET,
+  GRAVITY_PRESETS,
+  PHYSICS_MATERIALS,
+} from '../../sdk-core/src/physics/options.ts';
+export type {
+  GravityPreset,
+  PhysicsBodyOptions,
+  PhysicsBudget,
+  PhysicsMaterialPreset,
+  PhysicsMatter,
+  PhysicsOption,
+  PhysicsShape,
+  PhysicsType,
+} from '../../sdk-core/src/physics/options.ts';
 export { detectCapabilities } from '../../sdk-browser/src/measurement/capabilities.ts';
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts';
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts';
@@ -39,13 +60,33 @@ export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/fl
 export { framingFromBounds } from '../../sdk-browser/src/camera/framing.ts';
 export type {
   GeometryPool,
+  MemoryBudgets,
+  MemoryBudgetsReport,
   PoolClamp,
-  TexturePool,
-} from '../../sdk-browser/src/webgpu/residency/memoryBudgets.ts';
+} from '../../sdk-browser/src/residency/pools.ts';
 export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapping.ts';
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
+export { GraphAngles, GraphRotation } from '../../sdk-browser/src/host/graph/rotation.ts';
+export {
+  GraphAttribute,
+  GraphInterleavedAttribute,
+  GraphInterleavedBuffer,
+} from '../../sdk-browser/src/host/graph/attributes.ts';
+export type { GraphArray, GraphElements } from '../../sdk-browser/src/host/graph/attributes.ts';
+export { GraphGeometry } from '../../sdk-browser/src/host/graph/geometry.ts';
+export { GraphMesh } from '../../sdk-browser/src/host/graph/mesh.ts';
+export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';
+export type { GraphNodeKind } from '../../sdk-browser/src/host/graph/nodeKind.ts';
+export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
+export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';
+export { GraphVector } from '../../sdk-browser/src/host/graph/vector.ts';
+export type {
+  GravityInput,
+  WorldPhysics,
+  WorldPhysicsOptions,
+} from '../../sdk-browser/src/physics/worldPhysics.ts';
 export type { HeadSettings, PersonHead } from '../../sdk-browser/src/camera/controls/look.ts';
 export type {
   HostAttribute,
@@ -76,13 +117,10 @@ export type {
 } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
 export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
-export type {
-  MemoryBudgets,
-  MemoryBudgetsReport,
-} from '../../sdk-browser/src/webgpu/pages/io/memory.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
+export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts';
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts';
@@ -94,9 +132,11 @@ export type {
   TextureLevelReader,
   TextureLevelRequest,
 } from '../../sdk-browser/src/texture/levelReader.ts';
+export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryBudgets.ts';
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts';
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
+export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
 export {
   createEngineCamera,
   defaultEngineCamera,

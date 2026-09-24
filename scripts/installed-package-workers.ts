@@ -1,4 +1,37 @@
-// Runs inside the browser page (`page.evaluate`): DOM Worker, MessageEvent and fetch are ambient.
+// `runInstalledWorkers` runs inside the browser page (`page.evaluate`): DOM Worker, MessageEvent
+// and fetch are ambient, and nothing it imports survives the trip. The messages are therefore
+// built here, in Node, from the engine's own contracts, and handed to it as arguments.
+import {
+  PAGE_DECODE_PROTOCOL,
+  PAGE_INTEGRATION_PROTOCOL,
+  type PageDecodeRequest,
+  type PageIntegrationRequest,
+} from '../packages/sdk-core/src/index.ts';
+
+/** The messages the installed workers receive, minus the buffers the page makes and transfers. */
+export interface InstalledWorkerRequests {
+  decode: Omit<PageDecodeRequest, 'source'>;
+  integration: Omit<PageIntegrationRequest, 'specs'> & { specs: number[] };
+}
+
+/** One decode of the proof page, and one arrival of a single-page, one-triangle sheet. */
+export function installedWorkerRequests(): InstalledWorkerRequests {
+  return {
+    decode: {
+      protocol: PAGE_DECODE_PROTOCOL,
+      id: 1,
+      op: 'decode',
+      maxDecodedBytes: 16 * 1024 * 1024,
+    },
+    integration: {
+      protocol: PAGE_INTEGRATION_PROTOCOL,
+      id: 1,
+      url: 'installed-proof',
+      words: 3,
+      specs: [0, 1, 7],
+    },
+  };
+}
 
 /** The decode worker's response message, read once at the boundary where it arrives. */
 export interface DecodeWorkerResult {
@@ -20,10 +53,12 @@ export async function runInstalledWorkers({
   pageUrl,
   decodeWorkerUrl,
   integrationWorkerUrl,
+  requests,
 }: {
   pageUrl: string;
   decodeWorkerUrl: string;
   integrationWorkerUrl: string;
+  requests: InstalledWorkerRequests;
 }): Promise<{ decode: DecodeWorkerResult; integration: IntegrationWorkerResult }> {
   const run = <T>(
     workerUrl: string,
@@ -54,15 +89,13 @@ export async function runInstalledWorkers({
     });
   };
   const source = await (await fetch(pageUrl)).arrayBuffer();
-  const decode = await run<DecodeWorkerResult>(
-    decodeWorkerUrl,
-    { protocol: 3, id: 1, op: 'decode', source, maxDecodedBytes: 16 * 1024 * 1024 },
-    [source],
-  );
-  const specs = new Int32Array([0, 1, 7]);
+  const decode = await run<DecodeWorkerResult>(decodeWorkerUrl, { ...requests.decode, source }, [
+    source,
+  ]);
+  const specs = new Int32Array(requests.integration.specs);
   const integration = await run<IntegrationWorkerResult>(
     integrationWorkerUrl,
-    { protocol: 1, id: 1, url: 'installed-proof', words: 3, specs: specs.buffer },
+    { ...requests.integration, specs: specs.buffer },
     [specs.buffer],
   );
   return { decode, integration };

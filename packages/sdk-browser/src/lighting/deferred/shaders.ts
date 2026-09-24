@@ -45,11 +45,11 @@ ${FULLSCREEN_VERTEX}
  if(flag==0u){return vec4f(0.0);}
  return vec4f(textureLoad(baseMetal,coord,0).rgb,1.0);
 }`;
-/** Contract bindings: declared lights, their per-tile lists and their shadow atlas. */
+/** Contract bindings: declared lights, their per-tile lists and their shadow pool. The shadow
+ *  records and page table, binding 8, are declared with the shadow read (`directShadowWgsl`). */
 export const CONTRACT_BINDINGS_WGSL = `
 @group(0) @binding(6) var<storage,read> directLights:DirectLights;
 @group(0) @binding(7) var<storage,read> tileLights:array<u32>;
-@group(0) @binding(8) var<storage,read> shadows:ShadowSlices;
 @group(0) @binding(9) var shadowAtlas:texture_depth_2d;
 @group(0) @binding(10) var shadowSampler:sampler_comparison;`;
 /** Shared body of the two contract programs: only the bounce lines separate them. */
@@ -62,7 +62,10 @@ ${WORLD_AT_WGSL}
  let base=textureLoad(baseMetal,coord,0);
  if(flag==1u||flag==3u){return vec4f(base.rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
- let P=worldAt(pixel.xy,textureLoad(depth,coord,0));
+ let z=textureLoad(depth,coord,0);
+ let P=worldAt(pixel.xy,z);
+ // The pixel's footprint at its depth, the unit its shadow level is chosen in.
+ shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),z)-P);
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
  surfaceModel=flag;
  ${diagnostic}

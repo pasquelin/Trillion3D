@@ -1,6 +1,7 @@
 // Absolute selection measurement: frustum clip and autonomous residency. No oracle here: these
 // two computations have no prior implementation to confront; their correctness is held by
 // `packages/sdk-core/src/math/frustum/box.test.ts` and `packages/sdk-browser/src/backend/autonomous/residency.test.ts`. Each line says so rather than staying silent.
+import { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts';
 import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
@@ -12,7 +13,10 @@ import { pageRecFixture } from './support/pageRecFixture.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const cam = camera(6, 0.1, 16 / 9);
-const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+const clip = new THREE.Matrix4().multiplyMatrices(
+  new THREE.Matrix4().fromArray(cam.projectionMatrix.elements),
+  new THREE.Matrix4().fromArray(cam.matrixWorldInverse.elements),
+);
 const planes = new Float64Array(24);
 clipPlanesFromMatrix(planes, clip.elements);
 
@@ -79,11 +83,8 @@ function hote(nombre: number) {
     modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
     shown: pages.slice(0, Math.floor(nombre * 0.4)),
     desired: pages,
-    pending: [],
-    retained: [],
-    byUrl: new Map(),
     geometryStore: createAutonomousGeometry({
-      scene: new THREE.Scene(),
+      scene: new GraphScene(),
       allPages: [],
       bootstrap: [],
       shown: [],

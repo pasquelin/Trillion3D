@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../surface.ts';
 import {
   OPEN_CONE,
@@ -11,7 +11,7 @@ import {
   triangleCone,
 } from './cone.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { leafCone } from '../../gpu/core/selection.ts';
+import { leafCone } from './cone.ts';
 import { coneSkipsPage } from '../selection/helpers.ts';
 
 test('a single front-facing triangle has a narrow cone along +z', () => {
@@ -29,8 +29,8 @@ test('opposite triangles produce an open cone', () => {
 });
 
 test('OPEN_CONE never rejects', () => {
-  const world = new THREE.Matrix4();
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const world = new G.Matrix4();
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100);
   cam.position.set(0, 0, 5);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -42,8 +42,8 @@ test('OPEN_CONE never rejects', () => {
 
 test('a +z cone seen from behind the plane is rejected, and perspective spread keeps a grazing bound', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 };
-  const world = new THREE.Matrix4();
-  const behind = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const world = new G.Matrix4();
+  const behind = G.perspectiveCamera(55, 1, 0.1, 100);
   behind.position.set(0, 0, -5);
   behind.lookAt(0, 0, 0);
   behind.updateMatrixWorld();
@@ -51,7 +51,7 @@ test('a +z cone seen from behind the plane is rejected, and perspective spread k
     coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind).eye),
     true,
   );
-  const grazing = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const grazing = G.perspectiveCamera(55, 1, 0.1, 100);
   grazing.position.set(0, 0, 5);
   grazing.lookAt(0, 0, 0);
   grazing.updateMatrixWorld();
@@ -63,15 +63,16 @@ test('a +z cone seen from behind the plane is rejected, and perspective spread k
 
 test('an anisotropic scale does not reject a still-visible cone member', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 4 };
-  const world = new THREE.Matrix4().makeScale(0.1, 1, 1);
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
+  const world = new G.Matrix4().makeScale(0.1, 1, 1);
+  const cam = G.perspectiveCamera(55, 1, 0.1, 200);
   cam.position.set(60, 0, -80);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
-  const visible = new THREE.Vector3(1, 0, 1)
+  const visible = new G.Vector3(1, 0, 1)
     .normalize()
-    .applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(world));
-  assert.ok(visible.dot(cam.position.clone().normalize()) > 0);
+    .applyMatrix3(new G.Matrix3().getNormalMatrix(world))
+    .normalize();
+  assert.ok(visible.dot(new G.Vector3().copy(cam.position).normalize()) > 0);
   assert.equal(
     coneCullsPage(cone, world, [-0.01, -0.01, -0.01], [0.01, 0.01, 0.01], cameraMoteur(cam).eye),
     false,
@@ -80,12 +81,12 @@ test('an anisotropic scale does not reject a still-visible cone member', () => {
 
 test('BackSide materials are not cone-culled from behind', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 };
-  const world = new THREE.Matrix4();
-  const behind = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const world = new G.Matrix4();
+  const behind = G.perspectiveCamera(55, 1, 0.1, 100);
   behind.position.set(0, 0, -5);
   behind.lookAt(0, 0, 0);
   behind.updateMatrixWorld();
-  const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
+  const material = G.basicSurface({ side: G.BACK_SIDE });
   assert.equal(
     coneCullsPage(
       cone,
@@ -102,8 +103,8 @@ test('BackSide materials are not cone-culled from behind', () => {
 
 test('the root context yields the same reject as the per-cluster compute, and is set only on demand', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 };
-  const world = new THREE.Matrix4().makeRotationY(0.4).setPosition(2, 0, -1);
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const world = new G.Matrix4().makeRotationY(0.4).setPosition(2, 0, -1);
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100);
   cam.position.set(0, 0, -5);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
@@ -134,21 +135,21 @@ test('the root context yields the same reject as the per-cluster compute, and is
 
 test('a surface switched to double-sided in place gets its page back at the cut', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 };
-  const world = new THREE.Matrix4();
-  const behind = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const world = new G.Matrix4();
+  const behind = G.perspectiveCamera(55, 1, 0.1, 100);
   behind.position.set(0, 0, -5);
   behind.lookAt(0, 0, 0);
   behind.updateMatrixWorld();
   const cam = cameraMoteur(behind);
   const min = [-0.1, -0.1, 0],
     max = [0.1, 0.1, 0];
-  const material = new THREE.MeshBasicMaterial({ side: THREE.FrontSide });
+  const material = G.basicSurface({ side: G.FRONT_SIDE });
   const surface = surfaceOf(material);
   assert.equal(coneCullsPage(cone, world, min, max, cam.eye, surface), true, 'front-only, behind');
   assert.equal(leafCone({ cone, material: surface }), cone);
   // The host opens the surface on the declaration it shares with its mesh: no version is bumped,
   // and nothing on this path refreshes the record.
-  material.side = THREE.DoubleSide;
+  material.side = G.DOUBLE_SIDE;
   assert.equal(leafCone({ cone, material: surface }), OPEN_CONE, 'the cut reopens the cone');
   assert.equal(
     coneCullsPage(cone, world, min, max, cam.eye, surface),

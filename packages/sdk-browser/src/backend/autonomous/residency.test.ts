@@ -1,12 +1,11 @@
 // A7: residency url sets (pendingUrls, pageUrls, collectPendingUrls) live as long as the
-// host instead of being rebuilt every frame; A8: comptePagesResidentes counts instead of
-// allocating an intermediate array. Oracle: the versions from before batch A, in
+// host instead of being rebuilt every frame. Oracle: the versions from before batch A, in
 // `../../../../../bench/oracles/browser/selection.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectPendingUrls } from '../../page/selection/requests.ts';
-import { comptePagesResidentes, createAutonomousResidency } from './residency.ts';
+import { createAutonomousResidency } from './residency.ts';
 import {
   referenceCollectPendingUrls,
   referenceResidency,
@@ -14,19 +13,19 @@ import {
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
-// A minimal but complete geometry store: only `detach` and `state.allocationBytes` are read by
+// A minimal but complete geometry store: only `releasePage` is read by
 // `createAutonomousResidency`, but its parameter type is the full geometry-store shape.
 function fakeGeometryStore() {
   return {
-    state: { allocationBytes: 0, submittedTriangles: 0 },
+    state: { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 },
     colorMaterials: new Map(),
-    detach: () => {},
+    releasePage: (_url: string) => false,
     sync: () => {},
     rowsWritten: () => {},
     dispose: () => {},
     removeRecords: () => {},
-    storeGeometryPage: () => {},
-    acceptGeometryPage: () => {},
+    storeGeometryPage: () => false,
+    acceptGeometryPage: () => false,
   };
 }
 
@@ -44,7 +43,7 @@ function fakePageRec(url = '', array?: Uint32Array): PageRec {
     attributes: {},
     material: surfaceOf([]),
     declaration: [],
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     renderOrder: 0,
     attached: false,
   };
@@ -67,9 +66,6 @@ test('pendingUrls and pageUrls match the reference on a normal host, called twic
   const env = makeEnv();
   const optimisee = createAutonomousResidency({
     ...env,
-    pending: [],
-    retained: [],
-    byUrl: new Map(),
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...env, pending: [], retained: [] });
@@ -88,9 +84,6 @@ test('an empty host produces empty sets from both implementations', () => {
   };
   const optimisee = createAutonomousResidency({
     ...empty,
-    pending: [],
-    retained: [],
-    byUrl: new Map(),
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...empty, pending: [], retained: [] });
@@ -118,14 +111,33 @@ test('collectPendingUrls on an empty list returns an empty array from both sides
   assert.deepEqual(referenceCollectPendingUrls([], []), []);
 });
 
-test('comptePagesResidentes counts resident pages without building an intermediate array', () => {
-  const pages = [
-    fakePageRec('', new Uint32Array(1)),
-    fakePageRec(),
-    fakePageRec('', new Uint32Array(0)),
-    fakePageRec(),
-  ];
-  assert.equal(comptePagesResidentes(pages), 2);
-  assert.equal(comptePagesResidentes(pages), pages.filter((p) => !!p.array).length);
-  assert.equal(comptePagesResidentes([]), 0);
+test('dropPage counts one eviction per page the store held, never the root cover', () => {
+  const geometryStore = fakeGeometryStore();
+  let held = true;
+  geometryStore.releasePage = () => {
+    const was = held;
+    held = false;
+    return was;
+  };
+  const residency = createAutonomousResidency({ ...makeEnv(), geometryStore });
+  residency.dropPage('a.bin');
+  assert.equal(held, true, 'the root cover is never given back');
+  residency.dropPage('g.bin');
+  residency.dropPage('g.bin');
+  assert.equal(residency.cacheEvictions, 1, 'a page that held nothing is not evicted again');
+});
+
+test('the streamer pins the set the image gathered, without gathering it again', () => {
+  const env = makeEnv();
+  const residency = createAutonomousResidency({
+    ...env,
+    geometryStore: fakeGeometryStore(),
+  });
+  const pinned = [...residency.pageUrls()];
+  env.shown.push(fakePageRec('z.bin'));
+  assert.deepEqual(residency.pageUrls(), pinned, 'read, not rebuilt');
+  assert.ok(!residency.keptUrls().has('z.bin'));
+  residency.keptChanged();
+  assert.ok(residency.pageUrls().includes('z.bin'));
+  assert.equal(residency.keptUrls().size, pinned.length + 1);
 });

@@ -9,7 +9,8 @@
  */
 
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
-import type { HostMap, HostShadedMaterial, HostStoredTexture } from './shadedMaterial.ts';
+import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
+import { metalRough } from '../scene/surfaceModel.ts';
 import {
   HOST_BLENDING_NORMAL,
   HOST_MAPPING_UV,
@@ -19,11 +20,9 @@ import { declaresCompileHook } from './materialHook.ts';
 import { physicalExtensionReason } from '../scene/physicalMaterialGate.ts';
 import { isTransmissive } from '../visibility/shader/material.ts';
 
-const textureReason = (source: HostMap) => {
-  if (!source) return;
-  const texture = source as HostStoredTexture;
-  if (texture.isCompressedTexture || texture.isDataTexture || texture.isDataArrayTexture)
-    return 'non-image texture storage is unsupported';
+const textureReason = (texture: HostMap) => {
+  if (!texture) return;
+  if (texture.kind === 'texels') return 'non-image texture storage is unsupported';
   if (!texture.image) return 'texture image is unavailable';
   if (texture.channel !== 0 && texture.channel !== 1)
     return `texture channel ${texture.channel} is unsupported`;
@@ -32,7 +31,7 @@ const textureReason = (source: HostMap) => {
 
 /** An attribute the autonomous programs can bind on its own: the host declares it as a buffer of
  *  its own, not as one view interleaved into a shared one. */
-const ownBuffer = (attribute: HostAttribute | undefined) => !!attribute?.isBufferAttribute;
+const ownBuffer = (attribute: HostAttribute | undefined) => attribute?.kind === 'attribute';
 
 /**
  * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
@@ -46,8 +45,7 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  if (!host.isMeshStandardMaterial && !host.isMeshBasicMaterial)
-    return `material ${host.type} is unsupported`;
+  if (!metalRough(host) && host.family !== 'basic') return `material ${host.family} is unsupported`;
   if (
     host.alphaHash ||
     host.blending !== HOST_BLENDING_NORMAL ||
@@ -55,7 +53,7 @@ export function clusterMaterialReason(
     host.alphaToCoverage ||
     host.clippingPlanes?.length
   )
-    return `material ${host.type} uses an unsupported blend state`;
+    return `material ${host.family} uses an unsupported blend state`;
   const physical = physicalExtensionReason(host);
   if (physical) return physical;
   if (!transmissive && isTransmissive(material))
@@ -66,14 +64,13 @@ export function clusterMaterialReason(
     host.bumpMap ||
     host.displacementMap ||
     host.alphaMap ||
-    host.flatShading ||
     host.wireframe ||
     host.stencilWrite
   )
-    return `material ${host.type} uses an unsupported extension or raster state`;
+    return `material ${host.family} uses an unsupported extension or raster state`;
   if (host.normalMap && host.normalMapType !== HOST_NORMAL_MAP_TANGENT_SPACE)
     return 'object-space normal mapping is unsupported';
-  if (declaresCompileHook(host)) return `material ${host.type} carries a shader hook`;
+  if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
   // The same six maps the import reads, in the same order: a basic material declares none of the
   // lit ones, so the list is the host's own properties, not a second rule.
@@ -89,7 +86,7 @@ export function clusterMaterialReason(
     return 'textured material has no UV attribute';
   if (maps.some((texture) => texture?.channel === 1) && !ownBuffer(attributes.uv1))
     return 'texture channel 1 has no UV1 attribute';
-  if (host.isMeshStandardMaterial && !ownBuffer(attributes.normal))
+  if (metalRough(host) && !ownBuffer(attributes.normal))
     return 'lit material has no normal attribute';
   if (host.vertexColors && !ownBuffer(attributes.color))
     return 'vertex-colour material has no color attribute';

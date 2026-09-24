@@ -25,7 +25,7 @@ export const WATER_BINDINGS = {
   view: 5,
   directLights: 6,
   tileLights: 7,
-  shadowSlices: 8,
+  shadowData: 8,
   shadowAtlas: 9,
   shadowSampler: 10,
   bounceGrid: 11,
@@ -67,7 +67,7 @@ ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
 @group(0) @binding(${WATER_BINDINGS.volumes}) var<storage,read> volumes:array<Volume>;
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(WATER_BINDINGS.proxy)}
+${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData)}
 ${bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes)}
 ${WATER_UNPACK_WGSL}
 ${FULLSCREEN_VERTEX}
@@ -119,6 +119,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let emissiveAo=textureLoad(emissiveAo,coord,0);
  let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
+ shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),fragZ)-P);
  let V=normalize(view.camera.xyz-P*view.camera.w);
  // Normal of the side we look from: a single-sided surface, or a mesh with no normal attribute
  // whose normal comes from screen derivatives, can arrive turned the wrong way, and refraction

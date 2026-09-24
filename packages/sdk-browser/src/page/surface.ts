@@ -10,11 +10,9 @@
  * for the raster ones); downstream no file of the engine path names a host material again.
  *
  * Its shaded fields are exactly the ones the cache's material table declares (#287,
- * `packages/sdk-core/src/scene/core/tableContracts.ts`), and `checkPreparedScene` already proves the two equal field by field
- * at load. Filling the record FROM that table instead of from the host declaration is what
- * removing the loader asks for (#78, part 4c), and it waits on the texture images the loader
- * alone decodes today: a table slot names a glTF rank, and the loader folds several ranks into
- * one decoded record.
+ * `packages/sdk-core/src/scene/core/tableSurfaces.ts`), and the host declaration it is read from
+ * is itself built from that table (`../host/prepared/materials.ts`, #272). Reading the record
+ * straight from the table, with no host declaration in between, is the next step (#275).
  *
  * A record is held BY its declaration and refilled IN PLACE, so every page of every placement of
  * one surface shares a single record and comparing two surfaces is comparing two references. The

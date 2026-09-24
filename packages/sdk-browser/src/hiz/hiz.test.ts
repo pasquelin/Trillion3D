@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
 import { rasterVisibilityIds } from '../visibility/buffer.ts';
 import {
@@ -30,7 +30,7 @@ test('Hi-Z history is invalidated by camera motion and projection cuts', () => {
 });
 
 test('visibility depth after the visbuffer uses the far value as background and larger-wins z', () => {
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const material = G.basicSurface({ color: 0xff0000 });
   const { page, geometry } = quad(material, [-1, -1, 0], [1, 1, 0], 'front');
   const cam = cameraAt(),
     size: [number, number] = [16, 16];
@@ -53,7 +53,7 @@ test('visibility depth after the visbuffer uses the far value as background and 
 
 test('a box that crosses the near plane is never Hi-Z rejected', () => {
   const cam = cameraAt(0.5, 0.1);
-  const bounds = projectBoxToScreen([-2, -2, -2], [2, 2, 2], new THREE.Matrix4(), cam, [32, 32]);
+  const bounds = projectBoxToScreen([-2, -2, -2], [2, 2, 2], new G.Matrix4(), cam, [32, 32]);
   assert.equal(bounds.clipsNear, true);
   const depth = new Float32Array(32 * 32);
   depth.fill(0.8);
@@ -66,13 +66,7 @@ test('the screen rectangle is rounded outward and a single background hole canno
   // Reverse-Z: the background hole is the FAR value, zero.
   depth.set([0.8, 0.7, 0.6, DEPTH_CLEAR]);
   const pyramid = buildHizPyramid(depth, 2, 2);
-  const bounds = projectBoxToScreen(
-    [-1, -1, 0],
-    [1, 1, 0],
-    new THREE.Matrix4(),
-    cameraAt(),
-    [2, 2],
-  );
+  const bounds = projectBoxToScreen([-1, -1, 0], [1, 1, 0], new G.Matrix4(), cameraAt(), [2, 2]);
   assert.equal(bounds.clipsNear, false);
   assert.ok(bounds.minX <= 0 && bounds.minY <= 0);
   assert.ok(bounds.maxX >= 2 && bounds.maxY >= 2);
@@ -100,8 +94,8 @@ test('an integer-edge screen max includes that pixel so a hole there cannot hide
 
 test('pages that cross the near plane are not used as Hi-Z occluders', () => {
   const cam = cameraAt(0.5, 0.1);
-  const crossingMat = new THREE.MeshBasicMaterial(),
-    farMat = new THREE.MeshBasicMaterial();
+  const crossingMat = G.basicSurface(),
+    farMat = G.basicSurface();
   const crossing = quad(crossingMat, [-2, -2, -2], [2, 2, 2], 'crossing');
   const far = quad(farMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'far');
   const occluders: HizPage[] = [],
@@ -119,9 +113,9 @@ test('pages that cross the near plane are not used as Hi-Z occluders', () => {
 });
 
 test('Hi-Z rejects a fully covered farther page and keeps a page beside a hole', () => {
-  const frontMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const backMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  const holeMat = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+  const frontMat = G.basicSurface({ color: 0xff0000 });
+  const backMat = G.basicSurface({ color: 0x00ff00 });
+  const holeMat = G.basicSurface({ color: 0x0000ff });
   const front = quad(frontMat, [-1, -1, 0], [1, 1, 0], 'front');
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const hole = quad(holeMat, [-1, -1, 0], [0, 1, 0], 'hole');

@@ -135,8 +135,8 @@ hash, so its root is the only address to list and no sitemap is written.
 ### Deploy
 
 `.github/workflows/pages.yml` builds the site on every pull request that touches it, and
-publishes it to https://www.trillion3d.com on every push to `main`. A manual run publishes only
-when asked, and only from `main`:
+publishes it to https://www.trillion3d.com on every push to `main`. A manual run publishes only when asked,
+and only from `main`:
 
 ```sh
 gh workflow run pages.yml -f deploy=true --ref main
@@ -144,7 +144,8 @@ gh workflow run pages.yml -f deploy=true --ref main
 
 The deploy job refuses an output without `index.html` or `runtime/portal.js`, or with fewer files
 than the build copies, pre-compresses the text files beside their originals, sends the tree over
-SSH with `rsync --delete-delay --delay-updates`, then checks that the site root and the portal
+SSH with `rsync --delete-delay --delay-updates` — excluding `openworld/`, which the open world's
+own repository publishes and this deploy must never delete —, then checks that the site root and the portal
 bundle answer. It reads four repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`,
 `DEPLOY_TARGET` and `DEPLOY_SSH_PORT`. The server side — web server, HTTPS, the redirect of the
 bare domain to `www`, and the deploy key restricted to the web root — is set up by the maintainer.
@@ -185,6 +186,9 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    `node scripts/docs-examples-thumbnails.ts <id>`. The capture hides the kit's panels and the
    credit line and waits for the example's most telling moment, the seconds it declares in
    `<meta name="thumbnail" content="3">` (1.5 when it declares none).
+   A scene too heavy to cook here lives in its own repository and is published beside the
+   portal, outside this gallery. The open world (#332) is one:
+   https://github.com/pasquelin/Trillion3D-openworld, served at `/openworld/` (#426).
 4. Run `node --test scripts/docs-examples.test.ts`, then the browser proofs
    `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
 
@@ -264,8 +268,10 @@ pnpm docs:scene
 ```
 
 `docs:scene` runs `scripts/docs-scene.ts`, regenerates the deterministic glTF source, then invokes
-this checkout's native compiler to write the published cache. `TRILLION3D_COMPILER` may select a compatible
-compiler binary. Never replace source assets with compiler outputs or import assets from a
+this checkout's native compiler to write the published cache; `docs:gallery` does the same for the
+gallery scenes modelled in code, the observatory and the mountain terrain. Every generator runs the
+compiler through `scripts/native-compiler.ts`, which follows the SDK's rule:
+`TRILLION3D_COMPILER_BIN` may select a compatible compiler binary. Never replace source assets with compiler outputs or import assets from a
 neighbouring project. Review the generated manifest provenance and run
 `node --test scripts/docs-scene.test.ts` before publishing a regenerated cache.
 
@@ -285,8 +291,8 @@ The examples execute the streaming pipeline; they do not prove a speedup over an
 the repository measurement harness described in `bench/runner/README.md`, identical input, camera,
 quality and resource budgets, plus resolution, DPR, commit, display cap and run-to-run spread.
 A bench witness is never imported by a portal example or demo: it is
-named only through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) the bench
-and the report pipeline use.
+named only through the witness entry point (`bench/witnesses/measurement.ts`) the bench
+and the report pipeline use, and never ships in the package.
 
 API pages may show a related concept beside their original snippet. The panel labels this
 relationship explicitly and links to the interactive example with its own inputs and matching code.

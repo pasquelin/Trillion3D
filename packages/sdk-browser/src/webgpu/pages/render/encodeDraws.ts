@@ -1,3 +1,4 @@
+import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { projectedPageError } from '../../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../../diagnostic/colors.ts';
@@ -14,6 +15,7 @@ import {
 import { encodeBlend } from './encodeBlend.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
+import { forEachDirtyRun } from '../../row/dirty.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
@@ -33,24 +35,32 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   });
 }
 
-/** Uploads the span of rows whose bytes changed, and nothing when none did. */
-export function uploadDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { rows, drawSlots } = rt.layout,
-    { pageTable } = rt.vis;
-  rt.timing.encodeCounts.lignesTeleversees = Math.max(0, rows.dirtyTo - rows.dirtyFrom + 1);
-  if (rows.dirtyTo < rows.dirtyFrom || !pageTable || !rows.pageTableFloats) return;
-  device.queue.writeBuffer(
-    pageTable,
-    rows.dirtyFrom * PAGE_INFO_STRIDE,
-    rows.pageTableFloats.buffer as ArrayBuffer,
-    rows.dirtyFrom * PAGE_INFO_STRIDE,
-    (rows.dirtyTo - rows.dirtyFrom + 1) * PAGE_INFO_STRIDE,
+/** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
+export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
+  const { rows } = rt.layout;
+  rt.timing.encodeCounts.lignesTeleversees = 0;
+  if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return;
+  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, rt, uploadRun);
+  rows.clearDirty();
+}
+
+function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
+  const floats = rt.layout.rows.pageTableFloats!;
+  rt.gpu.device!.queue.writeBuffer(
+    rt.vis.pageTable!,
+    from * PAGE_INFO_STRIDE,
+    floats.buffer as ArrayBuffer,
+    floats.byteOffset + from * PAGE_INFO_STRIDE,
+    (to - from + 1) * PAGE_INFO_STRIDE,
   );
-  rows.dirtyFrom = drawSlots;
-  rows.dirtyTo = -1;
+  rt.timing.encodeCounts.lignesTeleversees += to - from + 1;
 }
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
+/** The visibility pass can encode this image: the path under which light casters get rows. */
+const visReady = ({ vis }: WebgpuPagesRuntime) =>
+  vis.visEnabled && !!vis.visPipelineBack && !!vis.materialDepthPipeline && !!vis.visView;
+
 export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
   const { gpu, vis, run, timing, blendState, capture, context, diag } = rt,
     { rows } = rt.layout,
@@ -72,9 +82,14 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
   viewProj.set(taaRenderMatrix(rt, cam));
   ensurePageTable(rt, device);
-  if (!run.gpuFrameActive) rt.services.syncRowsFromCut();
-  else if (run.rowsSyncedFrame !== run.frame) {
-    rt.services.syncRows();
+  if (!run.gpuFrameActive) {
+    // The CPU cut selects its shadow casters from the lights before it writes its rows: those the
+    // camera does not draw take rows behind the camera's.
+    const shadows = visReady(rt) && vis.gpuDraw ? selectCpuCasters(rt, device, cam) : undefined;
+    run.cameraRows = rt.services.syncRowsFromCut(shadows);
+    if (shadows) writeCpuCasters(rt, device);
+  } else if (run.rowsSyncedFrame !== run.frame) {
+    rt.services.syncRows(!run.textureConverging);
     run.rowsSyncedFrame = run.frame;
   }
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
@@ -89,7 +104,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       rows.markRowDirty(row);
     }
   }
-  if (vis.visEnabled && vis.visPipelineBack && vis.materialDepthPipeline && vis.visView) {
+  if (visReady(rt)) {
     try {
       return encodeVis(rt, device, cam);
     } catch (error) {
@@ -97,12 +112,15 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       timing.gpuTiming?.cancelUnsubmitted();
       diag.diagnosticFailure('visibility-render-failed', error);
       dropVis(rt);
+      // The fallback draw walks every row: the light casters' rows leave before it runs.
+      if (!run.gpuFrameActive && run.cameraRows < rows.packedCount)
+        run.cameraRows = rt.services.syncRowsFromCut();
       run.gpuDrawCalls = 0;
       if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error;
     }
   }
   if (!gpu.pipelineBack) return 0;
-  uploadDirtyRows(rt, device);
+  uploadDirtyRows(rt);
   if (!rows.packedCount) {
     const encoder = createRenderEncoder(rt, device);
     encodeClear(rt, encoder);

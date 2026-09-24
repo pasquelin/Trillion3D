@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openMeasuredWorld } from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import { openMeasuredWorld } from '../../bench/witnesses/measurement.ts';
 import { EngineError } from '../../packages/sdk-core/src/index.ts';
 
 const CAS: Array<[label: string, body: string, status: number, type: string, code: string]> = [

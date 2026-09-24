@@ -157,8 +157,8 @@ export function createWebgpuRowSlots(
   };
 
   /** What the image owes the row table: the pages the cache named, and what the record queue
-   *  left behind, within the time budget. */
-  const apply = () => {
+   *  left behind, within the time budget unless `bounded` is false. */
+  const apply = (bounded = true) => {
     written.changed = false;
     denied = 0;
     const full = revision !== rows.rowsRevision || epoch !== rows.tableEpoch;
@@ -172,7 +172,7 @@ export function createWebgpuRowSlots(
         const page = rows.touched.pages[i];
         if (release(page)) claims.add(page);
       }
-      denied = serveClaims(claims, release, place);
+      denied = serveClaims(claims, release, place, bounded);
       closeFreeRows();
     }
     rows.clearTouched();

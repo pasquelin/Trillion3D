@@ -1,78 +1,37 @@
-//! The tables that describe the prepared scene: which node draws which primitive, where, and with
-//! what surface. A cache product under its own name, beside `lights.json`, read by
-//! `packages/sdk-browser/src/scene/tables.ts`.
+//! The tables that describe the prepared scene: its node graph with the local pose of every node,
+//! the lights and cameras it hangs, the surfaces it wears and, per published document, the geometry layout of
+//! every primitive. A cache product under its own name, beside `lights.json`, from which
+//! `packages/sdk-browser/src/world/scene/scene.ts` builds the scene the engine draws — no glTF is
+//! parsed at runtime.
 //!
 //! Source of every value: the glTF this same compilation publishes as `source.gltf` — after the
 //! slice kept its nodes, after the cutout answers rewrote their materials, after the mesh ranks
-//! were remapped. That is the document the runtime loads, so the tables and the scene it builds
-//! name the same meshes at the same ranks; anything read from the input document instead would
-//! describe a scene nobody draws.
+//! were remapped — and, when one is written, the autonomous `scene.gltf` derived from it. Anything
+//! read from the input document instead would describe a scene nobody draws.
 use super::*;
-use crate::compiler_world::{world_matrices, Mat4};
 
+mod documents;
+mod graph;
 mod materials;
-use materials::{material_entry, texture_table};
+mod physical;
+mod sparse;
+mod textures;
+use documents::document_table;
+use graph::{camera_table, light_table, node_table, scene_roots};
+use materials::material_entry;
+use textures::texture_table;
 
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
-/// its own, and the two tables it carries are versioned each in turn.
-const SCENE_TABLES_VERSION: u32 = 1;
-const NODE_TABLE_VERSION: u32 = 1;
-const MATERIAL_TABLE_VERSION: u32 = 1;
+/// its own, and the tables it carries are versioned each in turn. Version 2 carries the whole
+/// scene graph and the geometry layout, which is what lets the runtime build the scene without a
+/// glTF parse.
+const SCENE_TABLES_VERSION: u32 = 2;
+const NODE_TABLE_VERSION: u32 = 2;
+const MATERIAL_TABLE_VERSION: u32 = 4;
+const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
 
-/// Parent of every node, read from `children` once: the table says the hierarchy without the
-/// consumer walking it again.
-fn parents(nodes: &[Value]) -> Result<Vec<Option<usize>>> {
-    let mut parent = vec![None; nodes.len()];
-    for id in 0..nodes.len() {
-        for child in crate::compiler_nodes::children_of(nodes, id)? {
-            parent[child] = Some(id);
-        }
-    }
-    Ok(parent)
-}
-
-/// World box of one primitive: the corner values its position accessor declares, through the pose
-/// of the node that draws it. `null` when the accessor declares no corner — glTF requires them on
-/// `POSITION`, and a document that omits them gets no invented box.
-fn world_bounds(g: &Value, primitive: &Value, m: &Mat4) -> Result<Value> {
-    let Some(position) = primitive.pointer("/attributes/POSITION") else {
-        return Ok(Value::Null);
-    };
-    let id = required_index(Some(position), "primitive.attributes.POSITION")?;
-    let accessor = item(values(g, "accessors")?, id, "accessor")?;
-    let corner = |name: &str| {
-        accessor
-            .get(name)
-            .and_then(Value::as_array)
-            .filter(|values| values.len() >= 3)
-            .map(|values| {
-                [0, 1, 2].map(|axis| values.get(axis).and_then(Value::as_f64).unwrap_or(f64::NAN))
-            })
-    };
-    let (Some(low), Some(high)) = (corner("min"), corner("max")) else {
-        return Ok(Value::Null);
-    };
-    let (mut min, mut max) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
-    for pick in 0..8u8 {
-        let local = [0, 1, 2].map(|axis| match pick >> axis & 1 {
-            0 => low[axis],
-            _ => high[axis],
-        });
-        for axis in 0..3 {
-            let value =
-                m[axis] * local[0] + m[4 + axis] * local[1] + m[8 + axis] * local[2] + m[12 + axis];
-            min[axis] = min[axis].min(value);
-            max[axis] = max[axis].max(value);
-        }
-    }
-    if !min.iter().chain(max.iter()).all(|v| v.is_finite()) {
-        return Ok(Value::Null);
-    }
-    Ok(json!({"min":min,"max":max}))
-}
-
-/// The material table, filled as the node walk meets the surfaces that are actually worn. A
+/// The material table, filled as the documents meet the surfaces that are actually worn. A
 /// glTF material is one entry per tangent variant: that is how many the host builds of it, and an
 /// entry nothing wears would describe a surface no pixel is drawn with.
 struct Materials {
@@ -101,66 +60,51 @@ impl Materials {
     }
 }
 
-/// One entry per drawn primitive: the node that carries it, its pose in world space, the surface
-/// it wears and its rank among the copies of that same primitive. Instancing is exactly that rank:
-/// several nodes naming one mesh are one geometry drawn at several poses, and nothing else in the
-/// table repeats.
-fn node_table(g: &Value) -> Result<(Vec<Value>, Vec<Value>)> {
-    let nodes = values(g, "nodes")?;
-    let (world, parent) = (world_matrices(g)?, parents(nodes)?);
-    let meshes = values(g, "meshes")?;
-    let mut copies: BTreeMap<(usize, usize), usize> = BTreeMap::new();
-    let mut surfaces = Materials {
-        table: Vec::new(),
-        interned: BTreeMap::new(),
-    };
-    let mut table = Vec::new();
-    for (id, node) in nodes.iter().enumerate() {
-        if node.get("mesh").is_none() {
-            continue;
-        }
-        let mesh = required_index(node.get("mesh"), "node.mesh")?;
-        for (rank, primitive) in values(item(meshes, mesh, "mesh")?, "primitives")?
-            .iter()
-            .enumerate()
-        {
-            let material = surfaces.rank(g, primitive)?;
-            let instance = copies.entry((mesh, rank)).or_insert(0);
-            table.push(json!({
-                "name": node.get("name").and_then(Value::as_str).unwrap_or(""),
-                "node": id,
-                "parent": parent[id],
-                "mesh": mesh,
-                "primitive": rank,
-                "material": material,
-                "instance": *instance,
-                "matrix": world[id],
-                "bounds": world_bounds(g, primitive, &world[id])?,
-            }));
-            *instance += 1;
-        }
-    }
-    Ok((table, surfaces.table))
-}
-
 /// Compilation stage: the tables come out as a cache product under their own name, outside the
-/// manifest, written from the scene this job publishes.
+/// manifest, written from the scene this job publishes and from its autonomous copy when one was
+/// written. Both documents share one node graph and one material
+/// table: the autonomous scene is the published one with its geometry reduced, so only the
+/// geometry layout differs.
 pub(super) fn stage_scene_tables(
     published: &Value,
+    autonomous: Option<&Value>,
     directory: &Path,
     progress: impl Fn(Value),
 ) -> Result<Product> {
     let started = Instant::now();
-    let (nodes, materials) = node_table(published)?;
+    let mut surfaces = Materials {
+        table: Vec::new(),
+        interned: BTreeMap::new(),
+    };
+    let mut documents = serde_json::Map::new();
+    documents.insert(
+        "source.gltf".into(),
+        document_table(published, "source.bin", &mut surfaces)?,
+    );
+    if let Some(scene) = autonomous {
+        let name = crate::compiler_autonomous::AUTONOMOUS_SCENE_FILE;
+        documents.insert(
+            name.into(),
+            document_table(scene, "scene.bin", &mut surfaces)?,
+        );
+    }
+    let nodes = node_table(published)?;
+    let lights = light_table(published)?;
+    let cameras = camera_table(published)?;
     let textures = texture_table(published);
-    let counts = json!({"nodes":nodes.len(),"materials":materials.len(),"textures":textures.len()});
+    let counts = json!({"nodes":nodes.len(),"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
     let tables = json!({
         "version": SCENE_TABLES_VERSION,
         "nodeTableVersion": NODE_TABLE_VERSION,
         "materialTableVersion": MATERIAL_TABLE_VERSION,
+        "geometryTableVersion": GEOMETRY_TABLE_VERSION,
+        "scene": scene_roots(published)?,
         "nodes": nodes,
-        "materials": materials,
+        "lights": lights,
+        "cameras": cameras,
+        "materials": surfaces.table,
         "textures": textures,
+        "documents": documents,
     });
     let written = product(directory, SCENE_TABLES_FILE, &serde_json::to_vec(&tables)?)?;
     progress(

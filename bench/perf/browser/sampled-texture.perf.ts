@@ -1,7 +1,7 @@
 // the bytes of a sampled texture.
 import type { Texture } from '../../../packages/sdk-core/src/index.ts';
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
-import * as THREE from 'three';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceTextureRgba } from '../../oracles/browser/sampled-texture.ts';
@@ -13,25 +13,25 @@ const octets = (n: number) => {
   return data;
 };
 const texture = (largeur: number, hauteur: number) => {
-  const t = new THREE.Texture();
+  const t = new G.GraphTexture();
   t.image = { data: octets(largeur * hauteur * 4), width: largeur, height: hauteur };
   return t;
 };
 const grandeTexture = texture(512, 512),
   minuscule = texture(1, 1);
-const sansDonnees = new THREE.Texture();
+const sansDonnees = new G.GraphTexture();
 sansDonnees.image = { width: 4, height: 4 };
-const sansImage = new THREE.Texture();
-const zero = new THREE.Texture();
+const sansImage = new G.GraphTexture();
+const zero = new G.GraphTexture();
 zero.image = { data: new Uint8Array(0), width: 0, height: 0 };
 const contenuAvant = octets(16 * 16 * 4),
   contenuApres = octets(8 * 8 * 4);
 const vueDecalee = new Uint8Array(new ArrayBuffer(4096), 128, 1024);
-const decalee = new THREE.Texture();
+const decalee = new G.GraphTexture();
 decalee.image = { data: vueDecalee, width: 16, height: 16 };
 
 interface CasTexture {
-  textures?: THREE.Texture[];
+  textures?: G.GraphTexture[];
   tours: number;
   remplacer?: boolean;
 }
@@ -44,7 +44,7 @@ const passeTexture =
     const cibles = input.remplacer
       ? [
           (() => {
-            const t = new THREE.Texture();
+            const t = new G.GraphTexture();
             t.image = { data: contenuAvant, width: 16, height: 16 };
             return t;
           })(),
@@ -99,7 +99,7 @@ const resTexture = await mesure({
 
 await stress({
   name: 'textureRgba extremes',
-  calcul: (t: THREE.Texture) => textureRgba(importHostTexture(t)),
+  calcul: (t: G.GraphTexture) => textureRgba(importHostTexture(t)),
   extremes: [
     { name: 'sansImage', input: sansImage },
     { name: 'zero', input: zero },

@@ -20,7 +20,7 @@ const rows = new Float64Array(9),
  * other callers.
  */
 function lookAtRows(
-  world: Float64Array,
+  world: ArrayLike<number>,
   at: number,
   x: number,
   y: number,
@@ -85,7 +85,7 @@ function lookAtRows(
  * `1 / its length`. The matrix is read from the tree's flat buffer, never through the node view:
  * one less read, and a single array type for the whole function.
  */
-function extractRotationRows(world: Float64Array, at: number) {
+function extractRotationRows(world: ArrayLike<number>, at: number) {
   for (let column = 0; column < 3; column++) {
     const c = at + column * 4;
     const x = world[c],
@@ -96,6 +96,51 @@ function extractRotationRows(world: Float64Array, at: number) {
     rows[3 + column] = y * inverse;
     rows[6 + column] = z * inverse;
   }
+}
+
+/**
+ * Turns `node` toward the world point `(x, y, z)`. `viewer` is true for a camera or a light, which
+ * look toward their `−z`, false for an object, which presents its `+z`. `up` is the node's up,
+ * `(0, 1, 0)` by default in the reference. First updates the ancestors and the node.
+ */
+/**
+ * The local rotation that turns a node whose world matrix is `world[at…]` toward the world point
+ * `(x, y, z)`, written into `out` as `(x, y, z, w)`: the reference's `lookAt`, parent included
+ * when `parentWorld` is given. `viewer` and `up` are those of `lookAtNode`; the world matrices
+ * must already be resolved.
+ */
+export function lookAtQuaternion(
+  out: Float64Array,
+  world: ArrayLike<number>,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+  up: ArrayLike<number>,
+  viewer: boolean,
+  parentWorld: ArrayLike<number> | null,
+  parentAt = 0,
+) {
+  lookAtRows(world, at, x, y, z, up, viewer);
+  writeRotationQuaternion(out, rows);
+  if (parentWorld) {
+    extractRotationRows(parentWorld, parentAt);
+    writeRotationQuaternion(parentRotation, rows);
+    // Parent conjugate, then `conjugate × own` product of `premultiply`.
+    const ax = -parentRotation[0],
+      ay = -parentRotation[1],
+      az = -parentRotation[2],
+      aw = parentRotation[3];
+    const bx = out[0],
+      by = out[1],
+      bz = out[2],
+      bw = out[3];
+    out[0] = ax * bw + aw * bx + ay * bz - az * by;
+    out[1] = ay * bw + aw * by + az * bx - ax * bz;
+    out[2] = az * bw + aw * bz + ax * by - ay * bx;
+    out[3] = aw * bw - ax * bx - ay * by - az * bz;
+  }
+  return out;
 }
 
 /**
@@ -114,25 +159,18 @@ export function lookAtNode(
 ) {
   updateNodeWorldMatrix(tree, node, true, false);
   const world = tree.world;
-  lookAtRows(world, node * 16, x, y, z, up, viewer);
-  writeRotationQuaternion(own, rows);
   const parent = tree.parent[node];
-  if (parent >= 0) {
-    extractRotationRows(world, parent * 16);
-    writeRotationQuaternion(parentRotation, rows);
-    // Parent conjugate, then `conjugate × own` product of `premultiply`.
-    const ax = -parentRotation[0],
-      ay = -parentRotation[1],
-      az = -parentRotation[2],
-      aw = parentRotation[3];
-    const bx = own[0],
-      by = own[1],
-      bz = own[2],
-      bw = own[3];
-    own[0] = ax * bw + aw * bx + ay * bz - az * by;
-    own[1] = ay * bw + aw * by + az * bx - ax * bz;
-    own[2] = az * bw + aw * bz + ax * by - ay * bx;
-    own[3] = aw * bw - ax * bx - ay * by - az * bz;
-  }
+  lookAtQuaternion(
+    own,
+    world,
+    node * 16,
+    x,
+    y,
+    z,
+    up,
+    viewer,
+    parent >= 0 ? world : null,
+    parent * 16,
+  );
   setNodeQuaternion(tree, node, own[0], own[1], own[2], own[3]);
 }

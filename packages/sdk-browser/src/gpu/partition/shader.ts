@@ -1,3 +1,4 @@
+import { DRAW_ITEM_WGSL } from '../draw/contract.ts';
 import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from '../core/boxProjectWgsl.ts';
 import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts';
 import { PARTITION_CLASSIFY_WGSL } from './classifyWgsl.ts';
@@ -21,7 +22,7 @@ import { PARTITION_BINDING as B } from './contract.ts';
  * rows it rejects. It is through this word, not an extra buffer, that the compute raster learns
  * which half a row is in. `pyramid` is the Hi-Z buffer as the previous image left it.
  */
-export const PARTITION_SHADER = `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}
+export const PARTITION_SHADER = `${DRAW_ITEM_WGSL}
 ${PARTITION_UNI_WGSL}@group(0) @binding(${B.corners}) var<storage, read> corners:array<f32>;
 @group(0) @binding(${B.items}) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(${B.flags}) var<storage, read_write> flags:array<u32>;

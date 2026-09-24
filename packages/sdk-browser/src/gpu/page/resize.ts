@@ -1,11 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 import { evictResident } from './commit.ts';
-
-/** Bytes a page buffer may occupy on this device: the smaller of its limits. */
-export const pageBufferCap = (limits?: {
-  maxBufferSize?: number;
-  maxStorageBufferBindingSize?: number;
-}) => Math.min(limits?.maxBufferSize ?? Infinity, limits?.maxStorageBufferBindingSize ?? Infinity);
+import { pageBufferCap } from '../../residency/pools.ts';
 
 export const pageBufferBytes = (device: GPUDevice, pageBytes: number, slots: number) => {
   const size = pageBytes * slots;

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as G from '../../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
@@ -63,7 +64,7 @@ test('surface capture uses its own camera and restores the main view without cop
     assert.equal(surface.width, 16);
     assert.equal(surface.selectedTriangles, 2);
     assert.deepEqual(viewport, [32, 32]);
-    assert.deepEqual(main.position.toArray(), [0, 0, 5]);
+    assert.deepEqual(G.xyz(main.position), [0, 0, 5]);
     assert.equal(imageCopies.length, 0, 'secondary views must remain GPU textures');
     await assert.rejects(
       () => backend.captureSurfaceView!(other, { width: 16, height: 16 }),

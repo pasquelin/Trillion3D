@@ -1,27 +1,44 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './selection.ts';
 import { bytesOf, compactDrawnPages } from '../../../../../tests/kit/gpu/globals.ts';
 import { readDagUniforms } from '../../../../../tests/kit/gpu/mockCompute.ts';
-import { SELECTION_HEADER_WORDS, residentBase, residentBit } from './layout.ts';
+import {
+  SELECTION_HEADER_WORDS,
+  residentBase,
+  residentBit,
+  writeTriangleTotals,
+} from './layout.ts';
+import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 
 export function mockDagDevice(
   packed: PackedDag,
   options: { failMap?: boolean; mapGate?: Promise<void> } = {},
 ) {
-  type Buf = { size: number; usage: number; data: Uint8Array };
+  type Buf = { size: number; usage: number; data: Uint8Array; destroyed: boolean };
   let bind: { entries: Array<{ binding: number; resource: { buffer: Buf } }> } | undefined;
   let pipeline: { entryPoint: string } | undefined,
     uniformWriteCount = 0,
-    copyCount = 0;
+    copyCount = 0,
+    destroyedMaps = 0;
   const device = {
     limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
     createBuffer: ({ size, usage }: { size: number; usage: number }) => ({
       size,
       usage,
       data: new Uint8Array(size),
-      destroy() {},
+      destroyed: false,
+      destroy(this: Buf) {
+        this.destroyed = true;
+      },
+      // As on a real device: mapping a destroyed buffer is a validation error on the device; a
+      // mapping the destruction cuts short rejects with `AbortError`. Unmapping one does nothing.
       mapAsync: async function (this: Buf) {
+        if (this.destroyed) {
+          destroyedMaps++;
+          throw new DOMException('destroyed', 'OperationError');
+        }
         if (options.failMap) throw new Error('MAP_FAILED');
         await options.mapGate;
+        if (this.destroyed) throw new DOMException('destroyed while mapping', 'AbortError');
       },
       getMappedRange: function (this: Buf) {
         return this.data.buffer;
@@ -90,6 +107,8 @@ export function mockDagDevice(
           ints[1] = result.frustumRejected;
           ints[2] = result.lodLevel;
           ints[3] = result.complete === false ? 2 : 0;
+          // The totals `dagMask` writes: without them adoption reads an image with no triangles.
+          writeTriangleTotals(ints, result);
           ints.set(result.pageIds, SELECTION_HEADER_WORDS);
           const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
           flags.fill(0, packed.nodeCount);
@@ -116,7 +135,7 @@ export function mockDagDevice(
         size?: number,
       ) {
         buffer.data.set(bytesOf(data, dataOffset, size), offset);
-        if (buffer.size === 256) uniformWriteCount++;
+        if (buffer.size === DAG_UNIFORM_BYTES) uniformWriteCount++;
       },
       submit() {},
       onSubmittedWorkDone: async () => {},
@@ -127,5 +146,7 @@ export function mockDagDevice(
     uniformWrites: () => uniformWriteCount,
     /** Copies to a READABLE slot: one per due readback, never one per send. */
     readbackCopies: () => copyCount,
+    /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
+    destroyedMaps: () => destroyedMaps,
   };
 }

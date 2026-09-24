@@ -595,6 +595,29 @@
         ],
         "tryIt": "Kéo bộ nhớ xuống thấp: các mảnh ghép trở nên lớn hơn, tòa nhà vẫn nguyên vẹn. Chuyển góc nhìn sang <code>clusters</code> để thấy chúng."
       },
+      "make-things-fall": {
+        "title": "Làm vật rơi",
+        "description": "Bật vật lý và các hình có trọng lượng: rơi, va chạm rồi nằm yên.",
+        "steps": [
+          "Cho thế giới <code>physics: true</code>. Mô phỏng chạy tách khỏi việc vẽ, trong một <em>worker</em>, nên không làm hình chậm lại.",
+          "Đánh dấu sàn <code>'static'</code>: nó đỡ các vật khác và không bao giờ di chuyển. Đánh dấu hộp <code>'dynamic'</code>: trọng lực kéo nó.",
+          "Hình lấy từ hình học, trọng lượng từ vật liệu: <code>physics: 'wood'</code> nhẹ, <code>'metal'</code> nặng, <code>'rubber'</code> nảy.",
+          "Đẩy vật bằng <code>applyImpulse</code>, hoặc lắng nghe <code>contact</code>. Khi mọi vật đều ngủ, không gì được tính hay vẽ.",
+          "Mô hình tải bằng <code>scene.load</code> va chạm bằng chính các tam giác của nó, được chuẩn bị khi biên dịch. <code>await world.raycast(point, { exact: true })</code> tìm đúng tam giác dưới con trỏ."
+        ],
+        "tryIt": "Thả thêm hộp, đổi trọng lực sang Mặt Trăng và bật chế độ chậm."
+      },
+      "touch-and-react": {
+        "title": "Chạm và phản ứng",
+        "description": "Bước vào thế giới của bạn: khi bật vật lý, nhân vật leo, đi nhờ và đẩy những gì nó gặp, và những thứ đó đẩy lại nó.",
+        "steps": [
+          "Tạo thế giới với <code>controls: 'character'</code> và <code>physics: true</code>. Nhân vật giờ là một vật thể vật lý, như các thùng.",
+          "Đánh dấu <code>'static'</code> những gì không bao giờ di chuyển: sàn, cầu thang, tường. Nhân vật leo bậc cao tới đầu gối và dốc tới 45°.",
+          "Đánh dấu một bệ là <code>'kinematic'</code> và di chuyển nó bằng mã của bạn mỗi khung hình: thứ gì đứng trên đó sẽ đi theo.",
+          "Làm các thùng <code>'dynamic'</code> và nhẹ: nhân vật đẩy chúng với lực <code>pushStrength</code> newton, chúng đổ, lăn và đẩy lại."
+        ],
+        "tryIt": "Nhấp vào hình, đi bằng W A S D, nhảy bằng phím cách. Leo cầu thang, đứng trên bệ, đẩy chồng thùng."
+      },
       "your-own-scene": {
         "title": "Cảnh của riêng bạn",
         "description": "Giờ bạn đã biết từng mảnh ghép. Chương này gộp chúng lại thành một cảnh nhỏ mà bạn có thể sao chép và biến thành của riêng mình.",
@@ -1453,6 +1476,7 @@
       "a-software-rasteriser": "Bộ raster hóa phần mềm",
       "sound-from-the-gpu": "Âm thanh từ GPU",
       "falling-boxes": "Các hộp rơi",
+      "ten-thousand-bodies": "Mười nghìn vật thể",
       "breaking-things": "Phá vỡ đồ vật",
       "cloth-and-rope": "Vải và dây thừng",
       "soft-bodies": "Vật thể mềm",
@@ -1466,7 +1490,9 @@
       "hands-in-vr": "Bàn tay trong VR",
       "teleport-in-vr": "Dịch chuyển tức thời trong VR",
       "controllers-in-vr": "Bộ điều khiển trong VR",
-      "ar-on-the-table": "AR trên bàn"
+      "ar-on-the-table": "AR trên bàn",
+      "shadows-case-by-case": "Bóng đổ, từng trường hợp",
+      "a-walker-among-balls": "Người đi bộ giữa những quả bóng"
     },
     "missing": {
       "colours-on-the-vertices": "màu theo từng đỉnh trên WebGPU",
@@ -1626,13 +1652,10 @@
       "sort-and-reduce": "API tính toán GPU",
       "a-software-rasteriser": "API tính toán GPU",
       "sound-from-the-gpu": "API tính toán GPU",
-      "falling-boxes": "tích hợp vật lý",
       "breaking-things": "tích hợp vật lý",
       "cloth-and-rope": "tích hợp vật lý",
       "soft-bodies": "tích hợp vật lý",
-      "rolling-on-terrain": "tích hợp vật lý",
       "hinges-and-joints": "tích hợp vật lý",
-      "walk-with-collisions": "tích hợp vật lý",
       "drive-a-car": "tích hợp vật lý",
       "a-room-in-vr": "phiên WebXR",
       "a-360-photo-in-vr": "phiên WebXR",

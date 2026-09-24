@@ -9,7 +9,7 @@ import type { ClusterRoot, PageRec } from '../page/selection/types.ts';
 
 /**
  * World boxes computed IN BATCHES: two utilities shared by sites uniting bounds
- * (`../backend/exact/bounds.ts`, `../host/world/bounds.ts`), and the buffer of selection roots.
+ * (`../world/scene/pagesBounds.ts`, `../host/world/bounds.ts`), and the buffer of selection roots.
  *
  * World boxes of selection roots, computed IN BATCHES by governor: single buffer
  * allocated during setup, zero allocation afterward. Loading runs it once on all roots;
@@ -107,24 +107,17 @@ export async function reserveRootBoxes(roots: readonly ClusterRoot<PageRec>[]) {
   return lot;
 }
 
-/** Roots retained by last replay: predicate traverses hierarchy. */
-let moved = new Uint8Array(0);
-
 /**
- * Replays batch for roots retained by `deplacee`. Returns `false` when buffer unplayable
- * (released or size changed): caller falls back box by box with identical result.
+ * Replays batch for the roots whose flag in `moved` is set, one flag per root. Returns `false` when
+ * buffer unplayable (released or size changed): caller falls back box by box with identical result.
  */
 export function transformRootBoxes(
   lot: BoxTransformLot,
   roots: readonly ClusterRoot<PageRec>[],
-  deplacee: (root: ClusterRoot<PageRec>) => boolean,
+  moved: ArrayLike<number>,
 ) {
   if (roots.length !== lot.n || !lot.holds(lot.n)) return false;
-  if (moved.length < roots.length) moved = new Uint8Array(roots.length);
-  for (let i = 0; i < roots.length; i++) {
-    moved[i] = deplacee(roots[i]) ? 1 : 0;
-    if (moved[i]) ecrit(lot, i, roots[i]);
-  }
+  for (let i = 0; i < roots.length; i++) if (moved[i]) ecrit(lot, i, roots[i]);
   lot.run();
   for (let i = 0; i < roots.length; i++) if (moved[i]) relit(lot, i, roots[i]);
   return true;

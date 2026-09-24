@@ -25,8 +25,8 @@ try {
   }).trim();
   if (resolve(top) === root)
     execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root });
-  // A linked worktree starts without the files `.gitignore` keeps local — the rules of AGENTS.md
-  // and the roles of docs/roles/ among them (#157). It gets a link to the ones the primary
+  // A linked worktree starts without the files `.gitignore` keeps local — personal assistant
+  // settings and graph artefacts (#157). It gets a link to the ones the primary
   // worktree has, so a batch is written where its rules are readable.
   const primary = primaryWorktree();
   if (primary !== undefined) {

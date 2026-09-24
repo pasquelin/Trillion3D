@@ -9,7 +9,7 @@
 //
 // node --experimental-strip-types tests/browser/probes/top-pruning-gpu.ts
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   packDagSelection,
@@ -32,17 +32,17 @@ const POSES: Array<[string, number, number, number]> = [
 ];
 /** The kernel from before the batch: same text, top-down pruning disarmed by its sole guard. */
 const GARDE =
-  'fn floorPrunes(w:u32,flags:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{\n';
+  'fn floorPrunes(slot:u32,flags:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{\n';
 const SANS_PLANCHER = DAG_SELECTION_SHADER.replace(GARDE, `${GARDE} return false;\n`);
 assert.notEqual(SANS_PLANCHER, DAG_SELECTION_SHADER, 'the `floorPrunes` guard has changed shape');
 
 const pages = scenePages(2048, 8);
-const camera = new THREE.PerspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
+const camera = G.perspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
 const cas = POSES.map(([nom, x, z, seuil]) => {
   const roots = sceneRoots(
     pages,
     Array.from({ length: 4 }, (_, w) =>
-      new THREE.Matrix4().makeTranslation((w % 2) * 6.5 - 3.25, Math.floor(w / 2) * 6.5 - 3.25, 0),
+      new G.Matrix4().makeTranslation((w % 2) * 6.5 - 3.25, Math.floor(w / 2) * 6.5 - 3.25, 0),
     ),
     true,
   );

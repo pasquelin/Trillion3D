@@ -1,6 +1,7 @@
 // Benchmark for batch 4: shading normal.
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { shadingNormal } from '../../../packages/sdk-browser/src/visibility/shader/shadingNormal.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceShadingNormal } from '../../oracles/browser/shading-normals.ts';
@@ -14,9 +15,9 @@ function carteNormales(depart: number) {
   const data = new Uint8Array(8 * 8 * 4),
     tire = graine(depart);
   for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255;
-  const map = new THREE.Texture();
+  const map = new G.GraphTexture();
   map.image = { data, width: 8, height: 8 };
-  map.wrapS = THREE.RepeatWrapping;
+  map.wrapS = G.HOST_WRAP_REPEAT;
   map.wrapT = THREE.ClampToEdgeWrapping;
   return importHostTexture(map);
 }

@@ -5,25 +5,25 @@
 // still serves its own readers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { assertFiniteTransform, hostLocalInto, resolveHostSubtree } from './matrices.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 
 /** Parent → child → grandchild → great-grandchild chain, hostile transforms included. */
 function hostileHierarchy() {
-  const racine = new THREE.Group();
+  const racine = new G.GraphGroup();
   racine.position.set(1, -2, 3);
   racine.scale.set(-1, 2, 0.5); // negative and non-uniform scale
-  const enfant = new THREE.Group();
+  const enfant = new G.GraphGroup();
   enfant.matrixAutoUpdate = false;
   // Matrix set by hand, column-major: x shear along y, zero scale on z.
   enfant.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -Infinity, 0, 0, 0, 0, 0, 0, 0, 1);
   racine.add(enfant);
-  const petitEnfant = new THREE.Group();
+  const petitEnfant = new G.GraphGroup();
   petitEnfant.position.set(NaN, 0, -0);
   enfant.add(petitEnfant);
-  const feuille = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
+  const feuille = G.mesh(new G.GraphGeometry(), G.basicSurface());
   feuille.position.set(2, 2, 2);
   petitEnfant.add(feuille);
   return { racine, enfant, petitEnfant, feuille };
@@ -47,15 +47,15 @@ test('resolveHostSubtree is idempotent: a second call changes no bit', () => {
 });
 
 test('resolveHostSubtree always forces recompute (force: true): a local matrix rewritten by hand, without updateMatrix, is still taken', () => {
-  const parent = new THREE.Group();
+  const parent = new G.GraphGroup();
   parent.matrixAutoUpdate = false; // the host sets its own local matrix
-  const enfant = new THREE.Group();
+  const enfant = new G.GraphGroup();
   parent.add(enfant);
   resolveHostSubtree(parent); // first resolution: matrixWorld = identity for both
   // The host rewrites the local matrix directly: nothing marks the node dirty.
   parent.matrix.elements[12] = 7;
   resolveHostSubtree(parent);
-  const attendu = new THREE.Matrix4();
+  const attendu = new G.Matrix4();
   attendu.elements[12] = 7;
   assertBits(parent.matrixWorld.elements, attendu.elements);
   // The child inherits the recomputed parent.
@@ -112,7 +112,7 @@ const POSES: [number[], number[], number[]][] = [
 test('hostLocalInto yields updateMatrix’s local matrix, bit-exact, on hostile poses', () => {
   const obtenu = new Float64Array(16);
   for (const [position, quaternion, echelle] of POSES) {
-    const node = new THREE.Object3D();
+    const node = new G.GraphNode();
     node.position.fromArray(position);
     node.quaternion.fromArray(quaternion);
     node.scale.fromArray(echelle);
@@ -123,7 +123,7 @@ test('hostLocalInto yields updateMatrix’s local matrix, bit-exact, on hostile 
 });
 
 test('hostLocalInto yields the SET matrix when the host cut recomposition, without ever recomposing it', () => {
-  const node = new THREE.Object3D();
+  const node = new G.GraphNode();
   node.matrixAutoUpdate = false;
   // A shear: no translation-rotation-scale pose yields it, so recomposing would show.
   node.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -3, 0, 0, 0, 0, 0, 0, 0, 1);
@@ -134,7 +134,7 @@ test('hostLocalInto yields the SET matrix when the host cut recomposition, witho
 });
 
 test('hostLocalInto writes nothing into the host node: its local matrix stays the one it carried', () => {
-  const node = new THREE.Object3D();
+  const node = new G.GraphNode();
   node.position.set(1, 2, 3);
   const avant = node.matrix.elements.slice(); // identity: `updateMatrix` has never been called
   hostLocalInto(new Float64Array(16), node);
@@ -144,17 +144,17 @@ test('hostLocalInto writes nothing into the host node: its local matrix stays th
 // Case 4 of the singular-normal convention (singular-normals batch): a non-finite pose never
 // enters the engine, it is refused right here, before any inversion or any normal read.
 test('assertFiniteTransform: a fully finite matrix passes without throwing', () => {
-  const m = new THREE.Matrix4().compose(
-    new THREE.Vector3(1, -2, 3),
-    new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, -0.5, 0.2)),
-    new THREE.Vector3(-2, 3, 0.5),
+  const m = new G.Matrix4().compose(
+    new G.Vector3(1, -2, 3),
+    new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)),
+    new G.Vector3(-2, 3, 0.5),
   ).elements;
   assert.doesNotThrow(() => assertFiniteTransform(m, 'noeud'));
 });
 
 test('assertFiniteTransform: NaN at any of the sixteen indices throws NON_FINITE_TRANSFORM with the node name and the faulty rank', () => {
   for (let index = 0; index < 16; index++) {
-    const m = new THREE.Matrix4().identity().elements.slice();
+    const m = new G.Matrix4().identity().elements.slice();
     m[index] = NaN;
     assert.throws(
       () => assertFiniteTransform(m, 'cible'),
@@ -171,7 +171,7 @@ test('assertFiniteTransform: NaN at any of the sixteen indices throws NON_FINITE
 
 test('assertFiniteTransform: an infinity, positive or negative, throws NON_FINITE_TRANSFORM', () => {
   for (const valeur of [Infinity, -Infinity]) {
-    const m = new THREE.Matrix4().identity().elements.slice();
+    const m = new G.Matrix4().identity().elements.slice();
     m[5] = valeur;
     assert.throws(
       () => assertFiniteTransform(m, 'lampe'),

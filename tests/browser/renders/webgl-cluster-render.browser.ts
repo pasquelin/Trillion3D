@@ -74,10 +74,11 @@ assert.equal(result.maskAlpha, 255);
 assert.equal(result.framebufferStatus, 36053);
 assert.equal(result.drawError, 0);
 assert.deepEqual(result.ambient, [118, 0, 0, 255]);
-assert.deepEqual(result.direct, [70, 10, 10, 255]);
+// The sun lights the surface as the reference does, to the byte (its Fresnel fit and light units).
+assert.deepEqual(result.direct, [70, 11, 11, 255]);
+assert.deepEqual(result.direct, result.directWitness);
 assert.ok(result.zeroPenumbraSpot[0] > 0);
 assert.deepEqual(result.translatedDirect, result.direct);
-assert.ok(result.directWitness[0] > 0);
 assert.deepEqual(result.neutralNormal, result.direct);
 assert.equal(result.invisibleSubmissions, 0);
 assert.equal(result.rejected, true);

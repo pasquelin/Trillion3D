@@ -12,6 +12,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
 import { BOX_NEAREST, cases, height, width } from '../support/hizCases.ts';
 import { executerHiz } from '../support/hizWebgpuPage.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 interface HizReport {
   version: number;
@@ -69,7 +70,7 @@ try {
   throw error;
 } finally {
   report.finishedAt = new Date().toISOString();
-  const out = resolve(process.env.HIZ_RESULT ?? 'benchmark-runs/webgpu-hiz/result.json');
+  const out = resolve(process.env.HIZ_RESULT ?? measureOutput('webgpu-hiz', 'result.json'));
   await mkdir(resolve(out, '..'), { recursive: true });
   await writeFile(out, JSON.stringify(report, null, 2));
   await browser.close();

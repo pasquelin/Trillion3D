@@ -1,3 +1,4 @@
+import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { FRUSTUM_PLANE_VALUES } from '../../../../sdk-core/src/index.ts';
 import { createConeContext, type ConeContext, type NormalCone } from '../cone/cone.ts';
 import type { EngineCamera } from '../../camera/world.ts';
@@ -5,6 +6,7 @@ import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElement
 import type { ClusterCut } from '../selection/math.ts';
 import type { ClusterStructureIndex } from '../selection/types.ts';
 import type { PageSurface } from '../surface.ts';
+import { cutCharge, type CutCharge } from './charge.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -16,7 +18,7 @@ export interface PageRecord extends ClusterCut {
   array?: Uint32Array;
 }
 
-export interface SelectionState<T extends PageRecord> {
+export interface SelectionState<T extends PageRecord> extends CutCharge<T> {
   cam: EngineCamera;
   hold: boolean;
   rootFallback: boolean;
@@ -45,6 +47,8 @@ export interface SelectionState<T extends PageRecord> {
   /** This root declares that each of its pages carries its box: under a node entirely inside
    *  the frustum, the per-cluster path then reads neither `min` nor `max`. */
   flatBoxes: boolean;
+  /** A light's cut: its redrawn pages (`boxMissesLightPages`), and no cone test. */
+  light?: LightPages;
   /** Residency rule of this cut, resolved once: `RESIDENT_ALL` when nothing is held
    *  (everything is deemed resident), `RESIDENT_ASK` when the host supplies its answer,
    *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
@@ -178,6 +182,7 @@ const reusedState: SelectionState<PageRecord> = {
   shownTriangles: 0,
   budget: 0,
   over: false,
+  ...cutCharge(),
 };
 
 /** Shrinks `shown` to a prefix and its triangle sum with it: same order, same bits as the
