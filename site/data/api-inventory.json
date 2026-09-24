@@ -6557,6 +6557,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/page/selection/bundleDependencies.test.ts",
+        "packages/sdk-browser/src/page/selection/bundleDependencies.ts",
         "packages/sdk-browser/src/page/selection/helpers.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/scene/primitiveLookup.test.ts",
@@ -6581,6 +6583,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/page/selection/bundleDependencies.test.ts",
+        "packages/sdk-browser/src/page/selection/bundleDependencies.ts",
         "packages/sdk-browser/src/page/selection/helpers.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/scene/primitiveLookup.test.ts",
