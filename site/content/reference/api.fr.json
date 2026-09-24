@@ -2909,7 +2909,7 @@
       "scope": "`'full'` demande tout le cache, `'progressive'` sa tranche en flux ; un modèle d’une autre portée est refusé par son nom. Sans valeur, le modèle est lu à la portée que déclare son pointeur.",
       "stream": "Un flux que la page a réglé ; la session du monde fait arriver les pages avec le sien.",
       "position": "Où va l’origine du modèle dans la scène.",
-      "onProgress": "Entend où en est le chargement : `manifest` une fois le manifeste lu, puis `resources` à l’arrivée de chaque fichier que lit la scène (`completed` sur le `total` connu jusque-là). L’événement est un `JobProgress` : un `createJob` qui enveloppe le chargement passe ici son `progress`."
+      "onProgress": "Entend où en est le chargement : `bytes` à chaque morceau de chaque fichier lu, jusqu’à `completed === total` ; `manifest` une fois le manifeste lu, `tables` une fois les tables de la scène lues, puis `resources` à l’arrivée de chaque fichier que lit la scène (`completed` sur le `total` connu jusque-là). L’événement est un `JobProgress` : un `createJob` qui enveloppe le chargement passe ici son `progress`, et `world.awaitPages` rapporte les premières pages sous la même forme."
     }
   },
   "LOD_QUALITY": {
@@ -6410,7 +6410,10 @@
     "summary": "Ouvre une nouvelle fenêtre `cpuSteps()`."
   },
   "world.awaitPages": {
-    "summary": "Se termine quand les pages que lit la vue actuelle sont résidentes (`awaitViewPages`)."
+    "summary": "Se termine quand les pages que lit la vue actuelle sont résidentes (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress` entend `pages`, `completed` sur `total`, à mesure qu’elles arrivent."
+    }
   },
   "world.dispose": {
     "summary": "Arrête le monde et rend tout ce qu’il a pris : mémoire GPU, boucle, contrôles."
