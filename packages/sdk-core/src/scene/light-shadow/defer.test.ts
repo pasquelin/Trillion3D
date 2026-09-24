@@ -7,7 +7,7 @@ import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import type { ShadowViewpoint } from '../light/contracts.ts';
 import { VIEW, SUN, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
-import { sunPageMetres } from './virtual.ts';
+import { PAGE_INDEX_MASK, sunPageMetres } from './virtual.ts';
 
 const BOX_MIN = [-1e3, 0, -1e3],
   BOX_MAX = [1e3, 2, 1e3];
@@ -93,5 +93,10 @@ test('two representation changes apart stale their own pages, never the page bet
     at(2.75 * metres, -0.25 * metres, 1),
   );
   planFrame(plan, store, frame);
-  assert.equal(plan.counts.invalidatedPages, 2, 'the page between the two changes stays current');
+  const stale = read().map(
+    (entry) => plan.pool.dirty[plan.table.words[entry] & PAGE_INDEX_MASK] > 0,
+  );
+  assert.deepEqual(stale, [true, false, true], 'the page between the two changes stays current');
+  // The two pages and the floor under both, which covers each change.
+  assert.equal(plan.counts.invalidatedPages, 3);
 });
