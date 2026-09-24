@@ -4,7 +4,7 @@ import { awaitedPages } from '../../row/pageSlots.ts';
 import { outputColorDiagnostic } from '../helpers.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
 import { bounceState, directLightingState } from './encodeLights.ts';
-import { wantsContractLighting } from '../prepare/lightResources.ts';
+import { compilingContract } from '../prepare/lightResources.ts';
 import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
@@ -117,8 +117,9 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   await Promise.resolve();
   // The lighting-contract program compiles outside the image. If a lamp was waiting for it, the
   // pose is redrawn with it before any read: a drained pose is a lit pose.
-  if (gpu.deferred && wantsContractLighting(rt) && !gpu.deferred.usesContract) {
-    await gpu.deferred.settle();
+  const compiling = compilingContract(rt);
+  if (compiling) {
+    await compiling.settle();
     if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera);
   }
   // Texture tiles are part of preparing a pose, not of a per-image decoration: a surface read at
