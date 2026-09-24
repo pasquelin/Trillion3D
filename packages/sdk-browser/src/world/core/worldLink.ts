@@ -1,7 +1,9 @@
-import type { Object3D, SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isLight, lightsUnder, type createWorldLights } from './worldLights.ts';
 import type { createWorldContents } from './worldContents.ts';
+import type { createWorldBackground } from './worldBackground.ts';
+import type { WorldSceneLink } from './scene.ts';
 
 type Parts = {
   contents: ReturnType<typeof createWorldContents>;
@@ -12,14 +14,16 @@ type Parts = {
   relight: () => void;
   /** Folds a scene change into the next resolution. */
   schedule: () => void;
+  background: ReturnType<typeof createWorldBackground>;
 };
 
 /**
  * What a world's scene tells its runtime: a pose moved (the row is written before the next
  * frame, the lights again when one it holds moved), a parent's children changed, or a mesh's
- * geometry or material was written (both resolved again, off the frame).
+ * geometry or material was written (both resolved again, off the frame). A background change is
+ * no change of structure: it is written before the next frame, nothing resolved.
  */
-export function createWorldLink(parts: Parts): SceneLink {
+export function createWorldLink(parts: Parts): WorldSceneLink {
   const { contents, lights, schedule } = parts;
   return {
     pose(node: Object3D) {
@@ -38,6 +42,10 @@ export function createWorldLink(parts: Parts): SceneLink {
       contents.stale(node as Mesh);
       lights.boundsMoved();
       schedule();
+    },
+    background() {
+      parts.background.changed();
+      parts.invalidate();
     },
   };
 }

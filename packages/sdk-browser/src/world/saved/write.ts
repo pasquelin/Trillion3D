@@ -78,8 +78,8 @@ function saveCamera(camera: Camera): SavedCamera {
  * are stored once. `helper` marks are left out: they are how a scene is worked on, not what it is.
  */
 export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
-  const background = scene.background as (Color & { isTexture?: boolean }) | null;
-  if (background?.isTexture || scene.environment) notSavable('a picture background or environment');
+  const background = scene.background as Color | null;
+  if (scene.environment) notSavable('a picture environment');
   const geometries = new Map<Geometry, number>(),
     materials = new Map<Material, number>();
   const rank = <T>(table: Map<T, number>, item: T) => {
