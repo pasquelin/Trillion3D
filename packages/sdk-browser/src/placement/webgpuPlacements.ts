@@ -31,6 +31,7 @@ export function updateWebgpuPlacements(
   if (!touched && !placedBy(rt.blendState.blendGpu, rows)) return;
   // Poses moved and rows were parked or taken: no node entered or left the source graph, so
   // the watched set stands (`frame/gateCore.ts`), and the host index already holds its worlds.
+  run.gate.engineWriting();
   run.gate.sceneMoved();
   run.gate.noteWorldsUpdated();
   if (touched) lights.plan.worldChanged(touched.min, touched.max);
