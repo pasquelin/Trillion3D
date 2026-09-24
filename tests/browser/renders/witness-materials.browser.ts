@@ -1,7 +1,7 @@
 // Proof by the real render: what a material is worth on screen, engine against witness. Every
 // fixture of `tests/browser/support/materialFixtures.ts` is drawn by its pair of renderers, all
-// from `dist/` — `three-webgl-reference` and `webgpu-page-raster`, or WebGPU and the WebGL2 exact
-// pages path where the fixture names them (glass, #479) — and read pixel by pixel at the points
+// from `dist/` — `three-webgl-reference` and `webgpu-page-raster`, or WebGPU and the WebGL2 autonomous
+// pages backend where the fixture names them (glass, #479) — and read pixel by pixel at the points
 // that exercise its feature — base colour, its map, alpha MASK at its cutoff, BLEND, emissive,
 // metal-roughness, normal map, double-sided, glass. A gap outside the fixture's declared window,
 // a missing render diagnostic, a GPU failure or an engine image that never holds turns the run red.
@@ -37,6 +37,7 @@ const result: RunResult = await withRepoPage(ROOT, true, (page) =>
     (urls) => import(`${urls.pageUrl}`).then((m) => m.run(urls)),
     {
       sdkUrl: '/dist/witnesses/measurement.js',
+      engineUrl: '/dist/sdk-browser/src/measurement/measurement.js',
       coreUrl: '/dist/sdk-core/src/index.js',
       pageUrl: '/tests/browser/support/materialPixelsPage.ts',
     },

@@ -167,9 +167,10 @@ export const fixtures: Fixture[] = [
     { tangents: true },
   ),
   // #479: glass built through the world API (`meshPhysical` → `hostSurface`, the route a world
-  // takes on either renderer) over an opaque square, read on WebGL2 against WebGPU. Both draw it
-  // with the engine's one lighting model, transmitted over a frozen linear backdrop (#120, #337):
-  // the same value, so the same window as any value two engines quantise.
+  // takes on either renderer) over an opaque square under the sun, as #337's repro, read on WebGL2
+  // against WebGPU. Both draw it with the engine's one lighting model, transmitted over a frozen
+  // linear backdrop (#120, #337): the same value, so the same window as any value two engines
+  // quantise.
   {
     name: 'world glass over an opaque surface',
     material: () =>
@@ -178,6 +179,7 @@ export const fixtures: Fixture[] = [
         false,
         new Map(),
       ),
+    lit: true,
     points: INSIDE,
     behind: 0x2244aa,
     pair: ['webgpu', 'webgl2'],

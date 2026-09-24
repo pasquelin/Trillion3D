@@ -23,7 +23,7 @@ export const SUN: SceneLight = {
 };
 
 /** A renderer that draws a fixture: the Three witness, the engine on WebGPU, the engine on
- *  WebGL2 (the public exact-pages path, whose copies the engine's own program draws, #120). */
+ *  WebGL2 (the shipping autonomous pages backend, whose copies the engine's program draws, #120). */
 export type Renderer = 'witness' | 'webgpu' | 'webgl2';
 
 /** The pair a fixture is read on unless it names another: the engine against the witness. */
