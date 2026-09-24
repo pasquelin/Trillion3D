@@ -1,60 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { after, test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { test } from 'node:test';
 import { light } from '../../../../sdk-core/src/world/light/light.ts';
-import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
-import { createWorldNotices } from '../diagnostic/worldNotices.ts';
 import { worldModelLoader } from './worldLoader.ts';
 import { Scene } from './scene.ts';
-import { createWorldRuntime } from './worldRuntime.ts';
-
-// The example's own cache, served from disk; the GPU is the one thing this test has not.
-const HOST = 'http://site.test/';
-const SITE = new URL('../../../../../site/', import.meta.url);
-const saved = { fetch: globalThis.fetch, location: Reflect.get(globalThis, 'location') };
-const serve = async (input: string | URL | Request) => {
-  const url = String(input instanceof Request ? input.url : input);
-  const path = fileURLToPath(new URL(url.slice(HOST.length), SITE));
-  const json = /\.(json|gltf)$/.test(path);
-  const type = json ? 'application/json' : 'application/octet-stream';
-  return new Response(await readFile(path), { headers: { 'content-type': type } });
-};
-globalThis.fetch = serve as typeof fetch;
-Reflect.set(globalThis, 'location', new URL(HOST));
-Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event);
-after(() => {
-  globalThis.fetch = saved.fetch;
-  Reflect.set(globalThis, 'location', saved.location);
-});
-
-/** A runtime on a canvas stand-in, whose every failure is handed to `failed`. */
-const runtimeOf = (
-  scene: Scene,
-  ready: Promise<void>,
-  failed: (error: unknown) => void,
-  open?: Parameters<typeof createWorldRuntime>[0]['open'],
-  opening: () => void = () => {},
-) =>
-  createWorldRuntime({
-    canvas: { width: 1, height: 1 } as HTMLCanvasElement,
-    scene,
-    ready: () => ready,
-    open,
-    camera: () => new Camera('perspective'),
-    options: () => ({ manifestUrl: '' }),
-    opened: () => {},
-    frame: () => {},
-    drawn: () => false,
-    display: () => ({ exposure: 1, toneMapping: 'aces' }),
-    diagnostic: { notices: createWorldNotices(), failed, opening },
-  });
-const until = async (done: () => boolean) => {
-  for (let waited = 0; !done() && waited < 5000; waited += 20)
-    await new Promise((resolve) => setTimeout(resolve, 20));
-};
+import { HOST, runtimeOf, sessionStandIn, until, type Open } from './worldRuntime.fixture.ts';
 
 test('a model loaded after the lights still opens a session', async () => {
   const ready = Promise.resolve();
@@ -105,35 +56,15 @@ test('a resolution that throws is reported, and the next change resolves again',
 test('a light added with a resolution that throws is still written to the open session', async () => {
   const ready = Promise.resolve();
   const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
-  const added: string[] = [];
-  // A session stand-in: what the runtime writes into it is all this test reads.
-  const session = {
-    camera: {
-      position: { set() {} },
-      quaternion: { set() {} },
-      updateProjectionMatrix() {},
-      updateMatrixWorld() {},
-    },
-    setLightingView() {},
-    invalidate() {},
-    growsPlacements: () => false,
-    refreshMaterials: () => true,
-    updatePlacements() {},
-    setEnvironment() {},
-    addLight: (record: { id: string }) => void added.push(record.id),
-    setLight() {},
-    removeLight() {},
-    render: () => ({}),
-    dispose() {},
-  };
-  const open = (async () => session) as unknown as Parameters<typeof runtimeOf>[3];
+  const { session, written } = sessionStandIn();
+  const open = (async () => session) as unknown as Open;
   const failures: string[] = [];
   const runtime = runtimeOf(scene, ready, (error) => failures.push((error as Error).message), open);
   scene.add(object.mesh(geometry.box(1, 1, 1)));
   await runtime.settled();
   assert.equal(runtime.explorer, session);
   runtime.render();
-  added.length = 0;
+  written.lights.length = 0;
   // The light enters with a mesh whose resolution throws: the burst fails, the light is kept.
   const digest = crypto.subtle.digest;
   crypto.subtle.digest = () => Promise.reject(new Error('crypto.subtle is unavailable'));
@@ -143,7 +74,7 @@ test('a light added with a resolution that throws is still written to the open s
   runtime.render();
   runtime.dispose();
   assert.deepEqual(failures, ['World scene resolution failed']);
-  assert.equal(added.length, 1);
+  assert.equal(written.lights.length, 1);
 });
 
 test('a scene change with nothing to draw does not stop the next one from opening a session', async () => {

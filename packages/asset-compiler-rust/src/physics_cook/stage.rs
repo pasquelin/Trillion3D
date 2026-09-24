@@ -1,8 +1,8 @@
 //! `physics.json`, the cooked physics of a scene: the colliders of its primitives (tiles, their
-//! objects, tolerance and measured error), the static placements of those colliders by the nodes
-//! that draw them, and the bodies the source declares. Its `formatVersion` is its own, and it names
-//! the stage and the Jolt commit that cooked it: a reader refuses any other.
-use super::declared::{declared_body, motion_of};
+//! objects, tolerance and measured error) and the static placements of those colliders by the nodes
+//! that draw them, each with the matter its source declares. Its `formatVersion` is its own, and it
+//! names the stage and the Jolt commit that cooked it: a reader refuses any other.
+use super::declared::declared_matter;
 use super::{
     JOLT_COMMIT, PHYSICS_COOK_STAGE, PHYSICS_COOK_VERSION, PHYSICS_FILE, PHYSICS_FORMAT_VERSION,
 };
@@ -91,15 +91,12 @@ fn placed(mut entry: Value, m: &Mat4) -> Option<Value> {
 /// the file cites so a prune keeps them, and carries the stage's report.
 pub(crate) fn stage_physics(
     scene: &DepthLayerScene<'_>,
-    scene_nodes: &BTreeSet<usize>,
     primitives: &[Value],
     collisions: &[Value],
     directory: &Path,
 ) -> Result<(Product, Value)> {
     let DepthLayerScene {
-        o,
         g,
-        bin,
         chosen,
         mesh_map,
         ..
@@ -119,11 +116,9 @@ pub(crate) fn stage_physics(
     }
     let by_mesh = crate::proxy::primitives_by_mesh(primitives);
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
+    // Every drawn node is static ground, as drawn: a node the source declares moving is placed
+    // too, for no body simulates a node of a compiled model yet.
     for &node in chosen.iter() {
-        // A moving body is not static ground: its node is left out of the tiles' placements.
-        if motion_of(&nodes[node]).is_some() {
-            continue;
-        }
         let old = required_index(nodes[node].get("mesh"), "node.mesh")?;
         let Some(mesh) = mesh_map.get(&old) else {
             continue;
@@ -132,16 +127,13 @@ pub(crate) fn stage_physics(
             let Some(&collider) = slot.get(index) else {
                 continue;
             };
-            match placed(json!({"node":node,"collider":collider}), &world[node]) {
+            let mut entry = declared_matter(g, &nodes[node]);
+            entry["node"] = json!(node);
+            entry["collider"] = json!(collider);
+            match placed(entry, &world[node]) {
                 Some(entry) => instances.push(entry),
                 None => unplaced += 1,
             }
-        }
-    }
-    let mut bodies = Vec::new();
-    for &node in scene_nodes {
-        if let Some(body) = declared_body(o, g, bin, node)? {
-            bodies.extend(placed(body, &world[node]));
         }
     }
     let largest = |key: &str| {
@@ -154,11 +146,11 @@ pub(crate) fn stage_physics(
         .iter()
         .filter_map(|c| c["triangles"].as_u64())
         .sum();
-    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"bodies":bodies.len(),"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance")});
+    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance")});
     let document = json!({
         "formatVersion":PHYSICS_FORMAT_VERSION,"compilerVersion":COMPILER_VERSION,"jolt":JOLT_COMMIT,
         "stage":{"name":PHYSICS_COOK_STAGE,"version":PHYSICS_COOK_VERSION},
-        "colliders":colliders,"instances":instances,"bodies":bodies,"report":report,
+        "colliders":colliders,"instances":instances,"report":report,
     });
     let mut objects = BTreeSet::new();
     crate::compiler_prune::referenced_objects(&document, None, &mut objects)?;

@@ -4324,6 +4324,11 @@
         "desc": "The roll deflection in [-1, 1], left positive as Q; as `pitchInput`."
       },
       {
+        "name": "lookSpeed",
+        "type": "number | null",
+        "desc": "Radians the view turns per pixel the pointer moves; `null` (the default) is half a turn per surface height, whatever the surface's size."
+      },
+      {
         "name": "dragToLook",
         "type": "boolean",
         "desc": "Whether dragging turns the view."
@@ -6419,8 +6424,8 @@
     "members": [
       {
         "name": "lookSpeed",
-        "type": "number",
-        "desc": "Radians turned per pixel of pointer motion."
+        "type": "number | null",
+        "desc": "Radians turned per pixel of pointer motion; `null` (the default) is 0.002."
       },
       {
         "name": "minPitch",
@@ -7504,12 +7509,7 @@
       {
         "name": "maxLights",
         "type": "64",
-        "desc": "Lights the contract accepts in total; beyond that, `addLight` rejects."
-      },
-      {
-        "name": "maxLightsPerTile",
-        "type": "32",
-        "desc": "Lights a screen tile keeps; the pixel loop is bounded by this number (X2)."
+        "desc": "Lights the contract accepts in total; beyond that, `addLight` rejects. A screen tile keeps every one of them that touches it: its list, and the pixel loop, are bounded by this (X2)."
       },
       {
         "name": "tileSize",
@@ -8108,6 +8108,11 @@
         "desc": "Everything the world keeps about this model: its addresses, manifest and graph."
       },
       {
+        "name": "getObjectByName(name: string)",
+        "type": "Object3D | undefined",
+        "desc": "The first node below with this name: the model, a node of its source file, then any other child — a light the file carried, a node a page placed."
+      },
+      {
         "name": "metadata",
         "type": "{ clusters: number; formatVersion?: number; compilerVersion?: string; errorModel?: string; geometryPages?: GeometryPageFormat; simplification?: boolean; sche...",
         "desc": "The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the clusters its pages hold, every level of its DAGs counted."
@@ -8118,7 +8123,7 @@
         "desc": "The box of this node's own content, local frame; a plain node holds none."
       }
     ],
-    "description": "`bounds` is the box it spans in its own frame."
+    "description": "A node of its source file is found by name (`getObjectByName`) and moved like any node: it joins the model's children, under its ancestors, when first looked up. `bounds` is the box it spans in its own frame."
   },
   {
     "id": "LodQualityId",
@@ -9398,7 +9403,7 @@
       {
         "name": "update(seconds: number)",
         "type": "false",
-        "desc": "Advances every playing action by `seconds` and writes the sampled values."
+        "desc": "Advances every playing action by `seconds`, then writes each property the weighted blend of its actions' samples over its rest value."
       }
     ],
     "description": ""
@@ -11484,6 +11489,28 @@
     "description": ""
   },
   {
+    "id": "PhysicsPart",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsPart"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsPart",
+    "signature": "type PhysicsPart = PhysicsPrimitive & {\n  /** @defaultValue [0, 0, 0] */ position?: readonly [number, number, number];\n  /** A unit quaternion `[x, y, z, w]`. @defaultValue [0, 0, 0, 1] */\n  quaternion?: readonly [number, number, number, number];\n}",
+    "summary": "One part of a compound shape: a primitive, placed and turned in the object's frame.",
+    "description": ""
+  },
+  {
+    "id": "PhysicsPrimitive",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsPrimitive"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsPrimitive",
+    "signature": "type PhysicsPrimitive = | { type: 'box'; halfExtents: readonly [number, number, number] }\n  | { type: 'sphere'; radius: number }\n  | { type: 'capsule'; halfHeight: number; radius: number }\n  | { type: 'cylinder'; halfHeight: number; radius: number }",
+    "summary": "An exact primitive: its sizes in the object's own frame.",
+    "description": ""
+  },
+  {
     "id": "PhysicsShape",
     "module": "packages/sdk-core/src/physics/options.ts",
     "exports": ["PhysicsShape"],
@@ -13273,7 +13300,7 @@
     "members": [
       {
         "name": "settings",
-        "type": "{ readonly maxLights: 64; readonly maxLightsPerTile: 32; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shado...",
+        "type": "{ readonly maxLights: 64; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shadowPage: 128; readonly shadowBudg...",
         "desc": "Published settings of direct lighting. These are named product choices, not buried constants: every runtime bound rereads them, and the diagnostic publishes them as-is."
       },
       {
@@ -17698,6 +17725,87 @@
     "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
   },
   {
+    "id": "WaterSpec",
+    "module": "packages/sdk-core/src/fluids/buoyancy.ts",
+    "exports": ["WaterSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaterSpec",
+    "signature": "interface WaterSpec",
+    "summary": "A body of water the bodies float in, as `world.physics.water` takes it.",
+    "members": [
+      {
+        "name": "waves",
+        "type": "WaveSpec[]",
+        "desc": "The Gerstner waves of the surface; none for still water."
+      },
+      {
+        "name": "level",
+        "type": "number",
+        "desc": "Height of the surface at rest, metres."
+      },
+      {
+        "name": "density?",
+        "type": "number | undefined",
+        "desc": "kg/m³; fresh water's 1000 by default."
+      },
+      {
+        "name": "linearDrag?",
+        "type": "number | undefined",
+        "desc": "Quadratic drag coefficient: how fast a body settles, never where; 0.5 by default."
+      },
+      {
+        "name": "angularDrag?",
+        "type": "number | undefined",
+        "desc": "How much the water damps a body's turning; 0.05 by default."
+      },
+      {
+        "name": "current?",
+        "type": "readonly [number, number, number] | undefined",
+        "desc": "Velocity of the water (a river's current), m/s."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "WaveSpec",
+    "module": "packages/sdk-core/src/fluids/waves.ts",
+    "exports": ["WaveSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaveSpec",
+    "signature": "interface WaveSpec",
+    "summary": "One wave as a scene declares it.",
+    "members": [
+      {
+        "name": "direction",
+        "type": "readonly [number, number]",
+        "desc": "Horizontal direction of travel `[x, z]`; normalised here."
+      },
+      {
+        "name": "wavelength",
+        "type": "number",
+        "desc": "Metres from crest to crest."
+      },
+      {
+        "name": "amplitude",
+        "type": "number",
+        "desc": "Metres from rest to crest."
+      },
+      {
+        "name": "steepness",
+        "type": "number",
+        "desc": "0 (a sine wave) to 1 (the sharpest crest that does not loop); normalised over the sum."
+      },
+      {
+        "name": "phase?",
+        "type": "number | undefined",
+        "desc": "Phase at `t = 0`, radians."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "World",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["World"],
@@ -17914,8 +18022,8 @@
       },
       {
         "name": "lookSpeed",
-        "type": "number",
-        "desc": "First person and character: radians the view turns per pixel the pointer moves."
+        "type": "number | null",
+        "desc": "Flight, first person and character: radians the view turns per pixel the pointer moves; `null` (the default) keeps each one's own — 0.002 for a head, half a turn per canvas height for flight."
       },
       {
         "name": "minPitch",
@@ -18172,6 +18280,17 @@
     "description": "A change is applied in place on a path that carries it, and taken by the next opening on one that does not."
   },
   {
+    "id": "world.temporalAntialiasing",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Constant",
+    "title": "world.temporalAntialiasing",
+    "signature": "world.temporalAntialiasing: boolean",
+    "summary": "Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default.",
+    "description": "Written, it takes effect at the next frame, history dropped, no session reopened. Read, it is what the image carries: false on WebGL2, and while the program compiles after it was turned on."
+  },
+  {
     "id": "world.physics",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["createWorld"],
@@ -18200,6 +18319,11 @@
         "name": "timeScale",
         "type": "number",
         "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
+      },
+      {
+        "name": "water",
+        "type": "WaterSpec | null",
+        "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
       },
       {
         "name": "stats",
@@ -18448,7 +18572,7 @@
     "title": "WorldControls",
     "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'character' | 'vehicle' | 'trackball' | 'panZoom' | 'none'",
     "summary": "The ways a page can steer the camera with the mouse and keyboard, or `'none'`.",
-    "description": "`'firstPerson'` moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with `world.controls.colliders` — and looks through its eyes."
+    "description": "`'firstPerson'` moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with `world.controls.colliders` — and looks through its eyes. `'fly'` and `'firstPerson'` move at `world.controls.movementSpeed` and turn at `world.controls.lookSpeed`."
   },
   {
     "id": "WorldFrameMetrics",
@@ -19027,6 +19151,11 @@
         "name": "physics?",
         "type": "boolean | WorldPhysicsOptions | undefined",
         "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      },
+      {
+        "name": "temporalAntialiasing?",
+        "type": "boolean | undefined",
+        "desc": "Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws each pixel at its centre, with no history, what a pixel-exact capture asks; switched later by `world.temporalAntialiasing`."
       }
     ],
     "description": ""
@@ -19083,6 +19212,11 @@
         "name": "timeScale",
         "type": "number",
         "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
+      },
+      {
+        "name": "water",
+        "type": "WaterSpec | null",
+        "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
       },
       {
         "name": "stats",
@@ -22696,6 +22830,12 @@
         "type": "boolean | WorldPhysicsOptions",
         "default": "false",
         "desc": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
+      },
+      {
+        "name": "options.temporalAntialiasing?",
+        "type": "boolean",
+        "default": "true",
+        "desc": "Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws each pixel at its centre, with no history, what a pixel-exact capture asks; switched later by `world.temporalAntialiasing`."
       }
     ],
     "returns": {
@@ -24328,7 +24468,7 @@
     "kind": "Function",
     "title": "geometry.tube()",
     "signature": "geometry.tube(path: Curve, tubularSegments?: number, radius?: number, radialSegments?: number, closed?: boolean): Geometry",
-    "summary": "A tube of `radius` along a curve: rings carried by frames that turn with the curve without twisting about it, closed on request.",
+    "summary": "A tube of `radius` along a curve: rings carried by frames that turn with the curve without twisting about it; closed on request, its rings share the frame's turn round the loop.",
     "parameters": [
       {
         "name": "path",

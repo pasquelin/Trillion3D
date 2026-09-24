@@ -3,7 +3,7 @@ import { fixtureCamera, fixtureSurface, type FixtureCamera } from './controls.fi
 import type { SteeredCameraControls } from './types.ts';
 
 /** Where the camera looks: its local -Z, turned by its orientation. */
-export const facing = ({ quaternion: q }: FixtureCamera) =>
+export const facing = ({ quaternion: q }: Pick<FixtureCamera, 'quaternion'>) =>
   rotateByQuaternion(new Float64Array(3), [q.x, q.y, q.z, q.w], 0, 0, -1);
 
 /** One camera, one surface and the named controller, with its emissions counted. */

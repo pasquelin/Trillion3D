@@ -482,7 +482,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/scene/materialBlending.ts",
+        "packages/sdk-browser/src/scene/materialSide.ts",
+        "packages/sdk-browser/src/webgpu/blend/pipelines.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/constants/index\".Blending"
     },
@@ -683,7 +687,8 @@
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
         "packages/sdk-browser/src/camera/depthConventionCamera.test.ts",
-        "packages/sdk-browser/src/hiz/corners.ts"
+        "packages/sdk-browser/src/hiz/corners.ts",
+        "packages/sdk-browser/src/hiz/pageCorners.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/box\".boxCornersInto"
@@ -921,6 +926,7 @@
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/session.ts",
         "packages/sdk-browser/src/physics/view.ts",
+        "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -932,9 +938,10 @@
         "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
         "packages/sdk-browser/src/world/core/worldControlsPause.test.ts",
+        "packages/sdk-browser/src/world/core/worldLink.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.test.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts",
-        "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
@@ -2960,6 +2967,7 @@
       "affectedConsumers": [
         "bench/perf/browser/frustum-residency.perf.ts",
         "bench/perf/browser/support/volumeFrustumCases.ts",
+        "packages/sdk-browser/src/page/cut/take.ts",
         "packages/sdk-browser/src/page/cut/visit.ts",
         "packages/sdk-browser/src/page/selection/math.test.ts"
       ],
@@ -3069,7 +3077,13 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs/examples/chess-pieces.ts",
+        "scripts/docs/examples/mesh.ts",
+        "scripts/docs/examples/models.ts",
+        "scripts/docs/examples/solids.ts",
+        "scripts/docs/garden-source.ts",
+        "scripts/docs/observatory/geometry.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/geometry/index\".geometry"
@@ -3088,6 +3102,9 @@
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
+        "scripts/docs/examples/mesh.ts",
+        "scripts/docs/garden-source.ts",
+        "scripts/docs/observatory/geometry.ts",
         "site/app/editor/GeometryFields.tsx",
         "site/app/editor/objects.ts"
       ],
@@ -3543,6 +3560,7 @@
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -4130,6 +4148,7 @@
         "bench/perf/browser/support/coreHierarchy.ts",
         "bench/perf/core/three-vs-core-matrices.perf.ts",
         "packages/sdk-browser/src/camera/world.ts",
+        "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts",
         "packages/sdk-browser/src/page/raster.ts",
         "packages/sdk-browser/src/taa/frame.ts",
         "packages/sdk-browser/src/taa/motion.ts",
@@ -4272,6 +4291,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntimeLights.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
@@ -4331,6 +4351,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
+        "bench/oracles/browser/gpuLightTileColumnOracle.ts",
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
@@ -4632,6 +4653,7 @@
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
@@ -4664,6 +4686,7 @@
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
@@ -4971,6 +4994,7 @@
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldBatches.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
@@ -5049,6 +5073,7 @@
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
         "packages/sdk-browser/src/host/world/chain.ts",
+        "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts",
         "packages/sdk-browser/src/page/cut/cut.ts",
         "packages/sdk-browser/src/page/cut/select.ts",
         "packages/sdk-browser/src/page/raster.ts",
@@ -5282,6 +5307,8 @@
         "packages/sdk-browser/src/world/controls/transformDrag.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
+        "packages/sdk-browser/src/world/core/modelNodes.test.ts",
+        "packages/sdk-browser/src/world/core/modelNodes.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
         "packages/sdk-browser/src/world/core/worldControlTargets.ts",
@@ -5876,7 +5903,8 @@
         "bench/perf/browser/support/hierarchyReplayEngine.ts",
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/engineCamera.ts",
-        "packages/sdk-browser/src/camera/world.test.ts"
+        "packages/sdk-browser/src/camera/world.test.ts",
+        "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/camera\".perspectiveProjection"
@@ -5888,7 +5916,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["scripts/bench-physics.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/cooked.test.ts",
+        "scripts/bench-physics.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PHYSICS_MATERIALS"
     },
@@ -5937,7 +5968,7 @@
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
-        "packages/sdk-browser/src/physics/session.ts"
+        "packages/sdk-browser/src/physics/sessionHost.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".PhysicsHost"
@@ -5974,6 +6005,28 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsOption"
+    },
+    {
+      "name": "PhysicsPart",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsPart"
+    },
+    {
+      "name": "PhysicsPrimitive",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/options.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsPrimitive"
     },
     {
       "name": "PhysicsShape",
@@ -6772,7 +6825,7 @@
       "currentEntryPoints": ["trillion3d (node condition)"],
       "proposedEnvironments": "node",
       "classification": "public",
-      "affectedConsumers": ["bench/runner/assets.ts", "scripts/native-compiler.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/src/compiler/process\".resolveCompilerExecutable"
     },
@@ -7091,6 +7144,7 @@
         "packages/sdk-browser/src/world/api/lightApi.test.ts",
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "tests/browser/support/blendCacheScenes.ts",
         "tests/browser/support/defaultBackendCase.ts",
         "tests/browser/support/materialFixtures.ts"
@@ -7136,8 +7190,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/physicsLink.ts",
         "packages/sdk-browser/src/physics/placer.ts",
-        "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldLink.ts"
       ],
@@ -7264,7 +7318,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "experimental",
-      "affectedConsumers": ["packages/sdk-browser/src/gpu/dag/pipeline.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/dag/pipeline.ts",
+        "packages/sdk-browser/src/page/cut/walkWasm.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lod/screenErrorVariant\".screenErrorVariant"
     },
@@ -9081,6 +9138,36 @@
       "affectedConsumers": ["packages/sdk-browser/src/camera/renderOrigin.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/renderOrigin\".viewToRenderOrigin"
+    },
+    {
+      "name": "WaterSpec",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/fluids/buoyancy.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/protocol.ts",
+        "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/water.fixture.ts",
+        "packages/sdk-browser/src/physics/water.test.ts",
+        "packages/sdk-browser/src/physics/water.ts",
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
+        "scripts/bench-fluids.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/fluids/buoyancy\".WaterSpec"
+    },
+    {
+      "name": "WaveSpec",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/fluids/waves.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/fluids/waves\".WaveSpec"
     },
     {
       "name": "World",

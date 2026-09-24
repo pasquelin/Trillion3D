@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { fixtureDrag, fixtureSurface } from '../../camera/controls/controls.fixture.ts';
+import { facing } from '../../camera/controls/steering.fixture.ts';
 import { worldControlsHandle } from './worldControlsHandle.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { box } from '../../../../sdk-core/src/world/geometry/basic.ts';
@@ -30,7 +31,7 @@ test('`world.controls` hands its limits to the orbit it drives, and keeps them f
   controls.dispose();
 });
 
-test('`world.controls` keeps its speeds across `kind`, and first person walks at `movementSpeed`', () => {
+test('`world.controls` keeps its speeds across `kind`: first person walks at `movementSpeed`, flight turns at `lookSpeed`', () => {
   const camera = new Camera('perspective');
   const surface = fixtureSurface(400);
   const controls = worldControlsHandle(
@@ -40,7 +41,9 @@ test('`world.controls` keeps its speeds across `kind`, and first person walks at
     () => {},
   );
   // Set on a controller that has no walk: harmless, and kept for the one that comes next.
+  assert.equal(controls.lookSpeed, null); // Each controller's own until set.
   controls.movementSpeed = 5;
+  controls.lookSpeed = Math.PI / 200;
   controls.kind = 'firstPerson';
   controls.kind = 'fly';
   controls.kind = 'firstPerson';
@@ -49,6 +52,14 @@ test('`world.controls` keeps its speeds across `kind`, and first person walks at
   surface.key('keydown', { code: 'KeyW' });
   controls.update(1);
   assert.equal(Number(camera.position.length().toFixed(6)), 5);
+  controls.kind = 'fly';
+  controls.update(0);
+  fixtureDrag(surface, 100, 0); // A quarter turn at π/200 per pixel: the look faces +X.
+  controls.update(0);
+  assert.deepEqual(
+    [...facing(camera)].map((v) => Math.round(v) + 0),
+    [1, 0, 0],
+  );
   controls.dispose();
 });
 
