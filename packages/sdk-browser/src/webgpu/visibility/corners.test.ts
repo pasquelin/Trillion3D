@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts';
 import { uploadDirtyRows } from '../pages/render/encodeDraws.ts';
+import { uploadClusterSpheres } from '../shadow/bounds.ts';
 import { moveRootRows } from '../pages/render/movedRoot.ts';
 import { createWebgpuRowState } from '../row/state.ts';
 import { createBoxCorners } from '../../hiz/hiz.ts';
@@ -21,7 +22,14 @@ function scatteredScene() {
   const world = { elements: new Float64Array(16) };
   const pages = Array.from(
     { length: ROWS },
-    (_, i) => ({ url: `p${i}`, matrix: world, windingEpoch: 1 }) as unknown as PageRec,
+    (_, i) =>
+      ({
+        url: `p${i}`,
+        matrix: world,
+        windingEpoch: 1,
+        min: [0, 0, 0],
+        max: [1, 1, 1],
+      }) as unknown as PageRec,
   );
   const model = { world, pages: MODEL_ROWS.map((row) => pages[row]) } as ClusterRoot<PageRec>;
   const rows = createWebgpuRowState(pages, ROWS);
@@ -36,22 +44,26 @@ function scatteredScene() {
   cornerHold.count = ROWS;
   const forgotten: number[] = [],
     corners: number[] = [],
-    table: number[] = [];
+    table: number[] = [],
+    spheres: number[] = [];
+  const sphereBuffer = {};
   const rt = {
     layout: {
       rows,
+      drawSlots: ROWS,
       boxCorners: createBoxCorners(ROWS),
       cornerPacked: new Float32Array(ROWS * CORNER_VALUES),
       cornerHold,
     },
     run: { noOccluderHistory: false, temporalHizState: {} },
     blendState: { occlusionEpoch: 1 },
+    lights: { spheres: { buffer: sphereBuffer, packed: new Float32Array(ROWS * 4), rows: ROWS } },
     timing: { encodeCounts: { lignesTeleversees: 0 } },
     gpu: {
       device: {
         queue: {
-          writeBuffer: (_b: unknown, _at: number, _d: unknown, _o: number, size: number) =>
-            table.push(size / PAGE_INFO_STRIDE),
+          writeBuffer: (b: unknown, _at: number, _d: unknown, _o: number, size: number) =>
+            b === sphereBuffer ? spheres.push(size / 4) : table.push(size / PAGE_INFO_STRIDE),
         },
       },
     },
@@ -64,18 +76,20 @@ function scatteredScene() {
     },
   } as unknown as WebgpuPagesRuntime;
   const sum = (counts: number[]) => counts.reduce((a, b) => a + b, 0);
-  return { rt, model, forgotten, corners, table, sum };
+  return { rt, model, forgotten, corners, table, spheres, sum };
 }
 
 test('a model scattered across the table forgets and sends its own rows, run by run', () => {
-  const { rt, model, forgotten, corners, table, sum } = scatteredScene();
+  const { rt, model, forgotten, corners, table, spheres, sum } = scatteredScene();
   assert.equal(moveRootRows(rt, model), MODEL_ROWS.length);
   const { rows } = rt.layout;
   // The span still bounds the marks: first and last rows of the model.
   assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [3, 997]);
+  uploadClusterSpheres(rt, rt.gpu.device!);
   uploadRowCorners(rt);
   uploadDirtyRows(rt);
   assert.deepEqual(forgotten, [2, 3, 1], 'three runs, 6 rows forgotten of the 995 spanned');
+  assert.deepEqual(spheres, [2, 3, 1], 'the same 6 shadow spheres sent');
   assert.deepEqual(corners, [2, 3, 1], 'the same 6 rows of corners sent');
   assert.deepEqual(table, [2, 3, 1], 'the same 6 rows of the table sent');
   assert.equal(rt.timing.encodeCounts.lignesTeleversees, sum(table));
