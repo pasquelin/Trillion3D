@@ -117,3 +117,42 @@ test('a world without physics starts no worker; enabling it starts one', () => {
     globalThis.Worker = saved;
   }
 });
+
+test('a fatal worker error ends the session: physics off, the error kept, nothing more sent', () => {
+  const workers: { onmessage(event: { data: unknown }): void; sent: number; ended: boolean }[] = [];
+  const saved = globalThis.Worker,
+    log = console.error;
+  globalThis.Worker = class {
+    sent = 0;
+    ended = false;
+    onmessage = (_: { data: unknown }) => {};
+    constructor() {
+      workers.push(this);
+    }
+    postMessage() {
+      this.sent++;
+    }
+    terminate() {
+      this.ended = true;
+    }
+  } as unknown as typeof Worker;
+  console.error = () => {};
+  try {
+    const runtime = { invalidate() {}, explorer: null };
+    const physics = createWorldPhysics(runtime, new Group(), () => new Camera('perspective'), true);
+    const [worker] = workers;
+    worker.onmessage({ data: { type: 'ready' } });
+    const fatal = { type: 'error', code: 'PHYSICS_BUDGET', message: 'out of memory', fatal: true };
+    worker.onmessage({ data: fatal });
+    assert.equal(physics.handle.enabled, false);
+    assert.equal(physics.handle.error?.code, 'PHYSICS_BUDGET');
+    assert.ok(worker.ended, 'the worker is terminated');
+    const sent = worker.sent;
+    physics.handle.gravity = 'moon';
+    assert.equal(physics.frame(), false);
+    assert.equal(worker.sent, sent, 'no command reaches the failed worker');
+  } finally {
+    globalThis.Worker = saved;
+    console.error = log;
+  }
+});

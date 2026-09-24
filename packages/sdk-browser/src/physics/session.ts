@@ -39,7 +39,7 @@ export function createPhysicsSession(
   root: Object3D,
   budget: PhysicsBudget,
   invalidate: () => void,
-  failed: (error: EngineError) => void,
+  failed: (error: EngineError, fatal?: boolean) => void,
 ) {
   const writer = new CommandWriter();
   const stale = new Set<Object3D>();
@@ -129,15 +129,16 @@ export function createPhysicsSession(
       invalidate();
     } else if (data.type === 'results') results(data);
     else {
-      // Bodies whose shape the module refused leave the simulation; the world runs on.
+      // Bodies whose shape the module refused leave the simulation; the world runs on, unless the
+      // error is fatal: then the simulation stopped, and the world ends this session.
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
       for (const mesh of refused) bodies.retire(mesh.physics._index);
       const names = refused.map((mesh) => mesh.name);
-      failed(new EngineError(data.code, data.message, names.length ? { names } : {}));
+      failed(new EngineError(data.code, data.message, names.length ? { names } : {}), data.fatal);
     }
   };
   worker.onerror = (event) =>
-    failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`));
+    failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
   return {
     stats,
