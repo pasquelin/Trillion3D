@@ -7,8 +7,9 @@
 //! the error of the group that replaces it. A flat runtime cut `parent_error > t >= lod_error`
 //! then covers the surface exactly once.
 //!
-//! The metric is positional only: indices keep pointing at the source vertices, so UV, normals and
-//! colours survive untouched, but they do not participate in the simplification error yet.
+//! Indices keep pointing at the source vertices. Normals and every texture set count in the
+//! simplification error (`attributes.rs`), and the cook refuses a DAG whose error drops from a
+//! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
 use crate::{invalid, Result};
@@ -25,8 +26,6 @@ pub const DAG_GROUP_MIN: usize = 8;
 pub const DAG_GROUP_MAX: usize = 32;
 /// 2x reduction per level bounds the depth of a 2^24 triangle mesh.
 pub const DAG_MAX_LEVELS: usize = 32;
-/// meshopt's relative error ceiling. Large enough to always reach the triangle target.
-const SIMPLIFY_ERROR_CEILING: f32 = 1.0;
 
 /// What `simplification` option requests from build. Mode not speed preference:
 /// specifies whether DAG allowed to carry, above exact clusters, surface
@@ -91,8 +90,6 @@ struct GroupReduction {
     sphere: [f64; 4],
     clusters: Vec<Vec<u32>>,
     source_rank: u32,
-    /// Reduction had to weld indices by position (`reduce.rs`).
-    welded: bool,
     /// Reduction had to lock additional triangles to preserve border.
     relocked: bool,
 }
@@ -111,10 +108,20 @@ pub struct DagGroup {
 }
 struct GroupReductionInput<'a> {
     positions: &'a [f32],
+    /// Normals and texture sets, as the simplifier weighs them.
+    attributes: &'a [crate::qem::Attribute<'a>],
+    normals: Option<&'a [f32]>,
+    /// Normal deviation this group's reduction may not exceed (`quality::deviation_bound`).
+    normal_bound: f64,
     locks: &'a [bool],
+    /// Per source vertex, on a texture seam: protected from permissive collapses. Empty without
+    /// a texture set.
+    seams: &'a [bool],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
-    /// Canonical vertex by position and every texture set: fallback reduction weld.
+    /// Canonical vertex by position and every carried attribute (`attributes::weld_exact`).
+    exact: &'a [u32],
+    /// Canonical vertex by position and every texture set: seams, diagnosis, normal copies.
     weld_seam: &'a [u32],
 }
 pub const CULLING_BRANCHING: usize = 8;
@@ -150,6 +157,7 @@ impl Default for CullingNode {
     }
 }
 
+pub(crate) mod attributes;
 pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
@@ -157,11 +165,13 @@ pub(crate) mod clusters;
 mod culling;
 mod diagnosis;
 pub(crate) mod groups;
+pub(crate) mod quality;
 pub(crate) mod reduce;
 mod tally;
 #[cfg(test)]
 mod tests;
 
+pub use attributes::DagAttributes;
 use bounds::*;
 pub use build::build_dag_tallied;
 use clusters::*;

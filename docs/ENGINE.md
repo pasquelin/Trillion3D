@@ -213,13 +213,17 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
 - **Only stale pages the image reads are drawn**, coarse first, under the Shadows budget
   (`shadowBudgetMs`, 1.0 ms, measured on the timestamps of the pages' draws and of the light cuts
   that select their casters) and at most `shadowPagesPerFrame`
-  (24) a frame. A light that moves or changes, or a sun whose clipmap moves its projection, stales
-  every page it maps, and none is read until redrawn: its depth belongs to the old projection. An
-  object that moves stales only the mapped pages its projected box covers; a representation change
+  (24) a frame. One flag says whether a page is read, the table word's valid bit: a page whose
+  depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
+  next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
+  stales every page it maps, and withdraws them: their depth belongs to the old projection. An
+  object that moves stales only the mapped pages its projected box covers: a static caster that
+  moves withdraws them, since their static layer is wrong; an object already moving leaves them
+  read, since their static layer still holds — a static shadow never vanishes while something near
+  it moves, only the moving caster's own shadow lags until the redraw. A representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
-  threshold than the one at rest. Such a page is still read until its redraw lands, while a
-  report names it; one no report names is withdrawn, since blend and water read without asking. A
-  page never drawn is not read. A report that names more pages than the pool holds — the pool never
+  threshold than the one at rest; both leave them read. A stale page no report names is withdrawn,
+  since blend and water read without asking. A page never drawn is not read. A report that names more pages than the pool holds — the pool never
   holds more than a report lists (`shadowRequestCap`) — maps the coarsest, then by table entry — never in the GPU's append order —, and the rest read
   coarser:
   that waits for nothing, and the diagnostic counts it (`shadowPagesOverflow`). A page is drawn
@@ -228,6 +232,29 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
+- **The floor is always read.** Every page a report names asks for its light's floor under it
+  too — a sun's last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while
+  anything above it is read, and admitted first when not read — never drawn, or withdrawn — or
+  stale at a past pose of its light, whatever the budget, which pays it before any finer page; a
+  floor still read, stale for its moving casters or for detail, waits its turn like any page, so an
+  object that keeps moving never starves the finer pages. The floor covers all the light reaches,
+  so it needs no report to know what the view will read: a sun asks every frame for the floor
+  pages its view reaches — the camera brings new ones in without any pose —, and a new, moved or
+  reshaped lamp for the floor of each face until a report written at its current pose comes back,
+  as if the latest report named them: a report from a past pose names only the faces that pose's
+  receivers read. A move never withdraws a floor: it stays read, stale — a coarse shadow a few
+  frames behind at most —, until it is redrawn. When the frame's first floors exceed the page cap
+  or span more views than the light cut holds, they go oldest first by their wait. So a pixel that
+  falls back past a withdrawn page reads a floor, never the far ray of a sun or the unshadowed
+  answer of a lamp.
+- **A moving light follows within the frame.** A move is a change of what shapes its depth —
+  kind, position, direction, range, cone, a rect's frame and size, the emitter radius, whether it
+  casts —; an intensity, colour or penumbra change re-poses nothing and withdraws no page. A move
+  withdraws every page of its past pose finer than the floor, so none is read again before it is
+  drawn at the new one. The frame draws its floor, then the pages the latest report named,
+  coarsest first within the budget: a finer page's wait counts from the light's pose, not from when
+  it went stale, so no finer page overtakes a coarser one while the light keeps moving. Its finer
+  pages come as the budget allows, and once it stops.
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
@@ -366,7 +393,12 @@ so a still camera settles instead of alternating between two cuts.
 
 A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
-rebuilds every bind group that named the old pool on the next image. The geometry pool can grow up to
+rebuilds every bind group that named the old pool on the next image. At prepare a pool is allocated
+once, under an out-of-memory error scope; at a resize, where the old pool lives until the copy, the
+new one is first probed under that scope (`webgpu/residency/poolGrants.ts`). A refusal halves the
+pool's bytes and draws it again by its own rule, down to its floor, so the pool in place is never
+replaced by an invalid one and the budget ladder draws the rest coarser. The world's GPU and CPU totals reach the pools through one fixed
+split (`residency/memoryBudget.ts`). The geometry pool can grow up to
 `geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
 page, page cap and session ceiling). A slot holds one geometry copy: a classic instance

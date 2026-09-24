@@ -41,8 +41,11 @@ export function createTickResults(
       : (staging ??= new Uint32Array(resultWords(budget)));
     return out;
   };
-  /** A step's refused shapes and exhausted budgets reach the page as they happen; the world runs. */
+  /** A step's refused shapes, broken joints and exhausted budgets reach the page as they happen;
+   *  the world runs. */
   const report = () => {
+    const joints = jolt.broken();
+    if (joints.length) send({ type: 'broken', joints });
     const bodies = jolt.refused();
     if (bodies.length) {
       const message = `Physics: ${bodies.length} body shape(s) refused by the module.`;
@@ -78,8 +81,15 @@ export function createTickResults(
     },
     /** Whether one more step's events surely fit in the tick's results. */
     room: () => eventCount + budget.contactEvents <= budget.contactEvents * MAX_CATCH_UP_STEPS,
-    /** Hands the tick's results to the page; false while it holds both buffers. */
-    post(steps: number, stepMs: number, active: number, character: () => CharacterReport | null) {
+    /** Hands the tick's results to the page, `water` the water's clock after them and its epoch;
+     *  false while it holds both buffers. */
+    post(
+      steps: number,
+      stepMs: number,
+      active: number,
+      character: () => CharacterReport | null,
+      water: { readonly time: number; readonly epoch: number },
+    ) {
       if (!out || !(poseCount || eventCount || steps)) return false;
       if (!outBuffer) {
         // Staged while the page held both buffers: copied into the first one back.
@@ -93,6 +103,8 @@ export function createTickResults(
       const message = {
         ...counts,
         seconds: steps * PHYSICS_STEP,
+        water: water.time,
+        waterEpoch: water.epoch,
         stepMs,
         active,
         character: character(),

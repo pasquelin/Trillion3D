@@ -4,7 +4,11 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Metafile } from 'esbuild';
 import { evidenceSummary, installedEvidence } from './installed-package-evidence.ts';
-import { browserEvidence, proveInstalledBrowserModes } from './installed-package-bundle.ts';
+import {
+  browserEvidence,
+  emitInstalledBrowserBundle,
+  proveInstalledBrowserModes,
+} from './installed-package-bundle.ts';
 import { compileInstalledScene, type CompiledScene } from './installed-package-scene.ts';
 import { proveInstalledRuntime } from './installed-package-runtime.ts';
 import { proveInstalledTypes } from './installed-package-types.ts';
@@ -26,7 +30,9 @@ const { fixture, logs, run, write, bundle, installedVersion } = createInstalledF
 try {
   run(pnpm, ['run', 'build']);
   const proveBrowser = process.argv.includes('--browser');
-  const proveNative = process.argv.includes('--native') || proveBrowser;
+  // `--bundle`: the browser bundle emitted and checked, no browser launched (#568).
+  const proveBundle = process.argv.includes('--bundle') && !proveBrowser;
+  const proveNative = process.argv.includes('--native') || proveBrowser || proveBundle;
   if (proveNative) run(pnpm, ['run', 'build:native']);
   const parsedPack = JSON.parse(run(pnpm, ['pack', '--json', '--pack-destination', fixture])) as
     PackResult | PackResult[];
@@ -127,16 +133,16 @@ try {
   bundles.maths = runtimeProof.bundles.maths;
   bundles.hierarchy = runtimeProof.bundles.hierarchy;
   bundles.worker = bundle('common-worker', runtimeProof.workerSource);
-  const browserRun = proveBrowser
-    ? await proveInstalledBrowserModes({
-        fixture,
-        packageName: source.name,
-        browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/src/index.js',
-        bundler: join(root, 'node_modules/.bin/esbuild'),
-        run,
-      })
-    : null;
-  const browserBundle = browserRun?.bundled.bundle ?? null;
+  const browserOptions = {
+    fixture,
+    packageName: source.name,
+    browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/src/index.js',
+    bundler: join(root, 'node_modules/.bin/esbuild'),
+    run,
+  };
+  const browserRun = proveBrowser ? await proveInstalledBrowserModes(browserOptions) : null;
+  const browserBundle =
+    browserRun?.bundled.bundle ?? (proveBundle ? emitInstalledBrowserBundle(browserOptions) : null);
   const browserProof = browserRun?.bundled.proof ?? null;
   if (browserBundle) bundles.explorer = browserBundle.metafile;
   const evidence = {

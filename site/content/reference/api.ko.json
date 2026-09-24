@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "엔진이 넘겨주는, 호스트가 한 프레임을 그리는 데 쓰는 행렬들.",
+    "summary": "엔진이 넘겨주는, 호스트가 한 프레임을 그리는 데 쓰는 행렬들과 깊이 범위.",
     "members": {
       "projection": "투영.",
       "world": "카메라의 월드 행렬.",
       "view": "뷰 행렬.",
-      "eye": "눈이 있는 위치."
+      "eye": "눈이 있는 위치.",
+      "near": "가장 가까운 거리.",
+      "far": "가장 먼 거리."
     }
   },
   "HostDrawOutput": {
@@ -1656,7 +1658,8 @@
       "signal": "그 신호가 중단되면 로드를 멈춘다.",
       "scope": "`'full'`은 캐시 전체를 요구하고, `'progressive'`는 그 스트리밍된 조각을 요구한다; 다른 범위의 모델은 이름으로 거부된다. 설정되지 않으면 모델은 그 포인터가 선언하는 범위로 읽힌다.",
       "stream": "페이지가 구성한 스트리머; 월드의 세션은 자신만의 것으로 스트리밍한다.",
-      "position": "모델의 원점이 씬 안 어디에 놓이는가."
+      "position": "모델의 원점이 씬 안 어디에 놓이는가.",
+      "onProgress": "로딩이 얼마나 진행됐는지 듣는다: 매니페스트를 읽으면 `manifest`, 이어서 씬이 읽는 각 파일이 도착할 때마다 `resources`(그때까지 알려진 `total` 중 `completed`). 이벤트는 `JobProgress`이며, 로딩을 감싼 `createJob`은 자신의 `progress`를 여기에 넘긴다."
     }
   },
   "LoadedModel": {
@@ -2938,6 +2941,8 @@
       "shadowWaitMs": "그것들이 얼마나 기다렸는가.",
       "gpuLightListsMs": "조명 목록의 GPU 시간.",
       "gpuShadowsMs": "그림자의 GPU 시간.",
+      "gpuShadowCullMs": "프레임이 그리는 그림자 페이지의 투사체를 고르는 GPU 시간: 라이트 컷, 페이지별 컬링, 그리고 움직이는 투사체의 가림 테스트와 그것이 읽는 피라미드.",
+      "gpuShadowRasterMs": "그 투사체를 페이지에 그리는 GPU 시간: 정적 레이어, 그다음 풀.",
       "gpuLightingMs": "라이팅의 GPU 시간.",
       "shadowLightCuts": "조명에서 실행한 클러스터 컷: 그린 조명 뷰마다 하나, 정지 프레임에서는 0.",
       "shadowPagesRequested": "이미지가 읽은 가상 섀도 페이지, 최신 요청 보고서가 지목한 대로: 카메라의 수신면이 표시한 것.",
@@ -2955,8 +2960,9 @@
       "counts": "마지막 계획이 한 일, 페이지 단위.",
       "worldChanged": "노드가 움직였습니다: 그 박스는 다음 계획에서 덮는 페이지를 낡게 만듭니다.",
       "representationChanged": "다른 정밀도의 같은 월드: 그 박스는 카메라가 멈출 때까지 기다립니다.",
+      "resting": "마지막 계획에서 카메라가 정지해 있었음: 그 뷰가 이전 계획의 뷰와 같았습니다.",
       "deferredChanges": "표현 변경이 카메라가 멈추기를 기다리는 동안 참.",
-      "releaseDeferred": "프레임이 그림자를 계획하지 않습니다: 보류된 합집합이 즉시 목록에 들어갑니다.",
+      "releaseDeferred": "프레임이 그림자를 계획하지 않습니다: 보류된 박스들이 즉시 목록에 들어갑니다.",
       "observeCost": "프레임 Shadows 패스의 타이머, 그린 페이지에 나눠 배분.",
       "setBudgetMs": "호스트가 게시한 예산, 프레임당 GPU 밀리초.",
       "setPageInvalidation": "페이지별 무효화를 끕니다: 움직이는 객체가 닿은 조명의 모든 페이지를 낡게 만듭니다. 기본값은 켜짐.",
@@ -3432,7 +3438,8 @@
       "textureLevelReads": "출처들. `textureLevelReads`: 캐시에서 읽히고 있는 베이크된 레벨. `textureLevelsDecoded`: 시작 이후 디코딩된 베이크된 레벨. `textureLevelCacheBytes`: 고정된 예산 아래, 추가 타일을 잘라내기 위해 보관되는 디코딩된 레벨의 호스트 바이트 수. `textureScratchBuilds`: 베이크된 체인이 없는 텍스처를 위해 매번 원본 전체로부터 만들어지는 작업용 텍스처 수.",
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
-      "textureScratchBuilds": "만들어진 작업용 텍스처 수."
+      "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다."
     }
   },
   "TextureLayout": {
@@ -3792,8 +3799,8 @@
       "gravity": "캐릭터 전용: 상승 중 아래 방향 가속도, m/s²; 기본값 9.80665.",
       "fallGravity": "캐릭터 전용: 낙하 중 아래 방향 가속도, m/s²; 기본값 1.6g. 이로써 점프가 흐물흐물해지지 않는다.",
       "airControl": "캐릭터 전용: 공중에서 키가 얼마나 빠르게 조종할 수 있는지, 지상 출발 대비 비율; 기본값 0.05, 0이면 탄도적.",
-      "responseTime": "캐릭터 전용: 지상에서 목표 속도의 95%에 도달하기까지의 초; 기본값 0.12.",
-      "stopTime": "캐릭터 전용: 키를 떼고 나서 지상에서 속도의 95%를 잃기까지의 초; 기본값 0.08.",
+      "responseTime": "캐릭터 전용: 지상에서 원하는 속도의 95%에 도달하는 데 다리가 걸리는 초; 기본값 0.12. 바닥의 마찰이 출발을 먼저 제한한다: 밑창은 최대 `μ g`로 밀며, `μ`는 바닥의 `material.physics`에 대한 고무 밑창의 접지력(물리 없이는 돌)이므로, 조깅 속도에 돌에서는 0.45초, 얼음에서는 2.2초에 도달한다.",
+      "stopTime": "캐릭터 전용: 키를 떼고 나서 지상에서 속도의 95%를 잃는 데 다리가 걸리는 초; 기본값 0.12. 바닥의 마찰이 정지를 먼저 제한한다: 조깅은 `v² / (2 μ g)` 미끄러지며, 돌에서 0.8 m, 얼음에서 3.8 m; 더 긴 시간은 더 부드럽게 제동한다.",
       "capsuleRadius": "캐릭터 전용: 몸체의 반지름, 미터; 기본값은 어깨너비의 절반(0.23m).",
       "capsuleHeight": "캐릭터 전용: 몸체의 높이, 미터; 기본값 1.75.",
       "eyeHeight": "캐릭터 전용: 발로부터 카메라까지의 높이, 미터; 기본값 1.64.",
@@ -3838,10 +3845,13 @@
     "members": {
       "geometryPoolCeiling": "월드가 요청할 수 있는 최대 풀: 엔진의 초기 예산.",
       "texturePoolCeiling": "월드가 요청할 수 있는 최대 텍스처 풀, 바이트 단위.",
-      "geometryPool": "지오메트리 페이지용으로 유지되는 GPU 메모리 바이트 수; 설정하면 그 범위가 바뀐다.",
-      "texturePool": "텍스처 페이지용으로 유지되는 GPU 메모리 바이트 수; 설정하면 그 범위가 바뀐다.",
+      "geometryPool": "지오메트리 페이지용 GPU 메모리 바이트; 설정하면 범위가 바뀐다(`gpu`가 그림자와 텍스처 풀 옆에 남기는 만큼 안에서).",
+      "texturePool": "텍스처 페이지용 GPU 메모리 바이트, 텍스처 풀이 없는 엔진(WebGL2)에서는 `null`; 설정하면 범위가 바뀐다(`gpu`가 그림자와 지오메트리 풀 옆에 남기는 만큼 안에서).",
       "physics": "물리의 한계(물체, 삼각형, 장식 물체, 메모리). 시작할 때 한 번 읽으며, 넘으면 `PHYSICS_BUDGET`이 발생합니다.",
-      "raycastTrees": "`raycast`가 삼각형 트리를 위해 유지하는 CPU 메모리 바이트 수로, 페이지의 모든 월드가 공유합니다. 이를 넘으면 가장 오래 사용되지 않은 트리가 버려집니다. 설정하면 한도가 바뀝니다."
+      "raycastTrees": "`raycast`가 삼각형 트리를 위해 유지하는 CPU 메모리 바이트 수로, 페이지의 모든 월드가 공유합니다. 이를 넘으면 가장 오래 사용되지 않은 트리가 버려집니다. 설정하면 한도가 바뀝니다.",
+      "gpu": "월드가 차지할 수 있는 GPU 메모리 바이트, 모든 풀 합계; 설정하면 분할 규칙(`split`)으로 모든 풀을 다시 정한다. 기기에서 읽지 않는다.",
+      "cpu": "월드의 디코딩된 페이지가 차지할 수 있는 CPU 메모리 바이트; 다음 장면 로드 때 적용된다.",
+      "split": "두 합계를 나누는 방식: 그림자 풀을 최대 크기로, 나머지를 지오메트리 풀과 텍스처 풀에 절반씩(각 상한까지); 디코딩된 페이지 캐시는 CPU 합계를 가진다. 풀을 따로 설정하기 전의 규칙 값."
     }
   },
   "world.diagnostic": {
@@ -3955,6 +3965,8 @@
       "shadowWaitMs": "그것들이 얼마나 기다렸는가.",
       "gpuLightListsMs": "조명 목록의 GPU 시간.",
       "gpuShadowsMs": "그림자의 GPU 시간.",
+      "gpuShadowCullMs": "프레임이 그리는 그림자 페이지의 투사체를 고르는 GPU 시간: 라이트 컷, 페이지별 컬링, 그리고 움직이는 투사체의 가림 테스트와 그것이 읽는 피라미드.",
+      "gpuShadowRasterMs": "그 투사체를 페이지에 그리는 GPU 시간: 정적 레이어, 그다음 풀.",
       "gpuLightingMs": "라이팅의 GPU 시간.",
       "hizTestedClusters": "한 프레임에서 오클루전 테스트가 한 일: 그것에 넘겨진 클러스터, 그것이 제외한 클러스터, 그리고 레벨 0 화면 점유 영역이 16텍셀 커널을 넘어서 더 거친 밉에서 답을 구하는 클러스터. `hiz*Triangles`는 그와 같은 클러스터들의 삼각형이다. GPU 경로에서 이것들은 이를 렌더링하는 프레임보다 **더 이른** 프레임을 기술한다 — `hizCountedFrame`이 어느 것인지 알려준다 — `gpuPassMs`처럼, 인접한 두 프레임이 종종 같은 샘플을 담고 있다. 어느 것도 추정되지 않는다: 오클루전을 테스트하지 않는 엔진에서, 판정을 다시 읽을 수 없는 기기에서, 그리고 아직 어떤 프레임도 세어지지 않은 동안은 `null`.",
       "hizRejectedClusters": "숨겨진 것으로 처리된 클러스터.",
@@ -3983,6 +3995,7 @@
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
       "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다.",
       "gpuAllocatedBytes": "기기상의, 모든 리소스에 걸친 현재 활성 할당 바이트 수.",
       "gpuAllocatedByLabel": "리소스 라벨별로 묶은 할당 바이트 수. 라벨이 없는 할당은 'unlabeled'로 묶인다.",
       "gpuAllocationsUnknownFormat": "인식되지 않는 포맷을 가진 텍스처 수. 기대값은 0.",
@@ -4293,7 +4306,7 @@
     "description": "`memory(world)`는 월드가 지금 보유하고 있는 것(`world.budget`); 두 풀이 월드가 받아들이는 설정을 구성한다."
   },
   "budget.memory": {
-    "summary": "월드가 지금 보유하고 있는 메모리 예산: 두 풀 모두와, 각각이 자랄 수 있는 최댓값."
+    "summary": "월드가 지금 가진 메모리 예산: GPU와 CPU 합계, 규칙에 따른 분할, 두 풀과 각각의 상한."
   },
   "budget.geometryPool": {
     "summary": "`bytes`로 된 지오메트리 풀 설정. 월드에 넘길 준비가 된 것.",
@@ -5811,7 +5824,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "카메라로부터의 거리에 따라 각 점에 음영을 준다.",
+    "summary": "카메라로부터의 거리에 따라 각 점에 음영을 준다: `camera.near`에서 흰색, `camera.far`에서 검은색, 그 사이는 직선 램프이며 WebGPU와 WebGL2에서 같다.",
     "parameters": {
       "parameters": "페이지가 재질 멤버에 넘길 수 있는 것; 모든 필드는 선택 사항.",
       "parameters.color": "기본 색상.",
@@ -6420,7 +6433,7 @@
   },
   "texture": {
     "summary": "`texture` 계열: 이미지와 그것이 샘플링되는 방식.",
-    "description": "색상 이미지는 sRGB, 데이터 이미지는 선형; 픽셀을 쓴 뒤의 `needsUpdate`는 샘플러가 그것들을 다시 읽게 한다."
+    "description": "색상 이미지는 sRGB, 데이터 이미지는 선형입니다. 픽셀을 쓴 뒤의 `needsUpdate`는 샘플러가 그것들을 다시 읽게 하며, GPU에 이미 있는 텍스처에 제자리에서 복사됩니다. 크기가 바뀔 때만 다시 만듭니다. 동영상은 라이브이며, 프레임이 저절로 도착합니다."
   },
   "texture.image": {
     "summary": "이미 페이지 안에 있는 그림으로 만든 색상 텍스처: 이미지, 비트맵, 또는 비디오 프레임.",
@@ -6439,12 +6452,14 @@
   },
   "texture.canvas": {
     "summary": "캔버스가 담고 있는 것을 보여주는 텍스처.",
+    "description": "캔버스에 다시 그린 뒤 `needsUpdate`를 설정하세요. 새 픽셀은 GPU에 이미 있는 텍스처에 복사되며, 아무것도 다시 만들지 않습니다.",
     "parameters": {
       "c": "보여줄 캔버스."
     }
   },
   "texture.video": {
-    "summary": "재생 중인 비디오를 보여주는 텍스처.",
+    "summary": "재생 중인 동영상, 또는 동영상으로 재생한 카메라 스트림을 보여 주는 텍스처.",
+    "description": "새 프레임마다 GPU에 이미 있는 텍스처에 저절로 복사됩니다. 일시 정지된 동영상은 비용이 들지 않습니다.",
     "parameters": {
       "v": "보여줄 비디오."
     }
@@ -6623,7 +6638,7 @@
   },
   "CharacterCameraControls": {
     "summary": "그 눈을 통해 본 **캐릭터**: 질량을 가지고, 걷고, 달리고, 뛰고, 떨어지며, 똑바로 선 캡슐로서 세계의 삼각형과 충돌하는 몸체.",
-    "description": "포인터는 1인칭 시점에서와 같은 방식으로 머리를 돌린다(`look.ts`). 키는 `KeyboardEvent.code` 기준이므로 어떤 키보드 배열에서도 같은 키가 쓰인다: W/S 또는 위아래 화살표로 앞뒤로 걷고, A/D 또는 좌우 화살표로 옆으로 움직이며, Shift로 전력질주, 스페이스로 점프한다. 몸체는 즉시 출발하거나 멈추지 않는다: `responseTime` 동안 속도를 쌓고, `stopTime` 동안 제동을 걸며, 공중에서는 운동량을 유지하고, `gravity` 아래에서 상승하고 `fallGravity` 아래에서 낙하하며, `stepHeight`까지의 턱을 오르고, 벽을 따라 미끄러지며, `maxSlope`까지의 경사면 위에 설 수 있다(`sdk-core/src/collision/characterBody.ts`). 카메라는 눈이며, 발에서 `eyeHeight`만큼 위에 있고, 걸음에 맞춰 `headBob`만큼 위아래로 흔들리며, 착지 시 `landingDip`만큼 가라앉는다(`sdk-core/src/collision/characterEye.ts`); 이 둘 모두 몸체의 각 걸음 뒤에 눈 위치에 얹힐 뿐, 몸체를 움직이는 일은 결코 없다. 카메라를 스스로 움직이는 호스트는 몸체를 그곳으로, 정지한 상태로 순간이동시켜야 한다. 정지한 캐릭터 — 땅에 닿아 있고, 속도도, 키 입력도, 남은 가라앉음도 없는 — 는 아무것도 내보내지 않으므로 장면은 정지 상태를 유지한다.",
+    "description": "포인터는 1인칭 시점에서와 같은 방식으로 머리를 돌린다(`look.ts`). 키는 `KeyboardEvent.code` 기준이므로 어떤 키보드 배열에서도 같은 키가 쓰인다: W/S 또는 위아래 화살표로 앞뒤로 걷고, A/D 또는 좌우 화살표로 옆으로 움직이며, Shift로 전력질주, 스페이스로 점프한다. 몸체는 즉시 출발하거나 멈추지 않는다: `responseTime` 동안 속도를 쌓고, `stopTime` 동안 제동을 걸며(바닥의 마찰이 밑창에 허락하는 것보다 빠르지는 않아, 돌 위에서는 조금, 얼음 위에서는 멀리 미끄러지며 멈춘다), 공중에서는 운동량을 유지하고, `gravity` 아래에서 상승하고 `fallGravity` 아래에서 낙하하며, `stepHeight`까지의 턱을 오르고, 벽을 따라 미끄러지며, `maxSlope`까지의 경사면 위에 설 수 있다(`sdk-core/src/collision/characterBody.ts`). 카메라는 눈이며, 발에서 `eyeHeight`만큼 위에 있고, 걸음에 맞춰 `headBob`만큼 위아래로 흔들리며, 착지 시 `landingDip`만큼 가라앉는다(`sdk-core/src/collision/characterEye.ts`); 이 둘 모두 몸체의 각 걸음 뒤에 눈 위치에 얹힐 뿐, 몸체를 움직이는 일은 결코 없다. 카메라를 스스로 움직이는 호스트는 몸체를 그곳으로, 정지한 상태로 순간이동시켜야 한다. 정지한 캐릭터 — 땅에 닿아 있고, 속도도, 키 입력도, 남은 가라앉음도 없는 — 는 아무것도 내보내지 않으므로 장면은 정지 상태를 유지한다.",
     "members": {
       "velocity": "몸체의 속도, 초당 미터. 실시간 값: `[x, y, z]`, y가 위.",
       "onGround": "발이 바닥 위에 있는지 여부.",
@@ -6860,8 +6875,11 @@
       "paused": "시간이 멈췄는지 여부. 쓰기는 여전히 물체에 닿습니다.",
       "timeScale": "실제 1초당 시뮬레이션 초: 0.25는 슬로 모션입니다.",
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
+      "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다."
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
+      "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }
   },
   "ContactEvent": {
@@ -7008,6 +7026,19 @@
       "current": "물의 속도(강의 흐름), m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "페이지가 그리기 위해 읽는 수면(`world.physics.waterSurface`): 물리 워커에서 부력이 읽는 파도 모델과 같은 숫자를 시뮬레이션 시각에 맞춘 것.",
+    "members": {
+      "level": "정지 상태 수면의 높이(미터).",
+      "crest": "마루가 `level` 위로 닿는 가장 높은 점(미터).",
+      "time": "물이 설정된 뒤 흐른 시뮬레이션 초: 파도의 시계.",
+      "setTime": "파도를 `t` 시뮬레이션 초에 맞춥니다.",
+      "height": "월드 점 `(x, z)` 위 수면의 높이(미터).",
+      "point": "정지 점 `(x, level, z)`가 옮겨지는 월드 점 `[x, y, z]`를 `out`에: 점마다 옮긴 격자가 곧 수면이며, 마루는 파도만큼 날카롭습니다.",
+      "wavesNow": "선언한 파도, 각 위상을 지금 시각까지 옮긴 것: `world.physics.water`에 다시 설정해도(그 파도는 0초부터 다시 시작) 수면은 튀지 않고 지금 자리에서 이어집니다.",
+      "normal": "정지 점 `(x, z)`에서 수면의 단위 법선 `[x, y, z]`를 `out`에."
+    }
+  },
   "WaveSpec": {
     "summary": "장면이 선언하는 하나의 파도.",
     "members": {
@@ -7041,8 +7072,11 @@
       "paused": "시간이 멈췄는지 여부. 쓰기는 여전히 물체에 닿습니다.",
       "timeScale": "실제 1초당 시뮬레이션 초: 0.25는 슬로 모션입니다.",
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
+      "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다."
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
+      "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }
   },
   "WorldPhysicsOptions": {
@@ -7220,17 +7254,6 @@
     },
     "summary": "이미지와, 그것을 읽는 샘플러 상태, 그리고 좌표 변환."
   },
-  "GraphAngles": {
-    "summary": "같은 방향을 세 각도와 그 순서로 나타낸 것. 쓰기를 같은 방식으로 알립니다.",
-    "members": {
-      "x": "첫 번째 각도(라디안).",
-      "set": "세 각도와, 주어진 경우 순서를 씁니다. 한 번 알립니다.",
-      "setFromRotation": "이 순서로 된 `q`의 각도(코어의 `Euler`). `quiet`가 아니면 알립니다.",
-      "y": "두 번째 각도(라디안).",
-      "z": "세 번째 각도(라디안).",
-      "order": "세 각도가 회전하는 순서. 설정하지 않으면 `'XYZ'`."
-    }
-  },
   "GraphArray": {
     "summary": "속성이 담는 형식화 배열."
   },
@@ -7274,38 +7297,69 @@
   "GraphNodeKind": {
     "summary": "그래프의 노드가 무엇인지: 빈 노드, 루트, 그룹, 그려지는 메시(한 배치 또는 여러 배치), 눈, 또는 장면이 선언하는 조명 중 하나."
   },
-  "GraphRotation": {
-    "summary": "쓰기가 `_onChangeCallback`을 호출하는 방향 `(x, y, z, w)`.",
+  "Joint": {
+    "summary": "두 물체, 또는 물체와 세계(`b`가 null) 사이의 관절. `joint.*`로 만들고 `world.physics.add`로 시뮬레이션에 추가합니다.",
+    "description": "두 물체가 시뮬레이션되는 동안, 끊어질 때까지 유지됩니다.",
+    "parameters": {
+      "options": "`joint.*`가 받는 것. 점과 축은 세계 좌표이며 관절이 처음 만들어질 때 읽힙니다.",
+      "options.anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리의 끝.",
+      "options.anchorB": "`b` 쪽 거리의 끝.",
+      "options.axis": "경첩의 핀, 슬라이더의 레일, 원뿔의 가운데.",
+      "options.limits": "경첩, 슬라이더, 거리, 원뿔: 얼마나 움직이는지. 거리의 기본값은 그 길이입니다.",
+      "options.spring": "경첩, 슬라이더, 거리: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
+      "options.motor": "경첩과 슬라이더: `joint.motor`로 언제든 바꿀 수 있는 모터.",
+      "options.breakForce": "관절이 끊어지는 당김의 크기(뉴턴). 생략하면 끊어지지 않습니다."
+    },
     "members": {
-      "x": "첫 번째 숫자.",
-      "set": "숫자 네 개를 씁니다. 한 번 알립니다.",
-      "copy": "다른 회전의 숫자를 가져옵니다.",
-      "fromArray": "목록에서 숫자 네 개를 읽습니다.",
-      "setFromAngles": "`angles`의 순서에 따른 회전(`localTurnQuaternion`). `quiet`가 아니면 알립니다.",
-      "setFromRotationMatrix": "열이 단위 길이인 열 우선 행렬의 왼쪽 위 3×3의 회전.",
-      "premultiply": "`q` 다음에 이 회전이 오는 것, `q · this`가 됩니다.",
-      "invert": "반대 방향 회전이 됩니다.",
-      "y": "두 번째 숫자.",
-      "z": "세 번째 숫자.",
-      "w": "네 번째 숫자."
+      "kind": "관절의 종류.",
+      "a": "첫 번째 물체.",
+      "b": "두 번째 물체, 또는 세계를 뜻하는 `null`.",
+      "options": "만들 때 쓴 설정.",
+      "motor": "경첩이나 슬라이더의 모터. `null`이면 자유롭게 돌거나 미끄러집니다.",
+      "broken": "끊어졌는지: `breakForce`를 넘어 당겨졌습니다. 끊어진 관절은 더 이상 아무것도 붙잡지 않습니다.",
+      "on": "관절이 끊어지면 `handler`를 호출합니다."
     }
   },
-  "GraphVector": {
-    "summary": "포즈나 점의 세 숫자: 단순한 데이터 필드와 컨트롤러가 쓰는 연산.",
+  "JointKind": {
+    "summary": "물체 사이의 관절. 각각 Jolt 자체의 제약 조건입니다."
+  },
+  "JointLimits": {
+    "summary": "관절이 움직일 수 있는 범위: 경첩은 라디안, 슬라이더나 거리는 미터, 원뿔은 원뿔의 반각(`max`).",
     "members": {
-      "set": "세 숫자를 씁니다.",
-      "copy": "다른 점의 숫자를 가져옵니다.",
-      "clone": "복사본.",
-      "add": "다른 벡터를 더합니다.",
-      "sub": "다른 벡터를 뺍니다.",
-      "multiplyScalar": "세 숫자의 크기를 조정합니다.",
-      "length": "그 길이.",
-      "setLength": "방향을 유지하고 길이를 설정합니다.",
-      "distanceTo": "한 점까지의 거리.",
-      "fromArray": "목록에서 숫자 세 개를 읽습니다.",
-      "x": "왼쪽에서 오른쪽으로.",
-      "y": "아래에서 위로.",
-      "z": "뒤에서 앞으로."
+      "min": "경첩은 −π부터 0까지, 슬라이더는 0 이하.",
+      "max": "경첩은 0부터 π까지, 슬라이더는 0 이상."
+    }
+  },
+  "JointMotor": {
+    "summary": "경첩이나 슬라이더의 모터: 관절을 속도나 위치로 움직입니다.",
+    "members": {
+      "mode": "`'velocity'`: rad/s 또는 m/s. `'position'`: 관절을 만든 자리에서부터의 라디안 또는 미터.",
+      "target": "도달할 속도나 위치.",
+      "maxForce": "경첩은 N·m, 슬라이더는 N. 생략하면 제한 없음."
+    }
+  },
+  "JointOptions": {
+    "summary": "`joint.*`가 받는 것.",
+    "description": "점과 축은 세계 좌표이며 관절이 처음 만들어질 때 읽힙니다.",
+    "members": {
+      "anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리의 끝.",
+      "anchorB": "`b` 쪽 거리의 끝.",
+      "axis": "경첩의 핀, 슬라이더의 레일, 원뿔의 가운데.",
+      "limits": "경첩, 슬라이더, 거리, 원뿔: 얼마나 움직이는지. 거리의 기본값은 그 길이입니다.",
+      "spring": "경첩, 슬라이더, 거리: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
+      "motor": "경첩과 슬라이더: `joint.motor`로 언제든 바꿀 수 있는 모터.",
+      "breakForce": "관절이 끊어지는 당김의 크기(뉴턴). 생략하면 끊어지지 않습니다."
+    }
+  },
+  "joint": {
+    "summary": "`joint` 패밀리: 이어진 두 물체, 또는 물체와 세계(`b`가 null).",
+    "members": {
+      "fixed": "용접합니다: 하나처럼 움직입니다.",
+      "point": "`anchor`의 볼 관절: 그 주위로 자유롭게 돕니다.",
+      "hinge": "`anchor`에서 `axis`를 따르는 핀: 문, 바퀴. `limits`는 라디안.",
+      "slider": "`axis`를 따르는 레일: 서랍, 피스톤. `limits`는 미터.",
+      "distance": "`a`의 `anchor`와 `b`의 `anchorB`를 그 길이, 또는 `limits` 안으로 유지합니다.",
+      "cone": "`axis`가 반각 `limits.max`인 원뿔 안에서 흔들리는 볼 관절."
     }
   }
 }

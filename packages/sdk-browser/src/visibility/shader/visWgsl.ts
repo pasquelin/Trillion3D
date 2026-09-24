@@ -1,4 +1,10 @@
-import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL } from './pageWgsl.ts';
+import {
+  MASK_KEEP_WGSL,
+  PAGE_BINDING,
+  PAGE_INFO_WGSL,
+  PAGE_LOOKUP_WGSL,
+  STIPPLE_WGSL,
+} from './pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
@@ -35,6 +41,7 @@ ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_GEOMETRY_WGSL}
 ${MASK_KEEP_WGSL}
+${STIPPLE_WGSL}
 ${COMPUTE_TAKES_WGSL}
 /** True when this vertex belongs to no triangle of the page, or when the compute raster draws
  *  the whole cut: neither case reads a page word, so neither decodes the page header. */
@@ -87,12 +94,12 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 @fragment fn vis_hiz_fs(in:VSOut)->VisHizOut{
  var out:VisHizOut;
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- if(!maskKeep(pages[in.instance],in.uv,gx,gy)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy,stippleOffset(in.position.xy))){discard;}
  out.id=in.id;out.depth=in.position.z;return out;
 }
 @fragment fn vis_fs(in:VSOut)->@location(0) u32{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- if(!maskKeep(pages[in.instance],in.uv,gx,gy)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy,stippleOffset(in.position.xy))){discard;}
  return in.id;
 }
 `;

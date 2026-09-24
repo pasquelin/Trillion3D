@@ -76,7 +76,9 @@ export const LAMP_FACE_ENTRIES = (() => {
   return total;
 })();
 /** A table word: the physical page in the low bits, `PAGE_MAPPED` while it holds one, and
- *  `PAGE_VALID` once that page's draw has landed — the only pages a shader reads. */
+ *  `PAGE_VALID` while its depth may be read — set once its draw has landed, cleared while what it
+ *  holds is wrong and waits to be drawn again (`pool.withdraw`). A page not valid hands the point
+ *  to the next coarser level. */
 export const PAGE_VALID = 1 << 16;
 export const PAGE_MAPPED = 1 << 17;
 export const PAGE_INDEX_MASK = 0xffff;
@@ -135,6 +137,14 @@ export function decodeLampEntry(relative: number, out: Int32Array) {
  */
 export const sunCoarseness = (level: number, finest: number) => (level - finest) * LAMP_MIPS;
 export const lampCoarseness = (mip: number) => mip * SUN_LEVELS;
+
+/** A light's floor, the last level a reader falls back to: a sun's coarsest clipmap level, and a
+ *  lamp face's one-page mip. */
+export const sunFloorLevel = (finest: number) => finest + SUN_LEVELS - 1;
+export const LAMP_FLOOR_MIP = LAMP_MIPS - 1;
+/** True when a page's `view` — a sun level, or a lamp's `face · 16 + mip` — is its light's floor. */
+export const isFloorView = (sun: boolean, view: number, finest: number) =>
+  sun ? view === sunFloorLevel(finest) : (view & 15) === LAMP_FLOOR_MIP;
 
 /** Side of a sun page at `level`, in metres: 128 texels of `2^level`. */
 export const sunPageMetres = (level: number) => SHADOW_PAGE * 2 ** level;

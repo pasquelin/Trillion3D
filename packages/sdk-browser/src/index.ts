@@ -33,9 +33,15 @@ export {
   type ContactEvent,
   type ContactEventName,
   type PhysicsHost,
+  Joint,
+  joint,
+  type JointKind,
+  type JointLimits,
+  type JointMotor,
+  type JointOptions,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
-export type { WaterSpec, WaveSpec } from '../../sdk-core/src/fluids/index.ts';
+export type { WaterSpec, WaveSpec, WaterSurface } from '../../sdk-core/src/fluids/index.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
 export * from './world/diagnostic/index.ts';
@@ -93,10 +99,8 @@ export type { GraphGeometry } from './host/graph/geometry.ts';
 export type { GraphMesh } from './host/graph/mesh.ts';
 export type { GraphNode } from './host/graph/node.ts';
 export type { GraphNodeKind } from './host/graph/nodeKind.ts';
-export type { GraphAngles, GraphRotation } from './host/graph/rotation.ts';
 export type { GraphSurface } from './host/graph/surface.ts';
 export type { GraphTexture } from './host/graph/texture.ts';
-export type { GraphVector } from './host/graph/vector.ts';
 export type { HostNodeMatrix, MatrixElements } from './math/matrixElements.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpu/core/passBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts';
@@ -138,6 +142,9 @@ export type { ResidentPage } from './gpu/page/pages.ts';
 export { createPageStreamer } from './streaming/pages.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
 export { COMPARISON_LIBRARIES, LOD_QUALITY } from '../../sdk-core/src/index.ts';
+// A job around a load — cancellation, a status to observe — for pages built on the runtime.
+export { createJob } from '../../sdk-core/src/index.ts';
+export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts';
 export { detectCapabilities } from './measurement/capabilities.ts';
 export {
   HIERARCHY_ROOT,

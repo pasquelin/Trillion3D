@@ -8,11 +8,9 @@ const RANKS = 1024;
 /** How stale a page is: only its moving casters changed, or its static ones too. */
 export const STALE_DYNAMIC = 1,
   STALE_FULL = 2;
-/**
- * How a page is drawn. Without a static layer — no object has moved yet — every caster at once.
- * With one: the static casters into the static layer, then the page restored from it and the
- * moving casters drawn over (`full`); or the restore and the moving casters alone (`dynamic`).
- */
+/** How a page is drawn. Without a static layer — no object has moved yet — every caster at once.
+ *  With one: the static casters into the layer, then the page restored from it and the moving
+ *  casters over (`full`); or the restore and the moving casters alone (`dynamic`). */
 export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
@@ -35,11 +33,11 @@ export function createShadowPool(side: number) {
     view = new Int32Array(pages),
     x = new Int32Array(pages),
     y = new Int32Array(pages),
-    /** How coarse the page is within its light (`sunCoarseness`, `lampCoarseness`): the finer
-     *  goes first. */
+    /** Coarseness within its light (`sunCoarseness`, `lampCoarseness`): the finer goes first. */
     rank = new Int32Array(pages),
     requested = new Int32Array(pages).fill(-1),
     dirty = new Uint8Array(pages),
+    /** Its depth is read: drawn since it was mapped, and not withdrawn since (`withdraw`). */
     valid = new Uint8Array(pages),
     /** The static layer holds this page's static casters, current. */
     layered = new Uint8Array(pages),
@@ -69,9 +67,7 @@ export function createShadowPool(side: number) {
   const init = () => {
     owner.fill(-1);
     requested.fill(-1);
-    dirty.fill(0);
-    valid.fill(0);
-    layered.fill(0);
+    for (const flags of [dirty, valid, layered]) flags.fill(0);
     for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
     freeCount = pages;
     evicted.fill(0);
@@ -101,10 +97,9 @@ export function createShadowPool(side: number) {
     get refetched() {
       return refetched;
     },
-    /**
-     * The page is stale from now on — its moving casters only, or its static ones too —, at the
-     * most of what it already was; its wait never restarts. True when it was current.
-     */
+    /** The page is stale from now on — its moving casters only, or its static ones too —, at the
+     *  most of what it already was; its wait never restarts. It stays read: only `withdraw` stops
+     *  that. True when it was current. */
     stale(page: number, nowMs: number, frame: number, level = STALE_FULL) {
       const was = dirty[page];
       if (was < level) dirty[page] = level;
@@ -125,8 +120,9 @@ export function createShadowPool(side: number) {
       layered[page] = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && layered[page]) ? 1 : 0;
       table.write(owner[page], page | PAGE_MAPPED | PAGE_VALID);
     },
-    /** The page keeps its place and its requests, but its depth is read no more until it is
-     *  drawn again: a reader falls back to a coarser page meanwhile. */
+    /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
+     *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls
+     *  back to the next coarser current page meanwhile. */
     withdraw(table: ShadowTable, page: number) {
       if (!valid[page]) return;
       valid[page] = 0;
@@ -144,9 +140,7 @@ export function createShadowPool(side: number) {
       if (owner[page] < 0) return;
       table.write(owner[page], 0);
       owner[page] = -1;
-      dirty[page] = 0;
-      valid[page] = 0;
-      layered[page] = 0;
+      dirty[page] = valid[page] = layered[page] = 0;
       requested[page] = -1;
       free[freeCount++] = page;
     },
@@ -183,9 +177,7 @@ export function createShadowPool(side: number) {
         refetched++;
       }
       owner[page] = entry;
-      valid[page] = 0;
-      layered[page] = 0;
-      dirty[page] = 0;
+      valid[page] = layered[page] = dirty[page] = 0;
       pool.stale(page, nowMs, frame);
       requested[page] = reportFrame;
       table.write(entry, page | PAGE_MAPPED);

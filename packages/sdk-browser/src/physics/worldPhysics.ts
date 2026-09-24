@@ -1,6 +1,5 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import { Waves } from '../../../sdk-core/src/fluids/waves.ts';
+import { WaterSurface, type WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import {
   DEFAULT_PHYSICS_BUDGET,
   GRAVITY_PRESETS,
@@ -12,6 +11,7 @@ import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { HostCpuProfile } from '../host/cpuProfile.ts';
+import { createJointList } from './jointList.ts';
 import { physicsLink } from './physicsLink.ts';
 import type { PhysicsSession } from './session.ts';
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
@@ -47,10 +47,14 @@ export function createWorldPhysics(
     paused = false,
     timeScale = 1,
     water: WaterSpec | null = null,
+    surface: WaterSurface | null = null,
     error: EngineError | null = null,
-    /** Told when a session starts or ends: the character's body changes with it. */
-    watcher: (() => void) | null = null;
+    watcher: (() => void) | null = null; // told when a session starts or ends (the character)
   const stopped = emptyPhysicsStats();
+  const joints = createJointList(() => {
+    session?.structure();
+    invalidate();
+  });
   const clock = () => {
     session?.setClock(paused, timeScale);
     invalidate();
@@ -73,8 +77,8 @@ export function createWorldPhysics(
     loading.then(
       ({ createPhysicsSession }) => {
         if (!wanted || session) return;
-        // The session sizes its arrays from the budget: a copy of it, frozen, for its whole life.
-        session = createPhysicsSession(root, Object.freeze({ ...budget }), invalidate, failed);
+        const frozen = Object.freeze({ ...budget }); // sizes the session's arrays for its life
+        session = createPhysicsSession(root, frozen, invalidate, failed, joints.joints);
         session.writer.gravity(gravity.elements);
         if (water) session.setWater(water);
         clock();
@@ -84,6 +88,7 @@ export function createWorldPhysics(
     );
   };
   const handle = {
+    ...joints.methods,
     /** Whether bodies are simulated. Turning it on fetches the physics the first time.
      *  @defaultValue false, or true with `createWorld(…, { physics })` */
     get enabled() {
@@ -135,10 +140,15 @@ export function createWorldPhysics(
     },
     set water(spec: WaterSpec | null) {
       // Resolved here once, so a wrong wave throws on the page, not in the worker.
-      if (spec) new Waves(spec.waves);
+      surface = spec ? new WaterSurface(spec) : null;
       water = spec;
       session?.setWater(spec);
       invalidate();
+    },
+    /** The water's surface at the simulation's time, to draw it: the waves buoyancy reads, the
+     *  same numbers (`height`, `point`, `normal`). @defaultValue null (no water) */
+    get waterSurface(): WaterSurface | null {
+      return surface?.setTime(session?.waterTime() ?? 0) ?? null;
     },
     /** Counts and both clocks: worker milliseconds per step, page milliseconds per frame. */
     get stats(): Readonly<PhysicsStats> {

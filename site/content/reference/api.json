@@ -1942,7 +1942,7 @@
         "desc": "Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did."
       }
     ],
-    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
+    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, never faster than the friction of its floor lets a sole push, so a stop glides a little on stone and far on ice; it keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`, `characterDrive.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
   },
   {
     "id": "CharacterCollision",
@@ -5206,49 +5206,6 @@
     "description": ""
   },
   {
-    "id": "GraphAngles",
-    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
-    "exports": ["GraphAngles"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphAngles",
-    "signature": "class GraphAngles\nnew GraphAngles(): GraphAngles",
-    "summary": "The same orientation as three angles and their order, announcing its writes the same way.",
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "The first angle, in radians."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "The second angle, in radians."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "The third angle, in radians."
-      },
-      {
-        "name": "order",
-        "type": "string",
-        "desc": "The order the three angles turn in, `'XYZ'` unless set."
-      },
-      {
-        "name": "set(x: number, y: number, z: number, order?: string)",
-        "type": "GraphAngles",
-        "desc": "Writes the three angles, and the order when given; announced once."
-      },
-      {
-        "name": "setFromRotation(q: GraphRotation, quiet?: boolean)",
-        "type": "GraphAngles",
-        "desc": "The angles of `q` in this order (the core `Euler`); announced unless `quiet`."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "GraphArray",
     "module": "packages/sdk-browser/src/host/graph/attributes.ts",
     "exports": ["GraphArray"],
@@ -5677,27 +5634,27 @@
       },
       {
         "name": "up",
-        "type": "GraphVector",
+        "type": "Vector3",
         "desc": "Which way is up for `lookAt`."
       },
       {
         "name": "position",
-        "type": "GraphVector",
+        "type": "Vector3",
         "desc": "Where the node stands, from its parent."
       },
       {
         "name": "rotation",
-        "type": "GraphAngles",
+        "type": "Euler",
         "desc": "How the node is turned, as three angles."
       },
       {
         "name": "quaternion",
-        "type": "GraphRotation",
+        "type": "Quaternion",
         "desc": "How the node is turned, as a quaternion."
       },
       {
         "name": "scale",
-        "type": "GraphVector",
+        "type": "Vector3",
         "desc": "How the node is stretched on each axis."
       },
       {
@@ -5827,100 +5784,6 @@
     "title": "GraphNodeKind",
     "signature": "type GraphNodeKind = | 'node'\n  | 'scene'\n  | 'group'\n  | 'mesh'\n  | 'instancedMesh'\n  | 'camera'\n  | GraphLightKind\n  | 'ambient'\n  | 'rect'\n  | 'probe'",
     "summary": "What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
-    "description": ""
-  },
-  {
-    "id": "GraphRotation",
-    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
-    "exports": ["GraphRotation"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphRotation",
-    "signature": "class GraphRotation\nnew GraphRotation(x?: number, y?: number, z?: number, w?: number): GraphRotation",
-    "summary": "An orientation `(x, y, z, w)` whose writes call `_onChangeCallback`.",
-    "parameters": [
-      {
-        "name": "x",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "w",
-        "type": "number",
-        "default": "1",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "The first number."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "The second number."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "The third number."
-      },
-      {
-        "name": "w",
-        "type": "number",
-        "desc": "The fourth number."
-      },
-      {
-        "name": "set(x: number, y: number, z: number, w: number)",
-        "type": "GraphRotation",
-        "desc": "Writes the four numbers, announced once."
-      },
-      {
-        "name": "copy(q: { readonly x: number; readonly y: number; readonly z: number; readonly w: number; })",
-        "type": "GraphRotation",
-        "desc": "Takes another rotation's numbers."
-      },
-      {
-        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
-        "type": "GraphRotation",
-        "desc": "Reads four numbers from a list."
-      },
-      {
-        "name": "setFromAngles(angles: GraphAngles, quiet?: boolean)",
-        "type": "GraphRotation",
-        "desc": "The rotation of `angles`, in their order (`localTurnQuaternion`); announced unless `quiet`."
-      },
-      {
-        "name": "setFromRotationMatrix(m: ArrayLike<number>)",
-        "type": "GraphRotation",
-        "desc": "The rotation of the upper 3×3 of a column-major matrix whose columns are unit length."
-      },
-      {
-        "name": "premultiply(q: GraphRotation)",
-        "type": "GraphRotation",
-        "desc": "Becomes `q` followed by this rotation, `q · this`."
-      },
-      {
-        "name": "invert()",
-        "type": "GraphRotation",
-        "desc": "Becomes the opposite turn."
-      }
-    ],
     "description": ""
   },
   {
@@ -6221,104 +6084,6 @@
         "name": "clone()",
         "type": "HostTexture",
         "desc": "A texture of the same image and state, announced as changed."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphVector",
-    "module": "packages/sdk-browser/src/host/graph/vector.ts",
-    "exports": ["GraphVector"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphVector",
-    "signature": "class GraphVector\nnew GraphVector(x?: number, y?: number, z?: number): GraphVector",
-    "summary": "Three numbers of a pose or a point: plain data fields, and the operations a controller uses.",
-    "parameters": [
-      {
-        "name": "x",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "Left to right."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "Bottom to top."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "Back to front."
-      },
-      {
-        "name": "set(x: number, y: number, z: number)",
-        "type": "GraphVector",
-        "desc": "Writes the three numbers."
-      },
-      {
-        "name": "copy(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Takes another point's numbers."
-      },
-      {
-        "name": "clone()",
-        "type": "GraphVector",
-        "desc": "A copy."
-      },
-      {
-        "name": "add(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Adds another vector."
-      },
-      {
-        "name": "sub(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Takes another vector away."
-      },
-      {
-        "name": "multiplyScalar(s: number)",
-        "type": "GraphVector",
-        "desc": "Scales the three numbers."
-      },
-      {
-        "name": "length()",
-        "type": "number",
-        "desc": "Its length."
-      },
-      {
-        "name": "setLength(length: number)",
-        "type": "GraphVector",
-        "desc": "Keeps the direction, sets the length."
-      },
-      {
-        "name": "distanceTo(v: HostPoint)",
-        "type": "number",
-        "desc": "Distance to a point."
-      },
-      {
-        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
-        "type": "GraphVector",
-        "desc": "Reads three numbers from a list."
       }
     ],
     "description": ""
@@ -6763,9 +6528,19 @@
     "section": "math-utilities",
     "kind": "Type",
     "title": "HostDrawCamera",
-    "signature": "type HostDrawCamera = {\n  /** The projection. */ projection: Float32Array;\n  /** The camera's world matrix. */ world: Float64Array;\n  /** The view matrix. */ view: Float64Array;\n  /** Where the eye is. */ eye: Float32Array;\n}",
-    "summary": "The matrices a host draws a frame with, as the engine hands them over.",
+    "signature": "type HostDrawCamera = Pick<HostCamera, 'near' | 'far'> & {\n  /** The projection. */ projection: Float32Array;\n  /** The camera's world matrix. */ world: Float64Array;\n  /** The view matrix. */ view: Float64Array;\n  /** Where the eye is. */ eye: Float32Array;\n}",
+    "summary": "The matrices and depth range a host draws a frame with, as the engine hands them over.",
     "members": [
+      {
+        "name": "near",
+        "type": "number",
+        "desc": "Nearest distance."
+      },
+      {
+        "name": "far",
+        "type": "number",
+        "desc": "Farthest distance."
+      },
       {
         "name": "projection",
         "type": "Float32Array<ArrayBufferLike>",
@@ -7293,6 +7068,225 @@
     "signature": "type JobStatus = 'queued' | 'running' | 'completed' | 'cancelled' | 'failed'",
     "summary": "Where a job stands: waiting, running, done, cancelled or failed.",
     "description": ""
+  },
+  {
+    "id": "Joint",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["Joint"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Joint",
+    "signature": "class Joint\nnew Joint(kind: JointKind, a: Object3D, b: Object3D | null, options?: JointOptions): Joint",
+    "summary": "A joint between two bodies, or a body and the world (`b` null), made by `joint.*` and added to the simulation by `world.physics.add`.",
+    "parameters": [
+      {
+        "name": "kind",
+        "type": "JointKind",
+        "desc": ""
+      },
+      {
+        "name": "a",
+        "type": "Object3D",
+        "desc": ""
+      },
+      {
+        "name": "b",
+        "type": "Object3D | null",
+        "desc": ""
+      },
+      {
+        "name": "options",
+        "type": "JointOptions",
+        "default": "{}",
+        "desc": "What `joint.*` accepts. Points and axes are in the world, read when the joint is first made."
+      },
+      {
+        "name": "options.anchor?",
+        "type": "Vec3Input",
+        "default": "a's position",
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+      },
+      {
+        "name": "options.anchorB?",
+        "type": "Vec3Input",
+        "default": "b's position, or `anchor` with the world",
+        "desc": "The end of a distance on `b`."
+      },
+      {
+        "name": "options.axis?",
+        "type": "Vec3Input",
+        "default": "[0, 1, 0]",
+        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+      },
+      {
+        "name": "options.limits?",
+        "type": "JointLimits",
+        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+      },
+      {
+        "name": "options.spring?",
+        "type": "{ frequency: number; damping?: number; }",
+        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "options.motor?",
+        "type": "JointMotor",
+        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "options.breakForce?",
+        "type": "number",
+        "desc": "Newtons of pull past which the joint breaks; left out, never."
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "JointKind",
+        "desc": "What the joint is."
+      },
+      {
+        "name": "a",
+        "type": "Object3D",
+        "desc": "The first body."
+      },
+      {
+        "name": "b",
+        "type": "Object3D | null",
+        "desc": "The second body, or `null` for the world."
+      },
+      {
+        "name": "options",
+        "type": "Readonly<JointOptions>",
+        "desc": "What it was made with."
+      },
+      {
+        "name": "motor",
+        "type": "JointMotor | null",
+        "desc": "The motor, a hinge's or a slider's; `null` lets the joint turn or slide freely."
+      },
+      {
+        "name": "broken",
+        "type": "boolean",
+        "desc": "Whether it broke: pulled past its `breakForce`. A broken joint holds no more."
+      },
+      {
+        "name": "on(event: 'break', handler: () => void)",
+        "type": "() => undefined",
+        "desc": "Calls `handler` when the joint breaks."
+      }
+    ],
+    "description": "It holds while both bodies are simulated, and until it breaks."
+  },
+  {
+    "id": "JointKind",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointKind"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointKind",
+    "signature": "type JointKind = 'fixed' | 'point' | 'hinge' | 'slider' | 'distance' | 'cone'",
+    "summary": "The joints between bodies, each one of Jolt's own constraints.",
+    "description": ""
+  },
+  {
+    "id": "JointLimits",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointLimits"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointLimits",
+    "signature": "interface JointLimits",
+    "summary": "How far a joint may move: radians for a hinge, metres for a slider or a distance, the cone's half angle (`max`) for a cone.",
+    "members": [
+      {
+        "name": "min?",
+        "type": "number | undefined",
+        "desc": "A hinge's from −π to 0, a slider's 0 or below."
+      },
+      {
+        "name": "max?",
+        "type": "number | undefined",
+        "desc": "A hinge's from 0 to π, a slider's 0 or above."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "JointMotor",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointMotor"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointMotor",
+    "signature": "interface JointMotor",
+    "summary": "A hinge's or a slider's motor: it drives the joint to a velocity or to a position.",
+    "members": [
+      {
+        "name": "mode",
+        "type": "'position' | 'velocity'",
+        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made."
+      },
+      {
+        "name": "target",
+        "type": "number",
+        "desc": "The velocity or the position to reach."
+      },
+      {
+        "name": "maxForce?",
+        "type": "number | undefined",
+        "desc": "N·m for a hinge, N for a slider; left out, no bound."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "JointOptions",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointOptions",
+    "signature": "interface JointOptions",
+    "summary": "What `joint.*` accepts.",
+    "members": [
+      {
+        "name": "anchor?",
+        "type": "Vec3Input | undefined",
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+      },
+      {
+        "name": "anchorB?",
+        "type": "Vec3Input | undefined",
+        "desc": "The end of a distance on `b`."
+      },
+      {
+        "name": "axis?",
+        "type": "Vec3Input | undefined",
+        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+      },
+      {
+        "name": "limits?",
+        "type": "JointLimits | undefined",
+        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+      },
+      {
+        "name": "spring?",
+        "type": "{ frequency: number; damping?: number; } | undefined",
+        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "motor?",
+        "type": "JointMotor | null | undefined",
+        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "breakForce?",
+        "type": "number | undefined",
+        "desc": "Newtons of pull past which the joint breaks; left out, never."
+      }
+    ],
+    "description": "Points and axes are in the world, read when the joint is first made."
   },
   {
     "id": "JsonSchemaObject",
@@ -8066,6 +8060,11 @@
         "name": "position?",
         "type": "readonly [number, number, number] | { x: number; y: number; z: number; } | undefined",
         "desc": "Where the model's origin goes in the scene."
+      },
+      {
+        "name": "onProgress?",
+        "type": "((event: JobProgress) => void) | undefined",
+        "desc": "Hears how far the load has got: `manifest` once the manifest is read, then `resources` as each file the scene reads lands (`completed` of `total` known so far). The event is a `JobProgress`: a `createJob` wrapping the load passes its `progress` here."
       }
     ],
     "description": ""
@@ -13998,6 +13997,16 @@
         "desc": "GPU time of shadows."
       },
       {
+        "name": "gpuShadowCullMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the per-page cull, and the occlusion test of moving casters with the pyramids it reads."
+      },
+      {
+        "name": "gpuShadowRasterMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of drawing those casters into the pages: the static layer, then the pool."
+      },
+      {
         "name": "gpuLightingMs?",
         "type": "number | null | undefined",
         "desc": "GPU time of lighting."
@@ -14052,7 +14061,7 @@
       },
       {
         "name": "admission",
-        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; readonly limit: number; run(pool: ShadowPool, table: ShadowTable, records: ShadowRecords, sun: SunLe...",
+        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; readonly viewLimit: number; run(pool: ShadowPool, table: ShadowTable, records: ShadowRecords, sun: S...",
         "desc": "This frame's pages, in admission order."
       },
       {
@@ -14071,6 +14080,11 @@
         "desc": "The threshold the light cuts select casters at (`thresholds.ts`)."
       },
       {
+        "name": "resting",
+        "type": "boolean",
+        "desc": "The camera rested at the last plan: its view was the one of the plan before."
+      },
+      {
         "name": "deferredChanges",
         "type": "boolean",
         "desc": "True while a representation change waits for the camera to rest."
@@ -14078,7 +14092,7 @@
       {
         "name": "releaseDeferred",
         "type": "() => void",
-        "desc": "The frame plans no shadow: the held union enters the list at once."
+        "desc": "The frame plans no shadow: the held boxes enter the list at once."
       },
       {
         "name": "observeCost",
@@ -16109,6 +16123,11 @@
         "name": "textureScratchBuilds?",
         "type": "number | null | undefined",
         "desc": "Scratch textures built."
+      },
+      {
+        "name": "textureLiveBytes?",
+        "type": "number | null | undefined",
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       }
     ],
     "description": "These fields live apart from `FrameMetrics` because they describe another queue than the frame: tiles arrive at their own pace, bounded by bytes and by frame, and the pool is sized once. All optional: an engine without textures leaves them absent, `null` says \"unmeasured\", never an estimate."
@@ -17768,6 +17787,66 @@
     "description": ""
   },
   {
+    "id": "WaterSurface",
+    "module": "packages/sdk-core/src/fluids/waterSurface.ts",
+    "exports": ["WaterSurface"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaterSurface",
+    "signature": "class WaterSurface\nnew WaterSurface(spec: WaterSpec): WaterSurface",
+    "summary": "The water's surface as the page reads it to draw it (`world.physics.waterSurface`): the wave model buoyancy reads in the physics worker, the same numbers, clocked at the simulation's time.",
+    "parameters": [
+      {
+        "name": "spec",
+        "type": "WaterSpec",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "level",
+        "type": "number",
+        "desc": "Height of the surface at rest, metres."
+      },
+      {
+        "name": "crest",
+        "type": "number",
+        "desc": "Highest point a crest reaches above `level`, metres."
+      },
+      {
+        "name": "time",
+        "type": "number",
+        "desc": "Simulated seconds since the water was set: the waves' clock."
+      },
+      {
+        "name": "setTime(t: number)",
+        "type": "WaterSurface",
+        "desc": "Clocks the waves at `t` simulated seconds."
+      },
+      {
+        "name": "height(x: number, z: number)",
+        "type": "number",
+        "desc": "Height of the surface above the world point `(x, z)`, metres."
+      },
+      {
+        "name": "point(x: number, z: number, out: Float64Array<ArrayBufferLike>)",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "The world point `[x, y, z]` the rest point `(x, level, z)` is carried to, into `out`: a grid moved point by point is the surface, crests drawn as sharp as the waves are."
+      },
+      {
+        "name": "wavesNow()",
+        "type": "WaveSpec[]",
+        "desc": "The declared waves, each phase carried to this time: set again in `world.physics.water` (whose waves start again at 0 s), the surface goes on from where it is instead of jumping."
+      },
+      {
+        "name": "normal(x: number, z: number, out: Float64Array<ArrayBufferLike>)",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "Unit normal `[x, y, z]` of the surface at the rest point `(x, z)`, into `out`."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "WaveSpec",
     "module": "packages/sdk-core/src/fluids/waves.ts",
     "exports": ["WaveSpec"],
@@ -18123,12 +18202,12 @@
       {
         "name": "responseTime",
         "type": "number",
-        "desc": "Character only: seconds to reach 95 % of the wished speed on the ground; 0.12 by default."
+        "desc": "Character only: seconds the legs take to reach 95 % of the wished speed on the ground; 0.12 by default. The floor's friction bounds the start first: a sole pushes at most `μ g`, `μ` a rubber sole's grip on the floor's `material.physics` (stone without physics), so a jog is reached in 0.45 s on stone and 2.2 s on ice."
       },
       {
         "name": "stopTime",
         "type": "number",
-        "desc": "Character only: seconds to lose 95 % of the speed once no key is held, on the ground; 0.08 by default."
+        "desc": "Character only: seconds the legs take to lose 95 % of the speed once no key is held, on the ground; 0.12 by default. The floor's friction bounds the stop first: a jog glides `v² / (2 μ g)`, 0.8 m on stone and 3.8 m on ice; a longer time brakes more gently."
       },
       {
         "name": "capsuleRadius",
@@ -18326,6 +18405,11 @@
         "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
       },
       {
+        "name": "waterSurface",
+        "type": "WaterSurface | null",
+        "desc": "The water's surface at the simulation's time, to draw it: the waves buoyancy reads, the same numbers (`height`, `point`, `normal`)."
+      },
+      {
         "name": "stats",
         "type": "Readonly<PhysicsStats>",
         "desc": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame."
@@ -18334,6 +18418,16 @@
         "name": "error",
         "type": "EngineError | null",
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
+      },
+      {
+        "name": "add(joint: Joint)",
+        "type": "void",
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+      },
+      {
+        "name": "remove(joint: Joint)",
+        "type": "void",
+        "desc": "Takes a joint out: the bodies it held move apart freely."
       }
     ],
     "description": ""
@@ -18345,13 +18439,28 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.budget",
-    "signature": "world.budget: { physics: PhysicsBudget; readonly geometryPoolCeiling: number; readonly texturePoolCeiling: number; geometryPool: number; get texturePool(): number | null; ...",
+    "signature": "world.budget: { physics: PhysicsBudget; gpu: number; cpu: number; readonly split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; re...",
     "summary": "The world's memory pools, read and set in bytes, and the physics envelopes.",
     "members": [
       {
         "name": "physics",
         "type": "PhysicsBudget",
         "desc": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
+      },
+      {
+        "name": "gpu",
+        "type": "number",
+        "desc": "Bytes of GPU memory the world may hold, all pools together; set it to redraw every pool by the split rule (`split`). Never read from the machine."
+      },
+      {
+        "name": "cpu",
+        "type": "number",
+        "desc": "Bytes of CPU memory the world's decoded pages may hold; taken by the next scene load."
+      },
+      {
+        "name": "split",
+        "type": "{ shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }",
+        "desc": "How the two totals are shared: the shadow pool at its largest, then half each to the geometry and texture pools, capped at their ceilings; the decoded-page cache takes the CPU total. What the rule gives, before a pool set on its own."
       },
       {
         "name": "geometryPoolCeiling",
@@ -18366,12 +18475,12 @@
       {
         "name": "geometryPool",
         "type": "number",
-        "desc": "Bytes of GPU memory kept for geometry pages; set it to change the envelope."
+        "desc": "Bytes of GPU memory kept for geometry pages; set it to change the envelope, within what `gpu` leaves beside the shadows and the texture pool."
       },
       {
         "name": "texturePool",
         "type": "number | null",
-        "desc": "Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool (WebGL2); set it to change the envelope."
+        "desc": "Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool (WebGL2); set it to change the envelope, within what `gpu` leaves beside the shadows and the geometry pool."
       },
       {
         "name": "raycastTrees",
@@ -18915,6 +19024,16 @@
         "desc": "GPU time of shadows."
       },
       {
+        "name": "gpuShadowCullMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the per-page cull, and the occlusion test of moving casters with the pyramids it reads."
+      },
+      {
+        "name": "gpuShadowRasterMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of drawing those casters into the pages: the static layer, then the pool."
+      },
+      {
         "name": "gpuLightingMs?",
         "type": "number | null | undefined",
         "desc": "GPU time of lighting."
@@ -19053,6 +19172,11 @@
         "name": "textureScratchBuilds?",
         "type": "number | null | undefined",
         "desc": "Scratch textures built."
+      },
+      {
+        "name": "textureLiveBytes?",
+        "type": "number | null | undefined",
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       },
       {
         "name": "gpuAllocatedBytes?",
@@ -19219,6 +19343,11 @@
         "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
       },
       {
+        "name": "waterSurface",
+        "type": "WaterSurface | null",
+        "desc": "The water's surface at the simulation's time, to draw it: the waves buoyancy reads, the same numbers (`height`, `point`, `normal`)."
+      },
+      {
         "name": "stats",
         "type": "Readonly<PhysicsStats>",
         "desc": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame."
@@ -19227,6 +19356,16 @@
         "name": "error",
         "type": "EngineError | null",
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
+      },
+      {
+        "name": "add(joint: Joint)",
+        "type": "void",
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+      },
+      {
+        "name": "remove(joint: Joint)",
+        "type": "void",
+        "desc": "Takes a joint out: the bodies it held move apart freely."
       }
     ],
     "description": ""
@@ -20874,8 +21013,8 @@
     "section": "budget",
     "kind": "Function",
     "title": "budget.memory()",
-    "signature": "budget.memory(world: World): { geometryPool: number; texturePool: number | null; geometryPoolCeiling: number; texturePoolCeiling: number; }",
-    "summary": "The memory budgets a world holds right now: both pools and the largest each may grow to.",
+    "signature": "budget.memory(world: World): { gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; geometryPool: number; texturePool: ...",
+    "summary": "The memory budgets a world holds right now: the GPU and CPU totals, how the rule splits them, both pools and the largest each may grow to.",
     "parameters": [
       {
         "name": "{ budget: b }",
@@ -20884,7 +21023,7 @@
       }
     ],
     "returns": {
-      "type": "{ geometryPool: number; texturePool: number | null; geometryPoolCeiling: number; texturePoolCeiling: number; }",
+      "type": "{ gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; geometryPool: number; texturePool: ...",
       "desc": ""
     },
     "description": ""
@@ -22569,7 +22708,7 @@
       "type": "SceneLightStore",
       "desc": ""
     },
-    "description": "The buffer is allocated once for `maxLights` lights and is never reallocated; adding, setting or removing a light only writes its sixteen floats and increments its revision. Per-light `revision` is what the shadow scheduler reads to know that a light has changed: no structure is rebuilt per frame."
+    "description": "The buffer is allocated once for `maxLights` lights and is never reallocated; adding, setting or removing a light only writes its sixteen floats and increments its revision. Per-light `revision` tells a reader that a light has changed: no structure is rebuilt per frame. The shadow scheduler reads the light's shape itself, so a change of intensity or colour stales no shadow page."
   },
   {
     "id": "createSceneRoot",
@@ -25598,6 +25737,49 @@
     "description": ""
   },
   {
+    "id": "joint",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["joint"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "joint",
+    "signature": "const joint",
+    "summary": "The `joint` family: two bodies connected, or a body and the world (`b` null).",
+    "members": [
+      {
+        "name": "fixed",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Welds them: they move as one."
+      },
+      {
+        "name": "point",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A ball joint at `anchor`: they turn freely around it."
+      },
+      {
+        "name": "hinge",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A pin at `anchor` along `axis`: a door, a wheel. `limits` in radians."
+      },
+      {
+        "name": "slider",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A rail along `axis`: a drawer, a piston. `limits` in metres."
+      },
+      {
+        "name": "distance",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Keeps `anchor` on `a` and `anchorB` on `b` apart by their length, or within `limits`."
+      },
+      {
+        "name": "cone",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A ball joint whose `axis` swings within a cone of half angle `limits.max`."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "lengthSqVector3",
     "module": "packages/sdk-core/src/math/primitives/vector.ts",
     "exports": ["lengthSqVector3"],
@@ -28175,7 +28357,7 @@
     "kind": "Function",
     "title": "material.meshDepth()",
     "signature": "material.meshDepth(parameters?: MaterialParameters): Material",
-    "summary": "Shades each point by how far it is from the camera.",
+    "summary": "Shades each point by how far it is from the camera: white at `camera.near`, black at `camera.far`, a straight ramp between, the same on WebGPU and WebGL2.",
     "parameters": [
       {
         "name": "parameters?",
@@ -32526,7 +32708,7 @@
     "title": "texture",
     "signature": "const texture",
     "summary": "The `texture` family: an image and how it is sampled.",
-    "description": "Colour images are sRGB, data images are linear; `needsUpdate` after writing the pixels makes the samplers read them again."
+    "description": "Colour images are sRGB, data images are linear; `needsUpdate` after writing the pixels makes the samplers read them again, copied in place into the texture already on the GPU — only a new size builds it again. A video is live: its frames arrive by themselves."
   },
   {
     "id": "texture.image",
@@ -32608,7 +32790,7 @@
       "type": "Texture",
       "desc": ""
     },
-    "description": ""
+    "description": "After drawing on the canvas again, set `needsUpdate`: the new pixels are copied into the texture already on the GPU, nothing rebuilt."
   },
   {
     "id": "texture.video",
@@ -32618,7 +32800,7 @@
     "kind": "Function",
     "title": "texture.video()",
     "signature": "texture.video(v: HTMLVideoElement): Texture",
-    "summary": "A texture that shows a playing video.",
+    "summary": "A texture that shows a playing video, or a camera stream played in a video.",
     "parameters": [
       {
         "name": "v",
@@ -32630,7 +32812,7 @@
       "type": "Texture",
       "desc": ""
     },
-    "description": ""
+    "description": "Each new frame is copied into the texture already on the GPU by itself; a paused video costs nothing."
   },
   {
     "id": "texture.depth",

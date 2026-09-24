@@ -44,8 +44,10 @@ export type DagRoot = {
 };
 export type PackedDag = {
   kind: 'dag';
+  /** Hot records, one per UNIQUE cluster: placements of one primitive share theirs (`layout.ts`). */
   clusters: Float32Array;
   nodes: Float32Array;
+  /** Working table (one placement word per page), residency bits, then the unique cold records. */
   pageCones: Float32Array;
   worlds: Float32Array;
   worldStretch: Float32Array;
@@ -60,6 +62,10 @@ export type PackedDag = {
   nodeCount: number;
   worldCount: number;
   pageCount: number;
+  /** Unique records behind the `pageCount` pages. */
+  recordCount: number;
+  /** Per placement, what its page index adds to reach its record, as a wrapping u32. */
+  recordShift: Uint32Array;
   rootCount: number;
   pageUrls: string[];
 };

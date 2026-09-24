@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Appuie sur Jouer, puis cours avec W A S D et saute avec Espace.",
+    "banner": "Appuie sur Jouer, puis cours avec W A S D et saute avec Espace. Lâche tôt : sur la pierre, tu glisses un peu avant de t’arrêter.",
     "controls": {
       "keys": "Le contrôle de personnage du moteur : le Jouer du menu capture la souris pour regarder, W A S D pour courir (Z Q S D en AZERTY), Maj pour sprinter, Espace pour sauter, Échap libère la souris. La page ajoute R pour recommencer la course, M pour couper le son.",
       "look": "Regard",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Change le niveau, les vagues, la densité et le courant de l’eau : les caisses flottent, dérivent, coulent et se posent.",
+    "controls": {
+      "level": "Niveau",
+      "waves": "Vagues",
+      "density": "Densité de l’eau",
+      "current": "Courant",
+      "drop": "Lâcher",
+      "again": "Encore",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Dix mille boîtes tombent d’un coup. Le panneau montre en direct ce que coûte la physique.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses.",
+    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses, et lâchez les touches sur la glace pour glisser.",
     "controls": {
       "pushStrength": "Force de poussée (N)",
       "platformSpeed": "Vitesse de la plateforme",
@@ -1962,6 +1979,21 @@
       "bodies": "Corps",
       "awake": "Éveillés",
       "step": "Pas"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Ouvrez la porte et le tiroir, balancez la chaîne, puis lâchez la pierre sur le pont et regardez-le céder.",
+    "controls": {
+      "openDoor": "Ouvrir la porte",
+      "openDrawer": "Ouvrir le tiroir",
+      "strength": "Solidité du pont (N)",
+      "swingChain": "Balancer la chaîne",
+      "dropStone": "Lâcher la pierre",
+      "rebuild": "Reconstruire le pont"
+    },
+    "readouts": {
+      "joints": "Liaisons",
+      "broken": "Rompues"
     }
   }
 }

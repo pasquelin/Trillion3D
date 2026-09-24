@@ -275,23 +275,17 @@
     {
       "id": "a-video-on-a-screen",
       "theme": "materials",
-      "file": "examples/a-video-on-a-screen.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/a-video-on-a-screen.html"
     },
     {
       "id": "the-webcam-as-a-texture",
       "theme": "materials",
-      "file": "examples/the-webcam-as-a-texture.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/the-webcam-as-a-texture.html"
     },
     {
       "id": "four-ways-to-blend",
       "theme": "materials",
-      "file": "examples/four-ways-to-blend.html",
-      "status": "waiting-engine",
-      "issue": 346
+      "file": "examples/four-ways-to-blend.html"
     },
     {
       "id": "toon-shading",
@@ -981,9 +975,7 @@
     {
       "id": "a-video-panorama",
       "theme": "environment",
-      "file": "examples/a-video-panorama.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/a-video-panorama.html"
     },
     {
       "id": "an-atmospheric-sky",
@@ -1432,6 +1424,11 @@
       "file": "examples/falling-boxes.html"
     },
     {
+      "id": "floating-crates",
+      "theme": "physics",
+      "file": "examples/floating-crates.html"
+    },
+    {
       "id": "ten-thousand-bodies",
       "theme": "physics",
       "file": "examples/ten-thousand-bodies.html"
@@ -1467,8 +1464,7 @@
     {
       "id": "hinges-and-joints",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/hinges-and-joints.html"
     },
     {
       "id": "walk-with-collisions",

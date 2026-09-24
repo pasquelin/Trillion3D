@@ -1,4 +1,3 @@
-import { boxEmpty, boxUnion } from '../../math/primitives/box.ts';
 import { keepNumbers } from '../../math/primitives/vector.ts';
 import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts';
 
@@ -10,41 +9,24 @@ const point = new Float64Array(3);
 /** The read box, allocated once: the scheduler projects it face by face without creating anything. */
 const readMin = new Float64Array(3),
   readMax = new Float64Array(3),
-  readBox = { min: readMin, max: readMax, moving: false };
+  readBox = { min: readMin, max: readMax, moving: false, detail: false };
+/** A held box on its way to the list, allocated once. */
+const heldMin = new Float64Array(3),
+  heldMax = new Float64Array(3);
 
 /**
- * What has moved in the world since the last frame, as world boxes. They are kept
- * **separate** — up to eight — and not joined into one: a single box enclosing two objects
- * at both ends of the scene would stale every page between them, while nothing there has changed.
- * Beyond eight, two boxes merge, those whose union costs the least volume.
- *
- * The scheduler consumes them every frame: it derives the stale pages of each face, which
- * then carry the state. The boxes therefore have nothing to retain from one frame to the next, and
- * everything is allocated once.
- *
- * Two kinds of change enter. A **world** change — a node or a light that moves — stales its
- * pages at once. A **representation** change — a cluster that swaps level of detail, a page
- * that enters or leaves residency, a colour tile that arrives — describes the same world at
- * another precision: it is held in one union box while the camera moves, and enters the list
- * at the first frame the camera rests. Under a moving camera the cut churns every frame, and
- * staling the far pages for a sub-texel change of detail cost a whole scene draw per frame;
- * at rest the union restales exactly what changed, so a settled map is that of the current
- * cut, whatever the history (#159).
+ * Up to `MOVED_BOXES` world boxes kept apart, each saying whether it holds only objects already
+ * moving and whether it is only a change of detail. Past that, a new box joins the one whose
+ * union with it costs the least volume. Allocated once.
  */
-export function createShadowChanges() {
+function createBoxList() {
   const min = new Float64Array(MOVED_BOXES * 3),
     max = new Float64Array(MOVED_BOXES * 3),
     /** The box holds only objects already moving: the static casters under it are unchanged. */
-    moving = new Uint8Array(MOVED_BOXES);
-  let count = 0;
-  /** The union of representation changes held until the camera rests: empty when none waits. */
-  const defer = new Float64Array(6),
-    deferMin = defer.subarray(0, 3),
-    deferMax = defer.subarray(3, 6);
-  boxEmpty(defer, 0);
-  /** The view of the last frame, and this frame's the time to compare them. */
-  const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
-    viewNow = new Float64Array(VIEW_NUMBERS);
+    moving = new Uint8Array(MOVED_BOXES),
+    /** The box holds only representation changes: the pages under it are coarser than the cut,
+     *  not wrong, and stay read until redrawn. */
+    detail = new Uint8Array(MOVED_BOXES);
   const volume = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>) => {
     let product = 1;
     for (let axis = 0; axis < 3; axis++)
@@ -59,52 +41,100 @@ export function createShadowChanges() {
       max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis];
     }
   };
-  const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) => {
-    if (count < MOVED_BOXES) {
-      write(count * 3, lo, hi, false);
-      moving[count] = movingOnly ? 1 : 0;
-      count++;
-      return;
-    }
-    let best = 0,
-      bestGrowth = Infinity;
-    for (let box = 0; box < count; box++) {
-      const growth = volume(box * 3, lo, hi) - own(box * 3);
-      if (growth < bestGrowth) {
-        bestGrowth = growth;
-        best = box;
+  const list = {
+    min,
+    max,
+    moving,
+    detail,
+    count: 0,
+    add(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly: boolean, detailOnly: boolean) {
+      if (list.count < MOVED_BOXES) {
+        write(list.count * 3, lo, hi, false);
+        moving[list.count] = movingOnly ? 1 : 0;
+        detail[list.count] = detailOnly ? 1 : 0;
+        list.count++;
+        return;
       }
-    }
-    write(best * 3, lo, hi, true);
-    if (!movingOnly) moving[best] = 0;
+      let best = 0,
+        bestGrowth = Infinity;
+      for (let box = 0; box < list.count; box++) {
+        const growth = volume(box * 3, lo, hi) - own(box * 3);
+        if (growth < bestGrowth) {
+          bestGrowth = growth;
+          best = box;
+        }
+      }
+      write(best * 3, lo, hi, true);
+      if (!movingOnly) moving[best] = 0;
+      if (!detailOnly) detail[best] = 0;
+    },
   };
-  /** The held union enters the list as one box, when one waits. */
+  return list;
+}
+
+/**
+ * What has moved in the world since the last frame, as world boxes. They are kept
+ * **separate** — up to eight — and not joined into one: a single box enclosing two objects
+ * at both ends of the scene would stale every page between them, while nothing there has changed.
+ * Beyond eight, two boxes merge, those whose union costs the least volume.
+ *
+ * The scheduler consumes them every frame: it derives the stale pages of each face, which
+ * then carry the state. The boxes therefore have nothing to retain from one frame to the next, and
+ * everything is allocated once.
+ *
+ * Two kinds of change enter. A **world** change — a node or a light that moves — stales its
+ * pages at once. A **representation** change — a cluster that swaps level of detail, a page
+ * that enters or leaves residency, a colour tile that arrives — describes the same world at
+ * another precision: it is held while the camera moves, and enters the list at the first frame
+ * the camera rests. Under a moving camera the cut churns every frame, and staling the far pages
+ * for a sub-texel change of detail cost a whole scene draw per frame; at rest the held boxes
+ * restale exactly what changed, so a settled map is that of the current cut, whatever the
+ * history (#159). The held boxes stay apart as the world ones do: two clusters that changed at
+ * both ends of the view redraw their own pages, never those between them.
+ */
+export function createShadowChanges() {
+  const boxes = createBoxList(),
+    { min, max, moving, detail } = boxes,
+    /** The representation changes held until the camera rests. */
+    held = createBoxList();
+  /** The view of the last frame and this frame's, to compare them. */
+  const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
+    viewNow = new Float64Array(VIEW_NUMBERS);
+  const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
+    boxes.add(lo, hi, movingOnly, false);
+  /** The held boxes enter the list, each a change of detail alone. */
   const release = () => {
-    if (defer[0] === Infinity) return;
-    worldChanged(deferMin, deferMax);
-    boxEmpty(defer, 0);
+    for (let box = 0; box < held.count; box++) {
+      for (let axis = 0; axis < 3; axis++) {
+        heldMin[axis] = held.min[box * 3 + axis];
+        heldMax[axis] = held.max[box * 3 + axis];
+      }
+      boxes.add(heldMin, heldMax, false, true);
+    }
+    held.count = 0;
   };
   return {
     get count() {
-      return count;
+      return boxes.count;
     },
     /** A representation change waits for the camera to rest: the hold must not close before. */
     get deferred() {
-      return defer[0] !== Infinity;
+      return held.count > 0;
     },
     /**
      * A node has moved: its box enters the list, or joins a neighbour. `movingOnly` says it holds
      * objects that were already moving — the static casters under it did not change.
      */
     worldChanged,
-    /** The same world at another precision: its box joins the union held until the camera rests. */
+    /** The same world at another precision: its box is held, apart or joined to the nearest
+     *  held one, until the camera rests. */
     representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>) {
-      boxUnion(defer, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+      held.add(lo, hi, false, true);
     },
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
-     * changed representation meanwhile enters the list as one box; while it moves, the union
-     * only grows. Returns true when the camera rests.
+     * changed representation meanwhile enters the list; while it moves, the held boxes only
+     * grow. Returns true when the camera rests.
      */
     observeView(view: ShadowViewpoint) {
       const still = keepNumbers(lastView, writeView(view, viewNow));
@@ -128,10 +158,12 @@ export function createShadowChanges() {
       }
       return squared <= range * range;
     },
-    /** Box `box` in two reused arrays — its minima, its maxima — and whether it moves alone. */
+    /** Box `box` in two reused arrays — its minima, its maxima —, whether it moves alone, and
+     *  whether it is a change of detail alone. */
     read(box: number) {
       const base = box * 3;
       readBox.moving = moving[box] === 1;
+      readBox.detail = detail[box] === 1;
       for (let axis = 0; axis < 3; axis++) {
         readMin[axis] = min[base + axis];
         readMax[axis] = max[base + axis];
@@ -140,17 +172,16 @@ export function createShadowChanges() {
     },
     /** The boxes are consumed: the pages they stale now carry the state. */
     settled() {
-      count = 0;
+      boxes.count = 0;
     },
     /**
-     * No plan consumes the union this frame — no atlas, no light, unlit view — while the slices
+     * No plan consumes the held boxes this frame — no atlas, no light, unlit view — while the slices
      * survive: it enters the list now, and the next plan, at rest or not, stales what changed.
      */
     releaseDeferred: release,
     /** Nothing waits anymore, and the next view is a first one. */
     reset() {
-      count = 0;
-      boxEmpty(defer, 0);
+      boxes.count = held.count = 0;
       lastView.fill(NaN);
     },
   };

@@ -48,11 +48,10 @@ pub struct GroupOutcome {
 }
 
 /// Per-level tally of group outcomes, reported by the compiler so a stalled DAG is visible.
-/// `welded` and `relocked` count, among the reduced groups, those that needed a retry.
+/// `relocked` counts, among the reduced groups, those that needed extra locks.
 #[derive(Clone, Copy, Default, Debug)]
 pub struct GroupTally {
     pub reduced: usize,
-    pub welded: usize,
     pub relocked: usize,
     pub too_small: usize,
     pub seam_locked: usize,
@@ -67,7 +66,6 @@ impl GroupTally {
     pub fn json(&self) -> serde_json::Value {
         serde_json::json!({
             "reduced": self.reduced,
-            "welded": self.welded,
             "relocked": self.relocked,
             "tooSmall": self.too_small,
             "seamLocked": self.seam_locked,
@@ -83,7 +81,6 @@ impl GroupTally {
             .iter()
             .fold(GroupTally::default(), |a, t| GroupTally {
                 reduced: a.reduced + t.reduced,
-                welded: a.welded + t.welded,
                 relocked: a.relocked + t.relocked,
                 too_small: a.too_small + t.too_small,
                 seam_locked: a.seam_locked + t.seam_locked,

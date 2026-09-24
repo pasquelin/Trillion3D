@@ -1,5 +1,7 @@
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
+import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
 import {
   DRAW_ITEM_U32,
   evaluateDrawCompact,
@@ -121,32 +123,36 @@ export function simulateComputeDispatch(
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   );
-  const { uniforms, residentCut } = readDagUniforms(byBinding.get(2)!.data);
+  const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
   // Residency lives in bits behind the cold records: the double rereads it through the shared
   // decoder, in the buffer the host writes, where the shader reads it.
   const resident = residentCut
-    ? residentFlags(words(byBinding.get(8)!.data), packed.pageCount)
+    ? residentFlags(words(byBinding.get(DAG_BINDING.cold)!.data), packed.pageCount)
     : undefined;
   // World matrices are read IN THE BOUND BUFFER, where the shader reads them: image entry writes
   // them there brought back to the eye, and the view and planes of the same uniform block are of
   // that frame. A copy made at packing would put absolute worlds under a view with no translation
   // — two frames in one formula, and not a single page kept.
-  const tampon = byBinding.get(6)!.data;
+  const tampon = byBinding.get(DAG_BINDING.worlds)!.data;
   const worlds = new Float32Array(tampon.buffer, tampon.byteOffset, packed.worlds.length);
-  const result = evaluateDagSelectionKernel({ ...packed, worlds }, uniforms, resident);
+  // So is each primitive's root, behind its stretch in the frame buffer: a parked one is NONE
+  // (`parkWorld`), and the cut skips it as the shader does.
+  const frames = words(byBinding.get(DAG_BINDING.frames)!.data);
+  const rootNodes = packed.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1]);
+  const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident);
   if (residentCut) {
-    const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
+    const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
     flags.fill(0, packed.nodeCount);
     for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
     // The cut then compacts these flags: the sample reports only the count and its ranks.
     compactDrawnPages(
-      byBinding.get(3)!.data,
-      byBinding.get(4)!.data,
+      byBinding.get(DAG_BINDING.flags)!.data,
+      byBinding.get(DAG_BINDING.out)!.data,
       packed.nodeCount,
       packed.pageCount,
     );
   }
-  const out = byBinding.get(4)!.data;
+  const out = byBinding.get(DAG_BINDING.out)!.data;
   const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
   ints[0] = result.pageIds.length;
   ints[1] = result.frustumRejected;

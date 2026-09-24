@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "プレイをおして、W A S Dで走り、スペースでジャンプしよう。",
+    "banner": "プレイをおして、W A S Dで走り、スペースでジャンプしよう。早めに離そう：石の上では止まる前に少し滑る。",
     "controls": {
       "keys": "エンジンのキャラクター操作: メニューの「プレイ」でマウスを固定して見回す、W A S D で走る（AZERTYなら Z Q S D）、Shift でダッシュ、スペースでジャンプ、Esc でマウスを放す。このページは、R で走りなおし、M で音を消すのを足している。",
       "look": "視点",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "水位・波・密度・流れを変えてみよう。木箱は浮かび、流され、沈み、やがて落ち着きます。",
+    "controls": {
+      "level": "水位",
+      "waves": "波",
+      "density": "水の密度",
+      "current": "流れ",
+      "drop": "落とす",
+      "again": "もう一度",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "一万個の箱が一斉に落ちる。パネルに物理の負荷がリアルタイムで出る。",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押そう。",
+    "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押し、氷の上でキーを離して滑ってみよう。",
     "controls": {
       "pushStrength": "押す力 (N)",
       "platformSpeed": "台の速さ",
@@ -1962,6 +1979,21 @@
       "bodies": "物体",
       "awake": "動作中",
       "step": "ステップ"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "ドアと引き出しを開け、鎖を揺らし、石を橋に落として壊れるのを見てみよう。",
+    "controls": {
+      "openDoor": "ドアを開ける",
+      "openDrawer": "引き出しを開ける",
+      "strength": "橋の強さ (N)",
+      "swingChain": "鎖を揺らす",
+      "dropStone": "石を落とす",
+      "rebuild": "橋を作り直す"
+    },
+    "readouts": {
+      "joints": "ジョイント",
+      "broken": "壊れた数"
     }
   }
 }

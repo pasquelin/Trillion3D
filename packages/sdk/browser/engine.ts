@@ -70,7 +70,6 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapp
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
-export { GraphAngles, GraphRotation } from '../../sdk-browser/src/host/graph/rotation.ts';
 export {
   GraphAttribute,
   GraphInterleavedAttribute,
@@ -83,7 +82,6 @@ export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';
 export type { GraphNodeKind } from '../../sdk-browser/src/host/graph/nodeKind.ts';
 export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
 export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';
-export { GraphVector } from '../../sdk-browser/src/host/graph/vector.ts';
 export type {
   GravityInput,
   WorldPhysics,
@@ -119,6 +117,13 @@ export type {
 } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
 export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
+export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
+export type {
+  JointKind,
+  JointLimits,
+  JointMotor,
+  JointOptions,
+} from '../../sdk-core/src/physics/joint.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
@@ -140,6 +145,7 @@ export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/tra
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
 export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
+export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
 export {
   createEngineCamera,

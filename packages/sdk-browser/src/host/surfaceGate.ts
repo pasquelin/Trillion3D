@@ -11,7 +11,7 @@
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
 import { metalRough } from '../scene/surfaceModel.ts';
-import { blendingOf } from '../scene/materialBlending.ts';
+import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { declaresCompileHook } from './materialHook.ts';
 import { physicalExtensionReason } from '../scene/physicalMaterialGate.ts';
@@ -42,13 +42,11 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  if (!metalRough(host) && host.family !== 'basic') return `material ${host.family} is unsupported`;
-  const blending = blendingOf(host.blending);
-  if (!blending)
-    return `material ${host.family} uses blending ${host.blending}, which no path draws`;
-  // A transmissive surface composes by the backdrop it reads, never by another mode.
-  if (blending !== 'normal' && isTransmissive(material))
-    return `a transmissive material cannot use ${blending} blending`;
+  if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
+    return `material ${host.family} is unsupported`;
+  // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
+  const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
+  if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
   if (
     host.alphaHash ||
     host.premultipliedAlpha ||

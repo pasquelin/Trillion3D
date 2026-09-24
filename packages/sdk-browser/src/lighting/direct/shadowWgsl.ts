@@ -97,7 +97,8 @@ fn shadowBiasMetres(cosine:f32)->f32{
 }
 struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
 fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
-/** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable. */
+/** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,
+ *  not drawn yet, or withdrawn while its depth is wrong — asked for again, never read. */
 fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
  var e=0;
  if(m.ring!=0u){

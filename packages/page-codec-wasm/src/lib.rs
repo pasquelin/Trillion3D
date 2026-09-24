@@ -11,14 +11,19 @@
 //! This WebAssembly module is the SDK's, and there is only one: one compilation (`pnpm run
 //! build:wasm`), one shipped resource, one instantiation and one linear memory on the browser side.
 //! Beside the page decoder it therefore carries the math-foundation batch kernels (`math.rs`, ABI
-//! in `wasm_math.rs`) and the buffer they share with JavaScript.
+//! in `wasm_math.rs`), the CPU cut's node walk (`cut.rs`, ABI in `wasm_cut.rs`) and the buffer
+//! they share with JavaScript.
 
 mod attributes;
 pub mod bits;
+pub mod cut;
+pub mod cut_error;
 pub mod math;
 pub mod math_hierarchy;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
+#[cfg(target_arch = "wasm32")]
+mod wasm_cut;
 #[cfg(target_arch = "wasm32")]
 mod wasm_math;
 

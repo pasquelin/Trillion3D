@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Bir yazılım tarayıcısı (rasterizer)",
       "sound-from-the-gpu": "GPU'dan gelen ses",
       "falling-boxes": "Düşen kutular",
+      "floating-crates": "Yüzen sandıklar",
       "ten-thousand-bodies": "On bin cisim",
       "breaking-things": "Nesneleri kırmak",
       "cloth-and-rope": "Kumaş ve halat",
@@ -338,9 +339,6 @@
       "a-capped-section": "kesme düzlemleri: stencil kapaklar",
       "decals-on-a-surface": "ışınla seçim (raycast)",
       "sculpt-a-sphere": "ışınla seçim (raycast)",
-      "a-video-on-a-screen": "canlı video dokuları",
-      "the-webcam-as-a-texture": "canlı video dokuları",
-      "four-ways-to-blend": "tüm karıştırma modları",
       "avif-textures": "diğer kaynak içe aktarıcılar: AVIF görüntüleri",
       "object-space-normals": "nesne uzayında normal haritalar",
       "a-bumpy-surface": "bump, deplasman ve parallax haritaları",
@@ -411,7 +409,6 @@
       "a-medical-scan": "hacimsel render",
       "a-city-from-3d-tiles": "3D Tiles içe aktarma",
       "rendering-in-a-worker": "worker içinde render (OffscreenCanvas)",
-      "a-video-panorama": "canlı video dokuları",
       "an-atmospheric-sky": "gökyüzü modeli",
       "chrome-in-a-room": "ortam aydınlatması (IBL)",
       "lit-by-an-hdr-image": "ortam aydınlatması (IBL)",
@@ -481,7 +478,6 @@
       "breaking-things": "bir fizik motoru entegrasyonu",
       "cloth-and-rope": "bir fizik motoru entegrasyonu",
       "soft-bodies": "bir fizik motoru entegrasyonu",
-      "hinges-and-joints": "bir fizik motoru entegrasyonu",
       "drive-a-car": "bir fizik motoru entegrasyonu",
       "a-room-in-vr": "WebXR oturumu",
       "a-360-photo-in-vr": "WebXR oturumu",
@@ -1072,6 +1068,18 @@
           "Hafif kutuları <code>'dynamic'</code> yap: karakter onları <code>pushStrength</code> newton ile iter, kutular düşer, yuvarlanır ve geri iter."
         ],
         "tryIt": "Resme tıkla, W A S D ile yürü, Boşluk ile zıpla. Merdiveni çık, platforma bin, kutu yığınını it."
+      },
+      "connect-drive-and-break": {
+        "title": "Bağla, sür ve kır",
+        "description": "Eklemler iki cismi birbirine ya da bir cismi dünyaya bağlar: kapı menteşesinde döner, çekmece rayında kayar, zincir halkalarından sarkar, köprü de fazla çekilince kırılır.",
+        "steps": [
+          "<code>joint.hinge(a, b, options)</code> ya da akrabalarıyla — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — bir eklem oluştur ve <code>world.physics.add</code>'e ver. Bir cismi dünyaya bağlamak için <code>b</code> yerine <code>null</code> koy.",
+          "<code>anchor</code> cisimlerin birleştiği nokta, <code>axis</code> pimin ya da rayın yönüdür; ikisi de dünyadadır ve eklem oluşturulurken okunur.",
+          "<code>limits</code> eklemi durdurur: menteşe için radyan, ray için metre. Bir <code>spring</code> dayanağı yumuşatır.",
+          "Bir <code>motor</code> menteşeyi ya da rayı bir hıza veya konuma sürer. <code>joint.motor</code>'u istediğin an değiştir.",
+          "<code>breakForce</code>, eklemin koptuğu çekiş kuvvetidir (newton): <code>joint.broken</code> doğru olur ve <code>joint.on('break', …)</code> çağrılır."
+        ],
+        "tryIt": "Kapıyı ve çekmeceyi aç, sonra taşı köprüye bırak. Köprünün dayanımını düşürüp yeniden kur: kendi ağırlığıyla kırılır."
       },
       "your-own-scene": {
         "title": "Kendi sahneniz",

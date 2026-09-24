@@ -75,6 +75,28 @@
   it does not merge. Sole exception: fluids may lower their own quality automatically to hold their
   budget, and say so in their diagnostics.
 
+## Streaming, memory and shadows
+
+The rules of #483, binding on every change to geometry, streaming, memory, shadows or examples:
+
+1. **No hole, ever.** Every surface of every frame is drawn by a resident representation of
+   itself: the wanted cluster or its nearest resident ancestor.
+2. **No image loss.** A still image converges to full detail (A/A 0 px); coarsening is temporary,
+   one DAG level at a time.
+3. **Compiler first.** Errors, bounds, normal cones, page dependencies and order, world-scale roots
+   are computed at cook, and the cook refuses a result that breaks an invariant.
+4. **One mechanism per concern**: one cut rule, one residency cache, one request queue, one memory
+   budget. What a change replaces is deleted in the same pull request.
+5. **Fixed budgets, never read from the machine**, one global memory budget; out of memory is one
+   level coarser, never a crash; a lost device is rebuilt without reloading the page.
+6. **Bounded by the view**, not by the world's size.
+7. **Main thread bounded**: decoding, parsing and IO in workers.
+8. **WebGL2 is degraded, never broken**: same rules, declared missing features, no hole.
+9. **Proven by a test of the invariant**, on two scenes, one of them an open world.
+10. **Nothing is rebuilt every frame**: no recut, re-hash or session reopen for moving content;
+    it takes the dynamic or GPU-deformation path.
+11. **Examples use the engine**, never a per-frame workaround for a missing feature.
+
 ## Quality and evidence
 
 - Code first; one final test pass, one test per changed behavior. No dead/deprecated code,
@@ -162,9 +184,10 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
    run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
-3. Review the diff twice: first simplify duplicated or unnecessary work, then check correctness
-   against the requirements above. Fix findings and run `pnpm run check:changed`,
-   `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
+3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
+   `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
+   depth —, then check correctness against the requirements above. Fix findings and run
+   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
    measuring queue runs it after the merge.
 4. Commit with a descriptive English message. Open a pull request targeting `develop`, using
    `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`. Describe what both
@@ -175,7 +198,8 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    published history.
 6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
    an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
-   against this file; a finding becomes a new issue labelled `audit ko`, linked to the merged one.
+   against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
+   comment.
    If a pull request is closed without merging, remove both lifecycle labels; add `in progress`
    only if work resumes.
 

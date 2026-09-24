@@ -7,11 +7,7 @@ export { createWebglFrameGate } from '../../../packages/sdk-browser/src/webgl/co
 export { createExactPagesCpu } from './cpu.ts';
 export { createExactPagesRequests, createExactPagesRequestData } from './requests.ts';
 export { createExactPagesResidency } from './residency.ts';
-export {
-  DEFAULT_CLEAR_COLOR,
-  baseCapabilities,
-} from '../../../packages/sdk-browser/src/backend/common.ts';
-export { CONTRACT_LIGHTS_UNSUPPORTED } from '../../../packages/sdk-browser/src/lighting/contractLights.ts';
+export { DEFAULT_CLEAR_COLOR } from '../../../packages/sdk-browser/src/backend/common.ts';
 export {
   contractLightingApi,
   graphBackground,

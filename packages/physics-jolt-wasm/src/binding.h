@@ -126,12 +126,22 @@ uint32_t writePoses();
 
 /// The character's commands and state (`character.cpp`, layout.ts).
 constexpr uint32_t CHARACTER = 13, CHARACTER_MOVE = 14;
-constexpr uint32_t CHARACTER_WORDS = 10, CHARACTER_MOVE_WORDS = 5, CHARACTER_STATE_WORDS = 8;
+constexpr uint32_t CHARACTER_WORDS = 10, CHARACTER_MOVE_WORDS = 5, CHARACTER_STATE_WORDS = 9;
 /// Runs one character command; returns its word count.
 uint32_t characterCommand(const uint32_t *w);
 /// Moves the character by the velocity this step's CHARACTER_MOVE asked for, before the bodies.
 void moveCharacter(float dt);
 /// Writes the character's state once the bodies have stepped.
 void writeCharacter();
+
+/// The joints' commands (`joints.cpp`, layout.ts JOINT_WORDS).
+constexpr uint32_t JOINT = 18, UNJOINT = 19, MOTOR = 20;
+constexpr uint32_t JOINT_WORDS = 31, UNJOINT_WORDS = 2, MOTOR_WORDS = 5;
+/// Runs one joint command; returns its word count.
+uint32_t jointCommand(const uint32_t *w);
+/// Takes out the joints of the body in slot `index`, before the body is removed.
+void dropJoints(uint32_t index);
+/// After a step of `dt` seconds, takes out the joints pulled past their break force.
+void breakJoints(float dt);
 
 }  // namespace trillion

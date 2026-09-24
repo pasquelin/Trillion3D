@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Ein Software-Rasterisierer",
       "sound-from-the-gpu": "Klang aus der GPU",
       "falling-boxes": "Fallende Kisten",
+      "floating-crates": "Schwimmende Kisten",
       "ten-thousand-bodies": "Zehntausend Körper",
       "breaking-things": "Dinge zerbrechen",
       "cloth-and-rope": "Stoff und Seil",
@@ -338,9 +339,6 @@
       "a-capped-section": "Schnittebenen: Stencil-Deckel",
       "decals-on-a-surface": "Auswahl per Klick (Raycast)",
       "sculpt-a-sphere": "Auswahl per Klick (Raycast)",
-      "a-video-on-a-screen": "Live-Videotexturen",
-      "the-webcam-as-a-texture": "Live-Videotexturen",
-      "four-ways-to-blend": "alle Mischmodi",
       "avif-textures": "weitere Quellimporte: AVIF-Bilder",
       "object-space-normals": "Normal Maps im Objektraum",
       "a-bumpy-surface": "Bump-, Verschiebungs- und Parallax-Maps",
@@ -411,7 +409,6 @@
       "a-medical-scan": "volumetrisches Rendering",
       "a-city-from-3d-tiles": "Einlesen von 3D Tiles",
       "rendering-in-a-worker": "Rendering in einem Worker (OffscreenCanvas)",
-      "a-video-panorama": "Live-Videotexturen",
       "an-atmospheric-sky": "Himmelsmodell",
       "chrome-in-a-room": "Umgebungslicht (IBL)",
       "lit-by-an-hdr-image": "Umgebungslicht (IBL)",
@@ -481,7 +478,6 @@
       "breaking-things": "Anbindung einer Physik-Engine",
       "cloth-and-rope": "Anbindung einer Physik-Engine",
       "soft-bodies": "Anbindung einer Physik-Engine",
-      "hinges-and-joints": "Anbindung einer Physik-Engine",
       "drive-a-car": "Anbindung einer Physik-Engine",
       "a-room-in-vr": "WebXR-Sitzung",
       "a-360-photo-in-vr": "WebXR-Sitzung",
@@ -1072,6 +1068,18 @@
           "Mach leichte Kisten <code>'dynamic'</code>: Die Figur schiebt sie mit <code>pushStrength</code> Newton, sie fallen, kippen und schieben zurück."
         ],
         "tryIt": "Klicke ins Bild, laufe mit W A S D, springe mit Leertaste. Steig die Treppe hinauf, fahr auf der Plattform, schieb den Kistenstapel."
+      },
+      "connect-drive-and-break": {
+        "title": "Verbinden, antreiben und brechen",
+        "description": "Gelenke halten zwei Körper zusammen oder einen Körper an der Welt: Eine Tür dreht sich im Scharnier, eine Schublade gleitet auf ihrer Schiene, eine Kette hängt an ihren Gliedern, und eine Brücke bricht, wenn man zu stark zieht.",
+        "steps": [
+          "Erstelle ein Gelenk mit <code>joint.hinge(a, b, options)</code> oder seinen Verwandten — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — und übergib es an <code>world.physics.add</code>. Setze <code>null</code> für <code>b</code>, um einen Körper an der Welt festzuhalten.",
+          "<code>anchor</code> ist der Punkt, an dem die Körper verbunden sind, und <code>axis</code> die Richtung von Achse oder Schiene, beide in der Welt, gelesen, wenn das Gelenk entsteht.",
+          "<code>limits</code> hält das Gelenk an: Radiant für ein Scharnier, Meter für eine Schiene. Eine <code>spring</code> macht den Anschlag weich.",
+          "Ein <code>motor</code> treibt ein Scharnier oder eine Schiene auf eine Geschwindigkeit oder eine Position. Ändere <code>joint.motor</code> jederzeit.",
+          "<code>breakForce</code> ist der Zug in Newton, ab dem das Gelenk reißt: <code>joint.broken</code> wird wahr und <code>joint.on('break', …)</code> wird aufgerufen."
+        ],
+        "tryIt": "Öffne die Tür und die Schublade, dann lass den Stein auf die Brücke fallen. Senke die Festigkeit der Brücke und baue sie neu: Sie bricht unter ihrem eigenen Gewicht."
       },
       "your-own-scene": {
         "title": "Deine eigene Szene",

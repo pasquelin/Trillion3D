@@ -1,5 +1,9 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { CommandWriter, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
+import {
+  CommandWriter,
+  type Joint,
+  type PhysicsBudget,
+} from '../../../sdk-core/src/physics/index.ts';
 import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -9,10 +13,12 @@ import { createPhysicsPoses } from './poses.ts';
 import { emptyPhysicsStats, eventsAt, type FromPhysics, type PhysicsResults } from './protocol.ts';
 import { createSessionHost } from './sessionHost.ts';
 import { startPhysicsWorker } from './sessionWorker.ts';
+import { createPhysicsJoints } from './joints.ts';
 import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
 import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
+import { createWaterClock } from './waterClock.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -23,6 +29,8 @@ export function createPhysicsSession(
   budget: Readonly<PhysicsBudget>,
   invalidate: () => void,
   failed: (error: EngineError, fatal?: boolean) => void,
+  /** The joints `world.physics.add` holds: made once their bodies are simulated. */
+  wanted: ReadonlySet<Joint> = new Set(),
 ) {
   const writer = new CommandWriter();
   const stale = new Set<Object3D>();
@@ -39,6 +47,13 @@ export function createPhysicsSession(
   );
   const poses = createPhysicsPoses(budget.bodies, root);
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
+  const joints = createPhysicsJoints(writer, bodies, invalidate);
+  /** A body out of the simulation (asleep decorative, refused) takes its joints out with it. */
+  const retire = (index: number) => {
+    bodies.retire(index);
+    dirty = true;
+  };
+  const posed = { meshes: bodies.meshes, generation: bodies.generation, retire };
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
   /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
@@ -61,8 +76,9 @@ export function createPhysicsSession(
     const words = new Uint32Array(m.buffer);
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
-    const moved = poses.receive(words, m.poses, bodies, ms);
+    const moved = poses.receive(words, m.poses, posed, ms);
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
+    waves.received(m.water, m.active, began, m.waterEpoch);
     if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active || m.character !== null;
@@ -80,6 +96,7 @@ export function createPhysicsSession(
       onReady();
       invalidate();
     } else if (data.type === 'results') results(data);
+    else if (data.type === 'broken') joints.broke(data.joints);
     else if (data.type === 'cast') {
       casts.get(data.id)?.(data.hits);
       casts.delete(data.id);
@@ -87,7 +104,7 @@ export function createPhysicsSession(
       // Bodies whose shape the module refused leave the simulation; the world runs on, unless the
       // error is fatal: then the simulation stopped, and the world ends this session.
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
-      for (const mesh of refused) bodies.retire(mesh.physics._index);
+      for (const mesh of refused) retire(mesh.physics._index);
       const names = refused.map((mesh) => mesh.name);
       failed(new EngineError(data.code, data.message, names.length ? { names } : {}), data.fatal);
     }
@@ -95,6 +112,7 @@ export function createPhysicsSession(
   worker.onerror = (event) =>
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
+  const waves = createWaterClock(clock);
   const character = createCharacterPort((message) => worker.postMessage(message));
   return {
     stats,
@@ -103,16 +121,19 @@ export function createPhysicsSession(
     characterBody: createPhysicsCharacter.bind(null, character),
     /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
+      waves.retime();
       Object.assign(clock, { paused, timeScale });
       worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },
     /** The water the bodies float in, or none: buoyancy runs in the worker, before each step, on
      *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
     setWater(water: WaterSpec | null) {
-      worker.postMessage({ type: 'water', water });
+      worker.postMessage({ type: 'water', water, epoch: waves.reset() });
       for (const mesh of bodies.meshes)
         if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
     },
+    /** Simulated seconds the water's waves have run, for a frame drawn now. */
+    waterTime: () => waves.time(),
     /** The scene's tree changed: bodies are reconciled before the next frame. */
     structure: () => void (dirty = true),
     /** A mesh's geometry, material or `physics` changed. */
@@ -136,6 +157,7 @@ export function createPhysicsSession(
       touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
+        joints.reconcile(wanted);
         tiles.scan(root);
         stale.clear();
         dirty = false;
@@ -164,6 +186,7 @@ export function createPhysicsSession(
     materialOf: tiles.materialOf,
     dispose() {
       tiles.clear();
+      joints.clear();
       bodies.clear();
       poses.clear();
       writer.take();

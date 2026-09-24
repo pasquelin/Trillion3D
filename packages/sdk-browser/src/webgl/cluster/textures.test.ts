@@ -1,5 +1,6 @@
-// #360, #361: the WebGL2 binder uploads a texture again at every version it moves to, sets its
-// sampler alone when only its sampling moved, and grants anisotropy as the WebGPU path and the
+// #360, #361, #362: the WebGL2 binder uploads a texture again at every version it moves to — in
+// place in the texture it holds while the size stays —, sets its sampler alone when only its
+// sampling moved, and grants anisotropy as the WebGPU path and the
 // Three witness do: to a linear magnification over a chain mixed across levels, or not at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +11,7 @@ const ANISOTROPY = 0x84fe;
 
 /** A WebGL2 context that records uploads and anisotropy writes. */
 function context() {
-  const calls = { uploads: 0, anisotropy: [] as number[], parameters: 0 };
+  const calls = { uploads: 0, inPlace: 0, created: 0, anisotropy: [] as number[], parameters: 0 };
   const gl = new Proxy(
     {
       getExtension: () => ({
@@ -18,8 +19,9 @@ function context() {
         MAX_TEXTURE_MAX_ANISOTROPY_EXT: 0x84ff,
       }),
       getParameter: () => 16,
-      createTexture: () => ({}),
+      createTexture: () => (calls.created++, {}),
       texImage2D: () => void calls.uploads++,
+      texSubImage2D: () => void calls.inPlace++,
       texParameteri: () => void calls.parameters++,
       texParameterf: (_target: number, name: number, value: number) => {
         if (name === ANISOTROPY) calls.anisotropy.push(value);
@@ -65,7 +67,26 @@ test('a version uploads the texture again, a sampling sets its sampler alone', (
   (map.image as { data: Uint8Array }).data[0] = 255;
   map.version = 2;
   binder.bind(0, map);
-  assert.equal(calls.uploads, 2, 'pixels written in place: uploaded');
+  assert.deepEqual([calls.uploads, calls.inPlace], [1, 1], 'pixels written: copied in place');
+});
+
+// #362: a canvas redrawn and a video frame are copied into the texture already held, 120 frames
+// long; only a new size allocates the level again, still in the same texture.
+test('120 new pictures copy in place into one texture, a new size reallocates it', () => {
+  const { gl, calls } = context();
+  const binder = new WebglClusterTextures(gl);
+  const canvas = { width: 4, height: 2 };
+  const map = record({ image: canvas });
+  binder.bind(0, map, true);
+  for (let frame = 0; frame < 120; frame++) {
+    map.version++;
+    binder.bind(0, map, true);
+  }
+  assert.deepEqual([calls.created, calls.uploads, calls.inPlace], [1, 1, 120]);
+  const video = { videoWidth: 8, videoHeight: 4, width: 0, height: 0 };
+  Object.assign(map, { image: video, version: map.version + 1 });
+  binder.bind(0, map, true);
+  assert.deepEqual([calls.created, calls.uploads], [1, 2], 'resized in the same texture');
 });
 
 test('anisotropy is granted only to a linear magnification mixed across levels', () => {

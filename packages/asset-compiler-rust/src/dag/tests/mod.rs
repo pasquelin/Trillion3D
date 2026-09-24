@@ -20,11 +20,14 @@ pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],
 ) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
-    let (dag, groups, tallies, _) =
-        build_dag_tallied(positions, &[], indices, DagStrategy::QemEndpoints, &|| {
-            Ok(())
-        })
-        .expect("dag");
+    let (dag, groups, tallies, _) = build_dag_tallied(
+        positions,
+        DagAttributes::default(),
+        indices,
+        DagStrategy::QemEndpoints,
+        &|| Ok(()),
+    )
+    .expect("dag");
     (dag, groups, tallies)
 }
 
@@ -66,9 +69,12 @@ pub(super) fn grouped(n: usize) -> Grouped {
 }
 
 mod part1;
+mod part10;
 mod part2;
 mod part3;
 mod part4;
 mod part5;
 mod part6;
 mod part7;
+mod part8;
+mod part9;

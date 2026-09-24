@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "시작을 누르고, W A S D로 달리고 스페이스로 뛰어.",
+    "banner": "시작을 누르고, W A S D로 달리고 스페이스로 뛰어. 일찍 놓아: 돌 위에서는 멈추기 전에 조금 미끄러져.",
     "controls": {
       "keys": "엔진의 캐릭터 조작: 메뉴의 ‘시작’이 마우스를 잠가 둘러보게 해, W A S D로 달리기 (AZERTY에서는 Z Q S D), Shift로 전력 질주, 스페이스로 점프, Esc로 마우스 풀기. 이 페이지는 R로 다시 달리기, M으로 소리 끄기를 더했어.",
       "look": "시점",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "물의 높이, 파도, 밀도, 물살을 바꿔 보세요. 상자가 뜨고, 떠내려가고, 가라앉고, 자리를 잡습니다.",
+    "controls": {
+      "level": "수위",
+      "waves": "파도",
+      "density": "물의 밀도",
+      "current": "물살",
+      "drop": "떨어뜨리기",
+      "again": "다시",
+      "slowMotion": "슬로 모션"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "awake": "활성",
+      "step": "스텝"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "상자 만 개가 한꺼번에 떨어집니다. 패널에 물리 비용이 실시간으로 표시됩니다.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀어 보세요.",
+    "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀고, 얼음 위에서 키를 놓아 미끄러져 보세요.",
     "controls": {
       "pushStrength": "미는 힘 (N)",
       "platformSpeed": "발판 속도",
@@ -1962,6 +1979,21 @@
       "bodies": "물체",
       "awake": "활성",
       "step": "스텝"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "문과 서랍을 열고, 사슬을 흔든 다음, 다리 위에 돌을 떨어뜨려 부서지는 모습을 보세요.",
+    "controls": {
+      "openDoor": "문 열기",
+      "openDrawer": "서랍 열기",
+      "strength": "다리 강도 (N)",
+      "swingChain": "사슬 흔들기",
+      "dropStone": "돌 떨어뜨리기",
+      "rebuild": "다리 다시 짓기"
+    },
+    "readouts": {
+      "joints": "관절",
+      "broken": "끊어짐"
     }
   }
 }

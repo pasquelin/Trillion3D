@@ -46,6 +46,8 @@ export type TexturePools = {
   encoding: PoolEncoding;
   pool: TexturePool;
   poolFor(budgetBytes: number): TexturePool;
+  /** Bytes of the live textures' working textures the pool was drawn without (#362). */
+  liveBytes?: number;
 };
 
 /**
