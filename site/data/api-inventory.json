@@ -4212,6 +4212,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.test.ts"
       ],
       "disposition": "retained",
@@ -5056,6 +5057,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
