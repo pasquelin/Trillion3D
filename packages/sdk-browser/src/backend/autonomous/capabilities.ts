@@ -5,13 +5,14 @@ export function autonomousCapabilities(simplification: boolean): BackendCapabili
   return {
     renderer: 'WebGL2 autonomous prepared pages',
     materials:
-      'glTF opaque and alpha-mask materials; independent positions, normals, UVs and colors; tangents rebuilt per triangle',
+      'glTF opaque, alpha-mask and blended materials, and the transmission volume, drawn whole ' +
+      'over a frozen backdrop; independent positions, normals, UVs and colors; tangents rebuilt ' +
+      'per triangle',
     hierarchy: true,
     gpuDriven: false,
     simplification,
     eviction: true,
     unsupported: [
-      'BLEND and transmission in a prepared autonomous scene',
       'GPU-driven selection and indirect drawing',
       'physical VRAM instrumentation',
       'global illumination',
