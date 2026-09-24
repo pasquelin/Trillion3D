@@ -7,7 +7,7 @@
   },
   "case": "A quad whose base colour is rgb-brut.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.",
   "formatVersion": 5,
-  "manifestBinaryVersion": 7,
+  "manifestBinaryVersion": 8,
   "previews": [
     {
       "atlas": 0,

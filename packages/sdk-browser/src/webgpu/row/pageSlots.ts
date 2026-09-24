@@ -78,10 +78,20 @@ export function describePageSlots(allPages: readonly PageRec[]) {
  */
 export const awaitsPageBytes = (rec: PageRec) => !rec.geometryPage && !rec.array;
 
-/** The records of `pages` whose bytes are still awaited, collected into `into`: what the host is
- *  asked to fetch, and what an image is still missing. */
+/** True while a record, or a bundle it is installed after (`PageRec.dependencies`), still waits
+ *  for its bytes: the pool cannot admit it before them. */
+export const awaitsClosure = (rec: PageRec) => {
+  if (awaitsPageBytes(rec)) return true;
+  const dependencies = rec.dependencies;
+  if (dependencies)
+    for (let i = 0; i < dependencies.length; i++) if (awaitsPageBytes(dependencies[i])) return true;
+  return false;
+};
+
+/** The records of `pages` whose bytes, or those of their closure, are still awaited, collected
+ *  into `into`: what the host is asked to fetch, and what an image is still missing. */
 export function awaitedPages(pages: readonly PageRec[], into: PageRec[]) {
   into.length = 0;
-  for (let i = 0; i < pages.length; i++) if (awaitsPageBytes(pages[i])) into.push(pages[i]);
+  for (let i = 0; i < pages.length; i++) if (awaitsClosure(pages[i])) into.push(pages[i]);
   return into;
 }
