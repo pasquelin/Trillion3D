@@ -16,7 +16,8 @@ installGpuGlobals();
 
 const turn = () => new Promise((done) => setImmediate(done));
 
-test('a loop held while the contract program compiles draws the lit frame when it lands', async () => {
+/** The loop idle on the unlit image, held, while the contract program still compiles. */
+async function heldWhileCompiling() {
   const h = deferredLightingHarness();
   const rt = settledRt();
   const store = { count: 0, unlit: true };
@@ -67,12 +68,27 @@ test('a loop held while the contract program compiles draws the lit frame when i
   assert.equal(rt.run.frameHeld, true);
   await turn();
   assert.equal(requested.length, 0, 'the loop waits');
+  return { h, lighting, requested, draw, scheduler };
+}
 
+test('a loop held while the contract program compiles draws the lit frame when it lands', async () => {
+  const { h, lighting, requested, draw, scheduler } = await heldWhileCompiling();
   h.finishCompilation();
   await lighting.settle();
   await turn();
   assert.equal(requested.length, 1, 'the arrived program asks its frame');
   draw();
   assert.equal(lighting.usesContract, true, 'the lights now light the image');
+  scheduler.dispose();
+});
+
+test('a contract program that fails to compile leaves the held loop idle', async () => {
+  const { h, lighting, requested, scheduler } = await heldWhileCompiling();
+  h.failCompilation();
+  await lighting.settle();
+  await turn();
+  // Nothing arrived, so nothing changed: no held frame is redrawn after the reported failure.
+  assert.equal(requested.length, 0, 'the failed program asks no frame');
+  assert.equal(lighting.usesContract, false);
   scheduler.dispose();
 });
