@@ -10,7 +10,7 @@ import {
 import { renderGpuCut } from './gpuCut.ts';
 import { renderCpuCut } from './cpu.ts';
 import { setWindingEpoch } from './winding.ts';
-import { holdWebgpuFrame } from '../../frame/hold.ts';
+import { followHostTextures, holdWebgpuFrame } from '../../frame/hold.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
 import { refreshBlendWorlds } from '../../blend/worlds.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
@@ -44,6 +44,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   );
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam;
+  // A texture its host wrote since the last image — a filter, a placement — is a resource moved.
+  followHostTextures(rt);
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
   if (holdWebgpuFrame(rt, gpuDevice)) return;

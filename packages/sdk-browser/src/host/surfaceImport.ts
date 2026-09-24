@@ -28,7 +28,6 @@ import {
 } from './surfaceConstants.ts';
 import type { Texture, TextureFilter, WrapMode } from '../../../sdk-core/src/index.ts';
 import { sideOf } from '../scene/materialSide.ts';
-import { followHostVersion, reviseTexture } from './textureRevisions.ts';
 import type { VisMaterial } from '../visibility/types.ts';
 import {
   SURFACE_MODEL,
@@ -54,39 +53,37 @@ function filterOf(filter: number): TextureFilter {
 
 type Editable = { -readonly [K in keyof Texture]: Texture[K] };
 const imported = new WeakMap<HostTexture, Editable>();
+/** The host texture each record was imported from: what `followHostTexture` rereads. */
+const hosts = new WeakMap<Texture, HostTexture>();
+/** The host texture a record was imported from, for a reader that follows it at every image and
+ *  looks it up once; none for a record no host texture made. */
+export const hostTextureOf = (record: Texture) => hosts.get(record);
 
-/** The affine words of the UV matrix, read before it is recomposed. */
-const placement = new Float64Array(6);
-const AFFINE = [0, 1, 3, 4, 6, 7] as const;
+let addressings = 0;
+/** Refills so far that moved a record's addressing: a reader that folds the addressing of a
+ *  surface's maps into a word of its own (`../webgpu/row/pageRowConstants.ts`) rereads it when this
+ *  moved, since the host bumps the texture alone, not the surfaces that wear it. */
+export const hostAddressings = () => addressings;
 
 /**
- * The engine record of a host texture, built once and refilled when the host bumps its version;
- * a refill, or a placement the read recomposed, names the record to the watchers.
+ * The engine record of a host texture, built once and refilled when the host bumps its version
+ * or swaps its image. The record ALIASES the host's UV matrix (`transform`), which the host
+ * composes lazily from repeat, offset and rotation without a version: it is recomposed once per
+ * image by `followHostTexture`, not here.
  */
 export function importHostTexture(host: HostTexture): Texture {
-  // The UV matrix is composed lazily by its owner, from repeat, offset and rotation, without a
-  // version: a host animates them and sets `needsUpdate` on the material alone. It is recomposed
-  // at every read, as the host's own renderer does at every draw, and the record ALIASES its
-  // elements, so the placement written since is the one read.
-  const m = host.matrix.elements;
-  let placed = false;
-  if (host.matrixAutoUpdate) {
-    for (let i = 0; i < 6; i++) placement[i] = m[AFFINE[i]];
-    host.updateMatrix();
-    for (let i = 0; i < 6 && !placed; i++) placed = placement[i] !== m[AFFINE[i]];
-  }
   const held = imported.get(host);
-  if (held && held.version === host.version && held.image === host.image) {
-    if (placed) reviseTexture(held);
-    return held;
-  }
+  if (held && held.version === host.version && held.image === host.image) return held;
   const record = held ?? ({} as Editable);
+  const wrapS = importWrapMode(host.wrapS),
+    wrapT = importWrapMode(host.wrapT);
+  if (held && (held.wrapS !== wrapS || held.wrapT !== wrapT)) addressings++;
   record.id = host.uuid;
   record.name = host.name;
   record.image = host.image;
   record.channel = host.channel;
-  record.wrapS = importWrapMode(host.wrapS);
-  record.wrapT = importWrapMode(host.wrapT);
+  record.wrapS = wrapS;
+  record.wrapT = wrapT;
   record.magFilter = filterOf(host.magFilter);
   record.minFilter = filterOf(host.minFilter);
   record.anisotropy = host.anisotropy;
@@ -94,14 +91,31 @@ export function importHostTexture(host: HostTexture): Texture {
   record.premultiplyAlpha = host.premultiplyAlpha;
   record.generateMipmaps = host.generateMipmaps;
   record.colorSpace = host.colorSpace === 'srgb' ? 'srgb' : 'linear';
-  record.transform = m;
+  record.transform = host.matrix.elements;
   record.version = host.version;
-  if (held) reviseTexture(held);
-  else {
+  if (!held) {
     imported.set(host, record);
-    followHostVersion(host, importHostTexture);
+    hosts.set(record, host);
   }
   return record;
+}
+
+/**
+ * Brings a record up to its host texture, once per image, as the host's own renderer reads it at
+ * every draw: its UV matrix recomposed when the host owns it (`matrixAutoUpdate`), its fields
+ * refilled when the host bumped the version or swapped the image — a filter written after
+ * `needsUpdate` included, since nothing is read before the image. Nothing is hooked on the host
+ * object, nothing allocated. A record no host texture made is left as it is. `host` is the
+ * record's own (`hostTextureOf`), passed by a reader that looked it up once. Returns true when
+ * the refill moved the record's addressing (`hostAddressings`).
+ */
+export function followHostTexture(record: Texture, host = hosts.get(record)) {
+  if (!host) return false;
+  if (host.matrixAutoUpdate) host.updateMatrix();
+  if (record.version === host.version && record.image === host.image) return false;
+  const moved = addressings;
+  importHostTexture(host);
+  return moved !== addressings;
 }
 
 const map = (texture: unknown) => (texture ? importHostTexture(texture as HostTexture) : undefined);

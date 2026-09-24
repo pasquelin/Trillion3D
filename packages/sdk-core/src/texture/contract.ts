@@ -60,6 +60,10 @@ export interface Texture {
   readonly transform: readonly number[];
 }
 
+/** Entries of `Texture.transform` (three columns of three) its affine 2 × 3 part is made of: the
+ *  part every reader of the transform applies. */
+export const AFFINE = [0, 1, 3, 4, 6, 7] as const;
+
 /** True when a UV transform (`Texture.transform`) moves the coordinate: the only case it is
  *  applied, on the CPU twins and on both GPU paths. */
 export function uvTransformed(m: readonly number[]) {

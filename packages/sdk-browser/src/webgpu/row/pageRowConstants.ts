@@ -1,9 +1,10 @@
 import { clusterHash } from '../../visibility/buffer.ts';
 import { wrapModes } from '../../visibility/wrapModes.ts';
 import { refreshSurface, type PageSurface } from '../../page/surface.ts';
+import { hostAddressings } from '../../host/surfaceImport.ts';
 
 /** What a material brings to a page row: its read fields, and its wrap word. */
-type MaterialRow = { version: number; mat: PageSurface; wrap: number };
+type MaterialRow = { version: number; addressings: number; mat: PageSurface; wrap: number };
 
 /**
  * What writing a page row used to recompute every time even though it depends only on the compiled
@@ -13,7 +14,8 @@ type MaterialRow = { version: number; mat: PageSurface; wrap: number };
  * Twelve placements of the same scene share their materials and clusters: one memo per surface
  * record and one per cluster id is enough to compute them once and for all, however many pages
  * arrive in the image. A memo is reread when the host bumps the declaration's version, the only
- * mutation the engine honours — the record itself is refilled in place (`../../page/surface.ts`).
+ * mutation the engine honours — the record itself is refilled in place (`../../page/surface.ts`) —,
+ * and its wrap word when a map's addressing moved without it (`hostAddressings`).
  */
 export function createPageRowConstants() {
   const materials = new Map<PageSurface, MaterialRow>();
@@ -23,8 +25,9 @@ export function createPageRowConstants() {
     materialOf(surface: PageSurface) {
       const mat = refreshSurface(surface);
       const held = materials.get(mat);
-      if (held && held.version === mat.version) return held;
-      const row = { version: mat.version, mat, wrap: wrapModes(mat) };
+      const addressings = hostAddressings();
+      if (held && held.version === mat.version && held.addressings === addressings) return held;
+      const row = { version: mat.version, addressings, mat, wrap: wrapModes(mat) };
       materials.set(mat, row);
       return row;
     },

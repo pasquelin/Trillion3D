@@ -103,9 +103,14 @@ export function mapTexel(
   v: number,
 ) {
   const m = map.transform;
-  if (uvTransformed(m)) [u, v] = [m[0] * u + m[3] * v + m[6], m[1] * u + m[4] * v + m[7]];
-  const x = wrapTexel(u, image.width, map.wrapS),
-    y = wrapTexel(v, image.height, map.wrapT);
+  let u2 = u,
+    v2 = v;
+  if (uvTransformed(m)) {
+    u2 = m[0] * u + m[3] * v + m[6];
+    v2 = m[1] * u + m[4] * v + m[7];
+  }
+  const x = wrapTexel(u2, image.width, map.wrapS),
+    y = wrapTexel(v2, image.height, map.wrapT);
   return (y * image.width + x) * 4;
 }
 

@@ -77,10 +77,6 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     rt.services.syncRows();
     run.rowsSyncedFrame = run.frame;
   }
-  // The rows and the transparent plan have reread their surfaces, refilling their maps' records:
-  // a filter or a placement written since reaches its texture's header before this image is
-  // encoded and submitted, and the image draws it (#360, #361); the streamer signals the gate.
-  vis.textures?.followSampling();
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
     const rowWords = PAGE_INFO_STRIDE / 4;
     for (let row = 0; row < rows.packedCount; row++) {
