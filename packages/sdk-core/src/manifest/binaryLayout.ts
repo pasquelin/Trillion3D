@@ -65,6 +65,8 @@ export interface Counts {
   roots: number;
   /** Bundles. */
   bundles: number;
+  /** Bundle dependencies, every bundle's list concatenated. */
+  bundleDependencies: number;
   /** Texture previews. */
   previews: number;
   /** Bytes of the pixel column, every level of every entry concatenated. */
@@ -83,6 +85,7 @@ export function countManifest(manifest: ClusterManifest): Counts {
     outputs: 0,
     roots: 0,
     bundles: 0,
+    bundleDependencies: 0,
     previews: previews.length,
     previewBytes: previews.reduce(
       (bytes, preview) => bytes + previewPixelBytes(preview.width, preview.height),
@@ -103,7 +106,10 @@ export function countManifest(manifest: ClusterManifest): Counts {
       counts.outputs += group.outputs.length;
     }
     counts.roots += primitive.structure?.roots.length ?? 0;
-    counts.bundles += primitive.streams?.pages.length ?? 0;
+    for (const bundle of primitive.streams?.pages ?? []) {
+      counts.bundles++;
+      counts.bundleDependencies += bundle.dependencies.length;
+    }
   }
   return counts;
 }
@@ -136,7 +142,10 @@ export function columnElements(name: ColumnName, counts: Counts) {
       return counts.roots;
     case 'bundleU32':
     case 'bundleSha':
+    case 'bundleDependencyCount':
       return counts.bundles;
+    case 'bundleDependency':
+      return counts.bundleDependencies;
     case 'texturePreviewU32':
     case 'texturePreviewSha':
       return counts.previews;

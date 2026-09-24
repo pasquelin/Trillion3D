@@ -68,3 +68,46 @@ test('the first image is drawn at start even for a host with no frame hook', asy
   );
   assert.equal(frames, 1);
 });
+
+test('a canvas whose box grows after start is resized and scheduled a frame (#492)', (t) => {
+  let observed: (() => void) | undefined;
+  Object.assign(globalThis, {
+    ResizeObserver: class {
+      constructor(callback: () => void) {
+        observed = callback;
+      }
+      observe() {}
+      disconnect() {}
+    },
+  });
+  t.after(() => Reflect.deleteProperty(globalThis, 'ResizeObserver'));
+  const frames: (() => void)[] = [];
+  const view = {
+    requestAnimationFrame: (callback: () => void) => frames.push(callback),
+    cancelAnimationFrame() {},
+    matchMedia: () => ({ addEventListener() {}, removeEventListener() {} }),
+    addEventListener() {},
+    removeEventListener() {},
+    devicePixelRatio: 2,
+  };
+  // The box the lesson's canvas had when its world opened: 488 × 20 px.
+  const canvas = { clientWidth: 488, clientHeight: 20, ownerDocument: { defaultView: view } };
+  const sizes: number[][] = [];
+  startInteractiveExplorer(
+    { render: () => ({}), resize: (w: number, h: number) => sizes.push([w, h]) } as never,
+    {
+      canvas,
+      options: { width: 488, height: 20, pixelRatio: 2 },
+      hostedControls: [],
+      state: { disposed: false },
+      pendingFrame: async () => false,
+    } as never,
+    { ownControls: false, interactive: true } as never,
+    { emit() {}, diagnose() {} },
+  );
+  frames.shift()!();
+  canvas.clientHeight = 300;
+  observed!();
+  assert.deepEqual(sizes, [[488, 300]]);
+  assert.equal(frames.length, 1, 'the grown box schedules a frame');
+});

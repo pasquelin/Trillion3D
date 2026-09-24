@@ -71,8 +71,12 @@ pub(super) fn share_bootstrap_bundles(o: &Options, primitives: &mut [Value]) -> 
     for (member, &(chunk, offset)) in members.iter().zip(slots.iter()) {
         let (primitive, bundle) = *member;
         {
+            // A pinned bundle holds roots and depends on nothing: its empty list stays as it is.
             let entry = &mut primitives[primitive]["streams"]["pages"][bundle];
-            *entry = json!({"url":format!("../../objects/{}.bin",names[chunk]),"sha256":names[chunk],"bytes":payloads[chunk].len(),"count":clusters[chunk]});
+            entry["url"] = json!(format!("../../objects/{}.bin", names[chunk]));
+            entry["sha256"] = json!(names[chunk]);
+            entry["bytes"] = json!(payloads[chunk].len());
+            entry["count"] = json!(clusters[chunk]);
         }
         if offset == 0 {
             continue;
