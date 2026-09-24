@@ -6860,6 +6860,7 @@
       "gravity": "Gravità in m/s², un vettore vivo; imposta una preimpostazione (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vettore.",
       "paused": "Se il tempo è fermo; le scritture raggiungono comunque i corpi.",
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
+      "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
       "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`."
     }
@@ -6991,6 +6992,33 @@
     "summary": "Una forma di collisione, quando quella dedotta dalla geometria non va bene.",
     "description": "Le dimensioni sono nel riferimento proprio dell’oggetto, prima della sua scala."
   },
+  "PhysicsPart": {
+    "summary": "Una parte di una forma composta: una primitiva, posizionata e ruotata nel sistema dell’oggetto."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Una primitiva esatta: le sue dimensioni nel sistema proprio dell’oggetto."
+  },
+  "WaterSpec": {
+    "summary": "Una massa d’acqua in cui galleggiano i corpi, come la riceve `world.physics.water`.",
+    "members": {
+      "waves": "Le onde di Gerstner della superficie; nessuna per acqua ferma.",
+      "level": "Altezza della superficie a riposo, in metri.",
+      "density": "kg/m³; 1000, acqua dolce, come predefinito.",
+      "linearDrag": "Coefficiente di resistenza quadratico: quanto in fretta un corpo si assesta, mai dove; 0.5 come predefinito.",
+      "angularDrag": "Quanto l’acqua smorza la rotazione di un corpo; 0.05 come predefinito.",
+      "current": "Velocità dell’acqua (la corrente di un fiume), in m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Un’onda come la dichiara una scena.",
+    "members": {
+      "direction": "Direzione orizzontale di moto `[x, z]`; normalizzata qui.",
+      "wavelength": "Metri da cresta a cresta.",
+      "amplitude": "Metri dal riposo alla cresta.",
+      "steepness": "Da 0 (un’onda sinusoidale) a 1 (la cresta più aguzza che non si arriccia); normalizzata sulla somma.",
+      "phase": "Fase a `t = 0`, in radianti."
+    }
+  },
   "PhysicsStats": {
     "summary": "Ciò che riporta la fisica del mondo: conteggi dell’ultimo tick ed entrambi gli orologi separati.",
     "members": {
@@ -7013,6 +7041,7 @@
       "gravity": "Gravità in m/s², un vettore vivo; imposta una preimpostazione (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vettore.",
       "paused": "Se il tempo è fermo; le scritture raggiungono comunque i corpi.",
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
+      "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
       "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`."
     }
