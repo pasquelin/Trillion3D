@@ -2,6 +2,7 @@ import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
   CAST_WORDS,
+  CHARACTER_STATE_WORDS,
   EVENT_WORDS,
   HIT_WORDS,
   MODULE_ERROR,
@@ -32,6 +33,7 @@ interface JoltExports {
   jolt_owed_leaves(): number;
   jolt_cast_buffer(count: number): number;
   jolt_cast(count: number): number;
+  jolt_character(): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -81,8 +83,8 @@ export async function openJolt(
  */
 export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget, threads = 1) {
   const jolt = exports as unknown as JoltExports;
-  if (budget.bodies > BODY_INDEX + 1)
-    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX + 1}.`);
+  if (budget.bodies > BODY_INDEX)
+    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`);
   jolt._initialize();
   const { bodies, bodyPairs, contactConstraints } = budget;
   if (jolt.jolt_init(bodies, bodyPairs, contactConstraints, TEMP_BYTES, threads) !== 0)
@@ -135,6 +137,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
       new Uint32Array(memory.buffer, at, queries.length).set(queries);
       return new Uint32Array(memory.buffer, jolt.jolt_cast(count), count * HIT_WORDS).slice();
     },
+    /** The character's state after the last step (`CHARACTER_STATE_WORDS`). */
+    character: () => new Float32Array(memory.buffer, jolt.jolt_character(), CHARACTER_STATE_WORDS),
     /** Leaves a full event buffer held back: the next step sends them first. */
     owedLeaves: () => jolt.jolt_owed_leaves(),
     /** Whether the memory has grown to its budget: a trap then is the budget, not a fault. */

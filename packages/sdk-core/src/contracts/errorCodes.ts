@@ -49,6 +49,7 @@ export const ENGINE_ERROR_CODES: readonly (readonly string[])[] = [
   ['UNSUPPORTED_SCENE_FORMAT', 'SCENE_NOT_SAVABLE'],
   ['PHYSICS_BUDGET', 'PHYSICS_NESTED', 'PHYSICS_FAILED'],
   ['PHYSICS_FORMAT', 'PHYSICS_OFF'],
+  ['NO_VEHICLE'],
 ];
 
 const documented: ReadonlySet<string> = new Set(ENGINE_ERROR_CODES.flat());

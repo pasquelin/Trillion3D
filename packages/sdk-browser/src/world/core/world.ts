@@ -14,6 +14,7 @@ import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
+import { noVehicle } from './worldControlTargets.ts';
 
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
@@ -21,6 +22,7 @@ import { createWorldPhysics } from '../../physics/worldPhysics.ts';
  * @example const world = createWorld('viewer', { controls: 'orbit' });
  * await world.scene.load('/cache/city/manifest.json'); */
 export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
+  if (options.controls === 'vehicle') throw noVehicle();
   const canvas = resolveWorldTarget(target);
   const frames = createWorldFrames();
   const pools: Pools = {};
@@ -84,6 +86,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     () => camera,
     canvas,
     invalidate,
+    physics.character,
   );
   const live = () => {
     if (disposed) throw new Error('World disposed');

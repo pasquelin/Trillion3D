@@ -607,6 +607,17 @@
         ],
         "tryIt": "Thả thêm hộp, đổi trọng lực sang Mặt Trăng và bật chế độ chậm."
       },
+      "touch-and-react": {
+        "title": "Chạm và phản ứng",
+        "description": "Bước vào thế giới của bạn: khi bật vật lý, nhân vật leo, đi nhờ và đẩy những gì nó gặp, và những thứ đó đẩy lại nó.",
+        "steps": [
+          "Tạo thế giới với <code>controls: 'character'</code> và <code>physics: true</code>. Nhân vật giờ là một vật thể vật lý, như các thùng.",
+          "Đánh dấu <code>'static'</code> những gì không bao giờ di chuyển: sàn, cầu thang, tường. Nhân vật leo bậc cao tới đầu gối và dốc tới 45°.",
+          "Đánh dấu một bệ là <code>'kinematic'</code> và di chuyển nó bằng mã của bạn mỗi khung hình: thứ gì đứng trên đó sẽ đi theo.",
+          "Làm các thùng <code>'dynamic'</code> và nhẹ: nhân vật đẩy chúng với lực <code>pushStrength</code> newton, chúng đổ, lăn và đẩy lại."
+        ],
+        "tryIt": "Nhấp vào hình, đi bằng W A S D, nhảy bằng phím cách. Leo cầu thang, đứng trên bệ, đẩy chồng thùng."
+      },
       "your-own-scene": {
         "title": "Cảnh của riêng bạn",
         "description": "Giờ bạn đã biết từng mảnh ghép. Chương này gộp chúng lại thành một cảnh nhỏ mà bạn có thể sao chép và biến thành của riêng mình.",
@@ -1644,7 +1655,6 @@
       "cloth-and-rope": "tích hợp vật lý",
       "soft-bodies": "tích hợp vật lý",
       "hinges-and-joints": "tích hợp vật lý",
-      "walk-with-collisions": "tích hợp vật lý",
       "drive-a-car": "tích hợp vật lý",
       "a-room-in-vr": "phiên WebXR",
       "a-360-photo-in-vr": "phiên WebXR",

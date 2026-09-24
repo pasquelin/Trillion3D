@@ -170,9 +170,9 @@
       // `character` is the engine's runner: a click locks the mouse to look around, the keys
       // W A S D walk by their place on the keyboard (Z Q S D on AZERTY), Shift sprints, Space
       // jumps, Escape frees the mouse. The body gathers speed and brakes, falls, climbs steps,
-      // slides along walls and lands on whatever mesh is given as `colliders`. The page adds
-      // the arms and the legs, the sound and the game.
-      const world = createWorld('view', { controls: 'character' });
+      // slides along walls and lands on the world's static bodies: with physics on, it is the
+      // physics' own character. The page adds the arms and the legs, the sound and the game.
+      const world = createWorld('view', { controls: 'character', physics: true });
       const camera = world.camera;
       [camera.fov, camera.near, camera.far] = [75, 0.05, 300];
       // The camera joins the scene so the arms and the head ride on it, posed in the same frame.
@@ -293,8 +293,8 @@
       const gold = material.meshStandard({ color: '#d4a24c', metalness: 0.9, roughness: 0.25, emissive: '#ff9d2a', emissiveIntensity: 0.6 });
       const idol = put(geometry.torusKnot(0.5, 0.15, 220, 28), gold, [IDOL.x, IDOL.y, IDOL.z]);
       world.scene.add(light.point({ position: [0, IDOL.y, -40.2], color: '#ffc45a', intensity: 30, distance: 14 }));
-      // Everything solid now stands: the body's triangle tree is built from it, once.
-      world.controls.colliders = solid;
+      // Everything solid now stands, and never moves: static bodies of the physics.
+      for (const mesh of solid.children) mesh.physics = 'static';
       // Braziers at the start and the finish: a bowl of coals on a stand, a flame over it, a lamp
       // without shadows that flickers — the lamp by its intensity, the flame by its size.
       const flame = glowing('#ff9a3c', 6), coals = glowing('#ff5a1f', 4);

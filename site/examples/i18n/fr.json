@@ -1941,5 +1941,17 @@
       "awake": "Éveillés",
       "step": "Pas"
     }
+  },
+  "walk-with-collisions": {
+    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses.",
+    "controls": {
+      "pushStrength": "Force de poussée (N)",
+      "platformSpeed": "Vitesse de la plateforme",
+      "stackAgain": "Réempiler"
+    },
+    "readouts": {
+      "awake": "Éveillés",
+      "speed": "Vitesse"
+    }
   }
 }

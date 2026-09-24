@@ -1941,5 +1941,17 @@
       "awake": "動作中",
       "step": "ステップ"
     }
+  },
+  "walk-with-collisions": {
+    "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押そう。",
+    "controls": {
+      "pushStrength": "押す力 (N)",
+      "platformSpeed": "台の速さ",
+      "stackAgain": "積み直す"
+    },
+    "readouts": {
+      "awake": "動作中",
+      "speed": "速さ"
+    }
   }
 }

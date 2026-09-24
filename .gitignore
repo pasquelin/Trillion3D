@@ -12,7 +12,6 @@ benchmark-runs/
 .codex
 .agents
 .grok
-AGENTS.md
 AGENTS.local.md
 AGENTS.override.md
 CLAUDE.md
@@ -27,8 +26,6 @@ graphify-out
 /scripts/graphify-communautes.json
 /scripts/graphify-libelles.mjs
 /scripts/graphify-libelles.test.mjs
-/docs/roles/coder.md
-/docs/roles/reviewer.md
 # Local files end
 
 # Local test assets (see docs/COMPILER.md, "Input formats")
