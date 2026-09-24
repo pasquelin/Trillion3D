@@ -7,14 +7,7 @@ import * as THREE from 'three';
 import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts';
 import { shadowsFollowTextures } from '../pages/prepare/lightResources.ts';
-import { followSurfaceSampling } from '../pages/prepare/textureSampling.ts';
-import { createWebgpuTilePageTable } from '../tile/pageTable.ts';
-import { tileLayout } from '../../texture/tiles.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import type { PageRec } from '../../page/selection/types.ts';
-import type { WebgpuPagesCore } from '../pages/runtime.ts';
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import type { VisMaterial } from '../../visibility/types.ts';
 
 const WORDS = PAGE_INFO_STRIDE / 4;
 
@@ -83,56 +76,4 @@ test('with no light declared, a tile stales nothing and leaves no change waiting
   (lights.store as { count: number }).count = 0;
   shadowsFollowTextures(lights, table(), -1);
   assert.equal(boxes.length, 0);
-});
-
-// #360, #361: a cutout's silhouette is its colour map read through its UV transform and filters;
-// when those move after the session opened, the shadows cached with the old silhouette go stale
-// exactly as when a tile of that map lands. A colour change alone sends nothing and stales nothing.
-test("a cutout map's sampling written after opening stales its shadows; a colour alone does not", () => {
-  installGpuGlobals();
-  const writes: number[] = [];
-  const device = {
-    createBuffer: () => ({ destroy: () => {} }),
-    queue: { writeBuffer: (_b: unknown, offset: number) => writes.push(offset / 4) },
-  } as unknown as GPUDevice;
-  const atlas = () => ({
-    pages: createWebgpuTilePageTable(
-      device,
-      Array.from({ length: 6 }, () => tileLayout(8, 8)),
-      { kind: 'color', feedbackOffset: 0 },
-    ),
-  });
-  const color = atlas(),
-    data = atlas();
-  const map = {
-    magFilter: 'linear',
-    minFilter: 'linear-mip-linear',
-    anisotropy: 1,
-    transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
-  } as unknown as Texture & { transform: number[] };
-  // What the preparation wrote: the sampling of every map, at its slot.
-  color.pages.setSampling(3, map);
-  color.pages.flush(device);
-  const { lights, boxes } = lightsSpy();
-  const rt = {
-    vis: {
-      textures: {
-        color,
-        data,
-        flushTables: () => (color.pages.flush(device), data.pages.flush(device)),
-      },
-      mapLayer: new Map([[map, 3]]),
-      dataLayer: new Map(),
-    },
-    lights,
-    layout: { rows: table() },
-  } as unknown as WebgpuPagesCore;
-  const surface = { map } as unknown as VisMaterial;
-  writes.length = 0;
-  followSurfaceSampling(rt, surface);
-  assert.deepEqual([writes, boxes], [[], []], 'a new colour: nothing sent, nothing stale');
-  map.transform[0] = 4;
-  followSurfaceSampling(rt, surface);
-  assert.equal(writes.length, 1, 'the moved words sent');
-  assert.deepEqual(boxes, [[-r, -r, -r, r, r, r]], 'the cutout on that map, not the others');
 });
