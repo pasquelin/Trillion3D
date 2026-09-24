@@ -1,6 +1,6 @@
-// #55: the cutout stipple. An accumulating camera pixel moves its alpha threshold by a stipple
-// the temporal pass averages back into partial coverage; every other reader — a frame without
-// temporal antialiasing, the shadows, the compute raster — keeps the hard threshold, to the bit.
+// #55: the cutout stipple. An accumulating pixel of either raster moves its alpha threshold by a
+// stipple the temporal pass averages back into partial coverage; every other reader — a frame
+// without temporal antialiasing, the shadows — keeps the hard threshold, to the bit.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MASK_KEEP_WGSL, STIPPLE_WGSL, VIS_UNIFORMS_WGSL } from './pageWgsl.ts';
@@ -24,14 +24,28 @@ test('a null stipple is the hard threshold, read before any footprint', () => {
   );
 });
 
-test('only the camera raster stipples; shadows and the compute raster pass zero', () => {
+test('both rasters stipple; the shadows pass zero', () => {
   assert.equal(VIS_SHADER.split(STIPPLE_WGSL).length - 1, 1);
   assert.equal(VIS_SHADER.split('gx,gy,stippleOffset(in.position.xy))').length - 1, 2);
   assert.doesNotMatch(SHADOW_DEPTH_SHADER, /stippleOffset/);
   assert.match(SHADOW_DEPTH_SHADER, /maskKeep\(pages\[in\.instance\],in\.uv,gx,gy,0\.0\)/);
+});
+
+test('the compute raster stipples at its footprint, and keeps the hard cutout otherwise', () => {
   const small = rasterSource(4, 16);
-  assert.doesNotMatch(small, /stippleOffset/);
-  assert.match(small, /maskKeep\(page,tc,vec2f\(0\.0\),vec2f\(0\.0\),0\.0\)/);
+  assert.equal(small.split(STIPPLE_WGSL).length - 1, 1);
+  // Without a stipple word: null gradients (level 0) and a null offset, the hard test to the bit.
+  assert.match(
+    small,
+    /var gx=vec2f\(0\.0\);var gy=vec2f\(0\.0\);var stipple=0\.0;\n  if\(uni\.stipple!=0u\)\{/,
+  );
+  // With one: the footprint of the covering sub-triangle, the offset at this pixel.
+  assert.match(
+    small,
+    /uvFootprint\(t\.a,select\(t\.b,t\.c,second\),select\(t\.c,t\.d,second\),1\.0\/vec3f\(t\.ca\.w,qb\.w,qc\.w\),t\.ua,nb,nc,tc,inv\);\n   gx=g\[0\];gy=g\[1\];stipple=stippleOffset\(sample\);/,
+  );
+  assert.match(small, /if\(!maskKeep\(page,tc,gx,gy,stipple\)\)\{return;\}/);
+  assert.doesNotMatch(small, /maskKeep\(page,tc,vec2f\(0\.0\)/);
 });
 
 test('the stipple is zero without a rank and walks the jitter cycle otherwise', () => {
