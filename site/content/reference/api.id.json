@@ -3037,7 +3037,10 @@
       "pose": "Sebuah node bergerak.",
       "structure": "Sebuah node mendapat atau kehilangan anak.",
       "content": "Bentuk atau material sebuah node berubah.",
-      "posed": "Banyak node bergerak sekaligus, ditulis langsung ke pohonnya (benda fisika): diberitahukan sekali."
+      "posed": "Banyak node bergerak sekaligus, ditulis langsung ke pohonnya (benda fisika): diberitahukan sekali.",
+      "seat": "Baris tempat node digambar, atau `null`: enam belas float berurutan kolom mulai `row * 16` di `batch.rows.matrices`, dibaca langsung oleh perender. Pemilik yang menempatkan node ribuan sekaligus (fisika) menulis matriks dunianya sendiri di sana, berlaku selama `seatEpoch` tetap, dan menyebut baris yang ditulis lewat `placed`.",
+      "seatEpoch": "Berubah setiap kali baris diambil, dilepas, atau dialokasikan ulang: setiap jawaban `seat` sebelumnya sudah basi.",
+      "placed": "Baris `from` sampai `to` dari `batch` ditulis lewat `seat`: digambar pada frame berikutnya."
     }
   },
   "SceneNode": {
