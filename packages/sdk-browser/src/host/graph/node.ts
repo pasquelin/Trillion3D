@@ -8,14 +8,15 @@
  * number for number — the matrix composed from the pose (`composeMatrix4`), the world matrix
  * resolved down the chain, the copy a node shared by several parents becomes, the aim of a
  * camera — because the engine's image is proven by being the same image. The numbers are the
- * core's (`Matrix4`, `Color`, `lookAtQuaternion`); a renderer that needs its own library's objects
+ * core's (`Vector3`, `Quaternion`, `Euler`, `Matrix4`, `Color`, `lookAtQuaternion`); a renderer that needs its own library's objects
  * receives a copy made at its boundary (the witnesses' `bench/witnesses/three/fromGraph.ts`), never one of these.
  */
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 import { lookAtQuaternion } from '../../../../sdk-core/src/math/transform-tree/lookAt.ts';
-import { GraphAngles, GraphRotation } from './rotation.ts';
-import { GraphVector } from './vector.ts';
-
+import { Euler } from '../../../../sdk-core/src/world/math/euler.ts';
+import { listen } from '../../../../sdk-core/src/world/math/observed.ts';
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import type { GraphNodeKind } from './nodeKind.ts';
 export type { GraphLightKind, GraphNodeKind } from './nodeKind.ts';
 
@@ -37,15 +38,15 @@ export class GraphNode {
   /** The nodes this one holds, in order. */
   readonly children: GraphNode[] = [];
   /** Which way is up for `lookAt`. */
-  readonly up = new GraphVector(0, 1, 0);
+  readonly up = new Vector3(0, 1, 0);
   /** Where the node stands, from its parent. */
-  readonly position = new GraphVector();
+  readonly position = new Vector3();
   /** How the node is turned, as three angles. */
-  readonly rotation = new GraphAngles();
+  readonly rotation = new Euler();
   /** How the node is turned, as a quaternion. */
-  readonly quaternion = new GraphRotation();
+  readonly quaternion = new Quaternion();
   /** How the node is stretched on each axis. */
-  readonly scale = new GraphVector(1, 1, 1);
+  readonly scale = new Vector3(1, 1, 1);
   /** The local matrix: composed from the pose while `matrixAutoUpdate` holds. */
   readonly matrix = new Matrix4();
   /** The world matrix, as last resolved. */
@@ -70,9 +71,10 @@ export class GraphNode {
   userData: Record<string, unknown> = {};
 
   constructor() {
-    // The two faces of the rotation follow each other, each without announcing the other.
-    this.rotation._onChange(() => this.quaternion.setFromAngles(this.rotation, true));
-    this.quaternion._onChange(() => this.rotation.setFromRotation(this.quaternion, true));
+    // As the core's `Object3D`: angles set the quaternion quietly, a quaternion write re-derives them.
+    const turned = () => this.rotation._follow(this.quaternion.setFromEuler(this.rotation, true));
+    this.rotation._follow(this.quaternion);
+    listen(this.rotation, turned);
   }
   /** A viewer — a camera, a light — looks down its `-z`, an object presents its `+z`. */
   protected get looksDownNegativeZ() {
@@ -178,7 +180,7 @@ export class GraphNode {
     this.name = source.name;
     this.up.copy(source.up);
     this.position.copy(source.position);
-    this.rotation._order = source.rotation._order;
+    this.rotation.order = source.rotation.order;
     this.quaternion.copy(source.quaternion);
     this.scale.copy(source.scale);
     this.matrix.copy(source.matrix);

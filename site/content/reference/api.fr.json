@@ -7250,17 +7250,6 @@
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
   },
-  "GraphAngles": {
-    "summary": "La même orientation en trois angles et leur ordre, qui annonce ses écritures de la même façon.",
-    "members": {
-      "x": "Le premier angle, en radians.",
-      "set": "Écrit les trois angles, et l’ordre s’il est donné ; annoncé une fois.",
-      "setFromRotation": "Les angles de `q` dans cet ordre (l’`Euler` du cœur) ; annoncé sauf si `quiet`.",
-      "y": "Le deuxième angle, en radians.",
-      "z": "Le troisième angle, en radians.",
-      "order": "L’ordre dans lequel tournent les trois angles, `'XYZ'` sauf réglage."
-    }
-  },
   "GraphArray": {
     "summary": "Les tableaux typés que tient un attribut."
   },
@@ -7303,40 +7292,6 @@
   },
   "GraphNodeKind": {
     "summary": "Ce qu’est un nœud du graphe : un nœud nu, la racine, un groupe, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
-  },
-  "GraphRotation": {
-    "summary": "Une orientation `(x, y, z, w)` dont les écritures appellent `_onChangeCallback`.",
-    "members": {
-      "x": "Le premier nombre.",
-      "set": "Écrit les quatre nombres, annoncé une fois.",
-      "copy": "Prend les nombres d’une autre rotation.",
-      "fromArray": "Lit quatre nombres dans une liste.",
-      "setFromAngles": "La rotation de `angles`, dans leur ordre (`localTurnQuaternion`) ; annoncé sauf si `quiet`.",
-      "setFromRotationMatrix": "La rotation du 3×3 supérieur d’une matrice rangée par colonnes dont les colonnes sont unitaires.",
-      "premultiply": "Devient `q` suivi de cette rotation, `q · this`.",
-      "invert": "Devient la rotation inverse.",
-      "y": "Le deuxième nombre.",
-      "z": "Le troisième nombre.",
-      "w": "Le quatrième nombre."
-    }
-  },
-  "GraphVector": {
-    "summary": "Trois nombres d’une pose ou d’un point : des champs de données simples, et les opérations qu’utilise un contrôleur.",
-    "members": {
-      "set": "Écrit les trois nombres.",
-      "copy": "Prend les nombres d’un autre point.",
-      "clone": "Une copie.",
-      "add": "Ajoute un autre vecteur.",
-      "sub": "Retranche un autre vecteur.",
-      "multiplyScalar": "Multiplie les trois nombres.",
-      "length": "Sa longueur.",
-      "setLength": "Garde la direction, fixe la longueur.",
-      "distanceTo": "Distance à un point.",
-      "fromArray": "Lit trois nombres dans une liste.",
-      "x": "De gauche à droite.",
-      "y": "De bas en haut.",
-      "z": "D’arrière en avant."
-    }
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",
