@@ -108,7 +108,7 @@ function paint(into: THREE.Material, surface: GraphSurface) {
 }
 
 /** The library's surface of an engine surface, kept in step with its version. */
-export function threeMaterial(surface: GraphSurface | THREE.Material): THREE.Material {
+function threeMaterial(surface: GraphSurface | THREE.Material): THREE.Material {
   if (surface instanceof THREE.Material) return surface;
   let held = surfaces.get(surface);
   if (!held) {

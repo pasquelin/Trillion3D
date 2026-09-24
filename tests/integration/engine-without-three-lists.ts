@@ -26,13 +26,11 @@ export const PUBLIC_FAMILIES =
 //     would eliminate the comparison.
 //  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
 //     create, read, and set them. These files do it once, returning flat buffers or owned structures.
-//     THE HOST-RENDERED IMAGE IS ONE OF THEM, and it is not a witness's alone: the autonomous
-//     WebGL2 path is what `chooseBackends` picks on a machine that grants no WebGPU device, and
-//     its pages are drawn by the host renderer, lit by host lights. Its three files were filed
-//     under family 1 until lot 3 of #78 — "autonomous witness", which it never was. They name no
-//     library now; the objects they draw with are built by `packages/sdk-browser/src/host/pageObjects.ts`, and the renderer,
-//     the lights and the bounds they share with the witnesses are declared here as what they are:
-//     the boundary of an image drawn by the host, on the shipping path as on the witnesses.
+//     The autonomous WebGL2 path — what `chooseBackends` picks on a machine that grants no WebGPU
+//     device — is no longer one of them: since #275 its pages, copies and lights are objects of the
+//     engine's own graph (`packages/sdk-browser/src/host/pageObjects.ts`, `packages/sdk-browser/src/host/graph/`),
+//     drawn by the engine's program (`packages/sdk-browser/src/webgl/cluster/sceneDraw.ts`), and
+//     bundling `packages/sdk-browser/src/index.ts` pulls no module of the library.
 //  3. HOST RESOURCES — the family is empty. Materials, textures, geometries and the constants
 //     they declare are read through the shapes of `packages/sdk-browser/src/host/resources.ts` and `packages/sdk-browser/src/host/shadedMaterial.ts`
 //     and the named constants of `packages/sdk-browser/src/host/surfaceConstants.ts`: since this lot the import, the
@@ -52,8 +50,6 @@ export const PUBLIC_FAMILIES =
 // `tests/integration/engine-without-three-math.test.ts`.
 export const AUTORISES: Record<string, string> = {
   // 1. Witness engines.
-  'cluster/blendCopyMesh':
-    'witness and WebGL2 page path: its transparent copy is a library mesh, handed to the reference renderer',
   'cluster/batches.fixture': 'batch-witness mount',
   'backend/exact/attachment': 'exact witness: it attaches its pages to the host graph',
   'backend/exact/backend': 'exact witness: engine written with the host library',
@@ -61,23 +57,13 @@ export const AUTORISES: Record<string, string> = {
   'backend/referenceBackend': 'reference witness: the host engine, as-is',
   'host/three/lod': 'witness: the host level-of-detail selection, `LOD.update` included',
   'host/three/fromGraph':
-    'witness and WebGL2 page path: the engine graph’s resources copied into the library the reference renderer draws',
+    'witness: the engine graph’s resources copied into the library the reference renderer draws',
   'host/three/fromGraphNodes':
-    'witness and WebGL2 page path: the engine graph’s nodes, lights and camera copied into that library',
+    'witness: the engine graph’s nodes, lights and camera copied into that library',
   'host/three/displayObjects':
-    'witness and WebGL2 page path: the colours, lights and nodes hung on the display graph the reference renderer draws',
-
-  // 2. Host boundaries: scene, camera, renderer, lights, poses.
-  'host/pageObjects':
-    'boundary: the scene, meshes, geometries and surfaces the WebGL2 page path is drawn with',
-  'backend/exact/contractLights':
-    'boundary: the contract lights of an image the host renderer draws, mapped to host lights',
-  'backend/exact/lightWrite':
-    'boundary: one contract light built and written as its host light, split from the file above',
-  'backend/exact/unlitAlbedo':
-    'boundary: the unlit view of that image zeros the host material factors for the frame',
+    'witness: the background, lights and nodes hung on the display graph the reference renderer draws',
   'host/three/sceneAdapter':
-    'boundary: the host renderer the witnesses and the WebGL2 page path share, and the materials and geometry copies their diagnostic views hang on a host mesh',
+    'witness: the host renderer the witnesses share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
   // 2 bis. Test-scene mounts that walk the host graph.
   'page/selection/blend.fixture': 'test-scene mount: it sets the camera and materials',

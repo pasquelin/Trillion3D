@@ -89,7 +89,41 @@ export function bindClusterMaterial(
   uniforms.i1(25, 'transmissive', mat.transmission > 0 ? 1 : 0);
   uniforms.f4(26, 'volume', mat.transmission, mat.ior, mat.thickness, mat.attenuationDistance);
   uniforms.f3(30, 'attenuationColor', mat.attenuationColor);
+  uniforms.i1(33, 'flatShaded', (material as { flatShading?: boolean }).flatShading ? 1 : 0);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
   state.apply(material, doubleSided, backSide, polygonOffsetUnits);
+}
+
+/**
+ * The material of the last submission, its pass and its layer: a mesh wearing the same one draws
+ * on the uniforms, maps and raster state already set. `forget` at every frame and every change of
+ * destination — a surface may be rewritten between frames without a version.
+ */
+export class ClusterMaterialPass {
+  private binding: Binding;
+  private material: Material | undefined;
+  private toneMapped = false;
+  private side: Side | undefined;
+  private offset: number | undefined;
+  constructor(binding: Binding) {
+    this.binding = binding;
+  }
+  bind(material: Material, toneMapped: boolean, side?: Side, offset?: number) {
+    if (
+      material === this.material &&
+      toneMapped === this.toneMapped &&
+      side === this.side &&
+      offset === this.offset
+    )
+      return;
+    bindClusterMaterial(this.binding, material, toneMapped, side, offset);
+    this.material = material;
+    this.toneMapped = toneMapped;
+    this.side = side;
+    this.offset = offset;
+  }
+  forget() {
+    this.material = undefined;
+  }
 }

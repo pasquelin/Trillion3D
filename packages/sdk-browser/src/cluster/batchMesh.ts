@@ -20,10 +20,17 @@ export type ClusterGeometry = { index: IndexBuffer; attributes: HostAttributes }
 /** A host mesh the owner draws whole — a page of a diagnostic mode, a scene copy — read by
  *  shape: its geometry, its material and the placement the engine wrote for it. */
 export type WholeMesh = {
-  geometry: { index: IndexBuffer | null; attributes: HostAttributes };
+  geometry: { index: IndexBuffer | null; attributes: HostAttributes } & Partial<Released>;
   material: HostMaterials;
   matrix: { elements: ArrayLike<number> };
-};
+  /** Set on a mesh drawn at `count` placements, one matrix each in `instanceMatrix`. */
+  readonly isInstancedMesh?: boolean;
+  readonly instanceMatrix?: GpuBuffer;
+  readonly count?: number;
+} & Partial<Released>;
+/** What a resource of the engine's own graph calls when it is given back (`../host/graph/resource.ts`):
+ *  a renderer's copy of it frees itself there. */
+type Released = { readonly released: Set<() => void> };
 
 /** The whole-mesh reading of a host mesh the engine placed itself: the same object, seen through
  *  the fields a diagnostic submission draws. It stays inside the engine's own shapes — the
@@ -56,9 +63,16 @@ export function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
       draw._multiDrawCounts[range],
     ];
 }
+/** Triangles one pass of a batch record submits: the sum of its visible ranges. */
+export function recordTriangles(record: ClusterDrawMesh) {
+  let indices = 0;
+  for (let i = 0; i < record._multiDrawCount; i++) indices += record._multiDrawCounts[i];
+  return indices / 3;
+}
 /** Triangles a whole page mesh submits, indexed or not. */
 export const wholeMeshTriangles = (mesh: WholeMesh) =>
-  (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
+  ((mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3) *
+  (mesh.isInstancedMesh ? mesh.count! : 1);
 
 const BACK_THEN_FRONT: readonly Side[] = ['back', 'front'];
 const DECLARED_SIDE: readonly undefined[] = [undefined];

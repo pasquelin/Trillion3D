@@ -2,16 +2,23 @@ import { TRANSMISSION_GLSL } from './transmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
-import { PI } from '../../lighting/shaderConstants.ts';
+import { INVERSE_PI, PI } from '../../lighting/shaderConstants.ts';
 
+// An instanced mesh places each copy by its own matrix before the mesh's: the position first,
+// then the normal, scaled back by the matrix's axes before it is turned — the reference's order.
+// A mesh drawn once keeps its own expression, whose constant w the compiler folds as the
+// reference's does: sharing one with the instanced branch moves its last bit.
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
-in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;
-uniform mat4 modelViewMatrix,projectionMatrix;uniform mat3 normalMatrix;
+in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;in mat4 instanceMatrix;
+uniform mat4 modelViewMatrix,projectionMatrix;uniform mat3 normalMatrix;uniform bool instanced;
 out vec3 viewPosition;out vec3 viewNormal;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
-void main(){vec4 view=modelViewMatrix*vec4(position,1.0);viewPosition=view.xyz;
-viewNormal=normalize(normalMatrix*normal);
-texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*(modelViewMatrix*vec4(position,1.0));}`;
+void main(){vec4 view;vec3 objectNormal=normal;
+if(instanced){view=modelViewMatrix*(instanceMatrix*vec4(position,1.0));mat3 im=mat3(instanceMatrix);
+objectNormal/=vec3(dot(im[0],im[0]),dot(im[1],im[1]),dot(im[2],im[2]));objectNormal=im*objectNormal;}
+else view=modelViewMatrix*vec4(position,1.0);viewPosition=view.xyz;
+viewNormal=normalize(normalMatrix*objectNormal);
+texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;}`;
 
 // The view vector reads the camera as one homogeneous point (`EngineCamera.viewPoint`), in view
 // space: the origin under a perspective projection, +z under an orthographic one — its weight p
@@ -19,11 +26,13 @@ texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*(model
 // `cotangentFrame`: the tangent frame a page does not store, from the screen derivatives of
 // position and texture coordinate — the WGSL routine of `../../cluster/decodeWgsl.ts`, operation for
 // operation, so the three lighting passes bend a normal map in one frame.
+// A surface declared flat (`flatShaded`) takes the face's normal from the same derivatives of
+// position, as the reference does, already facing the eye: it is never turned for a back face.
 export const CLUSTER_FRAGMENT = `#version 300 es
-precision highp float;const float PI=${PI};const int MAX_LIGHTS=64;
+precision highp float;const float PI=${PI},INVERSE_PI=${INVERSE_PI};const int MAX_LIGHTS=64;
 in vec3 viewPosition;in vec3 viewNormal;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
-uniform vec3 emissiveFactor;uniform bool lit,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask;
+uniform vec3 emissiveFactor;uniform bool lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
@@ -47,21 +56,24 @@ ${OUTPUT_TRANSFER_GLSL}
 ${RECT_LIGHT_GLSL}
 ${PROBE_IRRADIANCE_GLSL}
 // The declared lights on one surface: the engine's only lighting formula, ambient and probe included.
-vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 rgb=base*(1.0-metal)/PI*probeIrradiance(N)*ao;for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
+// The ambient irradiance is summed before the probe's and weighted once, occlusion last, in the
+// reference's order of operations: an unlit view then writes its albedo to the last bit.
+vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 rgb=vec3(0.0),irradiance=vec3(0.0);for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
 vec4 positionRange=lightData[i*4],directionKind=lightData[i*4+1],colorIntensity=lightData[i*4+2],cone=lightData[i*4+3];
-int kind=int(directionKind.w);if(kind==3){rgb+=base*(1.0-metal)/PI*colorIntensity.rgb*colorIntensity.w*ao;continue;}
+int kind=int(directionKind.w);if(kind==3){irradiance+=colorIntensity.rgb*colorIntensity.w;continue;}
 if(kind==${WEBGL_RECT_KIND}){rgb+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough);continue;}
 vec3 L;float falloff=1.0;if(kind==0)L=normalize(-directionKind.xyz);else{vec3 delta=positionRange.xyz-viewPosition;float d=length(delta);L=delta/max(d,1e-6);falloff=attenuation(d,positionRange.w);
 if(kind==2){float c=dot(L,normalize(-directionKind.xyz));falloff*=spotFactor(c,cone.x,cone.y);}}
-rgb+=brdf(N,V,L,base,metal,rough)*colorIntensity.rgb*colorIntensity.w*falloff;}return rgb;}
+rgb+=brdf(N,V,L,base,metal,rough)*colorIntensity.rgb*colorIntensity.w*falloff;}
+irradiance+=probeIrradiance(N);return rgb+irradiance*(INVERSE_PI*(base*(1.0-metal)))*ao;}
 ${TRANSMISSION_GLSL}
 void main(){vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0),rough=clamp(roughFactor*roughSample,0.0525,1.0);
-vec3 N=normalize(viewNormal);if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
-CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));N=normalize(frame.T*n.x+frame.B*n.y+N*n.z);}if(!gl_FrontFacing)N=-N;
+vec3 N=flatShaded?normalize(cross(dFdx(viewPosition),dFdy(viewPosition))):normalize(viewNormal);if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
+CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));N=normalize(frame.T*n.x+frame.B*n.y+N*n.z);}if(!gl_FrontFacing&&!flatShaded)N=-N;
 rough=filteredRoughness(N,rough);
-float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao+=aoStrength*(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0);
+float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}

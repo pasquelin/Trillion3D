@@ -12,7 +12,7 @@ import { grownCapacity } from './rows.ts';
 type Group = { mesh: HostMesh | null; capacity: number; count: number; first: PageRec };
 
 /**
- * The pages the WebGL2 path draws at the rows of an instance buffer: one instanced host mesh per
+ * The pages the WebGL2 path draws at the rows of an instance buffer: one instanced mesh per
  * page geometry and surface, whatever number of placements show it, its matrices the rows'. A
  * frame counts what each mesh shows, remakes a mesh too small for it at twice its size at least
  * — its size follows what frames show, never a number picked here —, then writes one matrix per
