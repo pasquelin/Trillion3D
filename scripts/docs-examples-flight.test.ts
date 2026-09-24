@@ -101,6 +101,25 @@ test('the jet never reads the ground under a roof it is over, even when the answ
   }
 });
 
+test('every solid drawn in the valley is a static ground body the jet cannot fly through', async () => {
+  const html = await readFile(
+    new URL('../site/examples/fly-over-a-model-town.html', import.meta.url),
+    'utf8',
+  );
+  const valley = html.slice(html.indexOf('// The terrain sampled'), html.indexOf('// THE SKY'));
+  const floor = /const floor = \[([^\]]*)\]/.exec(valley)?.[1];
+  assert.ok(floor, 'floor');
+  const bodies = new Set(floor.split(',').map((name) => name.trim().replace(/^\.\.\./, '')));
+  assert.ok(bodies.has('roofs'), 'the roofs stand over the town walls');
+  for (const line of valley.split('\n').filter((text) => text.includes('place('))) {
+    const named = /^\s*(?:const (\w+) = |(\w+)\.push\()/.exec(line);
+    const body = named && bodies.has(named[1] ?? named[2]);
+    // Flat paint on the runway, and town walls, each under a wider roof.
+    const covered = /, (?:paint|walls\[[^\]]*\]), \[/.test(line);
+    assert.ok(body || covered, `not a ground body: ${line.trim()}`);
+  }
+});
+
 test("the chase camera's blend is the normalised blend of the two turns it was before the engine's quaternions", async () => {
   const blendTurn =
     await pageFunction<(a: Quaternion, b: Quaternion, t: number) => Quaternion>('blendTurn');
