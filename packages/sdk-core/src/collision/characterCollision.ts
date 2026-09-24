@@ -10,9 +10,9 @@ import type { TriangleTree } from './triangleTree.ts';
  * where the floor under its feet is. Everything else — speed, gravity, steps, slopes, jumps —
  * is the body's own.
  *
- * A physics backend implements this interface to put a character in its world: it answers
- * the overlap from its own shapes and broad phase, and the body walks on them unchanged. The
- * default implementation is the static triangle tree of `triangleCollision`.
+ * The static triangle tree of `triangleCollision` implements it, and so may any world that
+ * answers the two questions. A physics backend does not: it replaces the whole body through
+ * `CharacterBodyFactory`, and its character meets the simulation's own bodies.
  */
 export interface CharacterCollision {
   /**

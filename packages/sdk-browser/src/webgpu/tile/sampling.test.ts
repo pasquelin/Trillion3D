@@ -95,8 +95,8 @@ test('a filter without mip pins level 0 on a page texture, never on a compiled o
   );
 });
 
-// #360, #361: as the Three witness grants it (`WebGLTextures.setTextureParameters`), and the
-// WebGL2 binder with it: a linear magnification over a chain mixed across levels, or nothing.
+// #360, #361: the rule both GPU paths share (`grantedAnisotropy`): a linear magnification over a
+// chain mixed across levels, or nothing.
 test('anisotropy is clamped to the ceiling, and granted only to a linear read mixed across levels', () => {
   const granted = (word: number) => ((word >> SAMPLE_ANISOTROPY_SHIFT) & 15) + 1;
   assert.equal(granted(filterOf({ anisotropy: 8 })), 8);
@@ -109,7 +109,7 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
 });
 
 // #360, #361: the shadow cutout reads one tap at the isotropic level; the camera cutout reads the
-// alpha of the colour's own read, the taps its footprint's elongation asks, as the witness does.
+// alpha of the colour's own read, the taps its footprint's elongation asks.
 test('the shadow cutout takes one tap, the camera cutout the colour read and its taps', () => {
   const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true),
     shadow = maskAlphaWgsl(true);
@@ -122,10 +122,37 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
     'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample(slot,uv,ddx,ddy,sampled).w;}',
   );
   // Face-on, up to rounding, the footprint is not elongated: one tap at the isotropic level.
-  assert.match(
-    SAMPLING_WGSL,
-    /if\(ratio>1\.01\)\{\s*raw-=log2\(ratio\);\s*taps=min\(u32\(ceil\(ratio-0\.01\)\),8u\)/,
-  );
+  assert.match(SAMPLING_WGSL, /if\(ratio>1\.01\)\{\s*raw-=log2\(ratio\);\s*taps=/);
+});
+
+/** The shader's own ratio and taps lines, run on the CPU: WGSL's calls read as `Math`'s, `u32` as
+ *  a truncation, the `u` of an unsigned literal dropped. */
+const tapsOf = (lx: number, ly: number, granted: number) => {
+  const line = (name: string) => {
+    const found = SAMPLING_WGSL.match(new RegExp(`${name}=([^;]+);`));
+    assert.ok(found, name);
+    return found[1]
+      .replace(/\b(min|max|sqrt|ceil)\(/g, 'Math.$1(')
+      .replace(/\bu32\(/g, 'Math.trunc(')
+      .replace(/\bf32\(/g, '(')
+      .replace(/(\d)u\b/g, '$1');
+  };
+  return new Function(
+    'lx',
+    'ly',
+    'granted',
+    `const ratio=${line('let ratio')};return ${line(';\\s*taps')};`,
+  )(lx, ly, granted) as number;
+};
+
+// #443: a footprint stretched up to the grant is read with as many taps as it is stretched: 16
+// over 16 texels, never a cap below the grant; beyond the grant, the grant.
+test('an anisotropic footprint takes as many taps as its ratio, up to the grant', () => {
+  assert.equal(tapsOf(16 * 16, 1, MAX_ANISOTROPY), 16);
+  assert.equal(tapsOf(1, 12 * 12, MAX_ANISOTROPY), 12);
+  assert.equal(tapsOf(64 * 64, 1, MAX_ANISOTROPY), MAX_ANISOTROPY);
+  assert.equal(tapsOf(16 * 16, 1, 4), 4);
+  assert.equal(tapsOf(2.5 * 2.5, 1, MAX_ANISOTROPY), 3);
 });
 
 test('the affine part of the transform is carried, and flagged when it is not the identity', () => {
