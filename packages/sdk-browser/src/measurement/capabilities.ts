@@ -30,7 +30,7 @@ export async function detectCapabilities(
       tier: 'baseline' as const,
       renderer: gl ? ('webgl2' as const) : null,
       extensions,
-      reason: gl ? 'Standard Three.js WebGL2 available' : 'WebGL2 unavailable',
+      reason: gl ? 'Engine WebGL2 path available' : 'WebGL2 unavailable',
       adapter: null,
     };
     if (!environment.createWebglCanvas) cachedWebgl = result;
