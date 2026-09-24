@@ -114,3 +114,10 @@ test('the Jolt character pushes a crate lighter than its strength', async () => 
   const x = xs.get(1) ?? 1.5;
   assert.ok(x > 2.5, `the crate was pushed to ${x}`);
 });
+
+test('a still character in a world at rest asks for no step: nothing is awake', async () => {
+  const scene = await world([]);
+  live(scene, 1, STILL);
+  assert.equal(scene.jolt.active(), 0, 'its inner capsule does not count as awake');
+  assert.equal(scene.driver.moving(), false);
+});

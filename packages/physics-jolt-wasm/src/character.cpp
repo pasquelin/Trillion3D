@@ -26,6 +26,12 @@ bool due = false, grounded = false;
 /** `present, feet x y z, ground state, ground velocity x y z` (layout.ts). */
 float state[CHARACTER_STATE_WORDS] = {};
 
+/// The inner capsule is placed, never simulated: kept asleep, it never counts as a body awake,
+/// so a world whose bodies all rest still stops stepping with a character in it.
+void rest() {
+  trillion::world().system->GetBodyInterfaceNoLock().DeactivateBody(character->GetInnerBodyID());
+}
+
 void create(const uint32_t *w) {
   character = nullptr;
   float radius = f32(w + 1), height = f32(w + 2);
@@ -52,6 +58,7 @@ void create(const uint32_t *w) {
   uint32_t engine = uint32_t(world.slots.size() - 1);
   character = new CharacterVirtual(settings, RVec3(vec3(w + 7)), Quat::sIdentity(), engine, world.system);
   due = grounded = false;
+  rest();
 }
 
 }  // namespace
@@ -79,6 +86,7 @@ void moveCharacter(float dt) {
   character->ExtendedUpdate(dt, world.system->GetGravity(), settings,
                             world.system->GetDefaultBroadPhaseLayerFilter(MOVING),
                             world.system->GetDefaultLayerFilter(MOVING), {}, {}, *world.temp);
+  rest();
 }
 
 void writeCharacter() {
