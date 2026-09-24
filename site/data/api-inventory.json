@@ -683,7 +683,8 @@
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
         "packages/sdk-browser/src/camera/depthConventionCamera.test.ts",
-        "packages/sdk-browser/src/hiz/corners.ts"
+        "packages/sdk-browser/src/hiz/corners.ts",
+        "packages/sdk-browser/src/hiz/pageCorners.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/box\".boxCornersInto"
