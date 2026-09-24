@@ -1,4 +1,5 @@
 import { useWords } from '../i18n.ts';
+import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
 import { formatValue } from '../../reports/metrics.ts';
 import type { CutAnalysis, CutRow } from '../../reports/types.ts';
@@ -17,8 +18,7 @@ export function Cut({ analysis, locale }: CutProps) {
     ['DAG', analysis.byLevel],
   ];
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-3">
-      <h3 className="text-lg font-semibold">{t('report.cutTitle')}</h3>
+    <Section level={3} title={t('report.cutTitle')}>
       <p>
         {formatValue(analysis.total, locale)} {t('report.cutUnknown')} {analysis.unknown}
       </p>
@@ -49,6 +49,6 @@ export function Cut({ analysis, locale }: CutProps) {
           </tbody>
         </Table>
       ))}
-    </section>
+    </Section>
   );
 }

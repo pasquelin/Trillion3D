@@ -86,3 +86,13 @@ test('a written note completes a generated entry, never stands alone', () => {
   const generatedIds = new Set((generated as PortalEntry[]).map(({ id }) => id));
   for (const id of NOTES.keys()) assert.ok(generatedIds.has(id), `note ${id} completes nothing`);
 });
+
+test('a destructured parameter is named in the signatures, never by its placeholder', () => {
+  const placeholders = (generated as PortalEntry[]).filter(({ signature }) =>
+    /\b__\d/.test(signature ?? ''),
+  );
+  assert.deepEqual(
+    placeholders.map(({ id }) => id),
+    [],
+  );
+});
