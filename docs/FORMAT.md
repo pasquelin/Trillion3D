@@ -229,8 +229,10 @@ for every placement its camera's reach can hold at once (`residentRows`): two ce
 are within `2 × 1.5 × reach` of each other, so the largest sum of `meshes` over the cells that close
 to any one cell bounds each mesh's rows — set by the reach and the cells' size, not by the world.
 Nothing grows under a drawing engine: a camera whose reach later outgrows the rows asks the
-session's owner, once, to open it again sized for that reach (the world does; a bare explorer
-keeps the cells past its rows waiting). A partitioned scene is not
+session's owner, once, to open it again sized for that reach (the world does). A session no owner
+can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
+placement never ask. A session drawing on demand draws again, camera still, until the cells it
+asked for within reach are read and placed. A partitioned scene is not
 replicated (`UNSUPPORTED_SCENE_UPDATE`).
 
 The merged, simplified proxy of a far cell (HLOD) is not part of this format: #23 carries it.
