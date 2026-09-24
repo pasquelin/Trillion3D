@@ -847,7 +847,8 @@ as `world.budget.split`:
 
 - GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
   in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
-  each pool its own default, so a page that sets nothing sees no change.
+  each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
+  a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
 - CPU: the decoded-page cache takes the whole total, taken by the next scene load.
 
 ```js
