@@ -6868,6 +6868,7 @@
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
+      "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
       "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",
@@ -7018,6 +7019,19 @@
       "current": "Vận tốc của nước (dòng chảy của một con sông), m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Mặt nước như trang đọc để vẽ (`world.physics.waterSurface`): mô hình sóng mà lực nổi đọc trong worker vật lý, cùng những con số, tại thời điểm của mô phỏng.",
+    "members": {
+      "level": "Độ cao mặt nước khi yên, tính bằng mét.",
+      "crest": "Điểm cao nhất một đỉnh sóng đạt tới trên `level`, tính bằng mét.",
+      "time": "Số giây mô phỏng kể từ khi đặt nước: đồng hồ của sóng.",
+      "setTime": "Đặt sóng tại `t` giây mô phỏng.",
+      "height": "Độ cao mặt nước phía trên điểm thế giới `(x, z)`, tính bằng mét.",
+      "point": "Điểm thế giới `[x, y, z]` mà điểm nghỉ `(x, level, z)` được mang tới, vào `out`: một lưới dời từng điểm chính là mặt nước, đỉnh sóng sắc như sóng.",
+      "wavesNow": "Các sóng đã khai báo, mỗi pha được mang tới lúc này: đặt lại vào `world.physics.water` (sóng của nó bắt đầu lại từ 0 s), mặt nước tiếp tục từ chỗ đang ở thay vì nhảy.",
+      "normal": "Pháp tuyến đơn vị `[x, y, z]` của mặt nước tại điểm nghỉ `(x, z)`, vào `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Một con sóng như một cảnh khai báo.",
     "members": {
@@ -7051,6 +7065,7 @@
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
+      "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
       "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",
