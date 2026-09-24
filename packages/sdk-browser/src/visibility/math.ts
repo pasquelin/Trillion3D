@@ -95,7 +95,7 @@ export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
  * table. The coordinate goes through the map's UV transform first — its affine part, as both GPU
  * paths apply it —, untouched when it is the identity (`transformed`, which a caller reading many
  * texels of one map computes once). No footprint here: the texel the coordinate falls in, the
- * `nearest` rule.
+ * `nearest` rule. A `flipY` map reads its rows from the last, as both GPU paths upload them.
  */
 export function mapTexel(
   image: { width: number; height: number },
@@ -112,7 +112,8 @@ export function mapTexel(
     v2 = m[1] * u + m[4] * v + m[7];
   }
   const x = wrapTexel(u2, image.width, map.wrapS),
-    y = wrapTexel(v2, image.height, map.wrapT);
+    row = wrapTexel(v2, image.height, map.wrapT),
+    y = map.flipY ? image.height - 1 - row : row;
   return (y * image.width + x) * 4;
 }
 
