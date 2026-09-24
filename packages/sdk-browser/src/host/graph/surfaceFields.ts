@@ -11,6 +11,9 @@ import {
 } from '../surfaceConstants.ts';
 import { hostSide } from '../../scene/materialSide.ts';
 
+/** A colour of three linear components, as a scene or a world record declares it. */
+export const linearColour = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2]);
+
 /** The raster state every family carries, at the reference's values. */
 export const raster = () => ({
   visible: true,

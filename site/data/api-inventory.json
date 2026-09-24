@@ -644,6 +644,10 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/geometryBounds.ts",
+        "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/geometry.ts",
+        "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -1374,9 +1378,14 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/light.ts",
+        "packages/sdk-browser/src/host/graph/surface.ts",
+        "packages/sdk-browser/src/host/graph/surfaceFields.ts",
+        "packages/sdk-browser/src/host/prepared/nodes.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/world.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
@@ -2639,7 +2648,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/host/graph/rotation.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/euler\".Euler"
     },
@@ -3749,7 +3758,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-vectors.perf.ts",
-        "packages/sdk-browser/src/host/scene/objects.ts",
+        "packages/sdk-browser/src/host/three/displayObjects.ts",
         "packages/sdk-browser/src/webgpu/pages/helpers.ts"
       ],
       "disposition": "retained",
@@ -4477,7 +4486,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/host/graph/texture.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/matrix4\".Matrix3"
     },
@@ -4488,7 +4497,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/camera.ts",
+        "packages/sdk-browser/src/host/graph/node.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/matrix4\".Matrix4"
     },
@@ -7294,7 +7306,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/geometryBounds.ts",
+        "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/geometry.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/volumes\".Sphere"
     },
@@ -7318,7 +7334,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
-        "packages/sdk-browser/src/host/three/bounds.ts",
+        "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/world/camera/camera.ts",
         "packages/sdk-browser/src/world/page/runtimeCut.ts"
       ],
@@ -8516,7 +8532,12 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/surface.ts",
+        "packages/sdk-browser/src/host/graph/surfaceFields.ts",
+        "packages/sdk-browser/src/host/graph/texture.ts",
+        "packages/sdk-browser/src/host/prepared/materials.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector2\".Vector2"
     },
@@ -8528,6 +8549,10 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/geometryBounds.ts",
+        "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/geometry.ts",
+        "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",

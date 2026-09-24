@@ -67,10 +67,6 @@ export class GraphRotation {
   fromArray(array: ArrayLike<number>, offset = 0) {
     return this.set(array[offset], array[offset + 1], array[offset + 2], array[offset + 3]);
   }
-  /** The four numbers as a list. */
-  toArray(): [number, number, number, number] {
-    return [this._x, this._y, this._z, this._w];
-  }
   /** The rotation of `angles`, in their order (`localTurnQuaternion`); announced unless `quiet`. */
   setFromAngles(angles: GraphAngles, quiet = false) {
     localTurnQuaternion(turn, angles._x, angles._y, angles._z, angles._order);

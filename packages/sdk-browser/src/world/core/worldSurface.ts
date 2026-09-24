@@ -30,6 +30,7 @@ import {
   HOST_WRAP_MIRRORED_REPEAT,
   HOST_WRAP_REPEAT,
 } from '../../host/surfaceConstants.ts';
+import { linearColour } from '../../host/graph/surfaceFields.ts';
 
 const WRAP = {
   repeat: HOST_WRAP_REPEAT,
@@ -120,8 +121,6 @@ const FAMILY: Record<string, GraphSurfaceFamily> = {
 /** Colours a family may carry, written in the linear working space both sides share. */
 const COLOURS = ['color', 'emissive', 'specular'];
 
-const linear = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2]);
-
 /** The physical surface: the engine's record, on a physical surface when it declares a physical
  *  field, which it then carries. */
 function physicalSurface(material: Material, vertexColors: boolean) {
@@ -130,8 +129,8 @@ function physicalSurface(material: Material, vertexColors: boolean) {
     (field) => typeof material[field] === 'number' && material[field] !== 0,
   );
   const surface = new GraphSurface(upgrade ? 'physical' : 'standard', {
-    color: linear(record.baseColor),
-    emissive: linear(record.emissive),
+    color: linearColour(record.baseColor),
+    emissive: linearColour(record.emissive),
     metalness: record.metalness,
     roughness: record.roughness,
     opacity: record.opacity,

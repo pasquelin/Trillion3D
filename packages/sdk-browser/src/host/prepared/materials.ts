@@ -10,12 +10,12 @@
  * - the physical extensions are applied under the parameter names the table writes them with.
  */
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
-import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
 import { GraphSurface } from '../graph/surface.ts';
 import { type GraphTexture } from '../graph/texture.ts';
 import { hostSide } from '../../scene/materialSide.ts';
 import { HOST_COLOUR_SPACE_SRGB } from '../surfaceConstants.ts';
+import { linearColour } from '../graph/surfaceFields.ts';
 
 type Slot = (slot: TableTextureSlot, colorSpace?: string) => Promise<GraphTexture | null>;
 type Params = Record<string, unknown>;
@@ -25,7 +25,6 @@ const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap']);
 /** The extension factors that are colours. */
 const COLOURS = new Set(['sheenColor', 'specularColor']);
 
-const linear = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2]);
 const isSlot = (value: unknown): value is TableTextureSlot =>
   typeof value === 'object' && value !== null && 'texture' in value;
 
@@ -41,7 +40,7 @@ function extensionParams(
     if (isSlot(value)) assign(name, value, COLOUR_MAPS.has(name));
     else if (name === 'clearcoatNormalScale')
       params[name] = new Vector2(value as number, value as number);
-    else if (COLOURS.has(name)) params[name] = linear(value as number[]);
+    else if (COLOURS.has(name)) params[name] = linearColour(value as number[]);
     else params[name] = Array.isArray(value) ? [...value] : value;
   }
   // The host rebuilds the tangent frame from screen derivatives on geometry without tangents, and
@@ -53,7 +52,7 @@ function extensionParams(
 }
 
 async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) {
-  const params: Params = { color: linear(entry.baseColor), opacity: entry.opacity };
+  const params: Params = { color: linearColour(entry.baseColor), opacity: entry.opacity };
   const pending: Promise<void>[] = [];
   const assign = (name: string, from: TableTextureSlot | null, colour = false) => {
     if (from)
@@ -73,7 +72,7 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
     params.normalScale = new Vector2(entry.normalScale, entry.normalScaleY);
     assign('aoMap', entry.aoMap);
     params.aoMapIntensity = entry.aoIntensity;
-    params.emissive = linear(entry.emissive);
+    params.emissive = linearColour(entry.emissive);
     assign('emissiveMap', entry.emissiveMap, true);
     extensionParams(entry, params, assign);
   }
@@ -82,7 +81,7 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
     params.ior = entry.ior;
     params.thickness = entry.thickness;
     params.attenuationDistance = entry.attenuationDistance || Infinity;
-    params.attenuationColor = linear(entry.attenuationColor);
+    params.attenuationColor = linearColour(entry.attenuationColor);
   }
   if (entry.doubleSided) params.side = hostSide('double');
   params.transparent = entry.alphaMode === 'BLEND';

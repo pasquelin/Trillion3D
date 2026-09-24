@@ -37,11 +37,15 @@ test('A version bump refills the held record instead of returning a second one',
 test('The record aliases the composed UV transform, so a later recomposition is read', () => {
   const host = texture();
   const record = importHostTexture(host);
-  assert.deepEqual([...record.transform], [...host.matrix.elements], 'composed once at import');
+  assert.deepEqual(
+    Array.from(record.transform),
+    [...host.matrix.elements],
+    'composed once at import',
+  );
   host.offset.set(0.25, 0.5);
   host.updateMatrix();
   assert.deepEqual(
-    [...record.transform],
+    Array.from(record.transform),
     [...host.matrix.elements],
     'the held record reads the recomposition without a re-import',
   );
