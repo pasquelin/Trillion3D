@@ -92,7 +92,7 @@ export async function createGpuPartition(
       forgetRows(from: number, to: number) {
         if (to >= from) forgotten.push(from, to);
       },
-      /** World corners of rows `[from, to]`, on the table's dirty interval and it alone. */
+      /** World corners of rows `[from, to]`: one run of the rows the table declared dirty. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;
         device.queue.writeBuffer(
