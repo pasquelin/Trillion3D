@@ -24,9 +24,9 @@ import {
 import {
   BLEND_EXPAND_ENTRIES,
   BLEND_EXPAND_SHADER,
-  blendExpandBindEntries,
   blendExpandDispatch,
 } from '../../../packages/sdk-browser/src/webgpu/blend/expandWgsl.ts';
+import { blendExpandBindEntries } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
 import { DRAW_UNPAGED, planEntry } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
 import { etalementGpu } from './scatterKernelGpu.ts';
 import { graine } from '../../../bench/core/index.ts';
