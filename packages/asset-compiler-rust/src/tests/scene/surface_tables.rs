@@ -191,5 +191,5 @@ fn a_slot_keeps_its_own_coordinate_set_beside_the_one_its_transform_names() {
         "a silent transform keeps the slot's set"
     );
     assert_eq!(m["emissiveMap"]["slotTexCoord"], json!(1));
-    assert_eq!(tables["materialTableVersion"], json!(3));
+    assert_eq!(tables["materialTableVersion"], json!(4));
 }
