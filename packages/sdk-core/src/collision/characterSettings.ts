@@ -85,6 +85,16 @@ const STATURE = 1.75,
  *  not quicker ones (Dorn, Schache and Pandy, 2012), so the cadence holds from a jog up. */
 export const RUN_CADENCE = 170 / 60;
 
+/** The settings that shape the body a physics backend holds: a change makes it again. */
+export const RESHAPING = [
+  'capsuleRadius',
+  'capsuleHeight',
+  'maxSlope',
+  'stepHeight',
+  'mass',
+  'pushStrength',
+] as const satisfies readonly (keyof CharacterSettings)[];
+
 export const HUMAN_BODY: Readonly<CharacterSettings> = Object.freeze({
   walkSpeed: 3.5,
   sprintSpeed: 6.5,

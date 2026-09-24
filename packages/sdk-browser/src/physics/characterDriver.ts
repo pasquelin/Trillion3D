@@ -5,10 +5,15 @@ import {
   OP,
 } from '../../../sdk-core/src/physics/index.ts';
 import { arc } from '../../../sdk-core/src/collision/characterMove.ts';
-import { createDrive, driveTick } from '../../../sdk-core/src/collision/characterDrive.ts';
-import type {
-  CharacterInput,
-  CharacterSettings,
+import {
+  createDrive,
+  driveAtRest,
+  driveTick,
+} from '../../../sdk-core/src/collision/characterDrive.ts';
+import {
+  RESHAPING,
+  type CharacterInput,
+  type CharacterSettings,
 } from '../../../sdk-core/src/collision/characterSettings.ts';
 
 /** What the page hears of the character after a tick (`PhysicsResults.character`). */
@@ -23,16 +28,6 @@ export interface CharacterReport {
   /** Jumps the tick took. */
   jumps: number;
 }
-
-/** The settings that shape the body in the module: a change makes it again where it stands. */
-const RESHAPING = [
-  'capsuleRadius',
-  'capsuleHeight',
-  'maxSlope',
-  'stepHeight',
-  'mass',
-  'pushStrength',
-] as const;
 
 /**
  * THE CHARACTER IN THE PHYSICS WORKER. Each fixed step, the drive shared with the triangle
@@ -51,7 +46,10 @@ export function createCharacterDriver() {
     ground = new Float64Array(3),
     velocity = new Float64Array(3),
     motion = new Float64Array(3),
-    events = { onJump: () => jumps++ };
+    events = { onJump: () => jumps++ },
+    // The step's CHARACTER_MOVE, written in place: the worker copies it before the next.
+    move = new Uint32Array(CHARACTER_MOVE_WORDS),
+    moveFloats = new Float32Array(move.buffer);
   let settings: CharacterSettings | null = null,
     presses = 0,
     landed = -1,
@@ -72,11 +70,7 @@ export function createCharacterDriver() {
     return words;
   };
   const still = () =>
-    drive.grounded &&
-    input.wishX === 0 &&
-    input.wishZ === 0 &&
-    drive.velocity[0] === 0 &&
-    drive.velocity[2] === 0 &&
+    driveAtRest(drive, input) &&
     ground.every((v) => v === 0) &&
     drive.sinceJump > settings!.jumpBuffer;
 
@@ -110,9 +104,7 @@ export function createCharacterDriver() {
       if (!settings) return null;
       const moves = driveTick(drive, settings, input, h, true, events, step);
       if (!moves && !awake && still()) return null;
-      const v = drive.velocity,
-        words = new Uint32Array(CHARACTER_MOVE_WORDS),
-        floats = new Float32Array(words.buffer);
+      const v = drive.velocity;
       // A jump leaves with the floor's velocity: momentum from a platform is kept in the air.
       if (step.jumped) for (let k = 0; k < 3; k++) v[k] += ground[k];
       const carried = drive.grounded ? ground : null;
@@ -121,12 +113,12 @@ export function createCharacterDriver() {
         const [dy, end] = arc(v[1], h, settings.gravity, settings.fallGravity);
         [vy, v[1]] = [dy / h, end];
       }
-      words[0] = OP.characterMove;
-      floats[1] = (moves ? step.dx / h : 0) + (carried?.[0] ?? (step.jumped ? ground[0] : 0));
-      floats[2] = vy;
-      floats[3] = (moves ? step.dz / h : 0) + (carried?.[2] ?? (step.jumped ? ground[2] : 0));
-      words[4] = drive.grounded ? 1 : 0;
-      return words;
+      move[0] = OP.characterMove;
+      moveFloats[1] = (moves ? step.dx / h : 0) + (carried?.[0] ?? (step.jumped ? ground[0] : 0));
+      moveFloats[2] = vy;
+      moveFloats[3] = (moves ? step.dz / h : 0) + (carried?.[2] ?? (step.jumped ? ground[2] : 0));
+      move[4] = drive.grounded ? 1 : 0;
+      return move;
     },
     /** Reads the module's state after a step of `h` seconds (`jolt_character`). */
     read(state: Float32Array, h: number) {

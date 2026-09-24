@@ -43,6 +43,14 @@ export interface DriveStep {
   jumped: boolean;
 }
 
+/** Whether the drive stands on its feet with no speed and no key: a tick then moves nothing. */
+export const driveAtRest = (drive: CharacterDrive, input: CharacterInput) =>
+  drive.grounded &&
+  input.wishX === 0 &&
+  input.wishZ === 0 &&
+  drive.velocity[0] === 0 &&
+  drive.velocity[2] === 0;
+
 /** Remaining glide below which a grounded body with no key stops dead: 0.1 mm. */
 const REST = 1e-4;
 
@@ -80,7 +88,7 @@ export function driveTick(
     drive.sinceGround = drive.sinceJump = Infinity;
     events.onJump?.();
   }
-  if (drive.grounded && !wishing && velocity[0] === 0 && velocity[2] === 0) return false;
+  if (driveAtRest(drive, input)) return false;
   const gather = -Math.log(RESPONSE_LEFT) / settings.responseTime,
     brake = -Math.log(RESPONSE_LEFT) / settings.stopTime;
   const rate = drive.grounded
