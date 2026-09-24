@@ -15,7 +15,11 @@ test('the waves’ clock sums the ticks received, runs on one step at most, neve
   waves.received(PHYSICS_STEP / 2, 1001);
   assert.equal(waves.time(1001), 3 * PHYSICS_STEP);
   clock.timeScale = 0.25;
-  assert.equal(waves.time(1009), 3 * PHYSICS_STEP, 'slow motion carries on four times slower, never back');
+  assert.equal(
+    waves.time(1009),
+    3 * PHYSICS_STEP,
+    'slow motion carries on four times slower, never back',
+  );
   clock.paused = true;
   waves.received(PHYSICS_STEP, 2000);
   assert.equal(waves.time(3000), 3.5 * PHYSICS_STEP, 'paused, the waves stand still');
