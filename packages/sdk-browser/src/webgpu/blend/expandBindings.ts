@@ -33,7 +33,7 @@ const STORAGE_TYPES: Record<Exclude<keyof typeof EXPAND_BINDING, 'uni'>, GPUBuff
  * here — none copies them, so none can lag behind the shader.
  */
 export function blendExpandBindEntries(): GPUBindGroupLayoutEntry[] {
-  return [
+  const entries: GPUBindGroupLayoutEntry[] = [
     {
       binding: EXPAND_BINDING.uni,
       visibility: COMPUTE,
@@ -44,5 +44,6 @@ export function blendExpandBindEntries(): GPUBindGroupLayoutEntry[] {
       visibility: COMPUTE,
       buffer: { type },
     })),
-  ].sort((a, b) => a.binding - b.binding);
+  ];
+  return entries.sort((a, b) => a.binding - b.binding);
 }
