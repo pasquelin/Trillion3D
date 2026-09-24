@@ -11,6 +11,7 @@ import {
   poolEncoding,
 } from '../../../texture/blockFormats.ts';
 import { texturePoolFor } from '../../residency/memoryBudgets.ts';
+import { grantedTexturePool } from '../../residency/poolGrants.ts';
 import { shadowsFollowTextures } from './lightResources.ts';
 import {
   PREVIEW_ATLAS_COLOR,
@@ -105,7 +106,15 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const demand = { color: laneDemand(color), data: laneDemand(data) };
   const poolFor = (budgetBytes: number) =>
     texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes);
-  const pools = { choice, encoding, pool: poolFor(rt.setup.texturePoolBudget), poolFor };
+  const budget = rt.setup.texturePoolBudget;
+  // Out of memory absorbed: the lane pools are those the device grants (`poolGrants.ts`).
+  const granted = await grantedTexturePool(
+    gpuDevice,
+    budget,
+    { encoding, poolFor },
+    diag.engineDiagnostic,
+  );
+  const pools = { choice, encoding, pool: granted ?? poolFor(budget), poolFor };
   rt.setup.texturePools = pools;
   const textures = createWebgpuTileStreamer({
     device: gpuDevice,
