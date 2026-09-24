@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "As matrizes com que um host desenha um quadro, como o motor as entrega.",
+    "summary": "As matrizes e o intervalo de profundidade com que um host desenha um quadro, como o motor os entrega.",
     "members": {
       "projection": "A projeção.",
       "world": "A matriz de mundo da câmera.",
       "view": "A matriz de view.",
-      "eye": "Onde está o olho."
+      "eye": "Onde está o olho.",
+      "near": "Distância mais próxima.",
+      "far": "Distância mais distante."
     }
   },
   "HostDrawOutput": {
@@ -1523,8 +1525,7 @@
     "summary": "Configurações publicadas de iluminação direta.",
     "description": "Essas são escolhas de produto nomeadas, não constantes enterradas: todo limite em tempo de execução as relê, e o diagnóstico as publica como estão.",
     "members": {
-      "maxLights": "Luzes que o contrato aceita no total; além disso, `addLight` recusa.",
-      "maxLightsPerTile": "Luzes que um ladrilho de tela mantém; o laço de pixel é limitado por esse número (X2).",
+      "maxLights": "Luzes que o contrato aceita no total; além disso, `addLight` recusa. Um ladrilho de tela mantém cada uma que o toca; sua lista e o laço de pixel são limitados por esse número (X2).",
       "tileSize": "Lado em pixels de um ladrilho de tela da lista de luzes.",
       "samplesPerPixel": "Luzes sombreadas por completo — leitura de sombra incluída — por pixel de uma imagem EM MOVIMENTO (X2): as outras são pesadas sem sua sombra, e as sombreadas são desenhadas em proporção, então a estimativa é não enviesada e o antisserrilhamento temporal a faz convergir. Uma imagem parada sombreia toda luz do seu ladrilho e converge para a soma exata; ali, esse número não tem papel nenhum.",
       "shadowPage": "Lado de uma página de sombra, em texels: a unidade do pool físico, dos mapas virtuais e da invalidação. Um objeto em movimento só invalida as páginas que a sua caixa projetada cobre.",
@@ -1668,6 +1669,7 @@
       "bounds": "A caixa que o modelo preenche, em seu próprio referencial.",
       "lights": "Luzes sob o modelo — aquelas que o arquivo de origem carregava, como nós: uma página as edita, move ou remove como se fossem suas, e elas se movem com o modelo.",
       "record": "Tudo que o mundo guarda sobre esse modelo: seus endereços, manifesto e grafo.",
+      "getObjectByName": "O primeiro nó abaixo com este nome: o modelo, um nó do seu arquivo de origem e depois qualquer outro filho — uma luz trazida pelo arquivo, um nó colocado por uma página.",
       "metadata": "O manifesto compilado do modelo — suas primitivas, `sourceTriangles` — e `clusters`, os clusters que suas páginas contêm, cada nível de seus DAGs contado.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum."
     }
@@ -3829,6 +3831,10 @@
     "summary": "Luz refletida das superfícies, traçada contra o proxy residente; desligado por padrão.",
     "description": "Uma mudança é aplicada no lugar em um caminho que a carrega, e adotada pela próxima abertura em um que não."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Antisserrilhado temporal: deslocamento subpixel acumulado entre imagens; ativado por padrão.",
+    "description": "Escrito, tem efeito na imagem seguinte, histórico descartado, sem reabrir a sessão. Lido, é o que a imagem carrega: false no WebGL2, e enquanto o programa compila depois de ativado."
+  },
   "world.budget": {
     "summary": "Os pools de memória do mundo, lidos e definidos em bytes.",
     "members": {
@@ -4007,7 +4013,8 @@
       "pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "signal": "Para os carregamentos do mundo quando o sinal é abortado.",
-      "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado."
+      "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
+      "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4627,7 +4634,8 @@
       "options.pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "options.controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "options.signal": "Para os carregamentos do mundo quando o sinal é abortado.",
-      "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado."
+      "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
+      "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -5634,7 +5642,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Sombreia cada ponto por quão longe está da câmera.",
+    "summary": "Sombreia cada ponto por quão longe está da câmera: branco em `camera.near`, preto em `camera.far`, uma rampa reta entre eles, a mesma no WebGPU e no WebGL2.",
     "parameters": {
       "parameters": "O que uma página pode passar a um membro de material; todo campo é opcional.",
       "parameters.color": "A cor base.",
