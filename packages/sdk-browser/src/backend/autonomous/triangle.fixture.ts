@@ -5,8 +5,11 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
- *  placed by `link`. */
-export function triangleBackend(link: { placements?: PlacementRows } = {}) {
+ *  placed by `link`, wearing `material` (a basic double-sided surface by default). */
+export function triangleBackend(
+  link: { placements?: PlacementRows } = {},
+  material: G.GraphSurface = G.basicSurface({ side: G.DOUBLE_SIDE }),
+) {
   const position = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
   const encoded = encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: position },
@@ -14,8 +17,7 @@ export function triangleBackend(link: { placements?: PlacementRows } = {}) {
   const geometry = new G.GraphGeometry();
   geometry.setAttribute('position', new G.GraphAttribute(position, 3));
   geometry.setIndex(G.indices([0, 1, 2]));
-  const material = G.basicSurface({ side: G.DOUBLE_SIDE }),
-    mesh = G.mesh(geometry, material),
+  const mesh = G.mesh(geometry, material),
     source = new G.GraphGroup();
   source.add(mesh);
   const descriptor = {
