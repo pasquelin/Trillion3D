@@ -320,7 +320,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/backend/common.ts",
+        "bench/witnesses/capabilities.ts",
         "packages/sdk-browser/src/backend/types.ts",
         "tests/kit/lighting/diagnostics.ts"
       ],
