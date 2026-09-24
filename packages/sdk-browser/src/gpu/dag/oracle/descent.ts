@@ -14,13 +14,23 @@ import type { dagViewFrames } from './math.ts';
  * residency escalation would demand a subtree the descent did not open, and the pinned fallback
  * arms (`../shader/floorWgsl.ts`).
  *
+ * `carried` mirrors `resetPrune` (`../shader/floorWgsl.ts`): a primitive's previous final
+ * threshold, when finite and above this frame's, is the one it prunes at — an escalating
+ * primitive keeps the coarse levels it escalates toward. Absent: a fresh row, this frame's.
+ *
  * Split from `oracle.ts`: it is a whole step, it has its own WGSL mirror, and the oracle
  * that carried it had reached its line limit.
  */
 export function dagOracleDescent(
   packed: { nodeCount: number; worldCount: number; nodes: Float32Array; rootNodes: Uint32Array },
   frames: ReturnType<typeof dagViewFrames>,
+  carried?: ArrayLike<number>,
 ) {
+  const seuil = Math.max(frames.pixelError, 0);
+  const pruneAt = (w: number) => {
+    const c = carried?.[w] ?? seuil;
+    return c > seuil && c < 3.4e38 ? c : seuil;
+  };
   const { nodes } = packed,
     nodeInts = new Uint32Array(nodes.buffer);
   const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
@@ -36,8 +46,8 @@ export function dagOracleDescent(
       continue;
     }
     const floor = dagNodeFloor(frames, nodes, nodeInts, n);
-    if (floor > frames.pixelError) {
-      const w = nodeInts[n * DAG_NODE_FLOATS + NODE_WORLD];
+    const w = nodeInts[n * DAG_NODE_FLOATS + NODE_WORLD];
+    if (floor > pruneAt(w)) {
       if (floor < prunedFloor[w]) prunedFloor[w] = floor;
       nodeFlags[n] = 2;
       continue;

@@ -17,12 +17,16 @@ import { ESCALATION_ROUNDS, ESCALATION_SLACK } from '../../../page/selection/typ
  * runs first, so that is always dagWanted's moment — and every later site rereads the same value,
  * like ../shader/shader.ts has done since the lot D5 cache. Both modes must select the same pages: this
  * flag exists only so ../coneCacheEquivalence.test.ts can prove that without forking the kernel.
+ *
+ * `carried`: the previous frame's `finalThresholds`, what `work[slot]` still holds when
+ * `resetPrune` opens the frame. Absent, every primitive is fresh.
  */
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
   uniforms: DagViewUniforms,
   resident?: Uint32Array,
   cacheCone = false,
+  carried?: ArrayLike<number>,
 ) {
   if (resident && resident.length !== packed.pageCount)
     throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
@@ -35,7 +39,7 @@ export function evaluateDagSelectionKernel(
   const { planes, views, stretches, focal, near, pixelError } = frames;
   // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict
   // and the floor top-down pruning dropped per primitive.
-  const { nodeFlags, prunedFloor } = dagOracleDescent(packed, frames);
+  const { nodeFlags, prunedFloor } = dagOracleDescent(packed, frames, carried);
   const { coneRejects, visible, bandPixels, selects } = createDagOraclePredicates({
     packed,
     records,
@@ -119,7 +123,8 @@ export function evaluateDagSelectionKernel(
       transparentTriangles: totaux.transparent,
       drawnTriangles: totaux.drawn,
       uncoveredTriangles: totaux.uncovered,
-    } as SelectionResult
+      finalThresholds: thresholds,
+    } as SelectionResult & { finalThresholds: Float64Array }
   );
   if (!resident) {
     // Without residency, `dagMask` draws everything the cut keeps and digs no hole: the
