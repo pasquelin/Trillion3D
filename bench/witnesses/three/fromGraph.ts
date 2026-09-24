@@ -48,11 +48,14 @@ export function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Textu
           : new THREE.Texture(),
       version: -1,
     };
-    if (texture.kind !== 'texels') held.made.source = sourceOf(texture.image);
     textures.set(texture, held);
     follow(texture, held.made);
   }
   const made = held.made;
+  // The picture is taken again at every version: a texture whose image was replaced shows it.
+  if (texture.kind !== 'texels') {
+    if (made.source.data !== texture.image) made.source = sourceOf(texture.image);
+  } else if (made.image !== texture.image) made.image = texture.image as typeof made.image;
   made.name = texture.name;
   made.mapping = texture.mapping as THREE.Mapping;
   made.channel = texture.channel;
