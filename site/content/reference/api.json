@@ -7305,6 +7305,243 @@
     "description": ""
   },
   {
+    "id": "Joint",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["Joint"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Joint",
+    "signature": "class Joint\nnew Joint(kind: JointKind, a: Object3D, b: Object3D | null, options?: JointOptions): Joint",
+    "summary": "A joint between two bodies, or a body and the world (`b` null), made by `joint.*` and added to the simulation by `world.physics.add`.",
+    "parameters": [
+      {
+        "name": "kind",
+        "type": "JointKind",
+        "desc": ""
+      },
+      {
+        "name": "a",
+        "type": "Object3D",
+        "desc": ""
+      },
+      {
+        "name": "b",
+        "type": "Object3D | null",
+        "desc": ""
+      },
+      {
+        "name": "options",
+        "type": "JointOptions",
+        "default": "{}",
+        "desc": "What `joint.*` accepts. Points and axes are in the world, read when the joint is first made."
+      },
+      {
+        "name": "options.anchor?",
+        "type": "Vec3Input",
+        "default": "a's position",
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+      },
+      {
+        "name": "options.anchorB?",
+        "type": "Vec3Input",
+        "default": "b's position, or `anchor` with the world",
+        "desc": "The end of a distance on `b`."
+      },
+      {
+        "name": "options.axis?",
+        "type": "Vec3Input",
+        "default": "[0, 1, 0]",
+        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+      },
+      {
+        "name": "options.limits?",
+        "type": "JointLimits",
+        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+      },
+      {
+        "name": "options.spring?",
+        "type": "{ frequency: number; damping?: number; }",
+        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "options.motor?",
+        "type": "JointMotor",
+        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "options.breakForce?",
+        "type": "number",
+        "desc": "Newtons of pull past which the joint breaks; left out, never."
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "JointKind",
+        "desc": "What the joint is."
+      },
+      {
+        "name": "a",
+        "type": "Object3D",
+        "desc": "The first body."
+      },
+      {
+        "name": "b",
+        "type": "Object3D | null",
+        "desc": "The second body, or `null` for the world."
+      },
+      {
+        "name": "options",
+        "type": "Readonly<JointOptions>",
+        "desc": "What it was made with."
+      },
+      {
+        "name": "motor",
+        "type": "JointMotor | null",
+        "desc": "The motor, a hinge's or a slider's; `null` lets the joint turn or slide freely."
+      },
+      {
+        "name": "broken",
+        "type": "boolean",
+        "desc": "Whether it broke: pulled past its `breakForce`. A broken joint holds no more."
+      },
+      {
+        "name": "on(event: 'break', handler: () => void)",
+        "type": "() => undefined",
+        "desc": "Calls `handler` when the joint breaks."
+      }
+    ],
+    "description": "It holds while both bodies are simulated, and until it breaks."
+  },
+  {
+    "id": "JointHost",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointHost"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointHost",
+    "signature": "interface JointHost",
+    "summary": "The world's side of a joint: what a write on it asks of the simulation.",
+    "members": [
+      {
+        "name": "motor(joint: Joint)",
+        "type": "void",
+        "desc": "The motor changed."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "JointKind",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointKind"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointKind",
+    "signature": "type JointKind = 'fixed' | 'point' | 'hinge' | 'slider' | 'distance' | 'cone'",
+    "summary": "The joints between bodies, each one of Jolt's own constraints.",
+    "description": ""
+  },
+  {
+    "id": "JointLimits",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointLimits"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointLimits",
+    "signature": "interface JointLimits",
+    "summary": "How far a joint may move: radians for a hinge, metres for a slider or a distance, the cone's half angle (`max`) for a cone.",
+    "members": [
+      {
+        "name": "min?",
+        "type": "number | undefined",
+        "desc": "A hinge's from −π to 0, a slider's 0 or below."
+      },
+      {
+        "name": "max?",
+        "type": "number | undefined",
+        "desc": "A hinge's from 0 to π, a slider's 0 or above."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "JointMotor",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointMotor"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointMotor",
+    "signature": "interface JointMotor",
+    "summary": "A hinge's or a slider's motor: it drives the joint to a velocity or to a position.",
+    "members": [
+      {
+        "name": "mode",
+        "type": "'position' | 'velocity'",
+        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made."
+      },
+      {
+        "name": "target",
+        "type": "number",
+        "desc": "The velocity or the position to reach."
+      },
+      {
+        "name": "maxForce?",
+        "type": "number | undefined",
+        "desc": "N·m for a hinge, N for a slider; left out, no bound."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "JointOptions",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointOptions",
+    "signature": "interface JointOptions",
+    "summary": "What `joint.*` accepts.",
+    "members": [
+      {
+        "name": "anchor?",
+        "type": "Vec3Input | undefined",
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+      },
+      {
+        "name": "anchorB?",
+        "type": "Vec3Input | undefined",
+        "desc": "The end of a distance on `b`."
+      },
+      {
+        "name": "axis?",
+        "type": "Vec3Input | undefined",
+        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+      },
+      {
+        "name": "limits?",
+        "type": "JointLimits | undefined",
+        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+      },
+      {
+        "name": "spring?",
+        "type": "{ frequency: number; damping?: number; } | undefined",
+        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "motor?",
+        "type": "JointMotor | null | undefined",
+        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "breakForce?",
+        "type": "number | undefined",
+        "desc": "Newtons of pull past which the joint breaks; left out, never."
+      }
+    ],
+    "description": "Points and axes are in the world, read when the joint is first made."
+  },
+  {
     "id": "JsonSchemaObject",
     "module": "packages/sdk-core/src/llm/types.ts",
     "exports": ["JsonSchemaObject"],
@@ -18354,6 +18591,16 @@
         "name": "error",
         "type": "EngineError | null",
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
+      },
+      {
+        "name": "add(joint: Joint)",
+        "type": "void",
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+      },
+      {
+        "name": "remove(joint: Joint)",
+        "type": "void",
+        "desc": "Takes a joint out: the bodies it held move apart freely."
       }
     ],
     "description": ""
@@ -19247,6 +19494,16 @@
         "name": "error",
         "type": "EngineError | null",
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
+      },
+      {
+        "name": "add(joint: Joint)",
+        "type": "void",
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+      },
+      {
+        "name": "remove(joint: Joint)",
+        "type": "void",
+        "desc": "Takes a joint out: the bodies it held move apart freely."
       }
     ],
     "description": ""
@@ -25615,6 +25872,49 @@
       "type": "boolean",
       "desc": ""
     },
+    "description": ""
+  },
+  {
+    "id": "joint",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["joint"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "joint",
+    "signature": "const joint",
+    "summary": "The `joint` family: two bodies connected, or a body and the world (`b` null).",
+    "members": [
+      {
+        "name": "fixed",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Welds them: they move as one."
+      },
+      {
+        "name": "point",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A ball joint at `anchor`: they turn freely around it."
+      },
+      {
+        "name": "hinge",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A pin at `anchor` along `axis`: a door, a wheel. `limits` in radians."
+      },
+      {
+        "name": "slider",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A rail along `axis`: a drawer, a piston. `limits` in metres."
+      },
+      {
+        "name": "distance",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Keeps `anchor` on `a` and `anchorB` on `b` apart by their length, or within `limits`."
+      },
+      {
+        "name": "cone",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A ball joint whose `axis` swings within a cone of half angle `limits.max`."
+      }
+    ],
     "description": ""
   },
   {
