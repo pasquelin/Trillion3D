@@ -133,3 +133,23 @@ test('a cancelled preparation waits for the release, and diagnoses one that fail
   );
   assert.deepEqual(phases, ['backend-preparation-start', 'backend-dispose-error']);
 });
+
+test('a failed preparation waits for the release too, and diagnoses one that fails', async () => {
+  const prepare = async () => {
+    throw new Error('prepare failed');
+  };
+  const phases: string[] = [];
+  const diagnose = (phase: string) => phases.push(phase);
+  const failing = async () => {
+    await Promise.resolve();
+    throw new Error('release failed');
+  };
+  const probe = { id: 'webgpu-page-raster', prepare, dispose: failing };
+  await assert.rejects(run({}, undefined, probe, { diagnose } as never), /No backend/);
+  assert.deepEqual(phases, [
+    'backend-preparation-start',
+    'backend-preparation-error',
+    'backend-dispose-error',
+    'fallback',
+  ]);
+});

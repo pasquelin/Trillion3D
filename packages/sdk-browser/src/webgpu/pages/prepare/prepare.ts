@@ -30,7 +30,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     { packedPages, selectionRoots, rows } = rt.layout;
   const step = <T>(name: string, work: Promise<T>) => (rt.context.preparationStep?.(name), work);
   // After each wait, once what it gave is in `rt`: a backend disposed meanwhile stops there.
-  const stop = () => stopIfClosed(run);
+  const stop = () => stopIfClosed(rt);
   rt.lights.buffer = createSceneLightContractBuffer((gpu.device = gpuDevice));
   // No more light written into the scene, on either side: opaques and transparents read the same
   // declared-light buffer, with the same shadows and the same exposure (P6).
