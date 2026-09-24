@@ -13400,12 +13400,12 @@
       {
         "name": "localMatrix",
         "type": "Readonly<Float64Array<ArrayBufferLike>>",
-        "desc": "Read-only by contract; use setLocalMatrix to mark the transform dirty."
+        "desc": "Read-only by contract, valid while the node lives; setLocalMatrix marks the transform dirty."
       },
       {
         "name": "worldMatrix",
         "type": "Readonly<Float64Array<ArrayBufferLike>>",
-        "desc": "Current world matrix; call updateWorldMatrix after changing a pose."
+        "desc": "Current world matrix, valid while the node lives; updateWorldMatrix after a pose change."
       },
       {
         "name": "add(child: SceneNode)",
@@ -13668,7 +13668,7 @@
       {
         "name": "register(node: T)",
         "type": "T",
-        "desc": "Makes a node built on `reserve` reachable by its index and its identifier."
+        "desc": "Makes a node built on `reserve` reachable by its identifier."
       },
       {
         "name": "node(id: string)",
@@ -13685,18 +13685,13 @@
     "section": "types",
     "kind": "Type",
     "title": "SceneState",
-    "signature": "type SceneState",
+    "signature": "type SceneState = {\n  /** The transform tree. */\n  tree: TransformTree;\n  /** Nodes by name. */\n  ids: Map<string, SceneNode>;\n  /** The next free name number. */\n  nextId: number;\n  /** The scene root. */\n  root?: SceneRoot;\n}",
     "summary": "What every node of one scene shares: its transform tree and its indexes.",
     "members": [
       {
         "name": "tree",
         "type": "TransformTree",
         "desc": "The transform tree."
-      },
-      {
-        "name": "nodes",
-        "type": "Map<number, SceneNode>",
-        "desc": "Nodes by slot."
       },
       {
         "name": "ids",
