@@ -4,7 +4,7 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { LAMP_MIPS, SUN_LEVELS } from './virtual.ts';
+import { LAMP_MIPS, SUN_LEVELS, lampCoarseness, sunCoarseness } from './virtual.ts';
 
 /**
  * THE PAGES A FRAME DRAWS: stale pages the latest request report named — what the image reads
@@ -27,9 +27,11 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     limit = capacity;
   const coarseness = (records: ShadowRecords, sun: SunLevels, page: number, pool: ShadowPool) => {
     const slice = pool.slice[page];
-    if (records.kind[slice] === LIGHT_KIND.directional)
-      return (pool.view[page] - sun.finest[slice]) / SUN_LEVELS;
-    return (pool.view[page] & 15) / LAMP_MIPS;
+    const steps =
+      records.kind[slice] === LIGHT_KIND.directional
+        ? sunCoarseness(pool.view[page], sun.finest[slice])
+        : lampCoarseness(pool.view[page] & 15);
+    return steps / (SUN_LEVELS * LAMP_MIPS);
   };
   return {
     list,

@@ -2,7 +2,7 @@ import { LIGHT_SETTINGS } from '../light/contracts.ts';
 import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
-/** Ranks an ordering key spans, centred on zero: a sun level or a lamp mip lies far inside it. */
+/** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
 export const RANKS = 1024;
 
 /** How stale a page is: only its moving casters changed, or its static ones too. */
@@ -35,7 +35,8 @@ export function createShadowPool(side: number) {
     view = new Int32Array(pages),
     x = new Int32Array(pages),
     y = new Int32Array(pages),
-    /** How coarse the page is within its light — a sun level, a lamp mip —: the finer goes first. */
+    /** How coarse the page is within its light (`sunCoarseness`, `lampCoarseness`): the finer
+     *  goes first. */
     rank = new Int32Array(pages),
     requested = new Int32Array(pages).fill(-1),
     dirty = new Uint8Array(pages),

@@ -127,6 +127,15 @@ export function decodeLampEntry(relative: number, out: Int32Array) {
   return out;
 }
 
+/**
+ * How coarse a page is within its light, on one scale for every light: a sun level's steps above
+ * its finest level over the sun's `SUN_LEVELS`, a lamp's mip over its `LAMP_MIPS` — both brought
+ * to whole steps of their common denominator, `SUN_LEVELS · LAMP_MIPS`. A sun's clipmap and a
+ * lamp's mip chain count different things; each light's own span makes their ranks comparable.
+ */
+export const sunCoarseness = (level: number, finest: number) => (level - finest) * LAMP_MIPS;
+export const lampCoarseness = (mip: number) => mip * SUN_LEVELS;
+
 /** Side of a sun page at `level`, in metres: 128 texels of `2^level`. */
 export const sunPageMetres = (level: number) => SHADOW_PAGE * 2 ** level;
 

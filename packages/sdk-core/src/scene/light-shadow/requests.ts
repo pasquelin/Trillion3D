@@ -3,7 +3,13 @@ import { RANKS, type ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { PAGE_INDEX_MASK, PAGE_MAPPED, decodeLampEntry } from './virtual.ts';
+import {
+  PAGE_INDEX_MASK,
+  PAGE_MAPPED,
+  decodeLampEntry,
+  lampCoarseness,
+  sunCoarseness,
+} from './virtual.ts';
 
 /** What the shading read in one frame: the table entries it asked for, in no order. */
 export interface ShadowRequestReport {
@@ -26,6 +32,8 @@ const CAP: number = LIGHT_SETTINGS.shadowRequestCap;
  * becomes the most recently requested — or allocated. Allocation goes coarse first: a sun's
  * higher levels and a lamp's higher mips cover the most pixels per page, and they are what a
  * finer page falls back to, so the pool never serves a fine page before the coarse one under it.
+ * Coarseness is measured within each light (`sunCoarseness`, `lampCoarseness`), as admission
+ * measures it: a sun level and a lamp mip are not the same count.
  *
  * A report read against another table layout is dropped: its words name ranges that moved. A
  * sun entry is read with the extents of the frame that wrote it, and dropped when its page has
@@ -88,13 +96,13 @@ export function createShadowRequests(
           needView[needs] = scratch[0];
           needX[needs] = scratch[1];
           needY[needs] = scratch[2];
-          needRank[needs] = scratch[0];
+          needRank[needs] = sunCoarseness(scratch[0], sun.finest[slice]);
         } else {
           decodeLampEntry(relative, scratch);
           needView[needs] = scratch[0] * 16 + scratch[1];
           needX[needs] = scratch[2];
           needY[needs] = scratch[3];
-          needRank[needs] = scratch[1];
+          needRank[needs] = lampCoarseness(scratch[1]);
         }
         needEntry[needs] = entry;
         needSlice[needs] = slice;

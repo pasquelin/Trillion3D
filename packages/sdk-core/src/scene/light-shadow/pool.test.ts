@@ -4,6 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShadowPool, DRAW_ALL, DRAW_DYNAMIC, DRAW_FULL, STALE_DYNAMIC } from './pool.ts';
 import { createShadowTable } from './table.ts';
+import { createShadowPlan } from './plan.ts';
+import { createSceneLightStore } from '../light/store.ts';
+import { PAGE_MAPPED } from './virtual.ts';
+import { SUN, VIEW, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 
 function mapped() {
   const table = createShadowTable(1024),
@@ -53,4 +57,27 @@ test('an entry mapped again after the pool evicted it counts as refetched, once'
   take(11, 3);
   take(12, 4);
   assert.equal(pool.refetched, 1, 'entries never mapped before are not refetches');
+});
+
+test('a lamp mip and a sun level are ranked within their own light before they compete', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 1);
+  const view = { ...VIEW, pixelNear: 1 };
+  store.add(SUN);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0, view);
+  const sun = store.sliceOf(0),
+    lamp = store.sliceOf(1);
+  // Six levels above the sun's finest is under half its clipmap; mip 5 is the lamp's coarsest.
+  const level = plan.sun.finest[sun] + 6;
+  assert.ok(level > 5, 'the level counts more steps than the mip');
+  const [sunPage] = sunPages(plan, sun, level, [[0, 0]]),
+    [lampPage] = lampPages(plan, lamp, 0, 5);
+  report(plan, store, 0, [sunPage, lampPage]);
+  planFrame(plan, store, 1, view);
+  assert.ok(
+    plan.table.words[lampPage] & PAGE_MAPPED,
+    'the one page goes to the coarser of the two',
+  );
+  assert.equal(plan.table.words[sunPage] & PAGE_MAPPED, 0);
 });
