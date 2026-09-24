@@ -35,8 +35,7 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
         ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
         ints[base + ROW_HIZ_SLOT_WORD] = row;
       }
-      rows.markRowDirty(start);
-      rows.markRowDirty(end);
+      rows.markRowDirty(start, end);
       moved += end - start + 1;
     };
     if (monotone)

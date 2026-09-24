@@ -4,11 +4,7 @@ import {
   createGpuPartitionGroup,
   createGpuPartitionLayout,
 } from './buffers.ts';
-import {
-  createPartitionUniformWriter,
-  type ForgottenRows,
-  type PartitionFrame,
-} from './uniform.ts';
+import { createPartitionUniformWriter, type PartitionFrame } from './uniform.ts';
 import { createPartitionCounters } from './counters.ts';
 import { PARTITION_SHADER } from './shader.ts';
 import { validated } from '../core/errorScope.ts';
@@ -60,9 +56,11 @@ export async function createGpuPartition(
     const { projectLayout, project, classify, classifyGroup } = made;
     let { projectGroup } = made;
     const writeUniform = createPartitionUniformWriter();
-    // Rows rewritten with another page since the last image: their held rectangle, verdict and
-    // history describe the page that left. Read as never projected, once, then forgotten.
-    const forget: ForgottenRows = { from: 0, to: -1 };
+    // Runs `[from, to]` of rows rewritten since the last image, flattened in pairs: their held
+    // rectangle, verdict and history describe the page — or the place — that left. The next image
+    // clears them before projecting, and reads them as never projected, once.
+    const forgotten: number[] = [];
+    const rowBytes = ROW_DATA_U32 * 4;
     // What the last frame sent the kernel, kept for the audit: matrices are copied because the
     // camera's are rewritten by the next frame. The copy goes into two arrays allocated once
     // and for all — the audit reads the last frame, never an earlier one.
@@ -92,9 +90,7 @@ export async function createGpuPartition(
       rowData: allocated.rowData,
       uniforms: allocated.uniforms,
       forgetRows(from: number, to: number) {
-        if (to < from) return;
-        forget.from = forget.to < forget.from ? from : Math.min(forget.from, from);
-        forget.to = Math.max(forget.to, to);
+        if (to >= from) forgotten.push(from, to);
       },
       /** World corners of rows `[from, to]`, on the table's dirty interval and it alone. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
@@ -108,17 +104,24 @@ export async function createGpuPartition(
         );
       },
       encode(encoder: GPUCommandEncoder, frame: PartitionFrame) {
+        if (disposed) return;
+        // Zero flags are a row never projected: the kernel keeps nothing of what they held.
+        for (let i = 0; i < forgotten.length; i += 2) {
+          const from = forgotten[i],
+            to = Math.min(forgotten[i + 1], allocated.rows - 1);
+          if (to >= from)
+            encoder.clearBuffer(allocated.rowData, from * rowBytes, (to - from + 1) * rowBytes);
+        }
+        forgotten.length = 0;
         const pyramid = sources.pyramid();
-        if (disposed || !pyramid) return;
+        if (!pyramid) return;
         const rows = Math.min(frame.rows, allocated.rows);
         // Nothing is held from frame to frame but the history, which lives in `rowData`:
         // counters, rest bits and per-slot counts start from zero.
         encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
         encoder.clearBuffer(sources.restBits);
         encoder.clearBuffer(sources.slotUsed);
-        writeUniform(device, allocated.uniforms, frame, rows, forget);
-        forget.from = 0;
-        forget.to = -1;
+        writeUniform(device, allocated.uniforms, frame, rows);
         kept.rows = rows;
         kept.width = frame.width;
         kept.height = frame.height;
