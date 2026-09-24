@@ -7402,11 +7402,5 @@
       "distance": "Mantiene `anchor` su `a` e `anchorB` su `b` alla loro distanza, o entro `limits`.",
       "cone": "Un giunto sferico il cui `axis` oscilla in un cono di semiangolo `limits.max`."
     }
-  },
-  "JointHost": {
-    "summary": "Il lato mondo di un giunto: ciò che una scrittura su di esso chiede alla simulazione.",
-    "members": {
-      "motor": "Il motore è cambiato."
-    }
   }
 }

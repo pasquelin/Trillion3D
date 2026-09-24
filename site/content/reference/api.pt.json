@@ -7402,11 +7402,5 @@
       "distance": "Mantém `anchor` em `a` e `anchorB` em `b` à sua distância, ou dentro de `limits`.",
       "cone": "Uma junta esférica cujo `axis` oscila dentro de um cone de semiângulo `limits.max`."
     }
-  },
-  "JointHost": {
-    "summary": "O lado do mundo de uma junta: o que uma escrita nela pede à simulação.",
-    "members": {
-      "motor": "O motor mudou."
-    }
   }
 }

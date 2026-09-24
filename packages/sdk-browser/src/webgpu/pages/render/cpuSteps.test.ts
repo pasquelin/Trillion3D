@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCpuStepProfile } from '../../../stage/cpuProfile.ts';
-import { CPU_STEP, CPU_STEP_NAMES, endCpuFrame, hostCpuStep } from './cpuSteps.ts';
+import { CPU_STEP, CPU_STEP_NAMES } from './cpuStepTable.ts';
+import { endCpuFrame, hostCpuStep } from './cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** What image close reads, and nothing else: a profile, a flag, an image number. */

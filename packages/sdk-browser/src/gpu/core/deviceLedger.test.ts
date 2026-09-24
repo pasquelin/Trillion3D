@@ -1,23 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  gpuDeviceLedgerOf,
-  installGpuDeviceLedger,
-  textureBytesOf,
-  type LedgerDevice,
-} from './deviceLedger.ts';
-
-/** A fake device: its resources only let themselves be destroyed. */
-function fakeDevice() {
-  const destroyed: string[] = [];
-  const device = {
-    createTexture: (d: GPUTextureDescriptor) =>
-      ({ destroy: () => destroyed.push(d.label ?? '') }) as unknown as GPUTexture,
-    createBuffer: (d: GPUBufferDescriptor) =>
-      ({ destroy: () => destroyed.push(d.label ?? '') }) as unknown as GPUBuffer,
-  } satisfies LedgerDevice;
-  return { device, destroyed };
-}
+import { gpuDeviceLedgerOf, installGpuDeviceLedger, textureBytesOf } from './deviceLedger.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test('a texture is counted over all its levels, layers and format', () => {
   const rgba = textureBytesOf({
@@ -77,11 +61,10 @@ test('the ledger sees each allocation, returns it on destroy and installs once',
   buffer.destroy();
   texture.destroy();
   texture.destroy();
-  assert.deepEqual(destroyed, [
-    'Trillion3D pages',
-    'Trillion3D display color',
-    'Trillion3D display color',
-  ]);
+  assert.deepEqual(
+    destroyed.map((resource) => resource.label ?? ''),
+    ['Trillion3D pages', 'Trillion3D display color', 'Trillion3D display color'],
+  );
   snapshot = ledger.snapshot();
   assert.equal(snapshot.bytes, 24 + 8);
   assert.equal(snapshot.live, 2);

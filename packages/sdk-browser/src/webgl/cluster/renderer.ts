@@ -12,7 +12,7 @@ import { WebglClusterTextures } from './textures.ts';
 import { unsupportedClusterLight, WebglClusterLights, type WebglClusterScene } from './lights.ts';
 import { WebglClusterState } from './state.ts';
 import { TONE_MAPPING_RANK, normalMatrix3 } from '../../../../sdk-core/src/index.ts';
-import { multiplyMatrix4 } from './matrices.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './uniforms.ts';
 import { WebglClusterMaterialUniforms } from './materialUniforms.ts';
@@ -100,7 +100,7 @@ export class WebglClusterRenderer {
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
     const model = drawWorld(mesh);
-    multiplyMatrix4(this.modelView, camera.view, model);
+    multiplyMatrix4Typed(this.modelView, camera.view, model);
     this.state.applyWinding(model);
     this.modelViewUpload.set(this.modelView);
     gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelViewUpload);

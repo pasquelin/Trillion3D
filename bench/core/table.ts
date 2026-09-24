@@ -2,7 +2,7 @@
 // compose the exact same cells in the same order: they can no longer display two formats of
 // the same figure. Only regression icons distinguish the two outputs; the witness column has none.
 import { niveauEcart } from './baseline.ts';
-import type { LigneResultat } from './measure.ts';
+import type { LigneResultat } from './measureTypes.ts';
 
 const ms = (v: number | null) => (v === null ? 'null' : v.toFixed(3));
 const ns = (v: number | null) => (v === null ? '—' : v.toFixed(1));
