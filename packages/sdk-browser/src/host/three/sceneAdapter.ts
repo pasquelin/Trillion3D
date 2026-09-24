@@ -5,7 +5,7 @@ import {
   type SceneToneMapping,
 } from '../../../../sdk-core/src/scene/core/environment.ts';
 import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
-import { clusterColor } from './displayObjects.ts';
+import { clusterColor } from '../../diagnostic/colors.ts';
 import { threeCamera } from './fromGraphNodes.ts';
 import type { HostDrawScene } from '../scene/graphNodes.ts';
 import {
@@ -16,9 +16,9 @@ import {
 } from '../resources.ts';
 
 /**
- * The host-renderer adapter: the one renderer every engine drawn by the host library shares
- * over the engine's context, to draw the display graph it holds — the witnesses, and the
- * autonomous WebGL2 path, which is a shipping backend and not a witness. The host never holds a
+ * The host-renderer adapter: the one renderer every witness drawn by the host library shares
+ * over the engine's context, to draw the display graph it holds. The shipping WebGL2 path draws
+ * with the engine's own program (`../../webgl/cluster/sceneDraw.ts`). The host never holds a
  * renderer; a user acquires this one at its first draw and releases it at its dispose, and the
  * renderer leaves with the last of them. One per context, so that a texture or a program is
  * uploaded once for the whole session, as the host's own adapter did.
@@ -162,5 +162,6 @@ export const hostDiagnostics: HostDiagnosticFactory = {
     target.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   },
   triangleMaterial: (side) => unshaded({ vertexColors: true, toneMapped: false, fog: false }, side),
-  clusterMaterial: (id, side) => unshaded({ color: clusterColor(id, 0.75) }, side),
+  clusterMaterial: (id, side) =>
+    unshaded({ color: new THREE.Color().setRGB(...clusterColor(id, 0.75).toArray()) }, side),
 };

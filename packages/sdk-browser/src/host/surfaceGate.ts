@@ -66,7 +66,6 @@ export function clusterMaterialReason(
     host.bumpMap ||
     host.displacementMap ||
     host.alphaMap ||
-    host.flatShading ||
     host.wireframe ||
     host.stencilWrite
   )

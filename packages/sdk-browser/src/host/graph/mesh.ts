@@ -3,6 +3,7 @@
  * geometry and its surface, the morph weights included — each copied as the reference copies it.
  */
 import type { GraphGeometry } from './geometry.ts';
+import { GraphAttribute } from './attributes.ts';
 import type { GraphSurface } from './surface.ts';
 import { GraphNode } from './node.ts';
 
@@ -58,5 +59,31 @@ export class GraphMesh extends GraphNode {
     this.material = Array.isArray(mesh.material) ? mesh.material.slice() : mesh.material;
     this.geometry = mesh.geometry;
     return this;
+  }
+}
+
+/**
+ * A mesh drawn at several placements in one submission: one matrix per placement in
+ * `instanceMatrix`, sixteen numbers each, and `count` of them drawn.
+ */
+export class GraphInstancedMesh extends GraphMesh {
+  /** Always `true`: tells an instanced mesh apart. */
+  readonly isInstancedMesh = true as const;
+  override type = 'InstancedMesh';
+  /** One matrix per placement, column after column. */
+  readonly instanceMatrix: GraphAttribute;
+  /** How many placements are drawn. */
+  count: number;
+  constructor(geometry: GraphGeometry, material: GraphSurface | GraphSurface[], capacity: number) {
+    super(geometry, material);
+    this.instanceMatrix = new GraphAttribute(new Float32Array(capacity * 16), 16);
+    this.count = capacity;
+  }
+  /** Called when the matrices are given back: what a renderer's copy of them listens to. */
+  readonly released = new Set<() => void>();
+  /** Gives the matrices back; the geometry and the surface are released by their owners. */
+  dispose() {
+    for (const hook of this.released) hook();
+    this.released.clear();
   }
 }

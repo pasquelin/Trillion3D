@@ -7,7 +7,7 @@
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import type { GraphAttribute, GraphElements } from './attributes.ts';
+import { GraphAttribute, type GraphArray, type GraphElements } from './attributes.ts';
 import { Releasable } from './resource.ts';
 
 /** The box of an attribute's vertices, written into `min` and `max` (six numbers). */
@@ -27,6 +27,16 @@ function grow(into: Float64Array, point: ArrayLike<number>, at: number) {
     into[c] = Math.min(into[c], point[at + c]);
     into[3 + c] = Math.max(into[3 + c], point[at + c]);
   }
+}
+
+/** `source`'s elements in a buffer of its type and their own: every vertex, or those `order` lists. */
+function ownElements(source: GraphElements, order?: ArrayLike<number>) {
+  const count = order ? order.length : source.count,
+    size = source.itemSize;
+  const array = new (source.array.constructor as new (length: number) => GraphArray)(count * size);
+  for (let i = 0; i < count; i++)
+    for (let c = 0; c < size; c++) array[i * size + c] = source.stored(order ? order[i] : i, c);
+  return Object.assign(new GraphAttribute(array, size, source.normalized), { name: source.name });
 }
 
 /** Scratch of the bounds below. */
@@ -90,6 +100,36 @@ export class GraphGeometry extends Releasable {
   /** Whether it has an attribute of that name. */
   hasAttribute(name: string) {
     return this.attributes[name] !== undefined;
+  }
+  /** A geometry holding copies of every buffer, its groups, range and bounds. */
+  clone() {
+    const copy = this.shaped((attribute) => ownElements(attribute));
+    copy.index = this.index && ownElements(this.index);
+    copy.boundingBox = this.boundingBox?.clone() ?? null;
+    copy.boundingSphere = this.boundingSphere?.clone() ?? null;
+    return copy;
+  }
+  /** A geometry drawing the same triangles with no index: every corner a vertex of its own. */
+  toNonIndexed() {
+    const order = this.index?.array;
+    if (!order) return this.clone();
+    const copy = this.shaped((attribute) => ownElements(attribute, order));
+    copy.groups = [];
+    return copy;
+  }
+  /** A new geometry of the same name, groups, range and data, its attributes made by `own`. */
+  private shaped(own: (attribute: GraphElements) => GraphAttribute) {
+    const copy = new GraphGeometry();
+    copy.name = this.name;
+    for (const [name, attribute] of Object.entries(this.attributes))
+      copy.attributes[name] = own(attribute);
+    for (const [name, targets] of Object.entries(this.morphAttributes))
+      copy.morphAttributes[name] = targets.map(own);
+    copy.morphTargetsRelative = this.morphTargetsRelative;
+    copy.groups = this.groups.map((group) => ({ ...group }));
+    copy.drawRange = { ...this.drawRange };
+    copy.userData = JSON.parse(JSON.stringify(this.userData)) as Record<string, unknown>;
+    return copy;
   }
   /** The box of the positions, and of every shape a morph target gives them. */
   private span() {

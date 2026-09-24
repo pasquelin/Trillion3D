@@ -1,6 +1,8 @@
 import {
   drawPasses,
   isClusterDrawMesh,
+  recordTriangles,
+  wholeMeshTriangles,
   type ClusterDrawMesh,
   type HostAttributes,
   type WholeMesh,
@@ -17,7 +19,7 @@ import { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 import { createClusterProgram } from './program.ts';
 import { validateClusterMeshes } from './validation.ts';
 import { WebglClusterBackdrop } from './backdrop.ts';
-import { BACKDROP_UNITS, bindClusterMaterial, type Material } from './materialBinding.ts';
+import { BACKDROP_UNITS, ClusterMaterialPass, type Material } from './materialBinding.ts';
 import { refuseCluster } from './refusal.ts';
 import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './submit.ts';
@@ -38,6 +40,10 @@ export class WebglClusterRenderer {
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
   private copies = new WebglClusterCopies<SceneCopy>();
+  /** Triangles submitted by the last frame, every pass and the backdrop's included. */
+  triangles = 0;
+  /** Whether the program last read placement matrices; `undefined` until the first mesh. */
+  private instanced: boolean | undefined;
   /** Submissions of the scene copies in view, over both passes of the last frame. */
   copySubmissions = 0;
   /** Cluster submissions of the last frame's backdrop pass; zero without a transmissive copy. */
@@ -46,12 +52,12 @@ export class WebglClusterRenderer {
   backdropPasses = 0;
   /** The display curve's rank (`TONE_MAPPING_RANK`), written by the owner before a frame. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
-  private binding: Parameters<typeof bindClusterMaterial>[0];
+  private pass: ClusterMaterialPass;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     const program = (this.program = createClusterProgram(gl));
     const locations: Record<string, number> = {};
-    for (const name of ['position', 'normal', 'uv', 'uv1', 'color'])
+    for (const name of ['position', 'normal', 'uv', 'uv1', 'color', 'instanceMatrix'])
       locations[name] = gl.getAttribLocation(program, name);
     this.geometry = new WebglClusterGeometry(gl, locations);
     this.textures = new WebglClusterTextures(gl);
@@ -61,12 +67,12 @@ export class WebglClusterRenderer {
     this.multiDraw = gl.getExtension('WEBGL_multi_draw') as typeof this.multiDraw;
     this.materialMatrices = new Matrix3UniformCache(gl, (name) => this.at(name));
     this.materialUniforms = new WebglClusterMaterialUniforms(gl, (name) => this.at(name));
-    this.binding = {
+    this.pass = new ClusterMaterialPass({
       uniforms: this.materialUniforms,
       matrices: this.materialMatrices,
       textures: this.textures,
       state: this.state,
-    };
+    });
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
   }
@@ -79,23 +85,27 @@ export class WebglClusterRenderer {
       this.uniforms.set(name, this.gl.getUniformLocation(this.program, name));
     return this.uniforms.get(name)!;
   }
-  /** One mesh, every pass its material asks for; a hidden material submits nothing. Arrays
-   *  were refused by the validation: the material is single here. */
+  /** One mesh, every pass its material asks for; a hidden material submits nothing. */
   private mesh(mesh: ClusterDrawMesh | WholeMesh, camera: HostDrawCamera, toneMapped: boolean) {
     const gl = this.gl,
       material = mesh.material as Material;
     if (!material.visible) return 0;
-    this.geometry.bind(mesh.geometry);
+    const record = isClusterDrawMesh(mesh) ? mesh : undefined,
+      instanced = !record && !!(mesh as WholeMesh).isInstancedMesh;
+    if (instanced && !(mesh as WholeMesh).count) return 0;
+    this.geometry.bind(mesh.geometry, record ? undefined : (mesh as WholeMesh));
+    if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
+    this.instanced = instanced;
     const model = mesh.matrix.elements;
     multiplyMatrix4(this.modelView, camera.view, model);
     this.state.applyWinding(model);
     gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
     normalMatrix3(this.normal, this.modelView);
     setMatrix3(gl, this.at('normalMatrix'), this.normal);
-    const passes = drawPasses(material),
-      record = isClusterDrawMesh(mesh) ? mesh : undefined;
+    const passes = drawPasses(material);
+    this.triangles += (record ? recordTriangles(record) : wholeMeshTriangles(mesh)) * passes.length;
     for (const side of passes) {
-      bindClusterMaterial(this.binding, material, toneMapped, side, record?.polygonOffsetUnits);
+      this.pass.bind(material, toneMapped, side, record?.polygonOffsetUnits);
       if (record) submitClusterMesh(gl, this.multiDraw, record);
       else submitDiagnosticMesh(gl, mesh);
     }
@@ -110,19 +120,11 @@ export class WebglClusterRenderer {
     for (const mesh of meshes) submitted += this.mesh(mesh, camera, toneMapped);
     return submitted;
   }
-  /** The paged clusters and the whole page meshes, in draw order; the copies come after. */
-  private submitClusters(
-    meshes: readonly ClusterDrawMesh[],
-    wholeMeshes: readonly WholeMesh[],
-    camera: HostDrawCamera,
-    toneMapped: boolean,
-  ) {
-    return this.submit(meshes, camera, toneMapped) + this.submit(wholeMeshes, camera, toneMapped);
-  }
   /** The pass's destination; the raster state is re-applied, the backdrop having written masks. */
   private setOutput(srgbDestination: boolean) {
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
+    this.pass.forget();
   }
   /**
    * One frame: the batches, then whole host meshes — diagnostic pages, plain copies — then the
@@ -152,22 +154,30 @@ export class WebglClusterRenderer {
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     // The host's texture units are unknown at frame start; the backdrop pass touches only its own.
     this.textures.invalidateBindings();
+    this.instanced = undefined;
+    this.pass.forget();
+    this.geometry.beginFrame();
+    this.triangles = 0;
     let backdropSubmissions = 0,
       copySubmissions = 0;
     if (transmissive.length) {
       this.backdrop.begin(scene.background);
       this.setOutput(false);
-      backdropSubmissions = this.submitClusters(meshes, diagnosticMeshes, camera, false);
+      backdropSubmissions =
+        this.submit(meshes, camera, false) + this.submit(diagnosticMeshes, camera, false);
       copySubmissions = this.submit(plain, camera, false);
       this.backdrop.end();
     }
     this.backdropPasses = transmissive.length ? 1 : 0;
     this.backdropSubmissions = backdropSubmissions;
     this.setOutput(srgbDestination);
-    const submitted = this.submitClusters(meshes, diagnosticMeshes, camera, toneMapped);
+    // The paged clusters and the whole page meshes, in draw order; the copies come after.
+    const submitted =
+      this.submit(meshes, camera, toneMapped) + this.submit(diagnosticMeshes, camera, toneMapped);
     copySubmissions += this.submit(plain, camera, toneMapped);
     if (transmissive.length) {
       this.backdrop.bind();
+      this.pass.forget();
       gl.uniform2f(this.at('backdropOrigin'), this.backdrop.originX, this.backdrop.originY);
       copySubmissions += this.submit(transmissive, camera, toneMapped);
     }

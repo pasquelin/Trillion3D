@@ -9,6 +9,7 @@ import { createAutonomousInstances, deplaceInstance } from './instances.ts';
 import { asHostLibrary, type HostMaterial } from '../../host/resources.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { Material } from '../../../../sdk-core/src/index.ts';
+import type { GraphSurface } from '../../host/graph/surface.ts';
 
 /** The records carry the contract pose; the oracle and the assertions read a host matrix. */
 const pose = (matrix: MatrixElements) => asHostLibrary<THREE.Matrix4>(matrix);
@@ -141,10 +142,10 @@ function primitivePeinte() {
 test('repainting a primitive frees the pair the previous paint owned', () => {
   const { plain, coloured, colorMaterials, instances } = primitivePeinte();
   instances.updateMaterial('prim', CONTRACT_MATERIAL);
-  const first = [plain.declaration, coloured.declaration] as THREE.Material[];
+  const first = [plain.declaration, coloured.declaration] as unknown as GraphSurface[];
   assert.notEqual(first[0], first[1], 'a colour attribute draws with its own twin');
   let disposed = 0;
-  for (const material of first) material.addEventListener('dispose', () => disposed++);
+  for (const material of first) material.released.add(() => disposed++);
   instances.updateMaterial('prim', { ...CONTRACT_MATERIAL, baseColor: [0, 1, 0] });
   assert.equal(disposed, 2, 'the plain material and its twin are freed at the replacement');
   assert.equal(colorMaterials.size, 1, 'the shared cache keeps one twin per live material');

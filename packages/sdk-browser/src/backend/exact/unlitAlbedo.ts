@@ -1,4 +1,8 @@
-import * as THREE from 'three';
+import type { GraphScene } from '../../host/graph/scene.ts';
+
+/** What the view reads of the display graph: its meshes' surfaces, and the two hooks a draw
+ *  wraps itself in. */
+type AlbedoScene = Pick<GraphScene, 'traverse' | 'onBeforeRender' | 'onAfterRender'>;
 
 /**
  * Factors that take a surface's response away from its albedo. Each is a material property —
@@ -18,7 +22,7 @@ const NEUTRAL = ['metalness', 'aoMapIntensity', 'lightMapIntensity', 'transmissi
 type Factors = Partial<Record<(typeof NEUTRAL)[number], number>>;
 
 /**
- * Raw albedo of the `unlit` view on a Three-rendered engine.
+ * Raw albedo of the `unlit` view on a WebGL2 engine.
  *
  * A material that responds to light cannot publish its albedo by light alone: an ambient
  * irradiance of π yields `albedo · (1 − metalness)`, exact for a dielectric and zero for a
@@ -26,18 +30,18 @@ type Factors = Partial<Record<(typeof NEUTRAL)[number], number>>;
  * material the value it carried: the source graph keeps no trace from frame to frame, and
  * going back to `lit` finds the previous state, property by property.
  *
- * The zeroing happens every frame, in the scene render hooks, not once and for all: pages
+ * The zeroing happens every frame, in the scene's draw hooks, not once and for all: pages
  * enter and leave residency between two frames, and a conversion done at the switch would
  * leave out of the view everything that arrives after it.
  */
-export function createUnlitAlbedo(scene: THREE.Scene) {
+export function createUnlitAlbedo(scene: AlbedoScene) {
   // Materials actually neutralized of the current frame and the values they carried, in two
   // reused arrays: nothing is allocated per frame, and a material shared by several meshes
   // is kept only once — the second visit finds nothing left to zero.
   const touched: Factors[] = [];
   const saved: (number | undefined)[] = [];
   let count = 0;
-  const zero = (material: THREE.Material) => {
+  const zero = (material: object) => {
     const factors = material as Factors;
     const base = count * NEUTRAL.length;
     let changed = false;
@@ -50,8 +54,8 @@ export function createUnlitAlbedo(scene: THREE.Scene) {
     }
     if (changed) touched[count++] = factors;
   };
-  const neutralise = (object: THREE.Object3D) => {
-    const material = (object as THREE.Mesh).material;
+  const neutralise = (object: object) => {
+    const material = (object as { material?: object | object[] }).material;
     if (!material) return;
     if (Array.isArray(material)) for (const one of material) zero(one);
     else zero(material);

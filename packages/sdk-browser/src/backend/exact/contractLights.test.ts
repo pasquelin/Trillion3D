@@ -1,49 +1,52 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import * as THREE from 'three';
 import { LIGHT_SETTINGS, createSceneLightStore } from '../../../../sdk-core/src/index.ts';
 import { attachContractLights } from './contractLights.ts';
-import { installSceneLighting } from '../../lighting/sceneLighting.ts';
-import { hostAimNode } from '../../host/three/displayObjects.ts';
+import { installLighting } from '../../lighting/contractLightingApi.ts';
 import { unsupportedClusterLight } from '../../webgl/cluster/lights.ts';
+import { GraphScene } from '../../host/graph/scene.ts';
+import { GraphNode } from '../../host/graph/node.ts';
+import { GraphLight, GraphLightProbe, type GraphLightKind } from '../../host/graph/light.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
-const coords = (vector: THREE.Vector3) => vector.toArray().map((value) => value + 0);
+const coords = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z].map((n) => n + 0);
+/** A source light of the given kind and strength. */
+const light = (kind: GraphLightKind, intensity = 1) =>
+  Object.assign(new GraphLight(kind), { intensity });
 
-/** A Three-rendered engine, reduced to what the contract asks of it: its scene and its source graph. */
-function harness(sourceLights: THREE.Light[] = []) {
-  const scene = new THREE.Scene();
-  const source = new THREE.Object3D();
-  for (const light of sourceLights) source.add(light);
-  const store = createSceneLightStore();
-  const installed = installSceneLighting(scene, source, hostAimNode);
-  const contract = attachContractLights(scene, store, installed, () => {});
+/** A WebGL2 engine, reduced to what the contract asks of it: its scene and its source graph. */
+function harness(sourceLights: GraphNode[] = []) {
+  const [scene, source, store] = [new GraphScene(), new GraphNode(), createSceneLightStore()];
+  source.add(...sourceLights);
+  const contract = attachContractLights(scene, store, installLighting(scene, 0, source), () => {});
   return {
     scene,
     store,
     contract,
     /** Lights the render would see: those a scene walk collects, visible ones only. */
     visibleLights() {
-      const found: THREE.Light[] = [];
-      scene.traverseVisible((object) => {
-        if ((object as THREE.Light).isLight) found.push(object as THREE.Light);
-      });
+      const found: GraphLight[] = [];
+      const walk = (node: GraphNode) => {
+        if (!node.visible) return;
+        if ((node as GraphLight).isLight) found.push(node as GraphLight);
+        node.children.forEach(walk);
+      };
+      walk(scene);
       return found;
     },
   };
 }
 
 test('with no light and no requested view, the source graph lights alone and the image does not change', () => {
-  const sun = new THREE.DirectionalLight(0xffffff, 2);
-  const bench = harness([sun]);
+  const bench = harness([light('directional', 2)]);
   assert.equal(bench.contract.lit, true);
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
-  assert.equal((lights[0] as THREE.DirectionalLight).intensity, 2);
+  assert.equal(lights[0].intensity, 2);
 });
 
 test('source auto-lighting preserves and rejects a non-physical point-light decay', () => {
-  const point = new THREE.PointLight();
+  const point = light('point');
   point.decay = 1;
   const bench = harness([point]);
   assert.match(unsupportedClusterLight(bench.scene)!, /decay 1 is unsupported/);
@@ -63,12 +66,12 @@ test('a contract point light lights, and removing it makes the lit view black', 
   bench.contract.apply();
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
-  const point = lights[0] as THREE.PointLight;
+  const point = lights[0];
   assert.ok(point.isPointLight);
   // Radiometric intensity and linear colour taken as-is: no adjustment factor.
   assert.equal(point.intensity, 7);
   assert.deepEqual([point.color.r, point.color.g, point.color.b], [1, 0.5, 0.25]);
-  // `decay = 2` and `distance = range`: Three's attenuation is that of the deferred shader.
+  // `decay = 2` and `distance = range`: the program's attenuation is that of the deferred shader.
   assert.equal(point.decay, 2);
   assert.equal(point.distance, 10);
   assert.deepEqual(coords(point.position), [1, 2, 3]);
@@ -97,8 +100,8 @@ test('the `unlit` view yields albedo by an irradiance of π, with no contract li
   bench.contract.apply();
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
-  const ambient = lights[0] as THREE.AmbientLight;
-  assert.ok(ambient.isAmbientLight);
+  const ambient = lights[0];
+  assert.ok((ambient as { isAmbientLight?: boolean }).isAmbientLight);
   assert.equal(ambient.intensity, Math.PI);
   assert.equal(bench.contract.lit, false);
 });
@@ -118,11 +121,11 @@ test('a spotlight takes back its cone, and its penumbra equals the contract soft
     castsShadow: false,
   });
   bench.contract.apply();
-  const spot = bench.visibleLights()[0] as THREE.SpotLight;
+  const spot = bench.visibleLights()[0];
   assert.ok(spot.isSpotLight);
   assert.equal(spot.angle, coneAngle);
-  assert.deepEqual(coords(spot.target.position), [0, 3, 0]);
-  const inner = coneAngle * (1 - spot.penumbra);
+  assert.deepEqual(coords(spot.target!.position), [0, 3, 0]);
+  const inner = coneAngle * (1 - spot.penumbra!);
   assert.ok(
     Math.abs(Math.cos(inner) - (Math.cos(coneAngle) + LIGHT_SETTINGS.spotEdgeSoftness)) < 1e-9,
   );
@@ -139,17 +142,16 @@ test('a directional takes its propagation direction, never an invented position'
     castsShadow: false,
   });
   bench.contract.apply();
-  const sun = bench.visibleLights()[0] as THREE.DirectionalLight;
+  const sun = bench.visibleLights()[0];
   assert.ok(sun.isDirectionalLight);
-  // Three takes the incidence direction as `position − target`: it equals the opposite of the contract.
+  // The program takes the incidence direction as `position − target`: the opposite of the contract.
   assert.deepEqual(coords(sun.position), [0, 1, 0]);
-  assert.deepEqual(coords(sun.target.position), [0, 0, 0]);
+  assert.deepEqual(coords(sun.target!.position), [0, 0, 0]);
   assert.equal(sun.intensity, 4);
 });
 
 test('the contract hides the source-graph lights as soon as it governs, and restores them afterwards', () => {
-  const sun = new THREE.DirectionalLight(0xffffff, 1);
-  const bench = harness([sun]);
+  const bench = harness([light('directional')]);
   bench.store.add({
     id: 'lampe',
     kind: 'point',
@@ -162,15 +164,15 @@ test('the contract hides the source-graph lights as soon as it governs, and rest
   bench.contract.apply();
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
-  assert.ok((lights[0] as THREE.PointLight).isPointLight);
+  assert.ok(lights[0].isPointLight);
   bench.store.remove('lampe');
   bench.contract.apply();
   const back = bench.visibleLights();
   assert.equal(back.length, 1);
-  assert.ok((back[0] as THREE.DirectionalLight).isDirectionalLight);
+  assert.ok(back[0].isDirectionalLight);
 });
 
-test('changing a light type replaces its Three object, leaving no second one', () => {
+test('changing a light type replaces its light object, leaving no second one', () => {
   const bench = harness();
   bench.store.add({
     id: 'lampe',
@@ -186,11 +188,11 @@ test('changing a light type replaces its Three object, leaving no second one', (
   bench.contract.apply();
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
-  assert.ok((lights[0] as THREE.SpotLight).isSpotLight);
+  assert.ok(lights[0].isSpotLight);
 });
 
-test('a visible host light probe is read by the cluster renderer, never refused', () => {
-  const probe = new THREE.LightProbe();
+test('a visible light probe is read by the cluster renderer, never refused', () => {
+  const probe = new GraphLightProbe();
   probe.sh.coefficients[0].set(1, 1, 1);
   assert.equal(unsupportedClusterLight(harness([probe]).scene), undefined);
 });

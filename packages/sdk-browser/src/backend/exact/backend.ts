@@ -7,9 +7,9 @@ import { createExactPagesAttachment } from './attachment.ts';
 import { createExactPagesResidency } from './residency.ts';
 import { createExactPagesMaterials } from './materials.ts';
 import { DEFAULT_CLEAR_COLOR, baseCapabilities } from '../common.ts';
-import { lighting } from '../../host/three/displayObjects.ts';
 import { CONTRACT_LIGHTS_UNSUPPORTED } from './contractLights.ts';
-import { contractLightingApi } from '../../lighting/contractLightingApi.ts';
+import { contractLightingApi, installLighting } from '../../lighting/contractLightingApi.ts';
+import { GraphScene } from '../../host/graph/scene.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
@@ -40,8 +40,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
   // the engine's contract copies go back to being its meshes.
   const blendCopies = asHostLibrary<THREE.Mesh[]>(collected.blendCopies);
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
-    scene = new THREE.Scene();
-  const sceneLights = lighting(scene, clearColor, context.sceneLighting ?? source);
+    scene = new GraphScene();
+  const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
     attached: PageRec[] = [];
@@ -60,7 +60,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
-  // Contract lights, translated into Three lights, and the lighting half of the API they drive.
+  // Contract lights, translated into lights of the display graph, and the lighting half of the
+  // API they drive.
   // As long as the host has neither declared a light nor asked for a view, the source graph
   // lights alone and the image is the previous one, pixel for pixel.
   const contract = contractLightingApi(scene, context.sceneLights, sceneLights, gate.sceneChanged);

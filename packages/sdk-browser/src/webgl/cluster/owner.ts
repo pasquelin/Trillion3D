@@ -30,6 +30,10 @@ export class WebglClusterOwner {
   get backdropPasses() {
     return this.renderer.backdropPasses;
   }
+  /** Triangles the last frame submitted, every pass included. */
+  get submittedTriangles() {
+    return this.renderer.triangles;
+  }
   get backdropSubmissions() {
     return this.renderer.backdropSubmissions;
   }

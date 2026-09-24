@@ -52,9 +52,13 @@ abstract class Elements {
   abstract get count(): number;
   /** Where component 0 of vertex `index` lies in `array`. */
   protected abstract at(index: number): number;
+  /** Component `component` of vertex `index` as it is stored, a normalised integer unscaled. */
+  stored(index: number, component: number) {
+    return this.array[this.at(index) + component];
+  }
   /** Component `component` of vertex `index`, read as the number it stands for. */
   getComponent(index: number, component: number) {
-    const value = this.array[this.at(index) + component];
+    const value = this.stored(index, component);
     return this.normalized ? denormalize(value, this.array) : value;
   }
   /** Writes component `component` of vertex `index`. */

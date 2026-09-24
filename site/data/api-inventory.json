@@ -1378,10 +1378,14 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/backend/exact/contractLights.ts",
+        "packages/sdk-browser/src/diagnostic/colors.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
+        "packages/sdk-browser/src/host/graph/scene.ts",
         "packages/sdk-browser/src/host/graph/surface.ts",
         "packages/sdk-browser/src/host/graph/surfaceFields.ts",
         "packages/sdk-browser/src/host/prepared/nodes.ts",
+        "packages/sdk-browser/src/lighting/contractLightingApi.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/world.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.ts",
@@ -3758,7 +3762,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-vectors.perf.ts",
-        "packages/sdk-browser/src/host/three/displayObjects.ts",
+        "packages/sdk-browser/src/diagnostic/colors.ts",
         "packages/sdk-browser/src/webgpu/pages/helpers.ts"
       ],
       "disposition": "retained",
@@ -7996,6 +8000,7 @@
         "packages/sdk-browser/src/lighting/deferred/view.ts",
         "packages/sdk-browser/src/lighting/toneMappingWgsl.ts",
         "packages/sdk-browser/src/webgl/cluster/renderer.ts",
+        "packages/sdk-browser/src/webgl/cluster/sceneDraw.ts",
         "packages/sdk-browser/src/webgl/core/outputGlsl.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeLights.ts",
         "tests/kit/lighting/draw.ts"

@@ -8,9 +8,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GraphNode } from './node.ts';
-import { GraphGroup, GraphMesh } from './mesh.ts';
+import { GraphGroup, GraphInstancedMesh, GraphMesh } from './mesh.ts';
 import { GraphCamera } from './camera.ts';
-import { GraphLight } from './light.ts';
+import { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
 import { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } from './attributes.ts';
 import { GraphGeometry } from './geometry.ts';
 import { GraphSurface } from './surface.ts';
@@ -135,4 +135,54 @@ test('a texture transform, a surface family and a copied light hold the referenc
   assert.notEqual(copy.target, light.target, 'a copied light aims at a copy of the target');
   const mesh = new GraphMesh(new GraphGeometry(), surface);
   assert.equal(mesh.clone().material, surface, 'a copied mesh shares its surface');
+});
+
+test('a copied geometry owns its buffers, and a triangle list spells every corner, as the reference', () => {
+  const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0]),
+    order = new Uint16Array([0, 1, 2, 2, 1, 3]),
+    shades = new Uint8Array([0, 64, 128, 255]);
+  const geometry = new GraphGeometry().setIndex(new GraphAttribute(order, 1));
+  geometry.setAttribute('position', new GraphAttribute(positions, 3));
+  geometry.setAttribute('shade', new GraphAttribute(shades, 1, true));
+  const reference = new THREE.BufferGeometry().setIndex(new THREE.BufferAttribute(order, 1));
+  reference.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  reference.setAttribute('shade', new THREE.BufferAttribute(shades, 1, true));
+  const copy = geometry.clone();
+  assert.notEqual(copy.attributes.position.array, positions, 'the copy owns its positions');
+  assert.deepEqual([...copy.index!.array], [...order]);
+  const flat = geometry.toNonIndexed(),
+    expected = reference.toNonIndexed();
+  assert.equal(flat.index, null);
+  for (const name of ['position', 'shade']) {
+    assert.deepEqual([...flat.attributes[name].array], [...expected.attributes[name].array], name);
+    assert.equal(flat.attributes[name].normalized, expected.attributes[name].normalized, name);
+    assert.equal(
+      flat.attributes[name].array.constructor,
+      expected.attributes[name].array.constructor,
+    );
+  }
+});
+
+test('the ambient, rectangle and probe lights copy themselves whole', () => {
+  const ambient = new GraphAmbientLight(undefined, Math.PI).clone();
+  assert.ok(ambient.isAmbientLight);
+  assert.equal(ambient.intensity, Math.PI);
+  const rect = Object.assign(new GraphRectLight(), { width: 2, height: 3, distance: 9 }).clone();
+  assert.deepEqual([rect.isRectAreaLight, rect.width, rect.height, rect.distance], [true, 2, 3, 9]);
+  const probe = new GraphLightProbe();
+  probe.sh.fromArray(Array.from({ length: 27 }, (_, i) => i));
+  const copy = probe.clone();
+  assert.deepEqual([copy.sh.coefficients[8].x, copy.sh.coefficients[8].z], [24, 26]);
+  assert.notEqual(copy.sh.coefficients[8], probe.sh.coefficients[8]);
+});
+
+test('an instanced mesh holds one matrix per placement and gives them back once', () => {
+  const mesh = new GraphInstancedMesh(new GraphGeometry(), new GraphSurface('standard'), 3);
+  assert.equal(mesh.instanceMatrix.array.length, 48);
+  assert.equal(mesh.count, 3);
+  let released = 0;
+  mesh.released.add(() => released++);
+  mesh.dispose();
+  mesh.dispose();
+  assert.equal(released, 1);
 });

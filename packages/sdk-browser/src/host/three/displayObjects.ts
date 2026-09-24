@@ -1,35 +1,21 @@
 /**
  * The host-library objects a witness hangs on the display graph it publishes: the background
- * colour, the lights copied from the source graph, the empty node a copied light aims at, and
- * the colour a diagnostic paints a cluster with.
+ * colour, the lights copied from the source graph and the empty node a copied light aims at.
  *
- * What reaches this file is every engine whose image the REFERENCE RENDERER draws — the
- * reference, exact and level-of-detail witnesses, and the autonomous WebGL2 path, which is a
- * shipping backend and not a witness at all (`../pageObjects.ts`) — through the scene adapter and
- * the contract-lighting API they share. The engine that presents its own surface publishes a
- * display-graph record instead (`../../cluster/blendSceneRecord.ts`) and names no library: the
- * constants and the frame budgets it still shares with the others stayed in
- * `../../backend/common.ts`, which imports nothing. A light of the engine's own graph is copied
- * into the library by `fromGraph.ts`.
+ * What reaches this file is every witness whose image the REFERENCE RENDERER draws — the
+ * reference and level-of-detail witnesses — through the scene adapter. The engine's own WebGL2
+ * paths light a display graph of the engine's own objects
+ * (`../../lighting/contractLightingApi.ts`), and the engine that presents its own surface
+ * publishes a display-graph record (`../../cluster/blendSceneRecord.ts`): neither names a
+ * library. A light of the engine's own graph is copied into the library by `fromGraphNodes.ts`.
  */
 import { installSceneLighting, type HostLight } from '../../lighting/sceneLighting.ts';
 import type { GraphLight } from '../graph/light.ts';
-import { clusterHue } from '../../diagnostic/colors.ts';
 import { asHostLibrary, type HostPlaced, type HostTraversable } from '../resources.ts';
 import type { HostDrawScene } from '../scene/graphNodes.ts';
 import { threeLight } from './fromGraphNodes.ts';
-import { hslToLinearRgb } from '../../../../sdk-core/src/index.ts';
 import * as THREE from 'three';
 
-/** Three linear components reread immediately: a cluster colour allocates nothing more. */
-const tint = new Float64Array(3);
-
-/** A cluster's hue, computed by the core. The colour object returned is the one host
- *  materials want; its construction is the boundary, not the computation. */
-export function clusterColor(id: string, saturation = 0.75) {
-  hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
-  return new THREE.Color(tint[0], tint[1], tint[2]);
-}
 /** An empty node of a host display graph: what a copied light aims at, made here because
  *  making a host object is the boundary's, and posed by the placement that asked for it. */
 export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
