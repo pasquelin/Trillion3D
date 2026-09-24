@@ -1860,28 +1860,6 @@
       "dollyZoom": "Dolly-Zoom"
     }
   },
-  "openworld": {
-    "banner": "Geh mit W A S D. Drücke E bei einem Auto oder Flugzeug, um einzusteigen.",
-    "controls": {
-      "keys": "WASD gehen · Umschalt rennen · Leertaste springen · C ducken · E in ein Auto oder Flugzeug ein- oder aussteigen",
-      "teleport": "Teleport",
-      "timeOfDay": "Tageszeit",
-      "daySpeed": "Tagesgeschwindigkeit",
-      "pause": "Pause",
-      "rain": "Regen",
-      "geometryMB": "Geometrie MB",
-      "textureMB": "Texturen MB",
-      "view": "Ansicht"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
-  },
   "falling-boxes": {
     "banner": "Klicke auf „Drop“ für fünfzig weitere Kisten. Ändere die Schwerkraft und sieh sie fallen.",
     "controls": {

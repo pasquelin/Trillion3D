@@ -319,8 +319,7 @@
       "hands-in-vr": "Руки в VR",
       "teleport-in-vr": "Телепорт в VR",
       "controllers-in-vr": "Контроллеры в VR",
-      "ar-on-the-table": "AR на столе",
-      "openworld": "Открытый мир"
+      "ar-on-the-table": "AR на столе"
     },
     "missing": {
       "colours-on-the-vertices": "цвета по вершинам в WebGPU",

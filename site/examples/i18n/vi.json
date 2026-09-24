@@ -1860,28 +1860,6 @@
       "dollyZoom": "Zoom dolly"
     }
   },
-  "openworld": {
-    "banner": "Đi bằng W A S D. Nhấn E gần ô tô hoặc máy bay để lên.",
-    "controls": {
-      "keys": "WASD đi bộ · Shift chạy · Space nhảy · C cúi · E lên hoặc xuống ô tô hay máy bay",
-      "teleport": "Dịch chuyển",
-      "timeOfDay": "Giờ trong ngày",
-      "daySpeed": "Tốc độ ngày",
-      "pause": "Tạm dừng",
-      "rain": "Mưa",
-      "geometryMB": "Hình học MB",
-      "textureMB": "Kết cấu MB",
-      "view": "Chế độ xem"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Truyền phát"
-    }
-  },
   "falling-boxes": {
     "banner": "Nhấn Thả để thêm năm mươi hộp. Đổi trọng lực và xem chúng rơi.",
     "controls": {

@@ -1860,28 +1860,6 @@
       "dollyZoom": "डॉली ज़ूम"
     }
   },
-  "openworld": {
-    "banner": "W A S D से चलो। अंदर बैठने के लिए कार या हवाई जहाज़ के पास E दबाओ।",
-    "controls": {
-      "keys": "WASD चलें · Shift दौड़ें · Space कूदें · C झुकें · E कार या विमान में चढ़ें या उतरें",
-      "teleport": "टेलीपोर्ट",
-      "timeOfDay": "दिन का समय",
-      "daySpeed": "दिन की गति",
-      "pause": "रोकें",
-      "rain": "बारिश",
-      "geometryMB": "ज्यामिति MB",
-      "textureMB": "टेक्सचर MB",
-      "view": "दृश्य"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "स्ट्रीमिंग"
-    }
-  },
   "falling-boxes": {
     "banner": "पचास और डिब्बों के लिए गिराएँ दबाएँ। गुरुत्व बदलें और उन्हें गिरते देखें।",
     "controls": {

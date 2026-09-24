@@ -1860,28 +1860,6 @@
       "dollyZoom": "滑动变焦"
     }
   },
-  "openworld": {
-    "banner": "用 W A S D 走路。在汽车或飞机旁按 E 上去。",
-    "controls": {
-      "keys": "WASD 行走 · Shift 奔跑 · 空格 跳跃 · C 蹲下 · E 上下汽车或飞机",
-      "teleport": "传送",
-      "timeOfDay": "时间",
-      "daySpeed": "昼夜速度",
-      "pause": "暂停",
-      "rain": "雨",
-      "geometryMB": "几何 MB",
-      "textureMB": "纹理 MB",
-      "view": "视图"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "流式加载"
-    }
-  },
   "falling-boxes": {
     "banner": "按“投放”再落下五十个箱子。改变重力，看它们落下。",
     "controls": {

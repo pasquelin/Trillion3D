@@ -1860,28 +1860,6 @@
       "dollyZoom": "Zoom de travelling"
     }
   },
-  "openworld": {
-    "banner": "Camina con W A S D. Pulsa E junto a un coche o un avión para subir.",
-    "controls": {
-      "keys": "WASD caminar · Mayús correr · Espacio saltar · C agacharse · E subir o bajar de un coche o un avión",
-      "teleport": "Teletransporte",
-      "timeOfDay": "Hora del día",
-      "daySpeed": "Velocidad del día",
-      "pause": "Pausa",
-      "rain": "Lluvia",
-      "geometryMB": "Geometría MB",
-      "textureMB": "Texturas MB",
-      "view": "Vista"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "Streaming"
-    }
-  },
   "falling-boxes": {
     "banner": "Pulsa Soltar para cincuenta cajas más. Cambia la gravedad y míralas caer.",
     "controls": {

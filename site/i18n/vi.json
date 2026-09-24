@@ -1478,8 +1478,7 @@
       "hands-in-vr": "Bàn tay trong VR",
       "teleport-in-vr": "Dịch chuyển tức thời trong VR",
       "controllers-in-vr": "Bộ điều khiển trong VR",
-      "ar-on-the-table": "AR trên bàn",
-      "openworld": "Thế giới mở"
+      "ar-on-the-table": "AR trên bàn"
     },
     "missing": {
       "colours-on-the-vertices": "màu theo từng đỉnh trên WebGPU",
