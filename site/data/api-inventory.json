@@ -5893,7 +5893,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["scripts/bench-physics.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/cooked.test.ts",
+        "scripts/bench-physics.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PHYSICS_MATERIALS"
     },
