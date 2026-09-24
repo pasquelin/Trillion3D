@@ -59,6 +59,31 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
   let epoch = NaN,
     direct = false,
     placed: Bodied[] = [];
+  /** The tree's stores, read once per batch: they are replaced when the tree grows. */
+  let tp = tree.position,
+    tq = tree.quaternion,
+    flags = tree.flags;
+  /** Slot `index`'s pose, as its arrays hold it, into the tree and its row. */
+  const commit = (index: number) => {
+    const p = index * 3,
+      q = index * 4,
+      n = node[index];
+    tp[n * 3] = position[p];
+    tp[n * 3 + 1] = position[p + 1];
+    tp[n * 3 + 2] = position[p + 2];
+    tq[n * 4] = quaternion[q];
+    tq[n * 4 + 1] = quaternion[q + 1];
+    tq[n * 4 + 2] = quaternion[q + 2];
+    tq[n * 4 + 3] = quaternion[q + 3];
+    flags[n] |= NODE_TRS_DIRTY;
+    if (rowOf[index] === UNASKED) seatOf(index, owner[index]!);
+    const b = batchOf[index],
+      row = rowOf[index];
+    if (row === NO_ROW) return void placed.push(owner[index]!);
+    composeMatrix4At(matrices[b], row * 16, position, p, quaternion, q, scale, p);
+    if (row < from[b]) from[b] = row;
+    if (row > to[b]) to[b] = row;
+  };
   const seatOf = (index: number, mesh: Bodied) => {
     const seat = direct && !mesh.children.length ? (mesh._link?.seat?.(mesh) ?? null) : null;
     rowOf[index] = NO_ROW;
@@ -118,29 +143,41 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       direct = rest;
       from.fill(Infinity);
       to.fill(-1);
+      tp = tree.position;
+      tq = tree.quaternion;
+      flags = tree.flags;
     },
     /** Writes slot `index` at `pose` (7 numbers from `at`): node, tree, and row. */
     place(index: number, pose: ArrayLike<number>, at: number) {
       const p = index * 3,
-        q = index * 4,
-        n = node[index];
-      const tp = tree.position,
-        tq = tree.quaternion;
-      tp[n * 3] = position[p] = pose[at];
-      tp[n * 3 + 1] = position[p + 1] = pose[at + 1];
-      tp[n * 3 + 2] = position[p + 2] = pose[at + 2];
-      tq[n * 4] = quaternion[q] = pose[at + 3];
-      tq[n * 4 + 1] = quaternion[q + 1] = pose[at + 4];
-      tq[n * 4 + 2] = quaternion[q + 2] = pose[at + 5];
-      tq[n * 4 + 3] = quaternion[q + 3] = pose[at + 6];
-      tree.flags[n] |= NODE_TRS_DIRTY;
-      if (rowOf[index] === UNASKED) seatOf(index, owner[index]!);
-      const b = batchOf[index],
-        row = rowOf[index];
-      if (row === NO_ROW) return void placed.push(owner[index]!);
-      composeMatrix4At(matrices[b], row * 16, position, p, quaternion, q, scale, p);
-      if (row < from[b]) from[b] = row;
-      if (row > to[b]) to[b] = row;
+        q = index * 4;
+      position[p] = pose[at];
+      position[p + 1] = pose[at + 1];
+      position[p + 2] = pose[at + 2];
+      quaternion[q] = pose[at + 3];
+      quaternion[q + 1] = pose[at + 4];
+      quaternion[q + 2] = pose[at + 5];
+      quaternion[q + 3] = pose[at + 6];
+      commit(index);
+    },
+    /** Moves slot `index` the fraction `step` of the way to `target` (7 numbers from `o`), its
+     *  turn normalised: node, tree, and row. */
+    lerp(index: number, target: Float32Array, o: number, step: number) {
+      const p = index * 3,
+        q = index * 4;
+      position[p] += (target[o] - position[p]) * step;
+      position[p + 1] += (target[o + 1] - position[p + 1]) * step;
+      position[p + 2] += (target[o + 2] - position[p + 2]) * step;
+      const x = quaternion[q] + (target[o + 3] - quaternion[q]) * step,
+        y = quaternion[q + 1] + (target[o + 4] - quaternion[q + 1]) * step,
+        z = quaternion[q + 2] + (target[o + 5] - quaternion[q + 2]) * step,
+        w = quaternion[q + 3] + (target[o + 6] - quaternion[q + 3]) * step;
+      const n = 1 / (Math.sqrt(x * x + y * y + z * z + w * w) || 1);
+      quaternion[q] = x * n;
+      quaternion[q + 1] = y * n;
+      quaternion[q + 2] = z * n;
+      quaternion[q + 3] = w * n;
+      commit(index);
     },
     /** Closes the batch: the world hears the written rows and the nodes it recomposes itself. */
     end() {
