@@ -6867,6 +6867,7 @@
         "bench/runner/witnessPage.ts",
         "packages/sdk-browser/src/lighting/contractLights.ts",
         "packages/sdk-browser/src/lighting/importedLights.ts",
+        "packages/sdk-browser/src/lighting/lightWrite.test.ts",
         "packages/sdk-browser/src/lighting/lightWrite.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/lightResources.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/drawnMask.test.ts",
