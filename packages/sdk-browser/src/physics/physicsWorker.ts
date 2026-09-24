@@ -7,13 +7,14 @@
  * costs no work here either.
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
 import { openJolt, startJolt, type JoltModule } from './joltModule.ts';
 import { runJoltThread, type JoltThreadStart } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
 import { createCharacterDriver } from './characterDriver.ts';
 import { createWaterStep } from './water.ts';
+import { createStepClock } from './stepClock.ts';
 
 const scope = globalThis as unknown as {
   location: { href: string };
@@ -25,13 +26,10 @@ let jolt: JoltModule | null = null,
   results: ReturnType<typeof createTickResults> | null = null;
 const buffers: ArrayBuffer[] = [];
 const water = createWaterStep();
+const clock = createStepClock(water);
 const queued: Uint32Array[] = [];
 const character = createCharacterDriver();
-let paused = false,
-  timeScale = 1,
-  last = 0,
-  owed = 0,
-  timer: ReturnType<typeof setTimeout> | null = null,
+let timer: ReturnType<typeof setTimeout> | null = null,
   active = 0,
   steps = 0,
   stepMs = 0;
@@ -71,18 +69,14 @@ function concat(parts: Uint32Array[]) {
 function tick() {
   timer = null;
   if (!jolt) return;
-  const now = performance.now();
-  if (!paused)
-    owed = Math.min(owed + ((now - last) / 1000) * timeScale, MAX_CATCH_UP_STEPS * PHYSICS_STEP);
-  last = now;
+  clock.tick(performance.now());
   let owing: boolean;
   try {
     // Paused, commands still reach the bodies; running, they wait for the next step, so a
     // kinematic move is a move over a step (pushing what it meets), never a teleport.
-    if (queued.length && paused && results!.room()) run(0);
-    while (!paused && owed >= PHYSICS_STEP && results!.room()) {
+    if (queued.length && clock.paused && results!.room()) run(0);
+    while (results!.room() && clock.step()) {
       run(PHYSICS_STEP);
-      owed -= PHYSICS_STEP;
       steps++;
     }
     active = jolt.active();
@@ -92,21 +86,17 @@ function tick() {
     return fail(error);
   }
   post();
-  if ((active > 0 || owing || character.moving()) && !paused)
-    schedule(Math.max(1, ((PHYSICS_STEP - owed) * 1000) / timeScale));
+  if ((active > 0 || owing || character.moving()) && !clock.paused) schedule(clock.delay());
 }
 
 function post() {
-  if (results?.post(steps, stepMs, active, character.report)) steps = stepMs = 0;
+  if (results?.post(steps, stepMs, active, character.report, water)) steps = stepMs = 0;
 }
 
 /** A resting world steps at once: what the page just sent is owed now, not a frame later. */
 function wake() {
   if (!jolt) return;
-  if (timer === null) {
-    last = performance.now();
-    if (!paused) owed = Math.max(owed, PHYSICS_STEP);
-  }
+  clock.wake(performance.now(), timer === null);
   schedule(0);
 }
 
@@ -132,7 +122,7 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   jolt = startJolt(opened, budget, message.threads);
   results = createTickResults(jolt, budget, buffers, scope.postMessage.bind(scope));
   buffers.push(...message.buffers);
-  last = performance.now();
+  clock.start(performance.now());
   scope.postMessage({ type: 'ready' });
   schedule(0);
 }
@@ -144,9 +134,10 @@ scope.onmessage = ({ data: message }) => {
     buffers.push(message.buffer);
     post();
     // A tick held back for room in its results resumes.
-    if (jolt && (owed >= PHYSICS_STEP || queued.length)) schedule(0);
+    if (jolt && (clock.owed >= PHYSICS_STEP || queued.length)) schedule(0);
   } else if (message.type === 'water') {
-    water.set(message.water);
+    water.set(message.water, message.epoch);
+    clock.water(performance.now(), timer === null);
     schedule(0);
   } else if (message.type === 'cast') {
     // Between two ticks, against the last step's bodies; the commands still queued are applied
@@ -173,9 +164,7 @@ scope.onmessage = ({ data: message }) => {
     character.press(message.input, message.jumps);
     wake();
   } else {
-    paused = message.paused;
-    timeScale = message.timeScale;
-    last = performance.now();
+    clock.set(performance.now(), timer === null, message.paused, message.timeScale);
     schedule(0);
   }
 };

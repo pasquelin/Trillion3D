@@ -1,3 +1,4 @@
+import { COMPUTE } from '../core/computeBindings.ts';
 import { DRAW_ITEM_WGSL, WORKGROUP } from './contract.ts';
 
 /**
@@ -21,9 +22,6 @@ fn mapRows(@builtin(global_invocation_id) id:vec3u){
  rowOf[items[row].selectionIndex]=row;
 }
 `;
-
-/** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node. */
-const COMPUTE = 4;
 
 /**
  * The map for a catalogue of `pages` pages. Every buffer is pushed onto `owned`, released with the
