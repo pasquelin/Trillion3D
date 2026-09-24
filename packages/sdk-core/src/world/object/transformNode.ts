@@ -8,22 +8,18 @@ import {
 import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../../math/transform-tree/update.ts';
 import { Matrix4 } from '../math/matrix4.ts';
 
-/**
- * A scene node read through the reference's matrices: `matrix` and `matrixWorld` are views of its
- * slot of the transform tree, and the tree's flags answer `matrixAutoUpdate` and
- * `matrixWorldNeedsUpdate`. `updateMatrixWorld(force)` follows the reference's rule
- * (`updateNodeMatrixWorld`), so a node whose local matrix is written keeps it.
- */
+// `matrix` and `matrixWorld` are views of the node's slot of the transform tree, whose flags answer
+// `matrixAutoUpdate` and `matrixWorldNeedsUpdate`; `updateMatrixWorld(force)` is the reference's
+// rule (`updateNodeMatrixWorld`). Reading `matrix` counts as a write — a caller may fill it in
+// place — so the next update recomposes it or carries it to the world. A caller may point
+// `matrix.elements` at storage of its own: the node then reads its pose there, its world included.
+/** A scene node read through the reference's matrices, kept in the engine's transform tree. */
 export class TransformNode extends SceneNode {
   private readonly local = new Matrix4();
   private readonly world = new Matrix4();
   /** The tree's view `matrix` last followed: a caller that re-pointed `elements` keeps its own. */
   private localView: Float64Array | null = null;
-  /**
-   * Local matrix, a view of this node's slot of the transform tree. Reading it counts as a write —
-   * a caller may fill it in place — so the next update recomposes it or carries it to the world.
-   * A caller may point `matrix.elements` at storage of its own: the node then reads its pose there.
-   */
+  /** Local matrix, a view of this node's slot of the transform tree. */
   get matrix(): Matrix4 {
     this.state.tree.flags[this.index] |= NODE_LOCAL_CHANGED | NODE_TRS_DIRTY;
     if (!this.adopted) this.local.elements = this.localView = this.localMatrix as Float64Array;
@@ -33,10 +29,7 @@ export class TransformNode extends SceneNode {
   private get adopted() {
     return this.localView && this.local.elements !== this.localView ? this.local.elements : null;
   }
-  /**
-   * World matrix as last composed (`updateMatrixWorld`), a view of the tree. A node posed by
-   * storage of its own reads it now: its world follows a storage rewritten under it.
-   */
+  /** World matrix as last composed (`updateMatrixWorld`), a view of the tree. */
   get matrixWorld(): Matrix4 {
     const own = this.adopted;
     if (own) {
