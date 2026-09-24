@@ -3,106 +3,108 @@ import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import {
-  compactRank,
-  compactSerial,
+  compactTile,
+  tileLayout,
+  tileLists,
 } from '../../../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 
-// D4: shader.ts now compacts retained lights by rank (countOneBits, one thread
-// per light) instead of a loop on thread zero. compactSerial (the legacy kernel) and compactRank
-// (the D4 kernel) must produce the same list, in the same ascending order, and the same requested
-// count, on hostile masks.
+// D4 and #28: shader.ts compacts each kept light at its rank (countOneBits, one thread per
+// light), with room for every light the contract accepts. The oracle ports that compaction on
+// the layout the shader declares, so a record too small for its lights fails here.
 
-const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
-/** A tile list has room for every light the contract accepts (#28): none is ever dropped. */
-const MAX_TILE = LIGHT_SETTINGS.maxLights;
+const layout = tileLayout(LIGHT_TILES_SHADER);
+const MAX = LIGHT_SETTINGS.maxLights;
 
-function assertSame(hits: Uint32Array, count: number, maxTileLights: number = MAX_TILE) {
-  const serial = compactSerial(hits, count, maxTileLights);
-  const rank = compactRank(hits, count, maxTileLights);
-  assert.deepEqual(rank.kept, serial.kept, `kept differs for hits=${[...hits]} count=${count}`);
-  assert.equal(
-    rank.requested,
-    serial.requested,
-    `requested differs for hits=${[...hits]} count=${count}`,
-  );
-  return serial;
+/** The workgroup mask: `opaque` and `blend` list the lights each slice keeps. */
+function mask(opaque: Iterable<number>, blend: Iterable<number>) {
+  const hits = new Uint32Array(2 * layout.words);
+  for (const i of opaque) hits[layout.opaqueMask + (i >>> 5)] |= 1 << (i & 31);
+  for (const i of blend) hits[layout.blendMask + (i >>> 5)] |= 1 << (i & 31);
+  return hits;
 }
+const range = (n: number, keep = (_: number) => true) => [...Array(n).keys()].filter(keep);
 
-test('0 lights: zero count, empty mask', () => {
-  const result = assertSame(new Uint32Array(WORDS), 0);
-  assert.deepEqual(result.kept, []);
-  assert.equal(result.requested, 0);
+test('the shader record has room for every light the contract accepts, in both lists', () => {
+  assert.equal(layout.maxLights, MAX);
+  assert.equal(layout.words, Math.ceil(MAX / 32));
+  assert.ok(layout.blendBase - layout.opaqueBase >= MAX, 'opaque list room');
+  assert.ok(layout.stride - layout.blendBase >= MAX, 'blend list room');
+});
+
+test('0 lights: empty lists', () => {
+  const tiles = compactTile(layout, mask([], []), 0);
+  assert.deepEqual(tileLists(layout, tiles), { opaque: [], blend: [] });
 });
 
 test('all masks zero, count at the scene lights ceiling', () => {
-  const result = assertSame(new Uint32Array(WORDS), LIGHT_SETTINGS.maxLights);
-  assert.deepEqual(result.kept, []);
-  assert.equal(result.requested, 0);
+  const tiles = compactTile(layout, mask([], []), MAX);
+  assert.deepEqual(tileLists(layout, tiles), { opaque: [], blend: [] });
 });
 
 test('every declared light touching one tile is kept, in order, none dropped', () => {
-  const hits = new Uint32Array(WORDS).fill(0xffffffff);
-  const result = assertSame(hits, LIGHT_SETTINGS.maxLights);
-  assert.equal(result.requested, LIGHT_SETTINGS.maxLights);
-  assert.deepEqual(result.kept, [...Array(LIGHT_SETTINGS.maxLights).keys()]);
+  const tiles = compactTile(layout, mask(range(MAX), range(MAX)), MAX);
+  assert.deepEqual([tiles[0], tiles[1]], [MAX, MAX]);
+  assert.deepEqual(tileLists(layout, tiles), { opaque: range(MAX), blend: range(MAX) });
 });
 
 test('more than 32 lights in one tile: all of them contribute', () => {
-  const hits = new Uint32Array(WORDS);
-  for (let i = 0; i < 33; i++) hits[i >>> 5] |= 1 << (i & 31);
-  const result = assertSame(hits, 33);
-  assert.deepEqual(result.kept, [...Array(33).keys()]);
+  const tiles = compactTile(layout, mask(range(33), range(40)), MAX);
+  assert.deepEqual(tileLists(layout, tiles), { opaque: range(33), blend: range(40) });
 });
 
 test('holey mask: every other light retained, including across the 32-bit word boundary', () => {
-  const hits = new Uint32Array(WORDS);
-  for (let i = 0; i < LIGHT_SETTINGS.maxLights; i += 2) hits[i >>> 5] |= 1 << (i & 31);
-  const result = assertSame(hits, LIGHT_SETTINGS.maxLights);
-  assert.deepEqual(
-    result.kept,
-    [...Array(LIGHT_SETTINGS.maxLights).keys()].filter((i) => i % 2 === 0),
-  );
+  const even = range(MAX, (i) => i % 2 === 0);
+  const odd = range(MAX, (i) => i % 2 === 1);
+  const tiles = compactTile(layout, mask(even, odd), MAX);
+  assert.deepEqual(tileLists(layout, tiles), { opaque: even, blend: odd });
 });
 
 test('isolated bit at word boundary (31 and 32)', () => {
-  const hits = new Uint32Array(WORDS);
-  hits[0] |= 1 << 31;
-  if (WORDS > 1) hits[1] |= 1;
-  assertSame(hits, LIGHT_SETTINGS.maxLights);
+  const tiles = compactTile(layout, mask([31, 32], [32]), MAX);
+  assert.deepEqual(tileLists(layout, tiles), { opaque: [31, 32], blend: [32] });
 });
 
-test('count below the number of bits set beyond does not count them', () => {
-  // A bit set outside [0, count) must never be read: the shader's `lane < count` guard
-  // prevents setting it; here we verify both oracles ignore it if set anyway.
-  const hits = new Uint32Array(WORDS);
-  hits[0] |= 1; // light 0
-  hits[0] |= 1 << 5; // light 5, outside the simulated count below
-  const serial = compactSerial(hits, 3, MAX_TILE);
-  const rank = compactRank(hits, 3, MAX_TILE);
-  assert.deepEqual(serial.kept, [0]);
-  assert.deepEqual(rank.kept, [0]);
+test('a light at or beyond the count is never written', () => {
+  // The shader's `lane<count` guard keeps such a bit unset; the compaction ignores it anyway.
+  const tiles = compactTile(layout, mask([0, 5], [5]), 3);
+  assert.equal(tiles[layout.opaqueBase], 0);
+  assert.ok(!tiles.includes(5), 'light 5 written');
 });
 
-test('fuzz: random masks, various counts and per-tile ceilings', () => {
+test('a light count above the contract is clamped like the shader', () => {
+  const tiles = compactTile(layout, mask(range(MAX), []), MAX + 7);
+  assert.deepEqual(tileLists(layout, tiles).opaque, range(MAX));
+});
+
+test('fuzz: random masks and counts, any thread order gives the ascending list', () => {
   let seed = 7;
   const rand = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
   for (let trial = 0; trial < 40; trial++) {
-    const hits = new Uint32Array(WORDS);
-    const count = 1 + Math.floor(rand() * (LIGHT_SETTINGS.maxLights - 1));
-    for (let i = 0; i < count; i++) if (rand() < 0.5) hits[i >>> 5] |= 1 << (i & 31);
-    const cap = 1 + Math.floor(rand() * (MAX_TILE - 1));
-    assertSame(hits, count, cap);
+    const count = 1 + Math.floor(rand() * MAX);
+    const opaque = range(count, () => rand() < 0.5);
+    const blend = range(count, () => rand() < 0.5);
+    const lanes = range(layout.threads);
+    for (let i = lanes.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [lanes[i], lanes[j]] = [lanes[j], lanes[i]];
+    }
+    const inOrder = compactTile(layout, mask(opaque, blend), count);
+    const shuffled = compactTile(layout, mask(opaque, blend), count, lanes);
+    assert.deepEqual(shuffled, inOrder, `thread order changed the record at trial ${trial}`);
+    assert.deepEqual(tileLists(layout, inOrder), { opaque, blend });
   }
 });
 
-test('the tile shader has room for every light and writes each one at its rank', () => {
-  assert.match(
-    LIGHT_TILES_SHADER,
-    new RegExp(`const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLights * 2 + 2}u;`),
-  );
+test('the tile shader writes each kept light at its rank, with no guard on the rank', () => {
   assert.doesNotMatch(LIGHT_TILES_SHADER, /MAX_TILE_LIGHTS/, 'no per-tile ceiling');
-  assert.match(
-    LIGHT_TILES_SHADER,
-    /tiles\[base\+TILE_BLEND_BASE\+rankBefore\(BLEND_MASK,lane\)\]=lane;/,
-  );
+  for (const slice of ['OPAQUE', 'BLEND'])
+    assert.match(
+      LIGHT_TILES_SHADER,
+      new RegExp(
+        `if\\(lane<count&&maskHolds\\(${slice}_MASK,lane\\)\\)\\{\\n` +
+          ` {2}tiles\\[base\\+TILE_${slice}_BASE\\+rankBefore\\(${slice}_MASK,lane\\)\\]=lane;\\n \\}`,
+      ),
+    );
+  assert.match(LIGHT_TILES_SHADER, /tiles\[base\]=maskTotal\(OPAQUE_MASK\);/);
+  assert.match(LIGHT_TILES_SHADER, /tiles\[base\+1u\]=maskTotal\(BLEND_MASK\);/);
 });
