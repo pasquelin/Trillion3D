@@ -4,11 +4,10 @@ import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { followHostTexture, importHostTexture } from '../../host/textureImport.ts';
-import type { HostTexture } from '../../host/resources.ts';
+import type { HostAttributes, HostTexture } from '../../host/resources.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
 import { importHostSurface } from '../../host/surfaceImport.ts';
-import type { HostAttributes } from '../../host/resources.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
