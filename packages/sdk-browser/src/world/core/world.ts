@@ -14,6 +14,7 @@ import { awaitViewPages, registerWorld } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
+import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
@@ -57,7 +58,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         pixelError,
         clearColor: scene.background instanceof Color ? scene.background.getHex() : undefined,
         beforeFrame: () => {
-          animating = frames.step(controls, scene);
+          animating = frames.step(controls, scene, physics.frame);
           runtime.beforeFrame();
         },
         onFrame: (metrics) => {
@@ -75,6 +76,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     display: () => ({ exposure, toneMapping }),
     diagnostic,
   });
+  const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   /** The camera outside the scene still redraws when it moves. */
   const cameraLink: SceneLink = { pose: invalidate, structure: () => {}, content: () => {} };
   const adopt = (next: Camera) => {
@@ -124,8 +126,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       exposure = value;
       runtime.displayChanged();
     },
-    /** The DAG cut's screen error, in pixels. */
-    get pixelError() {
+    /** The DAG cut's screen error, in pixels. */ get pixelError() {
       return pixelError ?? 0;
     },
     set pixelError(value: number) {
@@ -133,9 +134,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       live()?.setPixelError(value);
       invalidate();
     },
-    /** Light bounced off the surfaces, traced against the resident proxy; off by default. A
-     *  change is applied in place on a path that carries it, and taken by the next opening on
-     *  one that does not. */
+    /** Light bounced off the surfaces, traced against the resident proxy; off by default. A change
+     *  is applied in place on a path that carries it, taken by the next opening on one that does not. */
     get bounce() {
       return bounce;
     },
@@ -146,8 +146,9 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (session && !session.setBounce(on)) runtime.renew();
       invalidate();
     },
-    /** The world's memory pools, read and set in bytes. */
-    budget: worldBudget(pools, runtime, frames, () => renderer),
+    /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
+    /** The world's memory pools, read and set in bytes, and the physics envelopes. */
+    budget: worldBudget(pools, runtime, frames, () => renderer, physics.handle.budget),
     diagnostic: diagnostic.handle,
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
@@ -182,6 +183,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (disposed) return;
       disposed = true;
       controls.dispose();
+      physics.dispose();
       runtime.dispose();
       diagnostic.notices.close();
       frames.clear();

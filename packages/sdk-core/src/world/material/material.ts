@@ -1,3 +1,4 @@
+import type { PhysicsMaterialPreset } from '../../physics/options.ts';
 import type { Material as EngineMaterial } from '../../contracts/material.ts';
 import { Color, type ColorInput } from '../math/color.ts';
 import { listen } from '../math/observed.ts';
@@ -61,6 +62,10 @@ export interface MaterialParameters {
   depthWrite?: boolean;
   /** Whether the surface hides behind what is already closer. */
   depthTest?: boolean;
+  /** The matter of a body wearing it: density, friction, restitution. */ physics?: PhysicsMaterialPreset;
+  /** kg/m³, times the volume for the mass. @defaultValue 1000 */ density?: number;
+  /** How much a body grips, 0 and up. @defaultValue 0.5 */ friction?: number;
+  /** How much a body bounces, 0 to 1. @defaultValue 0 */ restitution?: number;
   [param: string]: unknown;
 }
 
@@ -108,6 +113,10 @@ export class Material {
   depthWrite = true;
   /** Whether the surface hides behind closer things. */
   depthTest = true;
+  /** Physics matter preset of the bodies wearing it. */ declare physics?: PhysicsMaterialPreset;
+  /** kg/m³, for a body's mass. */ declare density?: number;
+  /** Physics friction. */ declare friction?: number;
+  /** Physics restitution. */ declare restitution?: number;
   /** Bumped by every write: what the world compares to repaint. */
   version = 0;
   /** Who wears this material: every mesh holding it hears its writes. */
