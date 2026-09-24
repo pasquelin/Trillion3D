@@ -6,7 +6,6 @@ import type {
   Object3D,
 } from '../../../packages/sdk-browser/src/index.ts';
 import type { Engine } from './session.ts';
-import { applyPose } from './commands.ts';
 
 /** The shapes the Add menu builds, each with the first arguments of its family call named. */
 export const SHAPES = {
@@ -46,7 +45,6 @@ export const shapeBuilder = (engine: Engine, type: string) =>
 
 export const isMesh = (node: Object3D): node is Mesh => (node as Mesh).isMesh === true;
 export const isLight = (node: Object3D): node is Light => (node as Light).isLight === true;
-const isModel = (node: Object3D) => (node as { isLoadedModel?: boolean }).isLoadedModel === true;
 /** The one material of a mesh the inspector edits; a mesh wearing one per group has none. */
 export const materialOf = (node: Object3D) =>
   isMesh(node) && !Array.isArray(node.material) ? (node.material as Material) : null;
@@ -73,40 +71,4 @@ export function build(engine: Engine, kind: AddKind, name: string, size?: number
   }
   node.name = name;
   return node;
-}
-
-/** A shape built again from its recipe, or the same shape when nothing records how it was made. */
-function sameShape(engine: Engine, geometry: Geometry) {
-  const recipe = geometry.recipe;
-  const again = recipe && shapeBuilder(engine, recipe.type);
-  return again ? again(...recipe.args) : geometry;
-}
-
-/**
- * A copy of `source` and of what it holds, with materials of its own: a later edit of one leaves
- * the other alone. A loaded model is not copied (it would load again from its address, which a
- * copy made at once cannot wait for): null for it, and it is left out of a copied group.
- */
-export function duplicate(engine: Engine, source: Object3D): Object3D | null {
-  if (isModel(source)) return null;
-  let copy: Object3D;
-  if (isMesh(source)) {
-    const worn = source.material;
-    const matter = Array.isArray(worn) ? worn.map((m) => m.clone()) : worn.clone();
-    copy = engine.object.mesh(sameShape(engine, source.geometry), matter);
-  } else if (isLight(source)) {
-    const { color, intensity, distance, decay, angle, penumbra, castShadow } = source;
-    const make = engine.light[source.kind as LightKind] ?? engine.light.point;
-    copy = make({ color, intensity, distance, decay, angle, penumbra, castShadow });
-  } else copy = engine.object.group();
-  copy.name = source.name;
-  applyPose(copy, source);
-  copy.visible = source.visible;
-  copy.castShadow = source.castShadow;
-  copy.receiveShadow = source.receiveShadow;
-  for (const child of source.children) {
-    const inner = duplicate(engine, child);
-    if (inner) copy.add(inner);
-  }
-  return copy;
 }

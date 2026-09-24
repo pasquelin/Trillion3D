@@ -28,6 +28,7 @@ pub(super) struct CompiledPrimitive {
     pub proxy_cut: Vec<f32>,
     /// The threshold, in metres, that this cut requested.
     pub proxy_threshold: f64,
+    pub collision: Value,
 }
 
 pub(super) fn compile_primitive(
@@ -179,6 +180,7 @@ pub(super) fn compile_primitive(
         structure_report,
         stream_report,
         position_exponent,
+        collision,
     } = if dag_primitive {
         build_dag_primitive(o, &pos, &carried, &index_values, demand, &store_packed)?
     } else {
@@ -190,6 +192,7 @@ pub(super) fn compile_primitive(
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
+        collision,
         // The threshold is back in object space: it goes out in metres for the report.
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
         value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),

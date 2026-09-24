@@ -13,7 +13,7 @@ import {
  * A small corner of the example, at the bottom left unless `corner` says otherwise: the frames
  * the world drew per second, and the engine's counters of the last frame, refreshed twice a
  * second. With `?profile` in the page's address, it adds each second's CPU profile (`profile.ts`),
- * also kept as `window.__profile`.
+ * also kept as `window.__profile`. What it returns stops the corner's timers.
  */
 export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bottom-left') {
   const card = document.createElement('dl');
@@ -21,12 +21,13 @@ export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bo
   overlay().append(card);
   hideable(card);
   let profiled: [string, string][] = [];
-  if (profiling())
-    startProfile(world, (latest) => {
-      Object.assign(globalThis, { __profile: latest });
-      profiled = profileLines(latest);
-    });
-  watchStats(
+  const stopProfile = profiling()
+    ? startProfile(world, (latest) => {
+        Object.assign(globalThis, { __profile: latest });
+        profiled = profileLines(latest);
+      })
+    : () => {};
+  const stopStats = watchStats(
     world,
     (lines) =>
       card.replaceChildren(
@@ -42,4 +43,8 @@ export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bo
       ),
     () => profiled,
   );
+  return () => {
+    stopStats();
+    stopProfile();
+  };
 }

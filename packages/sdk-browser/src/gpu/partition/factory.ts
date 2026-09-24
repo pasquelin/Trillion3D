@@ -4,14 +4,10 @@ import {
   createGpuPartitionGroup,
   createGpuPartitionLayout,
 } from './buffers.ts';
-import {
-  createPartitionUniformWriter,
-  type ForgottenRows,
-  type PartitionFrame,
-} from './uniform.ts';
+import { createPartitionUniformWriter, type PartitionFrame } from './uniform.ts';
 import { createPartitionCounters } from './counters.ts';
 import { PARTITION_SHADER } from './shader.ts';
-import { dropValidation, openValidation, validationError } from '../core/errorScope.ts';
+import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { readGpuBuffer } from '../core/readback.ts';
 import type { GpuPartition, KeptFrame, PartitionSources } from './types.ts';
@@ -32,34 +28,39 @@ export async function createGpuPartition(
   const allocated = createGpuPartitionBuffers(device, slotCap);
   let disposed = false;
   try {
-    openValidation(device);
-    const module = device.createShaderModule({ code: PARTITION_SHADER });
-    if (await shaderFailed(device, module)) {
-      for (const buffer of allocated.all) buffer.destroy();
-      return undefined;
-    }
-    const projectLayout = createGpuPartitionLayout(device, 'projectRows'),
-      classifyLayout = createGpuPartitionLayout(device, 'classifyRows');
-    const pipelineFor = (layout: GPUBindGroupLayout, entryPoint: string) =>
-      device.createComputePipeline({
-        layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-        compute: { module, entryPoint },
-      });
-    const project = pipelineFor(projectLayout, 'projectRows'),
-      classify = pipelineFor(classifyLayout, 'classifyRows');
     // The pyramid changes identity on every target resize: the projection's group follows it,
     // remade only then. A fresh pyramid is all zeros — the far plane — and hides nothing.
     const buffers = { ...allocated, ...sources, pyramid };
-    let projectGroup = createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers);
-    const classifyGroup = createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers);
-    if (await validationError(device)) {
+    const made = await validated(device, async () => {
+      const module = device.createShaderModule({ code: PARTITION_SHADER });
+      if (await shaderFailed(module)) return undefined;
+      const projectLayout = createGpuPartitionLayout(device, 'projectRows'),
+        classifyLayout = createGpuPartitionLayout(device, 'classifyRows');
+      const pipelineFor = (layout: GPUBindGroupLayout, entryPoint: string) =>
+        device.createComputePipeline({
+          layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+          compute: { module, entryPoint },
+        });
+      return {
+        projectLayout,
+        project: pipelineFor(projectLayout, 'projectRows'),
+        classify: pipelineFor(classifyLayout, 'classifyRows'),
+        projectGroup: createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers),
+        classifyGroup: createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers),
+      };
+    });
+    if (!made) {
       for (const buffer of allocated.all) buffer.destroy();
       return undefined;
     }
+    const { projectLayout, project, classify, classifyGroup } = made;
+    let { projectGroup } = made;
     const writeUniform = createPartitionUniformWriter();
-    // Rows rewritten with another page since the last image: their held rectangle, verdict and
-    // history describe the page that left. Read as never projected, once, then forgotten.
-    const forget: ForgottenRows = { from: 0, to: -1 };
+    // Runs `[from, to]` of rows rewritten since the last image, flattened in pairs: their held
+    // rectangle, verdict and history describe the page — or the place — that left. The next image
+    // clears them before projecting, and reads them as never projected, once.
+    const forgotten: number[] = [];
+    const rowBytes = ROW_DATA_U32 * 4;
     // What the last frame sent the kernel, kept for the audit: matrices are copied because the
     // camera's are rewritten by the next frame. The copy goes into two arrays allocated once
     // and for all — the audit reads the last frame, never an earlier one.
@@ -89,11 +90,9 @@ export async function createGpuPartition(
       rowData: allocated.rowData,
       uniforms: allocated.uniforms,
       forgetRows(from: number, to: number) {
-        if (to < from) return;
-        forget.from = forget.to < forget.from ? from : Math.min(forget.from, from);
-        forget.to = Math.max(forget.to, to);
+        if (to >= from) forgotten.push(from, to);
       },
-      /** World corners of rows `[from, to]`, on the table's dirty interval and it alone. */
+      /** World corners of rows `[from, to]`: one run of the rows the table declared dirty. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;
         device.queue.writeBuffer(
@@ -105,17 +104,24 @@ export async function createGpuPartition(
         );
       },
       encode(encoder: GPUCommandEncoder, frame: PartitionFrame) {
+        if (disposed) return;
+        // Zero flags are a row never projected: the kernel keeps nothing of what they held.
+        for (let i = 0; i < forgotten.length; i += 2) {
+          const from = forgotten[i],
+            to = Math.min(forgotten[i + 1], allocated.rows - 1);
+          if (to >= from)
+            encoder.clearBuffer(allocated.rowData, from * rowBytes, (to - from + 1) * rowBytes);
+        }
+        forgotten.length = 0;
         const pyramid = sources.pyramid();
-        if (disposed || !pyramid) return;
+        if (!pyramid) return;
         const rows = Math.min(frame.rows, allocated.rows);
         // Nothing is held from frame to frame but the history, which lives in `rowData`:
         // counters, rest bits and per-slot counts start from zero.
         encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
         encoder.clearBuffer(sources.restBits);
         encoder.clearBuffer(sources.slotUsed);
-        writeUniform(device, allocated.uniforms, frame, rows, forget);
-        forget.from = 0;
-        forget.to = -1;
+        writeUniform(device, allocated.uniforms, frame, rows);
         kept.rows = rows;
         kept.width = frame.width;
         kept.height = frame.height;
@@ -150,7 +156,6 @@ export async function createGpuPartition(
       },
     };
   } catch {
-    await dropValidation(device);
     for (const buffer of allocated.all)
       try {
         buffer.destroy();

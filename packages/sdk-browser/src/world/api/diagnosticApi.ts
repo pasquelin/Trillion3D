@@ -1,14 +1,14 @@
 import { DIAGNOSTICS, type DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import { repaintHostGraph, type BeautyMaterials } from '../../host/scene/graphDiagnostic.ts';
 import type { RenderBackend } from '../../backend/types.ts';
-import type { HostDiagnosticMaterial } from '../../host/resources.ts';
+import type { HostDisposable } from '../../host/resources.ts';
 
 type Inputs = {
   check: () => void;
   active: () => RenderBackend;
   backends: RenderBackend[];
   beautyMaterials: BeautyMaterials;
-  overlays: HostDiagnosticMaterial[];
+  overlays: HostDisposable[];
   setMode: (mode: DiagnosticMode) => void;
 };
 

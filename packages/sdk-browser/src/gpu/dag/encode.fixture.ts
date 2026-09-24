@@ -95,5 +95,6 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     maskPipeline: etape('dagMask'),
     drawPrefixPipeline: etape('dagDrawPrefix'),
     drawScatterPipeline: etape('dagDrawScatter'),
+    viewOffsetsPipeline: etape('dagViewOffsets'),
   } as unknown as Parameters<typeof encodeDagKernels>[1];
 }

@@ -7,7 +7,7 @@
 // (`../../host/world/placements.ts`), which is the one it draws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { createExplorerLightApi } from '../api/lightApi.ts';
 import { setWebgpuTransform } from '../../webgpu/pages/render/transform.ts';
@@ -26,9 +26,9 @@ function proche(obtenu: ArrayLike<number>, attendu: ArrayLike<number>, tolerance
 
 /** A parent/child scene, and the public explorer wired to the real `setWebgpuTransform`. */
 function banc() {
-  const source = new THREE.Object3D();
-  const parent = new THREE.Object3D();
-  const mesh = new THREE.Mesh();
+  const source = new G.GraphNode();
+  const parent = new G.GraphNode();
+  const mesh = G.mesh();
   mesh.name = 'cible';
   parent.name = 'porteur';
   parent.add(mesh);
@@ -63,10 +63,10 @@ function banc() {
 
 const demandee = () =>
   new Float32Array(
-    new THREE.Matrix4().compose(
-      new THREE.Vector3(3, -2, 5),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, 0.1, -0.2)),
-      new THREE.Vector3(1.2, 0.7, 2),
+    new G.Matrix4().compose(
+      new G.Vector3(3, -2, 5),
+      new G.Quaternion().setFromEuler(new G.Euler(0.4, 0.1, -0.2)),
+      new G.Vector3(1.2, 0.7, 2),
     ).elements,
   );
 
@@ -78,7 +78,7 @@ test(
     // The host writes the fields directly, never calling updateMatrixWorld — exactly the gesture
     // resolution must cover: parent.matrixWorld stays the one from before this move.
     parent.position.set(10, 4, -3);
-    parent.quaternion.setFromEuler(new THREE.Euler(0.5, -0.3, 0.2));
+    parent.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.5, -0.3, 0.2)));
     parent.scale.set(2, 3, 0.5);
     const demandeeIci = demandee();
     explorer.setTransform('cible', demandeeIci);
@@ -100,10 +100,9 @@ test(
     worlds.refresh();
     proche(monde.elements, demandeeIci, 1e-9);
     // The revision settles: remaking the same request, before any motion, must change nothing.
-    const epoqueStable = rt.layout.rows.tableEpoch;
-    (rt.run as ReturnType<typeof createWebgpuRunState>).noOccluderHistory = false;
+    const stable = rt.run.gate.revisions.scene;
     explorer.setTransform('cible', demandeeIci);
-    assert.equal(rt.layout.rows.tableEpoch, epoqueStable, 'no parent motion, nothing to redo');
+    assert.equal(rt.run.gate.revisions.scene, stable, 'no parent motion, nothing to redo');
     // The parent moves again, without updateMatrixWorld: the frame in which the same world pose
     // is brought back has changed, so the local matrix that is set must change even if the requested
     // world is identical. The old code compared the local matrix already in memory and declared
@@ -111,14 +110,9 @@ test(
     parent.position.set(20, -8, 6);
     explorer.setTransform('cible', demandeeIci);
     assert.notEqual(
-      rt.layout.rows.tableEpoch,
-      epoqueStable,
+      rt.run.gate.revisions.scene,
+      stable,
       'the parent moved: the identical request is not a no-op',
-    );
-    assert.equal(
-      (rt.run as ReturnType<typeof createWebgpuRunState>).noOccluderHistory,
-      true,
-      'occluder history must be dropped, not served stale',
     );
     worlds.refresh();
     proche(monde.elements, demandeeIci, 1e-9);

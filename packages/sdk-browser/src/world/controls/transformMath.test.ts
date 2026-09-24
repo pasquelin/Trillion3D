@@ -49,6 +49,9 @@ test('a scale acts along the object own axis, factor from the drag, rounded to i
   assert.ok(close(axis.scale, [3, 1, 1]), 'scale is always local: x is the world -z here');
   const snapped = dragTransform(start('scale', 'x', 'world'), along(0, -2.2), { scale: 0.5 })!;
   assert.equal(snapped.scale.x, 2);
+  // Dragged through the centre, the factor turns negative: the size is kept, never mirrored.
+  const through = dragTransform(start('scale', 'x', 'world'), along(0, 2))!;
+  assert.ok(close(through.scale, [1, 1, 1]));
 });
 
 test('a uniform scale reads the drag up the screen, wherever the centre was pressed', () => {

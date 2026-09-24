@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
 import { rasterPages } from '../page/raster.ts';
 import {
@@ -16,27 +16,24 @@ import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 
 test('the closer triangle wins the visibility id when two pages overlap', () => {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
-      [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 1, 1, -1, 1, 1, 1, 1],
-      3,
-    ),
+    G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 1, 1, -1, 1, 1, 1, 1], 3),
   );
-  const farMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-    nearMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const farMat = G.basicSurface({ color: 0xff0000 }),
+    nearMat = G.basicSurface({ color: 0x00ff00 });
   const far: VisPage = {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometry.attributes,
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     material: surfaceOf(farMat),
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([3, 4, 5]),
     attributes: geometry.attributes,
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     material: surfaceOf(nearMat),
     clusterId: 'near',
   };
@@ -50,7 +47,7 @@ test('the closer triangle wins the visibility id when two pages overlap', () => 
 });
 
 test('visbuffer beauty for untextured MeshBasicMaterial matches the documented rasterPages reference', () => {
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const material = G.basicSurface({ color: 0xff0000 });
   const { pages, geometry } = quadPages(material);
   const cam = camera(),
     size: [number, number] = [32, 32];
@@ -65,7 +62,7 @@ test('visbuffer beauty for untextured MeshBasicMaterial matches the documented r
 
 test('the second pass samples the source map at reconstructed UVs', () => {
   const map = nearestQuadTexture();
-  const material = new THREE.MeshBasicMaterial({ color: 0xffffff, map });
+  const material = G.basicSurface({ color: 0xffffff, map });
   const { pages, geometry } = quadPages(material, [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]);
   const cam = camera(),
     size: [number, number] = [16, 16];
@@ -77,7 +74,7 @@ test('the second pass samples the source map at reconstructed UVs', () => {
   assert.equal(beauty[o], 255);
   assert.equal(beauty[o + 1], 0);
   assert.equal(beauty[o + 2], 0);
-  const untextured = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const untextured = G.basicSurface({ color: 0xffffff });
   const white = shadeVisibility(
     ids,
     pages.map((page) => ({ ...page, material: surfaceOf(untextured) })),
@@ -92,31 +89,25 @@ test('the second pass samples the source map at reconstructed UVs', () => {
 });
 
 test('UV derivatives come from the winning triangle, not a neighbour across a visbuffer seam', () => {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
-      [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, -1, 1, 0],
-      3,
-    ),
+    G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
   );
-  geometry.setAttribute(
-    'uv',
-    new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], 2),
-  );
-  const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  geometry.setAttribute('uv', G.floatAttribute([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], 2));
+  const material = G.basicSurface({ color: 0xffffff });
   const pages: VisPage[] = [
     {
       array: new Uint32Array([0, 1, 2]),
       attributes: geometry.attributes,
-      matrix: new THREE.Matrix4(),
+      matrix: new G.Matrix4(),
       material: surfaceOf(material),
       clusterId: 'left',
     },
     {
       array: new Uint32Array([3, 4, 5]),
       attributes: geometry.attributes,
-      matrix: new THREE.Matrix4(),
+      matrix: new G.Matrix4(),
       material: surfaceOf(material),
       clusterId: 'right',
     },

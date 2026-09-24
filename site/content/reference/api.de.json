@@ -147,10 +147,6 @@
     "summary": "Verweigert einen Proxy-Deskriptor, den diese Engine nicht lesen könnte, bevor auch nur ein Byte angefordert wird.",
     "description": "Ein Manifest ohne Deskriptor ist kein Fehler: es ist ein Cache von vor der indirekten Beleuchtung, und die Engine sagt das, statt eine Geometrie zu erraten, die sie nicht hat."
   },
-  "assertSceneTables": {
-    "summary": "Die Tabellen, oder eine benannte Ablehnung.",
-    "description": "Eine unbekannte Version wird nie erraten: ein von einem anderen Compiler geschriebenes Produkt, oder eines von vor einer Formänderung einer Tabelle, sagt nichts, wogegen dieser Leser eine Szene prüfen könnte, und es halb zu lesen würde eine Formatänderung in einen falschen Vergleich verwandeln."
-  },
   "AssetScope": {
     "summary": "Wie ein Modell kompiliert wird: `'slice'` lässt es seitenweise ankommen, `'full'` behält es ganz."
   },
@@ -1182,8 +1178,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Der Schattenplaner.",
-    "description": "Die Arbeit eines Bildes ist nicht mehr „vier Lichter“, sondern **die veralteten Seiten mit der höchsten Priorität, bis zu einem Budget in Millisekunden** (RX3, X4): ein Licht oder eine Kaskade, die sich bewegt, macht seine ganze Karte veraltet, ein Objekt, das sich bewegt, macht nur die Seiten veraltet, die seine projizierte Box abdeckt, und in diesem Bild abgelehnte Seiten warten auf das nächste — nie verloren, ihre Verzögerung veröffentlicht. Ein festes Licht in einer unbewegten Szene kostet weiterhin nichts (X5). Alle Arrays werden einmal zugewiesen; `plan()` wird nie zuweisen."
+    "summary": "Der Schattenplaner der virtuellen Karten.",
+    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild zeichnet dann die ungültigen Seiten, die das Bild liest — grobe zuerst, bis zu einem Millisekundenbudget —, und der Rest wartet, nie verloren, seine Verzögerung veröffentlicht. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
   },
   "createTerminalProgress": {
     "summary": "Ein Fortschrittsbalken im Terminal, der die Ereignisse des Compilers verfolgt.",
@@ -1224,7 +1220,8 @@
       "options.interactive": "Ob die Welt ihre eigene Schleife laufen lässt: sie zeichnet, wenn sich etwas ändert, und ruht sich nach 120 Bildern ohne Neuerung aus. `false` lässt die Seite `world.render()` selbst aufrufen.",
       "options.pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "options.controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
-      "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird."
+      "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
+      "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
     }
   },
   "crossVector3": {
@@ -1368,10 +1365,6 @@
   "depthLayerUnits": {
     "summary": "Um wie viele Hardware-Einheiten eine Schicht einen Cluster der Kamera annähert, als Betrag: null oder mehr, nie vorzeichenbehaftet.",
     "description": "Jeder Pfad liest diese eine Funktion und gibt ihr für seinen eigenen Tiefentest ein Vorzeichen."
-  },
-  "desiredFaceSide": {
-    "summary": "Die Kantenlänge, die ein Licht verdient: seine auf den Bildschirm projizierte Reichweite, gedeckelt durch seinen Anteil am Atlas.",
-    "description": "Ein Licht, das den ganzen Bildschirm abdeckt und allein ist, erhält `shadowSliceMax`; bei dreißig Schattenlichtern verkleinert sich jedes von selbst, statt die letzten ohne Kachel zu lassen. Der Mindestwert ist `shadowSliceMin`: kein Licht verschwindet aus Platzmangel, solange noch welcher übrig ist."
   },
   "detectCapabilities": {
     "summary": "Prüft, womit diese Maschine zeichnen kann, und sagt warum, wenn sie es nicht kann."
@@ -1578,8 +1571,16 @@
       "UNSUPPORTED_SCENE_UPDATE": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "BATCHED_WORLD_VIEW": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "RAYCAST_NO_VIEW": "Ein Bildpunkt wurde von einem Canvas ohne Größe verlangt: Es gibt kein Bild, durch das man zielen kann.",
+      "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden, aus einem Grund ohne eigenen Code (`world.diagnostic.error`): Der geworfene Fehler steht in `details.cause`.",
+      "WEBGPU_LOST": "WebGPU hat sein Gerät verloren, oder ein Fehler darauf hat einen Zustand hinterlassen, aus dem nichts zeichnen kann: geworfen von `render`, `flush` und den Lesevorgängen, die das Gerät brauchen, benannt durch die Diagnose `gpu-device-lost`, und in `world.diagnostic.error`, wenn sich deshalb eine Sitzung nicht öffnen ließ.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
-      "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann."
+      "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
+      "PHYSICS_BUDGET": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
+      "PHYSICS_NESTED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
+      "PHYSICS_FAILED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
+      "PHYSICS_FORMAT": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
+      "NO_VEHICLE": "`world.controls.kind` wurde auf `'vehicle'` gesetzt, während `world.controls.vehicle` `null` ist: Es gibt nichts zu fahren."
     }
   },
   "enginePose": {
@@ -1649,9 +1650,6 @@
       "curveSegments": "In wie viele geraden Stücke jede Kurve des Umrisses umgewandelt wird."
     }
   },
-  "faceCountOf": {
-    "summary": "Wirklich gezeichnete Flächen für ein Licht: sechs für ein Punktlicht, eine für einen Spot, und die Kaskaden für ein Richtungslicht — nie mehr als die sechs pro Kachel reservierten Flächen."
-  },
   "filter": {
     "summary": "Regeln für die Textur-Abtastung."
   },
@@ -1699,10 +1697,6 @@
       "autoForward": "REISEFLUG, standardmäßig deaktiviert: die Kamera fliegt ohne gehaltene Taste mit `movementSpeed` nach vorn, wie ein Flugzeug. W fügt dann `movementSpeed` hinzu (doppelt so schnell) und S nimmt es weg (die Kamera bleibt stehen); sie fliegt nie rückwärts. Nichts bewegt sich vor dem nächsten `update`, sodass ein Host, der bei `change` neu zeichnet, ein Bild anfordert, wenn er den Reiseflug aktiviert."
     }
   },
-  "forEachShadowFace": {
-    "summary": "Besucht jede Fläche jedes Lichts, das einen Schatten deklariert und eine Kachel hält: der einzige Durchlauf, den sich die Zähler, die Veröffentlichung der gehaltenen Maske, und jeder andere Leser pro Fläche teilen.",
-    "description": "Die Anzahl der Flächen ist die der Lichtart; `fn` ist durch die Kacheln und die veröffentlichten Flächen begrenzt."
-  },
   "FORMAT_VERSION": {
     "summary": "Cache-Format, das diese Engine liest.",
     "description": "Format 5 trägt `scene-tables.json`, die Knoten- und Materialtabellen, gegen die die vorbereitete Szene geprüft wird; die Formate 3 und 4 haben dieses Produkt nicht und werden anhand ihrer Nummer abgelehnt, statt halb gelesen zu werden."
@@ -1723,7 +1717,6 @@
       "rafIntervalMs": "Zeit zwischen zwei Bildern.",
       "cpuFrameMs": "CPU-Zeit des Bildes.",
       "cpuSubmitMs": "CPU-Zeit, um die Arbeit zu senden.",
-      "gpuMs": "GPU-Zeit des Bildes.",
       "drawCalls": "Zeichenaufrufe dieses Bildes, so wie die Engine sie gezählt hat. `null`, wenn sie sie nicht gezählt hat: eine Null würde sich wie ein Bild ohne Zeichnung lesen.",
       "autonomousClusterDrawsTotal": "Cluster-Zeichnungen nach Seiten, gestartet vom WebGL2-Programm der Engine während dieser Sitzung.",
       "autonomousCopyDraws": "Szenenkopien — die durchlässigen Oberflächen —, die das WebGL2-Programm der Engine bei diesem Bild gezeichnet hat.",
@@ -1756,7 +1749,7 @@
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
-      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert.",
+      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
       "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
@@ -2292,18 +2285,7 @@
     "summary": "Kopiert eine Engine-Kamera in eine andere, die dann die Sicht bitgenau behält."
   },
   "HostAttribute": {
-    "summary": "Ein Scheitelpunktattribut einer Host-Geometrie, verschachtelt oder nicht: seine Anordnung und seine Speicherung.",
-    "members": {
-      "isBufferAttribute": "Vom Host gesetzt, wenn das Attribut seinen eigenen Puffer besitzt, statt in einen gemeinsamen, verschachtelten Puffer zu blicken. Nur die Zulassungsprüfung liest es: die engine-eigene Dekodierung ist in beiden Fällen dieselbe, nicht die Bindung des autonomen WebGL2-Programms.",
-      "itemSize": "Zahlen pro Scheitelpunkt.",
-      "count": "Wie viele Scheitelpunkte.",
-      "normalized": "Ob sich die Ganzzahlen von 0 bis 1 lesen.",
-      "array": "Die Speicherung.",
-      "getX": "Komponente eines Elements, vom Host entflochten und denormalisiert.",
-      "getY": "Zweite Komponente eines Elements.",
-      "getZ": "Dritte Komponente eines Elements.",
-      "getW": "Vierte Komponente eines Elements."
-    }
+    "summary": "Ein Scheitelpunktattribut einer Host-Geometrie, verschachtelt oder nicht: seine Anordnung und seine Speicherung."
   },
   "HostAttributes": {
     "summary": "Die benannten Attribute einer Host-Geometrie.",
@@ -2362,32 +2344,17 @@
     "summary": "Eine Host-Geometrie, die eine Diagnoseansicht freigeben kann.",
     "members": {
       "attributes": "Ihre Scheitelpunktattribute.",
-      "boundingBox": "Die vom Host berechnete lokale Box.",
       "dispose": "Gibt sie frei."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Eine Host-Oberfläche, die eine Diagnoseansicht auf einem Mesh austauscht und dann freigibt: was sie anhängt, kommt über `HostDiagnosticFactory`, nie über einen Import, sodass keine Ansicht eine Rendering-Bibliothek benennt.",
     "members": {
-      "version": "Vom Host bei jeder Änderung erhöht: das, was eine zwischengespeicherte Zeile vergleicht, um ihre Felder neu zu erstellen.",
-      "visible": "Ob sie gezeichnet wird.",
       "side": "Welche Flächen, nach der Konstante des Hosts.",
-      "forceSinglePass": "Der Host zeichnet eine durchsichtige zweiseitige Oberfläche in einem Durchgang statt erst hinten dann vorne.",
-      "vertexColors": "Ob die Scheitelpunktfarben sie färben.",
-      "toneMapped": "Ob die Anzeigekurve angewendet wird.",
-      "depthTest": "Der Rasterisierungszustand, den der Host mit der Oberfläche deklariert, und dem die Pipelines der Engine folgen.",
-      "depthWrite": "Ob sie die Tiefe schreibt.",
-      "depthFunc": "Der Vergleich des Tiefentests.",
-      "colorWrite": "Ob sie die Farbe schreibt.",
-      "polygonOffset": "Ob die Tiefe versetzt wird.",
-      "polygonOffsetFactor": "Steigungsanteil des Versatzes.",
-      "polygonOffsetUnits": "Konstanter Anteil des Versatzes.",
-      "transparent": "Ob sie sich mischt.",
-      "opacity": "Wie undurchsichtig sie ist.",
-      "alphaTest": "Alpha, unter dem Pixel verschwinden.",
       "dispose": "Gibt sie frei.",
       "clone": "Eine Kopie der Oberfläche."
-    }
+    },
+    "description": "Die Diagnoseansichten dienen auch den Zeugen, deren Meshes die ihrer Bibliothek sind: was sie anhängen, kommt über `HostDiagnosticFactory`, und sie werden nur über diese Form gelesen."
   },
   "HostDisposable": {
     "summary": "Eine Host-Ressource, die die Engine freigibt, wenn der Graph, aus dem sie stammt, freigegeben wird: eine Geometrie, eine Oberfläche, eine Textur.",
@@ -2416,67 +2383,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat.",
-    "members": {
-      "attributes": "Ihre Scheitelpunktattribute.",
-      "boundingBox": "Die vom Host berechnete lokale Box."
-    }
+    "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat."
   },
   "HostGraphNode": {
     "summary": "Ein Knoten des Host-Graphen, so wie ihn ein Durchlauf sieht: seine Identität, seine lokale Pose, die Weltmatrix, die der Host für ihn aufgelöst hat, und seine Kette.",
-    "description": "Die Engine berechnet ihre EIGENEN Weltmatrizen aus den lokalen Posen (`../world/tree.ts`); `matrixWorld` wird dort gelesen, wo es die eigene Auflösung des HOSTS ist, die eine Grenze ihr zurückgibt. WARUM `HostPlaced` (`../resources.ts`) AUCH EINEN PLATZIERTEN KNOTEN BESCHREIBT. Die beiden sind keine Kopie: sie stützen sich auf die beiden unterschiedlichen Auflösungen, die ein Host bietet. `HostPlaced` verlangt `updateWorldMatrix(ancestors, descendants)` — die Kette EINES Knotens, das, was eine Platzierung und ein Sichtbarkeitsdurchlauf zurückgeben; dieses hier verlangt `updateMatrixWorld(force)` — den TEILBAUM unter einem Knoten, das, was ein Durchlauf, eine Grenzenvereinigung und eine Replikation in einem Aufruf auflösen. Ein Host, der nur eines der beiden bietet, erfüllt nur den Vertrag, dem er entspricht, also kann keines das andere ersetzen.",
-    "members": {
-      "parent": "Sein Elternteil.",
-      "position": "Wo er steht.",
-      "quaternion": "Die beiden Seiten der Rotation eines Knotens — das Quaternion, das die Engine vergleicht, und die Euler-Winkel, die sich dorthin zurückkopieren — jede KÜNDIGT ihre eigenen Schreibvorgänge AN: ein Rückruf, den der Host bereits verkettet, den ein Hook verlängert, statt ihn zu ersetzen (`hooks.ts`). Die beiden unterstrichenen Mitglieder sind ein Privates der Host-Bibliothek, also werden sie hier geschrieben, wo der Hook sie braucht, ohne einen eigenen Namen zu erhalten. Das hält das Private aus der Liste der veröffentlichten Verträge des SDK heraus; es hält es NICHT aus der veröffentlichten Oberfläche heraus, da `HostGraphNode` es trägt. Die Pose bei jedem Bild zu vergleichen, wie es der Durchlauf bereits tut, ist das, was diese Kopplung aufheben würde — das ist nicht die Arbeit dieses Lots.",
-      "rotation": "Wie er gedreht ist, in Winkeln.",
-      "scale": "Wie er gestreckt ist.",
-      "matrixAutoUpdate": "Falsch, wenn der Host `matrix` selbst gesetzt hat: die Matrix IST die Pose, und nichts setzt sie neu zusammen.",
-      "matrix": "Seine lokale Matrix.",
-      "matrixWorld": "Seine Matrix in der Welt.",
-      "userData": "Wo die Engine eine eigene Kopie markiert, die der Host nie gesehen hat und nicht schreiben kann.",
-      "traverse": "Der Teilbaum unter dem Knoten, er zuerst, in der eigenen Reihenfolge des Hosts.",
-      "updateMatrixWorld": "Löst die Weltmatrizen des Teilbaums IM GRAPHEN DES HOSTS auf, für die eigenen Leser des Hosts."
-    }
+    "description": "Die Engine berechnet ihre EIGENEN Weltmatrizen aus den lokalen Posen (`../world/tree.ts`); `matrixWorld` wird dort gelesen, wo es die eigene Auflösung des HOSTS ist, die eine Grenze ihr zurückgibt. WARUM `HostPlaced` (`../resources.ts`) AUCH EINEN PLATZIERTEN KNOTEN BESCHREIBT. Die beiden sind keine Kopie: sie stützen sich auf die beiden unterschiedlichen Auflösungen, die ein Host bietet. `HostPlaced` verlangt `updateWorldMatrix(ancestors, descendants)` — die Kette EINES Knotens, das, was eine Platzierung und ein Sichtbarkeitsdurchlauf zurückgeben; dieses hier verlangt `updateMatrixWorld(force)` — den TEILBAUM unter einem Knoten, das, was ein Durchlauf, eine Grenzenvereinigung und eine Replikation in einem Aufruf auflösen. Ein Host, der nur eines der beiden bietet, erfüllt nur den Vertrag, dem er entspricht, also kann keines das andere ersetzen."
   },
   "HostMaterial": {
-    "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`.",
-    "members": {
-      "version": "Vom Host bei jeder Änderung erhöht: das, was eine zwischengespeicherte Zeile vergleicht, um ihre Felder neu zu erstellen.",
-      "visible": "Ob sie gezeichnet wird.",
-      "side": "Welche Flächen, nach der Konstante des Hosts.",
-      "forceSinglePass": "Der Host zeichnet eine durchsichtige zweiseitige Oberfläche in einem Durchgang statt erst hinten dann vorne.",
-      "vertexColors": "Ob die Scheitelpunktfarben sie färben.",
-      "toneMapped": "Ob die Anzeigekurve angewendet wird.",
-      "depthTest": "Der Rasterisierungszustand, den der Host mit der Oberfläche deklariert, und dem die Pipelines der Engine folgen.",
-      "depthWrite": "Ob sie die Tiefe schreibt.",
-      "depthFunc": "Der Vergleich des Tiefentests.",
-      "colorWrite": "Ob sie die Farbe schreibt.",
-      "polygonOffset": "Ob die Tiefe versetzt wird.",
-      "polygonOffsetFactor": "Steigungsanteil des Versatzes.",
-      "polygonOffsetUnits": "Konstanter Anteil des Versatzes.",
-      "transparent": "Ob sie sich mischt.",
-      "opacity": "Wie undurchsichtig sie ist.",
-      "alphaTest": "Alpha, unter dem Pixel verschwinden."
-    }
+    "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`."
   },
   "HostMaterials": {
     "summary": "Was eine Oberfläche deklariert: ein Material, oder eines pro Gruppe der Geometrie."
   },
   "HostMesh": {
-    "summary": "Ein Host-Mesh, gehalten durch seine Identität: der Zeicheneintrag, die durchsichtige Tabelle und die Auswahlmengen benennen die Oberfläche, die der Host platziert hat.",
-    "description": "Sein Name wird gelesen, und seine Vorfahrenkette, wenn ein verschobener Teilbaum vom Rest unterschieden werden muss (`../webgpu/pages/render/transform.ts`); sonst nichts.",
-    "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "parent": "Sein Elternteil, wenn man den Baum hinaufgeht."
-    }
+    "summary": "Ein Host-Mesh, gehalten durch seine Identität: der Zeicheneintrag, die durchsichtige Tabelle und die Auswahlmengen benennen die Oberfläche, die der Host platziert hat."
   },
   "HostNode": {
-    "summary": "Ein Knoten des Host-Szenengraphen, gehalten durch seine Identität und die beiden Felder, die ein Durchlauf braucht.",
-    "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "visible": "Ob er gezeichnet wird."
-    }
+    "summary": "Ein Knoten des Host-Szenengraphen, gehalten durch seine Identität und die beiden Felder, die ein Durchlauf braucht."
   },
   "HostNodeMatrix": {
     "summary": "Dieselben sechzehn Fließkommazahlen, term-für-term VERÄNDERBAR: die Pose, die eine Grenze auf einen Host-Knoten oder eine Host-Kamera zurücksetzt, die sie wiederherstellt.",
@@ -2521,44 +2444,16 @@
     "summary": "Der Anzeigegraph des Hosts, in dem eine Engine zeichnet: was er enthält, wie man ihn durchläuft, und die Hintergrundfarbe, die die Komposition liest.",
     "description": "Ihn zu bauen ist Sache einer Grenze des Hosts; einen zu schreiben ist Sache von `HostDrawScene`.",
     "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "visible": "Ob er gezeichnet wird.",
       "traverse": "Besucht sich, dann den Teilbaum.",
       "background": "Was das Bild dahinter füllt.",
       "children": "Die Knoten an seiner Spitze."
     }
   },
   "HostTexture": {
-    "summary": "Eine Host-Textur: das vom Host dekodierte Bild und der von ihm deklarierte Abtastzustand, ebenfalls durch ihre Identität gehalten.",
-    "description": "Ihre Pixel bleiben `unknown`: nur die Grenze, die sie sendet, kennt ihren Container.",
-    "members": {
-      "isTexture": "Vom Host auf Objekten gesetzt, die sein Sampler liest: das, was eine Textur von jedem anderen Feld eines Materials unterscheidet, dessen Plätze die Engine nicht aufzählt.",
-      "uuid": "Ein der Textur eigener Name.",
-      "name": "Der Name, den der Host ihr gibt.",
-      "version": "Vom Host bei jeder Inhaltsänderung erhöht: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",
-      "image": "Das dekodierte Bild, im hosteigenen Container.",
-      "channel": "UV-Satz, den der Sampler liest, das `texCoord` von `KHR_texture_transform`.",
-      "wrapS": "Wie sie sich in der Breite wiederholt, nach der Konstante des Hosts.",
-      "wrapT": "Wie sie sich nach oben wiederholt, nach der Konstante des Hosts.",
-      "magFilter": "Filter, wenn sie größer gezeigt wird.",
-      "minFilter": "Filter, wenn sie kleiner gezeigt wird.",
-      "anisotropy": "Schärfe schräg gesehen.",
-      "flipY": "Ob die Zeilen beim Senden umgedreht werden.",
-      "premultiplyAlpha": "Ob die Farbe mit Alpha vormultipliziert ist.",
-      "generateMipmaps": "Ob kleinere Kopien erstellt werden.",
-      "colorSpace": "Wie ihre Zahlen gelesen werden.",
-      "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
-      "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
-      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf."
-    }
+    "summary": "Eine Host-Textur: das vom Host dekodierte Bild und der von ihm deklarierte Abtastzustand, ebenfalls durch ihre Identität gehalten."
   },
   "HostTraversable": {
-    "summary": "Ein Host-Knoten, den die Engine durchläuft: der Teilbaum darunter, er zuerst, in der eigenen Reihenfolge des Hosts.",
-    "members": {
-      "name": "Der Name, den der Host ihm gibt.",
-      "visible": "Ob er gezeichnet wird.",
-      "traverse": "Besucht sich, dann den Teilbaum."
-    }
+    "summary": "Ein Host-Knoten, den die Engine durchläuft: der Teilbaum darunter, er zuerst, in der eigenen Reihenfolge des Hosts."
   },
   "HostVector": {
     "summary": "Drei Zahlen einer Pose, so wie der Host sie hält und eine Grenze sie zurücksetzt.",
@@ -2875,28 +2770,26 @@
       "maxLightsPerTile": "Von einer Bildschirmkachel gehaltene Lichter; die Schleife pro Pixel ist durch diese Zahl begrenzt (X2).",
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
-      "shadowUpdatesPerFrame": "Höchstens Schattenregionen pro Bild: die Pufferobergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget hält fast immer vorher an; diese Obergrenze ist nur eine letzte Grenze, und die einzige auf einem Gerät ohne GPU-Uhr.",
-      "shadowPage": "Seitenlänge einer Seite des Schattenatlas, in Texeln: die Ungültigkeitszelle einer Fläche. Ein sich bewegendes Objekt macht nur die Seiten ungültig, die seine projizierte Box abdeckt, nie die ganze Fläche.",
+      "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
       "shadowBudgetMs": "Budget der Schattenphase, in GPU-Millisekunden pro Bild (X4, RX3). Darüber hinaus ungültig gemachte Seiten warten auf ihre Reihe; sie gehen nie verloren, und ihre Verzögerung wird veröffentlicht.",
       "shadowAgingPerFrame": "Gewicht der Wartezeit in der Priorität einer Seite, pro in der Warteschlange verbrachtem Bild: gegen das Verhungern.",
       "shadowCostBlend": "Anteil der Messung eines Bildes an den durchschnittlichen Kosten einer Seite: eine exponentielle Glättung der Zeitmessung.",
-      "shadowAtlasSize": "Seitenlänge des Tiefen-Schattenatlas, in Texeln.",
-      "shadowSliceMax": "Maximale Seitenlänge einer Schattenkachel; eine Fläche eines Punktlichts nimmt ein Sechstel davon ein.",
-      "shadowSliceMin": "Mindestseitenlänge einer Schattenkachel: darunter behält das Licht seine Kachel, ohne sie zu verfeinern.",
       "pcfTaps": "PCF-Abtastungen pro Pixel und pro Schattenlicht (X2).",
       "spotEdgeSoftness": "Breite des weichgezeichneten Randes des Kegels eines Spots, in Kosinuseinheiten: gegen den Treppeneffekt.",
-      "sunCascades": "Kaskaden eines Richtungslichts: mindestens drei, nie mehr als die Flächen einer Kachel.",
-      "sunShadowFarFraction": "Anteil des Kamera-Sichtkegels, den die Kaskaden von der Nahebene zur Ferne abdecken. Darüber hinaus bleibt eine Oberfläche beleuchtet, ohne geworfenen Schatten: eine benannte Näherung, in der Diagnose veröffentlicht.",
-      "sunCascadeRatioMax": "Verhältnis zwischen zwei aufeinanderfolgenden Grenzen der Kaskadenaufteilung: an einer Naht ändert sich die Texeldichte um genau dieses Verhältnis, und nichts anderes entscheidet über den Schärfesprung zwischen Kaskaden. Der Mindestwert der Nahebene ergibt sich daraus — `shadow distance / ratio^cascades`.",
       "sunFarShadowOffsetMetres": "Versatz des Ursprungs des fernen Schattenstrahls entlang der Normale, in Metern. Er dient nur dazu, die Ebene der beleuchteten Oberfläche zu verlassen; das wahre Mittel gegen Selbstverschattung ist der Start entlang des Strahls, weiter unten.",
-      "sunFarShadowStartCells": "Start des fernen Schattenstrahls entlang seiner eigenen Richtung, in Zellen des Proxys. Der beleuchtete Punkt kommt von der feinen Geometrie, das Hindernis vom groben Proxy: wo der Proxy über der wahren Oberfläche liegt, würde ein von null gestarteter Strahl die Oberfläche berühren, die er beleuchtet. Eine Proxy-Zelle ist die Skala, unter der der Proxy nichts aussagt; von dort zu starten vermeidet diesen falschen Kontakt, ohne einen Schatten zu erfinden. Die Folge ist benannt: ein Hindernis weniger als eine Zelle entlang des Strahls trägt keinen fernen Schatten, und dieser bleibt bei den Kaskaden.",
-      "sunCascadeDepthScale": "Rückzug der Nahebene einer Kaskade, in Radien ihrer Kugel: was über der Kaskade liegt, zwischen ihr und der Sonne, muss in die Karte eintreten, um dort seinen Schatten zu werfen. Die Ausdehnung fügt auf jeder Seite zwei Radien hinzu, der Spielraum, den der Tiefenanker der Kugel lässt (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Start des fernen Schattenstrahls entlang seiner eigenen Richtung, in Zellen des Proxys. Der beleuchtete Punkt kommt von der feinen Geometrie, das Hindernis vom groben Proxy: wo der Proxy über der wahren Oberfläche liegt, würde ein von null gestarteter Strahl die Oberfläche berühren, die er beleuchtet. Eine Proxy-Zelle ist die Skala, unter der der Proxy nichts aussagt; von dort zu starten vermeidet diesen falschen Kontakt, ohne einen Schatten zu erfinden. Die Folge ist benannt: ein Hindernis weniger als eine Zelle entlang des Strahls trägt keinen fernen Schatten, und dieser bleibt bei den Clipmap-Stufen.",
       "shadowDepthBias": "Schatten-Bias in Metern, nie in Tiefeneinheiten: die projizierte Tiefe einer Kachel ist sehr nichtlinear, eine Konstante in normalisierter Tiefe würde Meter nahe dem Licht und Millimeter in der Ferne ergeben. Der Shader wandelt diese Meter am betrachteten Punkt in Tiefe um.",
       "shadowSlopeBias": "Neigungs-Bias, in Metern pro Einheit von `tan(acos(N·L))`, gedeckelt durch `shadowSlopeBiasMax`.",
       "shadowSlopeBiasMax": "Größter Neigungs-Bias.",
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
-      "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat."
+      "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
+      "shadowPagesPerFrame": "Höchstzahl der pro Bild gezeichneten Schattenseiten: die Puffergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget greift fast immer zuerst; diese Grenze ist nur eine letzte Schranke und die einzige auf einem Gerät ohne GPU-Uhr.",
+      "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
+      "shadowTableEntries": "Einträge der Schattenseitentabelle, ein Wort pro virtueller Seite: ein fester Puffer von 4 MiB. Er fasst sechzehn Sonnen oder 128 Punktlichter; ein Licht ohne Platz bekommt keinen Schatten und wird gezählt.",
+      "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
+      "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
+      "sunLevelPages": "Seiten pro Seite des Ausschnitts einer Clipmap-Stufe um die Kamera. Eine Kapazität, keine Einstellung: jedes Pixel liest seine eigene Dichte, solange `height / tan(halfFovY)` höchstens `sunLevelPages · shadowPage / 2` = 4096 beträgt (eine 4K-Leinwand bei 55° vertikalem Feld); darüber lesen die äußeren Pixel die nächste Stufe mit halber Dichte."
     }
   },
   "LightingCapabilities": {
@@ -3101,7 +2994,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshPhysical": {
@@ -3135,7 +3032,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshBasic": {
@@ -3169,7 +3070,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshPhong": {
@@ -3203,7 +3108,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshLambert": {
@@ -3237,7 +3146,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshToon": {
@@ -3271,7 +3184,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshNormal": {
@@ -3305,7 +3222,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshMatcap": {
@@ -3339,7 +3260,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.meshDepth": {
@@ -3373,7 +3298,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.points": {
@@ -3407,7 +3336,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.line": {
@@ -3441,7 +3374,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.lineDashed": {
@@ -3475,7 +3412,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.sprite": {
@@ -3509,7 +3450,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.shadow": {
@@ -3543,7 +3488,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "material.createShader": {
@@ -3597,7 +3546,11 @@
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
     },
     "members": {
       "isMaterial": "Immer `true`: unterscheidet ein Material von allem anderen.",
@@ -3619,11 +3572,12 @@
       "needsUpdate": "`material.needsUpdate = true`: die Meshes, die es tragen, werden neu bemalt.",
       "surface": "Der physische Oberflächendatensatz der Engine für dieses Material (`contracts/material.ts`). Eine Art außerhalb der physischen Familie wird von der Familie des Hosts gezeichnet, die ihren Namen trägt, den die Engine auf ihr einziges Beleuchtungsmodell zurückführt (`surfaceModel.ts`).",
       "clone": "Ein neues Material derselben Art, mit denselben Werten.",
-      "dispose": "Vergisst diejenigen, die es tragen: ein freigegebenes Material bemalt niemanden mehr."
+      "dispose": "Vergisst diejenigen, die es tragen: ein freigegebenes Material bemalt niemanden mehr.",
+      "physics": "Physik-Materievorgabe der Körper, die es tragen.",
+      "density": "kg/m³, für die Masse eines Körpers.",
+      "friction": "Physikalische Reibung.",
+      "restitution": "Physikalischer Rückprall."
     }
-  },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Die Version der Materialtabelle, die diese Engine liest."
   },
   "MaterialParameters": {
     "summary": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
@@ -3655,7 +3609,11 @@
       "gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
-      "depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist."
+      "depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
+      "physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
+      "density": "kg/m³, mal dem Volumen ergibt die Masse.",
+      "friction": "Wie stark ein Körper haftet, ab 0.",
+      "restitution": "Wie stark ein Körper springt, 0 bis 1."
     }
   },
   "materialSide": {
@@ -3968,7 +3926,8 @@
       "primitive": "Wie die Scheitelpunkte der Geometrie gelesen werden: Dreiecke, Punkte oder Linien.",
       "geometry": "Die Form des Meshes; gib eine andere Geometrie an, um sie zu ändern.",
       "material": "Das Material des Meshes, oder eines pro Gruppe; gib ein anderes an, um es zu ändern.",
-      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
+      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine.",
+      "physics": "Das Mesh als Körper der Weltphysik, `null`, wenn es keiner ist. Setze `'static'`, `'dynamic'`, `'kinematic'` oder Optionen; die Form wird aus der Geometrie abgeleitet."
     }
   },
   "metric": {
@@ -4039,9 +3998,6 @@
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: die lokale Matrix wird aus Position, Rotation und Größe neu zusammengesetzt."
   },
-  "NODE_TABLE_VERSION": {
-    "summary": "Die Version der Knotentabelle, die diese Engine liest."
-  },
   "nodeWorldDirection": {
     "summary": "Richtung in der Welt: die dritte normalisierte Spalte (eine Nullspalte bleibt null).",
     "description": "`cameraForward` kehrt sie um, wie die Referenzkamera: eine Kamera schaut zu ihrem `−z`."
@@ -4094,6 +4050,13 @@
   },
   "object.group": {
     "summary": "Ein leerer Knoten, der andere Objekte hält, damit sie sich zusammen bewegen."
+  },
+  "object.clone": {
+    "summary": "Eine Kopie eines Objekts und von allem darunter, die nichts mit ihm teilt: seine Form, Materialien, Lichter und Felder werden kopiert.",
+    "description": "Ein geladenes Modell wird nicht kopiert: `null` dafür, und es bleibt aus einer kopierten Gruppe heraus.",
+    "parameters": {
+      "source": "Das zu kopierende Objekt."
+    }
   },
   "object.points": {
     "summary": "Zeichnet jeden Scheitelpunkt einer Geometrie als Punkt.",
@@ -4459,9 +4422,6 @@
       "specs": "Das Anfrageblatt, bei der ersten Ankunft dieser Adresse übertragen und danach `null`: es hängt nur vom Katalog ab, der sich nicht bewegt, und der Ausführende behält es."
     }
   },
-  "pageRowsOf": {
-    "summary": "Seiten pro Seite einer Fläche von `side` Texeln, begrenzt durch das, was die Maske tragen kann."
-  },
   "PageSource": {
     "summary": "Woher die Seiten eines Modells gelesen werden, nach Schlüssel.",
     "members": {
@@ -4595,7 +4555,7 @@
     "description": "Die Reihenfolge ist Teil des Vertrags, kein Detail."
   },
   "POINT_FACES": {
-    "summary": "Flächen einer Kachel: sechs für ein Punktlicht, eine für einen Spot, die Kaskaden der Sonne."
+    "summary": "Flächen der Scheibe eines Punktlichts: sechs."
   },
   "PointOfInterest": {
     "summary": "Eine benannte Ansicht einer Szene, zu der eine Seite springen kann.",
@@ -4668,17 +4628,6 @@
       "options.onProgress": "Bei jedem Ereignis aufgerufen."
     },
     "returns": "Das vom Compiler geschriebene Manifest, mit dem, was die Kompilierung gemessen hat."
-  },
-  "PreparedSceneTables": {
-    "summary": "Die Knoten- und Materialtabellen, die ein kompiliertes Modell trägt.",
-    "members": {
-      "version": "Version des Produkts.",
-      "nodeTableVersion": "Version der Knotentabelle.",
-      "materialTableVersion": "Version der Materialtabelle.",
-      "nodes": "Die Knoten.",
-      "materials": "Die Materialien.",
-      "textures": "Die Texturen."
-    }
   },
   "prepareMany": {
     "summary": "Kompiliert mehrere Modelle in einem einzigen Compiler-Prozess.",
@@ -4913,9 +4862,6 @@
   "readCameraWorld": {
     "summary": "Kopiert die Host-Kamera in die Engine-Kamera, Vorfahren aufgelöst."
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Rechtecke einer Kachel: `(x, y, side)` pro Fläche, sechs Flächen für jede Kachel reserviert."
-  },
   "referenceScreenError": {
     "summary": "Bildschirmfehler der externen Referenz: `(error × stretch) × focal / w`, unendlich, wenn das Zentrum die Nahebene nicht erreicht; `w` ist das Clip-Gewicht der Tiefe des Zentrums, die Tiefe selbst unter perspektivischer Projektion (`perspective` = 1) und 1 unter orthografischer Projektion (0, `screenErrorBound.ts`).",
     "description": "WGSL-Spiegelung in `packages/sdk-browser/src/gpu/dag/shader/error.ts`, dieselben Operanden und dieselbe Reihenfolge, in f32. Der Aufrufer hat einen null oder unendlichen Fehler bereits behandelt."
@@ -5009,7 +4955,7 @@
       "isScene": "Immer `true`: unterscheidet die Szenenwurzel von jedem anderen Objekt.",
       "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
       "fog": "Ein Nebel, der Objekte in `color` zwischen `near` und `far` verschmelzen lässt; `null` für keinen.",
-      "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe, ein Bild, oder `null` für den Standardhintergrund.",
+      "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
       "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
@@ -5043,12 +4989,6 @@
     "summary": "Version des „Proxy“-Cache-Produkts.",
     "description": "Ein Proxy anderer Version wird abgelehnt, nie erraten."
   },
-  "SCENE_TABLES_FILE": {
-    "summary": "Der Name der Datei, die die Knoten- und Materialtabellen enthält."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Version des gesamten Produkts; jede von ihm getragene Tabelle hat ihre eigene Version."
-  },
   "SceneEnvironment": {
     "summary": "Das Licht um eine Szene: Belichtung, Anzeigekurve und Licht aus allen Richtungen.",
     "members": {
@@ -5059,7 +4999,7 @@
   },
   "SceneLight": {
     "summary": "Ein Szenenlicht, Version 2.",
-    "description": "Die Einheiten sind radiometrisch und linear (P1): `color` ist eine lineare Farbe und `intensity` eine streng positive radiometrische Intensität — eine Radianz für ein `rect`. Vier Arten, und nichts anderes erzeugt Licht in dieser Engine (P6): - `point`: eine Position und eine Reichweite in Metern, jenseits derer es nichts beleuchtet; - `spot`: dasselbe plus eine Richtung und ein Kegel-Halbwinkel in Radiant; - `directional`: die Sonne oder ein bedeckter Himmel — eine Ausbreitungsrichtung, ohne Position oder Reichweite, dieselbe Bestrahlungsstärke überall, und Kaskadenschatten, die der Kamera folgen; - `rect`: ein einseitiges Rechteck von `size` Metern, zentriert bei `position`, das entlang `direction` strahlt, seine Breite entlang `right`; ohne geworfenen Schatten (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Felder, die eine Art nicht nutzt, werden bei der Prüfung abgelehnt: ein Richtungslicht mit einer Position wäre ein Versprechen, das die Engine nicht einhalten würde.",
+    "description": "Die Einheiten sind radiometrisch und linear (P1): `color` ist eine lineare Farbe und `intensity` eine streng positive radiometrische Intensität — eine Radianz für ein `rect`. Vier Arten, und nichts anderes erzeugt Licht in dieser Engine (P6): - `point`: eine Position und eine Reichweite in Metern, jenseits derer es nichts beleuchtet; - `spot`: dasselbe plus eine Richtung und ein Kegel-Halbwinkel in Radiant; - `directional`: die Sonne oder ein bedeckter Himmel — eine Ausbreitungsrichtung, ohne Position oder Reichweite, dieselbe Bestrahlungsstärke überall, und Clipmap-Schatten, die der Kamera folgen; - `rect`: ein einseitiges Rechteck von `size` Metern, zentriert bei `position`, das entlang `direction` strahlt, seine Breite entlang `right`; ohne geworfenen Schatten (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Felder, die eine Art nicht nutzt, werden bei der Prüfung abgelehnt: ein Richtungslicht mit einer Position wäre ein Versprechen, das die Engine nicht einhalten würde.",
     "members": {
       "id": "Der Name des Lichts.",
       "kind": "Punkt, Spot, Sonne oder Rechteck.",
@@ -5110,7 +5050,11 @@
     "members": {
       "pose": "Ein Knoten hat sich bewegt.",
       "structure": "Ein Knoten hat Kinder gewonnen oder verloren.",
-      "content": "Die Form oder das Material eines Knotens hat sich geändert."
+      "content": "Die Form oder das Material eines Knotens hat sich geändert.",
+      "posed": "Viele Knoten haben sich auf einmal bewegt, direkt in ihren Baum geschrieben (die Körper der Physik): einmal gemeldet.",
+      "seat": "Die Zeile, aus der der Knoten gezeichnet wird, oder `null`: sechzehn spaltenweise Gleitkommazahlen ab `row * 16` in `batch.rows.matrices`, vom Renderer an Ort und Stelle gelesen. Wer Knoten zu Tausenden platziert (die Physik), schreibt ihre Weltmatrizen selbst dorthin, gültig solange `seatEpoch` gleich bleibt, und meldet die geschriebenen Zeilen über `placed`.",
+      "seatEpoch": "Ändert sich, sobald eine Zeile belegt, freigegeben oder neu angelegt wird: jede frühere Antwort von `seat` ist veraltet.",
+      "placed": "Die Zeilen `from` bis `to` von `batch` wurden über `seat` geschrieben: im nächsten Bild gezeichnet."
     }
   },
   "SceneNode": {
@@ -5237,23 +5181,10 @@
     "description": "`null`/`undefined` setzt unsere zurück: keine Sitzung erbt sie."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Fließkommazahlen des Volumens einer Region: Zentrum und Fernebene, Achse der Fläche und Halbwinkel, dann — für eine Box, durch einen negativen Halbwinkel signalisiert — die beiden anderen Achsen mit ihren Halbausdehnungen."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Fließkommazahlen einer Fläche im Kachelpuffer: die Matrix, das Atlas-Rechteck — seine vierte Fließkommazahl bei 1, sobald gezeichnet, sonst nie 0 —, dann vier Wörter: die Maske der gehaltenen Seiten, ein Bit pro physischer Seite, die eine Tiefe der aktuellen Ausdehnung hält, Reihen von acht auf zwei Wörtern, und die physische Seite des Ursprungs der Ausdehnung, `x` dann `y`, mit der die Lesung die Koordinaten der Ausdehnung zurückfaltet.",
-    "description": "Eine eingetretene, aber noch nicht gezeichnete Ausdehnungsseite enthält noch, was die ferne Seite dort hinterlassen hat: die Lesung muss das wissen und zur nächsten Kaskade übergehen, sie nie abtasten. Eine Seite, die nur auf ein Neuzeichnen wartet, wird noch gehalten und gelesen."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Wort der Schattenflächen eines Lichts in seinem GPU-Datensatz."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Flächenseiten, die der Atlas platzieren kann, von der größten zur kleinsten."
+    "summary": "Gleitkommazahlen eines Cull-Volumens: Mittelpunkt und ferne Ebene, Flächenachse und halber Winkel, dann — für eine Box, markiert durch einen negativen halben Winkel — die zwei anderen Achsen mit ihren halben Ausdehnungen, dann das Wort, das sagt, welche Schattenwerfer die Region zeichnet, die Lichtschnitt-Ansicht, die sie ausgewählt hat, und zwei zum Auffüllen."
   },
   "SHADOW_PAGE": {
-    "summary": "Seite einer Atlasseite, in Texeln: die Ungültigkeitszelle einer Fläche."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Fließkommazahlen einer Kachel: sechs Flächen plus ein `vec4f`-Header (Flächen, Art, Seite, Füllung)."
+    "summary": "Seitenlänge einer Schattenseite in Texeln: die Einheit des Pools, der virtuellen Karten und der Invalidierung."
   },
   "ShadowAtlasDigest": {
     "summary": "Was eine Lesung des Schattenatlas veröffentlicht: seine Größe, was hineingeschrieben ist, sein Fingerabdruck.",
@@ -5270,8 +5201,8 @@
     "members": {
       "lightsActive": "Lichter des `SceneLight`-Vertrags, die das Bild beleuchtet hat. Null für eine Engine, die sie ignoriert.",
       "lightsSampled": "Wahr, wenn die Beleuchtung dieses Bildes im abgetasteten Modus lief — ein bewegtes Bild, das über eine Historie akkumuliert, wobei ein Pixel mit mehr Lichtern als `samplesPerPixel` einen ausgelosten Teil davon beleuchtet —, falsch, wenn jedes Pixel jedes Licht beleuchtet hat, wie es ein unbewegtes Bild tut. Null für eine Engine, die Lichter ignoriert.",
-      "shadowsUpdated": "Von diesem Bild neu gezeichnete Schattenkacheln, höchstens die veröffentlichte Obergrenze des Planers. Null ist der normale Wert einer unbewegten Szene: ein festes Licht behält seine Kachel.",
-      "shadowFacesDrawn": "Was der Schattendurchgang neu gezeichnet hat: Flächen (Ansichten) und wirklich kodierte Zeichenaufrufe. Das sind die Kosten pro Schattenlicht, vom Rest getrennt. Null für eine Engine, die keinen Schatten zeichnet.",
+      "shadowsUpdated": "Schattenlichter, von denen dieses Bild eine Seite gezeichnet hat. Null ist der normale Wert einer ruhenden Szene: ein festes Licht behält seine Seiten.",
+      "shadowFacesDrawn": "Lichtansichten, in die der Schattendurchgang gezeichnet hat — eine Clipmap-Stufe der Sonne, eine Lampenfläche auf einer Mip-Stufe —, und die tatsächlich kodierten Draw-Calls. Null bei einer Engine, die keinen Schatten zeichnet.",
       "shadowDrawCalls": "Schatten-Zeichenaufrufe.",
       "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und die Verzögerung der ältesten in Millisekunden. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
@@ -5279,28 +5210,43 @@
       "shadowWaitMs": "Wie lange sie gewartet haben.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
-      "gpuLightingMs": "GPU-Zeit der Beleuchtung."
+      "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
+      "shadowLightCuts": "Cluster-Schnitte der Lichter: einer pro gezeichneter Lichtansicht, null in einem ruhenden Bild.",
+      "shadowPagesRequested": "Virtuelle Schattenseiten, die das Bild gelesen hat, wie sein letzter Anforderungsbericht sie nannte: was die Empfänger der Kamera markieren.",
+      "shadowPagesCached": "Davon direkt aus dem Pool gelesene Seiten: aktuell, ohne Zeichnen.",
+      "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
+      "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
+      "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
+      "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
     }
   },
   "ShadowPlan": {
-    "summary": "Welche Schattenregionen bei diesem Bild gezeichnet werden, und welche warten.",
+    "summary": "Die Schattenarbeit des Bildes: welche virtuellen Seiten gezeichnet werden und welche warten.",
     "members": {
-      "slices": "Schattenkacheln.",
-      "regions": "Schattenregionen.",
-      "budget": "Zeitbudget.",
-      "coverage": "Was jedes Licht abdeckt.",
-      "counts": "Zahlen für die Diagnose.",
-      "worldChanged": "Ein Knoten hat sich bewegt: seine Box tritt in die Liste ein, die der Planer beim nächsten Bild bearbeitet.",
-      "representationChanged": "Dieselbe Welt in einer anderen Genauigkeit — Detailstufe, Residenz, Farbkachel —: ihre Box wartet, bis die Kamera anhält, und tritt dann in die Liste ein (`changes.ts`).",
-      "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera anhält: das Bild darf nicht gehalten werden, bevor ein Plan es verbraucht.",
-      "releaseDeferred": "Das Bild plant keinen Schatten — kein Atlas, kein Licht, unbeleuchtete Ansicht —: die gehaltene Vereinigung tritt sofort in die Liste ein, wo der nächste Plan sie liest, statt das Bild am Halten zu hindern.",
-      "observeCost": "Zeitmessung des Schattendurchgangs eines Bildes, bezogen auf die Seiten, die es neu gezeichnet hat.",
-      "setBudgetMs": "Vom Host veröffentlichtes Budget; ein nicht endlicher oder negativer Wert wird abgelehnt, nicht gerundet.",
-      "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: jede berührte Fläche geht als Ganzes neu los. Standardmäßig aktiv.",
-      "pageInvalidation": "Neu zu zeichnende Seiten.",
-      "plan": "Wählt die Regionen dieses Bildes. Gibt ihre Anzahl zurück; `plan.regions` beschreibt sie einzeln, und die Seiten, die sie abdecken, sind bereits aus der Warteschlange entfernt.",
-      "reissue": "Die Regionen dieses Bildes konnten nicht kodiert werden: ihre Seiten kehren in die Warteschlange zurück. Sie hatten sie bei der Zulassung verlassen, weil sich Planer und Durchgang nur über diese Liste verständigen; wenn der Durchgang nichts zeichnet, muss die Warteschlange sie wiederfinden.",
-      "reset": "Beginnt neu."
+      "budget": "Das Millisekundenbudget der Schattenstufe und die gemessenen Kosten einer Seite.",
+      "counts": "Was der letzte Plan getan hat, in Seiten.",
+      "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
+      "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
+      "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
+      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
+      "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
+      "setBudgetMs": "Vom Host veröffentlichtes Budget in GPU-Millisekunden pro Bild.",
+      "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: ein bewegtes Objekt macht jede Seite der Lichter ungültig, die es berührt. Standardmäßig aktiv.",
+      "pageInvalidation": "Ob ein bewegtes Objekt nur die Seiten ungültig macht, die seine Box bedeckt.",
+      "plan": "Plant ein Bild: macht Bewegtes ungültig, liest den letzten Bericht, lässt die zu zeichnenden Seiten zu.",
+      "reissue": "Die Seiten des Bildes konnten nicht kodiert werden: sie bleiben ungültig und warten auf das nächste Bild.",
+      "reset": "Beginnt neu.",
+      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
+      "table": "Die Seitentabelle: ein Wort pro virtueller Seite und der Bereich, den jedes Licht darin hält.",
+      "pool": "Die physischen Seiten des Pools und die virtuelle Seite, die jede hält.",
+      "sun": "Die Clipmap jeder Sonne: ihr Bezugssystem, Tiefenbereich, feinste Stufe und Ausschnitte.",
+      "records": "Die Schattenscheiben, eine pro schattenwerfendem Licht.",
+      "requests": "Die zurückgelesenen Anforderungsberichte: was der letzte nannte, zuwies oder ablehnte.",
+      "admission": "Die Seiten dieses Bildes in Zulassungsreihenfolge.",
+      "stamp": "Was Schattierung, Lichter und Ansicht dem nächsten Bild übergeben: ein damit gestempelter Bericht, der nichts Neues nennt, beweist, dass das Bild nur Gezeichnetes liest.",
+      "settled": "Wahr, sobald ein Bericht beweist, dass der aktuelle Zustand nichts anfordert: das Bild darf gehalten werden.",
+      "receive": "Ein Anforderungsbericht kam zurück; der nächste Plan liest ihn. Ein neuerer ersetzt einen ungelesenen.",
+      "commit": "Die Seiten des Bildes wurden kodiert, jede in ihrem `modes`-Eintrag: ihre Zeichnungen landen, bevor etwas sie liest."
     }
   },
   "ShadowViewpoint": {
@@ -5311,7 +5257,8 @@
       "halfFovY": "Die Hälfte seiner vertikalen Öffnung.",
       "aspect": "Breite geteilt durch Höhe.",
       "near": "Nächste Entfernung.",
-      "far": "Fernste Entfernung."
+      "far": "Fernste Entfernung.",
+      "pixelNear": "Weltgröße eines Pixels an der nahen Ebene: der feinste Fußabdruck, den ein Pixel der Ansicht hat."
     }
   },
   "Shape": {
@@ -5661,22 +5608,11 @@
       "roughnessMap": "Das Rauheitsbild.",
       "normalMap": "Das Normalenbild.",
       "aoMap": "Das Umgebungsverdeckungsbild.",
-      "emissiveMap": "Das Leuchtbild."
-    }
-  },
-  "TableNode": {
-    "summary": "Eine gezeichnete Primitive: der Knoten, der sie trägt, ihre Pose in der Welt, die Oberfläche, die sie trägt, und ihr Rang unter den Kopien derselben Primitive — das ist hier Instanzierung, eine von mehreren Knoten benannte Geometrie.",
-    "description": "`bounds` ist die Weltbox der Quellgeometrie; die autonome Szene veröffentlicht stattdessen entartete Dreiecke, also ist das die Antwort des Caches, nicht die des Loaders.",
-    "members": {
-      "name": "Der Name des Knotens.",
-      "node": "Die Nummer des Knotens.",
-      "parent": "Die Nummer seines Elternteils.",
-      "mesh": "Die Nummer seines Meshes.",
-      "primitive": "Die Nummer seiner Primitive.",
-      "material": "Der Rang seines Materials.",
-      "instance": "Welche Kopie es ist.",
-      "matrix": "Seine Matrix in der Welt.",
-      "bounds": "Seine Box in der Welt."
+      "emissiveMap": "Das Leuchtbild.",
+      "kind": "Welche Oberfläche der Host baut: unbeleuchtet, Standard oder physikalisch, wenn eine physikalische Erweiterung deklariert ist.",
+      "alphaMode": "Wie Alpha gelesen wird: ignoriert, bei `alphaTest` abgeschnitten oder gemischt.",
+      "opacity": "Das Alpha des Grundfarbfaktors.",
+      "extensions": "Was die physikalischen Erweiterungen hinzufügen, unter den Parameternamen des Hosts: ein Faktor, eine Farbe oder ein Bereich als Zahlen, eine Map als Platz."
     }
   },
   "TableTexture": {
@@ -5686,7 +5622,9 @@
       "wrapS": "Wiederholung in der Breite.",
       "wrapT": "Wiederholung nach oben.",
       "magFilter": "Filter, wenn es größer ist.",
-      "minFilter": "Filter, wenn es kleiner ist."
+      "minFilter": "Filter, wenn es kleiner ist.",
+      "name": "Ihr Name.",
+      "sampler": "Der Rang des glTF-Samplers, den sie deklariert, `null` wenn keiner."
     }
   },
   "TableTextureSlot": {
@@ -5694,7 +5632,8 @@
     "members": {
       "texture": "Welche Textur.",
       "texCoord": "Welcher UV-Satz.",
-      "transform": "Die Transformation der UV, 3×3."
+      "transform": "Die Transformation der UV, 3×3.",
+      "slotTexCoord": "Der UV-Satz, den der Slot selbst nennt, vor jeder Transformation: Ein Slot, der einen anderen als den ersten nennt, wird aus einer Kopie seiner Textur gezeichnet, die auf keinen Rang antwortet."
     }
   },
   "TelemetryReport": {
@@ -5803,6 +5742,8 @@
       "id": "Identität der Textur in der importierten Szene: der Name, unter dem ein Cache-Schlüssel und eine Nachricht sie bezeichnen.",
       "name": "Vom Quelldatei gegebener Name, leer, wenn keiner gegeben wurde; nur von Nachrichten gelesen.",
       "version": "Erhöht, sobald sich die Texel ändern: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",
+      "sampling": "Erhöht, wenn Adressierung, Filter oder Anisotropie sich ändern: der Sampler wird neu gesetzt.",
+      "placement": "Erhöht, wenn sich `transform` ändert: die Platzierung wird neu geschrieben, nichts hochgeladen.",
       "image": "Das dekodierte Bild. Sein Container bleibt `unknown`: nur die Grenze, die es sendet, kennt ihn.",
       "channel": "UV-Satz, den der Sampler liest, das `texCoord` von `KHR_texture_transform`; die Engine tastet 0 und 1 ab.",
       "wrapS": "Wiederholung in der Breite.",
@@ -5835,7 +5776,9 @@
       "flipY": "Ob das Bild beim Lesen umgedreht wird.",
       "anisotropy": "Wie scharf das Bild schräg gesehen bleibt.",
       "channel": "Welchem UV-Satz der Geometrie die Textur folgt.",
-      "version": "Bei jedem Schreibvorgang erhöht: das, was ein Material vergleicht, um neu abzutasten.",
+      "version": "Erhöht durch einen Schreibvorgang am Bild oder an seiner Lesart: was ein Material vergleicht, um das Bild erneut zu senden.",
+      "sampling": "Erhöht durch einen Schreibvorgang an Adressierung, Filtern oder Anisotropie: neu gesetzt, nichts gesendet.",
+      "placement": "Erhöht durch einen Schreibvorgang an `repeat`, `offset` oder `rotation`: neu platziert, nichts gesendet.",
       "image": "Das Bild selbst: ein Bild, ein Canvas, ein Video oder rohe Pixel.",
       "layout": "Was das Bild zusätzlich zu seinen Pixeln enthält: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Wie jedes Pixel angeordnet ist: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -6360,7 +6303,10 @@
       "fallGravity": "Nur Charakter: Abwärtsbeschleunigung während des Fallens, in m/s²; standardmäßig 1,6 g, damit ein Sprung nicht schwebt.",
       "stopTime": "Nur Charakter: Sekunden, um 95 % der Geschwindigkeit zu verlieren, sobald keine Taste mehr gedrückt ist, am Boden; standardmäßig 0,08.",
       "headBob": "Nur Charakter: Meter, um die das Auge bei jedem Schritt im Trab steigt und fällt; standardmäßig 0,035, 0 hält es waagerecht.",
-      "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus."
+      "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus.",
+      "mass": "Nur Figur, mit Physik: Kilogramm, die der Körper auf seinen Untergrund drückt; standardmäßig 80.",
+      "pushStrength": "Nur Figur, mit Physik: Newton, mit denen der Körper Körper schiebt; standardmäßig 250, der Dauerschub eines Erwachsenen.",
+      "vehicle": "Nur Fahrzeug: was die `'vehicle'`-Steuerung fährt – alles mit `drive(input)`, das Gas, Bremse, Lenkung und Handbremse bei jeder Tastenänderung erhält. Standardmäßig `null`; solange es das ist, wirft `kind = 'vehicle'` `NO_VEHICLE`."
     }
   },
   "world.renderer": {
@@ -6388,14 +6334,16 @@
       "geometryPoolCeiling": "Die größten Reservoirs, die eine Welt anfordern kann: die Startbudgets der Engine.",
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
       "geometryPool": "GPU-Speicher-Bytes, die für Geometrieseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
-      "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern."
+      "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
+      "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus."
     }
   },
   "world.diagnostic": {
-    "summary": "Was die Seite hält: der Modus, lesbar und schreibbar.",
+    "summary": "Was die Seite hält: der Ansichtsmodus, lesbar und schreibbar; die geöffneten Sitzungen und warum die letzte scheiterte, nur lesbar.",
     "members": {
       "mode": "Der Ansichtsmodus: `'beauty'` für das normale Bild, oder ein Modus, der zeigt, wie die Engine arbeitet.",
       "sessions": "Sitzungen, die die Welt bisher geöffnet hat: Eine Änderung, die eine wieder öffnet, zeigt sich hier.",
+      "error": "Warum sich die letzte Sitzung nicht öffnen ließ, als benannter Engine-Fehler: Sein `code` ist einer der auf `EngineError` dokumentierten (`WEBGPU_LOST`, wenn WebGPU sein Gerät verloren hat), oder `SESSION_OPEN_FAILED` für einen Grund ohne eigenen. Ein `EngineError` mit dokumentiertem Code ist der geworfene selbst; jeder andere Fehler wird umgewandelt, und der geworfene Fehler steht dann in `details.cause`. `null` ab dem Beginn jeder Öffnung, und wenn nichts versucht wird.",
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },
@@ -6454,12 +6402,11 @@
     "description": "`'firstPerson'` bewegt eine Kamera; `'character'` bewegt einen Körper — Masse, Schwerkraft, Sprünge, Kollisionen mit `world.controls.colliders` — und blickt durch seine Augen."
   },
   "WorldFrameMetrics": {
-    "summary": "Die Messwerte eines Bildes, mit den Namen, unter denen eine Seite sie liest; `null`, wo der Pfad nicht zählt.",
+    "summary": "Die Messwerte eines Bildes, wie der Host sie von der Engine kopiert hat, und zwei daraus zusammengesetzte, die eine Seite liest; `null`, wo der Pfad nicht zählt.",
     "members": {
       "rafIntervalMs": "Zeit zwischen zwei Bildern.",
       "cpuFrameMs": "CPU-Zeit des Bildes.",
       "cpuSubmitMs": "CPU-Zeit, um die Arbeit zu senden.",
-      "gpuMs": "GPU-Zeit des Bildes.",
       "drawCalls": "Zeichenaufrufe dieses Bildes, so wie die Engine sie gezählt hat. `null`, wenn sie sie nicht gezählt hat: eine Null würde sich wie ein Bild ohne Zeichnung lesen.",
       "autonomousClusterDrawsTotal": "Cluster-Zeichnungen nach Seiten, gestartet vom WebGL2-Programm der Engine während dieser Sitzung.",
       "autonomousCopyDraws": "Szenenkopien — die durchlässigen Oberflächen —, die das WebGL2-Programm der Engine bei diesem Bild gezeichnet hat.",
@@ -6492,7 +6439,7 @@
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
-      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert.",
+      "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
       "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
@@ -6507,8 +6454,8 @@
       "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde.",
       "lightsActive": "Lichter des `SceneLight`-Vertrags, die das Bild beleuchtet hat. Null für eine Engine, die sie ignoriert.",
       "lightsSampled": "Wahr, wenn die Beleuchtung dieses Bildes im abgetasteten Modus lief — ein bewegtes Bild, das über eine Historie akkumuliert, wobei ein Pixel mit mehr Lichtern als `samplesPerPixel` einen ausgelosten Teil davon beleuchtet —, falsch, wenn jedes Pixel jedes Licht beleuchtet hat, wie es ein unbewegtes Bild tut. Null für eine Engine, die Lichter ignoriert.",
-      "shadowsUpdated": "Von diesem Bild neu gezeichnete Schattenkacheln, höchstens die veröffentlichte Obergrenze des Planers. Null ist der normale Wert einer unbewegten Szene: ein festes Licht behält seine Kachel.",
-      "shadowFacesDrawn": "Was der Schattendurchgang neu gezeichnet hat: Flächen (Ansichten) und wirklich kodierte Zeichenaufrufe. Das sind die Kosten pro Schattenlicht, vom Rest getrennt. Null für eine Engine, die keinen Schatten zeichnet.",
+      "shadowsUpdated": "Schattenlichter, von denen dieses Bild eine Seite gezeichnet hat. Null ist der normale Wert einer ruhenden Szene: ein festes Licht behält seine Seiten.",
+      "shadowFacesDrawn": "Lichtansichten, in die der Schattendurchgang gezeichnet hat — eine Clipmap-Stufe der Sonne, eine Lampenfläche auf einer Mip-Stufe —, und die tatsächlich kodierten Draw-Calls. Null bei einer Engine, die keinen Schatten zeichnet.",
       "shadowDrawCalls": "Schatten-Zeichenaufrufe.",
       "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und die Verzögerung der ältesten in Millisekunden. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
@@ -6555,7 +6502,13 @@
       "geometryPoolSaturated": "Vom aktuellen Bild angeforderte Seiten über die Anzahl der Pool-Plätze hinaus.",
       "texturePoolClamp": "Grund für die Begrenzung des Textur-Pools: `minimum`, `device-limit`.",
       "hizCulled": "Cluster, die der Verdeckungstest bei diesem Bild als versteckt gefunden hat; `null`, wo der Pfad sie nicht zählt.",
-      "shadowPagesResident": "Bei diesem Bild im Speicher gehaltene Schattenseiten; `null`, wo der Pfad keine hat."
+      "shadowLightCuts": "Cluster-Schnitte der Lichter: einer pro gezeichneter Lichtansicht, null in einem ruhenden Bild.",
+      "shadowPagesRequested": "Virtuelle Schattenseiten, die das Bild gelesen hat, wie sein letzter Anforderungsbericht sie nannte: was die Empfänger der Kamera markieren.",
+      "shadowPagesCached": "Davon direkt aus dem Pool gelesene Seiten: aktuell, ohne Zeichnen.",
+      "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
+      "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
+      "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
+      "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
     }
   },
   "WorldOptions": {
@@ -6565,7 +6518,8 @@
       "interactive": "Ob die Welt ihre eigene Schleife laufen lässt: sie zeichnet, wenn sich etwas ändert, und ruht sich nach 120 Bildern ohne Neuerung aus. `false` lässt die Seite `world.render()` selbst aufrufen.",
       "pixelRatio": "Wie viele Bildpixel pro Bildschirmpixel.",
       "controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
-      "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird."
+      "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
+      "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen."
     }
   },
   "WorldPageSource": {
@@ -6606,8 +6560,8 @@
     "summary": "Leitet alles, was ein Bild liest, aus dem bereits gesetzten `into.world` und der deklarierten Optik ab: die Projektion in der Tiefenkonvention der Engine, dann die Sicht, die View-Projektion und die sechs Ebenen des Sichtkegels (`updateCameraFrame`), das Render-Bezugssystem (`renderOrigin.ts`) und das Auge."
   },
   "writeFace": {
-    "summary": "Schreibt die View-Projektionsmatrix einer Fläche an ihren Platz in `matrices`, und, wenn die Ablehnung aktiviert ist, das Volumen, das sie der `rect`-Region dieser Fläche entgegensetzt.",
-    "description": "Beide gehen von derselben Achse und demselben Feld aus — eine einzige Berechnung, also kein Risiko, dass sie auf unterschiedliche Richtungen zielen. Ein Punktlicht nimmt die Achse von `POINT_FACE_AXES` und 90°; ein Spot nimmt seine Richtung und seinen erweiterten Kegel; ein Richtungslicht nimmt die Kaskadenfläche `face`, die der Kamera folgt. Der Radius des Emitters berührt weder die Projektion noch die Ablehnung: sein Ausschluss ist genau eine Kugel, geschrieben dort, wo die Schattentiefe geschrieben wird, und eine angehobene Nahebene würde daraus einen Würfel machen. `rect` ist der neu zu zeichnende Teil der Fläche, in normalisierten Koordinaten; standardmäßig `FULL_FACE`, und das Volumen ist dann genau das von vor der Seiteninvalidierung. Ein Cluster, dessen Kugel in der Welt weder die Reichweite noch dieses Volumen berührt, kann nichts in die Region schreiben: die Projektion und das Zuschneiden würden ihn ohnehin ablehnen. Die Ablehnung ist also exakt, nie eine Qualitätsannäherung — die Region ändert sich nicht um ein Texel."
+    "summary": "Schreibt die View-Projection-Matrix einer Lampenfläche an ihren Platz in `matrices` und, falls das Culling aktiv ist, das Volumen, das sie dem Rechteck `rect` dieser Fläche entgegensetzt.",
+    "description": "Beide gehen von derselben Achse und demselben Feld aus — eine Rechnung, also keine Gefahr, dass sie in verschiedene Richtungen zielen. Ein Punkt nimmt die Achse `POINT_FACE_AXES` und 90°; ein Spot nimmt seine Richtung und seinen erweiterten Kegel. Der Radius des Strahlers berührt weder Projektion noch Culling: sein Ausschluss ist genau eine Kugel, geschrieben dort, wo die Schattentiefe geschrieben wird. `rect` ist der zu zeichnende Teil der Fläche in normierten Koordinaten; standardmäßig `FULL_FACE`. Ein Cluster, dessen Weltkugel weder die Reichweite noch dieses Volumen berührt, kann nichts darin schreiben: Projektion und Viewport würden ihn ohnehin verwerfen, also ist das Culling exakt."
   },
   "XYLike": {
     "summary": "Alles, was ein `x` und ein `y` hat: ein 2D-Punkt, gelesen über seine Felder.",
@@ -6898,5 +6852,432 @@
   "raycast": {
     "summary": "Jedes Objekt unter `roots`, das `ray` trifft, das nächste zuerst, ein Treffer pro Objekt: sein nächster.",
     "description": "Die Richtung wird am Eingang zu einem Einheitsvektor gemacht, sodass jede `distance` in Welteinheiten angegeben ist, welche Länge die Seite auch gab. Verborgene Teilbäume werden übersprungen — auch eine Wurzel unter einem verborgenen Vorfahren — ebenso die Knoten, die `skip` nennt, samt ihren Teilbäumen: die Markierungen, mit denen eine Seite arbeitet, nie ihr Inhalt."
+  },
+  "world.physics": {
+    "summary": "Körper, Schwerkraft und Zeit der Physik (Jolt, in einem Worker).",
+    "members": {
+      "enabled": "Ob Körper simuliert werden. Beim ersten Einschalten wird die Physik geladen.",
+      "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
+      "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
+      "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+    }
+  },
+  "ContactEvent": {
+    "summary": "Was ein Kontakt seinen Zuhörern gibt: das andere Objekt, den Impuls und den Berührungspunkt.",
+    "members": {
+      "other": "Das berührte Objekt; `null`, sobald es die Szene verlassen hat.",
+      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt; 0 bei `leave`.",
+      "point": "Der Kontaktpunkt im Weltrahmen; der Ursprung bei `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Die Ereignisse eines Körpers: erste Berührung mit Impuls (`contact`) und Berührung begonnen oder beendet."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Die Standard-Physikbudgets der Engine.",
+    "members": {
+      "bodies": "Körper jeder Art gleichzeitig.",
+      "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
+      "decorative": "Dekorative Körper gleichzeitig.",
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Benannte Schwerkräfte, in m/s² entlang −y.",
+    "members": {
+      "earth": "Die der Erde.",
+      "moon": "Die des Mondes.",
+      "mars": "Die des Mars.",
+      "none": "Keine Schwerkraft."
+    }
+  },
+  "GravityInput": {
+    "summary": "Eine Schwerkraft: der Name einer Vorgabe oder ein Vektor in m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Der Name einer Schwerkraftvorgabe."
+  },
+  "ObjectPhysics": {
+    "summary": "Die Physik eines Objekts, wie `obj.physics` sie hält: ein lebender Datensatz dessen, was der Körper ist und tut.",
+    "description": "Schreibvorgänge erreichen die Simulation beim nächsten Schritt; `velocity` liest, was der letzte Schritt ließ.",
+    "members": {
+      "type": "Wie sich der Körper bewegt; setze `obj.physics` neu, um es zu ändern.",
+      "shape": "Die angegebene Form, falls es eine gab.",
+      "sensor": "Ob der Körper nur Kontakte meldet.",
+      "ccd": "Ob kontinuierliche Kollision an ist.",
+      "decorative": "Ob der Körper dekorativer Trümmer ist.",
+      "velocity": "Lineare Geschwindigkeit, m/s, wie der letzte Schritt sie ließ; schreibe sie, um den Körper zu werfen.",
+      "asleep": "Ob der Körper schläft: in Ruhe und nicht mehr simuliert, bis ihn etwas weckt.",
+      "mass": "Masse in Kilogramm; `undefined` nimmt die Dichte des Materials mal das Volumen.",
+      "gravityScale": "Multipliziert die Schwerkraft der Welt für diesen Körper.",
+      "friction": "Reibung überschrieben; `undefined` nimmt die des Materials.",
+      "restitution": "Rückprall überschrieben; `undefined` nimmt den des Materials.",
+      "applyImpulse": "Stößt den Körper sofort an, ein Impuls in N·s durch seinen Schwerpunkt; weckt ihn.",
+      "wake": "Weckt den Körper, ob schlafend oder nicht.",
+      "on": "Ruft `handler` bei einem Kontaktereignis dieses Körpers auf.",
+      "listens": "Ob ein Kontakt-Handler gesetzt ist."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Benannte Materien für `material.physics`, gerundete Tabellenwerte.",
+    "members": {
+      "wood": "Holz.",
+      "metal": "Stahl.",
+      "rubber": "Gummi.",
+      "ice": "Eis.",
+      "stone": "Stein.",
+      "glass": "Glas."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Was `obj.physics` über seine drei Wörter hinaus annimmt.",
+    "members": {
+      "type": "Wie sich der Körper bewegt.",
+      "mass": "Masse in Kilogramm; weggelassen, die Dichte des Materials mal das Volumen der Form.",
+      "shape": "Die Kollisionsform; weggelassen, aus der Geometrie abgeleitet.",
+      "gravityScale": "Multipliziert die Schwerkraft der Welt für diesen Körper; 0 schwebt.",
+      "sensor": "Meldet Kontakte ohne Kollision: ein Auslösevolumen.",
+      "ccd": "Kontinuierliche Kollision, für schnelle kleine Körper, die sonst dünne Wände durchdringen.",
+      "decorative": "Trümmer: trifft nur die statische Welt und wird nur in Reichweite und im Blick simuliert. Begrenzt durch `budget.physics.decorative`.",
+      "friction": "Überschreibt die Reibung des Materials, ab 0.",
+      "restitution": "Überschreibt den Rückprall des Materials, 0 bis 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Die festen Grenzen der Physik einer Welt; nie vom Gerät gelesen.",
+    "members": {
+      "bodies": "Körper jeder Art gleichzeitig.",
+      "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
+      "decorative": "Dekorative Körper gleichzeitig.",
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Die Weltseite eines Körpers: was ein Schreiben auf `obj.physics` von der Simulation verlangt.",
+    "members": {
+      "rebuild": "Eine Einstellung, mit der der Körper erzeugt wurde, hat sich geändert: Er wird neu erzeugt.",
+      "tune": "Reibung, Rückprall oder Schwerkraftfaktor hat sich geändert.",
+      "listened": "Ob sich der Wunsch nach Kontaktereignissen geändert hat.",
+      "velocity": "Die Geschwindigkeit wurde geschrieben.",
+      "impulse": "Ein Impuls wurde angewandt.",
+      "wake": "Der Körper wurde geweckt."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Der Name einer Materievorgabe."
+  },
+  "PhysicsMatter": {
+    "summary": "Die Materie eines Körpers: Dichte (kg/m³), Reibung und Rückprall.",
+    "members": {
+      "density": "kg/m³, für die Masse eines Körpers.",
+      "friction": "Wie stark ein Körper haftet, ab 0.",
+      "restitution": "Wie stark ein Körper springt, 0 bis 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Was `obj.physics` erhalten kann."
+  },
+  "PhysicsShape": {
+    "summary": "Eine Kollisionsform, wenn die aus der Geometrie abgeleitete nicht passt.",
+    "description": "Die Größen gelten im eigenen Rahmen des Objekts, vor seiner Skalierung."
+  },
+  "PhysicsStats": {
+    "summary": "Was die Physik der Welt meldet: Zählungen des letzten Ticks und beide Uhren getrennt.",
+    "members": {
+      "bodies": "Körper, die die Simulation hält.",
+      "active": "Wache Körper nach dem letzten Tick.",
+      "stepMs": "Worker-Millisekunden pro festem Schritt, letzter Tick: die Uhr des Workers, nie zu der der Seite addiert.",
+      "mainMs": "Seiten-Millisekunden der Physik im letzten Bild (die CPU-Stufe `physics`).",
+      "poses": "Posen, die der letzte Tick zurückgab.",
+      "events": "Kontaktereignisse, die der letzte Tick zurückgab.",
+      "droppedEvents": "Seit dem Start der Physik verworfene `enter`-Ereignisse, über `budget.physics.contactEvents` in einem Schritt hinaus (ihr `leave` wird nie gesendet)."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Wie sich ein Körper bewegt: nie, durch die Seite (`kinematic`, schiebt, was er trifft) oder durch die Simulation."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, die Physik der Welt.",
+    "members": {
+      "enabled": "Ob Körper simuliert werden. Beim ersten Einschalten wird die Physik geladen.",
+      "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
+      "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
+      "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Was `createWorld(canvas, { physics })` über `true` hinaus annimmt.",
+    "members": {
+      "budget": "Feste Grenzen, einmal beim Start der Physik gelesen.",
+      "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
+    }
+  },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen, dann das Bezugssystem der Sonnenebene — `right, zNear`, `up, zFar`, `axis, 0` —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
+  },
+  "ShadowRequestReport": {
+    "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",
+    "members": {
+      "frame": "Bild, dessen Schattierung den Bericht schrieb.",
+      "layoutEpoch": "Tabellenlayout, mit dem dieses Bild gelesen hat (`ShadowTable.layoutEpoch`).",
+      "stamp": "Der Stempel des Plans, als dieses Bild kodiert wurde (`ShadowPlan.stamp`).",
+      "count": "Angeforderte Einträge, möglicherweise mehr als `entries` fasst: der Rest fragt im nächsten Bild erneut.",
+      "entries": "Die angeforderten Einträge, höchstens die ersten `count`."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Alles, was `world.controls.vehicle` fahren kann: Es erhält die Eingabe bei jeder Änderung.",
+    "members": {
+      "drive": "Erhält Pedale und Lenkrad, jedes Mal wenn eine Taste sie ändert."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Was ein Fahrer von einem Fahrzeug verlangt: Pedale und Lenkrad, wie die Tasten von `world.controls` `'vehicle'` sie setzen.",
+    "description": "Die Physik des Fahrzeugs – Motor, Räder, Federung – beantwortet sie; dieser Vertrag ist alles, was die Steuerung kennt.",
+    "members": {
+      "throttle": "Gaspedal, 0 bis 1.",
+      "brake": "Bremspedal, 0 bis 1.",
+      "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
+      "handbrake": "Ob die Handbremse gezogen ist."
+    }
+  },
+  "GraphAttribute": {
+    "members": {
+      "count": "Wie viele Scheitelpunkte.",
+      "array": "Die Speicherung.",
+      "kind": "Das Attribut besitzt seinen Puffer.",
+      "version": "Von `needsUpdate` erhöht.",
+      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
+      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
+      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
+    },
+    "summary": "Ein Attribut mit eigenem Speicher: `itemSize` Zahlen pro Vertex, hintereinander."
+  },
+  "GraphGeometry": {
+    "members": {
+      "attributes": "Ihre Scheitelpunktattribute.",
+      "boundingBox": "Die vom Host berechnete lokale Box.",
+      "kind": "Was die Ressource ist.",
+      "name": "Ihr Name.",
+      "index": "Die Dreiecksliste, oder `null`, um die Vertices der Reihe nach zu zeichnen.",
+      "morphAttributes": "Pro verformtem Attribut ein Attribut pro Morph-Ziel.",
+      "morphTargetsRelative": "Wahr, wenn ein Morph-Ziel Verschiebungen statt Positionen hält.",
+      "groups": "Bereiche des Index, jeweils mit einer Oberfläche gezeichnet.",
+      "drawRange": "Der gezeichnete Bereich des Index.",
+      "boundingSphere": "Die lokale Kugel, sobald berechnet oder deklariert.",
+      "userData": "Freier Platz für die Daten dessen, der die Geometrie gebaut hat.",
+      "getIndex": "Die Dreiecksliste.",
+      "setIndex": "Setzt die Dreiecksliste.",
+      "getAttribute": "Das Attribut dieses Namens.",
+      "setAttribute": "Benennt ein Attribut.",
+      "deleteAttribute": "Vergisst ein Attribut.",
+      "hasAttribute": "Ob sie ein Attribut dieses Namens hat.",
+      "clone": "Eine Geometrie mit Kopien jedes Puffers, ihrer Gruppen, ihres Bereichs und ihrer Grenzen.",
+      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Vertex.",
+      "computeBoundingBox": "Berechnet die lokale Box über alle Vertices.",
+      "computeBoundingSphere": "Berechnet die lokale Kugel: auf der Box zentriert, bis zum entferntesten Vertex."
+    },
+    "summary": "Die Attribute, die ein Mesh zeichnet, die Dreiecksliste, über die sie indiziert werden, die Morph-Ziele, die sie bewegen, sowie die darüber berechnete lokale Box und Kugel."
+  },
+  "GraphNode": {
+    "members": {
+      "name": "Der Name, den der Host ihm gibt.",
+      "parent": "Sein Elternteil.",
+      "position": "Wo er steht.",
+      "rotation": "Wie er gedreht ist, in Winkeln.",
+      "quaternion": "Die beiden Seiten der Rotation eines Knotens — das Quaternion, das die Engine vergleicht, und die Euler-Winkel, die sich dorthin zurückkopieren — jede KÜNDIGT ihre eigenen Schreibvorgänge AN: ein Rückruf, den der Host bereits verkettet, den ein Hook verlängert, statt ihn zu ersetzen (`hooks.ts`). Die beiden unterstrichenen Mitglieder sind ein Privates der Host-Bibliothek, also werden sie hier geschrieben, wo der Hook sie braucht, ohne einen eigenen Namen zu erhalten. Das hält das Private aus der Liste der veröffentlichten Verträge des SDK heraus; es hält es NICHT aus der veröffentlichten Oberfläche heraus, da `HostGraphNode` es trägt. Die Pose bei jedem Bild zu vergleichen, wie es der Durchlauf bereits tut, ist das, was diese Kopplung aufheben würde — das ist nicht die Arbeit dieses Lots.",
+      "scale": "Wie er gestreckt ist.",
+      "matrix": "Seine lokale Matrix.",
+      "matrixWorld": "Seine Matrix in der Welt.",
+      "matrixAutoUpdate": "Falsch, wenn der Host `matrix` selbst gesetzt hat: die Matrix IST die Pose, und nichts setzt sie neu zusammen.",
+      "visible": "Ob er gezeichnet wird.",
+      "userData": "Wo die Engine eine eigene Kopie markiert, die der Host nie gesehen hat und nicht schreiben kann.",
+      "traverse": "Der Teilbaum unter dem Knoten, er zuerst, in der eigenen Reihenfolge des Hosts.",
+      "updateMatrixWorld": "Löst die Weltmatrizen des Teilbaums IM GRAPHEN DES HOSTS auf, für die eigenen Leser des Hosts.",
+      "id": "Die Nummer des Knotens, eindeutig in der Sitzung.",
+      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt.",
+      "children": "Die Knoten, die dieser hält, der Reihe nach.",
+      "up": "Welche Richtung für `lookAt` oben ist.",
+      "matrixWorldAutoUpdate": "Falsch, wenn nichts `matrixWorld` schreibt.",
+      "matrixWorldNeedsUpdate": "Gesetzt, wenn sich die lokale Matrix geändert hat und die Weltmatrix nicht gefolgt ist.",
+      "castShadow": "Ob er Schatten wirft.",
+      "receiveShadow": "Ob Schatten auf ihn fallen.",
+      "frustumCulled": "Ob ein Renderer ihn außerhalb der Sicht auslassen darf.",
+      "renderOrder": "Zeichenreihenfolge unter durchsichtigen Dingen.",
+      "add": "Macht `nodes` zu Kindern dieses Knotens, jeden zuerst von seinem bisherigen Elternteil gelöst.",
+      "remove": "Löst `nodes` von diesem Knoten.",
+      "removeFromParent": "Löst diesen Knoten von seinem Elternteil.",
+      "clear": "Löst alle Kinder von diesem Knoten.",
+      "updateMatrix": "Setzt die lokale Matrix aus der Pose zusammen.",
+      "updateWorldMatrix": "Löst die Weltmatrix dieses Knotens auf, auf Wunsch zuerst die seiner Vorfahren, danach seinen Teilbaum.",
+      "applyMatrix4": "Wendet `m` auf die Pose des Knotens an und liest die Pose dann aus dem Produkt zurück.",
+      "lookAt": "Dreht den Knoten zu einem Weltpunkt, gegeben als Punkt oder als seine drei Zahlen.",
+      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+    },
+    "summary": "Ein Knoten des Graphen: sein Name, seine Pose, seine Weltmatrix, sein Elternteil und seine Kinder."
+  },
+  "GraphSurface": {
+    "members": {
+      "version": "Vom Host bei jeder Änderung erhöht: das, was eine zwischengespeicherte Zeile vergleicht, um ihre Felder neu zu erstellen.",
+      "uuid": "Ein für die Oberfläche eindeutiger Name.",
+      "name": "Ihr Name.",
+      "userData": "Freier Platz für die Daten dessen, der die Oberfläche gebaut hat.",
+      "kind": "Was die Ressource ist; `family` sagt, welche Oberfläche.",
+      "family": "Die Familie, zu der sie gehört.",
+      "needsUpdate": "`needsUpdate = true` nach einer Änderung: jeder Leser liest die Felder erneut.",
+      "copy": "Übernimmt jeden Parameter von `source`, Farben und Vektoren kopiert, Texturen geteilt.",
+      "clone": "Eine Oberfläche derselben Familie mit denselben Parametern.",
+      "visible": "Ob sie gezeichnet wird.",
+      "side": "Welche Flächen, nach der Konstante des Hosts.",
+      "forceSinglePass": "Der Host zeichnet eine durchsichtige zweiseitige Oberfläche in einem Durchgang statt erst hinten dann vorne.",
+      "vertexColors": "Ob die Scheitelpunktfarben sie färben.",
+      "toneMapped": "Ob die Anzeigekurve angewendet wird.",
+      "depthWrite": "Ob sie die Tiefe schreibt.",
+      "depthFunc": "Der Vergleich des Tiefentests.",
+      "colorWrite": "Ob sie die Farbe schreibt.",
+      "polygonOffset": "Ob die Tiefe versetzt wird.",
+      "polygonOffsetFactor": "Steigungsanteil des Versatzes.",
+      "polygonOffsetUnits": "Konstanter Anteil des Versatzes.",
+      "transparent": "Ob sie sich mischt.",
+      "opacity": "Wie undurchsichtig sie ist.",
+      "alphaTest": "Alpha, unter dem Pixel verschwinden.",
+      "depthTest": "Ob sie die Tiefe prüft."
+    },
+    "summary": "Eine Oberfläche: die Parameter einer Familie, mit den Werten der Referenz, sofern die Szene nichts anderes sagt.",
+    "description": "Ihre Version wird von `needsUpdate` erhöht, die jeder Leser vergleicht."
+  },
+  "GraphTexture": {
+    "members": {
+      "uuid": "Ein der Textur eigener Name.",
+      "name": "Der Name, den der Host ihr gibt.",
+      "channel": "UV-Satz, den der Sampler liest, das `texCoord` von `KHR_texture_transform`.",
+      "wrapS": "Wie sie sich in der Breite wiederholt, nach der Konstante des Hosts.",
+      "wrapT": "Wie sie sich nach oben wiederholt, nach der Konstante des Hosts.",
+      "magFilter": "Filter, wenn sie größer gezeigt wird.",
+      "minFilter": "Filter, wenn sie kleiner gezeigt wird.",
+      "anisotropy": "Schärfe schräg gesehen.",
+      "colorSpace": "Wie ihre Zahlen gelesen werden.",
+      "offset": "Woraus `matrix` zusammengesetzt wird.",
+      "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
+      "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
+      "generateMipmaps": "Ob kleinere Kopien erstellt werden.",
+      "premultiplyAlpha": "Ob die Farbe mit Alpha vormultipliziert ist.",
+      "flipY": "Ob die Zeilen beim Senden umgedreht werden.",
+      "version": "Vom Host bei jeder Inhaltsänderung erhöht: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",
+      "image": "Das dekodierte Bild, im hosteigenen Container.",
+      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf.",
+      "kind": "Unterscheidet eine Textur von jedem anderen Feld einer Oberfläche: ein dekodiertes Bild oder rohe Texel (`image` hält `{ data, width, height }`).",
+      "mapping": "Wie sie adressiert wird: über einen UV-Satz.",
+      "userData": "Freier Platz für die Daten dessen, der die Textur gebaut hat.",
+      "format": "Die Kanäle der Texel einer Rohtextur (`HOST_FORMAT_*`).",
+      "needsUpdate": "`needsUpdate = true` nach einer Änderung: ein Leser lädt sie erneut hoch.",
+      "clone": "Eine Textur mit demselben Bild und Zustand, als geändert gemeldet.",
+      "repeat": "Wie oft sie hineinpasst.",
+      "center": "Der Drehpunkt der Rotation.",
+      "rotation": "Die Rotation, in Radiant."
+    },
+    "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
+  },
+  "GraphAngles": {
+    "summary": "Dieselbe Ausrichtung als drei Winkel und ihre Reihenfolge, die ihre Schreibungen ebenso meldet.",
+    "members": {
+      "x": "Der erste Winkel, im Bogenmaß.",
+      "set": "Schreibt die drei Winkel und, falls angegeben, die Reihenfolge; einmal gemeldet.",
+      "setFromRotation": "Die Winkel von `q` in dieser Reihenfolge (das `Euler` des Kerns); gemeldet, außer bei `quiet`.",
+      "y": "Der zweite Winkel, im Bogenmaß.",
+      "z": "Der dritte Winkel, im Bogenmaß.",
+      "order": "Die Reihenfolge, in der die drei Winkel drehen, `'XYZ'`, sofern nicht gesetzt."
+    }
+  },
+  "GraphArray": {
+    "summary": "Die typisierten Arrays, die ein Attribut hält."
+  },
+  "GraphElements": {
+    "summary": "Eine der beiden Attributarten."
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
+    "members": {
+      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
+      "data": "Der Puffer, den es betrachtet.",
+      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Vertices.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Ein Speicher, den mehrere Attribute betrachten, ein Vertex alle `stride` Zahlen.",
+    "members": {
+      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
+      "count": "Wie viele Vertices.",
+      "version": "Von `needsUpdate` erhöht.",
+      "array": "Der Speicher.",
+      "stride": "Zahlen pro Vertex.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Ein gezeichneter Knoten: eine Geometrie und ihre Oberfläche, oder eine Oberfläche pro Geometriegruppe.",
+    "members": {
+      "kind": "An einer Platzierung gezeichnet oder an mehreren (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Das Gewicht jedes Morph-Ziels, wenn die Geometrie welche deklariert.",
+      "morphTargetDictionary": "Der Rang jedes Morph-Ziels nach seinem Namen.",
+      "geometry": "Seine Form.",
+      "material": "Seine Oberfläche, oder eine pro Geometriegruppe.",
+      "updateMorphTargets": "Ein Nullgewicht pro Morph-Ziel des ersten verformten Attributs, nach Rang benannt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
+  },
+  "GraphRotation": {
+    "summary": "Eine Ausrichtung `(x, y, z, w)`, deren Schreibungen `_onChangeCallback` aufrufen.",
+    "members": {
+      "x": "Die erste Zahl.",
+      "set": "Schreibt die vier Zahlen, einmal gemeldet.",
+      "copy": "Übernimmt die Zahlen einer anderen Rotation.",
+      "fromArray": "Liest vier Zahlen aus einer Liste.",
+      "setFromAngles": "Die Rotation von `angles` in ihrer Reihenfolge (`localTurnQuaternion`); gemeldet, außer bei `quiet`.",
+      "setFromRotationMatrix": "Die Rotation der oberen 3×3 einer spaltenweise gespeicherten Matrix mit Spalten der Länge eins.",
+      "premultiply": "Wird zu `q` gefolgt von dieser Rotation, `q · this`.",
+      "invert": "Wird zur entgegengesetzten Drehung.",
+      "y": "Die zweite Zahl.",
+      "z": "Die dritte Zahl.",
+      "w": "Die vierte Zahl."
+    }
+  },
+  "GraphVector": {
+    "summary": "Drei Zahlen einer Pose oder eines Punkts: einfache Datenfelder und die Operationen, die ein Controller nutzt.",
+    "members": {
+      "set": "Schreibt die drei Zahlen.",
+      "copy": "Übernimmt die Zahlen eines anderen Punkts.",
+      "clone": "Eine Kopie.",
+      "add": "Addiert einen anderen Vektor.",
+      "sub": "Zieht einen anderen Vektor ab.",
+      "multiplyScalar": "Skaliert die drei Zahlen.",
+      "length": "Seine Länge.",
+      "setLength": "Behält die Richtung, setzt die Länge.",
+      "distanceTo": "Abstand zu einem Punkt.",
+      "fromArray": "Liest drei Zahlen aus einer Liste.",
+      "x": "Von links nach rechts.",
+      "y": "Von unten nach oben.",
+      "z": "Von hinten nach vorn."
+    }
   }
 }

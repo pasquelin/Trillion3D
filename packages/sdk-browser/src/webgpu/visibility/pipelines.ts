@@ -2,7 +2,7 @@ import { FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
-import { openValidation, validationError } from '../../gpu/core/errorScope.ts';
+import { validationScope } from '../../gpu/core/errorScope.ts';
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
 import { shadeVariantFragment, visVariantFragment } from '../../diagnostic/gpuGeometry.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
@@ -25,9 +25,7 @@ export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number
 
 /** Creates under a validation scope, and lets through what the device refused. */
 async function scoped<T>(device: GPUDevice, run: () => T): Promise<T> {
-  openValidation(device);
-  const value = run();
-  const error = await validationError(device);
+  const { value, error } = await validationScope(device, run);
   if (error) throw error;
   return value;
 }

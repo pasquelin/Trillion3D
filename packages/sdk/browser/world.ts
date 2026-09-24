@@ -71,7 +71,6 @@ export { Frustum, Plane, Ray, Sphere, Triangle } from '../../sdk-core/src/world/
 export { geometry } from '../../sdk-core/src/world/geometry/index.ts';
 export { Geometry } from '../../sdk-core/src/world/geometry/geometry.ts';
 export { Group, Object3D } from '../../sdk-core/src/world/object/object3d.ts';
-export type { SceneLink } from '../../sdk-core/src/world/object/object3d.ts';
 export { helper } from '../../sdk-browser/src/world/helper/index.ts';
 export { raycast } from '../../sdk-core/src/world/object/raycast.ts';
 export type { Intersection } from '../../sdk-core/src/world/object/raycast.ts';
@@ -108,6 +107,7 @@ export type {
   SavedNode,
   SavedScene,
 } from '../../sdk-browser/src/world/saved/format.ts';
+export type { SceneLink } from '../../sdk-core/src/world/object/sceneLink.ts';
 export { Spherical, Vector2, Vector4 } from '../../sdk-core/src/world/math/vector2.ts';
 export { Texture } from '../../sdk-core/src/world/texture/texture.ts';
 export type {

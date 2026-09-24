@@ -1,5 +1,5 @@
 import type { RenderBackend } from './types.ts';
-import type { ClusterDraw } from '../cluster/batches.ts';
+import type { ClusterDraw } from '../cluster/batchMesh.ts';
 import { drawnRanges, submittedDraws } from '../cluster/batchMesh.ts';
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../sdk-core/src/index.ts';
 

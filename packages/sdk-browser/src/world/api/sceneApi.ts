@@ -7,8 +7,9 @@ import type {
   StablePreview,
 } from '../../../../sdk-core/src/index.ts';
 import type { RenderBackend } from '../../backend/types.ts';
+import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
-import type { MemoryBudgets } from '../../webgpu/pages/io/memory.ts';
+import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 
 type Inputs = {
@@ -101,6 +102,14 @@ export function createExplorerSceneApi(inputs: Inputs) {
       const active = getActive();
       active.setBounce?.(on);
       return !!active.setBounce;
+    },
+    /** The clear colour behind the scene, `0xrrggbb` or the default, on every engine of the
+     *  session — each one a comparison shows, not the active one alone — at the next frame; false
+     *  when one of them cannot take it in place, and only a new session will. */
+    setClearColor(hex = DEFAULT_CLEAR_COLOR) {
+      check();
+      for (const backend of backends) backend.setClearColor?.(hex);
+      return backends.every((backend) => backend.setClearColor);
     },
     /** Host surfaces rewritten in place are read again; false when the active path cannot, and
      *  only a new session will draw them. */

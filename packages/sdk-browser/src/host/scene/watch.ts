@@ -1,4 +1,5 @@
-import type { HostGraphNode, HostLightNode } from './graphNodes.ts';
+import type { HostGraphNode } from './graphNodes.ts';
+import { isLightNode, isPlacedLight } from '../graph/kinds.ts';
 import type { WriteRevision } from './hookCore.ts';
 import { hookHostNode, unhookHostNode } from './hooks.ts';
 import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts';
@@ -63,10 +64,9 @@ export function createHostSceneWatch() {
     observe(source: HostGraphNode, drawn: WatchedSources) {
       const set = new Set<HostGraphNode>();
       source.traverse((object) => {
-        const light = object as HostLightNode;
-        if (!light.isLight) return;
+        if (!isLightNode(object)) return;
         withAncestors(object, set);
-        withAncestors(light.target, set);
+        withAncestors(isPlacedLight(object) ? object.target : undefined, set);
       });
       for (const entry of drawn) withAncestors(sourceOf(entry), set);
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
@@ -91,6 +91,9 @@ export function createHostSceneWatch() {
       }
       return verdict;
     },
+    /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing
+     *  is hooked before the first observation: no host write can be pending there. */
+    pending: () => watched.length > 0 && seen !== mark.revision,
     /** The engine wrote the graph itself, under a scene revision it already incremented: the
      *  poses it bumped are taken as seen, and that scene revision has the list observed anew. */
     settle() {

@@ -1,9 +1,10 @@
 // The Three reference witness receives lights from contract: one test per behavior, headless.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type * as THREE from 'three';
+import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import type { GraphLight } from '../../packages/sdk-browser/src/host/graph/light.ts';
 import { creerEclairageTemoin } from './witnessPage.ts';
-import type { MeasuredWorld } from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import type { MeasuredWorld } from '../witnesses/measurement.ts';
 
 const DOUCEUR = 0.02;
 
@@ -61,12 +62,12 @@ const PROJECTEUR: LightRecord = {
   castsShadow: false,
 };
 
-test('a point light from contract becomes a Three light with same range and decay', () => {
-  const eclairage = creerEclairageTemoin();
+test('a point light from contract becomes a graph light with same range and decay', () => {
+  const eclairage = creerEclairageTemoin(G);
   eclairage.suivre(explorateur([PONCTUELLE]));
-  const [lampe] = eclairage.groupe.children as THREE.PointLight[];
-  assert.ok(lampe.isPointLight);
-  assert.deepStrictEqual(lampe.position.toArray(), [1, 2, 3]);
+  const [lampe] = eclairage.groupe.children as GraphLight[];
+  assert.ok(lampe.kind === 'point');
+  assert.deepStrictEqual(G.xyz(lampe.position), [1, 2, 3]);
   assert.strictEqual(lampe.distance, 12);
   assert.strictEqual(lampe.decay, 2);
   assert.strictEqual(lampe.intensity, 40);
@@ -74,40 +75,40 @@ test('a point light from contract becomes a Three light with same range and deca
 });
 
 test('a directional light is placed opposite to its propagation, target at origin', () => {
-  const eclairage = creerEclairageTemoin();
+  const eclairage = creerEclairageTemoin(G);
   eclairage.suivre(explorateur([SOLEIL]));
-  const [lampe] = eclairage.groupe.children as THREE.DirectionalLight[];
-  assert.ok(lampe.isDirectionalLight);
+  const [lampe] = eclairage.groupe.children as GraphLight[];
+  assert.ok(lampe.kind === 'directional');
   // `-0` and `0` are the same position: comparison concerns values, not sign.
   assert.deepStrictEqual(
-    lampe.position.toArray().map((valeur: number) => valeur + 0),
+    G.xyz(lampe.position).map((valeur: number) => valeur + 0),
     [0, 1, 0],
   );
-  assert.deepStrictEqual(lampe.target.position.toArray(), [0, 0, 0]);
+  assert.deepStrictEqual(G.xyz(lampe.target!.position), [0, 0, 0]);
 });
 
 test('a spot light preserves half-angle and edge softness from engine', () => {
-  const eclairage = creerEclairageTemoin();
+  const eclairage = creerEclairageTemoin(G);
   eclairage.suivre(explorateur([PROJECTEUR]));
-  const [lampe] = eclairage.groupe.children as THREE.SpotLight[];
-  assert.ok(lampe.isSpotLight);
+  const [lampe] = eclairage.groupe.children as GraphLight[];
+  assert.ok(lampe.kind === 'spot');
   assert.strictEqual(lampe.angle, 0.5);
   // Three softens from `cos(angle)` to `cos(angle(1 − penumbra))`; engine from `cos θ` to `cos θ + softness`.
-  const bord = Math.cos(lampe.angle * (1 - lampe.penumbra));
+  const bord = Math.cos(lampe.angle! * (1 - lampe.penumbra!));
   assert.ok(Math.abs(bord - (Math.cos(0.5) + DOUCEUR)) < 1e-9, `bord ${bord}`);
-  assert.deepStrictEqual(lampe.target.position.toArray(), [0, -5, 0]);
+  assert.deepStrictEqual(G.xyz(lampe.target!.position), [0, -5, 0]);
 });
 
 test('no cast shadows on witness side: SDK Three renderer has no maps', () => {
-  const eclairage = creerEclairageTemoin();
+  const eclairage = creerEclairageTemoin(G);
   const resume = eclairage.suivre(explorateur([PONCTUELLE, SOLEIL]));
   assert.strictEqual(resume?.ombres, false);
-  for (const lampe of eclairage.groupe.children as THREE.Light[])
+  for (const lampe of eclairage.groupe.children as GraphLight[])
     assert.strictEqual(lampe.castShadow, false);
 });
 
 test('summary counts received lights by type in store order', () => {
-  const eclairage = creerEclairageTemoin();
+  const eclairage = creerEclairageTemoin(G);
   const resume = eclairage.suivre(explorateur([PONCTUELLE, SOLEIL, PROJECTEUR]));
   assert.deepStrictEqual(resume, {
     nombre: 3,
@@ -124,13 +125,13 @@ test('moving a light does not trigger a scene refresh, adding one does', () => {
   const backend = { refreshSceneLighting: () => reprises++ };
   const lights = [{ ...PONCTUELLE }];
   const explorer = explorateur(lights, [backend]);
-  const eclairage = creerEclairageTemoin();
+  const eclairage = creerEclairageTemoin(G);
   eclairage.suivre(explorer);
   assert.strictEqual(reprises, 1);
   lights[0].position = [9, 9, 9];
   eclairage.suivre(explorer);
   assert.strictEqual(reprises, 1);
-  assert.deepStrictEqual(eclairage.groupe.children[0].position.toArray(), [9, 9, 9]);
+  assert.deepStrictEqual(G.xyz(eclairage.groupe.children[0].position), [9, 9, 9]);
   lights.push({ ...SOLEIL });
   eclairage.suivre(explorer);
   assert.strictEqual(reprises, 2);
@@ -138,7 +139,7 @@ test('moving a light does not trigger a scene refresh, adding one does', () => {
 });
 
 test('a dist prior to contract returns null, never an invented count', () => {
-  const eclairage = creerEclairageTemoin();
+  const eclairage = creerEclairageTemoin(G);
   assert.strictEqual(eclairage.suivre({ backends: [] } as unknown as MeasuredWorld), null);
   assert.strictEqual(eclairage.groupe.children.length, 0);
 });

@@ -1,4 +1,10 @@
-import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../../../../sdk-core/src/index.ts';
+import {
+  MAX_SHADOW_SLICES,
+  PROBE_FLOATS,
+  SHADOW_RECORD_FLOATS,
+} from '../../../../sdk-core/src/index.ts';
+import { SHADOW_REQUEST_WORDS } from '../direct/shadowWgsl.ts';
+import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
@@ -22,6 +28,7 @@ export function deferredLayoutEntries(
   direct: boolean,
   bounce = false,
   proxy: GPUBufferBindingLayout = { type: 'storage' },
+  marks = true,
 ) {
   const entries: GPUBindGroupLayoutEntry[] = [0, 1, 2, 3, 4].map((binding) => ({
     binding,
@@ -44,6 +51,13 @@ export function deferredLayoutEntries(
       // counters are written; the water composite, which only traces, declares it read-only.
       { binding: SUN_FAR_PROXY_BINDING, visibility: GPUShaderStage.FRAGMENT, buffer: proxy },
     );
+  // The shadow pages the resolve reads, recorded for the scheduler: only the opaque resolve asks.
+  if (direct && marks)
+    entries.push({
+      binding: CONTRACT_SHADOW_BINDINGS.requests,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'storage' },
+    });
   // Probe grid and their coefficients: bound only by the bounce program, so a session
   // without bounce keeps exactly the previous layout.
   if (bounce)
@@ -71,8 +85,9 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
 }
 
 /**
- * Contract substitute resources: an empty tile list, an invalid shadow slice, a one-texel
- * atlas, and a probe grid at zero. A device that refuses the real atlas thus keeps valid
+ * Contract substitute resources: an empty tile list, shadow records that hold no light and an
+ * empty page table, a request buffer nothing reads back, a one-texel pool, and a probe grid at
+ * zero. A device that refuses the real atlas thus keeps valid
  * bindings, and the light simply stays without shadow instead of failing the frame; a frame
  * without bounce reads a grid whose probe count is zero, hence an indirect irradiance of
  * exactly zero. The blend pass borrows the same substitutes: one definition of what an
@@ -85,8 +100,15 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     usage: GPUBufferUsage.STORAGE,
   });
   const slices = device.createBuffer({
-    label: 'Trillion3D empty shadow slices',
-    size: SHADOW_SLICE_FLOATS * 4,
+    label: 'Trillion3D empty shadow records',
+    // One table word, rounded up to the struct's 16-byte alignment: WGSL sizes `ShadowData` so,
+    // and a binding four bytes short invalidates every pass that reads it.
+    size: MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4 + 16,
+    usage: GPUBufferUsage.STORAGE,
+  });
+  const requests = device.createBuffer({
+    label: 'Trillion3D unread shadow requests',
+    size: SHADOW_REQUEST_WORDS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
   const atlas = device.createTexture({
@@ -127,6 +149,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   return {
     tiles,
     slices,
+    requests,
     atlasView: atlas.createView(),
     sampler,
     bounceGrid,
@@ -135,6 +158,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     dispose() {
       tiles.destroy();
       slices.destroy();
+      requests.destroy();
       atlas.destroy();
       bounceGrid.destroy();
       probes.destroy();

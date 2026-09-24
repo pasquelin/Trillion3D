@@ -8,7 +8,7 @@
 //    page has its bytes and its row. That is what authorises dropping the sum.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
@@ -27,7 +27,7 @@ const VIEWPORT: [number, number] = [1280, 720];
  *  in seven is blended: without that, `transparentTriangles` would agree on zero. */
 function scene(seuil: number, z = 16) {
   const pages = scenePages(4096, 8).map((page, i) => ({ ...page, transparent: i % 7 === 0 }));
-  const roots = sceneRoots(pages, [new THREE.Matrix4()], true);
+  const roots = sceneRoots(pages, [new G.Matrix4()], true);
   const packed = packDagSelection(roots);
   const uni = uniforms(seuil, z);
   // The kernel works in the render frame: without rebasing, a relative view and an absolute world
@@ -50,7 +50,7 @@ const catalogue = (pages: ReturnType<typeof scene>['pages']) =>
   );
 
 function uniforms(seuil: number, z = 16) {
-  const camera = new THREE.PerspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
+  const camera = G.perspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
   camera.position.set(0, 0, z);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld(true);

@@ -1,21 +1,15 @@
-// counting resident pages and GPU selection.
+// GPU residency bits, DAG readback and world stretch.
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
-import { comptePagesResidentes } from '../../../packages/sdk-browser/src/backend/autonomous/residency.ts';
 import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/runtime.ts';
 import { parseDagOutput } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { residentBase, residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { graine, mesure, rapport } from '../../core/index.ts';
 import { referenceUpdateResidency, residencyColumn } from '../../oracles/browser/residency.ts';
-import { pageRecFixture } from './support/pageRecFixture.ts';
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const CONE_FLOATS = 12,
   FLAG = 11;
 const alea = graine(53);
 const PAGES = 20000;
-const paginette = (array?: Uint32Array): PageRec => pageRecFixture({ array });
-const pages: PageRec[] = [];
-for (let i = 0; i < PAGES * 2; i++) pages.push(paginette(i % 3 ? new Uint32Array(3) : undefined));
 
 const images = [];
 for (let image = 0; image < 8; image++) {
@@ -49,18 +43,6 @@ sortieGpu[2] = 5;
 sortieGpu[3] = 0;
 for (let i = 0; i < 12000; i++) sortieGpu[4 + i] = i * 3;
 for (let i = 0; i < 20000; i++) sortieGpu[4 + 12000 + i] = i % 7 ? 1 : 0;
-
-const resCompte = await mesure({
-  name: 'resident pages',
-  fichier: 'packages/sdk-browser/src/backend/autonomous/residency.ts',
-  cas: [
-    { name: '40 000 pages', input: pages, size: pages.length },
-    { name: 'no pages', input: [], size: 0 },
-  ],
-  calcul: (liste) => comptePagesResidentes(liste),
-  attendu: (liste) => liste.filter((rec) => !!rec.array).length,
-  options: { tours: 100, budgetMs: 1000 },
-});
 
 const resResidencyBits = await mesure({
   name: 'residency-bit update',
@@ -111,17 +93,8 @@ const resEtirement = await mesure({
   options: { tours: 100, budgetMs: 1000 },
 });
 
-await stress({
-  name: 'comptePagesResidentes extremes',
-  calcul: comptePagesResidentes,
-  extremes: [
-    { name: 'empty', input: [] },
-    { name: 'without array', input: [paginette(undefined)] },
-  ],
-});
-
 rapport(
   'residence',
-  [resCompte, resResidencyBits, resParseDag, resEtirement],
-  'A8 and A11 yield the exact same counts, flags, cuts and stretches',
+  [resResidencyBits, resParseDag, resEtirement],
+  'A11 yields the exact same flags, cuts and stretches',
 );

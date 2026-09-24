@@ -1,4 +1,5 @@
 import { useWords } from '../i18n.ts';
+import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { formatValue } from '../../reports/metrics.ts';
@@ -38,8 +39,7 @@ export function Conditions({ a, b, locale }: ConditionsProps) {
     return formatValue(unit === 'MiB' ? raw / 1048576 : raw, locale, unit);
   };
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-3">
-      <h3 className="text-lg font-semibold">{t('report.protocol')}</h3>
+    <Section level={3} title={t('report.protocol')}>
       <Table>
         <thead>
           <tr>
@@ -58,6 +58,6 @@ export function Conditions({ a, b, locale }: ConditionsProps) {
           ))}
         </tbody>
       </Table>
-    </section>
+    </Section>
   );
 }

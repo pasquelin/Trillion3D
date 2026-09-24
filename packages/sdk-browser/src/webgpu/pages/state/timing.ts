@@ -92,6 +92,12 @@ export interface WebgpuTimingState {
    */
   frameEncoder: GPUCommandEncoder | undefined;
   frameSelection: SelectionSubmission | undefined;
+  /** Settlement of the light cuts' request readback, carried by the command buffer that copied it. */
+  shadowRequests: SelectionSubmission | undefined;
+  /** The light cut's flag word, copied with the frame's pages (`lightCutRedraws.ts`). */
+  shadowRedraws: SelectionSubmission | undefined;
+  /** Settlement of the shadow pages the resolve asked for, carried by the same command buffer. */
+  shadowPageRequests: SelectionSubmission | undefined;
 }
 
 /** Per-stage profile of the WebGPU engine, mounted only when the host has asked for it. */
@@ -165,5 +171,8 @@ export function createWebgpuTimingState(stages?: StageProfiler, roots = 0): Webg
     transparentSpanUploadBytes: 0,
     frameEncoder: undefined,
     frameSelection: undefined,
+    shadowRequests: undefined,
+    shadowRedraws: undefined,
+    shadowPageRequests: undefined,
   };
 }

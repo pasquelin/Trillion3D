@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, opening, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -88,44 +88,37 @@
         'triangle ids': [(m) => m.lit, 'triangles'],
         'material ids': [(m) => m.lit, 'materials'],
       };
-      const holds = readout('eachPixelHolds');
-      const ui = controls({ mouse: 'Drag to walk around the court · pick a buffer to look inside the frame', buffer: Object.keys(VIEWS), turning: true }, (values, key) => {
+      // The readout sits under the panel, so it opens once the panel exists: until then the
+      // first choice's words wait in `held`.
+      let holds = null, held = '';
+      const ui = controls({ buffer: Object.keys(VIEWS), turning: true }, (values, key) => {
         if (key === 'turning') return world.invalidate();
         const [wear, mode] = VIEWS[values.buffer];
         for (const entry of meshes) entry.piece.material = wear(entry);
         const offered = mode === 'beauty' || world.diagnostic.modes.includes(mode);
         world.diagnostic.mode = offered ? mode : 'beauty';
-        holds(say(offered ? values.buffer : 'notOffered'));
+        held = say(offered ? values.buffer : 'notOffered');
+        holds?.(held);
         world.invalidate();
       });
+      holds = readout('eachPixelHolds');
+      holds(held);
 
       // The opening: the camera glides in from afar, 31 degrees above the court, then circles
       // until the first press or wheel on the canvas.
-      let circling = true, azimuth = Math.PI / 4, spin = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
       const RISE = 0.55;
-      function circle(time) {
-        const reach = 20 + 42 * (1 - Math.min(1, time / 3)) ** 3, { target } = world.controls;
+      opening(world, (time) => {
+        const azimuth = Math.PI / 4 + time * 0.1, reach = 20 + 42 * (1 - ease.out(time / 3)), { target } = world.controls;
         world.camera.position.set(target.x + Math.sin(azimuth) * Math.cos(RISE) * reach, target.y + Math.sin(RISE) * reach, target.z + Math.cos(azimuth) * Math.cos(RISE) * reach);
-      }
-      circle(0);
-      world.camera.lookAt(0, 1.8, 0);
-      world.onFrame(({ delta, time }) => {
-        const step = Math.min(delta, 0.05);
-        if (circling) {
-          azimuth += step * 0.1;
-          circle(time);
-          world.controls.update();
-        }
-        if (ui.turning) {
-          spin += step;
-          knot.rotation.y = spin * 0.6;
-          orbiter.position.set(Math.cos(spin * 0.8) * 4.5, 3.2 + Math.sin(spin * 1.6) * 0.6, Math.sin(spin * 0.8) * 4.5);
-        }
-        if (circling || ui.turning) world.invalidate();
       });
-      world.invalidate();
+      let spin = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.turning) return;
+        spin += Math.min(delta, 0.05);
+        knot.rotation.y = spin * 0.6;
+        orbiter.position.set(Math.cos(spin * 0.8) * 4.5, 3.2 + Math.sin(spin * 1.6) * 0.6, Math.sin(spin * 0.8) * 4.5);
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

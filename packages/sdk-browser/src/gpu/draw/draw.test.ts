@@ -155,16 +155,26 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
   // there, and the occluder/tested half comes from the buffer the GPU partition writes.
   const items = new Uint32Array([4, BIN_BACK, 0, 0, 1, 1, BIN_NONE, 0, 0, 1, 7, BIN_BACK, 0, 0, 1]);
   const encoder = device.createCommandEncoder();
-  gpu.encode(encoder, items, 3, 0, 2, 768);
+  gpu.uploadItems(items, 0, 2);
+  gpu.encode(encoder, 3, 768);
   const itemWrites = writes.filter((write) => write.size === 3 * DRAW_ITEM_U32 * 4).length;
   assert.equal(itemWrites, 1, 'the item rows are uploaded once');
   writes.length = 0;
-  gpu.encode(encoder, items, 3, 0, -1, 768);
+  gpu.encode(encoder, 3, 768);
   assert.equal(
     writes.some((write) => write.size === 3 * DRAW_ITEM_U32 * 4),
     false,
     'an unchanged drawable set re-uploads no item row',
   );
+  // The camera draws two rows; the third, a light caster of the CPU cut, still travels.
+  gpu.uploadItems(items, 0, 2);
+  gpu.encode(encoder, 2, 768);
+  assert.equal(
+    writes.filter((write) => write.size === 3 * DRAW_ITEM_U32 * 4).length,
+    1,
+    'every rewritten row is uploaded, drawn or not',
+  );
+  gpu.encode(encoder, 3, 768);
   const indirect = buffers.find((buffer) => buffer.usage & GPUBufferUsage.INDIRECT)!;
   const words = new Uint32Array(
     indirect.data.buffer,

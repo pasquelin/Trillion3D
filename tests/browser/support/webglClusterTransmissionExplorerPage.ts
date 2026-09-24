@@ -2,13 +2,13 @@
 // autonomous clusters on the host canvas and on a comparison target alike, through the same
 // draw owner, and no mesh ever enters the host scene. A scene the owner cannot draw in full is
 // refused by name.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { EngineError } from '../../../packages/sdk-core/src/index.ts';
 import { pixel } from './webglClusterPixels.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';
 
-const anyMesh = (object: THREE.Object3D) => object instanceof THREE.Mesh;
+const anyMesh = (object: G.GraphNode) => object instanceof G.GraphMesh;
 /** The owner refuses a scene it cannot draw by throwing `EngineError`; anything else stays
  *  code- and reason-less, since the proof only names what the engine itself declared. */
 const errorOf = (error: unknown) => ({
@@ -46,7 +46,7 @@ export async function execute() {
   };
   backend.setDiagnostic('beauty');
   // A mutation the program cannot preserve is refused by name on the next frame, no image drawn.
-  scene.copy.material.clearcoat = 0.5;
+  (scene.copy.material as G.GraphSurface).clearcoat = 0.5;
   let mutationRefusal = null;
   try {
     backend.render(camera);

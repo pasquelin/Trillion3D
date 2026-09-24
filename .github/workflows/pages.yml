@@ -1,15 +1,21 @@
 name: Site
 
 # The documentation portal, built from the sources into dist/site and deployed to the site's own
-# server (docs/LEARNING_PORTAL.md, "Deploy"). A pull request that touches the site only builds it;
-# a push to main, or a manual run asked to deploy, also publishes it.
+# server (docs/LEARNING_PORTAL.md, "Deploy"). A pull request that touches anything the build reads
+# only builds it — the engine packages, the build scripts and the dependencies; a push to main, or a
+# manual run asked to deploy, also publishes it. The required `validate` check builds the site too
+# (`build:docs`, `scripts/validate-steps.ts`). The open world is cooked and published by its own
+# repository, pasquelin/Trillion3D-openworld, under `openworld/`, which this deploy leaves alone.
 on:
   pull_request:
     paths:
       - 'site/**'
+      - 'packages/**'
       - 'scripts/docs/**'
       - 'scripts/docs-build.ts'
-      - 'packages/sdk-browser/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/actions/node/**'
       - '.github/workflows/pages.yml'
   push:
     branches: [main]
@@ -26,19 +32,17 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     outputs:
       deploy: ${{ steps.plan.outputs.deploy }}
       floor: ${{ steps.plan.outputs.floor }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/node
-      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone.
-      - run: pnpm run build:docs
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of
-      # site/ (sources .ts/.tsx excluded) and writes index.html and robots.txt beside them, so a
-      # tree holding fewer files than that lost part of the copy on the way.
+      # site/ (sources .ts/.tsx excluded) and writes index.html, robots.txt and the report.html
+      # redirect beside them, so a tree holding fewer files than that lost part of the copy.
       - id: plan
         env:
           DEPLOY: >-
@@ -47,7 +51,10 @@ jobs:
         run: |
           statics=$(git ls-files -- site/examples site/assets site/data site/reports | grep -cEv '\.tsx?$')
           echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
-          echo "floor=$((statics + 2))" >> "$GITHUB_OUTPUT"
+          echo "floor=$((statics + 3))" >> "$GITHUB_OUTPUT"
+      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone;
+      # `--published` adds the audience measurement, which no local or proof build carries.
+      - run: node scripts/docs-build.ts --published
       - if: steps.plan.outputs.deploy == 'true'
         uses: actions/upload-artifact@v7
         with:
@@ -96,12 +103,14 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
       # The key is restricted to the web root on the server, so the target path is that root.
+      # `openworld/` belongs to pasquelin/Trillion3D-openworld's deploy: never deleted from here.
       - name: Transfer
         env:
           TARGET: ${{ secrets.DEPLOY_TARGET }}
           PORT: ${{ secrets.DEPLOY_SSH_PORT }}
         run: >-
           rsync -rltz --delete-delay --delay-updates --stats --exclude '.well-known/'
+          --exclude 'openworld/'
           -e "ssh -p $PORT -i $HOME/.ssh/deploy -o StrictHostKeyChecking=yes"
           dist/site/ "$TARGET:/"
       # The address checked is the one the built page declares canonical (scripts/docs/site.ts).

@@ -1,4 +1,6 @@
 import ts from 'typescript';
+import { ENGINE_ERROR_CODES } from '../../packages/sdk-core/src/contracts/errorCodes.ts';
+import { ENGINE_ERROR_MEANINGS } from './errorCodeMeanings.ts';
 
 /** What the TSDoc of one symbol says: its text, `@param` lines, `@returns`, `@defaultValue` and
  *  `@example`. */
@@ -8,7 +10,7 @@ export interface SymbolDoc {
   returns?: string;
   defaultValue?: string;
   example?: string;
-  /** `@errorCode A, B - text`: each code an error may carry, with what it means. */
+  /** `@errorCodes`: each code the engine's error may carry, with what it means. */
   codes?: [string, string][];
 }
 
@@ -91,12 +93,11 @@ export function readDoc(symbol: ts.Symbol, checker: ts.TypeChecker, owner?: ts.S
     const match = tags.find((candidate) => candidate.name === name);
     return match && tagText(match);
   };
-  const codes = tags
-    .filter((candidate) => candidate.name === 'errorCode')
-    .flatMap((candidate) => {
-      const [names, meaning] = tagText(candidate).split(/ - /);
-      return names.split(/,\s*/).map((code): [string, string] => [code, meaning.trim()]);
-    });
+  const codes = tags.some((candidate) => candidate.name === 'errorCodes')
+    ? ENGINE_ERROR_CODES.flatMap((names) =>
+        names.map((code): [string, string] => [code, ENGINE_ERROR_MEANINGS[names[0]]]),
+      )
+    : [];
   const text = found
     .map((source) => ts.displayPartsToString(source.getDocumentationComment(checker)).trim())
     .find(Boolean);

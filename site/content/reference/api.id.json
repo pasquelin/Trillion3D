@@ -926,8 +926,16 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
+      "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
-      "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan."
+      "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
+      "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
+      "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan."
     }
   },
   "EngineProfiler": {
@@ -1031,7 +1039,6 @@
       "rafIntervalMs": "Waktu antara dua bingkai.",
       "cpuFrameMs": "Waktu CPU bingkai itu.",
       "cpuSubmitMs": "Waktu CPU untuk mengirim pekerjaannya.",
-      "gpuMs": "Waktu GPU bingkai itu.",
       "drawCalls": "Panggilan gambar bingkai ini, seperti dihitung mesin. `null` saat belum dihitung: nol akan terbaca sebagai bingkai tanpa gambar.",
       "autonomousClusterDrawsTotal": "Gambar cluster berhalaman yang dikeluarkan program WebGL2 milik mesin dalam sesi ini.",
       "autonomousCopyDraws": "Salinan scene — permukaan tembus cahaya — yang digambar program WebGL2 milik mesin bingkai ini.",
@@ -1064,7 +1071,7 @@
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
-      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`.",
+      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
@@ -1253,18 +1260,7 @@
     }
   },
   "HostAttribute": {
-    "summary": "Satu atribut vertex geometri host, saling diselang-seling atau tidak: tata letak dan penyimpanannya.",
-    "members": {
-      "isBufferAttribute": "Diaktifkan host saat atribut memiliki buffernya sendiri alih-alih melihat ke dalam yang bersama, diselang-seling. Hanya gerbang penerimaan yang membacanya: uraian mesin sendiri sama saja bagaimanapun, pengikatan program WebGL2 mandiri tidak.",
-      "itemSize": "Angka per vertex.",
-      "count": "Berapa banyak vertex.",
-      "normalized": "Apakah bilangan bulat dibaca sebagai 0 sampai 1.",
-      "array": "Penyimpanannya.",
-      "getX": "Komponen satu elemen, diurai dan dinormalisasi ulang oleh host.",
-      "getY": "Komponen kedua satu elemen.",
-      "getZ": "Komponen ketiga satu elemen.",
-      "getW": "Komponen keempat satu elemen."
-    }
+    "summary": "Satu atribut vertex geometri host, saling diselang-seling atau tidak: tata letak dan penyimpanannya."
   },
   "HostAttributes": {
     "summary": "Atribut bernama satu geometri host.",
@@ -1323,32 +1319,17 @@
     "summary": "Sebuah geometri host yang boleh dibebaskan sebuah tampilan diagnostik.",
     "members": {
       "attributes": "Atribut vertex-nya.",
-      "boundingBox": "Kotak lokal yang dihitung host.",
       "dispose": "Membebaskannya."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Sebuah permukaan host yang ditukar sebuah tampilan diagnostik ke sebuah mesh, lalu dibebaskan: apa yang digantungkannya tiba lewat `HostDiagnosticFactory`, tidak pernah lewat sebuah import, jadi tidak ada tampilan yang menyebut nama pustaka rendering.",
     "members": {
-      "version": "Dinaikkan host setiap perubahan: yang dibandingkan sebuah baris yang di-cache untuk membangun ulang bidangnya.",
-      "visible": "Apakah ia digambar.",
       "side": "Sisi mana, sebagai konstanta host.",
-      "forceSinglePass": "Host menggambar sebuah permukaan transparan dua sisi dalam satu tahap, bukan belakang lalu depan.",
-      "vertexColors": "Apakah warna vertex mewarnainya.",
-      "toneMapped": "Apakah kurva tampilan diterapkan.",
-      "depthTest": "Status raster yang dideklarasikan host dengan permukaan itu, dan dihormati pipeline mesin.",
-      "depthWrite": "Apakah ia menulis kedalaman.",
-      "depthFunc": "Perbandingan uji kedalamannya.",
-      "colorWrite": "Apakah ia menulis warna.",
-      "polygonOffset": "Apakah kedalaman digeser.",
-      "polygonOffsetFactor": "Bagian kemiringan dari pergeseran.",
-      "polygonOffsetUnits": "Bagian konstan dari pergeseran.",
-      "transparent": "Apakah ia mencampur.",
-      "opacity": "Seberapa opaque ia.",
-      "alphaTest": "Alpha di bawahnya piksel dijatuhkan.",
       "dispose": "Membebaskannya.",
       "clone": "Sebuah salinan permukaan itu."
-    }
+    },
+    "description": "Tampilan diagnostik juga melayani para saksi, yang mesh-nya milik pustaka mereka: apa yang mereka gantungkan datang melalui `HostDiagnosticFactory`, dan mereka dibaca hanya melalui bentuk ini."
   },
   "HostDisposable": {
     "summary": "Sebuah sumber daya host yang dibebaskan mesin saat graf asalnya dilepas: sebuah geometri, sebuah permukaan, sebuah tekstur.",
@@ -1377,67 +1358,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya.",
-    "members": {
-      "attributes": "Atribut vertex-nya.",
-      "boundingBox": "Kotak lokal yang dihitung host."
-    }
+    "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya."
   },
   "HostGraphNode": {
     "summary": "Sebuah node graf host seperti dilihat sebuah penjelajahan: identitasnya, pose lokalnya, matriks dunia yang diselesaikan host untuknya, dan rantainya.",
-    "description": "Mesin menghitung matriks dunia MILIKNYA SENDIRI dari pose lokal (`../world/tree.ts`); `matrixWorld` dibaca di tempat penyelesaian milik HOST sendiri adalah yang diserahkan sebuah batas kembali kepadanya. KENAPA `HostPlaced` (`../resources.ts`) JUGA MENJELASKAN SEBUAH NODE BERPOSE. Keduanya bukan salinan: mereka dikunci pada dua penyelesaian berbeda yang ditawarkan sebuah host. `HostPlaced` meminta `updateWorldMatrix(ancestors, descendants)` — rantai SATU node, yang didaki sebuah penempatan dan penjelajahan visibilitas; ini meminta `updateMatrixWorld(force)` — SUBTREE di bawah sebuah node, yang diselesaikan sebuah pemindaian, gabungan batas, dan replikasi dalam satu panggilan. Sebuah host yang hanya menawarkan satu dari keduanya hanya memenuhi kontrak yang dijawabnya, jadi tidak ada yang boleh menggantikan yang lain.",
-    "members": {
-      "parent": "Induknya.",
-      "position": "Tempat ia berdiri.",
-      "quaternion": "Dua sisi rotasi sebuah node — quaternion yang dibandingkan mesin, dan sudut Euler yang disalin ke dalamnya — masing-masing MENGUMUMKAN penulisannya sendiri: sebuah callback yang sudah dirangkai host, yang diperluas sebuah hook alih-alih digantikan (`hooks.ts`). Kedua anggota bergaris bawah itu privat milik pustaka host, jadi ditulis di sini, tempat hook membutuhkannya, dan tidak diberi nama sendiri. Itu menjaga privat itu di luar daftar kontrak yang dipublikasikan SDK; itu TIDAK menjaganya di luar permukaan yang dipublikasikan, karena `HostGraphNode` membawanya. Membandingkan pose per bingkai, seperti sudah dilakukan pemindaian, adalah yang akan menghapus keterikatan itu — bukan milik lot ini.",
-      "rotation": "Bagaimana ia diputar, sebagai sudut.",
-      "scale": "Bagaimana ia direntangkan.",
-      "matrixAutoUpdate": "Salah saat host mengatur `matrix` sendiri: matriks itu ADALAH pose-nya dan tidak ada yang menyusunnya ulang.",
-      "matrix": "Matriks lokalnya.",
-      "matrixWorld": "Matriks dunianya.",
-      "userData": "Tempat mesin menandai salinan miliknya sendiri, yang tidak pernah dilihat host dan tidak bisa ditulisnya.",
-      "traverse": "Subtree di bawah node itu, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
-      "updateMatrixWorld": "Menyelesaikan matriks dunia subtree itu DI DALAM GRAF HOST, untuk pembaca host sendiri."
-    }
+    "description": "Mesin menghitung matriks dunia MILIKNYA SENDIRI dari pose lokal (`../world/tree.ts`); `matrixWorld` dibaca di tempat penyelesaian milik HOST sendiri adalah yang diserahkan sebuah batas kembali kepadanya. KENAPA `HostPlaced` (`../resources.ts`) JUGA MENJELASKAN SEBUAH NODE BERPOSE. Keduanya bukan salinan: mereka dikunci pada dua penyelesaian berbeda yang ditawarkan sebuah host. `HostPlaced` meminta `updateWorldMatrix(ancestors, descendants)` — rantai SATU node, yang didaki sebuah penempatan dan penjelajahan visibilitas; ini meminta `updateMatrixWorld(force)` — SUBTREE di bawah sebuah node, yang diselesaikan sebuah pemindaian, gabungan batas, dan replikasi dalam satu panggilan. Sebuah host yang hanya menawarkan satu dari keduanya hanya memenuhi kontrak yang dijawabnya, jadi tidak ada yang boleh menggantikan yang lain."
   },
   "HostMaterial": {
-    "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`.",
-    "members": {
-      "version": "Dinaikkan host setiap perubahan: yang dibandingkan sebuah baris yang di-cache untuk membangun ulang bidangnya.",
-      "visible": "Apakah ia digambar.",
-      "side": "Sisi mana, sebagai konstanta host.",
-      "forceSinglePass": "Host menggambar sebuah permukaan transparan dua sisi dalam satu tahap, bukan belakang lalu depan.",
-      "vertexColors": "Apakah warna vertex mewarnainya.",
-      "toneMapped": "Apakah kurva tampilan diterapkan.",
-      "depthTest": "Status raster yang dideklarasikan host dengan permukaan itu, dan dihormati pipeline mesin.",
-      "depthWrite": "Apakah ia menulis kedalaman.",
-      "depthFunc": "Perbandingan uji kedalamannya.",
-      "colorWrite": "Apakah ia menulis warna.",
-      "polygonOffset": "Apakah kedalaman digeser.",
-      "polygonOffsetFactor": "Bagian kemiringan dari pergeseran.",
-      "polygonOffsetUnits": "Bagian konstan dari pergeseran.",
-      "transparent": "Apakah ia mencampur.",
-      "opacity": "Seberapa opaque ia.",
-      "alphaTest": "Alpha di bawahnya piksel dijatuhkan."
-    }
+    "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`."
   },
   "HostMaterials": {
     "summary": "Apa yang dideklarasikan sebuah permukaan: satu material, atau satu per grup geometri."
   },
   "HostMesh": {
-    "summary": "Sebuah mesh host, dipegang lewat identitas: catatan gambar, tabel transparan dan set seleksi menyebut nama permukaan yang ditempatkan host.",
-    "description": "Namanya dibaca, dan rantai leluhurnya saat sebuah subtree yang dipindah harus dibedakan dari yang lain (`../webgpu/pages/render/transform.ts`); tidak ada yang lain.",
-    "members": {
-      "name": "Nama host untuknya.",
-      "parent": "Induknya, saat sebuah penjelajahan mendaki."
-    }
+    "summary": "Sebuah mesh host, dipegang lewat identitas: catatan gambar, tabel transparan dan set seleksi menyebut nama permukaan yang ditempatkan host."
   },
   "HostNode": {
-    "summary": "Sebuah node graf scene host, dipegang lewat identitas dan dua bidang yang dibutuhkan sebuah penjelajahan.",
-    "members": {
-      "name": "Nama host untuknya.",
-      "visible": "Apakah ia digambar."
-    }
+    "summary": "Sebuah node graf scene host, dipegang lewat identitas dan dua bidang yang dibutuhkan sebuah penjelajahan."
   },
   "HostNodeMatrix": {
     "summary": "Enam belas float yang sama, BISA DITULIS suku demi suku: pose yang dikembalikan sebuah batas ke sebuah node host atau sebuah kamera host yang dipulihkannya.",
@@ -1482,44 +1419,16 @@
     "summary": "Graf tampilan host tempat sebuah mesin menggambar: apa yang disimpannya, bagaimana ia dijelajahi, dan warna bersih yang dibaca komposisi.",
     "description": "Membangunnya milik sebuah batas host; menulis salah satunya, `HostDrawScene`.",
     "members": {
-      "name": "Nama host untuknya.",
-      "visible": "Apakah ia digambar.",
       "traverse": "Mengunjungi dirinya sendiri, lalu subtree-nya.",
       "background": "Yang mengisi gambar di belakang.",
       "children": "Node di puncaknya."
     }
   },
   "HostTexture": {
-    "summary": "Sebuah tekstur host: gambar yang diurai host dan status sampler yang dideklarasikannya, juga dipegang lewat identitas.",
-    "description": "Pikselnya tetap `unknown`: hanya batas yang mengunggahnya yang tahu wadahnya.",
-    "members": {
-      "isTexture": "Diaktifkan host pada objek yang dibaca sampler-nya: yang membedakan sebuah tekstur dari bidang lain sebuah material, yang slot-nya tidak dienumerasi mesin.",
-      "uuid": "Sebuah nama unik untuk tekstur itu.",
-      "name": "Nama host untuknya.",
-      "version": "Dinaikkan host setiap perubahan konten: yang dibandingkan sebuah unggahan untuk melewati penyalinan ulang.",
-      "image": "Gambar yang diurai, dalam wadah host sendiri.",
-      "channel": "Set UV yang dibaca sampler, `texCoord` milik `KHR_texture_transform`.",
-      "wrapS": "Bagaimana ia berulang melintang, sebagai konstanta host.",
-      "wrapT": "Bagaimana ia berulang menaik, sebagai konstanta host.",
-      "magFilter": "Filter saat ditampilkan lebih besar.",
-      "minFilter": "Filter saat ditampilkan lebih kecil.",
-      "anisotropy": "Ketajaman pada kemiringan.",
-      "flipY": "Apakah baris dibalik saat diunggah.",
-      "premultiplyAlpha": "Apakah warna dikalikan awal dengan alpha.",
-      "generateMipmaps": "Apakah salinan lebih kecil dibuat.",
-      "colorSpace": "Bagaimana angka-angkanya dibaca.",
-      "matrix": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris; host menghitungnya ulang dari offset, repeat dan rotation saat memiliki pembaruannya.",
-      "matrixAutoUpdate": "Apakah host membangun ulang `matrix`.",
-      "updateMatrix": "Membangun ulang `matrix` dari offset, repeat dan rotation."
-    }
+    "summary": "Sebuah tekstur host: gambar yang diurai host dan status sampler yang dideklarasikannya, juga dipegang lewat identitas."
   },
   "HostTraversable": {
-    "summary": "Sebuah node host yang dijelajahi mesin: subtree di bawahnya, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
-    "members": {
-      "name": "Nama host untuknya.",
-      "visible": "Apakah ia digambar.",
-      "traverse": "Mengunjungi dirinya sendiri, lalu subtree-nya."
-    }
+    "summary": "Sebuah node host yang dijelajahi mesin: subtree di bawahnya, dirinya sendiri lebih dulu, dalam urutan host sendiri."
   },
   "HostVector": {
     "summary": "Tiga angka sebuah pose, seperti disimpan host dan dikembalikan sebuah batas.",
@@ -1635,28 +1544,26 @@
       "maxLightsPerTile": "Cahaya yang disimpan sebuah tile layar; loop piksel dibatasi angka ini (X2).",
       "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
-      "shadowUpdatesPerFrame": "Paling banyak wilayah bayangan per bingkai: batas atas buffer, tidak pernah pengaturan kualitas. Anggaran milidetik hampir selalu berhenti lebih dulu; batas atas ini hanya sebuah batas akhir, dan satu-satunya batasan pada perangkat tanpa jam GPU.",
-      "shadowPage": "Sisi sebuah halaman atlas-bayangan, dalam texel: sel invalidasi sebuah muka. Sebuah objek bergerak hanya membuat basi halaman yang dicakup kotak proyeksinya, tidak pernah seluruh muka.",
+      "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
       "shadowBudgetMs": "Anggaran tahap bayangan, dalam milidetik GPU per bingkai (X4, RX3). Halaman yang diinvalidasi melebihi itu menunggu giliran; tidak pernah hilang, dan keterlambatannya dipublikasikan.",
       "shadowAgingPerFrame": "Bobot menunggu dalam prioritas sebuah halaman, per bingkai dihabiskan dalam antrean: melawan kelaparan.",
       "shadowCostBlend": "Porsi sampel sebuah bingkai dalam biaya rata-rata sebuah halaman: penghalusan eksponensial pengatur waktunya.",
-      "shadowAtlasSize": "Sisi atlas bayangan kedalaman, dalam texel.",
-      "shadowSliceMax": "Sisi maksimum sebuah irisan bayangan; sebuah muka point-light menempati seperenam luasnya.",
-      "shadowSliceMin": "Sisi minimum sebuah irisan bayangan: di bawah itu, cahaya menyimpan irisannya tanpa menghalusinya.",
       "pcfTaps": "Sadapan PCF per piksel dan per cahaya berbayangan (X2).",
       "spotEdgeSoftness": "Lebar tepi yang dihaluskan sebuah kerucut spot, dalam satuan kosinus: melawan staircasing.",
-      "sunCascades": "Cascade sebuah cahaya directional: setidaknya tiga, tidak pernah lebih dari muka sebuah irisan.",
-      "sunShadowFarFraction": "Porsi frustum kamera yang dicakup cascade, dari bidang dekat menuju jauh. Di luar itu, sebuah permukaan tetap terang tanpa bayangan yang dilempar: aproksimasi bernama, dipublikasikan di diagnostik.",
-      "sunCascadeRatioMax": "Rasio antara dua batas pemisah cascade berurutan: pada sebuah jahitan, kepadatan texel berubah tepat sebesar rasio ini, dan tidak ada lagi yang memutuskan lompatan ketajaman antar cascade. Batas bawah bidang dekat diturunkan darinya — `jarak bayangan / rasio^cascade`.",
       "sunFarShadowOffsetMetres": "Offset asal sinar bayangan-jauh sepanjang normal, dalam meter. Ini hanya berfungsi meninggalkan bidang permukaan bercahaya; obat sesungguhnya melawan self-shadowing adalah mulai sepanjang sinar, di bawah.",
-      "sunFarShadowStartCells": "Mulai sinar bayangan-jauh sepanjang arahnya sendiri, dalam sel proxy. Titik bercahaya berasal dari geometri halus, pengoklusi dari proxy kasar: di mana proxy duduk di atas permukaan sungguhan, sebuah sinar dimulai dari nol akan mengenai permukaan yang diteranginya. Sel proxy adalah skala di bawahnya proxy tidak mengatakan apa-apa; mulai dari sana melewati kontak palsu itu tanpa menciptakan sebuah bayangan. Konsekuensinya bernama: pengoklusi lebih dekat dari satu sel sepanjang sinar tidak membawa bayangan jauh, dan yang itu tetap dengan cascade-cascade.",
-      "sunCascadeDepthScale": "Tarikan mundur bidang dekat sebuah cascade, dalam radius bolanya: yang duduk di atas cascade, antara itu dan matahari, harus masuk peta untuk melempar bayangannya di sana. Perluasan menambah dua radius di kedua sisi, kelonggaran yang ditinggalkan jangkar kedalamannya pada bola itu (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Mulai sinar bayangan-jauh sepanjang arahnya sendiri, dalam sel proxy. Titik bercahaya berasal dari geometri halus, pengoklusi dari proxy kasar: di mana proxy duduk di atas permukaan sungguhan, sebuah sinar dimulai dari nol akan mengenai permukaan yang diteranginya. Sel proxy adalah skala di bawahnya proxy tidak mengatakan apa-apa; mulai dari sana melewati kontak palsu itu tanpa menciptakan sebuah bayangan. Konsekuensinya bernama: pengoklusi lebih dekat dari satu sel sepanjang sinar tidak membawa bayangan jauh, dan yang itu tetap dengan tingkat-tingkat clipmap.",
       "shadowDepthBias": "Bias bayangan dalam meter, tidak pernah dalam satuan kedalaman: kedalaman terproyeksi sebuah irisan sangat tidak linear, sebuah konstanta dalam kedalaman ternormalisasi akan berupa meter dekat cahaya dan milimeter jauh darinya. Shader membawa meter itu kembali ke kedalaman pada titik yang dipertimbangkan.",
       "shadowSlopeBias": "Bias kemiringan, dalam meter per satuan `tan(acos(N·L))`, dibatasi `shadowSlopeBiasMax`.",
       "shadowSlopeBiasMax": "Bias kemiringan terbesar.",
       "shadowNearFraction": "Bidang dekat sebuah irisan: sebuah pecahan dari rentang, tidak pernah kurang dari batas bawah ini.",
       "shadowNearMin": "Jarak bayangan terdekat.",
-      "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel irisan. Ini yang menutup jahitan antara dua muka sebuah point light dan menghapus acne serong; ini dalam texel bukan meter supaya tetap sebanding dengan resolusi yang didapat cahaya itu."
+      "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel irisan. Ini yang menutup jahitan antara dua muka sebuah point light dan menghapus acne serong; ini dalam texel bukan meter supaya tetap sebanding dengan resolusi yang didapat cahaya itu.",
+      "shadowPagesPerFrame": "Halaman bayangan yang digambar paling banyak per bingkai: batas atas buffer, bukan pengaturan kualitas. Anggaran milidetik hampir selalu berhenti lebih dulu; batas ini hanya batas terakhir, dan satu-satunya pada perangkat tanpa jam GPU.",
+      "lampFaceSize": "Sisi mip terhalus dari muka lampu, dalam texel: 32 × 32 halaman berukuran 128 (pool: `shadowPoolSide`).",
+      "shadowTableEntries": "Entri tabel halaman bayangan, satu kata per halaman virtual: buffer tetap 4 MiB. Muat enam belas matahari atau 128 lampu titik; cahaya yang tidak mendapat tempat tidak diberi bayangan, dan dihitung.",
+      "shadowRequestCap": "Halaman virtual yang boleh diminta shading per bingkai; sisanya meminta lagi pada bingkai berikutnya.",
+      "sunLevels": "Tingkat clipmap cahaya terarah. Tingkat `L` memiliki texel `2^L` meter, dan sebuah piksel membaca tingkat yang texelnya tidak melebihi jejaknya sendiri: enam belas tingkat mencakup rasio jauh/dekat 2^15. Di luar tingkat terakhir, bayangan jauh mengambil alih.",
+      "sunLevelPages": "Halaman per sisi dari cakupan satu tingkat clipmap di sekitar kamera. Ini kapasitas, bukan penyetelan: setiap piksel membaca kerapatannya sendiri selama `height / tan(halfFovY)` tidak melebihi `sunLevelPages · shadowPage / 2` = 4096 (kanvas 4K dengan bidang vertikal 55°); di luar itu, piksel luar membaca tingkat berikutnya dengan setengah kerapatan."
     }
   },
   "LOD_QUALITY": {
@@ -1792,9 +1699,6 @@
     "summary": "Versi 4 mengubah entri pratinjau 16×16 tetap menjadi tingkat progresif yang berubah-ubah: kolom piksel tidak lagi punya stride, tiap entri menyebut rentang byte-nya sendiri.",
     "description": "Sebuah berkas dari versi lain ditolak seutuhnya: sebuah pembaca yang mengiris rentang salah akan menampilkan tingkat satu tekstur pada tekstur lain. Versi 5 melebarkan sebuah entri pratinjau dari sepuluh menjadi dua belas word — atlas yang dilayaninya dan berapa banyak tingkat dipanggang sebagai berkas di bawah `textures/` — dan pikselnya mengikuti aturan mip kartu grafis; sebuah pembaca versi-4 akan mengiris entri secara salah, jadi ia menolak berkas ini. Versi 6 menyimpan setiap kolom dan menyebut halaman geometri lain di deskriptor geometri: halaman `WGP3` terkuantisasi (`geometryPage.ts`) menggantikan halaman `WGP2` float, yang byte-nya akan ditolak sebuah pembaca versi-6 satu per satu saat penguraian; menolak berkas itu mengatakannya sekali. Versi 7 melebarkan sebuah entri pratinjau menjadi empat belas word — tata letak yang dipegang setiap keluarga blok pada rantainya, atau tidak ada — dan menambah dua kolom: ekor yang dikompresi blok, keluarga BC lalu ASTC, rentang tiap entri yang disimpan mengikuti dimensinya; sebuah pembaca versi-6 tidak akan mengetahuinya, jadi ia menolak."
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Versi tabel material yang dibaca runtime ini."
-  },
   "MATH_PATH_CONTRACT": {
     "summary": "Versi kontrak laporan ini.",
     "description": "Host yang tidak mengetahuinya tidak membaca bidang-bidangnya."
@@ -1857,7 +1761,11 @@
       "parameters.gapSize": "Panjang celah antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "parameters.depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     },
     "members": {
       "isMaterial": "Selalu `true`: membedakan sebuah material dari yang lain.",
@@ -1879,7 +1787,11 @@
       "needsUpdate": "`material.needsUpdate = true`: mesh yang memakainya dicat ulang.",
       "surface": "Catatan permukaan fisik mesin untuk material ini (`contracts/material.ts`). Sebuah jenis di luar keluarga fisik digambar lewat keluarga host bernama sama, yang dipetakan mesin ke satu model pencahayaannya (`surfaceModel.ts`).",
       "clone": "Material baru dengan jenis yang sama, dengan nilai yang sama.",
-      "dispose": "Melupakan pemakainya: sebuah material yang dibuang tidak mengecat siapa pun."
+      "dispose": "Melupakan pemakainya: sebuah material yang dibuang tidak mengecat siapa pun.",
+      "physics": "Preset bahan fisika untuk benda yang memakainya.",
+      "density": "kg/m³, untuk massa benda.",
+      "friction": "Gesekan fisika.",
+      "restitution": "Pantulan fisika."
     }
   },
   "Material-common": {
@@ -1925,7 +1837,11 @@
       "gapSize": "Panjang celah antara dua dash.",
       "vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
-      "depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat."
+      "depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
+      "physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "density": "kg/m³, dikali volume menjadi massa.",
+      "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "MathPath": {
@@ -2059,7 +1975,8 @@
       "primitive": "Bagaimana vertex geometri dibaca: segitiga, titik atau garis.",
       "geometry": "Bentuk mesh itu; atur geometri lain untuk mengubahnya.",
       "material": "Material mesh itu, atau satu per grup; atur yang lain untuk mengubahnya.",
-      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
+      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun.",
+      "physics": "Mesh sebagai benda fisika dunia, `null` jika bukan. Isi `'static'`, `'dynamic'`, `'kinematic'` atau opsi; bentuk disimpulkan dari geometri."
     }
   },
   "Mixer": {
@@ -2093,9 +2010,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: matriks lokal disusun ulang dari posisi, rotasi, skala."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Versi tabel node yang dibaca runtime ini."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Sebuah matriks normal 3×3."
@@ -2218,7 +2132,7 @@
     "summary": "Eksekusi berturut-turut dengan keunggulan itu sebelum berpindah: sebuah rentetan, bukan kebetulan."
   },
   "POINT_FACES": {
-    "summary": "Muka sebuah irisan: enam untuk sebuah point, satu untuk sebuah spot, cascade matahari."
+    "summary": "Muka irisan lampu titik: enam."
   },
   "POINT_FACE_AXES": {
     "summary": "Enam sumbu sebuah point light, dalam urutan yang dipulihkan shader dari sumbu utama cahaya → arah titik: +X, −X, +Y, −Y, +Z, −Z.",
@@ -2604,17 +2518,6 @@
       "onProgress": "Dipanggil pada setiap peristiwa."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Tabel node dan material yang dibawa sebuah model terkompilasi.",
-    "members": {
-      "version": "Versi produk.",
-      "nodeTableVersion": "Versi tabel node.",
-      "materialTableVersion": "Versi tabel material.",
-      "nodes": "Node-nya.",
-      "materials": "Material-nya.",
-      "textures": "Tekstur-teksturnya."
-    }
-  },
   "Primitive": {
     "summary": "Bagaimana segitiga yang digambar sebuah mesh dibaca dari geometrinya."
   },
@@ -2720,9 +2623,6 @@
       "toArray": "Keempat angka itu sebagai sebuah daftar."
     }
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Persegi panjang sebuah irisan: `(x, y, side)` per muka, enam muka disiapkan untuk setiap irisan."
-  },
   "Ray": {
     "summary": "Sebuah setengah garis: titik asal dan arah satuan.",
     "members": {
@@ -2794,33 +2694,14 @@
     "summary": "Versi produk cache \"proxy\".",
     "description": "Sebuah proxy dari versi lain ditolak, tidak pernah ditebak."
   },
-  "SCENE_TABLES_FILE": {
-    "summary": "Nama berkas yang menyimpan tabel node dan material."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Versi produk secara keseluruhan; setiap tabel yang dibawanya diberi versi bergiliran."
-  },
   "SDK_VERSION": {
     "summary": "Versi paket mesin ini."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Float sebuah volume wilayah: pusat dan bidang jauh, sumbu muka dan setengah sudut, lalu — untuk sebuah kotak, ditandai setengah sudut negatif — dua sumbu lain dengan setengah panjangnya."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Float sebuah muka dalam buffer irisan: matriksnya, persegi panjang atlas — float keempatnya 1 setelah digambar, 0 tidak pernah —, lalu empat kata: mask halaman-tersimpan, satu bit per halaman fisik yang menyimpan sebuah kedalaman dari extent saat ini, baris delapan dalam dua kata, dan halaman fisik dari titik asal extent, `x` lalu `y`, tempat pembacaan membungkus koordinat extent.",
-    "description": "Sebuah halaman extent yang masuk tapi belum digambar masih menyimpan apa yang ditinggalkan sisi jauh di sana: pembacaan harus mengetahuinya dan jatuh ke cascade berikutnya, tidak pernah menyampelnya. Sebuah halaman yang hanya menunggu digambar ulang masih tersimpan, dan dibaca."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Kata muka bayangan sebuah cahaya dalam rekaman GPU-nya."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Sisi muka yang tahu cara ditempatkan atlas, dari terbesar ke terkecil."
+    "summary": "Float volume culling: pusat dan bidang jauh, sumbu muka dan setengah sudut, lalu — untuk kotak, ditandai setengah sudut negatif — dua sumbu lainnya dengan setengah panjangnya, lalu kata yang menyatakan pembuat bayangan mana yang digambar wilayah, tampilan potongan cahaya yang memilihnya, dan dua pengisi."
   },
   "SHADOW_PAGE": {
-    "summary": "Sisi sebuah halaman atlas, dalam texel: sel invalidasi sebuah muka."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Float sebuah irisan: enam muka ditambah sebuah header `vec4f` (faces, kind, side, pad)."
+    "summary": "Sisi halaman bayangan, dalam texel: satuan pool, peta virtual, dan invalidasi."
   },
   "SINGULAR_DETERMINANT": {
     "summary": "Ambang batas, pada determinan yang TERNORMALISASI.",
@@ -2939,7 +2820,7 @@
       "isScene": "Selalu `true`: membedakan root scene dari objek lain.",
       "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
       "fog": "Kabut yang memudarkan objek ke `color` antara `near` dan `far`; `null` untuk tidak ada.",
-      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, sebuah gambar, atau `null` untuk bawaan.",
+      "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, atau `null` untuk bawaan. Perubahan tampil pada bingkai berikutnya, sesi tetap dipertahankan: warna baru yang diatur di sini, atau warna yang ada ditulis lewat metodenya (`set`, `setRGB`, `setHex`, `setHSL`...). Penulisan langsung ke `.r`, `.g`, atau `.b` tidak terdengar: atur ulang `background` sesudahnya. Gambar, atau nilai apa pun tanpa `getHex`, ditolak (`UNSUPPORTED_SCENE_UPDATE`): tidak ada jalur yang menggambarnya.",
       "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
       "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
       "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."
@@ -2963,7 +2844,7 @@
   },
   "SceneLight": {
     "summary": "Sebuah cahaya scene, versi 2.",
-    "description": "Satuannya radiometrik dan linear (P1): `color` adalah warna linear dan `intensity` intensitas radiometrik tegas positif — sebuah radiansi untuk `rect`. Empat jenis, dan tidak ada yang lain menghasilkan cahaya dalam mesin ini (P6): - `point`: sebuah posisi dan jangkauan dalam meter di luarnya ia tidak menyinari apa pun; - `spot`: sama ditambah sebuah arah dan setengah sudut kerucut dalam radian; - `directional`: matahari atau langit mendung — sebuah arah propagasi, tanpa posisi dan tanpa jangkauan, iradiansi sama di mana pun, dan bayangan cascade yang mengikuti kamera; - `rect`: sebuah persegi panjang satu sisi berukuran `size` meter berpusat pada `position`, memancar sepanjang `direction`, lebarnya sepanjang `right`; tanpa bayangan yang dilempar (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bidang yang tidak dipakai sebuah jenis ditolak saat validasi: sebuah cahaya directional dengan posisi akan jadi janji yang tidak akan ditepati mesin.",
+    "description": "Satuannya radiometrik dan linear (P1): `color` adalah warna linear dan `intensity` intensitas radiometrik tegas positif — sebuah radiansi untuk `rect`. Empat jenis, dan tidak ada yang lain menghasilkan cahaya dalam mesin ini (P6): - `point`: sebuah posisi dan jangkauan dalam meter di luarnya ia tidak menyinari apa pun; - `spot`: sama ditambah sebuah arah dan setengah sudut kerucut dalam radian; - `directional`: matahari atau langit mendung — sebuah arah propagasi, tanpa posisi dan tanpa jangkauan, iradiansi sama di mana pun, dan bayangan clipmap yang mengikuti kamera; - `rect`: sebuah persegi panjang satu sisi berukuran `size` meter berpusat pada `position`, memancar sepanjang `direction`, lebarnya sepanjang `right`; tanpa bayangan yang dilempar (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bidang yang tidak dipakai sebuah jenis ditolak saat validasi: sebuah cahaya directional dengan posisi akan jadi janji yang tidak akan ditepati mesin.",
     "members": {
       "id": "Nama cahaya itu.",
       "kind": "Point, spot, matahari atau persegi panjang.",
@@ -3014,7 +2895,11 @@
     "members": {
       "pose": "Sebuah node bergerak.",
       "structure": "Sebuah node mendapat atau kehilangan anak.",
-      "content": "Bentuk atau material sebuah node berubah."
+      "content": "Bentuk atau material sebuah node berubah.",
+      "posed": "Banyak node bergerak sekaligus, ditulis langsung ke pohonnya (benda fisika): diberitahukan sekali.",
+      "seat": "Baris tempat node digambar, atau `null`: enam belas float berurutan kolom mulai `row * 16` di `batch.rows.matrices`, dibaca langsung oleh perender. Pemilik yang menempatkan node ribuan sekaligus (fisika) menulis matriks dunianya sendiri di sana, berlaku selama `seatEpoch` tetap, dan menyebut baris yang ditulis lewat `placed`.",
+      "seatEpoch": "Berubah setiap kali baris diambil, dilepas, atau dialokasikan ulang: setiap jawaban `seat` sebelumnya sudah basi.",
+      "placed": "Baris `from` sampai `to` dari `batch` ditulis lewat `seat`: digambar pada frame berikutnya."
     }
   },
   "SceneNode": {
@@ -3124,8 +3009,8 @@
     "members": {
       "lightsActive": "Cahaya kontrak `SceneLight` yang disinari bingkai ini. Null pada mesin yang mengabaikannya.",
       "lightsSampled": "Benar saat pencahayaan bingkai ini berjalan dalam mode sampel-nya — sebuah gambar bergerak yang diakumulasikan pada sebuah riwayat, tempat sebuah piksel dengan lebih banyak cahaya dari `samplesPerPixel` men-shading sebagian himpunan yang digambar —, salah saat setiap piksel men-shading setiap cahaya, seperti dilakukan sebuah gambar diam. Null pada mesin yang mengabaikan cahaya.",
-      "shadowsUpdated": "Irisan bayangan digambar ulang bingkai ini, paling banyak batas atas terpublikasi penjadwal. Nol adalah nilai normal sebuah scene diam: sebuah cahaya tetap menyimpan irisannya.",
-      "shadowFacesDrawn": "Yang dihasilkan ulang tahap bayangan: muka (view) dan panggilan gambar yang benar-benar dikodekan. Ini biaya per cahaya berbayangan, dipisah dari yang lain. Null pada mesin yang tidak menggambar bayangan apa pun.",
+      "shadowsUpdated": "Cahaya bayangan yang halamannya digambar bingkai ini. Nol adalah nilai normal adegan diam: cahaya tetap mempertahankan halamannya.",
+      "shadowFacesDrawn": "Tampilan cahaya yang digambar pass bayangan — satu tingkat clipmap matahari, satu muka lampu pada satu mip —, dan panggilan gambar yang benar-benar dikodekan. Null pada mesin yang tidak menggambar bayangan.",
       "shadowDrawCalls": "Panggilan gambar bayangan.",
       "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan keterlambatan dalam milidetik yang tertua di antaranya. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
@@ -3133,28 +3018,43 @@
       "shadowWaitMs": "Berapa lama mereka menunggu.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "gpuShadowsMs": "Waktu GPU bayangan.",
-      "gpuLightingMs": "Waktu GPU pencahayaan."
+      "gpuLightingMs": "Waktu GPU pencahayaan.",
+      "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
+      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
+      "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
+      "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
+      "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
+      "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
+      "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
     }
   },
   "ShadowPlan": {
-    "summary": "Wilayah bayangan mana yang digambar bingkai ini, dan mana yang menunggu.",
+    "summary": "Kerja bayangan bingkai: halaman virtual mana yang digambar, dan mana yang menunggu.",
     "members": {
-      "slices": "Irisan bayangan.",
-      "regions": "Wilayah bayangan.",
-      "budget": "Anggaran waktu.",
-      "coverage": "Apa yang dicakup setiap cahaya.",
-      "counts": "Hitungan untuk diagnostik.",
-      "worldChanged": "Sebuah node bergerak: kotaknya masuk daftar yang akan dikonsumsi penjadwal bingkai berikutnya.",
-      "representationChanged": "Dunia yang sama pada presisi lain — tingkat detail, residensi, ubin warna —: kotaknya menunggu kamera diam, lalu masuk daftar (`changes.ts`).",
-      "deferredChanges": "Benar selama sebuah perubahan representasi menunggu kamera diam: bingkai tidak boleh tertahan sebelum sebuah rencana mengonsumsinya.",
-      "releaseDeferred": "Bingkai tidak merencanakan bayangan apa pun — tanpa atlas, tanpa cahaya, view tanpa cahaya —: gabungan tersimpan langsung masuk daftar, tempat rencana berikutnya membacanya, alih-alih mencegah bingkai untuk tertahan.",
-      "observeCost": "Pengatur waktu tahap Bayangan sebuah bingkai, dilaporkan ke halaman yang digambar ulangnya.",
-      "setBudgetMs": "Anggaran yang dipublikasikan host; nilai tak terhingga atau negatif ditolak, tidak dibulatkan.",
-      "setPageInvalidation": "Mematikan invalidasi per-halaman: setiap muka yang tersentuh dimulai ulang penuh. Menyala secara bawaan.",
-      "pageInvalidation": "Halaman untuk digambar lagi.",
-      "plan": "Memilih wilayah bingkai ini. Mengembalikan jumlahnya; `plan.regions` menjelaskannya satu demi satu, dan halaman yang dicakupnya sudah dihapus dari antrean.",
-      "reissue": "Wilayah bingkai ini tidak bisa dikodekan: halamannya kembali ke antrean. Mereka meninggalkannya saat penerimaan, karena penjadwal dan tahap itu hanya bicara lewat daftar ini; kalau tahap itu tidak menggambar apa-apa, antrean harus menemukan mereka lagi.",
-      "reset": "Memulai lagi."
+      "budget": "Anggaran milidetik tahap Bayangan dan biaya terukur satu halaman.",
+      "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
+      "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
+      "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
+      "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
+      "releaseDeferred": "Bingkai tidak merencanakan bayangan: gabungan yang ditahan langsung masuk ke daftar.",
+      "observeCost": "Pengatur waktu pass Bayangan sebuah bingkai, dibagi ke halaman yang digambarnya.",
+      "setBudgetMs": "Anggaran yang diterbitkan host, dalam milidetik GPU per bingkai.",
+      "setPageInvalidation": "Mematikan invalidasi per halaman: objek bergerak membuat usang setiap halaman cahaya yang disentuhnya. Aktif secara default.",
+      "pageInvalidation": "Apakah objek bergerak hanya membuat usang halaman yang tertutup kotaknya.",
+      "plan": "Merencanakan bingkai: membuat usang yang bergerak, membaca laporan terakhir, menerima halaman untuk digambar.",
+      "reissue": "Halaman bingkai tidak dapat dikodekan: tetap usang, dan menunggu bingkai berikutnya.",
+      "reset": "Memulai lagi.",
+      "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan (`thresholds.ts`).",
+      "table": "Tabel halaman: satu kata per halaman virtual, dan rentang yang dipegang setiap cahaya di dalamnya.",
+      "pool": "Halaman fisik pool dan halaman virtual yang disimpan masing-masing.",
+      "sun": "Clipmap setiap matahari: kerangkanya, rentang kedalaman, tingkat terhalus, dan cakupannya.",
+      "records": "Irisan bayangan, satu per cahaya yang menghasilkan bayangan.",
+      "requests": "Laporan permintaan yang dibaca kembali: yang disebut, dialokasikan, atau ditolak laporan terakhir.",
+      "admission": "Halaman bingkai ini, dalam urutan penerimaan.",
+      "stamp": "Yang diserahkan shading, cahaya, dan tampilan ke gambar berikutnya: laporan yang dicap dengannya dan tidak menyebut hal baru membuktikan gambar hanya membaca yang sudah digambar.",
+      "settled": "Benar setelah sebuah laporan membuktikan keadaan saat ini tidak meminta apa pun: gambar boleh ditahan.",
+      "receive": "Sebuah laporan permintaan kembali; rencana berikutnya membacanya. Yang lebih baru menggantikan yang belum dibaca.",
+      "commit": "Halaman bingkai telah dikodekan, masing-masing di entri `modes`-nya: penggambarannya selesai sebelum apa pun membacanya."
     }
   },
   "ShadowViewpoint": {
@@ -3165,7 +3065,8 @@
       "halfFovY": "Setengah bukaan vertikalnya.",
       "aspect": "Lebar dibagi tinggi.",
       "near": "Jarak terdekat.",
-      "far": "Jarak terjauh."
+      "far": "Jarak terjauh.",
+      "pixelNear": "Ukuran dunia satu piksel di bidang dekat: jejak terhalus yang dimiliki piksel tampilan."
     }
   },
   "Shape": {
@@ -3455,22 +3356,11 @@
       "roughnessMap": "Gambar roughness-nya.",
       "normalMap": "Gambar normalnya.",
       "aoMap": "Gambar ambient-occlusion-nya.",
-      "emissiveMap": "Gambar cahayanya."
-    }
-  },
-  "TableNode": {
-    "summary": "Satu primitif yang digambar: node yang membawanya, pose dunianya, permukaan yang dipakainya dan peringkatnya di antara salinan primitif yang sama itu — yang menjadi instancing di sini, satu geometri dinamai beberapa node.",
-    "description": "`bounds` adalah kotak dunia geometri sumbernya; scene mandiri mempublikasikan segitiga merosot di tempatnya, jadi ini jawaban cache, bukan loader.",
-    "members": {
-      "name": "Nama node itu.",
-      "node": "Nomor node itu.",
-      "parent": "Nomor induknya.",
-      "mesh": "Nomor mesh-nya.",
-      "primitive": "Nomor primitifnya.",
-      "material": "Peringkat materialnya.",
-      "instance": "Salinan yang mana.",
-      "matrix": "Matriks dunianya.",
-      "bounds": "Kotak dunianya."
+      "emissiveMap": "Gambar cahayanya.",
+      "kind": "Permukaan yang dibangun host: tanpa pencahayaan, standar, atau fisik bila ekstensi fisik dideklarasikan.",
+      "alphaMode": "Cara alfa dibaca: diabaikan, dipotong pada `alphaTest`, atau dicampur.",
+      "opacity": "Alfa dari faktor warna dasar.",
+      "extensions": "Apa yang ditambahkan ekstensi fisik, dengan nama parameter host: faktor, warna, atau rentang sebagai angka, peta sebagai slot."
     }
   },
   "TableTexture": {
@@ -3480,7 +3370,9 @@
       "wrapS": "Berulang melintang.",
       "wrapT": "Berulang menaik.",
       "magFilter": "Filter saat lebih besar.",
-      "minFilter": "Filter saat lebih kecil."
+      "minFilter": "Filter saat lebih kecil.",
+      "name": "Namanya.",
+      "sampler": "Peringkat sampler glTF yang dideklarasikannya, `null` bila tidak ada."
     }
   },
   "TableTextureSlot": {
@@ -3488,7 +3380,8 @@
     "members": {
       "texture": "Tekstur mana.",
       "texCoord": "Set UV mana.",
-      "transform": "Transform UV-nya, 3×3."
+      "transform": "Transform UV-nya, 3×3.",
+      "slotTexCoord": "Set UV yang disebut slot itu sendiri, sebelum transformasi apa pun: slot yang menyebut set selain yang pertama digambar dari salinan teksturnya, yang tidak sesuai dengan peringkat mana pun."
     }
   },
   "TelemetryReport": {
@@ -3547,7 +3440,9 @@
       "flipY": "Apakah gambar itu dibalik terbalik saat dibaca.",
       "anisotropy": "Seberapa tajam gambar itu tetap saat dilihat serong.",
       "channel": "Set UV geometri mana yang diikuti tekstur itu.",
-      "version": "Dinaikkan setiap penulisan: yang dibandingkan sebuah material untuk menyampel ulang.",
+      "version": "Dinaikkan oleh penulisan gambar atau cara membacanya: yang dibandingkan material untuk mengirim gambar lagi.",
+      "sampling": "Dinaikkan oleh penulisan pengalamatan, filter, atau anisotropi: diatur ulang, tidak ada yang dikirim.",
+      "placement": "Dinaikkan oleh penulisan `repeat`, `offset`, atau `rotation`: ditempatkan ulang, tidak ada yang dikirim.",
       "image": "Gambar itu sendiri: sebuah image, canvas, video atau piksel mentah.",
       "layout": "Apa yang dipegang gambar itu selain pikselnya: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Bagaimana setiap piksel disimpan: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3565,6 +3460,8 @@
       "id": "Identitas tekstur itu dalam scene yang diimpor: yang menyebut namanya sebuah kunci cache dan sebuah pesan.",
       "name": "Nama yang diberikan berkas sumber, kosong saat tidak memberi nama; hanya dibaca pesan.",
       "version": "Dinaikkan setiap texel berubah: yang dibandingkan sebuah unggahan untuk melewati penyalinan ulang.",
+      "sampling": "Dinaikkan saat pengalamatan, filter, atau anisotropi berubah: sampler diatur ulang.",
+      "placement": "Dinaikkan saat `transform` berubah: penempatan ditulis ulang, tidak ada yang diunggah.",
       "image": "Gambar yang diurai. Wadahnya tetap `unknown`: hanya batas yang mengunggahnya yang tahu.",
       "channel": "Set UV yang dibaca sampler, `texCoord` milik `KHR_texture_transform`; mesin menyampel 0 dan 1.",
       "wrapS": "Berulang melintang.",
@@ -3984,12 +3881,11 @@
     "description": "`'firstPerson'` menggerakkan sebuah kamera; `'character'` menggerakkan sebuah tubuh — massa, gravitasi, lompatan, tabrakan dengan `world.controls.colliders` — dan melihat lewat matanya."
   },
   "WorldFrameMetrics": {
-    "summary": "Metrik sebuah bingkai, dengan nama yang dipakai sebuah halaman membacanya; `null` di mana jalur itu tidak menghitung.",
+    "summary": "Metrik sebuah gambar sebagaimana host menyalinnya dari mesin, dan dua yang dibaca halaman yang disusun darinya; `null` di mana jalur tidak menghitung.",
     "members": {
       "rafIntervalMs": "Waktu antara dua bingkai.",
       "cpuFrameMs": "Waktu CPU bingkai itu.",
       "cpuSubmitMs": "Waktu CPU untuk mengirim pekerjaannya.",
-      "gpuMs": "Waktu GPU bingkai itu.",
       "drawCalls": "Panggilan gambar bingkai ini, seperti dihitung mesin. `null` saat belum dihitung: nol akan terbaca sebagai bingkai tanpa gambar.",
       "autonomousClusterDrawsTotal": "Gambar cluster berhalaman yang dikeluarkan program WebGL2 milik mesin dalam sesi ini.",
       "autonomousCopyDraws": "Salinan scene — permukaan tembus cahaya — yang digambar program WebGL2 milik mesin bingkai ini.",
@@ -4022,7 +3918,7 @@
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
-      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`.",
+      "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
@@ -4037,8 +3933,8 @@
       "pagePlanMs": "Waktu yang dihabiskan merencanakan kedatangan.",
       "lightsActive": "Cahaya kontrak `SceneLight` yang disinari bingkai ini. Null pada mesin yang mengabaikannya.",
       "lightsSampled": "Benar saat pencahayaan bingkai ini berjalan dalam mode sampel-nya — sebuah gambar bergerak yang diakumulasikan pada sebuah riwayat, tempat sebuah piksel dengan lebih banyak cahaya dari `samplesPerPixel` men-shading sebagian himpunan yang digambar —, salah saat setiap piksel men-shading setiap cahaya, seperti dilakukan sebuah gambar diam. Null pada mesin yang mengabaikan cahaya.",
-      "shadowsUpdated": "Irisan bayangan digambar ulang bingkai ini, paling banyak batas atas terpublikasi penjadwal. Nol adalah nilai normal sebuah scene diam: sebuah cahaya tetap menyimpan irisannya.",
-      "shadowFacesDrawn": "Yang dihasilkan ulang tahap bayangan: muka (view) dan panggilan gambar yang benar-benar dikodekan. Ini biaya per cahaya berbayangan, dipisah dari yang lain. Null pada mesin yang tidak menggambar bayangan apa pun.",
+      "shadowsUpdated": "Cahaya bayangan yang halamannya digambar bingkai ini. Nol adalah nilai normal adegan diam: cahaya tetap mempertahankan halamannya.",
+      "shadowFacesDrawn": "Tampilan cahaya yang digambar pass bayangan — satu tingkat clipmap matahari, satu muka lampu pada satu mip —, dan panggilan gambar yang benar-benar dikodekan. Null pada mesin yang tidak menggambar bayangan.",
       "shadowDrawCalls": "Panggilan gambar bayangan.",
       "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan keterlambatan dalam milidetik yang tertua di antaranya. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
@@ -4085,7 +3981,13 @@
       "geometryPoolSaturated": "Halaman yang dibutuhkan bingkai saat ini melebihi kapasitas slot kolam.",
       "texturePoolClamp": "Alasan pembatasan kolam tekstur: `minimum`, `device-limit`.",
       "hizCulled": "Cluster yang ditemukan tersembunyi uji oklusi bingkai ini; `null` di mana jalur itu tidak menghitungnya.",
-      "shadowPagesResident": "Halaman bayangan yang tersimpan di memori bingkai ini; `null` di mana jalur itu tidak punya satu pun."
+      "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
+      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
+      "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
+      "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
+      "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
+      "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
+      "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
     }
   },
   "WorldOptions": {
@@ -4095,7 +3997,8 @@
       "interactive": "Apakah dunia menjalankan loop-nya sendiri: ia menggambar saat sesuatu berubah dan beristirahat setelah 120 bingkai tanpa yang baru. `false` membiarkan halaman memanggil `world.render()` sendiri.",
       "pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "controls": "Controller yang menggerakkan kamera dari canvas; `world.controls.kind` mengubahnya nanti.",
-      "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan."
+      "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
+      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
     }
   },
   "WorldPageSource": {
@@ -4269,10 +4172,6 @@
   "assertSceneProxy": {
     "summary": "Menolak sebuah deskriptor proxy yang tidak bisa dibaca mesin ini, sebelum satu byte pun diminta.",
     "description": "Sebuah manifest tanpa deskriptor bukan galat: itu adalah cache dari sebelum pantulan, dan mesin mengatakan begitu alih-alih menebak geometri yang tidak dimilikinya."
-  },
-  "assertSceneTables": {
-    "summary": "Tabelnya, atau sebuah penolakan bernama.",
-    "description": "Sebuah versi tak dikenal tidak pernah ditebak: sebuah produk yang ditulis kompiler lain, atau sebelum sebuah tabel berubah bentuk, tidak mengatakan apa pun yang bisa diperiksa pembaca ini terhadap sebuah scene, dan membacanya separuh jalan akan mengubah perubahan format menjadi perbandingan yang salah."
   },
   "axisAngleQuaternion": {
     "summary": "Quaternion sebuah rotasi sebesar `angle` radian mengelilingi sebuah sumbu satuan."
@@ -4699,8 +4598,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Penjadwal bayangan.",
-    "description": "Pekerjaan sebuah bingkai bukan lagi \"empat lampu\" melainkan **halaman basi paling prioritas, sampai anggaran satu milidetik** (RX3, X4): sebuah lampu atau cascade yang bergerak membuat seluruh petanya basi, sebuah objek yang bergerak hanya membuat basi halaman yang dicakup kotak terproyeksinya, dan halaman yang ditolak bingkai ini menunggu bingkai berikutnya — tidak pernah hilang, keterlambatannya dipublikasikan. Sebuah lampu tetap dalam scene diam tetap tidak berbiaya apa pun (X5). Semua array dialokasikan sekali; `plan()` tidak akan pernah mengalokasikan."
+    "summary": "Penjadwal bayangan peta virtual.",
+    "description": "Shading mencatat halaman yang dibacanya; laporannya, dibaca kembali beberapa bingkai kemudian, mengalokasikan yang kurang dari pool tetap. Yang bergerak membuat usang halaman terpeta yang ditutupinya. Sebuah bingkai lalu menggambar halaman usang yang dibaca gambar — yang kasar lebih dulu, hingga anggaran milidetik —, dan sisanya menunggu, tidak pernah hilang, keterlambatannya diterbitkan. Adegan diam, yang shading-nya tidak berjalan lagi, tidak meminta apa pun dan tidak menggambar apa pun. Semua array dialokasikan sekali; `plan()` tidak mengalokasikan apa pun."
   },
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
@@ -4741,7 +4640,8 @@
       "options.interactive": "Apakah dunia menjalankan loop-nya sendiri: ia menggambar saat sesuatu berubah dan beristirahat setelah 120 bingkai tanpa yang baru. `false` membiarkan halaman memanggil `world.render()` sendiri.",
       "options.pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "options.controls": "Pengontrol yang menggerakkan kamera dari kanvas; `world.controls.kind` mengubahnya nanti.",
-      "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan."
+      "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
+      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
     }
   },
   "crossVector3": {
@@ -4773,10 +4673,6 @@
   "depthLayerUnits": {
     "summary": "Berapa banyak unit perangkat keras yang digerakkan sebuah layer untuk sebuah cluster MENUJU kamera, sebagai magnitudo: nol atau lebih, tidak pernah bertanda.",
     "description": "Setiap jalur membaca fungsi tunggal ini dan memberinya tanda untuk uji kedalamannya sendiri."
-  },
-  "desiredFaceSide": {
-    "summary": "Sisi wajah yang layak didapat sebuah lampu: jangkauannya diproyeksikan di layar, dibatasi oleh bagiannya dari atlas.",
-    "description": "Sebuah lampu yang menutupi seluruh layar dan sendirian mengambil `shadowSliceMax`; pada tiga puluh lampu bayangan, masing-masing menurunkan dirinya sendiri alih-alih membiarkan yang terakhir tanpa irisan. Lantainya adalah `shadowSliceMin`: tidak ada lampu yang hilang karena kurangnya ruang selama masih ada yang tersisa."
   },
   "detectCapabilities": {
     "summary": "Memeriksa apa yang bisa digambar mesin ini, dan mengatakan alasannya saat tidak bisa."
@@ -4849,9 +4745,6 @@
   "exportLightingGltf": {
     "summary": "glTF dan buffer biner little-endian terpisah; adapter memiliki persistensinya."
   },
-  "faceCountOf": {
-    "summary": "Wajah yang benar-benar digambar untuk sebuah lampu: enam untuk titik, satu untuk spot, dan cascade untuk directional — tidak pernah lebih dari enam wajah yang dicadangkan per irisan."
-  },
   "filter": {
     "summary": "Aturan pengambilan sampel tekstur."
   },
@@ -4872,10 +4765,6 @@
   },
   "filter.nearestMipNearest": {
     "summary": "Piksel terdekat dari salinan lebih kecil terdekat."
-  },
-  "forEachShadowFace": {
-    "summary": "Mengunjungi setiap wajah dari setiap lampu yang mendeklarasikan bayangan dan memegang sebuah irisan: pemindaian tunggal yang dibagi bersama oleh penghitung, publikasi held-mask dan setiap pembaca per-wajah lainnya.",
-    "description": "Hitungan wajah adalah milik jenis lampunya; `fn` dibatasi oleh irisan dan wajah yang dipublikasikan."
   },
   "frameStatistics": {
     "summary": "Laju bingkai dan kehalusan dari waktu di antara bingkai."
@@ -5491,7 +5380,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.lineDashed": {
@@ -5525,7 +5418,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshBasic": {
@@ -5559,7 +5456,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshDepth": {
@@ -5593,7 +5494,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshLambert": {
@@ -5627,7 +5532,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshMatcap": {
@@ -5661,7 +5570,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshNormal": {
@@ -5695,7 +5608,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshPhong": {
@@ -5729,7 +5646,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshPhysical": {
@@ -5763,7 +5684,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshStandard": {
@@ -5797,7 +5722,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.meshToon": {
@@ -5831,7 +5760,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.points": {
@@ -5865,7 +5798,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.shadow": {
@@ -5899,7 +5836,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "material.sprite": {
@@ -5933,7 +5874,11 @@
       "parameters.gapSize": "Panjang celah di antara dua dash.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
-      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat."
+      "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
+      "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
+      "parameters.density": "kg/m³, dikali volume menjadi massa.",
+      "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
     }
   },
   "materialSide": {
@@ -6177,6 +6122,13 @@
   "object.group": {
     "summary": "Sebuah node kosong yang memegang objek lain, jadi mereka bergerak bersama."
   },
+  "object.clone": {
+    "summary": "Salinan sebuah objek dan semua yang ada di bawahnya, tanpa berbagi apa pun dengannya: bentuk, material, lampu, dan bidangnya disalin.",
+    "description": "Model yang dimuat tidak disalin: `null` untuknya, dan ia ditinggalkan dari grup yang disalin.",
+    "parameters": {
+      "source": "Objek yang disalin."
+    }
+  },
   "object.line": {
     "summary": "Menggambar sebuah garis melewati vertex-vertex, satu demi satu.",
     "parameters": {
@@ -6265,9 +6217,6 @@
   "pageDecodeWorkerCount": {
     "summary": "Ukuran kolam decode: tidak pernah lebih dari core yang dilaporkan mesin, tidak pernah lebih dari batas atas paket, tidak pernah lebih dari batas admisi yang sudah berlaku pada transfer, dan setidaknya satu.",
     "description": "Sebuah nilai yang hilang atau bukan bilangan bulat sama dengan satu executor: pada sebuah platform yang tidak melaporkan apa pun, kita tidak mengarang paralelisme."
-  },
-  "pageRowsOf": {
-    "summary": "Halaman per sisi sebuah wajah `side`-texel, dibatasi oleh apa yang bisa dibawa mask."
   },
   "perspectiveProjection": {
     "summary": "Proyeksi perspektif sebuah kamera dengan `fov` derajat vertikal, rasio `aspect`, bidang dekat `near`, zoom `zoom`."
@@ -6645,7 +6594,8 @@
       "geometryPoolCeiling": "Kolam terbesar yang boleh diminta sebuah dunia: anggaran awal mesin.",
       "texturePoolCeiling": "Kolam tekstur terbesar yang boleh diminta sebuah dunia, dalam byte.",
       "geometryPool": "Byte memori GPU yang disimpan untuk halaman geometri; atur untuk mengubah amplopnya.",
-      "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya."
+      "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya.",
+      "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6709,14 +6659,18 @@
       "stride": "Hanya character: fase langkah dalam radian, satu kaki melangkah pada 0 dan π; 0 sebaliknya.",
       "velocity": "Hanya character: kecepatan tubuh dalam meter per detik, sebuah salinan; nol sebaliknya.",
       "walkSpeed": "Hanya character: meter per detik berjalan kaki; 3,5 secara default, sebuah jog.",
-      "yawInput": "Hanya flight: stick yaw dalam [-1, 1] (kiri), ditambahkan ke tombol panah; 0 secara default."
+      "yawInput": "Hanya flight: stick yaw dalam [-1, 1] (kiri), ditambahkan ke tombol panah; 0 secara default.",
+      "mass": "Hanya karakter, dengan fisika: kilogram yang ditekankan tubuh pada pijakannya; bawaan 80.",
+      "pushStrength": "Hanya karakter, dengan fisika: newton yang dipakai tubuh untuk mendorong benda; bawaan 250, dorongan berkelanjutan orang dewasa.",
+      "vehicle": "Hanya kendaraan: yang dikemudikan kontrol `'vehicle'` — apa pun yang punya `drive(input)`, yang menerima gas, rem, setir, dan rem tangan setiap kali tombol berubah. Bawaan `null`, dan selama itu `kind = 'vehicle'` melempar `NO_VEHICLE`."
     }
   },
   "world.diagnostic": {
-    "summary": "Apa yang dipegang halaman: mode, dibaca dan ditulis.",
+    "summary": "Apa yang dipegang halaman: mode tampilan, dibaca dan ditulis; sesi yang dibuka dan mengapa sesi terakhir gagal, hanya dibaca.",
     "members": {
       "mode": "Mode tampilan: `'beauty'` untuk gambar normal, atau sebuah mode yang menunjukkan cara kerja mesin.",
       "sessions": "Sesi yang sudah dibuka dunia sejauh ini: perubahan yang membuka ulang sebuah sesi terlihat di sini.",
+      "error": "Mengapa sesi terakhir tidak bisa dibuka, sebagai galat mesin yang bernama: `code`-nya adalah salah satu yang didokumentasikan pada `EngineError` (`WEBGPU_LOST` saat WebGPU kehilangan perangkatnya), atau `SESSION_OPEN_FAILED` untuk alasan tanpa kode sendiri. `EngineError` dengan kode terdokumentasi adalah galat yang dilempar itu sendiri; galat lain dikonversi, dan galat yang dilempar lalu ada di `details.cause`. `null` sejak awal setiap pembukaan, dan saat tidak ada yang dicoba.",
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },
@@ -6797,8 +6751,8 @@
     "summary": "Menurunkan semua yang dibaca sebuah bingkai dari `into.world`, sudah diatur, dan optik yang dideklarasikan: proyeksi dalam konvensi kedalaman mesin, lalu view, view-projection dan keenam bidang frustum (`updateCameraFrame`), bingkai render (`renderOrigin.ts`) dan mata."
   },
   "writeFace": {
-    "summary": "Menulis matriks view-projection sebuah wajah pada slotnya dalam `matrices`, dan, jika reject diaktifkan, volume yang dilawannya terhadap region `rect` wajah itu.",
-    "description": "Keduanya mulai dari sumbu yang sama dan bidang yang sama — satu perhitungan, jadi tidak ada risiko mereka membidik arah berbeda. Sebuah point mengambil sumbu `POINT_FACE_AXES` dan 90°; sebuah spot mengambil arahnya dan kerucutnya yang dilebarkan; sebuah directional mengambil cascade `face`, yang mengikuti kamera. Jari-jari pemancar, pada bagiannya, tidak menyentuh proyeksi maupun reject: pengecualiannya persis sebuah bola, ditulis di tempat kedalaman bayangan ditulis, dan sebuah bidang dekat yang dinaikkan akan menghapus sebuah kubus darinya. `rect` adalah bagian wajah yang digambar ulang, dalam koordinat ternormalisasi; `FULL_FACE` secara default, dan volumenya kemudian persis yang dari sebelum invalidasi per-halaman. Sebuah cluster yang bola dunianya tidak menyentuh jangkauan maupun volume ini tidak bisa menulis apa pun di region: proyeksi dan scissor akan menolaknya tetap saja. Reject karenanya eksak, tidak pernah aproksimasi kualitas — region tidak berubah sebesar satu texel pun."
+    "summary": "Menulis matriks view-projection muka lampu di slotnya dalam `matrices`, dan, jika culling aktif, volume yang dilawankannya pada persegi panjang `rect` muka itu.",
+    "description": "Keduanya berangkat dari sumbu dan bidang yang sama — satu perhitungan, jadi tidak ada risiko mengarah ke arah berbeda. Titik mengambil sumbu `POINT_FACE_AXES` dan 90°; spot mengambil arahnya dan kerucutnya yang diperlebar. Jari-jari pemancar tidak menyentuh proyeksi maupun culling: pengecualiannya tepat sebuah bola, ditulis di tempat kedalaman bayangan ditulis. `rect` adalah bagian muka yang digambar, dalam koordinat ternormalisasi; `FULL_FACE` secara default. Klaster yang bola dunianya tidak menyentuh jangkauan maupun volume ini tidak dapat menulis apa pun di dalamnya: proyeksi dan viewport toh akan menolaknya, jadi culling-nya tepat."
   },
   "BeforeFrameInfo": {
     "summary": "Yang diterima sebuah hook before-frame: detik yang baru saja diintegrasikan pengontrol, dan sejak dunia dimulai.",
@@ -6898,6 +6852,433 @@
       "counts": "Untuk setiap node: jumlah segitiga sebuah daun, 0 untuk node internal.",
       "bytes": "Byte yang disimpan pohon.",
       "triangleCount": "Segitiga yang disimpan pohon."
+    }
+  },
+  "world.physics": {
+    "summary": "Benda, gravitasi, dan waktu fisika (Jolt, di worker).",
+    "members": {
+      "enabled": "Apakah benda disimulasikan. Menyalakannya memuat fisika pertama kali.",
+      "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
+      "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
+      "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+    }
+  },
+  "ContactEvent": {
+    "summary": "Apa yang diberikan kontak kepada pendengarnya: objek lain, impuls, dan titik sentuh.",
+    "members": {
+      "other": "Objek yang tersentuh; `null` setelah keluar dari adegan.",
+      "impulse": "N·s: kecepatan mendekat sepanjang normal kali massa tereduksi pasangan, diperkirakan sebelum solver; 0 pada `leave`.",
+      "point": "Titik kontak, kerangka dunia; titik asal pada `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Peristiwa benda: sentuhan pertama dengan impuls (`contact`), dan sentuhan dimulai atau berakhir."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Anggaran fisika bawaan mesin.",
+    "members": {
+      "bodies": "Benda dari semua jenis sekaligus.",
+      "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
+      "decorative": "Benda dekoratif sekaligus.",
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya.",
+      "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
+      "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Gravitasi bernama, dalam m/s² sepanjang −y.",
+    "members": {
+      "earth": "Milik Bumi.",
+      "moon": "Milik Bulan.",
+      "mars": "Milik Mars.",
+      "none": "Tanpa gravitasi."
+    }
+  },
+  "GravityInput": {
+    "summary": "Gravitasi: nama preset, atau vektor dalam m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Nama preset gravitasi."
+  },
+  "ObjectPhysics": {
+    "summary": "Fisika satu objek, seperti dipegang `obj.physics`: catatan hidup tentang apa benda itu dan apa yang dilakukannya.",
+    "description": "Penulisan sampai ke simulasi pada langkah berikutnya; `velocity` membaca apa yang ditinggalkan langkah terakhir.",
+    "members": {
+      "type": "Cara benda bergerak; tetapkan ulang `obj.physics` untuk mengubahnya.",
+      "shape": "Bentuk yang dinyatakan, jika ada.",
+      "sensor": "Apakah benda hanya melaporkan kontak.",
+      "ccd": "Apakah tabrakan kontinu aktif.",
+      "decorative": "Apakah benda adalah puing dekoratif.",
+      "velocity": "Kecepatan linear, m/s, seperti ditinggalkan langkah terakhir; tulis untuk melempar benda.",
+      "asleep": "Apakah benda tidur: diam, dan tidak disimulasikan sampai sesuatu membangunkannya.",
+      "mass": "Massa dalam kilogram; `undefined` memakai massa jenis material kali volume.",
+      "gravityScale": "Mengalikan gravitasi dunia untuk benda ini.",
+      "friction": "Gesekan paksa; `undefined` memakai milik material.",
+      "restitution": "Pantulan paksa; `undefined` memakai milik material.",
+      "applyImpulse": "Mendorong benda seketika, impuls dalam N·s melalui pusat massanya; membangunkannya.",
+      "wake": "Membangunkan benda, tidur atau tidak.",
+      "on": "Memanggil `handler` pada peristiwa kontak benda ini.",
+      "listens": "Apakah ada penangan kontak."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Bahan bernama untuk `material.physics`, dari nilai buku pegangan yang dibulatkan.",
+    "members": {
+      "wood": "Kayu.",
+      "metal": "Baja.",
+      "rubber": "Karet.",
+      "ice": "Es.",
+      "stone": "Batu.",
+      "glass": "Kaca."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Apa yang diterima `obj.physics` selain tiga katanya.",
+    "members": {
+      "type": "Cara benda bergerak.",
+      "mass": "Massa dalam kilogram; jika tidak diisi, massa jenis material kali volume bentuk.",
+      "shape": "Bentuk tabrakan; jika tidak diisi, disimpulkan dari geometri.",
+      "gravityScale": "Mengalikan gravitasi dunia untuk benda ini; 0 melayang.",
+      "sensor": "Melaporkan kontak tanpa bertabrakan: volume pemicu.",
+      "ccd": "Tabrakan kontinu, untuk benda kecil cepat yang bisa menembus dinding tipis.",
+      "decorative": "Puing: hanya bertemu dunia statis, dan hanya disimulasikan dalam jangkauan dan terlihat. Dibatasi `budget.physics.decorative`.",
+      "friction": "Mengganti gesekan material, 0 ke atas.",
+      "restitution": "Mengganti pantulan material, 0 sampai 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Batas tetap fisika sebuah dunia; tidak pernah dibaca dari mesin.",
+    "members": {
+      "bodies": "Benda dari semua jenis sekaligus.",
+      "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
+      "decorative": "Benda dekoratif sekaligus.",
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya.",
+      "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
+      "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Sisi dunia dari sebuah benda: apa yang diminta tulisan pada `obj.physics` kepada simulasi.",
+    "members": {
+      "rebuild": "Pengaturan saat benda dibuat berubah: benda dibuat ulang.",
+      "tune": "Gesekan, pantulan, atau skala gravitasi berubah.",
+      "listened": "Apakah keinginan peristiwa kontak berubah.",
+      "velocity": "Kecepatan ditulis.",
+      "impulse": "Impuls diberikan.",
+      "wake": "Benda dibangunkan."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Nama preset bahan."
+  },
+  "PhysicsMatter": {
+    "summary": "Bahan sebuah benda: massa jenis (kg/m³), gesekan, dan pantulan.",
+    "members": {
+      "density": "kg/m³, untuk massa benda.",
+      "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Apa yang bisa diisikan ke `obj.physics`."
+  },
+  "PhysicsShape": {
+    "summary": "Bentuk tabrakan, bila yang disimpulkan dari geometri tidak cocok.",
+    "description": "Ukuran berada dalam kerangka objek sendiri, sebelum skalanya."
+  },
+  "PhysicsStats": {
+    "summary": "Apa yang dilaporkan fisika dunia: hitungan tick terakhir, dan kedua jam terpisah.",
+    "members": {
+      "bodies": "Benda yang dipegang simulasi.",
+      "active": "Benda aktif setelah tick terakhir.",
+      "stepMs": "Milidetik worker per langkah tetap, tick terakhir: jam worker, tidak pernah dijumlahkan dengan jam halaman.",
+      "mainMs": "Milidetik halaman yang dipakai fisika pada bingkai terakhir (tahap CPU `physics`).",
+      "poses": "Pose yang dikirim tick terakhir.",
+      "events": "Peristiwa kontak yang dikirim tick terakhir.",
+      "droppedEvents": "Peristiwa `enter` yang dibuang sejak fisika dimulai, melampaui `budget.physics.contactEvents` dalam satu langkah (`leave`-nya tidak pernah dikirim)."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Cara benda bergerak: tidak pernah, oleh halaman (`kinematic`, mendorong yang ditemui), atau oleh simulasi."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, fisika dunia.",
+    "members": {
+      "enabled": "Apakah benda disimulasikan. Menyalakannya memuat fisika pertama kali.",
+      "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
+      "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
+      "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Apa yang diterima `createWorld(canvas, { physics })` selain `true`.",
+    "members": {
+      "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
+      "gravity": "Gravitasi dunia: preset atau vektor."
+    }
+  },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Float dari catatan bayangan yang dibaca shading sebuah cahaya: enam matriks muka lampu, lalu kerangka bidang matahari — `right, zNear`, `up, zFar`, `axis, 0` —, lalu asal cakupan setiap tingkat clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau tingkat (matahari), tangen setengah bidang lampu atau tingkat terhalus matahari, bidang dekat lampu, dan entri pertama catatan di tabel halaman."
+  },
+  "ShadowRequestReport": {
+    "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",
+    "members": {
+      "frame": "Bingkai yang shading-nya menulis laporan.",
+      "layoutEpoch": "Tata letak tabel yang dipakai bingkai itu untuk membaca (`ShadowTable.layoutEpoch`).",
+      "stamp": "Cap rencana saat bingkai itu dikodekan (`ShadowPlan.stamp`).",
+      "count": "Entri yang diminta, mungkin lebih dari yang dimuat `entries`: sisanya meminta lagi pada bingkai berikutnya.",
+      "entries": "Entri yang diminta, paling banyak `count` pertama."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Apa pun yang bisa dikemudikan `world.controls.vehicle`: menerima masukan setiap kali berubah.",
+    "members": {
+      "drive": "Menerima pedal dan setir setiap kali tombol mengubahnya."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Yang diminta pengemudi dari kendaraan: pedal dan setir, sebagaimana tombol `world.controls` `'vehicle'` mengaturnya.",
+    "description": "Fisika kendaraan itu sendiri — mesin, roda, suspensi — menjawabnya; kontrak ini adalah semua yang diketahui kontrol.",
+    "members": {
+      "throttle": "Pedal gas, 0 sampai 1.",
+      "brake": "Pedal rem, 0 sampai 1.",
+      "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
+      "handbrake": "Apakah rem tangan ditarik."
+    }
+  },
+  "GraphAttribute": {
+    "members": {
+      "count": "Berapa banyak vertex.",
+      "array": "Penyimpanannya.",
+      "kind": "Atribut ini memiliki buffernya sendiri.",
+      "version": "Dinaikkan oleh `needsUpdate`.",
+      "updateRanges": "Rentang `array` yang ditulis sejak unggahan terakhir, dikirim tersendiri.",
+      "addUpdateRange": "Menandai `count` angka mulai dari `start` sebagai tertulis.",
+      "clearUpdateRanges": "Melupakan rentang tertulis setelah diunggah.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
+    },
+    "summary": "Atribut yang memiliki penyimpanannya: `itemSize` angka per verteks, berurutan."
+  },
+  "GraphGeometry": {
+    "members": {
+      "attributes": "Atribut vertex-nya.",
+      "boundingBox": "Kotak lokal yang dihitung host.",
+      "kind": "Apa sumber daya ini.",
+      "name": "Namanya.",
+      "index": "Daftar segitiga, atau `null` untuk menggambar verteks secara berurutan.",
+      "morphAttributes": "Per atribut yang di-morph, satu atribut per target morph.",
+      "morphTargetsRelative": "Benar jika target morph menyimpan perpindahan, bukan posisi.",
+      "groups": "Rentang indeks yang masing-masing digambar dengan satu permukaan.",
+      "drawRange": "Rentang indeks yang digambar.",
+      "boundingSphere": "Bola lokal, setelah dihitung atau dideklarasikan.",
+      "userData": "Ruang bebas untuk data milik siapa pun yang membangun geometri.",
+      "getIndex": "Daftar segitiga.",
+      "setIndex": "Menetapkan daftar segitiga.",
+      "getAttribute": "Atribut dengan nama itu.",
+      "setAttribute": "Menamai sebuah atribut.",
+      "deleteAttribute": "Melupakan sebuah atribut.",
+      "hasAttribute": "Apakah ia memiliki atribut dengan nama itu.",
+      "clone": "Geometri yang menyimpan salinan setiap buffer, grup, rentang, dan batasnya.",
+      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut adalah verteks tersendiri.",
+      "computeBoundingBox": "Menghitung kotak lokal atas semua verteks.",
+      "computeBoundingSphere": "Menghitung bola lokal: berpusat pada kotak, menjangkau verteks terjauh."
+    },
+    "summary": "Atribut yang digambar sebuah mesh, daftar segitiga yang mengindeksnya, target morph yang menggerakkannya, serta kotak dan bola lokal yang dihitung atasnya."
+  },
+  "GraphNode": {
+    "members": {
+      "name": "Nama host untuknya.",
+      "parent": "Induknya.",
+      "position": "Tempat ia berdiri.",
+      "rotation": "Bagaimana ia diputar, sebagai sudut.",
+      "quaternion": "Dua sisi rotasi sebuah node — quaternion yang dibandingkan mesin, dan sudut Euler yang disalin ke dalamnya — masing-masing MENGUMUMKAN penulisannya sendiri: sebuah callback yang sudah dirangkai host, yang diperluas sebuah hook alih-alih digantikan (`hooks.ts`). Kedua anggota bergaris bawah itu privat milik pustaka host, jadi ditulis di sini, tempat hook membutuhkannya, dan tidak diberi nama sendiri. Itu menjaga privat itu di luar daftar kontrak yang dipublikasikan SDK; itu TIDAK menjaganya di luar permukaan yang dipublikasikan, karena `HostGraphNode` membawanya. Membandingkan pose per bingkai, seperti sudah dilakukan pemindaian, adalah yang akan menghapus keterikatan itu — bukan milik lot ini.",
+      "scale": "Bagaimana ia direntangkan.",
+      "matrix": "Matriks lokalnya.",
+      "matrixWorld": "Matriks dunianya.",
+      "matrixAutoUpdate": "Salah saat host mengatur `matrix` sendiri: matriks itu ADALAH pose-nya dan tidak ada yang menyusunnya ulang.",
+      "visible": "Apakah ia digambar.",
+      "userData": "Tempat mesin menandai salinan miliknya sendiri, yang tidak pernah dilihat host dan tidak bisa ditulisnya.",
+      "traverse": "Subtree di bawah node itu, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
+      "updateMatrixWorld": "Menyelesaikan matriks dunia subtree itu DI DALAM GRAF HOST, untuk pembaca host sendiri.",
+      "id": "Nomor node, unik dalam sesi.",
+      "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya.",
+      "children": "Node yang dipegang node ini, berurutan.",
+      "up": "Arah mana yang atas untuk `lookAt`.",
+      "matrixWorldAutoUpdate": "Salah bila tidak ada yang menulis `matrixWorld`.",
+      "matrixWorldNeedsUpdate": "Ditetapkan bila matriks lokal berubah dan matriks dunia belum mengikutinya.",
+      "castShadow": "Apakah ia menghasilkan bayangan.",
+      "receiveShadow": "Apakah bayangan jatuh padanya.",
+      "frustumCulled": "Apakah renderer boleh melewatinya di luar pandangan.",
+      "renderOrder": "Urutan menggambar di antara benda tembus pandang.",
+      "add": "Menjadikan `nodes` anak node ini, masing-masing dilepas dulu dari induk sebelumnya.",
+      "remove": "Melepas `nodes` dari node ini.",
+      "removeFromParent": "Melepas node ini dari induknya.",
+      "clear": "Melepas semua anak dari node ini.",
+      "updateMatrix": "Menyusun matriks lokal dari pose.",
+      "updateWorldMatrix": "Menyelesaikan matriks dunia node ini, milik leluhurnya dulu bila diminta, lalu subpohonnya.",
+      "applyMatrix4": "Menerapkan `m` di atas pose node, lalu membaca kembali pose dari hasil perkaliannya.",
+      "lookAt": "Memutar node ke arah titik dunia, diberikan sebagai titik atau tiga angkanya.",
+      "clone": "Node dengan jenis dan nilai yang sama; anak-anaknya ikut disalin kecuali diminta tidak.",
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
+    },
+    "summary": "Node graf: namanya, posenya, matriks dunianya, induknya, dan anak-anaknya."
+  },
+  "GraphSurface": {
+    "members": {
+      "version": "Dinaikkan host setiap perubahan: yang dibandingkan sebuah baris yang di-cache untuk membangun ulang bidangnya.",
+      "uuid": "Nama yang unik untuk permukaan ini.",
+      "name": "Namanya.",
+      "userData": "Ruang bebas untuk data milik siapa pun yang membangun permukaan.",
+      "kind": "Apa sumber daya ini; `family` menyebut permukaan yang mana.",
+      "family": "Keluarga tempat ia berada.",
+      "needsUpdate": "`needsUpdate = true` setelah perubahan: setiap pembaca mengambil kolom-kolomnya lagi.",
+      "copy": "Mengambil setiap parameter `source`, warna dan vektor disalin, tekstur dibagi.",
+      "clone": "Permukaan dari keluarga yang sama dengan parameter yang sama.",
+      "visible": "Apakah ia digambar.",
+      "side": "Sisi mana, sebagai konstanta host.",
+      "forceSinglePass": "Host menggambar sebuah permukaan transparan dua sisi dalam satu tahap, bukan belakang lalu depan.",
+      "vertexColors": "Apakah warna vertex mewarnainya.",
+      "toneMapped": "Apakah kurva tampilan diterapkan.",
+      "depthWrite": "Apakah ia menulis kedalaman.",
+      "depthFunc": "Perbandingan uji kedalamannya.",
+      "colorWrite": "Apakah ia menulis warna.",
+      "polygonOffset": "Apakah kedalaman digeser.",
+      "polygonOffsetFactor": "Bagian kemiringan dari pergeseran.",
+      "polygonOffsetUnits": "Bagian konstan dari pergeseran.",
+      "transparent": "Apakah ia mencampur.",
+      "opacity": "Seberapa opaque ia.",
+      "alphaTest": "Alpha di bawahnya piksel dijatuhkan.",
+      "depthTest": "Apakah ia menguji kedalaman."
+    },
+    "summary": "Permukaan: parameter satu keluarga, pada nilai referensi kecuali adegan menyatakan lain.",
+    "description": "Versinya dinaikkan oleh `needsUpdate`, yang dibandingkan setiap pembaca."
+  },
+  "GraphTexture": {
+    "members": {
+      "uuid": "Sebuah nama unik untuk tekstur itu.",
+      "name": "Nama host untuknya.",
+      "channel": "Set UV yang dibaca sampler, `texCoord` milik `KHR_texture_transform`.",
+      "wrapS": "Bagaimana ia berulang melintang, sebagai konstanta host.",
+      "wrapT": "Bagaimana ia berulang menaik, sebagai konstanta host.",
+      "magFilter": "Filter saat ditampilkan lebih besar.",
+      "minFilter": "Filter saat ditampilkan lebih kecil.",
+      "anisotropy": "Ketajaman pada kemiringan.",
+      "colorSpace": "Bagaimana angka-angkanya dibaca.",
+      "offset": "Dari apa `matrix` disusun.",
+      "matrixAutoUpdate": "Apakah host membangun ulang `matrix`.",
+      "matrix": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris; host menghitungnya ulang dari offset, repeat dan rotation saat memiliki pembaruannya.",
+      "generateMipmaps": "Apakah salinan lebih kecil dibuat.",
+      "premultiplyAlpha": "Apakah warna dikalikan awal dengan alpha.",
+      "flipY": "Apakah baris dibalik saat diunggah.",
+      "version": "Dinaikkan host setiap perubahan konten: yang dibandingkan sebuah unggahan untuk melewati penyalinan ulang.",
+      "image": "Gambar yang diurai, dalam wadah host sendiri.",
+      "updateMatrix": "Membangun ulang `matrix` dari offset, repeat dan rotation.",
+      "kind": "Membedakan tekstur dari kolom lain pada permukaan: gambar yang didekode, atau texel mentah (`image` berisi `{ data, width, height }`).",
+      "mapping": "Cara ia dialamatkan: dengan satu set UV.",
+      "userData": "Ruang bebas untuk data milik siapa pun yang membangun tekstur.",
+      "format": "Kanal texel dari tekstur mentah (`HOST_FORMAT_*`).",
+      "needsUpdate": "`needsUpdate = true` setelah perubahan: pembaca mengunggahnya lagi.",
+      "clone": "Tekstur dengan gambar dan keadaan yang sama, diumumkan sebagai berubah.",
+      "repeat": "Berapa kali ia muat.",
+      "center": "Poros rotasi.",
+      "rotation": "Rotasi, dalam radian."
+    },
+    "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
+  },
+  "GraphAngles": {
+    "summary": "Orientasi yang sama sebagai tiga sudut dan urutannya, mengumumkan penulisannya dengan cara yang sama.",
+    "members": {
+      "x": "Sudut pertama, dalam radian.",
+      "set": "Menulis tiga sudut, dan urutannya bila diberikan; diumumkan sekali.",
+      "setFromRotation": "Sudut-sudut `q` dalam urutan ini (`Euler` inti); diumumkan kecuali `quiet`.",
+      "y": "Sudut kedua, dalam radian.",
+      "z": "Sudut ketiga, dalam radian.",
+      "order": "Urutan putaran ketiga sudut, `'XYZ'` kecuali diatur."
+    }
+  },
+  "GraphArray": {
+    "summary": "Array bertipe yang disimpan sebuah atribut."
+  },
+  "GraphElements": {
+    "summary": "Salah satu dari dua jenis atribut."
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Atribut yang melihat `itemSize` angka pada `offset` dari setiap verteks buffer berselang-seling.",
+    "members": {
+      "kind": "Atribut ini melihat buffer bersama.",
+      "data": "Buffer yang dilihatnya.",
+      "offset": "Tempat angka-angkanya dimulai di setiap verteks.",
+      "array": "Penyimpanan tempat elemen berada.",
+      "count": "Berapa banyak verteks.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Satu penyimpanan yang dilihat beberapa atribut, satu verteks setiap `stride` angka.",
+    "members": {
+      "kind": "Satu penyimpanan yang dilihat beberapa atribut.",
+      "count": "Berapa banyak verteks.",
+      "version": "Dinaikkan oleh `needsUpdate`.",
+      "array": "Penyimpanan.",
+      "stride": "Angka per verteks.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Node yang digambar: geometri dan permukaannya, atau satu permukaan per grup geometri.",
+    "members": {
+      "kind": "Digambar di satu penempatan, atau di beberapa (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Bobot setiap target morph, bila geometri mendeklarasikannya.",
+      "morphTargetDictionary": "Peringkat setiap target morph menurut namanya.",
+      "geometry": "Bentuknya.",
+      "material": "Permukaannya, atau satu per grup geometri.",
+      "updateMorphTargets": "Satu bobot nol per target morph dari atribut ter-morph pertama, dinamai menurut peringkat.",
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Apa sebuah node graf: node polos, akar, grup, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
+  },
+  "GraphRotation": {
+    "summary": "Orientasi `(x, y, z, w)` yang penulisannya memanggil `_onChangeCallback`.",
+    "members": {
+      "x": "Angka pertama.",
+      "set": "Menulis empat angka, diumumkan sekali.",
+      "copy": "Mengambil angka rotasi lain.",
+      "fromArray": "Membaca empat angka dari daftar.",
+      "setFromAngles": "Rotasi dari `angles`, dalam urutannya (`localTurnQuaternion`); diumumkan kecuali `quiet`.",
+      "setFromRotationMatrix": "Rotasi dari 3×3 atas matriks berurutan kolom yang kolom-kolomnya berpanjang satu.",
+      "premultiply": "Menjadi `q` diikuti rotasi ini, `q · this`.",
+      "invert": "Menjadi putaran kebalikannya.",
+      "y": "Angka kedua.",
+      "z": "Angka ketiga.",
+      "w": "Angka keempat."
+    }
+  },
+  "GraphVector": {
+    "summary": "Tiga angka dari pose atau titik: kolom data biasa, dan operasi yang dipakai pengendali.",
+    "members": {
+      "set": "Menulis tiga angka.",
+      "copy": "Mengambil angka titik lain.",
+      "clone": "Sebuah salinan.",
+      "add": "Menambahkan vektor lain.",
+      "sub": "Mengurangkan vektor lain.",
+      "multiplyScalar": "Menskalakan tiga angka.",
+      "length": "Panjangnya.",
+      "setLength": "Mempertahankan arah, menetapkan panjang.",
+      "distanceTo": "Jarak ke sebuah titik.",
+      "fromArray": "Membaca tiga angka dari daftar.",
+      "x": "Kiri ke kanan.",
+      "y": "Bawah ke atas.",
+      "z": "Belakang ke depan."
     }
   }
 }

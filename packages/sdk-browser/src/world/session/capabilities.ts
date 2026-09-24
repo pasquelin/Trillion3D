@@ -1,6 +1,7 @@
 import { mathBatchMetrics, prepareMathBatch } from '../../math/batchState.ts';
 import { pageDecodeTransport } from '../../page/decode/shared.ts';
 import { materialTextures, meshes as objects } from '../../scene/meshes.ts';
+import { hostTextureWritten } from '../../host/textureImport.ts';
 import { SDK_BUILD_PROVENANCE } from '../../measurement/buildProvenance.ts';
 import {
   DEFAULT_HEIGHT,
@@ -96,5 +97,6 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
           texture.anisotropy = maximum;
           texture.needsUpdate = true;
         }
+    hostTextureWritten();
   }
 }

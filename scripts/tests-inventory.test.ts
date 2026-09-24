@@ -12,21 +12,30 @@ test('docs/TESTS.md carries the tree the repository has', () => {
   assert.equal(
     withInventory(doc, renderInventory(files)),
     doc,
-    'stale counts: run `node scripts/tests-inventory.ts --write`',
+    'stale tree: run `node scripts/tests-inventory.ts --write`',
   );
 });
 
-test('the counts read the folders they name', () => {
-  const inventory = renderInventory([
-    'packages/sdk-core/src/math/a.test.ts',
-    'packages/sdk-core/src/b.ts',
-    'tests/browser/probes/one-probe.ts',
-    'tests/browser/probes/support.ts',
-    'bench/perf/core/x.perf.ts',
-  ]);
-  assert.match(inventory, /sdk-core\/src\/\s+1 \*\.test\.ts/);
-  assert.match(inventory, /browser\/probes\/\s+1 GPU probes \+ 1 support modules/);
-  assert.match(inventory, /perf\/core\/\s+1 \*\.perf\.ts/);
+test('the tree carries no count and refuses a folder the repository lacks', () => {
+  const files = [
+    'packages/sdk-core/src/a.test.ts',
+    'packages/sdk-browser/src/b.test.ts',
+    'packages/sdk-node/src/c.test.ts',
+    'tests/integration/d.test.ts',
+    'tests/browser/renders/e.browser.ts',
+    'tests/browser/probes/f-probe.ts',
+    'tests/browser/support/g.ts',
+    'tests/kit/h.ts',
+    'tests/fixtures/i.ts',
+    'bench/core/j.ts',
+    'bench/perf/core/k.perf.ts',
+    'bench/perf/browser/l.perf.ts',
+    'bench/oracles/m.ts',
+    'bench/runner/n.ts',
+    'bench/witnesses/o.ts',
+  ];
+  assert.doesNotMatch(renderInventory(files), /\d/);
+  assert.throws(() => renderInventory(files.slice(1)), /packages\/sdk-core\/src\//);
 });
 
 test('a page without markers is refused, not rewritten', () => {

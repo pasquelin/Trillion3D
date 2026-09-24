@@ -9,7 +9,7 @@
 // apart to keep both files under 200 lines; the fixtures are shared by both.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { BOX_VALUES, boxTransform, determinantMatrix4 } from '../../../../sdk-core/src/index.ts';
 import { setWebgpuTransform } from '../pages/render/transform.ts';
 import { cisaillee, proche, racine, runtime, scene, versGpu } from './transformShear.fixture.ts';
@@ -33,12 +33,12 @@ test('a following image does not recompose the set matrix from position, rotatio
 });
 
 test('under a rotated and scaled parent, the obtained world stays the requested world', () => {
-  const source = new THREE.Object3D(),
-    parent = new THREE.Object3D(),
-    mesh = new THREE.Mesh();
+  const source = new G.GraphNode(),
+    parent = new G.GraphNode(),
+    mesh = G.mesh();
   mesh.name = 'cible';
   parent.position.set(2, -1, 3);
-  parent.quaternion.setFromEuler(new THREE.Euler(0.3, -0.5, 0.2));
+  parent.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)));
   parent.scale.set(2, 0.5, 4);
   parent.add(mesh);
   source.add(parent);
@@ -49,9 +49,9 @@ test('under a rotated and scaled parent, the obtained world stays the requested 
 });
 
 test('a parent itself sheared does not skew the requested world for its child', () => {
-  const source = new THREE.Object3D(),
-    parent = new THREE.Object3D(),
-    mesh = new THREE.Mesh();
+  const source = new G.GraphNode(),
+    parent = new G.GraphNode(),
+    mesh = G.mesh();
   mesh.name = 'cible';
   parent.add(mesh);
   source.add(parent);
@@ -94,10 +94,10 @@ test('the reprojected world box is the image of the local box by the sheared mat
 test('a conformal translation-rotation-scale matrix stays exact, fields included', () => {
   const { source, mesh, worlds } = scene(),
     { rt } = runtime(source, [], worlds),
-    conforme = new THREE.Matrix4().compose(
-      new THREE.Vector3(2, -1, 3),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, -0.5, 0.2)),
-      new THREE.Vector3(1.5, 1.5, 1.5),
+    conforme = new G.Matrix4().compose(
+      new G.Vector3(2, -1, 3),
+      new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)),
+      new G.Vector3(1.5, 1.5, 1.5),
     ),
     demandee = versGpu(conforme);
   setWebgpuTransform(rt, 'cible', demandee);
@@ -109,14 +109,14 @@ test('a conformal translation-rotation-scale matrix stays exact, fields included
 test('a negative scale keeps its negative determinant, therefore its face winding', () => {
   const { source, mesh, worlds } = scene(),
     { rt } = runtime(source, [], worlds),
-    demandee = versGpu(new THREE.Matrix4().makeScale(1, -2, 3));
+    demandee = versGpu(new G.Matrix4().makeScale(1, -2, 3));
   setWebgpuTransform(rt, 'cible', demandee);
   const monde = worlds.of(mesh);
   assert.deepEqual(Array.from(monde.elements), Array.from(demandee));
   assert.ok(determinantMatrix4(Float64Array.from(monde.elements)) < 0, 'negative determinant kept');
 });
 
-test('two successive moves do not accumulate and the table is declared changed', () => {
+test('two successive moves do not accumulate and the scene is declared moved', () => {
   const { source, mesh, worlds } = scene(),
     { rt, layout, run } = runtime(source, [], worlds),
     premier = versGpu(cisaillee(3, 6)),
@@ -124,9 +124,10 @@ test('two successive moves do not accumulate and the table is declared changed',
   setWebgpuTransform(rt, 'cible', premier);
   setWebgpuTransform(rt, 'cible', second);
   assert.deepEqual(Array.from(worlds.of(mesh).elements), Array.from(second));
-  assert.equal(layout.rows.tableEpoch, 2);
-  assert.equal(run.noOccluderHistory, true);
-  assert.equal(run.temporalHizState.pyramid, undefined);
+  // The table keeps its age and the scene its occlusion history: only the rows of a moved root
+  // are rewritten (`movedRoot.ts`), and no root is drawn here.
+  assert.equal(layout.rows.tableEpoch, 0);
+  assert.equal(run.noOccluderHistory, false);
   // Without this increment, the image gate would hold the previous image and the moved node
   // would stay drawn where it was; `worldsRevision` follows, the hierarchy already carrying these
   // matrices.

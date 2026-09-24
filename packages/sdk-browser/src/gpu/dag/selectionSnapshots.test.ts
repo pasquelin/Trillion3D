@@ -3,7 +3,7 @@
 // `selectionInvalidation.test.ts` covers the RESIDENCY half of the in-flight snapshot guard; the
 // WORLD half was not, nor the fact that a copy only leaves when a readback is due. Both become
 // holes as soon as the cut is published as something other than a complete list: a snapshot
-// adopted after a world change describes a scene that no longer exists, and a useless copy
+// drained after a world change describes a scene that no longer exists, and a useless copy
 // takes a readback slot the next frame will no longer have.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,19 +13,23 @@ import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 
-test('an in-flight snapshot that a world change crosses never becomes the held cut', async () => {
+test('an in-flight snapshot that a world change crosses is never drained as the current cut', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag();
   const selection = await createGpuDagSelection(device, dag);
   assert.ok(selection);
   selection.dispatch(uniforms);
   // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports
-  // describes the previous pose, and nothing must let it become the frame's cut.
+  // describes the previous pose. It lands marked so: it still names what to stream, but the drain
+  // never hands it back as the cut of the poses in place.
   const moved = dag.worlds.slice();
   moved[12] = 1000;
   assert.equal(selection.updateWorlds(moved), true);
   release();
   assert.equal(await selection.flush(), null);
-  assert.equal(selection.peek(), null);
+  assert.equal(selection.peek()?.result.pageIds.length, 4);
+  assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision);
+  selection.dispatch(uniforms);
+  assert.equal((await selection.flush())?.pageIds.length, 0, 'the moved primitive left the view');
   selection.dispose();
   fixture.geometry.dispose();
 });
@@ -67,5 +71,22 @@ test('a residency republished identically does not drop the held cut', async () 
   assert.equal(selection.updateResidency(resident.slice()), false, 'no bit has moved');
   assert.ok(selection.peek(), 'and the held cut was not dropped');
   selection.dispose();
+  fixture.geometry.dispose();
+});
+
+test('a disposal with both readbacks in flight maps none of the buffers it destroyed', async () => {
+  const { release, fixture, dag, uniforms, device, destroyedMaps } = gatedDag();
+  const selection = await createGpuDagSelection(device, dag);
+  assert.ok(selection);
+  // Two snapshots in flight: slot 0 is mapping, held by the gate; slot 1's read waits behind it.
+  selection.dispatch(uniforms);
+  selection.dispatch({ ...uniforms, pixelError: uniforms.pixelError + 1 });
+  await new Promise(setImmediate);
+  // The world reopens its session here: slot 0's mapping is cut short (`AbortError`), and slot 1's
+  // read starts after its buffer is gone. Neither maps a destroyed buffer (#334).
+  selection.dispose();
+  release();
+  await selection.flush();
+  assert.equal(destroyedMaps(), 0);
   fixture.geometry.dispose();
 });

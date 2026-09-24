@@ -118,7 +118,8 @@ if (profiling()) windClock();
 /**
  * Starts profiling the world: every animation-frame callback is timed, and every frame hook the
  * page adds from now on; each second, `publish` receives the window just closed, and the engine's
- * CPU-step window opens again. Hooks added before this call are not seen.
+ * CPU-step window opens again. Hooks added before this call are not seen. What it returns stops
+ * the publishing.
  */
 export function startProfile<Frame>(
   world: ProfiledWorld<Frame>,
@@ -143,9 +144,10 @@ export function startProfile<Frame>(
   world.onFrame = (hook) => onFrame(timed(hook));
   if (beforeFrame) world.beforeFrame = (hook) => beforeFrame(timed(hook));
   world.resetCpuSteps?.();
-  setInterval(() => {
+  const timer = setInterval(() => {
     const { frameMs, hooksMs } = clock;
     publish(profileWindow(frameMs.splice(0), hooksMs.splice(0), world.cpuSteps?.() ?? null));
     world.resetCpuSteps?.();
   }, 1000);
+  return () => clearInterval(timer);
 }

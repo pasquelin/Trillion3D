@@ -5,14 +5,14 @@
 // `../../../../../bench/oracles/browser/core-math.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { noteResidenceChange } from './bounds.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { referenceClusterSphere } from '../../../../../bench/oracles/browser/core-math.ts';
 import type { PageRec } from '../../page/selection/types.ts';
 
 function record(matrice: number[], min: number[], max: number[]) {
-  return { matrix: new THREE.Matrix4().fromArray(matrice), min, max } as unknown as PageRec;
+  return { matrix: new G.Matrix4().fromArray(matrice), min, max } as unknown as PageRec;
 }
 const CAS = [
   record([1, -0, 0, 0, 0, 1, -0, 0, -0, 0, 1, 0, -0, -0, -0, 1], [-0, -2, -0], [2, 0, 2]),
@@ -33,7 +33,7 @@ test('noteResidenceChange: matrices and boxes hostile to signed zeros — the bo
       sphereAttendue[2] + sphereAttendue[3],
     ];
     let recu: number[] | undefined;
-    const lumieres = createWebgpuLightState();
+    const lumieres = createWebgpuLightState(32);
     lumieres.store.add({
       id: 'l0',
       kind: 'point',

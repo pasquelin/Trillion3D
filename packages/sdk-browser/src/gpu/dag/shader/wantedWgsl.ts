@@ -18,18 +18,18 @@ import { CLUSTER_LEVEL_SHIFT } from '../layout.ts';
  */
 export const DAG_WANTED_WGSL = `@compute @workgroup_size(64)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=atomicLoad(&work[candCounter()])){return;}
+ let s=id.x;if(s>=min(atomicLoad(&work[candCounter()]),views[0u].clusterCount)){return;}
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
- let i=flags[candBase()+s];
+ let entry=flags[candBase()+s];let i=entryIndex(entry);vi=entryView(entry);
  let cluster=clusters[i];
  if(!visible(i,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
- liveAppend(i);
- let rejected=coneRejects(i,cluster);
+ liveAppend(entry);
+ let rejected=(views[0u].viewFlags&VIEW_LIGHT)==0u&&coneRejects(i,cluster);
  flags[coneCache(i)]=select(0u,1u,rejected);
  let w=cluster.worldIndex;
- let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,uni.pixelError)){return;}
+ let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ if(!selects(cluster,e,stretch,focal,views[vi].pixelError)){return;}
  if(rejected){return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
  // The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
@@ -39,33 +39,33 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  var pixels=parentPixels;
  if(cluster.parentError<0.0){pixels=projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
  emitOne(i,pixels);
- if(uni.residentCut==0u||isResident(i)){return;}
+ if(views[0u].residentCut==0u||isResident(i)){return;}
  // Escalation keeps the PARENT's band: on a cluster nothing replaces it is infinity, and that
  // is what arms the pinned fallback. Giving it the own error would strip that.
- escalate(w,parentPixels);
+ escalate(slotOf(w),parentPixels);
 }
 @compute @workgroup_size(64)
 fn dagEscalate(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=liveCount()||uni.residentCut==0u){return;}
- let i=liveAt(s);
+ let s=id.x;if(s>=liveCount()||views[0u].residentCut==0u){return;}
+ let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
  if(isResident(i)){return;}
  let cluster=clusters[i];
- let w=cluster.worldIndex;
- let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[w])))){return;}
+ let w=cluster.worldIndex;let slot=slotOf(w);
+ let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[slot])))){return;}
  if(coneRejected(i)){return;}
- escalate(w,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal));
+ escalate(slot,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal));
 }
 @compute @workgroup_size(64)
 fn dagCheck(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=liveCount()||uni.residentCut==0u){return;}
- let i=liveAt(s);
+ let s=id.x;if(s>=liveCount()||views[0u].residentCut==0u){return;}
+ let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
  if(isResident(i)){return;}
  let cluster=clusters[i];
- let w=cluster.worldIndex;
- let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[w])))){return;}
+ let w=cluster.worldIndex;let slot=slotOf(w);
+ let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[slot])))){return;}
  if(coneRejected(i)){return;}
- atomicOr(&work[uni.worldCount+w],1u);
+ atomicOr(&work[slots()+slot],1u);
 }
 `;

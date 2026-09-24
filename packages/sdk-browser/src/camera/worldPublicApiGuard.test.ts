@@ -1,7 +1,7 @@
 // WHAT THESE TWO PUBLIC APIS EXPECT, AND WHAT THEY REFUSE.
 //
-// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: THREE.PerspectiveCamera, …)` and
-// `rasterVisibility(pages, camera: THREE.PerspectiveCamera, viewport)`.
+// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: G.GraphCamera, …)` and
+// `rasterVisibility(pages, camera: G.GraphCamera, viewport)`.
 // AFTER (M3b): `cameraSelectionUniforms(cam: EngineCamera, …)` (../gpu/core/selection.ts) and
 // `rasterVisibility(pages, cam: EngineCamera, viewport)` (../visibility/raster.ts) — both read
 // `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera.
@@ -18,7 +18,7 @@
 // these tests therefore reproduce both calls without a browser, the faulty one and the right one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
 import { rasterVisibility } from '../visibility/raster.ts';
 import type { VisPage } from '../visibility/types.ts';
@@ -34,23 +34,20 @@ import { surfaceOf } from '../page/surface.ts';
 type Pose = (typeof POSES_PARENT)[number];
 const POSE = POSES_PARENT[2] as Pose; // moved AND rotated: neither translation nor rotation can be guessed.
 
-function pageTriangle(matrix: THREE.Matrix4): VisPage {
-  const geometrie = new THREE.BufferGeometry();
-  geometrie.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
-  );
+function pageTriangle(matrix: G.Matrix4): VisPage {
+  const geometrie = new G.GraphGeometry();
+  geometrie.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3));
   return {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometrie.attributes,
     matrix,
-    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
+    material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
 }
 
 test('cameraSelectionUniforms rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera;
+    camera = poseRig(rig, POSE, true) as G.GraphCamera;
   // `camera` has neither `.planes` nor `.view` nor `.viewProjection`: what `test:gpu` found on
   // a real GPU is already visible here, without GPU or browser.
   assert.throws(
@@ -67,11 +64,11 @@ test('cameraSelectionUniforms rejects the raw host camera: it does not convert a
 
 test('rasterVisibility rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera;
+    camera = poseRig(rig, POSE, true) as G.GraphCamera;
   assert.throws(
     () =>
       rasterVisibility(
-        [pageTriangle(new THREE.Matrix4())],
+        [pageTriangle(new G.Matrix4())],
         camera as unknown as Parameters<typeof rasterVisibility>[1],
         [64, 64],
       ),
@@ -82,8 +79,8 @@ test('rasterVisibility rejects the raw host camera: it does not convert at the b
 
 test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig throws nothing and follows the flattened pose', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera,
-    aplatie = cameraAplatie(POSE) as THREE.PerspectiveCamera;
+    camera = poseRig(rig, POSE, true) as G.GraphCamera,
+    aplatie = cameraAplatie(POSE) as G.GraphCamera;
   const sousRig = cameraSelectionUniforms(cameraMoteur(camera), 0, [1000, 1000]);
   const attendu = cameraSelectionUniforms(cameraMoteur(aplatie), 0, [1000, 1000]);
   assert.deepEqual([...sousRig.planes], [...attendu.planes], 'frustum planes');
@@ -93,9 +90,9 @@ test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig t
 
 test('rasterVisibility(cameraMoteur(…)): the correct call under a rig throws nothing and yields the same image', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera,
-    aplatie = cameraAplatie(POSE) as THREE.PerspectiveCamera,
-    matrix = new THREE.Matrix4();
+    camera = poseRig(rig, POSE, true) as G.GraphCamera,
+    aplatie = cameraAplatie(POSE) as G.GraphCamera,
+    matrix = new G.Matrix4();
   const sousRig = rasterVisibility([pageTriangle(matrix)], cameraMoteur(camera), [64, 64]);
   const attendu = rasterVisibility([pageTriangle(matrix)], cameraMoteur(aplatie), [64, 64]);
   assert.deepEqual([...sousRig.ids], [...attendu.ids], 'the visibility buffer must be identical');

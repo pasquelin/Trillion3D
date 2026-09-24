@@ -25,7 +25,7 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
  */
 /** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
  *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pad0:u32,pad1:u32,pad2:u32,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,pad1:u32,pad2:u32,}`;
 
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
@@ -39,10 +39,9 @@ ${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(BLEND_BINDINGS.proxy)}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${BLEND_BINDINGS.shadowSlices}) var<storage,read> shadows:ShadowSlices;
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d;
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 @group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
@@ -62,7 +61,7 @@ ${NORMAL_TRANSFORM_WGSL}
 // maps, their factors and the flags. They are constant over the call, therefore FLAT — the
 // fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
 // \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend.
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec4u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec3u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
 ${TRIANGLE_PALETTE_WGSL}
 // An instance draws a paged cluster that compaction kept, or a piece of indices of a primitive
 // that is not paged. The list plan expansion wrote says, for each, the item that carries it and
@@ -81,7 +80,7 @@ ${TRIANGLE_PALETTE_WGSL}
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
- out.ids=vec4u(it.mapIndex,flags,it.emissiveIndex,it.wrapModes);
+ out.ids=vec3u(it.mapIndex,flags,it.emissiveIndex);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
  out.alphaAo=vec2f(it.alphaTest,it.aoIntensity);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
@@ -147,6 +146,9 @@ ${BLEND_SURFACE_WGSL}
  let clamped=clamp(s.rough,0.0525,1.0);
  if(!unlit&&(flags&1u)!=0u){
   let m=clamp(s.metal,0.0,1.0);
+  // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
+  // itself under an orthographic camera.
+  shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
  }
  return BlendOut(vec4f(rgb,s.alpha),s.request);

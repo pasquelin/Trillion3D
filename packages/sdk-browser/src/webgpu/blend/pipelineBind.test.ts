@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { drawBlendPass } from './draw.ts';
 import { blendLightResources } from './lighting.ts';
@@ -14,11 +14,11 @@ const FRONT = 'front' as unknown as GPURenderPipeline,
   TEXTURED = 'textured' as unknown as GPURenderPipeline;
 
 /** An already-bound blend item: only the pipeline sequence is observed here. */
-const item = (side: THREE.Side, negatif = false, paged = false) => {
-  const matrix = new THREE.Matrix4();
+const item = (side: number, negatif = false, paged = false) => {
+  const matrix = new G.Matrix4();
   if (negatif) matrix.makeScale(-1, 1, 1);
   return {
-    surface: surfaceOf(new THREE.MeshBasicMaterial({ side })),
+    surface: surfaceOf(G.basicSurface({ side })),
     matrix,
     count: 3,
     group: {} as GPUBindGroup,
@@ -26,7 +26,7 @@ const item = (side: THREE.Side, negatif = false, paged = false) => {
   };
 };
 /** The same item, but paged: it reads concatenated geometry, so it shares draws. */
-const pagee = (side: THREE.Side) => item(side, false, true);
+const pagee = (side: number) => item(side, false, true);
 
 function joue(items: ReturnType<typeof item>[]) {
   const pipelines: unknown[] = [];
@@ -112,11 +112,11 @@ test('an unpaged item keeps its draw: it carries its own buffers', () => {
   // Five items that are not paged: each reads its indices, positions and UVs, so each keeps its
   // bind group and its draw — one run per entry, as before.
   const suite = joue([
-    item(THREE.FrontSide),
-    item(THREE.FrontSide),
-    item(THREE.FrontSide),
-    item(THREE.BackSide),
-    item(THREE.BackSide),
+    item(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
+    item(G.BACK_SIDE),
+    item(G.BACK_SIDE),
   ]);
   assert.equal(suite.calls, 5, 'one draw per unpaged item');
   assert.deepEqual(suite.draws, [0, 1, 2, 3, 4], 'each draw rereads the argument of ITS run');
@@ -128,18 +128,18 @@ test('paged items that set the same pipeline fit in ONE draw', () => {
   // concatenated geometry and the same page cache, and their instances follow each other in the
   // expanded list, farthest to nearest.
   const fondu = joue([
-    pagee(THREE.FrontSide),
-    pagee(THREE.FrontSide),
-    pagee(THREE.FrontSide),
-    pagee(THREE.FrontSide),
-    pagee(THREE.FrontSide),
+    pagee(G.FRONT_SIDE),
+    pagee(G.FRONT_SIDE),
+    pagee(G.FRONT_SIDE),
+    pagee(G.FRONT_SIDE),
+    pagee(G.FRONT_SIDE),
   ]);
   assert.equal(fondu.calls, 1, 'five items, one draw');
   assert.deepEqual(fondu.draws, [0]);
   assert.deepEqual(fondu.pipelines, [BACK]);
 
   // Pipeline remains the only break: two faces requested, two runs, and not one more.
-  const deuxFaces = joue([pagee(THREE.FrontSide), pagee(THREE.BackSide), pagee(THREE.FrontSide)]);
+  const deuxFaces = joue([pagee(G.FRONT_SIDE), pagee(G.BACK_SIDE), pagee(G.FRONT_SIDE)]);
   assert.equal(deuxFaces.calls, 3, 'the pipeline changes twice, hence three runs');
   assert.deepEqual(deuxFaces.pipelines, [BACK, FRONT, BACK]);
 });
@@ -147,10 +147,10 @@ test('paged items that set the same pipeline fit in ONE draw', () => {
 test('an unpaged item cuts the run of its paged neighbours', () => {
   // It cannot share their bind group: the run stops on it and restarts after.
   const melange = joue([
-    pagee(THREE.FrontSide),
-    pagee(THREE.FrontSide),
-    item(THREE.FrontSide),
-    pagee(THREE.FrontSide),
+    pagee(G.FRONT_SIDE),
+    pagee(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
+    pagee(G.FRONT_SIDE),
   ]);
   assert.equal(melange.calls, 3, 'paged, the isolated one, paged');
   assert.deepEqual(melange.draws, [0, 1, 2]);
@@ -158,14 +158,14 @@ test('an unpaged item cuts the run of its paged neighbours', () => {
 });
 
 test('a two-sided item does set its two pipelines, in blend order', () => {
-  const deux = joue([item(THREE.DoubleSide), item(THREE.DoubleSide)]);
+  const deux = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE)]);
   assert.equal(deux.calls, 4, 'two draws per two-sided item');
   // The second item picks up where the first stopped: its first face changes, the second too.
   assert.deepEqual(deux.pipelines, [FRONT, BACK, FRONT, BACK]);
 
   // A negative determinant swaps the item's two faces: it therefore starts with the one the
   // previous had just set, and only what changes is reset — four draws, three pipelines.
-  const renverse = joue([item(THREE.DoubleSide), item(THREE.DoubleSide, true)]);
+  const renverse = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE, true)]);
   assert.equal(renverse.calls, 4);
   assert.deepEqual(renverse.pipelines, [FRONT, BACK, FRONT]);
 });

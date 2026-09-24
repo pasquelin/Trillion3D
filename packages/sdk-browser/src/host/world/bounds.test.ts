@@ -6,30 +6,34 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { emptyWorldBox, hostWorldBounds } from './bounds.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
+import * as G from '../graph/graph.fixture.ts';
+import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
+import { threeGeometry } from '../../../../../bench/witnesses/three/fromGraph.ts';
 
 /** The same box, flattened, as `Box3.setFromObject` computes it. */
-function referenceBox(source: THREE.Object3D) {
+function referenceBox(graph: G.GraphNode) {
+  const source = threeGraph(graph);
   const box = new THREE.Box3().setFromObject(source);
   return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
 }
 
 /** Hostile subtree, depth 3: negative then non-uniform scale, two meshes. */
 function hostileScene() {
-  const racine = new THREE.Group();
+  const racine = new G.GraphGroup();
   racine.scale.set(-2, 1, 1);
-  const enfant = new THREE.Group();
+  const enfant = new G.GraphGroup();
   enfant.position.set(5, -5, 0);
   enfant.scale.set(1, 3, 0.001);
   racine.add(enfant);
-  const geometrieA = new THREE.BoxGeometry(2, 2, 2);
-  const meshA = new THREE.Mesh(geometrieA, new THREE.MeshBasicMaterial());
+  const geometrieA = G.boxGeometry(2, 2, 2);
+  const meshA = G.mesh(geometrieA, G.basicSurface());
   meshA.position.set(1, 1, 1);
   enfant.add(meshA);
-  const petitEnfant = new THREE.Group();
+  const petitEnfant = new G.GraphGroup();
   petitEnfant.position.set(0, 0, 100);
   enfant.add(petitEnfant);
-  const geometrieB = new THREE.SphereGeometry(1);
-  const meshB = new THREE.Mesh(geometrieB, new THREE.MeshBasicMaterial());
+  const geometrieB = G.sphereGeometry(1);
+  const meshB = G.mesh(geometrieB, G.basicSurface());
   meshB.position.set(-3, 2, -1);
   petitEnfant.add(meshB);
   return racine;
@@ -41,10 +45,10 @@ test('hostWorldBounds agrees with Box3.setFromObject on a hostile subtree, depth
 });
 
 test('a subtree with no geometry at all returns an empty box, like Box3.setFromObject', () => {
-  const source = new THREE.Group();
-  source.add(new THREE.Group(), new THREE.Object3D());
+  const source = new G.GraphGroup();
+  source.add(new G.GraphGroup(), new G.GraphNode());
   const obtenu = hostWorldBounds(source);
-  const attendu = new THREE.Box3().setFromObject(source);
+  const attendu = new G.Box3().setFromObject(source);
   assert.ok(attendu.isEmpty(), 'the reference must be empty for this test to mean anything');
   assertBits(obtenu, [
     attendu.min.x,
@@ -63,26 +67,35 @@ test('emptyWorldBox returns an independent empty box on every call', () => {
   assertBits(a, [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
 });
 
-test('geometry carried by a non-mesh object (Points) counts, like expandByObject', () => {
-  const source = new THREE.Group();
-  const nuage = new THREE.Points(new THREE.SphereGeometry(3), new THREE.PointsMaterial());
+test('geometry carried by a node that is not a mesh counts, like expandByObject', () => {
+  const source = new G.GraphGroup();
+  const nuage = Object.assign(new G.GraphNode(), { geometry: G.sphereGeometry(3) });
   nuage.position.set(10, -10, 10);
   source.add(nuage);
-  assertBits(hostWorldBounds(source), referenceBox(source));
+  // The reference reads a point cloud of the same geometry, the library's node carrying one.
+  const temoin = new THREE.Points(threeGeometry(nuage.geometry), new THREE.PointsMaterial());
+  temoin.position.set(10, -10, 10);
+  const attendu = new THREE.Box3().setFromObject(new THREE.Group().add(temoin));
+  assertBits(hostWorldBounds(source), [...attendu.min.toArray(), ...attendu.max.toArray()]);
 });
 
 test("an object's own box (object.boundingBox) wins over its geometry's, like expandByObject", () => {
-  const source = new THREE.Group();
-  const mesh: THREE.Mesh & { boundingBox?: THREE.Box3 | null } = new THREE.Mesh(
-    new THREE.BoxGeometry(100, 100, 100),
-    new THREE.MeshBasicMaterial(),
+  const source = new G.GraphGroup();
+  const mesh: G.GraphMesh & { boundingBox?: G.Box3 | null } = G.mesh(
+    G.boxGeometry(100, 100, 100),
+    G.basicSurface(),
   );
   // Object box much smaller than its 100×100×100 geometry box.
-  mesh.boundingBox = new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
+  mesh.boundingBox = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1));
   source.add(mesh);
   const obtenu = hostWorldBounds(source);
-  const attendu = referenceBox(source);
-  assertBits(obtenu, attendu);
+  // The library's copy carries no own box: the witness is given the same one.
+  const temoin = threeGraph(source);
+  Object.assign(temoin.children[0], {
+    boundingBox: new THREE.Box3().setFromArray([-1, -1, -1, 1, 1, 1]),
+  });
+  const box = new THREE.Box3().setFromObject(temoin);
+  assertBits(obtenu, [...box.min.toArray(), ...box.max.toArray()]);
   // Check the test is not empty: the small object box is indeed the one returned.
   assert.ok(obtenu[3] < 50, 'the geometry box (100×100×100) should not have been taken');
 });
@@ -90,7 +103,7 @@ test("an object's own box (object.boundingBox) wins over its geometry's, like ex
 test('hostWorldBounds accumulates into an already started `into` instead of replacing it', () => {
   const into = new Float64Array(6);
   into.set([-1, -1, -1, 1, 1, 1]);
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+  const mesh = G.mesh(G.boxGeometry(1, 1, 1), G.basicSurface());
   mesh.position.set(50, 0, 0);
   const obtenu = hostWorldBounds(mesh, into);
   assert.equal(obtenu, into, 'the same buffer is returned');

@@ -1,3 +1,4 @@
+import type { GraphScene } from '../host/graph/scene.ts';
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
 import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
 import { followPlacementRows } from './update.ts';
@@ -7,7 +8,6 @@ import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import { followBlendCopies, growBlendCopies } from '../cluster/blendCopyMesh.ts';
 import { autonomousBootstrap } from '../backend/autonomous/manifest.ts';
 import type { HostMaterials } from '../host/resources.ts';
-import type { HostDrawScene } from '../host/scene/graphNodes.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
@@ -41,16 +41,18 @@ type Placements = {
   baseMaterials: Map<PageRec, HostMaterials>;
   /** The host copies of blended and transmissive surfaces, and the graph that shows them. */
   blendCopies: BlendCopy[];
-  scene: HostDrawScene;
+  scene: GraphScene;
   gate: WebglFrameGate;
   /** Tells the instanced pages their rows were written (`webglPageBatches.ts`). */
   rowsWritten: () => void;
+  /** Notified when grown rows add records to the root cover. */
+  coverChanged: () => void;
 };
 
 /** The instance-buffer updates of the WebGL2 path. */
 export function autonomousPlacements(env: Placements) {
   const { roots, allPages, bootstrap, byUrl, baseMaterials, blendCopies, scene, gate } = env;
-  const { rowsWritten } = env;
+  const { rowsWritten, coverChanged } = env;
   return {
     /** The roots follow their rows, and a frame that moved something is not held. The instanced
      *  pages read the rows at the next frame's sync; the blended copies posed by rows read them in
@@ -74,6 +76,7 @@ export function autonomousPlacements(env: Placements) {
       }
       growBlendCopies(blendCopies, from, to, (copy) => scene.add(copy));
       rowsWritten();
+      coverChanged();
       gate.sceneChanged();
     },
   };

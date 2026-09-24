@@ -1,29 +1,19 @@
-// Issue #25: 8 lights + sun, two identical runs. The pose barrier drains the shadow
-// queue; the 1 ms budget is for the measured loop. A GPU timestamp arriving during
-// the drain — and a tile that invalidates every map, like `shadowsFollowTextures` —
-// left pages pending and made the A/A witness diverge (0 / 1,392 / 6,278 px).
+// Issue #25: 8 lights + sun, two identical runs. The pose barrier drains the shadow queue; the
+// 1 ms budget is for the measured loop. A GPU timestamp arriving during the drain — and a tile
+// that invalidates every page, like `shadowsFollowTextures` — left pages pending and made the A/A
+// witness diverge (0 / 1,392 / 6,278 px).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import type { SceneLight } from '../light/contracts.ts';
-import { VIEW } from './lightShadow.fixture.ts';
+import { LIGHT_SETTINGS, type SceneLight } from '../light/contracts.ts';
+import { SUN, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
+import { PAGE_MAPPED } from './virtual.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
-/** Region cap of one frame, matching the engine's buffers. */
-const REGIONS = 24;
 /** Frames the barrier spends at most draining (`SHADOW_DRAIN_LIMIT`). */
 const DRAIN = 64;
-
-const SUN: SceneLight = {
-  id: 'sun',
-  kind: 'directional',
-  direction: [0.1, -0.9, 0.4],
-  color: [1, 1, 1],
-  intensity: 1,
-  castsShadow: true,
-};
 
 function pointLight(id: string, castsShadow: boolean): SceneLight {
   return {
@@ -39,89 +29,145 @@ function pointLight(id: string, castsShadow: boolean): SceneLight {
 
 function scene(points: number, sun: boolean, shadows: boolean) {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(REGIONS);
+  const plan = createShadowPlan(24, 32);
   if (sun) store.add({ ...SUN, castsShadow: shadows });
   for (let i = 0; i < points; i++) store.add(pointLight(`l${i}`, shadows));
-  return { store, plan };
+  planFrame(plan, store, 0);
+  // What the shading reads: the coarsest mip of every lamp face, and one page of the sun.
+  const read = () => {
+    const entries: number[] = [];
+    for (let slot = 0; slot < store.count; slot++) {
+      const slice = store.sliceOf(slot);
+      if (slice < 0) continue;
+      if (store.light(store.ids[slot])?.kind === 'directional')
+        entries.push(...sunPages(plan, slice, plan.sun.finest[slice] + 6, [[0, 0]]));
+      else for (let face = 0; face < 6; face++) entries.push(...lampPages(plan, slice, face, 5));
+    }
+    return entries;
+  };
+  return { store, plan, read };
 }
 
-/** One drain frame: optional world invalidation, then `plan()`. */
-function step(
-  plan: ReturnType<typeof createShadowPlan>,
-  store: ReturnType<typeof createSceneLightStore>,
-  frame: number,
-  invalidate: boolean,
-) {
-  if (invalidate) plan.worldChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
-  plan.plan(store, VIEW, frame, frame * 16);
-}
-
-function drain(
-  plan: ReturnType<typeof createShadowPlan>,
-  store: ReturnType<typeof createSceneLightStore>,
-  invalidateEvery: number,
-) {
-  for (let frame = 0; frame < DRAIN; frame++) {
-    step(plan, store, frame, invalidateEvery > 0 && frame > 0 && frame % invalidateEvery === 0);
-    if (plan.counts.pendingPages === 0) return frame + 1;
+/** Frames until nothing waits, invalidating everything every `every` frames; null past the limit. */
+function drain({ store, plan, read }: ReturnType<typeof scene>, every: number) {
+  for (let frame = 1; frame < DRAIN; frame++) {
+    if (every > 0 && frame > 2 && frame % every === 0)
+      plan.worldChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
+    cycle(plan, store, frame, read);
+    if (frame > 1 && plan.counts.pendingPages === 0 && plan.settled(store)) return frame;
   }
   return null;
 }
 
 test('no lights: the shadow queue stays empty', () => {
-  const { store, plan } = scene(0, false, true);
-  plan.plan(store, VIEW, 0, 0);
+  const { plan } = scene(0, false, true);
   assert.equal(plan.counts.pendingPages, 0);
 });
 
 test('sun only: the queue drains even after an expensive GPU sample', () => {
-  const { store, plan } = scene(0, true, true);
-  plan.plan(store, VIEW, 0, 0);
-  plan.budget.observe(1, 1);
-  const frames = drain(plan, store, 0);
-  assert.notEqual(frames, null);
-  assert.equal(plan.counts.pendingPages, 0);
+  const setup = scene(0, true, true);
+  setup.plan.budget.observe(1, 1);
+  assert.notEqual(drain(setup, 0), null);
 });
 
 test('8 lights with shadows off: nothing to drain', () => {
-  const { store, plan } = scene(8, true, false);
-  plan.plan(store, VIEW, 0, 0);
-  assert.equal(plan.counts.pendingPages, 0);
+  const setup = scene(8, true, false);
+  assert.equal(setup.plan.pool.used, 0);
+  assert.equal(setup.plan.counts.pendingPages, 0);
 });
 
-test('8 lights + sun, tight budget and a tile that invalidates everything: pages remain after 64 frames', () => {
-  const { store, plan } = scene(8, true, true);
-  plan.plan(store, VIEW, 0, 0);
-  plan.budget.observe(1, 1);
-  assert.equal(
-    drain(plan, store, 8),
-    null,
-    'one region per frame cannot catch up with 52 re-invalidated faces',
-  );
-  assert.ok(plan.counts.pendingPages > 0);
+test('8 lights + sun, tight budget and a tile that invalidates everything: pages remain', () => {
+  const setup = scene(8, true, true);
+  setup.plan.budget.observe(1, 1);
+  assert.equal(drain(setup, 8), null, 'one page per frame cannot catch up with 49 restaled ones');
+  assert.ok(setup.plan.counts.pendingPages > 0);
 });
 
 test('same scene, budget suspended: the queue drains despite invalidations', () => {
-  const { store, plan } = scene(8, true, true);
-  plan.plan(store, VIEW, 0, 0);
-  plan.budget.observe(1, 1);
-  plan.budget.suspend();
-  const frames = drain(plan, store, 8);
-  plan.budget.resume();
+  const setup = scene(8, true, true);
+  setup.plan.budget.observe(1, 1);
+  setup.plan.budget.suspend();
+  const frames = drain(setup, 8);
   assert.notEqual(frames, null);
-  assert.equal(plan.counts.pendingPages, 0);
   assert.ok((frames as number) < DRAIN);
 });
 
 test('two different GPU samples, budget suspended: the queue drains in both cases', () => {
   const leftover = [];
   for (const cost of [1, 8]) {
-    const { store, plan } = scene(8, true, true);
-    plan.plan(store, VIEW, 0, 0);
-    plan.budget.observe(cost, 1);
-    plan.budget.suspend();
-    leftover.push(drain(plan, store, 8) === null ? plan.counts.pendingPages : 0);
-    plan.budget.resume();
+    const setup = scene(8, true, true);
+    setup.plan.budget.observe(cost, 1);
+    setup.plan.budget.suspend();
+    leftover.push(drain(setup, 8) === null ? setup.plan.counts.pendingPages : 0);
   }
   assert.deepEqual(leftover, [0, 0]);
+});
+
+/** A point light over a pool of 4 × 4 pages, planned once; `face` at mip 2 is 64 pages. */
+function smallPool() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 4);
+  store.add(pointLight('lamp', true));
+  planFrame(plan, store, 0);
+  return { store, plan, fine: lampPages(plan, store.sliceOf(0), 0, 2) };
+}
+
+test('a read set larger than the pool maps what fits, then holds: the rest waits for nothing', () => {
+  const { store, plan, fine } = smallPool();
+  let frame = 1;
+  for (; frame < DRAIN && !(plan.counts.pendingPages === 0 && plan.settled(store)); frame++)
+    cycle(plan, store, frame, () => fine);
+  assert.ok(frame < DRAIN, 'the image holds');
+  assert.equal(plan.pool.used, 16);
+  assert.equal(
+    plan.requests.counts.refused,
+    fine.length - 16,
+    'and publishes what it could not map',
+  );
+});
+
+test('a report past its list holds only once the pages it listed fill the pool', () => {
+  const { store, plan, fine } = smallPool();
+  // One page read, then entries of no light up to the list's end, and more past it.
+  const filler = Array.from(
+    { length: LIGHT_SETTINGS.shadowRequestCap - 1 },
+    (_, i) => (1 << 19) + i,
+  );
+  const truncated = (frame: number, listed: number[]) =>
+    plan.receive({
+      frame,
+      layoutEpoch: plan.table.layoutEpoch,
+      stamp: plan.stamp(store),
+      count: LIGHT_SETTINGS.shadowRequestCap + 100,
+      entries: Uint32Array.from([...listed, ...filler].slice(0, LIGHT_SETTINGS.shadowRequestCap)),
+    });
+  for (let frame = 1; frame < 4; frame++) {
+    truncated(frame, fine.slice(0, 1));
+    planFrame(plan, store, frame + 1);
+    plan.commit();
+  }
+  assert.equal(plan.settled(store), false, 'the pool has room for what the list left out');
+  for (let frame = 4; frame < 8; frame++) {
+    truncated(frame, fine.slice(0, 16));
+    planFrame(plan, store, frame + 1);
+    plan.commit();
+  }
+  assert.equal(plan.settled(store), true, 'the listed pages fill the pool: nothing more fits');
+});
+
+// The GPU appends a report's entries in its atomic order: which pages a full pool maps must not
+// follow it, or two captures of one pose hold different shadows.
+test('which pages a full pool maps does not depend on the order the report lists them in', () => {
+  const mapped = (order: (entries: number[]) => number[]) => {
+    const { store, plan, fine } = smallPool();
+    report(plan, store, 1, order(fine));
+    planFrame(plan, store, 2);
+    return fine.filter((entry) => plan.table.words[entry] & PAGE_MAPPED);
+  };
+  const forward = mapped((entries) => entries);
+  assert.equal(forward.length, 16);
+  assert.deepEqual(
+    mapped((entries) => entries.slice().reverse()),
+    forward,
+  );
 });

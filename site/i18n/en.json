@@ -305,6 +305,7 @@
       "a-software-rasteriser": "A software rasteriser",
       "sound-from-the-gpu": "Sound from the GPU",
       "falling-boxes": "Falling boxes",
+      "ten-thousand-bodies": "Ten thousand bodies",
       "breaking-things": "Breaking things",
       "cloth-and-rope": "Cloth and rope",
       "soft-bodies": "Soft bodies",
@@ -318,7 +319,9 @@
       "hands-in-vr": "Hands in VR",
       "teleport-in-vr": "Teleport in VR",
       "controllers-in-vr": "Controllers in VR",
-      "ar-on-the-table": "AR on the table"
+      "ar-on-the-table": "AR on the table",
+      "shadows-case-by-case": "Shadows, case by case",
+      "a-walker-among-balls": "A walker among balls"
     },
     "missing": {
       "colours-on-the-vertices": "per-vertex colours on WebGPU",
@@ -478,13 +481,10 @@
       "sort-and-reduce": "GPU compute API",
       "a-software-rasteriser": "GPU compute API",
       "sound-from-the-gpu": "GPU compute API",
-      "falling-boxes": "physics integration",
       "breaking-things": "physics integration",
       "cloth-and-rope": "physics integration",
       "soft-bodies": "physics integration",
-      "rolling-on-terrain": "physics integration",
       "hinges-and-joints": "physics integration",
-      "walk-with-collisions": "physics integration",
       "drive-a-car": "physics integration",
       "a-room-in-vr": "WebXR session",
       "a-360-photo-in-vr": "WebXR session",
@@ -1052,6 +1052,29 @@
           "See the pieces with <code>world.diagnostic.mode = 'clusters'</code>: each cluster gets its own colour."
         ],
         "tryIt": "Slide the memory down: the pieces grow bigger, the building stays whole. Switch the view to <code>clusters</code> to see them."
+      },
+      "make-things-fall": {
+        "title": "Make things fall",
+        "description": "Turn the physics on and your shapes gain weight: they fall, bump and come to rest.",
+        "steps": [
+          "Give the world <code>physics: true</code>. The simulation runs apart from the drawing, in a <em>worker</em>, so it never slows the picture down.",
+          "Mark the floor <code>'static'</code>: it holds the others and never moves. Mark a box <code>'dynamic'</code>: gravity pulls it.",
+          "The shape comes from the geometry, the weight from the material: <code>physics: 'wood'</code> is light, <code>'metal'</code> is heavy, <code>'rubber'</code> bounces.",
+          "Push a body with <code>applyImpulse</code>, or listen to its <code>contact</code>. Once every body sleeps, nothing is computed and nothing is drawn.",
+          "A model loaded with <code>scene.load</code> collides with its own triangles, cooked when it was compiled. <code>await world.raycast(point, { exact: true })</code> finds the very triangle under the cursor."
+        ],
+        "tryIt": "Drop more boxes, switch the gravity to the Moon, and turn on slow motion."
+      },
+      "touch-and-react": {
+        "title": "Touch and react",
+        "description": "Walk into your world: with the physics on, the character climbs, rides and pushes what it meets, and what it meets pushes back.",
+        "steps": [
+          "Create the world with <code>controls: 'character'</code> and <code>physics: true</code>. The character is now a body of the physics, like the boxes.",
+          "Mark what never moves <code>'static'</code>: the floor, the stairs, the walls. The character climbs steps up to its knee and slopes up to 45°.",
+          "Mark a platform <code>'kinematic'</code> and move it from your code each frame: whatever stands on it rides along.",
+          "Make boxes <code>'dynamic'</code> and light: the character pushes them with <code>pushStrength</code> newtons, and they fall, tumble and push back."
+        ],
+        "tryIt": "Click the picture, walk with W A S D, jump with Space. Climb the stairs, ride the platform, push the stack of boxes."
       },
       "your-own-scene": {
         "title": "Your own scene",

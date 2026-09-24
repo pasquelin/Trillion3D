@@ -1,4 +1,4 @@
-import type * as SdkBrowser from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { MeasureViewOptions, MeasureViewResult } from './measureOptions.ts';
 import type * as PageCoupe from './cutPage.ts';
 import type * as PageTemoin from './witnessPage.ts';
@@ -18,11 +18,13 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const coupe = (await import(`${options.modulesUrl}cutPage.ts`)) as typeof PageCoupe;
   // The Three witness does not read the contract's light store: the harness, a host like any
   // other, itself places in Three the lights that store declares (`witnessPage.ts`).
-  const lighting = options.witness
-    ? (
-        (await import(`${options.modulesUrl}witnessPage.ts`)) as typeof PageTemoin
-      ).creerEclairageTemoin()
-    : null;
+  // A dist older than the graph light group exports no `GraphGroup`: its witness gets none.
+  const lighting =
+    options.witness && sdk.GraphGroup
+      ? (
+          (await import(`${options.modulesUrl}witnessPage.ts`)) as typeof PageTemoin
+        ).creerEclairageTemoin(sdk)
+      : null;
   const factory = options.backend ? sdk[options.backend] : undefined;
   if (!factory) return { erreur: `engine missing from dist: ${options.backend}` };
   const canvas = document.createElement('canvas');
@@ -109,9 +111,11 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     gpuFrameMs: number[] = [],
     rafIntervalMs: number[] = [];
   const gpuPassSamples: GpuPassTimings[] = [];
+  const shadowCounters = mesure.shadowCountersPerFrame();
   const profileStart = Math.max(0, options.frames - options.profileFrames);
   let last: ReturnType<typeof explorer.render> | null = null,
-    previousRaf: number | null = null;
+    previousRaf: number | null = null,
+    gpuFrameOf: number | null = null;
   for (let i = 0; i < options.frames; i++) {
     if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
     const now = await new Promise<number>((done) => requestAnimationFrame(done));
@@ -120,10 +124,15 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     moveLight(i);
     moveNode(i);
     last = explorer.render(poseAt(i));
+    shadowCounters.push(last);
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
-    if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
     const sample = last.gpuPassMs;
+    // The device is sampled every few images: one GPU frame time per sampled image, not per render.
+    if (typeof last.gpuFrameMs === 'number' && sample && sample.frame !== gpuFrameOf) {
+      gpuFrameMs.push(last.gpuFrameMs);
+      gpuFrameOf = sample.frame;
+    }
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample);
   }
@@ -174,6 +183,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     network,
     imagesCalme,
     reglageVivant,
+    shadowCounters: shadowCounters.summary(),
     mathBatch: last?.mathBatch ?? null,
     size,
     lost,

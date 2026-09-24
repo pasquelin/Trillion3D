@@ -45,8 +45,10 @@ export function banc(panne?: 'debordement' | 'envoi') {
       lodLevel: 0,
       complete: false,
     },
+    worldRevision: 0,
   };
   const selection = {
+    worldRevision: 0,
     updateResidency(flags: Uint32Array) {
       comptes.residence++;
       const change = vueResidence !== flags[0];
@@ -69,6 +71,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
           lodLevel: 0,
           complete: vueResidence === 1,
         },
+        worldRevision: 0,
       };
       return undefined;
     },
@@ -99,8 +102,9 @@ export function banc(panne?: 'debordement' | 'envoi') {
       gate: { resourcesChanged: () => {}, revisions: { view: 0 } },
       frame: 0,
       imageRevision: 1,
+      clearColor: 0,
     },
-    gpu: { cache: {}, cutIncomplete: false, selectionFallback: false },
+    gpu: { device: {}, cache: {}, cutIncomplete: false, selectionFallback: false },
     capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
       traceDiagnostic: () => {
@@ -110,8 +114,10 @@ export function banc(panne?: 'debordement' | 'envoi') {
       diagnosticFailure: (code: string) => codes.push(code),
     },
     context: {},
+    // No light cut ran: the lower residency tier receives nothing.
+    lights: {},
     layout: { rows, drawSlots: 4 },
-    setup: { gpuDevice: {}, viewport: VIEWPORT, clearColor: 0, slots: 10 },
+    setup: { viewport: VIEWPORT, slots: 10 },
     timing: { marks: {} },
     services: {
       bootstrapState: { ready: true },

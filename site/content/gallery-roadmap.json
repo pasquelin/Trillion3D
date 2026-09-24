@@ -548,6 +548,11 @@
       "file": "examples/a-long-shadowed-street.html"
     },
     {
+      "id": "shadows-case-by-case",
+      "theme": "lights",
+      "file": "examples/shadows-case-by-case.html"
+    },
+    {
       "id": "flat-shadows-on-the-floor",
       "theme": "lights",
       "file": "examples/flat-shadows-on-the-floor.html"
@@ -1430,8 +1435,12 @@
     {
       "id": "falling-boxes",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/falling-boxes.html"
+    },
+    {
+      "id": "ten-thousand-bodies",
+      "theme": "physics",
+      "file": "examples/ten-thousand-bodies.html"
     },
     {
       "id": "breaking-things",
@@ -1454,8 +1463,12 @@
     {
       "id": "rolling-on-terrain",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/rolling-on-terrain.html"
+    },
+    {
+      "id": "a-walker-among-balls",
+      "theme": "physics",
+      "file": "examples/a-walker-among-balls.html"
     },
     {
       "id": "hinges-and-joints",
@@ -1466,8 +1479,7 @@
     {
       "id": "walk-with-collisions",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/walk-with-collisions.html"
     },
     {
       "id": "drive-a-car",

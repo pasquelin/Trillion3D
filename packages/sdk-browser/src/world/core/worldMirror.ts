@@ -1,6 +1,6 @@
 /**
- * THE HOST-LIBRARY OBJECTS A WORLD BUILT IN CODE IS DRAWN THROUGH — one per resource, never one
- * per placement.
+ * THE GRAPH A WORLD BUILT IN CODE IS DRAWN THROUGH — one mesh per resource, never one per
+ * placement.
  *
  * The engine paths read a scene as a host graph: meshes holding a geometry and a surface
  * (`host/scene/graphNodes.ts`). A world hands them one host mesh per drawn resource — a geometry
@@ -10,25 +10,32 @@
  * engine draws one blended draw each. A loaded model's graph is drawn whole, through one host node
  * posed by its world matrix alone. Nothing is decided here: the triangles arrive drawn
  * (`drawn.ts`), the surface is the host family of the material's kind (`worldSurface.ts`), and
- * every host object handed to a host method is one this file built.
+ * every node of the graph is one this file built, of the engine's own (`../../host/graph/`).
  */
-import * as THREE from 'three';
+import { isDrawnNode } from '../../host/graph/kinds.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import { HOST_MAPS, hostSurface, repaintHostSurface, type HostTextures } from './worldSurface.ts';
+import { hostSurface, repaintHostSurface } from './worldSurface.ts';
+import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
+import { GraphAttribute } from '../../host/graph/attributes.ts';
+import { GraphGeometry } from '../../host/graph/geometry.ts';
+import { GraphGroup, GraphMesh } from '../../host/graph/mesh.ts';
+import { type GraphNode } from '../../host/graph/node.ts';
+import type { GraphSurface } from '../../host/graph/surface.ts';
+import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 
-/** The host geometry of drawn triangles, under the attribute names a host mesh reads. */
+/** The geometry of drawn triangles, under the attribute names a mesh reads. */
 function hostGeometry(drawn: DrawnTriangles) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(drawn.positions, 3));
-  geometry.setAttribute('normal', new THREE.BufferAttribute(drawn.normals, 3));
-  if (drawn.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(drawn.uvs, 2));
-  if (drawn.colors) geometry.setAttribute('color', new THREE.BufferAttribute(drawn.colors, 4));
-  geometry.setIndex(new THREE.BufferAttribute(drawn.indices, 1));
+  const geometry = new GraphGeometry();
+  geometry.setAttribute('position', new GraphAttribute(drawn.positions, 3));
+  geometry.setAttribute('normal', new GraphAttribute(drawn.normals, 3));
+  if (drawn.uvs) geometry.setAttribute('uv', new GraphAttribute(drawn.uvs, 2));
+  if (drawn.colors) geometry.setAttribute('color', new GraphAttribute(drawn.colors, 4));
+  geometry.setIndex(new GraphAttribute(drawn.indices, 1));
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
@@ -36,22 +43,22 @@ function hostGeometry(drawn: DrawnTriangles) {
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
  *  mesh rank each geometry resource was given in the session's manifest. */
-export type MirrorInput = {
+type MirrorInput = {
   placed: readonly { cut: Cut; material: Material; rows: PlacementRows; name: string }[];
-  models: readonly { node: Object3D; graph: THREE.Object3D }[];
+  models: readonly { node: Object3D; graph: GraphNode }[];
   rankOf: (cut: Cut) => number;
 };
 
 /** The host graph of a world's session, and the twins the world poses before a frame. */
 export function buildWorldMirror(input: MirrorInput) {
-  const root = new THREE.Group();
+  const root = new GraphGroup();
   const twins = new Map<Object3D, PosedTwin>();
   const associations = new Map<
-    THREE.Object3D,
+    GraphNode,
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
-  const geometries = new Map<Cut, THREE.BufferGeometry>(),
-    surfaces = new Map<Material, THREE.Material>(),
+  const geometries = new Map<Cut, GraphGeometry>(),
+    surfaces = new Map<Material, GraphSurface>(),
     textures: HostTextures = new Map();
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
@@ -59,7 +66,7 @@ export function buildWorldMirror(input: MirrorInput) {
     let surface = surfaces.get(material);
     if (!surface)
       surfaces.set(material, (surface = hostSurface(material, !!cut.drawn.colors, textures)));
-    return new THREE.Mesh(geometry, surface);
+    return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
     const mesh = meshOf(cut, material);
@@ -68,7 +75,7 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(mesh);
   }
   for (const { node, graph } of input.models) {
-    const twin = new THREE.Group();
+    const twin = new GraphGroup();
     twin.add(graph);
     twin.name = node.name;
     twin.matrixAutoUpdate = false;
@@ -88,18 +95,19 @@ export function buildWorldMirror(input: MirrorInput) {
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many
  *  host meshes share it; a loaded model's are kept. */
-export function releaseWorldMirror(root: THREE.Object3D) {
+export function releaseWorldMirror(root: GraphNode) {
   const released = new Set<object>();
   for (const twin of root.children) {
-    if (!(twin instanceof THREE.Mesh)) continue;
-    const surface = twin.material as THREE.Material & Record<string, unknown>;
-    for (const owned of [twin.geometry, surface] as { dispose(): void }[])
+    if (!isDrawnNode(twin)) continue;
+    const { geometry, material } = twin;
+    const surface = material as GraphSurface;
+    for (const owned of [geometry, surface] as { dispose(): void }[])
       if (!released.has(owned)) {
         released.add(owned);
         owned.dispose();
         if (owned === surface)
           for (const field of HOST_MAPS) {
-            const texture = surface[field] as THREE.Texture | null | undefined;
+            const texture = surface[field] as GraphTexture | null | undefined;
             if (texture && !released.has(texture)) {
               released.add(texture);
               texture.dispose();

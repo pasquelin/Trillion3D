@@ -33,7 +33,7 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
 export function syncResident(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture } = rt;
   if (capture.capturing) return;
-  if (run.lost || !rt.setup.gpuDevice || !gpu.cache || !run.lastCamera) return;
+  if (run.lost || !gpu.device || !gpu.cache || !run.lastCamera) return;
   // Page bytes are already accepted. Keep the submitted image stable until its
   // explicit readback completes; the next render selects/uploads those bytes.
   if (capture.capturePending) {
@@ -50,7 +50,7 @@ export function syncResident(rt: WebgpuPagesRuntime) {
 /** The current image, read synchronously through the presenter's canvas when no flush settled it. */
 export function captureImage(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture, diag } = rt,
-    { gpuDevice } = rt.setup;
+    gpuDevice = gpu.device;
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (capture.capturedPixels && capture.capturedRevision === run.imageRevision)
     return capture.capturedPixels;
@@ -98,7 +98,7 @@ export function rasterRgba(rt: WebgpuPagesRuntime) {
     pages,
     cam,
     size,
-    rt.setup.clearColor,
+    rt.run.clearColor,
   );
 }
 

@@ -1,5 +1,5 @@
 // Vertex bytes published by metrics().
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createWebgpuGpuState } from '../../../packages/sdk-browser/src/webgpu/pages/state/gpu.ts';
 import { createWebgpuBlendState } from '../../../packages/sdk-browser/src/webgpu/blend/state.ts';
@@ -22,16 +22,16 @@ const appareil = {
 } as unknown as GPUDevice;
 
 function geometrie(sommets: number, alea: () => number) {
-  const geo = new THREE.BufferGeometry();
+  const geo = new G.GraphGeometry();
   const pos = new Float32Array(sommets * 3);
   for (let i = 0; i < pos.length; i++) pos[i] = alea() * 2 - 1;
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(sommets * 3), 3));
-  geo.setAttribute('tangent', new THREE.BufferAttribute(new Float32Array(sommets * 4), 4));
-  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(sommets * 2), 2));
+  geo.setAttribute('position', new G.GraphAttribute(pos, 3));
+  geo.setAttribute('normal', new G.GraphAttribute(new Float32Array(sommets * 3), 3));
+  geo.setAttribute('tangent', new G.GraphAttribute(new Float32Array(sommets * 4), 4));
+  geo.setAttribute('uv', new G.GraphAttribute(new Float32Array(sommets * 2), 2));
   const index = new Uint32Array(sommets - (sommets % 3));
   for (let i = 0; i < index.length; i++) index[i] = i % sommets;
-  geo.setIndex(new THREE.BufferAttribute(index, 1));
+  geo.setIndex(new G.GraphAttribute(index, 1));
   return geo;
 }
 
@@ -39,7 +39,7 @@ function etat(pages: number, transparents: number, concats: boolean, depart: num
   const alea = graine(depart);
   const gpu = createWebgpuGpuState([1, 1]),
     blendState = createWebgpuBlendState(),
-    scene = new THREE.Scene();
+    scene = new G.GraphScene();
   for (let i = 0; i < pages; i++)
     ensureWebgpuPositionBuffer(
       appareil,
@@ -49,8 +49,8 @@ function etat(pages: number, transparents: number, concats: boolean, depart: num
     );
   const copies = [];
   for (let i = 0; i < transparents; i++) {
-    const paint = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.5 });
-    const mesh = new THREE.Mesh(geometrie(6 + (i % 23), alea), paint);
+    const paint = G.standardSurface({ transparent: true, opacity: 0.5 });
+    const mesh = G.mesh(geometrie(6 + (i % 23), alea), paint);
     mesh.updateMatrix();
     scene.add(mesh);
     copies.push(Object.assign(mesh, { surface: surfaceOf(paint) }));

@@ -3,14 +3,14 @@ import { encodeMaterialPasses } from '../../core/materialPasses.ts';
 import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts';
 import { encodeWebgpuPartition } from '../../visibility/partition.ts';
 import { uploadRowCorners } from '../../visibility/corners.ts';
-import { clearDrawItemWords, refreshDrawItemWords } from '../../visibility/itemWords.ts';
+import { refreshDrawItemWords, sendDrawItemWords } from '../../visibility/itemWords.ts';
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
 import { visLayerTop } from '../../visibility/uniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './encoder.ts';
 import { encodeSurfaceLighting } from './encodeBlend.ts';
 import { uploadDirtyRows } from './encodeDraws.ts';
-import { uploadClusterSpheres } from '../../shadow/bounds.ts';
+import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
 import {
   encodeEmptySurfaces,
   computeRasterStages,
@@ -53,17 +53,21 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     throw new Error(
       `VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`,
     );
-  // Row words follow only the row table: this image's dirty range, and nothing more. They must be
-  // kept up to date BEFORE `uploadDirtyRows`, which closes that range.
-  const words = refreshDrawItemWords(rt, visLayerTop(rt.vis), vis.gpuDraw);
-  timing.encodeCounts.fichesTeleversees = Math.max(0, words.to - words.from + 1);
-  // World spheres of the rows the table just changed, on the same dirty interval as the table
-  // itself: that is what shadow culling reads, and nothing else writes them.
-  if (rt.lights.cull) uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
-  // World corners of the same rows, on the same interval: what GPU projection reads. Like the two
-  // above, it is taken BEFORE `uploadDirtyRows`, which closes that range.
-  if (vis.gpuPartition) uploadRowCorners(rt, vis.gpuPartition);
-  uploadDirtyRows(rt, device);
+  // Row words follow only the row table: this image's dirty rows, and nothing more. They must be
+  // kept up to date BEFORE `uploadDirtyRows`, which clears those marks.
+  refreshDrawItemWords(rt, visLayerTop(rt.vis), vis.gpuDraw);
+  timing.encodeCounts.fichesTeleversees = 0;
+  // World spheres of the rows the table just changed, run by run like the table itself, and their
+  // mobility on the interval that covers those runs: that is what shadow culling reads, and
+  // nothing else writes them.
+  if (rt.lights.cull) {
+    uploadClusterSpheres(rt, device);
+    uploadRowMobility(rt, device, rows.dirtyFrom, rows.dirtyTo);
+  }
+  // World corners of the same rows, run by run: what GPU projection reads. Like the two above, it is
+  // taken BEFORE `uploadDirtyRows`, which clears those marks.
+  uploadRowCorners(rt);
+  uploadDirtyRows(rt);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);
   // The image's partition opens the command buffer: it writes the rest bits and the per-slot counts
@@ -71,21 +75,17 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // along the way the previous image's verdicts, which this image's test has not yet zeroed: that is
   // what feeds the occluder history.
   const { twoPass } = encodeWebgpuPartition(rt, encoder, cam, useIndirect);
-  // Row words restat the rows: uploading their range is what consumes the change flag.
+  // Row words restat the rows: uploading their runs is what consumes the change flag.
   if (useIndirect) {
+    sendDrawItemWords(rt);
+    // The camera draws its own rows: under the CPU cut, the light casters it adds sit behind them.
     vis.gpuDraw!.encode(
       encoder,
-      layout.drawItemWords,
-      rows.packedCount,
-      words.from,
-      words.to,
+      run.gpuFrameActive ? rows.packedCount : run.cameraRows,
       maxVertexCount,
       run.gpuFrameActive ? run.gpuSelection : undefined,
     );
-    clearDrawItemWords(words);
     rows.rowsChanged = false;
-    // Shadow casters read the compact's commands before the visibility passes truncate them.
-    rt.lights.cull?.keepSourceCounts(encoder, vis.gpuDraw!.indirectBuffer);
   }
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
   // when it exists, blends its own between its passes — small triangles under the reference split,
@@ -106,6 +106,6 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   submitColorCopy(rt, device, encoder, height, width, presented);
   // Submitted triangles are those of every drawable row: both halves are drawn, and a cluster the
   // occlusion test rejects was still submitted. The total is held by the row table, on its dirty
-  // range only.
+  // rows only.
   return layout.itemWordsHold.total + run.blendSubmittedTriangles;
 }

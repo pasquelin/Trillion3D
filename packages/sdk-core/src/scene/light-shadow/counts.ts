@@ -1,122 +1,74 @@
-import {
-  LIGHT_KIND,
-  LIGHT_SETTINGS,
-  SCENE_LIGHT_FLOATS,
-  SCENE_LIGHT_HEADER_FLOATS,
-  type ShadowViewpoint,
-} from '../light/contracts.ts';
-import { forEachShadowFace } from './casters.ts';
-import type { createShadowSliceTable } from './slices.ts';
-import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
-
-type Slices = ReturnType<typeof createShadowSliceTable>;
-
-/** Angular radius of the influence sphere over the half-field: named approximation (P5). */
-export function screenCoverage(
-  view: ShadowViewpoint,
-  x: number,
-  y: number,
-  z: number,
-  range: number,
-) {
-  const dx = x - view.position[0],
-    dy = y - view.position[1],
-    dz = z - view.position[2];
-  const distance = Math.hypot(dx, dy, dz);
-  const ahead = dx * view.forward[0] + dy * view.forward[1] + dz * view.forward[2];
-  if (ahead + range < 0 || distance - range > view.far) return 0;
-  const ratio = Math.atan(range / Math.max(distance, 1e-3)) / view.halfFovY;
-  return Math.min(1, ratio * ratio);
-}
+import { LIGHT_KIND, MAX_SHADOW_SLICES } from '../light/contracts.ts';
+import type { ShadowPool } from './pool.ts';
+import type { ShadowRecords } from './records.ts';
 
 /**
- * What the shadow pass actually did: pages, never durations. Pages invalidated by
- * the frame, pages redrawn, pages left waiting, and the lag of the oldest of
- * them — in milliseconds and in frames. Everything is allocated once.
+ * What the shadow scheduler did in a frame, in pages, never durations: pages staled, drawn,
+ * left waiting — and the lag of the oldest —, pages the image reads straight from the cache,
+ * pages the pool holds. Everything is allocated once.
  */
 export function createShadowCounts() {
-  const drewAt = new Int32Array(LIGHT_SETTINGS.maxLights);
-  let denied = 0,
-    reused = 0,
-    lights = 0,
-    sunLights = 0,
-    invalidatedPages = 0,
-    pendingPages = 0,
-    waitedMs = 0,
-    waitedFrames = 0;
-  /** What a frame resets; `reset` adds what survives from one frame to the next. */
-  const beginFrame = () => {
-    denied = 0;
-    reused = 0;
-    lights = 0;
-    sunLights = 0;
-    invalidatedPages = 0;
-  };
-  return {
-    get denied() {
-      return denied;
+  /** Frame (plus one) of the last page drawn for each slice's light. */
+  const drewAt = new Int32Array(MAX_SHADOW_SLICES);
+  const counts = {
+    denied: 0,
+    lights: 0,
+    sunLights: 0,
+    invalidatedPages: 0,
+    pendingPages: 0,
+    /** Pages the latest report read that were current: no draw, straight from the cache. */
+    cachedPages: 0,
+    poolPages: 0,
+    waitedMs: 0,
+    waitedFrames: 0,
+    beginFrame() {
+      counts.denied = 0;
+      counts.lights = 0;
+      counts.sunLights = 0;
+      counts.invalidatedPages = 0;
     },
-    get reused() {
-      return reused;
-    },
-    /** Lights of which at least one region was redrawn by this frame. */
-    get lights() {
-      return lights;
-    },
-    get sunLights() {
-      return sunLights;
-    },
-    get invalidatedPages() {
-      return invalidatedPages;
-    },
-    get pendingPages() {
-      return pendingPages;
-    },
-    /** Lag of the page that has been waiting the longest, in milliseconds and in frames. */
-    get waitedMs() {
-      return waitedMs;
-    },
-    get waitedFrames() {
-      return waitedFrames;
-    },
-    beginFrame,
     deny() {
-      denied++;
+      counts.denied++;
     },
-    reusedLight() {
-      reused++;
+    /** A page of this slice's light is drawn this frame: the light counts once per frame. */
+    drewLight(slice: number, rank: number, frame: number) {
+      if (drewAt[slice] === frame + 1) return;
+      drewAt[slice] = frame + 1;
+      counts.lights++;
+      if (rank === LIGHT_KIND.directional) counts.sunLights++;
     },
-    /** A region has just been kept for this light: it counts only once per frame. */
-    drewLight(slot: number, store: SceneLightStore, frame: number) {
-      if (drewAt[slot] === frame + 1) return;
-      drewAt[slot] = frame + 1;
-      lights++;
-      const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-      if (store.packed[base + LIGHT_FIELD.kind] === LIGHT_KIND.directional) sunLights++;
-    },
-    /**
-     * What remains after admission: pages that entered the queue this frame — counted at entry,
-     * never deduced from a difference —, those that stay there, and the lag of the oldest.
-     * A single scan of the faces that declared shadow lights own.
-     */
-    endFrame(slices: Slices, store: SceneLightStore, frame: number, nowMs: number) {
-      invalidatedPages = slices.dirty.invalidated;
-      pendingPages = 0;
-      waitedMs = 0;
-      waitedFrames = 0;
-      forEachShadowFace(store, (_slot, slice, face) => {
-        if (!slices.dirty.isDirty(slice, face)) return;
-        pendingPages += slices.dirty.pages(slice, face);
-        waitedMs = Math.max(waitedMs, slices.dirty.waitedMs(slice, face, nowMs));
-        waitedFrames = Math.max(waitedFrames, slices.dirty.waitedFrames(slice, face, frame));
-      });
+    /** What remains after admission: stale pages the image reads and that wait, and the lag
+     *  of the oldest; one scan of the pool. */
+    endFrame(
+      pool: ShadowPool,
+      records: ShadowRecords,
+      latest: number,
+      waiting: number,
+      nowMs: number,
+      frame: number,
+    ) {
+      counts.pendingPages = waiting;
+      counts.cachedPages = 0;
+      counts.poolPages = pool.used;
+      counts.waitedMs = 0;
+      counts.waitedFrames = 0;
+      for (let page = 0; page < pool.pages; page++) {
+        if (pool.owner[page] < 0 || !records.taken[pool.slice[page]]) continue;
+        if (pool.requested[page] < latest || latest < 0) continue;
+        if (!pool.dirty[page]) {
+          if (pool.valid[page]) counts.cachedPages++;
+          continue;
+        }
+        counts.waitedMs = Math.max(counts.waitedMs, nowMs - pool.since[page]);
+        counts.waitedFrames = Math.max(counts.waitedFrames, frame - pool.sinceFrame[page]);
+      }
     },
     reset() {
-      beginFrame();
-      pendingPages = 0;
-      waitedMs = 0;
-      waitedFrames = 0;
+      counts.beginFrame();
+      counts.pendingPages = counts.cachedPages = counts.poolPages = 0;
+      counts.waitedMs = counts.waitedFrames = 0;
       drewAt.fill(0);
     },
   };
+  return counts;
 }

@@ -61,6 +61,20 @@ export class Shapes {
     return full || text.length <= SHORT ? text : `${text.slice(0, SHORT - 3)}...`;
   }
 
+  /** A parameter's name as a reader calls it, never the `__0` TypeScript gives a destructured
+   *  one: that is the last word of its named type (`world: World`, `options: TerminalOptions`),
+   *  or `options` when its type has none. */
+  parameterName(
+    parameter: ts.Symbol,
+    declaration: ts.ParameterDeclaration | undefined,
+    type: ts.Type,
+  ) {
+    if (!declaration || ts.isIdentifier(declaration.name)) return parameter.name;
+    const named = this.names.get(type) ?? (type.aliasSymbol ?? type.getSymbol())?.name;
+    const word = named && /^[A-Z]/.test(named) ? /[A-Z][a-z0-9]*$/.exec(named)?.[0] : undefined;
+    return word ? word.toLowerCase() : 'options';
+  }
+
   /** `name(a: A, b?: B): R`, spelt with the names `text` gives the types. */
   call(name: string, signature: ts.Signature): string {
     const node = signature.declaration;
@@ -70,7 +84,8 @@ export class Shapes {
       const rest = declaration?.dotDotDotToken ? '...' : '';
       const type = this.checker.getTypeOfSymbolAtLocation(parameter, declaration ?? node!);
       const shown = optional ? this.checker.getNonNullableType(type) : type;
-      return `${rest}${parameter.name}${optional}: ${this.text(shown, declaration, false)}`;
+      const name = this.parameterName(parameter, declaration, shown);
+      return `${rest}${name}${optional}: ${this.text(shown, declaration, false)}`;
     });
     return `${name}(${parameters.join(', ')}): ${this.text(signature.getReturnType(), node, false)}`;
   }

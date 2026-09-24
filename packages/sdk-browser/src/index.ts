@@ -15,6 +15,25 @@ export * from './world/helper/index.ts';
 export * from './world/controls/index.ts';
 export * from './world/page/index.ts';
 export * from './world/budget/index.ts';
+export {
+  ObjectPhysics,
+  GRAVITY_PRESETS,
+  PHYSICS_MATERIALS,
+  DEFAULT_PHYSICS_BUDGET,
+  type PhysicsType,
+  type PhysicsShape,
+  type PhysicsBodyOptions,
+  type PhysicsOption,
+  type GravityPreset,
+  type PhysicsMaterialPreset,
+  type PhysicsMatter,
+  type PhysicsBudget,
+  type ContactEvent,
+  type ContactEventName,
+  type PhysicsHost,
+} from '../../sdk-core/src/physics/index.ts';
+export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
+export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
 export * from './world/diagnostic/index.ts';
 export * from './world/capability/index.ts';
@@ -58,6 +77,23 @@ export type {
 /** The host scene graph as the engine walks it (`host/scene/graphNodes.ts`): the shapes a source node,
  *  its pose and its rotation are read through. */
 export type { HostGraphNode, HostRotation, HostVector } from './host/scene/graphNodes.ts';
+/** The engine's own scene graph (`host/graph/`): the classes every `Host*` name above stands for,
+ *  the nodes, geometries, surfaces and textures a loaded scene hands back. */
+export type {
+  GraphArray,
+  GraphAttribute,
+  GraphElements,
+  GraphInterleavedAttribute,
+  GraphInterleavedBuffer,
+} from './host/graph/attributes.ts';
+export type { GraphGeometry } from './host/graph/geometry.ts';
+export type { GraphMesh } from './host/graph/mesh.ts';
+export type { GraphNode } from './host/graph/node.ts';
+export type { GraphNodeKind } from './host/graph/nodeKind.ts';
+export type { GraphAngles, GraphRotation } from './host/graph/rotation.ts';
+export type { GraphSurface } from './host/graph/surface.ts';
+export type { GraphTexture } from './host/graph/texture.ts';
+export type { GraphVector } from './host/graph/vector.ts';
 export type { HostNodeMatrix, MatrixElements } from './math/matrixElements.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpu/core/passBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts';
@@ -70,8 +106,13 @@ export type {
 export type { SurfaceBuffer, SurfaceCapture } from './scene/surfaceBuffer.ts';
 export type { HostDrawCamera } from './camera/world.ts';
 export type { HostDrawOutput } from './webgl/core/renderTarget.ts';
-export type { MemoryBudgets, MemoryBudgetsReport } from './webgpu/pages/io/memory.ts';
-export type { GeometryPool, PoolClamp, TexturePool } from './webgpu/residency/memoryBudgets.ts';
+export type {
+  GeometryPool,
+  MemoryBudgets,
+  MemoryBudgetsReport,
+  PoolClamp,
+} from './residency/pools.ts';
+export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
 export type { ShadowAtlasDigest } from './gpu/shadow/digest.ts';
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts';
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts';
@@ -138,5 +179,6 @@ export type {
 } from '../../sdk-core/src/collision/characterCollision.ts';
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
+export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts';
 export type { PanZoomCameraControls } from './camera/controls/panZoomControls.ts';

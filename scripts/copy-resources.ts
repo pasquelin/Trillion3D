@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RESSOURCES: [string, string][] = [
   ['sdk-browser/src/page/decode', 'pageCodec.wasm'],
+  ['sdk-browser/src/physics', 'joltPhysics.wasm'],
+  ['sdk-browser/src/physics', 'joltPhysicsThreads.wasm'],
   ['sdk', 'package.json'],
 ];
 

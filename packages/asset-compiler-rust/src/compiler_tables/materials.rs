@@ -1,18 +1,19 @@
-//! Material and texture tables: what the surface of the prepared scene is made of, read from the
+//! Material table: what the surface of the prepared scene is made of, read from the
 //! very glTF the cache publishes and written in the engine's own words.
 //!
 //! Every default here is glTF 2.0's own — base colour white, metal-rough one, alpha cutoff a half,
 //! index of refraction 1.5 — so a material that declares nothing comes out exactly as the loader
-//! would build it. Filters and wrapping are the sampler constants of the same specification.
+//! would build it.
+use super::physical::physical_params;
 use super::*;
 
-fn number(value: Option<&Value>, default: f64) -> f64 {
+pub(super) fn number(value: Option<&Value>, default: f64) -> f64 {
     value
         .and_then(Value::as_f64)
         .filter(|v| v.is_finite())
         .unwrap_or(default)
 }
-fn triple(value: Option<&Value>, default: [f64; 3]) -> [f64; 3] {
+pub(super) fn triple(value: Option<&Value>, default: [f64; 3]) -> [f64; 3] {
     let Some(items) = value.and_then(Value::as_array) else {
         return default;
     };
@@ -22,28 +23,25 @@ fn triple(value: Option<&Value>, default: [f64; 3]) -> [f64; 3] {
     }
     out
 }
-fn extension<'a>(owner: &'a Value, name: &str) -> Option<&'a Value> {
+pub(super) fn extension<'a>(owner: &'a Value, name: &str) -> Option<&'a Value> {
     owner.pointer("/extensions").and_then(|e| e.get(name))
 }
-/// The 3×3 the host composes for a texture, column-major as its elements are. glTF turns its
-/// `KHR_texture_transform` the other way round from the host, hence the negated rotation: the rule
-/// the loader applies, reproduced here so the table says what the runtime will hold.
-fn uv_transform(transform: Option<&Value>) -> [f64; 9] {
-    let offset = triple(transform.and_then(|t| t.get("offset")), [0.0, 0.0, 0.0]);
-    let scale = triple(transform.and_then(|t| t.get("scale")), [1.0, 1.0, 0.0]);
-    let rotation = -number(transform.and_then(|t| t.get("rotation")), 0.0);
-    let (cos, sin) = (rotation.cos(), rotation.sin());
-    #[rustfmt::skip]
-    let elements = [
-        scale[0] * cos, -scale[1] * sin, 0.0,
-        scale[0] * sin,  scale[1] * cos, 0.0,
-        offset[0],       offset[1],      1.0,
-    ];
-    elements
+/// The `KHR_texture_transform` of a slot as it is declared — offset, rotation and scale, each
+/// `null` when silent — or `null` when the slot declares none. The host composes the matrix itself,
+/// from these three numbers, exactly as it composes the transform of any texture it owns.
+fn uv_transform(transform: Option<&Value>) -> Value {
+    let Some(transform) = transform else {
+        return Value::Null;
+    };
+    let field = |name: &str| transform.get(name).cloned().unwrap_or(Value::Null);
+    json!({"offset":field("offset"),"rotation":field("rotation"),"scale":field("scale")})
 }
-/// One texture slot of a material: which texture, which coordinate set, and the transform composed
-/// for it. `null` when the material leaves the slot empty, which is what the engine record holds.
-fn slot(info: Option<&Value>) -> Value {
+/// One texture slot of a material: which texture, which coordinate set it samples — its
+/// `KHR_texture_transform`'s when that one names a set —, the set the slot names itself, and the
+/// transform it declares. `null` when the material leaves the slot empty, which is what the engine
+/// record holds. The slot's own set is kept beside the one sampled: it is what decides whether the
+/// host reads the glTF texture itself or a copy of it, and so which texture rank the slot keeps.
+pub(super) fn slot(info: Option<&Value>) -> Value {
     let Some(info) = info else {
         return Value::Null;
     };
@@ -51,12 +49,12 @@ fn slot(info: Option<&Value>) -> Value {
         return Value::Null;
     };
     let transform = extension(info, "KHR_texture_transform");
+    let own = info.get("texCoord").and_then(Value::as_u64).unwrap_or(0);
     let tex_coord = transform
         .and_then(|t| t.get("texCoord"))
-        .or_else(|| info.get("texCoord"))
         .and_then(Value::as_u64)
-        .unwrap_or(0);
-    json!({"texture":index,"texCoord":tex_coord,"transform":uv_transform(transform)})
+        .unwrap_or(own);
+    json!({"texture":index,"texCoord":tex_coord,"slotTexCoord":own,"transform":uv_transform(transform)})
 }
 /// Surface parameters of one glTF material, in the fields the engine record carries.
 ///
@@ -78,12 +76,23 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
     // The host reads no attenuation distance as “no attenuation”, and so does a declared zero,
     // which its own reader turns into an infinity before the engine sees it.
     let far = number(volume.and_then(|v| v.get("attenuationDistance")), 0.0);
-    let cutoff = match m.get("alphaMode").and_then(Value::as_str) {
-        Some("MASK") => number(m.get("alphaCutoff"), 0.5),
+    let alpha_mode = match m.get("alphaMode").and_then(Value::as_str) {
+        Some("MASK") => "MASK",
+        Some("BLEND") => "BLEND",
+        _ => "OPAQUE",
+    };
+    let cutoff = match alpha_mode {
+        "MASK" => number(m.get("alphaCutoff"), 0.5),
         _ => 0.0,
     };
+    let unlit = extension(m, "KHR_materials_unlit").is_some();
+    let (physical, extras) = physical_params(m);
     let mut entry = json!({
         "name": m.get("name").and_then(Value::as_str).unwrap_or(""),
+        "kind": if unlit { "unlit" } else if physical { "physical" } else { "standard" },
+        "alphaMode": alpha_mode,
+        "opacity": of("baseColorFactor").and_then(Value::as_array).map_or(1.0, |factor| number(factor.get(3), 1.0)),
+        "extensions": if unlit { json!({}) } else { Value::Object(extras) },
         "lit": true,
         "baseColor": triple(of("baseColorFactor"), [1.0; 3]),
         "metalness": number(of("metallicFactor"), 1.0),
@@ -113,7 +122,7 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
     });
     // `KHR_materials_unlit` builds a surface that answers no light: the host record keeps its
     // base colour and its colour map, and every lit field falls back to the engine's own reading.
-    if extension(m, "KHR_materials_unlit").is_some() {
+    if unlit {
         for (field, value) in [
             ("lit", json!(false)),
             ("metalness", json!(0.0)),
@@ -137,48 +146,4 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
         }
     }
     entry
-}
-fn wrap(value: Option<&Value>) -> &'static str {
-    match value.and_then(Value::as_u64) {
-        Some(33071) => "clamp",
-        Some(33648) => "mirror",
-        _ => "repeat",
-    }
-}
-fn filter(value: Option<&Value>, default: &'static str) -> &'static str {
-    match value.and_then(Value::as_u64) {
-        Some(9728) => "nearest",
-        Some(9729) => "linear",
-        Some(9984) => "nearest-mip-nearest",
-        Some(9985) => "linear-mip-nearest",
-        Some(9986) => "nearest-mip-linear",
-        Some(9987) => "linear-mip-linear",
-        _ => default,
-    }
-}
-/// Sampler state of every texture of the published scene, at its own rank. A texture without a
-/// sampler takes the specification's defaults, the very ones the loader falls back to.
-pub(super) fn texture_table(g: &Value) -> Vec<Value> {
-    let samplers = g.get("samplers").and_then(Value::as_array);
-    let empty = json!({});
-    g.get("textures")
-        .and_then(Value::as_array)
-        .map(Vec::as_slice)
-        .unwrap_or_default()
-        .iter()
-        .map(|texture| {
-            let sampler = texture
-                .get("sampler")
-                .and_then(Value::as_u64)
-                .and_then(|id| samplers.and_then(|list| list.get(id as usize)))
-                .unwrap_or(&empty);
-            json!({
-                "image": texture.get("source").and_then(Value::as_u64),
-                "wrapS": wrap(sampler.get("wrapS")),
-                "wrapT": wrap(sampler.get("wrapT")),
-                "magFilter": filter(sampler.get("magFilter"), "linear"),
-                "minFilter": filter(sampler.get("minFilter"), "linear-mip-linear"),
-            })
-        })
-        .collect()
 }

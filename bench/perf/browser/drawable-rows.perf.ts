@@ -1,5 +1,5 @@
 // the drawable-row table.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createWebgpuRowState } from '../../../packages/sdk-browser/src/webgpu/row/state.ts';
 import { createWebgpuRowCommit } from '../../../packages/sdk-browser/src/webgpu/row/commit.ts';
@@ -15,8 +15,8 @@ const PAGES = 12000,
   SLOTS = 8192;
 
 /** Fields the row table never reads: shared across every fixture record. */
-const DUMMY_MATRIX = new THREE.Matrix4();
-const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_MATRIX = new G.Matrix4();
+const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 
 const catalogue = (): PageRec[] => {

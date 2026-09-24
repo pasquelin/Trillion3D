@@ -39,6 +39,21 @@ test('first person turns the head with the pointer and lets the lock go on dispo
   assert.equal(surface.listeners(), 0);
 });
 
+test('the first move after the lock is granted is dropped: the cursor jump never turns the head', () => {
+  const { camera, surface, controls } = steered(createFirstPersonCameraControls);
+  controls.lookSpeed = Math.PI / 400;
+  controls.update(0);
+  surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+  surface.key('pointerlockchange', {});
+  surface.fire('pointermove', { pointerId: 1, movementX: -900, movementY: 700 });
+  surface.fire('pointermove', { pointerId: 1, movementX: 200, movementY: 0 });
+  controls.update(0);
+  assert.deepEqual(
+    [...facing(camera)].map((v) => round(v)),
+    [1, 0, 0],
+  );
+});
+
 test('first person stops a downward look at `minPitch`', () => {
   const { camera, surface, controls } = steered(createFirstPersonCameraControls);
   controls.minPitch = -Math.PI / 4;

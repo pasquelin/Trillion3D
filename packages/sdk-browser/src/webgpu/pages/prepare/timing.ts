@@ -1,7 +1,6 @@
 import { createGpuTiming } from '../../../gpu/timing/timing.ts';
-import { addGpuPasses, bounceGpuMs, directLightTimings } from '../../../stage/mapping.ts';
+import { addGpuPasses, bounceGpuMs, shadowPagesGpuMs } from '../../../stage/mapping.ts';
 import { PAGES_RING } from '../state/lights.ts';
-import { markWebgpuLost } from '../io/lost.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
@@ -27,10 +26,10 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       // The bounce budget is a duration: it reads here the timer of its own stage, the per-pass
       // profile's, and corrects the next image's batch. Never an estimate.
       rt.bounce.probes?.observeGpuMs(bounceGpuMs(timing.lastGpuPassMs));
-      // The shadow budget is set the same way: the measured duration of the Shadows stage, reported
-      // against the pages this image had redrawn.
+      // The shadow budget is set the same way: the measured duration of the Shadows stage and of
+      // the light cuts that chose its casters, reported against the pages this image had redrawn.
       rt.lights.plan.observeCost(
-        directLightTimings(timing.lastGpuPassMs).gpuShadowsMs,
+        shadowPagesGpuMs(timing.lastGpuPassMs),
         rt.lights.pagesByFrame[sample.frame % PAGES_RING],
       );
       timing.lastGpuHostGapMs = sample.hostGapMs;
@@ -68,16 +67,4 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
     stats: timingStats,
   });
-}
-
-/** Marks the backend lost on an uncaptured error or a lost device; `markWebgpuLost` announces it once. */
-export function watchGpuDevice(
-  rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
-  onGpuError: (event: GPUUncapturedErrorEvent) => void,
-) {
-  gpuDevice.addEventListener?.('uncapturederror', onGpuError);
-  gpuDevice.lost
-    .then((info) => markWebgpuLost(rt, { reason: info.reason, message: info.message }))
-    .catch((error) => markWebgpuLost(rt, { reason: 'unknown', message: String(error) }));
 }

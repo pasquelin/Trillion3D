@@ -3,6 +3,7 @@ import { Mesh, type Primitive } from './mesh.ts';
 import { Geometry } from '../geometry/geometry.ts';
 import { plane } from '../geometry/basic.ts';
 import { Material } from '../material/material.ts';
+import { cloneObject } from './clone.ts';
 
 /** A mesh reading its geometry as `primitive`, in the material kind a page gets by default. */
 const reading =
@@ -21,6 +22,13 @@ export const object = {
     new Mesh(geometry, material ?? new Material('meshBasic')),
   /** An empty node that holds other objects, so they move together. */
   group: () => new Group(),
+  /**
+   * A copy of an object and of everything under it, sharing nothing with it: its shape,
+   * materials, lights and fields are copied. A loaded model is not copied: `null` for it, and it
+   * is left out of a copied group.
+   * @param source - The object to copy.
+   */
+  clone: cloneObject,
   /**
    * Draws each vertex of a geometry as a dot.
    * @param geometry - The vertices to draw as dots.

@@ -11,7 +11,7 @@
 import test from 'node:test';
 import { asHostLibrary } from '../../host/resources.ts';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection, packedWorldsToRenderOrigin } from './pack.ts';
 import { evaluateDagSelectionKernel } from './selection.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
@@ -23,7 +23,7 @@ import { descenteComptee } from './cutFrontier.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 
 const pages = scenePages(4096, 8);
-const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 
 /** The cut a descent WITHOUT pruning would return: every node opened, so the only remaining
  *  filter is the one `dagWanted` sets per cluster — frustum, cone, error band. */
@@ -57,7 +57,7 @@ for (const parNiveaux of [false, true]) {
   test(`${nomHierarchie}: top-down pruning removes no kept cluster`, () => {
     const roots = sceneRoots(
       pages,
-      Array.from({ length: 4 }, () => new THREE.Matrix4()),
+      Array.from({ length: 4 }, () => new G.Matrix4()),
       parNiveaux,
     );
     const packed = packDagSelection(roots);
@@ -65,7 +65,7 @@ for (const parNiveaux of [false, true]) {
     for (const [nom, x, z] of POSES)
       for (const seuil of SEUILS) {
         for (let w = 0; w < roots.length; w++)
-          asHostLibrary<THREE.Matrix4>(roots[w].world).makeTranslation(
+          asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
             (w % 2) * 6.5 - 3.25,
             Math.floor(w / 2) * 6.5 - 3.25,
             0,

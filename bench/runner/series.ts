@@ -64,6 +64,9 @@ export async function runSerie(
     imagesCalme: typeof result.imagesCalme === 'number' ? result.imagesCalme : null,
     // In-session reservoir tuning, as the engine reported it; `null` with no tuning.
     reglageVivant: result.reglageVivant ?? null,
+    // What the shadow pass did per measured frame: pages read, served from the pool, drawn,
+    // light cuts; `null` where the page loop records none.
+    ombresParImage: result.shadowCounters ?? null,
     reseau: result.network ?? null,
     variante: side.variant ?? null,
     erreur: side.errorMetric ?? 'certifiee',

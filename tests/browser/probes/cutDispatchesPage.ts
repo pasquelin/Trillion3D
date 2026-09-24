@@ -15,7 +15,7 @@
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts';
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   cameraSelectionUniforms,
   SELECTION_UNIFORM_BYTES,
@@ -31,10 +31,16 @@ import {
   ressourcesAvant,
 } from '../../../bench/oracles/browser/cut-dispatches.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
-import { commandes, mediane, scene } from './cutDispatchesScene.ts';
+import { commandes, scene } from './cutDispatchesScene.ts';
+import { median } from '../../kit/median.ts';
 import type { ExecuterParams, ExecuterResultat } from './cutDispatchesTypes.ts';
 
-const SHADER_AVANT = DAG_SELECTION_SHADER.replace(DAG_LEVEL_WGSL, DAG_LEVEL_WGSL_AVANT);
+// The frozen descent reads the camera's block under its old name: the shipped shader binds one
+// block per view, and a camera is view 0 (\`viewsWgsl.ts\`).
+const SHADER_AVANT = DAG_SELECTION_SHADER.replace(
+  DAG_LEVEL_WGSL,
+  DAG_LEVEL_WGSL_AVANT.replaceAll('uni.', 'views[0u].'),
+);
 
 export async function executer({
   feuilles,
@@ -48,7 +54,7 @@ export async function executer({
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { packed, roots } = scene(feuilles, niveaux);
-  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+  const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
   camera.position.set(0, 0, 16);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();
@@ -170,7 +176,7 @@ export async function executer({
     for (let ronde = 0; ronde < rondes; ronde++) releve.push(await lot(encode, tours));
     balayage.push({
       borneParNiveau: largeur,
-      ms: Number(mediane(releve.map((m) => m.total)).toFixed(4)),
+      ms: Number(median(releve.map((m) => m.total)).toFixed(4)),
       sortie: await relire(livre.output),
     });
   }

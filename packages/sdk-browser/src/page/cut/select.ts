@@ -39,7 +39,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   (s.flatCone as ConeContext).ready = false;
   // A root that declares it has no cone takes the cone out of the per-cluster path. Silence
   // means "I declared nothing": the cut then tests each page, as before this batch.
-  s.flatCones = root.cones !== false;
+  s.flatCones = !s.light && root.cones !== false;
   // A root that declares all its pages carry their box takes that check out of the per-cluster
   // path. Silence means "I declared nothing": the cut ensures it as before.
   s.flatBoxes = root.boxes === true;

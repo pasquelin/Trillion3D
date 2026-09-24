@@ -926,8 +926,16 @@
       "UNSUPPORTED_SCENE_UPDATE": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "RAYCAST_NO_VIEW": "Một điểm ảnh được yêu cầu từ một canvas không có kích thước: không có hình ảnh nào để ngắm qua.",
+      "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
+      "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
-      "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ."
+      "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
+      "PHYSICS_BUDGET": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
+      "PHYSICS_NESTED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
+      "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
+      "PHYSICS_FORMAT": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
+      "NO_VEHICLE": "`world.controls.kind` được đặt thành `'vehicle'` trong khi `world.controls.vehicle` là `null`: không có gì để lái."
     }
   },
   "EngineProfiler": {
@@ -1031,7 +1039,6 @@
       "rafIntervalMs": "Thời gian giữa hai khung hình.",
       "cpuFrameMs": "Thời gian CPU của khung hình.",
       "cpuSubmitMs": "Thời gian CPU để gửi công việc.",
-      "gpuMs": "Thời gian GPU của khung hình.",
       "drawCalls": "Số lệnh gọi vẽ của khung hình này, theo cách bộ máy đếm chúng. `null` khi nó chưa đếm: số không sẽ bị đọc thành một khung hình không có gì được vẽ.",
       "autonomousClusterDrawsTotal": "Số lệnh vẽ cụm theo trang do chương trình WebGL2 thuộc sở hữu của bộ máy phát ra trong phiên này.",
       "autonomousCopyDraws": "Các bản sao cảnh — các bề mặt truyền sáng — mà chương trình WebGL2 thuộc sở hữu của bộ máy đã vẽ ở khung hình này.",
@@ -1064,7 +1071,7 @@
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
-      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`.",
+      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
@@ -1253,18 +1260,7 @@
     }
   },
   "HostAttribute": {
-    "summary": "Một thuộc tính đỉnh của hình học chủ, xen kẽ hoặc không: cách bố trí và nơi lưu trữ của nó.",
-    "members": {
-      "isBufferAttribute": "Được ứng dụng chủ đặt khi thuộc tính sở hữu bộ đệm riêng của nó thay vì nhìn vào một bộ đệm chung, xen kẽ. Chỉ cổng chấp thuận đọc nó: việc giải mã riêng của bộ máy giống nhau trong cả hai trường hợp, còn việc gắn kết của chương trình WebGL2 tự trị thì không.",
-      "itemSize": "Số lượng con số mỗi đỉnh.",
-      "count": "Có bao nhiêu đỉnh.",
-      "normalized": "Các số nguyên có được đọc thành 0 đến 1 hay không.",
-      "array": "Nơi lưu trữ.",
-      "getX": "Thành phần của một phần tử, đã được ứng dụng chủ tách xen kẽ và bỏ chuẩn hóa.",
-      "getY": "Thành phần thứ hai của một phần tử.",
-      "getZ": "Thành phần thứ ba của một phần tử.",
-      "getW": "Thành phần thứ tư của một phần tử."
-    }
+    "summary": "Một thuộc tính đỉnh của hình học chủ, xen kẽ hoặc không: cách bố trí và nơi lưu trữ của nó."
   },
   "HostAttributes": {
     "summary": "Các thuộc tính có tên của một hình học chủ.",
@@ -1323,32 +1319,17 @@
     "summary": "Một hình học chủ mà một góc nhìn chẩn đoán có thể giải phóng.",
     "members": {
       "attributes": "Các thuộc tính đỉnh của nó.",
-      "boundingBox": "Hộp cục bộ mà ứng dụng chủ đã tính.",
       "dispose": "Giải phóng nó."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Một bề mặt chủ mà một góc nhìn chẩn đoán hoán đổi lên một mesh, rồi giải phóng: những gì nó treo lên đến qua `HostDiagnosticFactory`, không bao giờ qua một import, nên không góc nhìn nào nêu tên một thư viện kết xuất.",
     "members": {
-      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi: điều mà một hàng được lưu đệm so sánh để dựng lại các trường của nó.",
-      "visible": "Nó có được vẽ hay không.",
       "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
-      "forceSinglePass": "Ứng dụng chủ vẽ một bề mặt trong suốt hai mặt trong một chặng thay vì sau rồi trước.",
-      "vertexColors": "Các màu đỉnh có tô màu nó hay không.",
-      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
-      "depthTest": "Trạng thái raster mà ứng dụng chủ khai báo cùng bề mặt, và các đường ống xử lý của bộ máy tôn trọng.",
-      "depthWrite": "Nó có ghi độ sâu hay không.",
-      "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
-      "colorWrite": "Nó có ghi màu hay không.",
-      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
-      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
-      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
-      "transparent": "Nó có pha trộn hay không.",
-      "opacity": "Nó mờ đục đến mức nào.",
-      "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ.",
       "dispose": "Giải phóng nó.",
       "clone": "Một bản sao của bề mặt đó."
-    }
+    },
+    "description": "Các khung chẩn đoán cũng phục vụ các nhân chứng, có lưới thuộc thư viện của chúng: thứ chúng treo lên đến qua `HostDiagnosticFactory`, và chúng chỉ được đọc qua hình dạng này."
   },
   "HostDisposable": {
     "summary": "Một tài nguyên chủ mà bộ máy giải phóng khi đồ thị nó xuất phát từ đó được giải phóng: một hình học, một bề mặt, một kết cấu.",
@@ -1377,67 +1358,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Một hình học chủ: các thuộc tính của nó, và hộp cục bộ mà ứng dụng chủ đã tính trên chúng.",
-    "members": {
-      "attributes": "Các thuộc tính đỉnh của nó.",
-      "boundingBox": "Hộp cục bộ mà ứng dụng chủ đã tính."
-    }
+    "summary": "Một hình học chủ: các thuộc tính của nó, và hộp cục bộ mà ứng dụng chủ đã tính trên chúng."
   },
   "HostGraphNode": {
     "summary": "Một node của đồ thị chủ như một lượt duyệt nhìn thấy: định danh của nó, tư thế cục bộ của nó, ma trận thế giới mà ứng dụng chủ đã giải quyết cho nó, và chuỗi tổ tiên của nó.",
-    "description": "Bộ máy tự tính các ma trận thế giới CỦA RIÊNG NÓ từ các tư thế cục bộ (`../world/tree.ts`); `matrixWorld` được đọc ở nơi mà chính lời giải của ỨNG DỤNG CHỦ là thứ mà một ranh giới trao trả lại cho nó. VÌ SAO `HostPlaced` (`../resources.ts`) CŨNG MÔ TẢ MỘT NODE CÓ TƯ THẾ. Hai thứ này không phải bản sao của nhau: chúng được gắn khóa theo hai lời giải khác nhau mà một ứng dụng chủ cung cấp. `HostPlaced` yêu cầu `updateWorldMatrix(ancestors, descendants)` — chuỗi của MỘT node duy nhất, thứ mà một phép đặt vị trí và một lượt duyệt khả kiến leo lên; cái này yêu cầu `updateMatrixWorld(force)` — CÂY CON dưới một node, thứ mà một lượt quét, một phép hợp giới hạn và một phép nhân bản giải quyết trong một lệnh gọi duy nhất. Một ứng dụng chủ chỉ cung cấp một trong hai chỉ thỏa mãn hợp đồng mà nó đáp ứng, nên không cái nào có thể thay thế cái kia.",
-    "members": {
-      "parent": "Cha của nó.",
-      "position": "Nơi nó đứng.",
-      "quaternion": "Hai mặt của phép xoay một node — quaternion mà bộ máy so sánh, và các góc Euler được sao chép vào đó — mỗi bên TỰ THÔNG BÁO các lần ghi của chính nó: một callback mà ứng dụng chủ đã xâu chuỗi sẵn, mà một hook mở rộng thêm thay vì thay thế (`hooks.ts`). Hai thành viên có gạch dưới đó là riêng tư của thư viện chủ, nên chúng được ghi ở đây, nơi hook cần đến chúng, và không được đặt tên riêng. Điều đó giữ cái riêng tư đó ngoài danh sách các hợp đồng công bố của SDK; nhưng nó KHÔNG giữ nó ngoài bề mặt công bố, vì `HostGraphNode` mang theo nó. Việc so sánh tư thế theo từng khung hình, như lượt quét đã làm, mới là thứ sẽ gỡ bỏ sự ràng buộc đó — điều đó không thuộc về lô này.",
-      "rotation": "Nó được xoay như thế nào, dưới dạng góc.",
-      "scale": "Nó được kéo giãn như thế nào.",
-      "matrixAutoUpdate": "Sai khi chính ứng dụng chủ đặt `matrix`: ma trận đó CHÍNH LÀ tư thế và không có gì dựng lại nó.",
-      "matrix": "Ma trận cục bộ của nó.",
-      "matrixWorld": "Ma trận thế giới của nó.",
-      "userData": "Nơi bộ máy đánh dấu một bản sao của riêng nó, thứ mà ứng dụng chủ chưa bao giờ thấy và không thể ghi vào.",
-      "traverse": "Cây con dưới node đó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
-      "updateMatrixWorld": "Giải quyết các ma trận thế giới của cây con NGAY TRONG ĐỒ THỊ CHỦ, cho các trình đọc riêng của ứng dụng chủ."
-    }
+    "description": "Bộ máy tự tính các ma trận thế giới CỦA RIÊNG NÓ từ các tư thế cục bộ (`../world/tree.ts`); `matrixWorld` được đọc ở nơi mà chính lời giải của ỨNG DỤNG CHỦ là thứ mà một ranh giới trao trả lại cho nó. VÌ SAO `HostPlaced` (`../resources.ts`) CŨNG MÔ TẢ MỘT NODE CÓ TƯ THẾ. Hai thứ này không phải bản sao của nhau: chúng được gắn khóa theo hai lời giải khác nhau mà một ứng dụng chủ cung cấp. `HostPlaced` yêu cầu `updateWorldMatrix(ancestors, descendants)` — chuỗi của MỘT node duy nhất, thứ mà một phép đặt vị trí và một lượt duyệt khả kiến leo lên; cái này yêu cầu `updateMatrixWorld(force)` — CÂY CON dưới một node, thứ mà một lượt quét, một phép hợp giới hạn và một phép nhân bản giải quyết trong một lệnh gọi duy nhất. Một ứng dụng chủ chỉ cung cấp một trong hai chỉ thỏa mãn hợp đồng mà nó đáp ứng, nên không cái nào có thể thay thế cái kia."
   },
   "HostMaterial": {
-    "summary": "Một vật liệu chủ đúng như bộ máy đọc nó: các tham số bề mặt mà mọi vật liệu chủ chia sẻ, được đọc một lần tại ranh giới vào `VisMaterial` của bộ máy; chỉ riêng `sideOf` đọc `side`.",
-    "members": {
-      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi: điều mà một hàng được lưu đệm so sánh để dựng lại các trường của nó.",
-      "visible": "Nó có được vẽ hay không.",
-      "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
-      "forceSinglePass": "Ứng dụng chủ vẽ một bề mặt trong suốt hai mặt trong một chặng thay vì sau rồi trước.",
-      "vertexColors": "Các màu đỉnh có tô màu nó hay không.",
-      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
-      "depthTest": "Trạng thái raster mà ứng dụng chủ khai báo cùng bề mặt, và các đường ống xử lý của bộ máy tôn trọng.",
-      "depthWrite": "Nó có ghi độ sâu hay không.",
-      "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
-      "colorWrite": "Nó có ghi màu hay không.",
-      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
-      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
-      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
-      "transparent": "Nó có pha trộn hay không.",
-      "opacity": "Nó mờ đục đến mức nào.",
-      "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ."
-    }
+    "summary": "Một vật liệu chủ đúng như bộ máy đọc nó: các tham số bề mặt mà mọi vật liệu chủ chia sẻ, được đọc một lần tại ranh giới vào `VisMaterial` của bộ máy; chỉ riêng `sideOf` đọc `side`."
   },
   "HostMaterials": {
     "summary": "Những gì một bề mặt khai báo: một vật liệu, hoặc một cho mỗi nhóm hình học."
   },
   "HostMesh": {
-    "summary": "Một mesh chủ, được giữ theo định danh: bản ghi vẽ, bảng trong suốt và các tập lựa chọn nêu tên bề mặt mà ứng dụng chủ đã đặt.",
-    "description": "Tên của nó được đọc, và chuỗi tổ tiên của nó khi một cây con di chuyển cần được phân biệt với phần còn lại (`../webgpu/pages/render/transform.ts`); không gì khác.",
-    "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "parent": "Cha của nó, khi một lượt duyệt leo lên."
-    }
+    "summary": "Một mesh chủ, được giữ theo định danh: bản ghi vẽ, bảng trong suốt và các tập lựa chọn nêu tên bề mặt mà ứng dụng chủ đã đặt."
   },
   "HostNode": {
-    "summary": "Một node của đồ thị cảnh chủ, được giữ theo định danh và hai trường mà một lượt duyệt cần.",
-    "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "visible": "Nó có được vẽ hay không."
-    }
+    "summary": "Một node của đồ thị cảnh chủ, được giữ theo định danh và hai trường mà một lượt duyệt cần."
   },
   "HostNodeMatrix": {
     "summary": "Chính mười sáu số thực đó, CÓ THỂ GHI từng số hạng một: tư thế mà một ranh giới đặt trở lại một node chủ hoặc một camera chủ mà nó khôi phục.",
@@ -1482,44 +1419,16 @@
     "summary": "Đồ thị hiển thị chủ mà một bộ máy vẽ vào: những gì nó chứa, cách nó được duyệt qua, và màu nền mà việc tổng hợp đọc.",
     "description": "Việc xây dựng nó là của một ranh giới chủ; việc ghi vào một cái, là `HostDrawScene`.",
     "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "visible": "Nó có được vẽ hay không.",
       "traverse": "Ghé thăm chính nó, rồi cây con.",
       "background": "Những gì lấp đầy hình ảnh phía sau.",
       "children": "Các node ở trên cùng của nó."
     }
   },
   "HostTexture": {
-    "summary": "Một kết cấu chủ: hình ảnh mà ứng dụng chủ đã giải mã và trạng thái bộ lấy mẫu mà nó khai báo, cũng được giữ theo định danh.",
-    "description": "Các điểm ảnh của nó vẫn là `unknown`: chỉ ranh giới tải chúng lên mới biết vật chứa của chúng.",
-    "members": {
-      "isTexture": "Được ứng dụng chủ đặt trên các đối tượng mà bộ lấy mẫu của nó đọc: điều phân biệt một kết cấu với bất kỳ trường nào khác của một vật liệu, mà các khe của nó bộ máy không liệt kê.",
-      "uuid": "Một tên duy nhất cho kết cấu đó.",
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi nội dung: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
-      "image": "Hình ảnh đã giải mã, trong vật chứa riêng của ứng dụng chủ.",
-      "channel": "Tập UV mà bộ lấy mẫu đọc, `texCoord` của `KHR_texture_transform`.",
-      "wrapS": "Cách nó lặp lại theo chiều ngang, dưới dạng hằng số của ứng dụng chủ.",
-      "wrapT": "Cách nó lặp lại theo chiều dọc, dưới dạng hằng số của ứng dụng chủ.",
-      "magFilter": "Bộ lọc khi hiển thị to hơn.",
-      "minFilter": "Bộ lọc khi hiển thị nhỏ hơn.",
-      "anisotropy": "Độ sắc nét khi nhìn xiên.",
-      "flipY": "Các hàng có bị lật khi tải lên hay không.",
-      "premultiplyAlpha": "Màu có được nhân trước với alpha hay không.",
-      "generateMipmaps": "Các bản sao nhỏ hơn có được tạo ra hay không.",
-      "colorSpace": "Cách các con số của nó được đọc.",
-      "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
-      "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
-      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay."
-    }
+    "summary": "Một kết cấu chủ: hình ảnh mà ứng dụng chủ đã giải mã và trạng thái bộ lấy mẫu mà nó khai báo, cũng được giữ theo định danh."
   },
   "HostTraversable": {
-    "summary": "Một node chủ mà bộ máy duyệt qua: cây con bên dưới nó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
-    "members": {
-      "name": "Tên mà ứng dụng chủ đặt cho nó.",
-      "visible": "Nó có được vẽ hay không.",
-      "traverse": "Ghé thăm chính nó, rồi cây con."
-    }
+    "summary": "Một node chủ mà bộ máy duyệt qua: cây con bên dưới nó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ."
   },
   "HostVector": {
     "summary": "Ba con số của một tư thế, đúng như ứng dụng chủ lưu trữ chúng và một ranh giới đặt chúng trở lại.",
@@ -1635,28 +1544,26 @@
       "maxLightsPerTile": "Số nguồn sáng mà một ô màn hình giữ lại; vòng lặp điểm ảnh bị giới hạn bởi con số này (X2).",
       "tileSize": "Cạnh tính bằng điểm ảnh của một ô màn hình trong danh sách nguồn sáng.",
       "samplesPerPixel": "Số nguồn sáng được tô bóng đầy đủ — kể cả đọc bóng đổ — cho mỗi điểm ảnh của một hình ảnh ĐANG CHUYỂN ĐỘNG (X2): những nguồn còn lại được cân nhắc mà không có bóng đổ của chúng, và những nguồn được tô bóng thì được vẽ theo tỉ lệ, nên ước lượng không thiên lệch và khử răng cưa theo thời gian sẽ lấy trung bình nó. Một hình ảnh đứng yên tô bóng mọi nguồn sáng trong ô của nó và hội tụ về tổng chính xác; ở đó, con số này không có vai trò gì.",
-      "shadowUpdatesPerFrame": "Số vùng bóng đổ tối đa mỗi khung hình: trần của bộ đệm, không bao giờ là một cài đặt chất lượng. Ngân sách mili giây hầu như luôn dừng lại trước; trần này chỉ là một giới hạn cuối cùng, và là giới hạn duy nhất trên một thiết bị không có đồng hồ GPU.",
-      "shadowPage": "Cạnh của một trang atlas bóng đổ, tính bằng texel: ô làm mất hiệu lực của một mặt. Một vật thể chuyển động chỉ làm cũ đi các trang mà hộp chiếu của nó bao phủ, không bao giờ toàn bộ mặt đó.",
+      "shadowPage": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể vật lý, của các bản đồ ảo và của việc vô hiệu hóa. Một vật chuyển động chỉ làm cũ các trang mà hộp chiếu của nó phủ.",
       "shadowBudgetMs": "Ngân sách chặng bóng đổ, tính bằng mili giây GPU mỗi khung hình (X4, RX3). Các trang bị mất hiệu lực vượt quá sẽ chờ đến lượt; chúng không bao giờ bị mất, và độ trễ của chúng được công bố.",
       "shadowAgingPerFrame": "Trọng số của việc chờ đợi trong độ ưu tiên của một trang, cho mỗi khung hình dành trong hàng đợi: chống lại tình trạng đói tài nguyên.",
       "shadowCostBlend": "Tỉ lệ của mẫu một khung hình trong chi phí trung bình của một trang: làm mượt theo hàm mũ của bộ đếm thời gian.",
-      "shadowAtlasSize": "Cạnh của atlas bóng đổ độ sâu, tính bằng texel.",
-      "shadowSliceMax": "Cạnh tối đa của một lát bóng đổ; một mặt của nguồn sáng điểm chiếm một phần sáu diện tích của nó.",
-      "shadowSliceMin": "Cạnh tối thiểu của một lát bóng đổ: dưới mức đó, nguồn sáng giữ nguyên lát của nó mà không làm mịn thêm.",
       "pcfTaps": "Số lần lấy mẫu PCF cho mỗi điểm ảnh và mỗi nguồn sáng có bóng đổ (X2).",
       "spotEdgeSoftness": "Độ rộng của cạnh được làm mềm của một hình nón spot, tính bằng đơn vị cosin: chống lại hiện tượng răng cưa từng bậc.",
-      "sunCascades": "Số tầng cascade của một nguồn sáng định hướng: ít nhất ba, không bao giờ nhiều hơn số mặt của một lát.",
-      "sunShadowFarFraction": "Tỉ lệ của khối nhìn camera mà các tầng cascade bao phủ, từ mặt phẳng gần hướng ra xa. Ngoài phạm vi đó, một bề mặt vẫn được chiếu sáng mà không có bóng đổ: đây là một xấp xỉ có tên, được công bố trong bảng chẩn đoán.",
-      "sunCascadeRatioMax": "Tỉ lệ giữa hai cận phân chia tầng cascade liên tiếp: tại một đường nối, mật độ texel thay đổi đúng bằng tỉ lệ này, và không gì khác quyết định bước nhảy độ sắc nét giữa các tầng cascade. Sàn mặt phẳng gần được suy ra từ đó — `khoảng cách bóng đổ / tỉ_lệ^số_tầng`.",
       "sunFarShadowOffsetMetres": "Độ lệch của gốc tia bóng đổ xa dọc theo pháp tuyến, tính bằng mét. Nó chỉ có tác dụng rời khỏi mặt phẳng của bề mặt được chiếu sáng; phương thuốc thực sự chống lại hiện tượng tự đổ bóng là điểm bắt đầu dọc theo tia, ở dưới đây.",
-      "sunFarShadowStartCells": "Điểm bắt đầu của tia bóng đổ xa dọc theo hướng riêng của nó, tính bằng các ô của vật thay thế (proxy). Điểm được chiếu sáng đến từ hình học chi tiết, vật che khuất đến từ vật thay thế thô: nơi vật thay thế nằm trên bề mặt thật, một tia bắt đầu từ số không sẽ va vào chính bề mặt mà nó chiếu sáng. Một ô của vật thay thế là mức tỉ lệ mà dưới đó vật thay thế không nói lên điều gì; bắt đầu từ đó sẽ bỏ qua sự tiếp xúc giả đó mà không tạo ra một bóng đổ giả. Hệ quả được nêu rõ: một vật che khuất gần hơn một ô dọc theo tia sẽ không mang bóng đổ xa, và vật đó vẫn ở lại với các tầng cascade.",
-      "sunCascadeDepthScale": "Độ kéo lùi của mặt phẳng gần một tầng cascade, tính bằng bán kính hình cầu của nó: bất cứ thứ gì nằm trên tầng cascade đó, giữa nó và mặt trời, phải đi vào bản đồ để đổ bóng ở đó. Phạm vi cộng thêm hai bán kính ở mỗi bên, độ dôi dư mà điểm neo độ sâu của nó để lại cho hình cầu (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Điểm bắt đầu của tia bóng đổ xa dọc theo hướng riêng của nó, tính bằng các ô của vật thay thế (proxy). Điểm được chiếu sáng đến từ hình học chi tiết, vật che khuất đến từ vật thay thế thô: nơi vật thay thế nằm trên bề mặt thật, một tia bắt đầu từ số không sẽ va vào chính bề mặt mà nó chiếu sáng. Một ô của vật thay thế là mức tỉ lệ mà dưới đó vật thay thế không nói lên điều gì; bắt đầu từ đó sẽ bỏ qua sự tiếp xúc giả đó mà không tạo ra một bóng đổ giả. Hệ quả được nêu rõ: một vật che khuất gần hơn một ô dọc theo tia sẽ không mang bóng đổ xa, và vật đó vẫn ở lại với các mức clipmap.",
       "shadowDepthBias": "Độ lệch bóng đổ tính bằng mét, không bao giờ tính bằng đơn vị độ sâu: độ sâu được chiếu của một lát cực kỳ phi tuyến, một hằng số trong độ sâu đã chuẩn hóa sẽ là mét gần nguồn sáng và milimét ở xa. Shader đưa những mét đó trở lại thành độ sâu tại điểm đang xét.",
       "shadowSlopeBias": "Độ lệch theo độ dốc, tính bằng mét trên mỗi đơn vị `tan(acos(N·L))`, giới hạn bởi `shadowSlopeBiasMax`.",
       "shadowSlopeBiasMax": "Độ lệch theo độ dốc lớn nhất.",
       "shadowNearFraction": "Mặt phẳng gần của một lát: một phân số của tầm, không bao giờ nhỏ hơn sàn này.",
       "shadowNearMin": "Khoảng cách bóng đổ gần nhất.",
-      "shadowNormalOffsetTexels": "Độ lệch của điểm lấy mẫu dọc theo pháp tuyến, tính bằng texel của lát. Đây là thứ khép kín đường nối giữa hai mặt của một nguồn sáng điểm và loại bỏ hiện tượng mụn ở góc xiên; nó tính bằng texel chứ không phải mét để giữ tỉ lệ với độ phân giải mà nguồn sáng đó đạt được."
+      "shadowNormalOffsetTexels": "Độ lệch của điểm lấy mẫu dọc theo pháp tuyến, tính bằng texel của lát. Đây là thứ khép kín đường nối giữa hai mặt của một nguồn sáng điểm và loại bỏ hiện tượng mụn ở góc xiên; nó tính bằng texel chứ không phải mét để giữ tỉ lệ với độ phân giải mà nguồn sáng đó đạt được.",
+      "shadowPagesPerFrame": "Số trang bóng vẽ tối đa mỗi khung hình: trần của bộ đệm, không bao giờ là thiết lập chất lượng. Ngân sách mili giây gần như luôn dừng trước; trần này chỉ là giới hạn cuối cùng, và là giới hạn duy nhất trên thiết bị không có đồng hồ GPU.",
+      "lampFaceSize": "Cạnh của mip mịn nhất của một mặt đèn, tính bằng texel: 32 × 32 trang 128 (bể: `shadowPoolSide`).",
+      "shadowTableEntries": "Các mục của bảng trang bóng, một từ cho mỗi trang ảo: một bộ đệm cố định 4 MiB. Chứa được mười sáu mặt trời hoặc 128 đèn điểm; đèn nào không còn chỗ thì không có bóng, và được đếm.",
+      "shadowRequestCap": "Số trang ảo mà phép tô bóng được yêu cầu mỗi khung hình; phần còn lại yêu cầu lại ở khung sau.",
+      "sunLevels": "Các mức clipmap của một đèn định hướng. Mức `L` có texel `2^L` mét, và một điểm ảnh đọc mức có texel không lớn hơn dấu chân của chính nó: mười sáu mức phủ tỉ lệ xa/gần 2^15. Sau mức cuối, bóng xa đảm nhận.",
+      "sunLevelPages": "Số trang mỗi cạnh của vùng một mức clipmap quanh camera. Đây là dung lượng, không phải tinh chỉnh: mỗi điểm ảnh đọc mật độ riêng khi `height / tan(halfFovY)` không vượt `sunLevelPages · shadowPage / 2` = 4096 (khung 4K với trường dọc 55°); vượt quá, các điểm ảnh ngoài đọc mức kế tiếp, mật độ một nửa."
     }
   },
   "LOD_QUALITY": {
@@ -1792,9 +1699,6 @@
     "summary": "Phiên bản 4 biến các mục xem trước 16×16 cố định thành các mức lũy tiến có kích thước biến đổi: cột điểm ảnh không còn bước nhảy cố định nữa, mỗi mục tự nêu tên phạm vi byte của riêng nó.",
     "description": "Một tệp thuộc phiên bản khác bị từ chối toàn bộ: một trình đọc cắt sai phạm vi sẽ hiển thị các mức của một kết cấu này trên một kết cấu khác. Phiên bản 5 mở rộng một mục xem trước từ mười lên mười hai từ (word) — atlas mà nó phục vụ và có bao nhiêu mức được nướng sẵn dưới dạng tệp trong `textures/` — và các điểm ảnh của nó theo đúng quy tắc mip của card đồ họa; một trình đọc phiên bản 4 sẽ bước qua các mục sai cách, nên nó từ chối tệp này. Phiên bản 6 giữ nguyên mọi cột và nêu tên một trang hình học khác trong bộ mô tả hình học: trang `WGP3` đã lượng tử hóa (`geometryPage.ts`) thay cho trang `WGP2` số thực, mà một trình đọc phiên bản 6 sẽ phải từ chối từng byte một khi giải mã; từ chối cả tệp nói lên điều đó một lần cho xong. Phiên bản 7 mở rộng một mục xem trước lên mười bốn từ — cách bố trí mà mỗi họ khối giữ chuỗi, hoặc không có — và thêm hai cột: các đuôi được nén khối, họ BC rồi đến ASTC, phạm vi của mỗi mục được giữ lại theo sau các kích thước của nó; một trình đọc phiên bản 6 sẽ không biết chúng, nên nó từ chối."
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Phiên bản của bảng vật liệu mà thời gian chạy này đọc."
-  },
   "MATH_PATH_CONTRACT": {
     "summary": "Phiên bản hợp đồng của báo cáo này.",
     "description": "Một ứng dụng chủ không biết đến nó thì không đọc các trường đó."
@@ -1857,7 +1761,11 @@
       "parameters.gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     },
     "members": {
       "isMaterial": "Luôn là `true`: phân biệt một vật liệu với bất cứ thứ gì khác.",
@@ -1879,7 +1787,11 @@
       "needsUpdate": "`material.needsUpdate = true`: các mesh mang nó được tô lại.",
       "surface": "Bản ghi bề mặt vật lý của bộ máy cho vật liệu này (`contracts/material.ts`). Một loại nằm ngoài họ vật lý được vẽ qua họ chủ có cùng tên, mà bộ máy ánh xạ vào mô hình chiếu sáng duy nhất của nó (`surfaceModel.ts`).",
       "clone": "Một vật liệu mới cùng loại, với các giá trị giống nhau.",
-      "dispose": "Quên những người mang nó: một vật liệu đã bị hủy thì không tô lại cho ai cả."
+      "dispose": "Quên những người mang nó: một vật liệu đã bị hủy thì không tô lại cho ai cả.",
+      "physics": "Thiết lập sẵn chất liệu vật lý của các vật mang nó.",
+      "density": "kg/m³, cho khối lượng của vật.",
+      "friction": "Ma sát vật lý.",
+      "restitution": "Độ nảy vật lý."
     }
   },
   "Material-common": {
@@ -1925,7 +1837,11 @@
       "gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "depthWrite": "Bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không."
+      "depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không.",
+      "physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "friction": "Mức bám của vật, từ 0 trở lên.",
+      "restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "MathPath": {
@@ -2059,7 +1975,8 @@
       "primitive": "Cách các đỉnh của hình học được đọc: tam giác, điểm hoặc đường thẳng.",
       "geometry": "Hình dạng của mesh; đặt một hình học khác để thay đổi nó.",
       "material": "Vật liệu của mesh, hoặc một cho mỗi nhóm; đặt một cái khác để thay đổi nó.",
-      "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
+      "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả.",
+      "physics": "Lưới như một vật của vật lý thế giới, `null` nếu không phải. Đặt `'static'`, `'dynamic'`, `'kinematic'` hoặc tùy chọn; hình được suy ra từ hình học."
     }
   },
   "Mixer": {
@@ -2093,9 +2010,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: ma trận cục bộ được dựng lại từ vị trí, góc xoay, tỉ lệ."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Phiên bản của bảng node mà thời gian chạy này đọc."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Một ma trận pháp tuyến 3×3."
@@ -2218,7 +2132,7 @@
     "summary": "Số lần thực thi liên tiếp với độ dẫn trước đó trước khi chuyển đổi: một chuỗi liên tục, không phải một sự tình cờ."
   },
   "POINT_FACES": {
-    "summary": "Các mặt của một lát: sáu cho một điểm, một cho một spot, các tầng cascade của mặt trời."
+    "summary": "Các mặt của lát của một đèn điểm: sáu."
   },
   "POINT_FACE_AXES": {
     "summary": "Sáu trục của một nguồn sáng điểm, theo thứ tự mà shader khôi phục từ trục chính của ánh sáng → hướng điểm: +X, −X, +Y, −Y, +Z, −Z.",
@@ -2604,17 +2518,6 @@
       "onProgress": "Được gọi ở mỗi sự kiện."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Các bảng node và vật liệu mà một mô hình đã biên dịch mang theo.",
-    "members": {
-      "version": "Phiên bản sản phẩm.",
-      "nodeTableVersion": "Phiên bản bảng node.",
-      "materialTableVersion": "Phiên bản bảng vật liệu.",
-      "nodes": "Các node.",
-      "materials": "Các vật liệu.",
-      "textures": "Các kết cấu."
-    }
-  },
   "Primitive": {
     "summary": "Cách các tam giác mà một mesh vẽ được đọc từ hình học của nó."
   },
@@ -2720,9 +2623,6 @@
       "toArray": "Bốn con số đó dưới dạng một danh sách."
     }
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Các hình chữ nhật của một lát: `(x, y, side)` cho mỗi mặt, sáu mặt được dành riêng cho mỗi lát."
-  },
   "Ray": {
     "summary": "Một nửa đường thẳng: điểm gốc và hướng đơn vị.",
     "members": {
@@ -2794,33 +2694,14 @@
     "summary": "Phiên bản của sản phẩm bộ nhớ đệm \"proxy\".",
     "description": "Một proxy thuộc phiên bản khác bị từ chối, không bao giờ bị đoán."
   },
-  "SCENE_TABLES_FILE": {
-    "summary": "Tên của tệp chứa các bảng node và vật liệu."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Phiên bản của sản phẩm nói chung; mỗi bảng nó mang theo được đánh phiên bản riêng theo lượt."
-  },
   "SDK_VERSION": {
     "summary": "Phiên bản của gói bộ máy này."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Các số thực của một khối vùng: tâm và mặt phẳng xa, trục mặt và nửa góc, rồi — đối với một hộp, được đánh dấu bởi một nửa góc âm — hai trục còn lại cùng nửa độ trải rộng của chúng."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Các số thực của một mặt trong bộ đệm lát: ma trận, hình chữ nhật atlas — số thực thứ tư của nó là 1 một khi đã vẽ, 0 không bao giờ —, rồi bốn từ: mặt nạ trang được giữ, một bit cho mỗi trang vật lý giữ một độ sâu của phạm vi hiện tại, các hàng tám trong hai từ, và trang vật lý của gốc phạm vi, `x` rồi tới `y`, mà phép đọc bọc quanh các tọa độ phạm vi bằng đó.",
-    "description": "Một trang phạm vi đã vào nhưng chưa được vẽ vẫn giữ những gì phía xa để lại ở đó: phép đọc phải biết điều đó và lùi về tầng cascade tiếp theo, không bao giờ lấy mẫu nó. Một trang chỉ đang chờ được vẽ lại vẫn được giữ, và được đọc."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Từ của các mặt bóng đổ của một nguồn sáng trong bản ghi GPU của nó."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Các cạnh mặt mà atlas biết cách đặt, từ lớn nhất đến nhỏ nhất."
+    "summary": "Các số float của một thể tích loại: tâm và mặt phẳng xa, trục mặt và nửa góc, rồi — với một hộp, đánh dấu bằng nửa góc âm — hai trục còn lại với nửa kích thước của chúng, rồi từ cho biết vùng vẽ những vật đổ bóng nào, góc nhìn lát cắt đèn đã chọn chúng, và hai từ đệm."
   },
   "SHADOW_PAGE": {
-    "summary": "Cạnh của một trang atlas, tính bằng texel: ô làm mất hiệu lực của một mặt."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Số thực của một lát: sáu mặt cộng thêm một tiêu đề `vec4f` (faces, kind, side, pad)."
+    "summary": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể, của các bản đồ ảo và của việc vô hiệu hóa."
   },
   "SINGULAR_DETERMINANT": {
     "summary": "Ngưỡng, trên định thức ĐÃ CHUẨN HÓA.",
@@ -2939,7 +2820,7 @@
       "isScene": "Luôn là `true`: phân biệt gốc cảnh với bất kỳ vật thể nào khác.",
       "environment": "Một hình ảnh môi trường xung quanh mà các bề mặt bóng bẩy phản chiếu; `null` cho không có.",
       "fog": "Sương mù làm mờ dần các vật thể thành `color` giữa `near` và `far`; `null` cho không có.",
-      "background": "Những gì lấp đầy hình ảnh phía sau mỗi vật thể: một màu, một hình ảnh, hoặc `null` cho mặc định.",
+      "background": "Thứ lấp đầy hình phía sau mọi vật thể: một màu, hoặc `null` cho màu mặc định. Thay đổi hiện ra ở khung hình kế tiếp, phiên được giữ nguyên: một màu mới gán ở đây, hoặc màu hiện tại được ghi bằng các phương thức của nó (`set`, `setRGB`, `setHex`, `setHSL`...). Ghi trực tiếp vào `.r`, `.g` hoặc `.b` không được nhận biết: hãy gán lại `background` sau đó. Một hình ảnh, hoặc bất kỳ giá trị nào không có `getHex`, đều bị từ chối (`UNSUPPORTED_SCENE_UPDATE`): không đường vẽ nào vẽ nó.",
       "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
       "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
       "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
@@ -2963,7 +2844,7 @@
   },
   "SceneLight": {
     "summary": "Một nguồn sáng cảnh, phiên bản 2.",
-    "description": "Các đơn vị là đo bức xạ và tuyến tính (P1): `color` là một màu tuyến tính và `intensity` là cường độ bức xạ dương nghiêm ngặt — một độ chói cho `rect`. Bốn loại, và không gì khác tạo ra ánh sáng trong bộ máy này (P6): - `point`: một vị trí và một tầm tính bằng mét ngoài đó nó không chiếu sáng gì cả; - `spot`: giống vậy cộng thêm một hướng và nửa góc hình nón tính bằng radian; - `directional`: mặt trời hay bầu trời u ám — một hướng lan truyền, không vị trí và không tầm, cùng một độ rọi ở mọi nơi, và các bóng đổ theo tầng cascade bám theo camera; - `rect`: một hình chữ nhật một mặt kích thước `size` mét lấy tâm tại `position`, phát ra dọc theo `direction`, chiều rộng của nó dọc theo `right`; không đổ bóng (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Các trường mà một loại không dùng đến sẽ bị từ chối khi xác thực: một nguồn sáng định hướng có vị trí sẽ là một lời hứa mà bộ máy sẽ không giữ.",
+    "description": "Các đơn vị là đo bức xạ và tuyến tính (P1): `color` là một màu tuyến tính và `intensity` là cường độ bức xạ dương nghiêm ngặt — một độ chói cho `rect`. Bốn loại, và không gì khác tạo ra ánh sáng trong bộ máy này (P6): - `point`: một vị trí và một tầm tính bằng mét ngoài đó nó không chiếu sáng gì cả; - `spot`: giống vậy cộng thêm một hướng và nửa góc hình nón tính bằng radian; - `directional`: mặt trời hay bầu trời u ám — một hướng lan truyền, không vị trí và không tầm, cùng một độ rọi ở mọi nơi, và các bóng đổ clipmap bám theo camera; - `rect`: một hình chữ nhật một mặt kích thước `size` mét lấy tâm tại `position`, phát ra dọc theo `direction`, chiều rộng của nó dọc theo `right`; không đổ bóng (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Các trường mà một loại không dùng đến sẽ bị từ chối khi xác thực: một nguồn sáng định hướng có vị trí sẽ là một lời hứa mà bộ máy sẽ không giữ.",
     "members": {
       "id": "Tên của nguồn sáng.",
       "kind": "Điểm, spot, mặt trời hoặc hình chữ nhật.",
@@ -3014,7 +2895,11 @@
     "members": {
       "pose": "Một node đã di chuyển.",
       "structure": "Một node được thêm hoặc mất con.",
-      "content": "Hình dạng hoặc vật liệu của một node đã thay đổi."
+      "content": "Hình dạng hoặc vật liệu của một node đã thay đổi.",
+      "posed": "Nhiều nút di chuyển cùng lúc, ghi thẳng vào cây của chúng (các vật thể vật lý): báo một lần.",
+      "seat": "Hàng mà nút được vẽ từ đó, hoặc `null`: mười sáu số thực theo cột bắt đầu tại `row * 16` của `batch.rows.matrices`, được bộ vẽ đọc tại chỗ. Bên đặt nút theo hàng nghìn (vật lý) tự ghi ma trận thế giới vào đó, hợp lệ khi `seatEpoch` chưa đổi, và báo các hàng đã ghi qua `placed`.",
+      "seatEpoch": "Thay đổi mỗi khi một hàng được lấy, giải phóng hoặc cấp lại: mọi câu trả lời trước đó của `seat` đều cũ.",
+      "placed": "Các hàng `from` đến `to` của `batch` đã được ghi qua `seat`: vẽ ở khung hình tiếp theo."
     }
   },
   "SceneNode": {
@@ -3124,8 +3009,8 @@
     "members": {
       "lightsActive": "Các nguồn sáng theo hợp đồng `SceneLight` mà khung hình này đã chiếu sáng. Rỗng trên một bộ máy bỏ qua chúng.",
       "lightsSampled": "Đúng khi việc chiếu sáng của khung hình này chạy ở chế độ lấy mẫu của nó — một hình ảnh chuyển động được tích lũy trên một lịch sử, nơi một điểm ảnh có nhiều nguồn sáng hơn `samplesPerPixel` tô bóng một tập con được vẽ —, sai khi mọi điểm ảnh tô bóng mọi nguồn sáng, như một hình ảnh đứng yên làm. Rỗng trên một bộ máy bỏ qua các nguồn sáng.",
-      "shadowsUpdated": "Các lát bóng đổ được vẽ lại bởi khung hình này, nhiều nhất là trần đã công bố của bộ lập lịch. Số không là giá trị bình thường của một cảnh đứng yên: một nguồn sáng cố định giữ nguyên lát của nó.",
-      "shadowFacesDrawn": "Những gì chặng bóng đổ đã vẽ lại: các mặt (view) và lệnh gọi vẽ thực sự đã mã hóa. Đây là chi phí cho mỗi nguồn sáng có bóng đổ, tách khỏi phần còn lại. Rỗng trên một bộ máy không vẽ bóng đổ nào.",
+      "shadowsUpdated": "Các đèn đổ bóng có một trang được khung này vẽ. Bằng không là giá trị bình thường của cảnh đứng yên: đèn cố định giữ các trang của nó.",
+      "shadowFacesDrawn": "Các góc nhìn đèn mà lượt bóng đã vẽ vào — một mức clipmap của mặt trời, một mặt đèn ở một mip —, và các lệnh vẽ thực sự được mã hóa. Null với engine không vẽ bóng.",
       "shadowDrawCalls": "Các lệnh gọi vẽ bóng đổ.",
       "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và độ trễ tính bằng mili giây của trang cũ nhất trong số đó. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
@@ -3133,28 +3018,43 @@
       "shadowWaitMs": "Chúng đã chờ bao lâu.",
       "gpuLightListsMs": "Thời gian GPU của các danh sách nguồn sáng.",
       "gpuShadowsMs": "Thời gian GPU của các bóng đổ.",
-      "gpuLightingMs": "Thời gian GPU của việc chiếu sáng."
+      "gpuLightingMs": "Thời gian GPU của việc chiếu sáng.",
+      "shadowLightCuts": "Các lát cắt cụm chạy từ các đèn: một cho mỗi góc nhìn đèn được vẽ, bằng không ở khung hình đứng yên.",
+      "shadowPagesRequested": "Các trang bóng ảo mà ảnh đã đọc, như báo cáo yêu cầu mới nhất của nó nêu: những gì các bề mặt nhận của camera đánh dấu.",
+      "shadowPagesCached": "Trong số đó, các trang đọc thẳng từ bể: cập nhật, không vẽ.",
+      "shadowPoolPages": "Các trang vật lý của bể cố định đang giữ một trang ảo.",
+      "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
+      "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
+      "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."
     }
   },
   "ShadowPlan": {
-    "summary": "Những vùng bóng đổ nào được vẽ trong khung hình này, và những vùng nào phải chờ.",
+    "summary": "Công việc bóng của khung: những trang ảo nào được vẽ, và trang nào chờ.",
     "members": {
-      "slices": "Các lát bóng đổ.",
-      "regions": "Các vùng bóng đổ.",
-      "budget": "Ngân sách thời gian.",
-      "coverage": "Những gì mỗi nguồn sáng bao phủ.",
-      "counts": "Các số đếm cho bảng chẩn đoán.",
-      "worldChanged": "Một node đã di chuyển: hộp của nó vào danh sách mà bộ lập lịch sẽ tiêu thụ ở khung hình tiếp theo.",
-      "representationChanged": "Cùng một thế giới ở một độ chính xác khác — mức chi tiết, sự lưu trú, ô màu —: hộp của nó chờ camera đứng yên, rồi vào danh sách (`changes.ts`).",
-      "deferredChanges": "Đúng trong khi một thay đổi biểu diễn đang chờ camera đứng yên: khung hình không được giữ nguyên trước khi một kế hoạch tiêu thụ nó.",
-      "releaseDeferred": "Khung hình không lên kế hoạch cho bóng đổ nào — không atlas, không nguồn sáng, góc nhìn không ánh sáng —: hợp giữ nguyên vào ngay danh sách, nơi kế hoạch tiếp theo đọc nó, thay vì ngăn khung hình được giữ nguyên.",
-      "observeCost": "Bộ đếm thời gian của chặng Bóng Đổ của một khung hình, được báo cáo cho các trang mà nó đã vẽ lại.",
-      "setBudgetMs": "Ngân sách do ứng dụng chủ công bố; một giá trị vô hạn hoặc âm bị từ chối, không bị làm tròn.",
-      "setPageInvalidation": "Tắt việc làm mất hiệu lực theo từng trang: mọi mặt bị chạm vào sẽ khởi động lại hoàn toàn. Bật theo mặc định.",
-      "pageInvalidation": "Các trang cần vẽ lại.",
-      "plan": "Chọn các vùng của khung hình này. Trả về số lượng của chúng; `plan.regions` mô tả chúng từng cái một, và các trang mà chúng bao phủ đã bị loại khỏi hàng đợi.",
-      "reissue": "Các vùng của khung hình này không thể được mã hóa: các trang của chúng quay lại hàng đợi. Chúng đã rời khỏi đó khi được chấp nhận, vì bộ lập lịch và chặng đó chỉ nói chuyện qua danh sách này; nếu chặng đó không vẽ gì cả, hàng đợi phải tìm lại chúng.",
-      "reset": "Bắt đầu lại."
+      "budget": "Ngân sách mili giây của giai đoạn Bóng và chi phí đo được của một trang.",
+      "counts": "Những gì kế hoạch trước đã làm, tính theo trang.",
+      "worldChanged": "Một nút đã di chuyển: hộp của nó làm cũ các trang nó phủ ở kế hoạch tiếp theo.",
+      "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
+      "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
+      "releaseDeferred": "Khung không lập kế hoạch bóng nào: phần hợp đang giữ vào danh sách ngay.",
+      "observeCost": "Bộ đếm thời gian của lượt Bóng trong một khung, chia cho các trang nó đã vẽ.",
+      "setBudgetMs": "Ngân sách do máy chủ công bố, tính bằng mili giây GPU mỗi khung.",
+      "setPageInvalidation": "Tắt vô hiệu hóa theo trang: một vật chuyển động làm cũ mọi trang của các đèn nó chạm vào. Bật theo mặc định.",
+      "pageInvalidation": "Liệu một vật chuyển động chỉ làm cũ các trang mà hộp của nó phủ.",
+      "plan": "Lập kế hoạch cho một khung: làm cũ những gì đã di chuyển, đọc báo cáo mới nhất, nhận các trang cần vẽ.",
+      "reissue": "Các trang của khung không mã hóa được: chúng vẫn cũ và chờ khung tiếp theo.",
+      "reset": "Bắt đầu lại.",
+      "setThreshold": "Ngưỡng mà các lát cắt ánh sáng chọn vật đổ bóng (`thresholds.ts`).",
+      "table": "Bảng trang: một từ cho mỗi trang ảo, và khoảng mà mỗi đèn giữ trong đó.",
+      "pool": "Các trang vật lý của bể và trang ảo mà mỗi trang giữ.",
+      "sun": "Clipmap của mỗi mặt trời: hệ khung, khoảng độ sâu, mức mịn nhất và các vùng của nó.",
+      "records": "Các lát bóng, một cho mỗi đèn đổ bóng.",
+      "requests": "Các báo cáo yêu cầu đã đọc về: những gì báo cáo mới nhất nêu, cấp phát hoặc từ chối.",
+      "admission": "Các trang của khung này, theo thứ tự tiếp nhận.",
+      "stamp": "Những gì phép tô bóng, các đèn và góc nhìn trao cho ảnh kế tiếp: một báo cáo đóng dấu bằng nó mà không nêu gì mới chứng minh ảnh chỉ đọc những gì đã vẽ.",
+      "settled": "Đúng khi một báo cáo chứng minh trạng thái hiện tại không yêu cầu gì: ảnh có thể được giữ.",
+      "receive": "Một báo cáo yêu cầu đã trả về; kế hoạch tiếp theo đọc nó. Báo cáo mới hơn thay báo cáo chưa đọc.",
+      "commit": "Các trang của khung đã được mã hóa, mỗi trang trong mục `modes` của nó: các lệnh vẽ hoàn tất trước khi có gì đọc chúng."
     }
   },
   "ShadowViewpoint": {
@@ -3165,7 +3065,8 @@
       "halfFovY": "Một nửa độ mở dọc của nó.",
       "aspect": "Chiều rộng chia cho chiều cao.",
       "near": "Khoảng cách gần nhất.",
-      "far": "Khoảng cách xa nhất."
+      "far": "Khoảng cách xa nhất.",
+      "pixelNear": "Kích thước thế giới của một điểm ảnh ở mặt phẳng gần: dấu chân mịn nhất mà một điểm ảnh của góc nhìn có."
     }
   },
   "Shape": {
@@ -3455,22 +3356,11 @@
       "roughnessMap": "Hình ảnh độ nhám.",
       "normalMap": "Hình ảnh pháp tuyến.",
       "aoMap": "Hình ảnh occlusion môi trường.",
-      "emissiveMap": "Hình ảnh phát sáng."
-    }
-  },
-  "TableNode": {
-    "summary": "Một nguyên thủy được vẽ: node mang nó, tư thế thế giới của nó, bề mặt nó mặc và thứ hạng của nó trong số các bản sao của cùng nguyên thủy đó — đây chính là điều mà nhân bản (instancing) nghĩa là ở đây, một hình học được nhiều node đặt tên.",
-    "description": "`bounds` là hộp thế giới của hình học nguồn; cảnh tự trị công bố các tam giác suy biến ở vị trí đó, nên đây là câu trả lời của bộ nhớ đệm, không phải của trình tải.",
-    "members": {
-      "name": "Tên của node.",
-      "node": "Số hiệu của node.",
-      "parent": "Số hiệu của cha nó.",
-      "mesh": "Số hiệu mesh của nó.",
-      "primitive": "Số hiệu nguyên thủy của nó.",
-      "material": "Thứ hạng vật liệu của nó.",
-      "instance": "Đây là bản sao thứ mấy.",
-      "matrix": "Ma trận thế giới của nó.",
-      "bounds": "Hộp thế giới của nó."
+      "emissiveMap": "Hình ảnh phát sáng.",
+      "kind": "Bề mặt mà máy chủ dựng: không chiếu sáng, tiêu chuẩn, hoặc vật lý khi có khai báo một phần mở rộng vật lý.",
+      "alphaMode": "Cách đọc alpha: bỏ qua, cắt tại `alphaTest`, hoặc hòa trộn.",
+      "opacity": "Alpha của hệ số màu cơ bản.",
+      "extensions": "Những gì các phần mở rộng vật lý thêm vào, theo tên tham số của máy chủ: một hệ số, một màu hoặc một khoảng dưới dạng số, một bản đồ dưới dạng khe."
     }
   },
   "TableTexture": {
@@ -3480,7 +3370,9 @@
       "wrapS": "Lặp lại theo chiều ngang.",
       "wrapT": "Lặp lại theo chiều dọc.",
       "magFilter": "Bộ lọc khi to hơn.",
-      "minFilter": "Bộ lọc khi nhỏ hơn."
+      "minFilter": "Bộ lọc khi nhỏ hơn.",
+      "name": "Tên của nó.",
+      "sampler": "Thứ hạng của bộ lấy mẫu glTF mà nó khai báo, `null` nếu không có."
     }
   },
   "TableTextureSlot": {
@@ -3488,7 +3380,8 @@
     "members": {
       "texture": "Kết cấu nào.",
       "texCoord": "Tập UV nào.",
-      "transform": "Phép biến đổi UV, 3×3."
+      "transform": "Phép biến đổi UV, 3×3.",
+      "slotTexCoord": "Bộ UV mà chính ô tự chỉ định, trước mọi phép biến đổi: một ô chỉ định bộ khác bộ đầu tiên được vẽ từ một bản sao của texture, bản sao này không ứng với thứ hạng nào."
     }
   },
   "TelemetryReport": {
@@ -3547,7 +3440,9 @@
       "flipY": "Hình ảnh có bị lật ngược khi đọc hay không.",
       "anisotropy": "Hình ảnh giữ được độ sắc nét đến mức nào khi nhìn xiên.",
       "channel": "Tập UV nào của hình học mà kết cấu tuân theo.",
-      "version": "Tăng lên ở mỗi lần ghi: điều mà một vật liệu so sánh để lấy mẫu lại.",
+      "version": "Tăng khi ghi ảnh hoặc cách đọc ảnh: thứ mà vật liệu so sánh để gửi lại ảnh.",
+      "sampling": "Tăng khi ghi địa chỉ hóa, bộ lọc hoặc bất đẳng hướng: đặt lại, không gửi gì.",
+      "placement": "Tăng khi ghi `repeat`, `offset` hoặc `rotation`: đặt lại vị trí, không gửi gì.",
       "image": "Chính hình ảnh đó: một image, một canvas, một video hoặc các điểm ảnh thô.",
       "layout": "Những gì hình ảnh chứa ngoài các điểm ảnh của nó: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Cách mỗi điểm ảnh được lưu trữ: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3565,6 +3460,8 @@
       "id": "Định danh của kết cấu trong cảnh đã nhập: điều mà một khóa bộ nhớ đệm và một thông điệp nêu tên nó bằng đó.",
       "name": "Tên mà tệp nguồn đặt cho nó, rỗng khi nó không đặt tên nào; chỉ các thông điệp đọc.",
       "version": "Tăng lên bất cứ khi nào các texel thay đổi: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
+      "sampling": "Tăng khi địa chỉ hóa, bộ lọc hoặc bất đẳng hướng thay đổi: bộ lấy mẫu được đặt lại.",
+      "placement": "Tăng khi `transform` thay đổi: vị trí được ghi lại, không tải lên gì.",
       "image": "Hình ảnh đã giải mã. Vật chứa của nó vẫn là `unknown`: chỉ ranh giới tải nó lên mới biết.",
       "channel": "Tập UV mà bộ lấy mẫu đọc, `texCoord` của `KHR_texture_transform`; bộ máy lấy mẫu 0 và 1.",
       "wrapS": "Lặp lại theo chiều ngang.",
@@ -3984,12 +3881,11 @@
     "description": "`'firstPerson'` di chuyển một camera; `'character'` di chuyển một thân thể — khối lượng, trọng lực, các cú nhảy, va chạm với `world.controls.colliders` — và nhìn qua đôi mắt của nó."
   },
   "WorldFrameMetrics": {
-    "summary": "Các chỉ số của một khung hình, với tên mà một trang dùng để đọc chúng; `null` ở nơi đường xử lý đó không đếm.",
+    "summary": "Số liệu của một hình ảnh như máy chủ đã sao chép từ động cơ, và hai giá trị trang đọc được ghép từ chúng; `null` ở nơi đường dẫn không đếm.",
     "members": {
       "rafIntervalMs": "Thời gian giữa hai khung hình.",
       "cpuFrameMs": "Thời gian CPU của khung hình.",
       "cpuSubmitMs": "Thời gian CPU để gửi công việc.",
-      "gpuMs": "Thời gian GPU của khung hình.",
       "drawCalls": "Số lệnh gọi vẽ của khung hình này, theo cách bộ máy đếm chúng. `null` khi nó chưa đếm: số không sẽ bị đọc thành một khung hình không có gì được vẽ.",
       "autonomousClusterDrawsTotal": "Số lệnh vẽ cụm theo trang do chương trình WebGL2 thuộc sở hữu của bộ máy phát ra trong phiên này.",
       "autonomousCopyDraws": "Các bản sao cảnh — các bề mặt truyền sáng — mà chương trình WebGL2 thuộc sở hữu của bộ máy đã vẽ ở khung hình này.",
@@ -4022,7 +3918,7 @@
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
-      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`.",
+      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
@@ -4037,8 +3933,8 @@
       "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến.",
       "lightsActive": "Các nguồn sáng theo hợp đồng `SceneLight` mà khung hình này đã chiếu sáng. Rỗng trên một bộ máy bỏ qua chúng.",
       "lightsSampled": "Đúng khi việc chiếu sáng của khung hình này chạy ở chế độ lấy mẫu của nó — một hình ảnh chuyển động được tích lũy trên một lịch sử, nơi một điểm ảnh có nhiều nguồn sáng hơn `samplesPerPixel` tô bóng một tập con được vẽ —, sai khi mọi điểm ảnh tô bóng mọi nguồn sáng, như một hình ảnh đứng yên làm. Rỗng trên một bộ máy bỏ qua các nguồn sáng.",
-      "shadowsUpdated": "Các lát bóng đổ được vẽ lại bởi khung hình này, nhiều nhất là trần đã công bố của bộ lập lịch. Số không là giá trị bình thường của một cảnh đứng yên: một nguồn sáng cố định giữ nguyên lát của nó.",
-      "shadowFacesDrawn": "Những gì chặng bóng đổ đã vẽ lại: các mặt (view) và lệnh gọi vẽ thực sự đã mã hóa. Đây là chi phí cho mỗi nguồn sáng có bóng đổ, tách khỏi phần còn lại. Rỗng trên một bộ máy không vẽ bóng đổ nào.",
+      "shadowsUpdated": "Các đèn đổ bóng có một trang được khung này vẽ. Bằng không là giá trị bình thường của cảnh đứng yên: đèn cố định giữ các trang của nó.",
+      "shadowFacesDrawn": "Các góc nhìn đèn mà lượt bóng đã vẽ vào — một mức clipmap của mặt trời, một mặt đèn ở một mip —, và các lệnh vẽ thực sự được mã hóa. Null với engine không vẽ bóng.",
       "shadowDrawCalls": "Các lệnh gọi vẽ bóng đổ.",
       "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và độ trễ tính bằng mili giây của trang cũ nhất trong số đó. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
@@ -4085,7 +3981,13 @@
       "geometryPoolSaturated": "Số trang mà khung hình hiện tại cần vượt quá dung lượng khe của bể.",
       "texturePoolClamp": "Lý do giới hạn bể kết cấu: `minimum`, `device-limit`.",
       "hizCulled": "Các cụm mà phép kiểm tra che khuất phát hiện bị ẩn trong khung hình này; `null` ở nơi đường xử lý không đếm chúng.",
-      "shadowPagesResident": "Các trang bóng đổ được giữ trong bộ nhớ ở khung hình này; `null` ở nơi đường xử lý không có trang nào."
+      "shadowLightCuts": "Các lát cắt cụm chạy từ các đèn: một cho mỗi góc nhìn đèn được vẽ, bằng không ở khung hình đứng yên.",
+      "shadowPagesRequested": "Các trang bóng ảo mà ảnh đã đọc, như báo cáo yêu cầu mới nhất của nó nêu: những gì các bề mặt nhận của camera đánh dấu.",
+      "shadowPagesCached": "Trong số đó, các trang đọc thẳng từ bể: cập nhật, không vẽ.",
+      "shadowPoolPages": "Các trang vật lý của bể cố định đang giữ một trang ảo.",
+      "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
+      "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
+      "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."
     }
   },
   "WorldOptions": {
@@ -4095,7 +3997,8 @@
       "interactive": "Thế giới có chạy vòng lặp riêng của nó hay không: nó vẽ khi có gì đó thay đổi và nghỉ sau 120 khung hình không có gì mới. `false` để trang tự gọi `world.render()`.",
       "pixelRatio": "Bao nhiêu điểm ảnh hình ảnh cho mỗi điểm ảnh màn hình.",
       "controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
-      "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy."
+      "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
+      "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
     }
   },
   "WorldPageSource": {
@@ -4269,10 +4172,6 @@
   "assertSceneProxy": {
     "summary": "Từ chối một bộ mô tả proxy mà động cơ này không thể đọc, trước khi một byte duy nhất được yêu cầu.",
     "description": "Một tệp kê khai không có bộ mô tả không phải là một lỗi: đó là một bộ nhớ đệm từ trước khi có tính năng dội lại, và bộ máy nói rõ điều đó thay vì đoán mò hình học mà nó không có."
-  },
-  "assertSceneTables": {
-    "summary": "Các bảng, hoặc một sự từ chối có tên.",
-    "description": "Một phiên bản không xác định không bao giờ bị đoán mò: một sản phẩm được viết bởi một trình biên dịch khác, hoặc trước khi một bảng thay đổi hình dạng, không nói lên điều gì mà trình đọc này có thể kiểm tra một cảnh dựa vào, và việc đọc nó nửa chừng sẽ biến một thay đổi định dạng thành một phép so sánh sai."
   },
   "axisAngleQuaternion": {
     "summary": "Quaternion của một phép xoay `angle` radian quanh một trục đơn vị."
@@ -4699,8 +4598,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Bộ lập lịch bóng đổ.",
-    "description": "Công việc của một khung hình không còn là \"bốn nguồn sáng\" nữa mà là **các trang cũ ưu tiên nhất, đến một ngân sách một mili giây** (RX3, X4): một nguồn sáng hay một tầng (cascade) di chuyển làm cũ toàn bộ bản đồ của nó, một đối tượng di chuyển chỉ làm cũ các trang mà hộp chiếu của nó bao phủ, và các trang bị từ chối khung hình này chờ khung hình tiếp theo — không bao giờ bị mất, độ trễ của chúng được công bố. Một nguồn sáng cố định trong một cảnh tĩnh vẫn không tốn gì cả (X5). Tất cả các mảng được cấp phát một lần; `plan()` sẽ không bao giờ cấp phát."
+    "summary": "Bộ lập lịch bóng của các bản đồ ảo.",
+    "description": "Phép tô bóng ghi lại các trang nó đọc; báo cáo của nó, đọc về vài khung sau, cấp phát từ bể cố định những gì còn thiếu. Những gì di chuyển làm cũ các trang đã ánh xạ mà nó phủ. Một khung sau đó vẽ các trang cũ mà ảnh đọc — trang thô trước, trong ngân sách mili giây —, phần còn lại chờ, không bao giờ mất, độ trễ được công bố. Một cảnh đứng yên, có phép tô bóng không còn chạy, không yêu cầu gì và không vẽ gì. Mọi mảng được cấp phát một lần; `plan()` không cấp phát gì."
   },
   "createTerminalProgress": {
     "summary": "Một thanh tiến trình trong terminal theo dõi các sự kiện của trình biên dịch.",
@@ -4741,7 +4640,8 @@
       "options.interactive": "Liệu thế giới có chạy vòng lặp riêng của nó hay không: nó vẽ khi có gì đó thay đổi và nghỉ sau 120 khung hình không có gì mới. `false` để trang tự gọi `world.render()`.",
       "options.pixelRatio": "Có bao nhiêu pixel hình ảnh cho mỗi pixel màn hình.",
       "options.controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
-      "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy."
+      "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
+      "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải."
     }
   },
   "crossVector3": {
@@ -4773,10 +4673,6 @@
   "depthLayerUnits": {
     "summary": "Có bao nhiêu đơn vị phần cứng mà một lớp di chuyển một cụm VỀ PHÍA camera, dưới dạng độ lớn: bằng không hoặc hơn, không bao giờ có dấu.",
     "description": "Mọi đường xử lý đều đọc hàm duy nhất này và gán dấu cho nó theo phép kiểm tra độ sâu riêng của mình."
-  },
-  "desiredFaceSide": {
-    "summary": "Kích thước mặt mà một nguồn sáng xứng đáng có: phạm vi của nó được chiếu lên màn hình, giới hạn bởi phần của nó trong atlas.",
-    "description": "Một nguồn sáng bao phủ toàn bộ màn hình và đứng một mình lấy `shadowSliceMax`; ở ba mươi nguồn sáng bóng đổ, mỗi cái tự giảm bớt thay vì để những cái cuối không có lát cắt nào. Sàn là `shadowSliceMin`: không nguồn sáng nào biến mất vì thiếu chỗ chừng nào vẫn còn chỗ nào đó."
   },
   "detectCapabilities": {
     "summary": "Kiểm tra máy này có thể vẽ bằng gì, và nói lý do khi không thể."
@@ -4849,9 +4745,6 @@
   "exportLightingGltf": {
     "summary": "glTF và một bộ đệm nhị phân little-endian riêng biệt; các bộ chuyển đổi tự chịu trách nhiệm lưu trữ lâu dài."
   },
-  "faceCountOf": {
-    "summary": "Các mặt thực sự được vẽ cho một nguồn sáng: sáu cho một điểm, một cho một đèn chiếu, và các tầng (cascades) cho một nguồn định hướng — không bao giờ nhiều hơn sáu mặt được dành riêng cho mỗi lát cắt."
-  },
   "filter": {
     "summary": "Các quy tắc lấy mẫu kết cấu."
   },
@@ -4872,10 +4765,6 @@
   },
   "filter.nearestMipNearest": {
     "summary": "Pixel gần nhất của bản sao nhỏ hơn gần nhất."
-  },
-  "forEachShadowFace": {
-    "summary": "Duyệt qua mọi mặt của mọi nguồn sáng khai báo một bóng đổ và giữ một lát cắt: lượt quét duy nhất mà bộ đếm, việc công bố mặt nạ giữ (held-mask) và mọi trình đọc theo từng mặt khác cùng chia sẻ.",
-    "description": "Số lượng mặt là số của loại nguồn sáng đó; `fn` bị giới hạn bởi các lát cắt và mặt đã công bố."
   },
   "frameStatistics": {
     "summary": "Tốc độ khung hình và độ mượt từ thời gian giữa các khung hình."
@@ -5491,7 +5380,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.lineDashed": {
@@ -5525,7 +5418,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshBasic": {
@@ -5559,7 +5456,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshDepth": {
@@ -5593,7 +5494,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshLambert": {
@@ -5627,7 +5532,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshMatcap": {
@@ -5661,7 +5570,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshNormal": {
@@ -5695,7 +5608,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshPhong": {
@@ -5729,7 +5646,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshPhysical": {
@@ -5763,7 +5684,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshStandard": {
@@ -5797,7 +5722,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.meshToon": {
@@ -5831,7 +5760,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.points": {
@@ -5865,7 +5798,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.shadow": {
@@ -5899,7 +5836,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "material.sprite": {
@@ -5933,7 +5874,11 @@
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
-      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không."
+      "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
+      "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
+      "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
+      "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
     }
   },
   "materialSide": {
@@ -6177,6 +6122,13 @@
   "object.group": {
     "summary": "Một node trống giữ các đối tượng khác, để chúng di chuyển cùng nhau."
   },
+  "object.clone": {
+    "summary": "Một bản sao của một đối tượng và mọi thứ bên dưới nó, không dùng chung gì với nó: hình dạng, vật liệu, đèn và các trường đều được sao chép.",
+    "description": "Một mô hình đã tải không được sao chép: trả về `null` cho nó, và nó bị bỏ ra khỏi một nhóm được sao chép.",
+    "parameters": {
+      "source": "Đối tượng cần sao chép."
+    }
+  },
   "object.line": {
     "summary": "Vẽ một đường thẳng qua các đỉnh, lần lượt từng cái một.",
     "parameters": {
@@ -6265,9 +6217,6 @@
   "pageDecodeWorkerCount": {
     "summary": "Kích thước của bể giải mã: không bao giờ nhiều hơn số lõi mà máy báo cáo, không bao giờ nhiều hơn trần của gói, không bao giờ nhiều hơn giới hạn tiếp nhận đã có hiệu lực trên các lần truyền, và ít nhất là một.",
     "description": "Một giá trị bị thiếu hoặc không phải số nguyên tương đương với một trình thực thi duy nhất: trên một nền tảng không báo cáo gì cả, chúng ta không bịa ra tính song song."
-  },
-  "pageRowsOf": {
-    "summary": "Số trang trên mỗi cạnh của một mặt `side`-texel, bị giới hạn bởi những gì mặt nạ có thể mang."
   },
   "perspectiveProjection": {
     "summary": "Phép chiếu phối cảnh của một camera với `fov` độ theo chiều dọc, tỉ lệ `aspect`, mặt phẳng gần `near`, độ phóng đại `zoom`."
@@ -6645,7 +6594,8 @@
       "geometryPoolCeiling": "Các bể lớn nhất mà một thế giới có thể yêu cầu: các ngân sách khởi đầu của bộ máy.",
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
       "geometryPool": "Số byte bộ nhớ GPU giữ cho các trang hình học; đặt nó để thay đổi phong bì.",
-      "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì."
+      "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì.",
+      "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6709,14 +6659,18 @@
       "stride": "Chỉ character: pha của bước chân tính bằng radian, một chân chạm đất tại 0 và π; ngược lại là 0.",
       "velocity": "Chỉ character: vận tốc của thân thể tính bằng mét trên giây, một bản sao; ngược lại là không.",
       "walkSpeed": "Chỉ character: mét trên giây khi đi bộ; mặc định là 3,5, một cuộc chạy bộ.",
-      "yawInput": "Chỉ flight: cần điều khiển yaw trong [-1, 1] (trái), được cộng vào các phím mũi tên; mặc định là 0."
+      "yawInput": "Chỉ flight: cần điều khiển yaw trong [-1, 1] (trái), được cộng vào các phím mũi tên; mặc định là 0.",
+      "mass": "Chỉ nhân vật, có vật lý: số kilôgam thân thể đè lên chỗ đứng; mặc định 80.",
+      "pushStrength": "Chỉ nhân vật, có vật lý: số newton thân thể dùng để đẩy vật thể; mặc định 250, lực đẩy liên tục của người lớn.",
+      "vehicle": "Chỉ phương tiện: thứ mà điều khiển `'vehicle'` lái — bất cứ thứ gì có `drive(input)`, nhận ga, phanh, lái và phanh tay mỗi khi phím thay đổi. Mặc định `null`, và khi đó `kind = 'vehicle'` ném `NO_VEHICLE`."
     }
   },
   "world.diagnostic": {
-    "summary": "Những gì trang giữ: chế độ, được đọc và ghi.",
+    "summary": "Những gì trang giữ: chế độ xem, được đọc và ghi; các phiên đã mở và lý do phiên cuối thất bại, chỉ đọc.",
     "members": {
       "mode": "Chế độ khung nhìn: `'beauty'` cho hình ảnh bình thường, hoặc một chế độ cho thấy bộ máy hoạt động như thế nào.",
       "sessions": "Các phiên mà thế giới đã mở cho đến giờ: một thay đổi làm mở lại một phiên sẽ hiện ở đây.",
+      "error": "Vì sao phiên gần nhất không thể mở, dưới dạng một lỗi có tên của engine: `code` của nó là một trong các mã được mô tả trên `EngineError` (`WEBGPU_LOST` khi WebGPU mất thiết bị), hoặc `SESSION_OPEN_FAILED` cho một lý do không có mã riêng. Một `EngineError` có mã được mô tả chính là lỗi đã ném; mọi lỗi khác được chuyển đổi, và khi đó lỗi đã ném nằm trong `details.cause`. `null` từ đầu mỗi lần mở, và khi không thử mở gì.",
       "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
     }
   },
@@ -6797,8 +6751,8 @@
     "summary": "Suy ra mọi thứ mà một khung hình đọc từ `into.world`, đã được đặt, và quang học đã khai báo: phép chiếu theo quy ước độ sâu của bộ máy, sau đó là view, view-projection và sáu mặt phẳng khối nhìn (`updateCameraFrame`), khung render (`renderOrigin.ts`) và mắt."
   },
   "writeFace": {
-    "summary": "Ghi ma trận view-projection của một mặt vào vị trí của nó trong `matrices`, và, nếu reject được kích hoạt, thể tích mà nó đối lập với vùng `rect` của mặt đó.",
-    "description": "Cả hai đều bắt đầu từ cùng một trục và cùng một trường nhìn — một phép tính duy nhất, nên không có rủi ro chúng nhắm vào các hướng khác nhau. Một điểm lấy trục `POINT_FACE_AXES` và 90°; một đèn chiếu lấy hướng của nó và hình nón đã mở rộng của nó; một nguồn định hướng lấy tầng (cascade) `face`, thứ theo dõi camera. Về phần bán kính nguồn phát, nó không chạm vào cả phép chiếu lẫn reject: sự loại trừ của nó chính xác là một hình cầu, được viết ở nơi độ sâu bóng đổ được viết, và một mặt phẳng gần được nâng lên sẽ loại bỏ một khối lập phương khỏi nó. `rect` là phần của mặt cần vẽ lại, theo tọa độ đã chuẩn hóa; `FULL_FACE` theo mặc định, và khi đó thể tích chính xác là thể tích từ trước khi vô hiệu hóa theo từng trang. Một cụm mà hình cầu thế giới của nó không chạm vào phạm vi cũng như thể tích này không thể ghi gì vào vùng đó: phép chiếu và phép cắt kéo (scissor) sẽ từ chối nó dù sao đi nữa. Do đó reject là chính xác, không bao giờ là một phép xấp xỉ chất lượng — vùng không thay đổi dù chỉ một texel."
+    "summary": "Ghi ma trận view-projection của một mặt đèn vào vị trí của nó trong `matrices`, và nếu phép loại được bật, thể tích mà nó đặt đối diện với hình chữ nhật `rect` của mặt đó.",
+    "description": "Cả hai xuất phát từ cùng một trục và cùng một trường — một phép tính, nên không có nguy cơ chúng nhắm các hướng khác nhau. Một đèn điểm lấy trục `POINT_FACE_AXES` và 90°; một đèn spot lấy hướng và hình nón mở rộng của nó. Bán kính nguồn phát không chạm đến phép chiếu lẫn phép loại: phần loại trừ của nó đúng là một hình cầu, ghi ở nơi ghi độ sâu bóng. `rect` là phần của mặt cần vẽ, trong tọa độ chuẩn hóa; mặc định `FULL_FACE`. Một cụm có hình cầu thế giới không chạm tầm lẫn thể tích này không thể ghi gì vào đó: phép chiếu và viewport dù sao cũng loại nó, nên phép loại là chính xác."
   },
   "BeforeFrameInfo": {
     "summary": "Những gì một hook trước-khung-hình nhận được: số giây mà các bộ điều khiển vừa tích hợp, và kể từ khi thế giới bắt đầu.",
@@ -6898,6 +6852,433 @@
       "counts": "Theo mỗi nút: số tam giác của một lá, 0 cho nút trong.",
       "bytes": "Số byte mà cây giữ.",
       "triangleCount": "Số tam giác mà cây giữ."
+    }
+  },
+  "world.physics": {
+    "summary": "Vật thể, trọng lực và thời gian của vật lý (Jolt, trong một worker).",
+    "members": {
+      "enabled": "Các vật có được mô phỏng không. Bật lần đầu sẽ tải vật lý.",
+      "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt một thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
+      "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
+      "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
+    }
+  },
+  "ContactEvent": {
+    "summary": "Những gì một va chạm trao cho người nghe: vật kia, xung lực và điểm chạm.",
+    "members": {
+      "other": "Vật bị chạm; `null` khi nó đã rời cảnh.",
+      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải; 0 khi `leave`.",
+      "point": "Điểm tiếp xúc, hệ thế giới; gốc tọa độ khi `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Sự kiện của một vật: chạm lần đầu kèm xung lực (`contact`), và chạm bắt đầu hoặc kết thúc."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Ngân sách vật lý mặc định của engine.",
+    "members": {
+      "bodies": "Vật thể mọi loại cùng lúc.",
+      "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
+      "decorative": "Vật trang trí cùng lúc.",
+      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Các trọng lực có tên, tính bằng m/s² theo −y.",
+    "members": {
+      "earth": "Của Trái Đất.",
+      "moon": "Của Mặt Trăng.",
+      "mars": "Của Sao Hỏa.",
+      "none": "Không trọng lực."
+    }
+  },
+  "GravityInput": {
+    "summary": "Một trọng lực: tên thiết lập sẵn, hoặc vectơ tính bằng m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Tên một thiết lập sẵn trọng lực."
+  },
+  "ObjectPhysics": {
+    "summary": "Vật lý của một vật, như `obj.physics` giữ: bản ghi sống về vật là gì và làm gì.",
+    "description": "Việc ghi đến mô phỏng ở bước kế tiếp; `velocity` đọc những gì bước cuối để lại.",
+    "members": {
+      "type": "Cách vật di chuyển; gán lại `obj.physics` để thay đổi.",
+      "shape": "Hình đã khai báo, nếu có.",
+      "sensor": "Vật có chỉ báo va chạm không.",
+      "ccd": "Va chạm liên tục có bật không.",
+      "decorative": "Vật có phải mảnh vụn trang trí không.",
+      "velocity": "Vận tốc thẳng, m/s, như bước cuối để lại; ghi vào để ném vật.",
+      "asleep": "Vật có đang ngủ không: đứng yên, và không được mô phỏng cho tới khi có gì đánh thức.",
+      "mass": "Khối lượng tính bằng kilôgam; `undefined` lấy mật độ vật liệu nhân thể tích.",
+      "gravityScale": "Nhân trọng lực của thế giới cho vật này.",
+      "friction": "Ma sát ép buộc; `undefined` lấy của vật liệu.",
+      "restitution": "Độ nảy ép buộc; `undefined` lấy của vật liệu.",
+      "applyImpulse": "Đẩy vật ngay, một xung lực tính bằng N·s qua khối tâm; đánh thức nó.",
+      "wake": "Đánh thức vật, dù đang ngủ hay không.",
+      "on": "Gọi `handler` khi có sự kiện va chạm của vật này.",
+      "listens": "Có trình xử lý va chạm nào không."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Các chất liệu có tên cho `material.physics`, từ giá trị sổ tay làm tròn.",
+    "members": {
+      "wood": "Gỗ.",
+      "metal": "Thép.",
+      "rubber": "Cao su.",
+      "ice": "Băng.",
+      "stone": "Đá.",
+      "glass": "Thủy tinh."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Những gì `obj.physics` nhận ngoài ba từ của nó.",
+    "members": {
+      "type": "Cách vật di chuyển.",
+      "mass": "Khối lượng tính bằng kilôgam; bỏ trống thì là mật độ vật liệu nhân thể tích của hình.",
+      "shape": "Hình va chạm; bỏ trống thì suy ra từ hình học.",
+      "gravityScale": "Nhân trọng lực của thế giới cho vật này; 0 là lơ lửng.",
+      "sensor": "Báo va chạm mà không va chạm: một vùng kích hoạt.",
+      "ccd": "Va chạm liên tục, cho vật nhỏ nhanh có thể xuyên qua tường mỏng.",
+      "decorative": "Mảnh vụn: chỉ gặp thế giới tĩnh, và chỉ được mô phỏng khi trong tầm và trong tầm nhìn. Giới hạn bởi `budget.physics.decorative`.",
+      "friction": "Thay ma sát của vật liệu, từ 0 trở lên.",
+      "restitution": "Thay độ nảy của vật liệu, từ 0 đến 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Các giới hạn cố định của vật lý một thế giới; không bao giờ đọc từ máy.",
+    "members": {
+      "bodies": "Vật thể mọi loại cùng lúc.",
+      "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
+      "decorative": "Vật trang trí cùng lúc.",
+      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Phía thế giới của một vật: điều mà việc ghi vào `obj.physics` yêu cầu mô phỏng.",
+    "members": {
+      "rebuild": "Một thiết lập lúc tạo vật đã đổi: vật được tạo lại.",
+      "tune": "Ma sát, độ nảy hoặc hệ số trọng lực đã đổi.",
+      "listened": "Việc muốn nhận sự kiện va chạm có đổi không.",
+      "velocity": "Vận tốc đã được ghi.",
+      "impulse": "Một xung lực đã được áp dụng.",
+      "wake": "Vật đã được đánh thức."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Tên một thiết lập sẵn chất liệu."
+  },
+  "PhysicsMatter": {
+    "summary": "Chất liệu của một vật: mật độ (kg/m³), ma sát và độ nảy.",
+    "members": {
+      "density": "kg/m³, cho khối lượng của vật.",
+      "friction": "Mức bám của vật, từ 0 trở lên.",
+      "restitution": "Mức nảy của vật, từ 0 đến 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Những gì có thể gán cho `obj.physics`."
+  },
+  "PhysicsShape": {
+    "summary": "Một hình va chạm, khi hình suy ra từ hình học không phù hợp.",
+    "description": "Kích thước tính trong hệ riêng của vật, trước tỉ lệ."
+  },
+  "PhysicsStats": {
+    "summary": "Những gì vật lý thế giới báo: số đếm của tick cuối, và hai đồng hồ tách riêng.",
+    "members": {
+      "bodies": "Các vật mà mô phỏng giữ.",
+      "active": "Số vật còn chạy sau tick cuối.",
+      "stepMs": "Mili giây worker mỗi bước cố định, tick cuối: đồng hồ của worker, không bao giờ cộng với đồng hồ trang.",
+      "mainMs": "Mili giây trang mà vật lý dùng ở khung cuối (giai đoạn CPU `physics`).",
+      "poses": "Tư thế mà tick cuối gửi về.",
+      "events": "Sự kiện va chạm mà tick cuối gửi về.",
+      "droppedEvents": "Các sự kiện `enter` bị bỏ từ khi vật lý khởi động, vượt quá `budget.physics.contactEvents` trong một bước (`leave` của chúng không bao giờ được gửi)."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Cách một vật di chuyển: không bao giờ, do trang (`kinematic`, đẩy thứ nó gặp), hoặc do mô phỏng."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, vật lý của thế giới.",
+    "members": {
+      "enabled": "Các vật có được mô phỏng không. Bật lần đầu sẽ tải vật lý.",
+      "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
+      "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
+      "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Những gì `createWorld(canvas, { physics })` nhận ngoài `true`.",
+    "members": {
+      "budget": "Giới hạn cố định, đọc một lần khi vật lý bắt đầu.",
+      "gravity": "Trọng lực của thế giới: thiết lập sẵn hoặc vectơ."
+    }
+  },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Các số float của một bản ghi bóng, bản mà phép tô bóng của một đèn đọc: sáu ma trận mặt đèn, rồi hệ khung của mặt phẳng mặt trời — `right, zNear`, `up, zFar`, `axis, 0` —, rồi gốc vùng của mỗi mức clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: số mặt (đèn) hoặc số mức (mặt trời), tang nửa trường của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
+  },
+  "ShadowRequestReport": {
+    "summary": "Những gì phép tô bóng đã đọc trong một khung: các mục bảng nó yêu cầu, không theo thứ tự.",
+    "members": {
+      "frame": "Khung mà phép tô bóng của nó đã viết báo cáo.",
+      "layoutEpoch": "Bố cục bảng mà khung đó dùng để đọc (`ShadowTable.layoutEpoch`).",
+      "stamp": "Con dấu của kế hoạch khi khung đó được mã hóa (`ShadowPlan.stamp`).",
+      "count": "Các mục được yêu cầu, có thể nhiều hơn `entries` chứa: phần còn lại yêu cầu lại ở khung sau.",
+      "entries": "Các mục được yêu cầu, tối đa `count` mục đầu."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Bất cứ thứ gì `world.controls.vehicle` có thể lái: nhận đầu vào mỗi khi nó thay đổi.",
+    "members": {
+      "drive": "Nhận bàn đạp và vô lăng mỗi khi một phím thay đổi chúng."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Điều người lái yêu cầu ở phương tiện: bàn đạp và vô lăng, như các phím của `world.controls` `'vehicle'` đặt.",
+    "description": "Vật lý của chính phương tiện — động cơ, bánh xe, hệ thống treo — đáp lại; hợp đồng này là tất cả những gì điều khiển biết.",
+    "members": {
+      "throttle": "Chân ga, từ 0 đến 1.",
+      "brake": "Bàn đạp phanh, từ 0 đến 1.",
+      "steer": "Vô lăng, từ −1 hết bên trái đến 1 hết bên phải.",
+      "handbrake": "Phanh tay có đang kéo không."
+    }
+  },
+  "GraphAngles": {
+    "summary": "Cùng một hướng dưới dạng ba góc và thứ tự của chúng, thông báo các lần ghi theo cùng cách.",
+    "members": {
+      "x": "Góc thứ nhất, tính bằng radian.",
+      "set": "Ghi ba góc, và thứ tự nếu có; thông báo một lần.",
+      "setFromRotation": "Các góc của `q` theo thứ tự này (`Euler` của lõi); thông báo trừ khi `quiet`.",
+      "y": "Góc thứ hai, tính bằng radian.",
+      "z": "Góc thứ ba, tính bằng radian.",
+      "order": "Thứ tự quay của ba góc, `'XYZ'` nếu chưa đặt."
+    }
+  },
+  "GraphArray": {
+    "summary": "Các mảng có kiểu mà một thuộc tính giữ."
+  },
+  "GraphAttribute": {
+    "summary": "Một thuộc tính sở hữu vùng lưu trữ của nó: `itemSize` số mỗi đỉnh, nối tiếp nhau.",
+    "members": {
+      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
+      "count": "Có bao nhiêu đỉnh.",
+      "version": "Tăng bởi `needsUpdate`.",
+      "array": "Nơi lưu trữ.",
+      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
+      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
+      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
+    }
+  },
+  "GraphElements": {
+    "summary": "Một trong hai loại thuộc tính."
+  },
+  "GraphGeometry": {
+    "summary": "Các thuộc tính mà một lưới vẽ, danh sách tam giác đánh chỉ mục chúng, các mục tiêu morph di chuyển chúng, cùng hộp và hình cầu cục bộ tính trên chúng.",
+    "members": {
+      "kind": "Tài nguyên là gì.",
+      "name": "Tên của nó.",
+      "index": "Danh sách tam giác, hoặc `null` để vẽ các đỉnh theo thứ tự.",
+      "attributes": "Các thuộc tính đỉnh của nó.",
+      "morphAttributes": "Với mỗi thuộc tính biến dạng, một thuộc tính cho mỗi mục tiêu morph.",
+      "morphTargetsRelative": "Đúng khi một mục tiêu morph giữ độ dời, không phải vị trí.",
+      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ với một bề mặt.",
+      "drawRange": "Khoảng chỉ mục được vẽ.",
+      "boundingBox": "Hộp cục bộ mà ứng dụng chủ đã tính.",
+      "boundingSphere": "Hình cầu cục bộ, sau khi được tính hoặc khai báo.",
+      "userData": "Chỗ trống cho dữ liệu của người đã dựng hình học.",
+      "getIndex": "Danh sách tam giác.",
+      "setIndex": "Đặt danh sách tam giác.",
+      "getAttribute": "Thuộc tính có tên đó.",
+      "setAttribute": "Đặt tên một thuộc tính.",
+      "deleteAttribute": "Quên một thuộc tính.",
+      "hasAttribute": "Có thuộc tính mang tên đó hay không.",
+      "clone": "Một hình học giữ bản sao của mọi bộ đệm, các nhóm, khoảng và giới hạn của nó.",
+      "toNonIndexed": "Một hình học vẽ cùng các tam giác mà không có chỉ mục: mỗi góc là một đỉnh riêng.",
+      "computeBoundingBox": "Tính hộp cục bộ trên mọi đỉnh.",
+      "computeBoundingSphere": "Tính hình cầu cục bộ: tâm ở hộp, chạm tới đỉnh xa nhất."
+    }
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
+    "members": {
+      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
+      "data": "Bộ đệm mà nó xem.",
+      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Bao nhiêu đỉnh.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem, mỗi `stride` số là một đỉnh.",
+    "members": {
+      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
+      "count": "Bao nhiêu đỉnh.",
+      "version": "Tăng bởi `needsUpdate`.",
+      "array": "Vùng lưu trữ.",
+      "stride": "Số lượng số mỗi đỉnh.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Một nút được vẽ: một hình học và bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
+    "members": {
+      "kind": "Vẽ tại một vị trí đặt, hoặc tại nhiều vị trí (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Trọng số của mỗi mục tiêu morph, khi hình học khai báo.",
+      "morphTargetDictionary": "Thứ hạng của mỗi mục tiêu morph theo tên.",
+      "geometry": "Hình dạng của nó.",
+      "material": "Bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
+      "updateMorphTargets": "Một trọng số bằng không cho mỗi mục tiêu morph của thuộc tính biến dạng đầu tiên, đặt tên theo thứ hạng.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+    }
+  },
+  "GraphNode": {
+    "summary": "Một nút của đồ thị: tên, tư thế, ma trận thế giới, cha và các con của nó.",
+    "members": {
+      "id": "Số của nút, duy nhất trong phiên.",
+      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu.",
+      "name": "Tên mà ứng dụng chủ đặt cho nó.",
+      "parent": "Cha của nó.",
+      "children": "Các nút mà nút này giữ, theo thứ tự.",
+      "up": "Hướng nào là phía trên cho `lookAt`.",
+      "position": "Nơi nó đứng.",
+      "rotation": "Nó được xoay như thế nào, dưới dạng góc.",
+      "quaternion": "Hai mặt của phép xoay một node — quaternion mà bộ máy so sánh, và các góc Euler được sao chép vào đó — mỗi bên TỰ THÔNG BÁO các lần ghi của chính nó: một callback mà ứng dụng chủ đã xâu chuỗi sẵn, mà một hook mở rộng thêm thay vì thay thế (`hooks.ts`). Hai thành viên có gạch dưới đó là riêng tư của thư viện chủ, nên chúng được ghi ở đây, nơi hook cần đến chúng, và không được đặt tên riêng. Điều đó giữ cái riêng tư đó ngoài danh sách các hợp đồng công bố của SDK; nhưng nó KHÔNG giữ nó ngoài bề mặt công bố, vì `HostGraphNode` mang theo nó. Việc so sánh tư thế theo từng khung hình, như lượt quét đã làm, mới là thứ sẽ gỡ bỏ sự ràng buộc đó — điều đó không thuộc về lô này.",
+      "scale": "Nó được kéo giãn như thế nào.",
+      "matrix": "Ma trận cục bộ của nó.",
+      "matrixWorld": "Ma trận thế giới của nó.",
+      "matrixAutoUpdate": "Sai khi chính ứng dụng chủ đặt `matrix`: ma trận đó CHÍNH LÀ tư thế và không có gì dựng lại nó.",
+      "matrixWorldAutoUpdate": "Sai khi không có gì ghi `matrixWorld`.",
+      "matrixWorldNeedsUpdate": "Được đặt khi ma trận cục bộ đã đổi mà ma trận thế giới chưa theo kịp.",
+      "visible": "Nó có được vẽ hay không.",
+      "castShadow": "Có đổ bóng hay không.",
+      "receiveShadow": "Bóng có đổ lên nó hay không.",
+      "frustumCulled": "Trình kết xuất có được bỏ qua nó khi ngoài tầm nhìn hay không.",
+      "renderOrder": "Thứ tự vẽ giữa các vật trong suốt.",
+      "userData": "Nơi bộ máy đánh dấu một bản sao của riêng nó, thứ mà ứng dụng chủ chưa bao giờ thấy và không thể ghi vào.",
+      "add": "Biến `nodes` thành con của nút này, mỗi nút trước đó được gỡ khỏi cha cũ.",
+      "remove": "Gỡ `nodes` khỏi nút này.",
+      "removeFromParent": "Gỡ nút này khỏi cha của nó.",
+      "clear": "Gỡ mọi con khỏi nút này.",
+      "traverse": "Cây con dưới node đó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
+      "updateMatrix": "Tạo ma trận cục bộ từ tư thế.",
+      "updateMatrixWorld": "Giải quyết các ma trận thế giới của cây con NGAY TRONG ĐỒ THỊ CHỦ, cho các trình đọc riêng của ứng dụng chủ.",
+      "updateWorldMatrix": "Giải ma trận thế giới của nút này, của tổ tiên trước nếu được yêu cầu, rồi đến cây con.",
+      "applyMatrix4": "Áp `m` lên tư thế của nút, rồi đọc lại tư thế từ tích.",
+      "lookAt": "Xoay nút về phía một điểm thế giới, cho dưới dạng điểm hoặc ba số.",
+      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Một nút của đồ thị là gì: một nút trần, gốc, một nhóm, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
+  },
+  "GraphRotation": {
+    "summary": "Một hướng `(x, y, z, w)` mà các lần ghi gọi `_onChangeCallback`.",
+    "members": {
+      "x": "Con số đầu tiên.",
+      "set": "Ghi bốn số, thông báo một lần.",
+      "copy": "Lấy các số của một phép quay khác.",
+      "fromArray": "Đọc bốn số từ một danh sách.",
+      "setFromAngles": "Phép quay của `angles`, theo thứ tự của chúng (`localTurnQuaternion`); thông báo trừ khi `quiet`.",
+      "setFromRotationMatrix": "Phép quay của phần 3×3 phía trên của một ma trận theo cột có các cột độ dài đơn vị.",
+      "premultiply": "Trở thành `q` rồi đến phép quay này, `q · this`.",
+      "invert": "Trở thành phép quay ngược lại.",
+      "y": "Con số thứ hai.",
+      "z": "Con số thứ ba.",
+      "w": "Con số thứ tư."
+    }
+  },
+  "GraphSurface": {
+    "summary": "Một bề mặt: các tham số của một họ, theo giá trị của bản tham chiếu trừ khi cảnh nói khác.",
+    "description": "Phiên bản của nó được tăng bởi `needsUpdate`, mà mọi bên đọc đều so sánh.",
+    "members": {
+      "uuid": "Một tên duy nhất của bề mặt.",
+      "name": "Tên của nó.",
+      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi: điều mà một hàng được lưu đệm so sánh để dựng lại các trường của nó.",
+      "userData": "Chỗ trống cho dữ liệu của người đã dựng bề mặt.",
+      "kind": "Tài nguyên là gì; `family` cho biết bề mặt nào.",
+      "family": "Họ mà nó thuộc về.",
+      "needsUpdate": "`needsUpdate = true` sau một thay đổi: mọi bên đọc lấy lại các trường.",
+      "copy": "Lấy mọi tham số của `source`, màu và vectơ được sao chép, kết cấu dùng chung.",
+      "clone": "Một bề mặt cùng họ với cùng tham số.",
+      "visible": "Nó có được vẽ hay không.",
+      "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
+      "forceSinglePass": "Ứng dụng chủ vẽ một bề mặt trong suốt hai mặt trong một chặng thay vì sau rồi trước.",
+      "vertexColors": "Các màu đỉnh có tô màu nó hay không.",
+      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
+      "depthWrite": "Nó có ghi độ sâu hay không.",
+      "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
+      "colorWrite": "Nó có ghi màu hay không.",
+      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
+      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
+      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
+      "transparent": "Nó có pha trộn hay không.",
+      "opacity": "Nó mờ đục đến mức nào.",
+      "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ.",
+      "depthTest": "Có kiểm tra độ sâu hay không."
+    }
+  },
+  "GraphTexture": {
+    "summary": "Một ảnh và trạng thái bộ lấy mẫu dùng để đọc nó, cùng phép biến đổi tọa độ của nó.",
+    "members": {
+      "kind": "Phân biệt kết cấu với mọi trường khác của bề mặt: một ảnh đã giải mã, hoặc texel thô (`image` giữ `{ data, width, height }`).",
+      "uuid": "Một tên duy nhất cho kết cấu đó.",
+      "name": "Tên mà ứng dụng chủ đặt cho nó.",
+      "mapping": "Cách nó được định địa chỉ: bằng một bộ UV.",
+      "channel": "Tập UV mà bộ lấy mẫu đọc, `texCoord` của `KHR_texture_transform`.",
+      "wrapS": "Cách nó lặp lại theo chiều ngang, dưới dạng hằng số của ứng dụng chủ.",
+      "wrapT": "Cách nó lặp lại theo chiều dọc, dưới dạng hằng số của ứng dụng chủ.",
+      "magFilter": "Bộ lọc khi hiển thị to hơn.",
+      "minFilter": "Bộ lọc khi hiển thị nhỏ hơn.",
+      "anisotropy": "Độ sắc nét khi nhìn xiên.",
+      "colorSpace": "Cách các con số của nó được đọc.",
+      "offset": "Những gì `matrix` được ghép từ đó.",
+      "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
+      "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
+      "generateMipmaps": "Các bản sao nhỏ hơn có được tạo ra hay không.",
+      "premultiplyAlpha": "Màu có được nhân trước với alpha hay không.",
+      "flipY": "Các hàng có bị lật khi tải lên hay không.",
+      "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi nội dung: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
+      "userData": "Chỗ trống cho dữ liệu của người đã dựng kết cấu.",
+      "format": "Các kênh của texel trong một kết cấu thô (`HOST_FORMAT_*`).",
+      "image": "Hình ảnh đã giải mã, trong vật chứa riêng của ứng dụng chủ.",
+      "needsUpdate": "`needsUpdate = true` sau một thay đổi: bên đọc tải nó lên lại.",
+      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay.",
+      "clone": "Một kết cấu cùng ảnh và trạng thái, được thông báo là đã đổi.",
+      "repeat": "Số lần nó vừa khít.",
+      "center": "Tâm xoay.",
+      "rotation": "Góc xoay, tính bằng radian."
+    }
+  },
+  "GraphVector": {
+    "summary": "Ba số của một tư thế hoặc một điểm: các trường dữ liệu đơn giản, và các phép toán mà bộ điều khiển dùng.",
+    "members": {
+      "set": "Ghi ba số.",
+      "copy": "Lấy các số của một điểm khác.",
+      "clone": "Một bản sao.",
+      "add": "Cộng thêm một vectơ khác.",
+      "sub": "Trừ đi một vectơ khác.",
+      "multiplyScalar": "Nhân tỉ lệ ba số.",
+      "length": "Độ dài của nó.",
+      "setLength": "Giữ hướng, đặt độ dài.",
+      "distanceTo": "Khoảng cách tới một điểm.",
+      "fromArray": "Đọc ba số từ một danh sách.",
+      "x": "Trái sang phải.",
+      "y": "Dưới lên trên.",
+      "z": "Sau ra trước."
     }
   }
 }

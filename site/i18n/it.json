@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Un rasterizzatore software",
       "sound-from-the-gpu": "Suono dalla GPU",
       "falling-boxes": "Scatole che cadono",
+      "ten-thousand-bodies": "Diecimila corpi",
       "breaking-things": "Rompere oggetti",
       "cloth-and-rope": "Stoffa e corda",
       "soft-bodies": "Corpi morbidi",
@@ -318,7 +319,9 @@
       "hands-in-vr": "Mani in VR",
       "teleport-in-vr": "Teletrasportarsi in VR",
       "controllers-in-vr": "Controller in VR",
-      "ar-on-the-table": "AR sul tavolo"
+      "ar-on-the-table": "AR sul tavolo",
+      "shadows-case-by-case": "Le ombre, caso per caso",
+      "a-walker-among-balls": "Un camminatore tra le palline"
     },
     "missing": {
       "colours-on-the-vertices": "colori per vertice su WebGPU",
@@ -478,13 +481,10 @@
       "sort-and-reduce": "API di calcolo GPU",
       "a-software-rasteriser": "API di calcolo GPU",
       "sound-from-the-gpu": "API di calcolo GPU",
-      "falling-boxes": "integrazione di un motore fisico",
       "breaking-things": "integrazione di un motore fisico",
       "cloth-and-rope": "integrazione di un motore fisico",
       "soft-bodies": "integrazione di un motore fisico",
-      "rolling-on-terrain": "integrazione di un motore fisico",
       "hinges-and-joints": "integrazione di un motore fisico",
-      "walk-with-collisions": "integrazione di un motore fisico",
       "drive-a-car": "integrazione di un motore fisico",
       "a-room-in-vr": "sessione WebXR",
       "a-360-photo-in-vr": "sessione WebXR",
@@ -1052,6 +1052,29 @@
           "Vedi i pezzi con <code>world.diagnostic.mode = 'clusters'</code>: ogni cluster riceve il proprio colore."
         ],
         "tryIt": "Abbassa la memoria con il controllo: i pezzi diventano più grandi, l'edificio resta intero. Cambia la vista su <code>clusters</code> per vederli."
+      },
+      "make-things-fall": {
+        "title": "Far cadere le cose",
+        "description": "Accendi la fisica e le tue forme prendono peso: cadono, urtano e si fermano.",
+        "steps": [
+          "Dai al mondo <code>physics: true</code>. La simulazione gira a parte dal disegno, in un <em>worker</em>, e non rallenta mai l’immagine.",
+          "Segna il pavimento <code>'static'</code>: regge gli altri e non si muove mai. Segna una scatola <code>'dynamic'</code>: la gravità la attira.",
+          "La forma viene dalla geometria, il peso dal materiale: <code>physics: 'wood'</code> è leggera, <code>'metal'</code> pesante, <code>'rubber'</code> rimbalza.",
+          "Spingi un corpo con <code>applyImpulse</code> o ascolta il suo <code>contact</code>. Quando tutti dormono, nulla è calcolato né disegnato.",
+          "Un modello caricato con <code>scene.load</code> urta con i propri triangoli, preparati alla compilazione. <code>await world.raycast(point, { exact: true })</code> trova il triangolo esatto sotto il cursore."
+        ],
+        "tryIt": "Lascia cadere altre scatole, porta la gravità sulla Luna e accendi il rallentatore."
+      },
+      "touch-and-react": {
+        "title": "Toccare e reagire",
+        "description": "Entra nel tuo mondo: con la fisica, il personaggio sale, si fa trasportare e spinge ciò che incontra, e ciò che incontra lo spinge a sua volta.",
+        "steps": [
+          "Crea il mondo con <code>controls: 'character'</code> e <code>physics: true</code>. Il personaggio è ora un corpo della fisica, come le casse.",
+          "Segna come <code>'static'</code> ciò che non si muove mai: il pavimento, le scale, i muri. Il personaggio sale gradini fino al ginocchio e pendii fino a 45°.",
+          "Segna una piattaforma come <code>'kinematic'</code> e muovila dal tuo codice a ogni fotogramma: ciò che ci sta sopra viaggia con lei.",
+          "Rendi le casse <code>'dynamic'</code> e leggere: il personaggio le spinge con <code>pushStrength</code> newton, e loro cadono, rotolano e lo spingono."
+        ],
+        "tryIt": "Clicca sull’immagine, cammina con W A S D, salta con Spazio. Sali le scale, viaggia sulla piattaforma, spingi la pila di casse."
       },
       "your-own-scene": {
         "title": "La tua scena",

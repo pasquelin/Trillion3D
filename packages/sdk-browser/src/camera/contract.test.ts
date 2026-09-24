@@ -6,7 +6,7 @@
 // that is the only case where reading a camera's local pose still looks right.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { enginePose, holdCameraWorld, resolveCameraWorld } from './world.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
 import { resolvePixelError } from '../page/selection/requests.ts';
@@ -50,18 +50,18 @@ test('contract: the pose resolved under a moved and rotated parent is the world 
     'the position read by the contract must be that of the eye in the world',
   );
   // The test discriminates: the local pose, for its part, names a point that does not exist in the world.
-  assert.notDeepEqual(camera.position.toArray(), [...cameraMoteur(aplatie).eye]);
+  assert.notDeepEqual(G.xyz(camera.position), [...cameraMoteur(aplatie).eye]);
 });
 
 test('contract: the published pose is the world pose, never the local pose', () => {
   const { camera, aplatie } = sousRig(DEPLACE_ET_TOURNE);
   assert.deepEqual(enginePose(cameraMoteur(camera)), enginePose(cameraMoteur(aplatie)));
-  assert.notDeepEqual(enginePose(cameraMoteur(camera)).position, camera.position.toArray());
+  assert.notDeepEqual(enginePose(cameraMoteur(camera)).position, G.xyz(camera.position));
 });
 
 test('boundary: the held-frame gate sees a rig move that the host has not walked', () => {
   const gate = createWebglFrameGate();
-  const source = new THREE.Object3D();
+  const source = new G.GraphNode();
   const rig = creeRig();
   const viewport: [number, number] = [800, 600];
   /** A frame of a Three-rendered engine, reduced to what pose decides there. */
@@ -102,7 +102,7 @@ test('boundary: the view history freezes the world pose, not the local pose', ()
 });
 
 /** A uniforms read copied at once: the work buffer is shared between two calls. */
-const uniformes = (camera: THREE.PerspectiveCamera) => {
+const uniformes = (camera: G.GraphCamera) => {
   const u = cameraSelectionUniforms(cameraMoteur(camera), 1, VIEWPORT);
   return { view: [...u.view], planes: [...u.planes], cameraWorld: [...u.cameraWorld] };
 };
@@ -127,14 +127,10 @@ test('boundary: the adaptive threshold called alone measures the eye velocity in
     // No frame entry here: the rig camera has never been walked by anyone.
     resolvePixelError(
       contexte,
-      cameraMoteur(poseRig(rig, pose, false) as THREE.PerspectiveCamera),
+      cameraMoteur(poseRig(rig, pose, false) as G.GraphCamera),
       sousRigMotion,
     );
-    resolvePixelError(
-      contexte,
-      cameraMoteur(cameraAplatie(pose) as THREE.PerspectiveCamera),
-      aplatieMotion,
-    );
+    resolvePixelError(contexte, cameraMoteur(cameraAplatie(pose) as G.GraphCamera), aplatieMotion);
     assert.deepEqual(
       [...(sousRigMotion.last ?? [])],
       [...(aplatieMotion.last ?? [])],
@@ -142,5 +138,5 @@ test('boundary: the adaptive threshold called alone measures the eye velocity in
     );
   }
   // The test discriminates: without resolve, the velocity would be that of the camera in its rig.
-  assert.notDeepEqual([...(sousRigMotion.last ?? [])], rig.camera.position.toArray());
+  assert.notDeepEqual([...(sousRigMotion.last ?? [])], G.xyz(rig.camera.position));
 });

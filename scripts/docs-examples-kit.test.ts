@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describe, printed } from '../site/examples/kit/controls.ts';
 import { labelOf } from '../site/examples/kit/words.ts';
-import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/statsLines.ts';
+import {
+  sceneTriangles,
+  shadowLines,
+  statLines,
+  statsCorners,
+} from '../site/examples/kit/statsLines.ts';
 import { profileLines, profileWindow } from '../site/examples/kit/profile.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
@@ -94,6 +99,29 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
   );
   // A frame that measured no triangle at all shows none: never the scene's count in its place.
   assert.deepEqual(statLines({ ...unmeasured, selectedTriangles: 0, sceneTriangles: 12 }), []);
+});
+
+test('a shadow counter shows under the name the engine publishes, zero included, and only when measured', () => {
+  assert.deepEqual(
+    shadowLines({
+      shadowLightCuts: 0,
+      shadowPagesDrawn: 1234,
+      shadowPagesPending: null,
+      shadowWaitMs: 1.5,
+      shadowsUpdated: 2,
+      shadowNotACount: 'text',
+      drawCalls: 3,
+    }),
+    [
+      ['Shadow light cuts', '0'],
+      ['Shadow pages drawn', '1,234'],
+      ['Shadow wait', '1.50 ms'],
+      ['Shadows updated', '2'],
+    ],
+  );
+  // The frame's other counters ride along in the sample, as the corner spreads the metrics.
+  const sample = { fps: null, held: false, sceneTriangles: null, shadowLightCuts: 0 };
+  assert.deepEqual(statLines(sample), [['Shadow light cuts', '0']]);
 });
 
 test('the stats corner sits at the bottom left or, moved, at the top left', () => {

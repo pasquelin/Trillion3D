@@ -59,7 +59,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
         view: gpu.colorView!,
         loadOp: 'clear',
         storeOp: 'store',
-        clearValue: clearValueOf(rt.setup.clearColor),
+        clearValue: clearValueOf(rt.run.clearColor),
       },
     ],
     depthStencilAttachment: {

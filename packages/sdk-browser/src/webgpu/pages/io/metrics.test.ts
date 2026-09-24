@@ -23,7 +23,7 @@ function runtimeOver(
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
     setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    lights: createWebgpuLightState(),
+    lights: createWebgpuLightState(32),
   } as unknown as WebgpuPagesRuntime;
 }
 

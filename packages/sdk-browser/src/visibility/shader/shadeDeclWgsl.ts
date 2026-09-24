@@ -10,8 +10,7 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
-import { SHADE_REQUEST_WGSL } from './request.ts';
-import { SHADOW_SLICE_WGSL } from '../../lighting/direct/shadowWgsl.ts';
+import { SHADE_REQUEST_WGSL, SHADE_SUN_WGSL } from './request.ts';
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
 import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
@@ -22,8 +21,8 @@ import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
  * vertex at the class depth, and the material-depth export that writes each pixel's class.
  */
 export const SHADE_DECL_WGSL = `${PAGE_INFO_STRUCT_WGSL}
-${SHADOW_SLICE_WGSL}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,feedback:u32,pad1:u32,sun:ShadowSlice,}
+${SHADE_SUN_WGSL}
+struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,sun:ShadeSun,}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
@@ -53,10 +52,9 @@ ${SURFACE_MODEL_SHADE_WGSL}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
 // feedback target that transparents complete and that a compute pass reduces into counters.
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}
-/** A surface with nothing to light — background, or a cutout that drops it —: its tile request
- *  stays, the raster that kept the pixel reads the same map, and it is this pixel that names it. */
-fn cutSurface(request:u32)->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,request);}
-fn emptySurface()->SurfaceOut{return cutSurface(0u);}
+/** A surface with nothing to light and nothing to ask: a triangle index past its page. The
+ *  cutout is the raster's alone (maskKeep), never tested again here. */
+fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,0u);}
 /** A diagnostic keeps the request: its textures converge like those of the image. */
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 fn framebuffer(clip:vec4f)->vec3f{

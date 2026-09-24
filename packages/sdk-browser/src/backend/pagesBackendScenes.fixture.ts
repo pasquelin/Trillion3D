@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
 import type { BackendContext, RenderBackend } from './types.ts';
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
@@ -12,9 +12,9 @@ import {
 
 /** One indexed triangle over three `positions`; by default (−1, −1), (1, −1), (0, 1) at z = 0. */
 export function triangleGeometry(positions = [-1, -1, 0, 1, -1, 0, 0, 1, 0]) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setIndex([0, 1, 2]);
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute(positions, 3));
+  geometry.setIndex(G.indices([0, 1, 2]));
   return geometry;
 }
 
@@ -32,15 +32,12 @@ export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
 };
 
 /** A unit quad as two triangles: the source most page tests cluster. */
-export function quadScene(material: THREE.Material = new THREE.MeshBasicMaterial()) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+export function quadScene(material: G.GraphSurface = G.basicSurface()) {
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
+  const mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   return { geometry, material, mesh, source };
 }
@@ -69,7 +66,7 @@ export const quadIndices = () =>
 
 /** The camera every page test looks at the quad through. */
 export function frontCamera() {
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   return camera;
@@ -94,7 +91,7 @@ export function quadRootsContext(resident: boolean, extra: Partial<BackendContex
 /** Renders the quad from the front and checks the cut collapsed to one coarse cluster. */
 export function assertSingleCoarseCluster(
   backend: RenderBackend,
-  scene: { geometry: THREE.BufferGeometry; material: THREE.Material },
+  scene: { geometry: G.GraphGeometry; material: G.GraphSurface },
 ) {
   backend.render(frontCamera());
   assert.equal(backend.metrics().clusters, 1);
@@ -108,15 +105,15 @@ export function assertSingleCoarseCluster(
 /** A transparent, double-sided fan of three triangles: clusters 0..2, plus the indices of their
  *  coarse replacements 3 and 4. */
 export function fanScene() {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, -1, 0, 0], 3),
+    G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, -1, 0, 0], 3),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4]);
-  const material = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide }),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 0, 3, 4]));
+  const material = G.basicSurface({ transparent: true, side: G.DOUBLE_SIDE }),
+    mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const indices = new Map([
     ['0', new Uint32Array([0, 1, 2])],

@@ -6,6 +6,39 @@ interface ThumbnailProps {
   active?: boolean;
 }
 
+/** A render as a list shows it, the width of its column at 16:10 and loaded when it scrolls
+ *  near: `list` under a thumbnail's title, `card` framed atop a card, `placeholder` for a render
+ *  still to come. */
+export function Cover({
+  src,
+  look = 'list',
+}: {
+  src: string;
+  look?: 'list' | 'card' | 'placeholder';
+}) {
+  if (look === 'card') {
+    return (
+      <div className="aspect-[16/10] overflow-hidden rounded-box bg-base-300">
+        <img
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          src={src}
+          alt=""
+        />
+      </div>
+    );
+  }
+  return (
+    <img
+      className={`aspect-[16/10] w-full ${look === 'list' ? 'rounded-lg bg-base-300' : 'rounded-box'} object-cover`}
+      src={src}
+      alt=""
+      loading="lazy"
+    />
+  );
+}
+
 /** A picture that opens a page: the render the width of its column, its title under it on at most
  * two lines. */
 export function Thumbnail({ href, src, label, active = false }: ThumbnailProps) {
@@ -16,12 +49,7 @@ export function Thumbnail({ href, src, label, active = false }: ThumbnailProps) 
       title={label}
       aria-current={active ? 'page' : undefined}
     >
-      <img
-        className="aspect-[16/10] w-full rounded-lg bg-base-300 object-cover"
-        src={src}
-        alt=""
-        loading="lazy"
-      />
+      <Cover src={src} />
       <span className="line-clamp-2 text-sm font-medium">{label}</span>
     </a>
   );

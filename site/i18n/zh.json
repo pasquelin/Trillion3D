@@ -305,6 +305,7 @@
       "a-software-rasteriser": "软件光栅化器",
       "sound-from-the-gpu": "由GPU发出的声音",
       "falling-boxes": "掉落的箱子",
+      "ten-thousand-bodies": "一万个物体",
       "breaking-things": "打碎物体",
       "cloth-and-rope": "布料与绳索",
       "soft-bodies": "软体",
@@ -318,7 +319,9 @@
       "hands-in-vr": "VR里的手",
       "teleport-in-vr": "在VR中传送",
       "controllers-in-vr": "VR手柄",
-      "ar-on-the-table": "桌上的AR"
+      "ar-on-the-table": "桌上的AR",
+      "shadows-case-by-case": "阴影，逐个情形",
+      "a-walker-among-balls": "球堆里的行走者"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU上的逐顶点颜色",
@@ -478,13 +481,10 @@
       "sort-and-reduce": "GPU计算API",
       "a-software-rasteriser": "GPU计算API",
       "sound-from-the-gpu": "GPU计算API",
-      "falling-boxes": "物理引擎集成",
       "breaking-things": "物理引擎集成",
       "cloth-and-rope": "物理引擎集成",
       "soft-bodies": "物理引擎集成",
-      "rolling-on-terrain": "物理引擎集成",
       "hinges-and-joints": "物理引擎集成",
-      "walk-with-collisions": "物理引擎集成",
       "drive-a-car": "物理引擎集成",
       "a-room-in-vr": "WebXR会话",
       "a-360-photo-in-vr": "WebXR会话",
@@ -1052,6 +1052,29 @@
           "用 <code>world.diagnostic.mode = 'clusters'</code> 看看这些碎片:每个簇都会有自己的颜色。"
         ],
         "tryIt": "把内存往下调,碎片会变大,但整栋建筑依然完整。切换到 <code>clusters</code> 视图就能看到它们。"
+      },
+      "make-things-fall": {
+        "title": "让东西落下",
+        "description": "打开物理，形状就有了重量：落下、碰撞、静止。",
+        "steps": [
+          "给世界传入 <code>physics: true</code>。模拟在绘制之外的 <em>worker</em> 中运行，从不拖慢画面。",
+          "把地面设为 <code>'static'</code>：它托住其他物体，永不移动。把箱子设为 <code>'dynamic'</code>：重力会拉它。",
+          "形状来自几何体，重量来自材质：<code>physics: 'wood'</code> 轻，<code>'metal'</code> 重，<code>'rubber'</code> 会弹。",
+          "用 <code>applyImpulse</code> 推动物体，或监听它的 <code>contact</code>。当所有物体都睡着，就什么也不计算、不绘制。",
+          "用 <code>scene.load</code> 加载的模型用它自己的三角形碰撞，这些三角形在编译时就已准备好。<code>await world.raycast(point, { exact: true })</code> 能找到光标下的那个三角形。"
+        ],
+        "tryIt": "多投放些箱子，把重力换成月球，再打开慢动作。"
+      },
+      "touch-and-react": {
+        "title": "触碰与回应",
+        "description": "走进你的世界：开启物理后，角色会攀爬、搭乘并推动遇到的东西，而它们也会推回来。",
+        "steps": [
+          "用 <code>controls: 'character'</code> 和 <code>physics: true</code> 创建世界。角色现在和箱子一样，是物理中的一个物体。",
+          "把永远不动的东西标为 <code>'static'</code>：地面、台阶、墙壁。角色能登上不超过膝盖高的台阶和不超过 45° 的斜坡。",
+          "把平台标为 <code>'kinematic'</code>，并在每一帧用你的代码移动它：站在上面的东西会随之移动。",
+          "让箱子成为轻的 <code>'dynamic'</code> 物体：角色以 <code>pushStrength</code> 牛顿的力推动它们，它们会倒下、翻滚并推回来。"
+        ],
+        "tryIt": "点击画面，用 W A S D 行走，空格键跳跃。登上台阶，乘上平台，推倒那堆箱子。"
       },
       "your-own-scene": {
         "title": "属于你自己的场景",

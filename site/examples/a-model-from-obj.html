@@ -30,7 +30,7 @@
     <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, opening, ease, circling, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#231d24');
@@ -65,14 +65,12 @@
 
       // `clusters` and `triangles` show what the compiler cut the OBJ into, `lod` which level of
       // detail each cluster is drawn at.
-      let turning = true;
       controls(
         {
-          mouse: 'Drag to turn round the board, scroll to lean in: see what the OBJ became',
           view: ['beauty', 'triangles', 'clusters', 'lod'],
           sunAngle: [-180, 180, 30, 1],
           sunHeight: [0.6, 5, 2.4],
-          turn: () => ((turning = true), world.invalidate()),
+          turn: () => tour.gliding || turn.restart(),
         },
         (values) => {
           world.diagnostic.mode = values.view;
@@ -93,47 +91,30 @@
         [LOW, 1.5],
         [OVER, 4],
       ];
-      const ease = (t) => t * t * (3 - 2 * t);
-      let from = OVER,
-        leg = 0,
-        time = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => ((leg = PATH.length), (turning = false)), {
-          passive: true,
-        });
-      world.camera.position.set(...OVER.eye);
-      world.controls.target.set(...OVER.look);
       world.controls.minDistance = 0.08;
       world.controls.maxDistance = 2.2;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
-      world.controls.update();
-      world.onFrame(({ delta }) => {
-        const step = Math.min(delta, 0.1);
-        if (leg < PATH.length) {
-          const [to, seconds] = PATH[leg];
-          time += step;
-          const t = ease(math.clamp(time / seconds, 0, 1));
-          const at = (a, b) => a.map((value, axis) => value + (b[axis] - value) * t);
-          world.camera.position.set(...at(from.eye, to.eye));
-          world.controls.target.set(...at(from.look, to.look));
-          world.controls.update();
-          if (t === 1) ((from = to), (leg += 1), (time = 0));
-        } else if (turning) {
-          const { position } = world.camera,
-            { target } = world.controls,
-            turn = step * 0.15;
-          const x = position.x - target.x,
-            z = position.z - target.z;
-          position.set(
-            target.x + x * Math.cos(turn) + z * Math.sin(turn),
-            position.y,
-            target.z + z * Math.cos(turn) - x * Math.sin(turn),
-          );
-          world.controls.update();
-        } else return;
-        world.invalidate();
+      // Once the tour lands, the camera circles the table; the Turn button circles it again.
+      const turn = circling(world, 0.15);
+      turn.stop();
+      // Each leg eases from where the one before it stopped. While it glides, Turn waits for it:
+      // the circling starts where the tour lands.
+      const tour = opening(world, (time) => {
+        let from = OVER;
+        for (const [to, seconds] of PATH) {
+          if (time < seconds) {
+            const t = ease.smooth(time / seconds);
+            world.camera.position.set(...mix(from.eye, to.eye, t));
+            world.controls.target.set(...mix(from.look, to.look, t));
+            return true;
+          }
+          [from, time] = [to, time - seconds];
+        }
+        world.camera.position.set(...from.eye);
+        world.controls.target.set(...from.look);
+        turn.restart();
+        return false;
       });
-      world.invalidate();
     </script>
   </body>
 </html>

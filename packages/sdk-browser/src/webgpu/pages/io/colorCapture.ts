@@ -21,7 +21,8 @@ export async function captureColorView(
   size: { width: number; height: number },
 ) {
   const { run, capture, gpu, context } = rt,
-    { gpuDevice, viewport } = rt.setup;
+    { viewport } = rt.setup,
+    gpuDevice = gpu.device;
   if (capture.capturing || capture.surfaceCapture)
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first');
   if (run.lost || !gpuDevice || !run.lastCamera) throw new Error('CAPTURE_NOT_READY');

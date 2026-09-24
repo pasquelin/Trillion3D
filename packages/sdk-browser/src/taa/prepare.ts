@@ -2,6 +2,7 @@ import { TAA_HISTORY_BYTES_PER_PIXEL, createTemporalAntialiasing } from './tempo
 import { dropTaaHistory } from './frame.ts';
 import { grantCapability } from '../webgpu/pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { isCancelled } from '../backend/common.ts';
 
 /** The two capabilities the pass serves: antialiasing, and the motion vectors it
  *  derives from the visibility buffer. Unsupported until it is rigged. */
@@ -22,6 +23,7 @@ export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device
     grantCapability(capabilities, TAA_CAPABILITY);
     grantCapability(capabilities, MOTION_CAPABILITY);
   } catch (error) {
+    if (isCancelled(rt.signal)) throw error;
     dropTemporalAntialiasing(rt, error);
   }
 }

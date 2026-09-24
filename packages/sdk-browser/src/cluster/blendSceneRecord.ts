@@ -12,12 +12,17 @@
 
 import { srgbToLinear } from '../../../sdk-core/src/index.ts';
 import { clearValueOf } from '../../../sdk-core/src/world/math/packedColour.ts';
-import type { HostNode, HostScene } from '../host/resources.ts';
+import type { HostScene } from '../host/resources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 
 /** The published scene, plus the two writes the engine makes on it: taking a copy back out when
  *  prepare has its GPU item, and emptying it when the backend is disposed. */
-export type BlendHostScene = HostScene & { remove(node: unknown): void; clear(): void };
+export type BlendHostScene = HostScene & {
+  readonly name: string;
+  readonly visible: boolean;
+  remove(node: object): void;
+  clear(): void;
+};
 
 /** The clear colour in the linear components a host reads off a scene background. The packed
  *  triple is taken apart where every other reader of it takes it apart (`sdk-core/world/math/packedColour.ts`); what
@@ -27,8 +32,13 @@ const linearBackground = (clearColor: number) => {
   return { isColor: true, r: srgbToLinear(r), g: srgbToLinear(g), b: srgbToLinear(b) };
 };
 
+/** Writes a new clear colour on a published scene's background, in place: the record is kept. */
+export function recolourBlendScene(scene: HostScene, clearColor: number) {
+  Object.assign(scene.background as object, linearBackground(clearColor));
+}
+
 export function createBlendScene(clearColor: number, copies: readonly BlendCopy[]): BlendHostScene {
-  const children = [...copies] as unknown as HostNode[];
+  const children = [...copies];
   const scene: BlendHostScene = {
     name: 'trillion3d-transparent',
     visible: true,
@@ -36,12 +46,12 @@ export function createBlendScene(clearColor: number, copies: readonly BlendCopy[
     children,
     // The walk a host makes of a display graph: the node itself, then what hangs under it. A
     // transparent copy carries no subtree, so the list IS the walk.
-    traverse: (visit: (node: HostNode) => void) => {
+    traverse: (visit: (node: object) => void) => {
       visit(scene);
       for (const child of children) visit(child);
     },
-    remove: (node: unknown) => {
-      const at = children.indexOf(node as HostNode);
+    remove: (node: object) => {
+      const at = children.findIndex((child) => child === node);
       if (at >= 0) children.splice(at, 1);
     },
     clear: () => {

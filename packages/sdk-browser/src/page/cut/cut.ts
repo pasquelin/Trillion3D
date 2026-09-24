@@ -1,4 +1,5 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
+import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { selectFlat } from './select.ts';
 import {
   IDENTITY_WORLD,
@@ -21,6 +22,20 @@ import type { EngineCamera } from '../../camera/world.ts';
  */
 const rootWorld = new Float64Array(16);
 
+/** One pass of the cut at a threshold: whether it went past its budget, what it charged
+ *  (`slotsOf`, held places included), and whether it asked for a page a coarser threshold may
+ *  still cut down. Read before the next pass: it is the reused cut state. */
+export type CutPass = { readonly over: boolean; readonly used: number; readonly finer: boolean };
+
+/** A strategy that searches the threshold under a budget: it runs `pass` at the thresholds it
+ *  tries, with `budget` places (0: none) of which `held` are taken beforehand, from the host's
+ *  `floor`. The cut keeps the last pass, redone without its budget if it overflowed. */
+export type BudgetSearch = (
+  pass: (threshold: number, budget: number, held: number) => CutPass,
+  floor: number,
+  cam: EngineCamera,
+) => void;
+
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
   roots: ReadonlyArray<ClusterRoot<T>>,
@@ -32,8 +47,14 @@ export function selectVisiblePages<T extends PageRecord>(
     isResident?: (page: T) => boolean;
     rootFallback?: boolean;
     pageBudget?: number;
+    /** What a page asked for costs in the budget; without it, one place per record drawn. */
+    slotsOf?: (page: T) => number;
+    /** Replaces the doubling search of `pageBudget` (`BudgetSearch`). */
+    search?: BudgetSearch;
     wanted?: T[];
     result?: SelectionResult<T>;
+    /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
+    light?: LightPages;
   },
   into?: T[],
 ): SelectionResult<T> {
@@ -55,6 +76,7 @@ export function selectVisiblePages<T extends PageRecord>(
   state.wanted = wanted;
   state.shown = shown;
   state.isResident = options.isResident;
+  state.light = options.light;
   // The residency rule depends only on the request: stating it here takes two re-reads of the
   // state and one indirect call out of the per-cluster loop, without touching the answer.
   state.residentMode = residentModeOf(hold, options.isResident);
@@ -72,6 +94,7 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatMissing = false;
   state.flatShort = false;
   state.budget = budget;
+  state.slotsOf = options.slotsOf;
   const sweep = () => {
     state.over = false;
     state.shownCount = 0;
@@ -96,7 +119,21 @@ export function selectVisiblePages<T extends PageRecord>(
       selectFlat(state, root);
     }
   };
-  sweep();
+  const search = options.search;
+  if (search)
+    search(
+      (threshold, passBudget, held) => {
+        state.pixelError = threshold;
+        state.budget = passBudget;
+        state.used = held;
+        state.finer = false;
+        sweep();
+        return state;
+      },
+      state.pixelError,
+      cam,
+    );
+  else sweep();
   // A pass above the budget brings only one thing: the next threshold. The abandoned cut
   // therefore stops at the overflowing page, and only the pass that holds the budget is taken to
   // the end. When even the coarsest threshold overflows, the whole cut is redone: the overflow
@@ -110,6 +147,7 @@ export function selectVisiblePages<T extends PageRecord>(
     sweep();
   }
   state.budget = 0;
+  state.slotsOf = undefined;
   // The cut is finished: both lists take their length here, and only once. They thus keep their
   // capacity from one image to the next, instead of losing it again at every pass.
   shown.length = state.shownCount;
@@ -132,6 +170,7 @@ export function selectVisiblePages<T extends PageRecord>(
   result.pixelError = state.pixelError;
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
+  state.light = undefined;
   state.flatStructure = undefined;
   state.flatForced = undefined;
   state.flatForcedList = undefined;

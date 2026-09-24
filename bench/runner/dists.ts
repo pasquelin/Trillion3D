@@ -36,7 +36,10 @@ export function resolveSides({
   root: string;
 }): SideBase[] {
   const target = after ?? join(root, 'dist');
-  if (target === join(root, 'dist') && !isDist(target)) buildDist(root);
+  // The repository's own dist is rebuilt when it lacks the witness entry: a dist built before the
+  // witnesses left the package would otherwise be served without them.
+  if (target === join(root, 'dist') && !existsSync(join(target, BROWSER_ENTRIES[0])))
+    buildDist(root);
   const sides = [{ name: 'apres', ...resolveDist(target, 'apres', root) }];
   if (before) sides.push({ name: 'avant', ...resolveDist(before, 'avant', root) });
   return sides;
@@ -61,13 +64,16 @@ function resolveDist(value: string, label: string, root: string): { dist: string
 }
 
 /**
- * The browser entries a built dist may carry, newest layout first: the measurement entry, which
- * names the witnesses, under `src/` since the package sources are foldered, then at the package
- * root as a dist built before that move has it, then the published entry of a dist built before
- * the measurement entry existed, which named the witnesses itself. A bench side is often a
- * reference built from an older commit, so every layout it may carry is read.
+ * The browser entries a built dist may carry, newest layout first: the witness entry
+ * (`dist/witnesses/`, built by `scripts/build-witnesses.ts` since the witnesses left the package),
+ * then the measurement entry that still named the witnesses itself, under `src/` since the package
+ * sources are foldered, then at the package root as a dist built before that move has it, then the
+ * published entry of a dist built before the measurement entry existed, which named the witnesses
+ * itself. A bench side is often a reference built from an older commit, so every layout it may
+ * carry is read.
  */
 const BROWSER_ENTRIES = [
+  'witnesses/measurement.js',
   'sdk-browser/src/measurement/measurement.js',
   'sdk-browser/measurement.js',
   'sdk-browser/src/index.js',

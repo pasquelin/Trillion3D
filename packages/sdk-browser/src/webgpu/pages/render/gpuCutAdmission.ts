@@ -1,10 +1,10 @@
 import { MAX_BUDGET_PIXEL_ERROR } from '../helpers.ts';
+import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
+import { MIN_BUDGET_PIXEL_ERROR } from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Share of the slots under which a coarsened cut asks for the next finer threshold again. */
 export const BUDGET_RELAX_RATIO = 0.7;
-/** Finest rung of the budget ladder, in pixels: below it the cut is the one the host asked for. */
-export const MIN_BUDGET_PIXEL_ERROR = 0.125;
 
 /**
  * Counts what the frame asks the cache for, and moves the page budget's error floor. A cut wider than
@@ -64,12 +64,11 @@ export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number) {
     if (Math.max(pixelError, next) > run.budgetOverflowError) run.budgetPixelError = next;
   }
   if (wasLimited !== run.coverageBudgetLimited)
-    run.coverageBudgetEvent = {
-      version: 1,
-      limited: run.coverageBudgetLimited,
-      requiredSlots: requested,
+    run.coverageBudgetEvent = coverageBudgetEvent(
+      run.coverageBudgetLimited,
+      requested,
       slots,
-      fallbackRetained: rt.services.bootstrapState.ready,
-      pixelError: sampled,
-    };
+      rt.services.bootstrapState.ready,
+      sampled,
+    );
 }

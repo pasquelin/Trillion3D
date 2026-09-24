@@ -60,12 +60,14 @@ const CLAIM_BUDGET_MS = 2;
  * nothing —, `place` writes it and returns `false` when the table is full.
  *
  * Returns the number of pages a table overflow leaves without a rank: never those the time budget
- * alone deferred, which overflow nothing.
+ * alone deferred, which overflow nothing. `bounded` false lifts the time budget: a barrier image,
+ * outside the measured loop, writes every owed row.
  */
 export function serveClaims(
   claims: WebgpuRowClaims,
   release: (page: number) => boolean,
   place: (page: number) => boolean,
+  bounded = true,
 ) {
   if (!claims.count) return 0;
   claims.sort();
@@ -80,7 +82,7 @@ export function serveClaims(
         break;
       }
       served++;
-      if (performance.now() - started >= CLAIM_BUDGET_MS) break;
+      if (bounded && performance.now() - started >= CLAIM_BUDGET_MS) break;
       continue;
     }
     served++;

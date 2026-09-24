@@ -51,7 +51,10 @@ jobs:
       NATIVE_BINARIES: |
         packages/asset-compiler-rust/target/release/trillion3d-compiler
     steps:
+      # The compiler links native Jolt from the pinned submodule (`physics-cook`, `build.rs`).
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: ./.github/actions/node
       - uses: dtolnay/rust-toolchain@stable
         id: rust
@@ -65,7 +68,7 @@ jobs:
         id: native
         with:
           path: ${{ env.NATIVE_BINARIES }}
-          key: native-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**', 'tests/fixtures/formats/**') }}
+          key: native-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
       # Dependency crates of both crates (`lint:native` runs Clippy on each, from its own
       # `Cargo.lock` into its own `target/`), only when Cargo will run: the key includes the rustc
       # version, hence after the toolchain.

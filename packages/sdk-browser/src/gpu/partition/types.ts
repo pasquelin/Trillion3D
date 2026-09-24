@@ -29,7 +29,7 @@ export type GpuPartition = {
   /** Reads back the words the kernel wrote for `rows` rows; `undefined` if the device does not
    *  map. This is not a frame pass: it allocates, copies, then returns its buffer. */
   readRowData(rows: number): Promise<Uint32Array | undefined>;
-  /** World corners per row, written by the caller on the table's dirty range. */
+  /** World corners per row, written by the caller on the rows the table declared dirty. */
   corners: GPUBuffer;
   /** Bounds of the tested half, already packed for the occlusion kernel. */
   tested: GPUBuffer;
@@ -42,8 +42,9 @@ export type GpuPartition = {
    *  frame share the arithmetic and not only the rule. */
   uniforms: GPUBuffer;
   uploadCorners(packed: Float32Array, from: number, to: number): void;
-  /** Rows `[from, to]` that now carry another page: what they held — rectangle, verdict, kept
-   *  flag — described the page that left, and the next image reads them as never projected. */
+  /** Rows `[from, to]` the table rewrote: what they held — rectangle, verdict, kept flag —
+   *  described the page or the place that left, and the next image reads them as never projected.
+   *  Called once per run: rows scattered across the table forget nothing between them. */
   forgetRows(from: number, to: number): void;
   encode(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
   /** True when the periodic-sample interval has elapsed and none is in flight. */

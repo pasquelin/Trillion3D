@@ -36,7 +36,18 @@ test('package metadata exposes one environment-aware root', async () => {
     'default',
   ]);
   assert.equal(packageJson.exports['.'].default, './dist/sdk/index.js');
-  assert.equal(packageJson.peerDependencies.three, '^0.174.0');
+  // Issue #275: the host library is a development tool of the bench and its witnesses, never a
+  // requirement of the package — neither declared for the consumer nor shipped to them.
+  for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies'])
+    assert.equal(packageJson[field]?.three, undefined, `${field} names three`);
+  assert.equal(packageJson.devDependencies.three, '^0.174.0');
+  assert.equal(packageJson.devDependencies['@types/three'], '^0.174.0');
+  assert.ok(packageJson.files.includes('!dist/witnesses'), 'the witness entry stays unpublished');
+  const browserPackage = JSON.parse(
+    await readFile(resolve(ROOT, 'packages/sdk-browser/package.json'), 'utf8'),
+  );
+  assert.equal(browserPackage.peerDependencies?.three, undefined);
+  assert.equal(browserPackage.dependencies?.three, undefined);
   assert.equal(packageJson.scripts.preinstall, undefined);
 });
 
@@ -110,10 +121,8 @@ test('a packed installation resolves Node and browser runtime and declarations',
         dependencies: {
           meshoptimizer: `link:${resolve(ROOT, 'node_modules/meshoptimizer')}`,
           trillion3d: `file:${join(directory, tarball)}`,
-          three: `file:${resolve(ROOT, 'node_modules/three')}`,
         },
         devDependencies: {
-          '@types/three': `link:${resolve(ROOT, 'node_modules/@types/three')}`,
           '@webgpu/types': `link:${resolve(ROOT, 'node_modules/@webgpu/types')}`,
         },
       }),
@@ -178,6 +187,9 @@ test('a packed installation resolves Node and browser runtime and declarations',
       }),
       [],
     );
+    // Jolt's licence ships with the physics modules built from it.
+    const notice = join(directory, 'node_modules/trillion3d/THIRD_PARTY_NOTICES.md');
+    assert.match(await readFile(notice, 'utf8'), /joltPhysicsThreads\.wasm/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

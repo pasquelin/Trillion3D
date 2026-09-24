@@ -6,7 +6,7 @@
 //
 // node --experimental-strip-types tests/browser/renders/cone-non-uniform-scale.browser.ts
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { OPEN_CONE } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import {
   packDagSelection,
@@ -32,7 +32,7 @@ interface PageCasCone {
  *  input carries it to the GPU. Packing in absolute world under a relative view would mix two
  *  frames in the same formula, and both frustum and cone would cut wrongly. */
 function empaquete(
-  world: THREE.Matrix4,
+  world: G.Matrix4,
   page: PageCasCone,
   uniforms: { cameraWorld: [number, number, number] },
 ) {
@@ -61,17 +61,17 @@ function casDeclencheur() {
  *  rejected exactly as before this batch — the fix does not loosen conformal rejection. */
 function casConformeDosCamera() {
   const cone: NormalCone = { axis: [0, 0, 1], angle: Math.PI / 6 };
-  const world = new THREE.Matrix4().compose(
-    new THREE.Vector3(2, -1, 3),
-    new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, -0.5, 0.2)),
-    new THREE.Vector3(50, 50, 50),
+  const world = new G.Matrix4().compose(
+    new G.Vector3(2, -1, 3),
+    new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)),
+    new G.Vector3(50, 50, 50),
   );
   const min = [-1, -1, -1],
     max = [1, 1, 1];
-  const centre = new THREE.Vector3(0, 0, 0).applyMatrix4(world);
-  const normal = new THREE.Matrix3().getNormalMatrix(world);
-  const axeMonde = new THREE.Vector3(...cone.axis).applyMatrix3(normal).normalize();
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100000);
+  const centre = new G.Vector3(0, 0, 0).applyMatrix4(world);
+  const normal = new G.Matrix3().getNormalMatrix(world);
+  const axeMonde = new G.Vector3(...cone.axis).applyMatrix3(normal).normalize();
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100000);
   camera.position.copy(axeMonde).multiplyScalar(-500).add(centre);
   camera.lookAt(centre);
   camera.updateMatrixWorld(true);
