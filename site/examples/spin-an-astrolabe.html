@@ -70,7 +70,7 @@
       world.camera.lookAt(0, 0, 0);
       world.controls.target.set(0, 0, 0);
 
-      const ui = controls({ mouse: 'Drag to spin it any way, even upside down · scroll to zoom', turning: true, sun: '#ffb347' }, (values) => {
+      const ui = controls({ turning: true, sun: '#ffb347' }, (values) => {
         glow.color.set(values.sun);
         world.invalidate();
       }, world);

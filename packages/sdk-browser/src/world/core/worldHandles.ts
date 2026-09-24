@@ -1,10 +1,14 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
-import { DIAGNOSTICS, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
-import type { MeasuredWorld } from '../session/explorer.ts';
 import {
-  DEFAULT_GEOMETRY_POOL_BUDGET,
-  DEFAULT_TEXTURE_POOL_BUDGET,
-} from '../../webgpu/residency/memoryBudgets.ts';
+  DIAGNOSTICS,
+  type EngineError,
+  type FrameMetrics,
+} from '../../../../sdk-core/src/index.ts';
+import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts';
+import type { MeasuredWorld } from '../session/explorer.ts';
+import type { WorldRenderer } from '../capability/worldReady.ts';
+import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
 
 export { worldControlsHandle } from './worldControlsHandle.ts';
 
@@ -18,8 +22,9 @@ export type Pools = { geometryPool?: number; texturePool?: number };
  */
 export function worldBudget(
   pools: Pools,
-  explorer: () => MeasuredWorld | null,
-  last: () => FrameMetrics | null,
+  session: { readonly explorer: MeasuredWorld | null },
+  frames: { readonly last: FrameMetrics | null },
+  renderer: () => WorldRenderer | null,
 ) {
   let pending = false;
   const rebalance = () => {
@@ -27,14 +32,14 @@ export function worldBudget(
     pending = true;
     queueMicrotask(() => {
       pending = false;
-      void explorer()?.setMemoryBudgets({
+      void session.explorer?.setMemoryBudgets({
         geometryPoolBytes: pools.geometryPool,
         texturePoolBytes: pools.texturePool,
       });
     });
   };
-  const held = (key: string) =>
-    (last() as Record<string, number | null | undefined> | null)?.[key] ?? null;
+  // What the last frame published, `null` or `undefined` when it held no such pool.
+  const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   return {
     /** The largest pools a world may ask for: the engine's starting budgets. */
     get geometryPoolCeiling() {
@@ -52,8 +57,10 @@ export function worldBudget(
       pools.geometryPool = Math.min(bytes, DEFAULT_GEOMETRY_POOL_BUDGET);
       rebalance();
     },
-    /** Bytes of GPU memory kept for texture pages; set it to change the envelope. */
-    get texturePool() {
+    /** Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool
+     *  (WebGL2); set it to change the envelope. */
+    get texturePool(): number | null {
+      if (renderer() === 'webgl2') return null;
       return held('texturePoolBytes') ?? pools.texturePool ?? DEFAULT_TEXTURE_POOL_BUDGET;
     },
     set texturePool(bytes: number) {
@@ -77,7 +84,8 @@ const WORLD_MODES = [
  */
 export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   let mode = 'beauty',
-    sessions = 0;
+    sessions = 0,
+    error: EngineError | null = null;
   const said = new Set<string>();
   const warn = (text: string) => {
     if (said.has(text)) return;
@@ -114,6 +122,14 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     get sessions() {
       return sessions;
     },
+    /** Why the last session could not open, as a named engine error: its `code` is one of those
+     *  documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device), or
+     *  `SESSION_OPEN_FAILED` for a reason without one. An `EngineError` of a documented code is
+     *  the one thrown; any other error is converted, and the error thrown is then in
+     *  `details.cause`. `null` from the start of each opening, and when nothing is tried. */
+    get error() {
+      return error;
+    },
     /** Every view mode the current renderer offers. */
     get modes() {
       const current = explorer();
@@ -122,7 +138,8 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     },
   };
   return {
-    /** What the page holds: the mode, read and written. */
+    /** What the page holds: the view mode, read and written; the sessions opened and why the
+     *  last one failed, read only. */
     handle,
     notices: createWorldNotices(),
     /** Puts the mode on a session just opened; the world's own, never the page's. A mode this
@@ -130,6 +147,19 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     apply(opened: MeasuredWorld) {
       sessions++;
       if (mode !== 'beauty' && !put(opened, mode)) mode = 'beauty';
+    },
+    /** A session that could not open, or a scene that could not resolve: named on the handle and
+     *  said on the console with the error thrown, stack included. An engine error is kept as it
+     *  is, and a bare documented code — the `WEBGPU_LOST` of the WebGPU renderer — becomes that
+     *  code; anything else is `SESSION_OPEN_FAILED`. */
+    failed(cause: unknown) {
+      error = engineErrorOf(cause, 'SESSION_OPEN_FAILED', "The world's session failed to open");
+      console.error('World session failed', cause);
+    },
+    /** A session is about to open, or none is tried: a failure that may no longer hold is no
+     *  longer shown. */
+    opening() {
+      error = null;
     },
   };
 }

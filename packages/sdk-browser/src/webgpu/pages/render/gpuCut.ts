@@ -45,7 +45,8 @@ export function renderGpuCut(
 ) {
   const { run, gpu, diag, context, services } = rt,
     { rows } = rt.layout,
-    { gpuDevice, viewport, clearColor } = rt.setup,
+    { viewport, clearColor } = rt.setup,
+    gpuDevice = gpu.device,
     marks = rt.timing.marks;
   if (!gpuDevice || !gpu.cache || !run.gpuSelection) {
     // Origin of the resource change: the device, the cache or the selection has gone.

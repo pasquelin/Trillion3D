@@ -919,6 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "这条绘制路径无法对场景做出那种改动。",
       "BATCHED_WORLD_VIEW": "这条绘制路径无法对场景做出那种改动。",
       "RAYCAST_NO_VIEW": "向一个没有尺寸的 canvas 请求画面上的点：没有可以瞄准的画面。",
+      "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
+      "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。"
     }
@@ -3938,10 +3940,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "页面持有的内容:模式,可读写。",
+    "summary": "页面持有的内容：视图模式，可读写；已打开的会话数，以及上一次失败的原因，只读。",
     "members": {
       "mode": "视图模式:正常画面用 `'beauty'`,或者用来展示引擎工作方式的某种模式。",
       "sessions": "世界到目前为止打开过的会话：重新打开会话的修改会显示在这里。",
+      "error": "最后一个会话为何无法打开，以具名的引擎错误表示：其 `code` 是 `EngineError` 上记录的代码之一（WebGPU 丢失设备时为 `WEBGPU_LOST`），或对于没有自身代码的原因为 `SESSION_OPEN_FAILED`。带有已记录代码的 `EngineError` 就是抛出的那个错误；其他任何错误都会被转换，此时抛出的错误位于 `details.cause`。从每次打开开始时起，以及没有尝试任何打开时，为 `null`。",
       "modes": "当前渲染器提供的所有视图模式。"
     }
   },

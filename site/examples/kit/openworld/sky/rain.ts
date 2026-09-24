@@ -1,7 +1,7 @@
 import type { Vec3 } from '../../../../../scripts/docs/examples/openworld/plan/contract.ts';
 import { wrapAround } from './clouds.ts';
 import type { MeshLike, SkyEngine } from './engine.ts';
-import { random } from './random.ts';
+import { mulberry32 } from '../../random.ts';
 import type { Wind } from './wind.ts';
 
 /** Terminal speed of a 2 mm raindrop, m/s (Gunn & Kinzer 1949). */
@@ -26,7 +26,7 @@ export type Rain = {
  * Streaks beyond `amount × count` are folded to zero length, which draws nothing.
  */
 export function createRain(engine: SkyEngine, seed: number, count: number): Rain {
-  const next = random(seed);
+  const next = mulberry32(seed);
   const drops = new Float32Array(count * 3);
   for (let i = 0; i < count * 3; i++) drops[i] = (next() - 0.5) * 2 * RADIUS;
   const segments = engine.buffer.float32(new Float32Array(count * 6), 3);
