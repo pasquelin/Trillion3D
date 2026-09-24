@@ -1355,10 +1355,6 @@
   "HostGeometry": {
     "summary": "Uma geometria de host: seus atributos, e a caixa local que o host calculou sobre eles."
   },
-  "HostGraphNode": {
-    "summary": "Um nó do grafo do host como uma travessia o vê: sua identidade, sua pose local, a matriz de mundo que o host resolveu para ele, e sua cadeia.",
-    "description": "O motor calcula suas PRÓPRIAS matrizes de mundo a partir das poses locais (`../world/tree.ts`); `matrixWorld` é lida onde a resolução própria do HOST é o que uma fronteira lhe devolve. POR QUE `HostPlaced` (`../resources.ts`) TAMBÉM DESCREVE UM NÓ POSICIONADO. Os dois não são uma cópia: são indexados pelas duas resoluções diferentes que um host oferece. `HostPlaced` pede `updateWorldMatrix(ancestors, descendants)` — a cadeia de UM nó, o que uma travessia de posicionamento e de visibilidade sobe; este pede `updateMatrixWorld(force)` — a SUBÁRVORE sob um nó, o que uma varredura, uma união de limites e uma replicação resolvem em uma única chamada. Um host que oferece só um dos dois satisfaz só o contrato ao qual responde, então nenhum pode substituir o outro."
-  },
   "HostMaterial": {
     "summary": "Um material de host como o motor o lê: os parâmetros de superfície que todo material de host compartilha, lidos uma vez na fronteira para o `VisMaterial` do motor; só `sideOf` lê `side`."
   },
@@ -1367,9 +1363,6 @@
   },
   "HostMesh": {
     "summary": "Um mesh de host, mantido por identidade: o registro de desenho, a tabela de transparência e os conjuntos de seleção nomeiam a superfície que o host posicionou."
-  },
-  "HostNode": {
-    "summary": "Um nó do grafo de cena do host, mantido por identidade e pelos dois campos de que uma travessia precisa."
   },
   "HostNodeMatrix": {
     "summary": "Os mesmos dezesseis floats, GRAVÁVEIS termo a termo: a pose que uma fronteira recoloca em um nó de host ou em uma câmera de host que ela restaura.",
@@ -1421,9 +1414,6 @@
   },
   "HostTexture": {
     "summary": "Uma textura de host: a imagem que o host decodificou e o estado de amostragem que declarou, também mantida por identidade."
-  },
-  "HostTraversable": {
-    "summary": "Um nó de host que o motor percorre: a subárvore sob ele, ele mesmo primeiro, na ordem própria do host."
   },
   "HostVector": {
     "summary": "Três números de uma pose, como o host os guarda e uma fronteira os recoloca.",
@@ -7169,9 +7159,6 @@
     "members": {
       "serial": "O número do nó, único na sessão.",
       "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue.",
-      "parent": "Seu pai.",
-      "children": "Os nós que este contém, por ordem.",
-      "traverse": "A subárvore sob o nó, ele mesmo primeiro, na ordem própria do host.",
       "clone": "Um nó do mesmo tipo com os mesmos valores; os seus filhos também copiados salvo indicação em contrário.",
       "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
     },
@@ -7280,7 +7267,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "O que um nó do grafo é: um nó simples, a raiz, um grupo, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
+    "summary": "O que um nó do grafo é: a raiz, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",

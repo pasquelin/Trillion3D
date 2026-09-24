@@ -1363,10 +1363,6 @@
   "HostGeometry": {
     "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya."
   },
-  "HostGraphNode": {
-    "summary": "Sebuah node graf host seperti dilihat sebuah penjelajahan: identitasnya, pose lokalnya, matriks dunia yang diselesaikan host untuknya, dan rantainya.",
-    "description": "Mesin menghitung matriks dunia MILIKNYA SENDIRI dari pose lokal (`../world/tree.ts`); `matrixWorld` dibaca di tempat penyelesaian milik HOST sendiri adalah yang diserahkan sebuah batas kembali kepadanya. KENAPA `HostPlaced` (`../resources.ts`) JUGA MENJELASKAN SEBUAH NODE BERPOSE. Keduanya bukan salinan: mereka dikunci pada dua penyelesaian berbeda yang ditawarkan sebuah host. `HostPlaced` meminta `updateWorldMatrix(ancestors, descendants)` — rantai SATU node, yang didaki sebuah penempatan dan penjelajahan visibilitas; ini meminta `updateMatrixWorld(force)` — SUBTREE di bawah sebuah node, yang diselesaikan sebuah pemindaian, gabungan batas, dan replikasi dalam satu panggilan. Sebuah host yang hanya menawarkan satu dari keduanya hanya memenuhi kontrak yang dijawabnya, jadi tidak ada yang boleh menggantikan yang lain."
-  },
   "HostMaterial": {
     "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`."
   },
@@ -1375,9 +1371,6 @@
   },
   "HostMesh": {
     "summary": "Sebuah mesh host, dipegang lewat identitas: catatan gambar, tabel transparan dan set seleksi menyebut nama permukaan yang ditempatkan host."
-  },
-  "HostNode": {
-    "summary": "Sebuah node graf scene host, dipegang lewat identitas dan dua bidang yang dibutuhkan sebuah penjelajahan."
   },
   "HostNodeMatrix": {
     "summary": "Enam belas float yang sama, BISA DITULIS suku demi suku: pose yang dikembalikan sebuah batas ke sebuah node host atau sebuah kamera host yang dipulihkannya.",
@@ -1429,9 +1422,6 @@
   },
   "HostTexture": {
     "summary": "Sebuah tekstur host: gambar yang diurai host dan status sampler yang dideklarasikannya, juga dipegang lewat identitas."
-  },
-  "HostTraversable": {
-    "summary": "Sebuah node host yang dijelajahi mesin: subtree di bawahnya, dirinya sendiri lebih dulu, dalam urutan host sendiri."
   },
   "HostVector": {
     "summary": "Tiga angka sebuah pose, seperti disimpan host dan dikembalikan sebuah batas.",
@@ -7170,9 +7160,6 @@
     "members": {
       "serial": "Nomor node, unik dalam sesi.",
       "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya.",
-      "parent": "Induknya.",
-      "children": "Node yang dipegang node ini, berurutan.",
-      "traverse": "Subtree di bawah node itu, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
       "clone": "Node dengan jenis dan nilai yang sama; anak-anaknya ikut disalin kecuali diminta tidak.",
       "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
     },
@@ -7281,7 +7268,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Apa sebuah node graf: node polos, akar, grup, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
+    "summary": "Apa sebuah node graf: akar, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
   },
   "Joint": {
     "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",
