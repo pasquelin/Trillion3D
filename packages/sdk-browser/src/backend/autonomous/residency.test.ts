@@ -66,8 +66,6 @@ test('pendingUrls and pageUrls match the reference on a normal host, called twic
   const env = makeEnv();
   const optimisee = createAutonomousResidency({
     ...env,
-    pending: [],
-    retained: [],
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...env, pending: [], retained: [] });
@@ -86,8 +84,6 @@ test('an empty host produces empty sets from both implementations', () => {
   };
   const optimisee = createAutonomousResidency({
     ...empty,
-    pending: [],
-    retained: [],
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...empty, pending: [], retained: [] });
@@ -135,8 +131,6 @@ test('the streamer pins the set the image gathered, without gathering it again',
   const env = makeEnv();
   const residency = createAutonomousResidency({
     ...env,
-    pending: [],
-    retained: [],
     geometryStore: fakeGeometryStore(),
   });
   const pinned = [...residency.pageUrls()];
