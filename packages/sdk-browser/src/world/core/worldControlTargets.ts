@@ -4,6 +4,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { VehicleDriver } from '../../../../sdk-core/src/physics/vehicle.ts';
 import type { CharacterBodyFactory } from '../../../../sdk-core/src/collision/characterBody.ts';
 import { isHelper } from '../helper/mark.ts';
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 
 /** Where the character's body comes from while the world's physics runs: `body()` is `null`
  *  when it is off, and `watch` is told each time that changes. */
@@ -26,7 +27,22 @@ const isCollision = (value: Colliders): value is CharacterCollision =>
  * vehicle controls drive. `bind` hands them to the controller in place, where it has them;
  * `changed` runs after a write, for the handle to bind and redraw.
  */
-export function controlTargets(physics: CharacterSource | null, changed: () => void) {
+/** `NO_VEHICLE`: the `'vehicle'` controls asked for, or kept, without a vehicle to drive. */
+export const noVehicle = () =>
+  new EngineError(
+    'NO_VEHICLE',
+    "world.controls: 'vehicle' drives world.controls.vehicle, which is null — set it first.",
+  );
+
+/**
+ * What the steered controllers act on (below); `driving()` says whether the `'vehicle'` controls
+ * are in place, so the vehicle cannot be taken from under them.
+ */
+export function controlTargets(
+  physics: CharacterSource | null,
+  changed: () => void,
+  driving: () => boolean,
+) {
   let colliders: Colliders = null,
     collision: CharacterCollision | null = null,
     vehicle: VehicleDriver | null = null;
@@ -60,12 +76,15 @@ export function controlTargets(physics: CharacterSource | null, changed: () => v
     /**
      * Vehicle only: what the `'vehicle'` controls drive — anything with `drive(input)`, which
      * hears the throttle, brake, steer and handbrake each time the keys change them. `null` by
-     * default, and `kind = 'vehicle'` throws `NO_VEHICLE` while it is.
+     * default; the `'vehicle'` controls never run without one: `kind = 'vehicle'` and
+     * `createWorld(…, { controls: 'vehicle' })` throw `NO_VEHICLE` while it is `null`, and so
+     * does setting it to `null` while they drive.
      */
     get vehicle(): VehicleDriver | null {
       return vehicle;
     },
     set vehicle(next: VehicleDriver | null) {
+      if (!next && driving()) throw noVehicle();
       vehicle = next;
       changed();
     },
