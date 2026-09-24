@@ -75,9 +75,9 @@ export function uvTransformed(m: ArrayLike<number>) {
 }
 
 /**
- * Anisotropy a texture is sampled with, on both GPU paths, as the Three witness grants it
- * (`WebGLTextures.setTextureParameters`): only a linear magnification over a chain mixed across
- * levels (`*-mip-linear`) takes it, clamped to `ceiling`; any other filter reads one tap.
+ * Anisotropy a texture is sampled with, on both GPU paths: only a linear
+ * magnification over a chain mixed across levels (`*-mip-linear`) takes it, clamped to `ceiling`;
+ * any other filter reads one tap.
  */
 export function grantedAnisotropy(texture: Texture, ceiling: number) {
   if (texture.magFilter === 'nearest' || !texture.minFilter.endsWith('mip-linear')) return 1;

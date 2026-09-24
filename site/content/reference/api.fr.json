@@ -193,15 +193,6 @@
   "batch": {
     "summary": "La famille `batch` : mille matrices d’un coup au lieu d’une boucle, au-dessus des noyaux par lots du cœur (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` pour `count` matrices colonne par colonne rangées à plat.",
-    "parameters": {
-      "out": "Où vont les produits.",
-      "a": "Les matrices de gauche.",
-      "b": "Les matrices de droite.",
-      "count": "Combien de produits."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` pour `count` points rangés trois nombres par point.",
     "parameters": {
@@ -6343,7 +6334,8 @@
       "texturePoolCeiling": "Le plus grand réservoir de textures qu’un monde peut demander, en octets.",
       "geometryPool": "Octets de mémoire GPU gardés pour les pages de géométrie ; règle-le pour changer l’enveloppe.",
       "texturePool": "Octets de mémoire GPU gardés pour les pages de texture ; règle-le pour changer l’enveloppe.",
-      "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`."
+      "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
+      "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe."
     }
   },
   "world.diagnostic": {

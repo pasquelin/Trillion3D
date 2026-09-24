@@ -4,7 +4,8 @@
 // memory, for cross-origin isolated pages), and deposits them next to their loader, in
 // `packages/sdk-browser/src/physics/`. Outside of `pnpm run validate`: emscripten, CMake and Ninja
 // are a local setup, and the committed module is authoritative for every other consumer
-// (`pnpm install` alone is enough). Run `git submodule update --init` first.
+// (`pnpm install` alone is enough; the tracked-output rule is in CONTRIBUTING.md). Run
+// `git submodule update --init` first.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';

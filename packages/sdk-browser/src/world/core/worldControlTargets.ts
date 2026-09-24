@@ -21,12 +21,6 @@ const isCollision = (value: Colliders): value is CharacterCollision =>
   typeof (value as Partial<CharacterCollision> | null)?.resolveCapsule === 'function' &&
   typeof (value as Partial<CharacterCollision> | null)?.groundBelow === 'function';
 
-/**
- * What the steered controllers of `world.controls` act on, kept by the handle across every
- * controller `kind` makes: the character's colliders and the world's physics, the vehicle the
- * vehicle controls drive. `bind` hands them to the controller in place, where it has them;
- * `changed` runs after a write, for the handle to bind and redraw.
- */
 /** `NO_VEHICLE`: the `'vehicle'` controls asked for, or kept, without a vehicle to drive. */
 export const noVehicle = () =>
   new EngineError(
@@ -35,8 +29,11 @@ export const noVehicle = () =>
   );
 
 /**
- * What the steered controllers act on (below); `driving()` says whether the `'vehicle'` controls
- * are in place, so the vehicle cannot be taken from under them.
+ * What the steered controllers of `world.controls` act on, kept by the handle across every
+ * controller `kind` makes: the character's colliders and the world's physics, the vehicle the
+ * vehicle controls drive. `bind` hands them to the controller in place, where it has them;
+ * `changed` runs after a write, for the handle to bind and redraw; `driving()` says whether the
+ * `'vehicle'` controls are in place, so the vehicle cannot be taken from under them.
  */
 export function controlTargets(
   physics: CharacterSource | null,

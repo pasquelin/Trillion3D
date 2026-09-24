@@ -1,3 +1,5 @@
+import { mulberry32 } from '../../../site/examples/kit/random.ts';
+
 export type Vec3 = readonly [number, number, number];
 
 /**
@@ -12,17 +14,11 @@ export const snap = (value: number) => Math.round(value * 2 ** 20) / 2 ** 20;
 
 /**
  * A seeded random stream for the scenes modelled in code: the same seed gives the same uniform
- * draws on every machine, since they rest on integer arithmetic alone (a 32-bit mulberry
- * generator); what `normal` and `direction` derive through `Math` is snapped where it is written.
+ * draws on every machine, since they rest on integer arithmetic alone (the kit's `mulberry32`);
+ * what `normal` and `direction` derive through `Math` is snapped where it is written.
  */
 export function randomStream(seed: number) {
-  let state = seed >>> 0;
-  const next = () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let value = Math.imul(state ^ (state >>> 15), state | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
+  const next = mulberry32(seed);
   const uniform = (low = 0, high = 1) => low + (high - low) * next();
   // Box–Muller; `1 - next()` never reaches zero, so the logarithm stays finite.
   const normal = () => Math.sqrt(-2 * Math.log(1 - next())) * Math.cos(2 * Math.PI * next());
