@@ -6,8 +6,11 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 ## Loop
 
-1. **Pick.** First the open issues of your domain labelled `measure ko` or `audit ko`, then the
-   oldest open one without `in progress` or `in review`
+1. **Pick.** First count your open pull requests: at 3, take no issue and unblock them (red CI,
+   conflict with `develop`, unanswered review) until you are back at 2. Then the open issues of
+   your domain labelled `measure ko` or `audit ko`, then 🔴 critical ones (the children of a
+   programme such as #483 in its order), then the oldest open one without `in progress` or
+   `in review`
    (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it;
    if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
@@ -42,7 +45,8 @@ issue. Check them yourself on the diff, not on the coder's or the reviewer's wor
 merges keep coming back `audit ko` is stopped by the maintainer.
 
 1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out
-   stays in the issue, which stays open, or moves to a named open issue. Code (a test, a fixture,
+   stays in the issue, which stays open: the pull request says `Part of #n` and the rest is
+   written as a comment on #n. You never open an issue (AGENTS.md rule 5). Code (a test, a fixture,
    a kernel) is never handed to the measurer, who does not write code.
 2. **Tests that bite.** Each changed behaviour has a test that fails before the change and passes
    after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for
@@ -61,7 +65,10 @@ merges keep coming back `audit ko` is stopped by the maintainer.
 
 ## Bounds
 
+- Never idle while your domain has work: an open issue or a pull request to unblock.
 - One issue at a time, one subagent alive at a time.
+- At most 3 of your pull requests open; at 3, no new coder until you are back at 2.
+- A programme's rules and order (#483) bind its children: check its checklist before each merge.
 - A subagent never launches its own subagents. A finished one is stopped.
 - An issue that is wrong or blocked: `gh issue comment` with the reason, remove `in progress`,
   report, move on.

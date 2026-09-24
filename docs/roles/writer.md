@@ -1,10 +1,10 @@
 # Role: writer
 
-Anyone can take this role: the maintainer for a new feature, the measurer for a regression, a
-lead for a subject found too large. The auditor does not: a finding reopens the audited
-issue. "Follow `docs/roles/writer.md`:
-<what the issue is about>". You write issues; you never code, never measure. Every issue is in
-English, on `.github/ISSUE_TEMPLATE/task.md`.
+Only the maintainer's own session takes this role (AGENTS.md rule 5). Leads, coders, reviewers,
+the measurer and the auditor never open an issue: a remainder stays in its issue, a regression or
+a finding reopens the original. "Follow `docs/roles/writer.md`: <what the issue is about>". You
+write issues; you never code, never measure. Every issue is in English, on
+`.github/ISSUE_TEMPLATE/task.md`.
 
 ## Before writing
 
@@ -30,28 +30,25 @@ English, on `.github/ISSUE_TEMPLATE/task.md`.
 ## Title and labels
 
 - Title: the outcome, not the activity — "Shadows stay stable while the camera moves", never
-  "Work on shadows". A child of a parent: `<Parent name> <k>/<n>: <outcome>`. A regression:
-  `Regression after #<n>: <what degraded>`.
+  "Work on shadows". A child of a parent: `<Parent name> <k>/<n>: <outcome>`.
 - Labels: exactly one domain label (`geometry`, `lighting`, `textures`, `compiler`,
   `calculator`, `benchmarking`, `physics`, `bug`, `documentation`…), exactly one priority
-  (`🔴 critical` … `🟢 low`), plus `measure ko` when it comes from the measurer. The domain
-  label is what routes the issue to its lead.
+  (`🔴 critical` … `🟢 low`). The domain label is what routes the issue to its lead.
 - "Blocked by" is also set natively:
   `gh api -X POST repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by -f issue_id=<id>`.
 
 ## Patterns
 
-| Pattern    | Written by       | Why holds                                 | Proof holds                            |
-| ---------- | ---------------- | ----------------------------------------- | -------------------------------------- |
-| feature    | maintainer, lead | what the user cannot do today             | tests, example, measured scene         |
-| bug        | anyone           | what is observed, how to reproduce        | a test that fails before, passes after |
-| regression | measurer         | before/after numbers, captures, the merge | the measurer's run, back to before     |
-| parent     | maintainer, lead | the whole goal, its order                 | every child closed                     |
+| Pattern | Written by | Why holds                            | Proof holds                            |
+| ------- | ---------- | ------------------------------------ | -------------------------------------- |
+| feature | maintainer | what the user cannot do today        | tests, example, measured scene         |
+| bug     | maintainer | what is observed, how to reproduce   | a test that fails before, passes after |
+| parent  | maintainer | the whole goal, its rules, its order | every child closed                     |
 
-## Example — a regression, as the measurer writes it
+## Example — a regression, as the measurer comments it on the reopened issue
 
-**Title:** `Regression after #402: frame time +1.8 ms on the facade scene`
-**Labels:** `geometry`, `🟠 high`, `measure ko`
+A regression is never a new issue: the measurer reopens the measured issue, adds `measure ko`
+and posts a comment in this shape.
 
 ```markdown
 ## Why
