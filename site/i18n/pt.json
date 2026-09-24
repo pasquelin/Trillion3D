@@ -328,6 +328,7 @@
     "missing": {
       "colours-on-the-vertices": "cores por vértice no WebGPU",
       "dashed-lines": "linhas tracejadas",
+      "floating-crates": "ondas de água desenhadas na GPU",
       "thick-lines": "linhas largas",
       "a-line-that-draws-itself": "intervalo de desenho de uma geometria",
       "shapes-from-an-svg": "importação de caminhos SVG",
