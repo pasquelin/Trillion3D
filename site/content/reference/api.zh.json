@@ -6997,5 +6997,157 @@
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
       "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。"
     }
+  },
+  "ContactEvent": {
+    "summary": "接触交给监听者的内容：另一个对象、冲量和接触点。",
+    "members": {
+      "other": "被接触的物体；离开场景后为 `null`。",
+      "impulse": "N·s：沿法线的接近速度乘以这对物体的约化质量，在求解器运行前估算；`leave` 时为 0。",
+      "point": "接触点，世界坐标系；`leave` 时为原点。"
+    }
+  },
+  "ContactEventName": {
+    "summary": "物体报告的事件：带冲量的首次接触（`contact`），以及接触开始或结束。"
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "引擎默认的物理预算。",
+    "members": {
+      "bodies": "同时存在的各类物体。",
+      "triangles": "所有静态三角形形状的三角形总数。",
+      "decorative": "同时存在的装饰物体。",
+      "memoryBytes": "物理模块的内存字节数：硬上限，模块无法超出。"
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "命名重力，沿 −y，单位 m/s²。",
+    "members": {
+      "earth": "地球的。",
+      "moon": "月球的。",
+      "mars": "火星的。",
+      "none": "无重力。"
+    }
+  },
+  "GravityInput": {
+    "summary": "重力：预设名称，或以 m/s² 表示的向量。"
+  },
+  "GravityPreset": {
+    "summary": "重力预设的名称。"
+  },
+  "ObjectPhysics": {
+    "summary": "一个对象的物理，即 `obj.physics` 所持有的：物体是什么、做什么的实时记录。",
+    "description": "写入在下一步到达模拟；`velocity` 读取上一步留下的值。",
+    "members": {
+      "type": "物体如何运动；重新赋值 `obj.physics` 来改变。",
+      "shape": "声明的形状（若有）。",
+      "sensor": "物体是否只报告接触。",
+      "ccd": "连续碰撞是否开启。",
+      "decorative": "物体是否为装饰碎片。",
+      "velocity": "线速度，m/s，即上一步留下的值；写入它可抛出物体。",
+      "asleep": "物体是否在睡眠：静止，直到被唤醒前不再模拟。",
+      "mass": "质量，单位千克；`undefined` 取材质密度乘以体积。",
+      "gravityScale": "为此物体乘以世界重力。",
+      "friction": "指定的摩擦；`undefined` 取材质的摩擦。",
+      "restitution": "指定的回弹；`undefined` 取材质的回弹。",
+      "applyImpulse": "立即推动物体，经质心施加以 N·s 计的冲量；并唤醒它。",
+      "wake": "唤醒物体，无论是否在睡眠。",
+      "on": "在此物体发生接触事件时调用 `handler`。",
+      "listens": "是否设置了接触处理器。"
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "用于 `material.physics` 的命名材质，取自手册的取整数值。",
+    "members": {
+      "wood": "木头。",
+      "metal": "钢。",
+      "rubber": "橡胶。",
+      "ice": "冰。",
+      "stone": "石头。",
+      "glass": "玻璃。"
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "`obj.physics` 除三个词外接受的内容。",
+    "members": {
+      "type": "物体如何运动。",
+      "mass": "质量，单位千克；省略时为材质密度乘以形状体积。",
+      "shape": "碰撞形状；省略时由几何体推断。",
+      "gravityScale": "为此物体乘以世界重力；0 表示悬浮。",
+      "sensor": "只报告接触而不碰撞：一个触发体积。",
+      "ccd": "连续碰撞，用于可能穿过薄墙的小而快的物体。",
+      "decorative": "碎片：只与静态世界碰撞，且只在范围内并可见时模拟。受 `budget.physics.decorative` 限制。",
+      "friction": "覆盖材质的摩擦，0 及以上。",
+      "restitution": "覆盖材质的回弹，0 到 1。"
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "一个世界物理的固定上限；从不从机器读取。",
+    "members": {
+      "bodies": "同时存在的各类物体。",
+      "triangles": "所有静态三角形形状的三角形总数。",
+      "decorative": "同时存在的装饰物体。",
+      "memoryBytes": "物理模块的内存字节数：硬上限，模块无法超出。"
+    }
+  },
+  "PhysicsHost": {
+    "summary": "物体在世界一侧的接口：对 `obj.physics` 的写入向模拟提出的请求。",
+    "members": {
+      "rebuild": "物体创建时的某项设置改变了：它会被重新创建。",
+      "tune": "摩擦、回弹或重力系数改变了。",
+      "listened": "是否需要接触事件的设置改变了。",
+      "velocity": "速度已写入。",
+      "impulse": "施加了冲量。",
+      "wake": "物体被唤醒。"
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "材质预设的名称。"
+  },
+  "PhysicsMatter": {
+    "summary": "物体的材质：密度（kg/m³）、摩擦与回弹。",
+    "members": {
+      "density": "kg/m³，用于物体的质量。",
+      "friction": "物体的抓地程度，0 及以上。",
+      "restitution": "物体的弹跳程度，0 到 1。"
+    }
+  },
+  "PhysicsOption": {
+    "summary": "可赋给 `obj.physics` 的值。"
+  },
+  "PhysicsShape": {
+    "summary": "碰撞形状，当由几何体推断的形状不合适时使用。",
+    "description": "尺寸位于物体自身坐标系中，缩放之前。"
+  },
+  "PhysicsStats": {
+    "summary": "世界物理报告的内容：最近一次 tick 的计数，以及分开的两个时钟。",
+    "members": {
+      "bodies": "模拟持有的物体。",
+      "active": "最近一次 tick 后仍活动的物体。",
+      "stepMs": "worker 每个固定步的毫秒数，最近一次 tick：worker 自己的时钟，从不与页面时钟相加。",
+      "mainMs": "物理在最近一帧占用的页面毫秒数（CPU 阶段 `physics`）。",
+      "poses": "最近一次 tick 返回的姿态。",
+      "events": "最近一次 tick 返回的接触事件。"
+    }
+  },
+  "PhysicsType": {
+    "summary": "物体如何运动：从不、由页面（`kinematic`，推开所遇之物）或由模拟。"
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`，世界的物理。",
+    "members": {
+      "enabled": "物体是否被模拟。首次打开时加载物理。",
+      "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
+      "paused": "时间是否静止；写入仍会到达物体。",
+      "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "budget": "固定上限（`budget.physics`），物理启动时读取一次。",
+      "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。"
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "`createWorld(canvas, { physics })` 除 `true` 外接受的内容。",
+    "members": {
+      "budget": "固定上限，物理启动时读取一次。",
+      "gravity": "世界的重力：预设或向量。"
+    }
   }
 }

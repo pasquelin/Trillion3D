@@ -30,6 +30,7 @@ export {
   type PhysicsBudget,
   type ContactEvent,
   type ContactEventName,
+  type PhysicsHost,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
