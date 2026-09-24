@@ -1273,7 +1273,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Cache-Identität für DAG-Fehler pro Cluster: der QEM-Fehler der Gruppe, projiziert durch die Gruppenkugel."
+    "summary": "Cache-Identität für DAG-Fehler pro Cluster: absoluter QEM-Fehler der Gruppe über Positionen, Normalen und Texturkoordinaten, begrenzt auf die Ausdehnung der Gruppe; ein v1-Cache wird abgelehnt."
   },
   "DagReport": {
     "summary": "Bericht des DAG einer Primitive; nur seine Warnungen werden von der Engine genutzt.",

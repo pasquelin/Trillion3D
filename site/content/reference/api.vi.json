@@ -718,7 +718,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Danh tính bộ nhớ đệm cho các lỗi DAG theo từng cụm: lỗi QEM của nhóm được chiếu qua hình cầu của nhóm."
+    "summary": "Định danh bộ nhớ đệm cho lỗi DAG theo cụm: lỗi QEM tuyệt đối của nhóm trên vị trí, pháp tuyến và tọa độ texture, giới hạn theo kích thước nhóm; bộ nhớ đệm v1 bị từ chối."
   },
   "DEFAULT_SCOPE": {
     "summary": "Phạm vi mà một mô hình được biên dịch khi không có phạm vi nào được nêu tên: được truyền tải theo trang."

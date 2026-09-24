@@ -55,7 +55,7 @@ function fixture() {
     };
   });
   const metadata = {
-    errorModel: 'dag-group-qem-v1',
+    errorModel: 'dag-group-qem-v2',
     clusterStrategy: 'dag-groups',
     geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
     primitives: [

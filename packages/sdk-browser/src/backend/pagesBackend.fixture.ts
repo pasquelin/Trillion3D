@@ -112,7 +112,7 @@ export function dagLevel(
   };
 }
 
-export const DAG = { errorModel: 'dag-group-qem-v1', clusterStrategy: 'dag-groups' as const };
+export const DAG = { errorModel: 'dag-group-qem-v2', clusterStrategy: 'dag-groups' as const };
 
 /** The identity fields a cluster manifest carries, filled once for every backend test. */
 export const MANIFEST_IDENTITY = {

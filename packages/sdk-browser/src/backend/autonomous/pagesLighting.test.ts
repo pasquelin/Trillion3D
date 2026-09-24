@@ -13,7 +13,7 @@ const PHOTOMETRIC = 2400;
 
 test('the autonomous path lights from the contract table, not from the source graph', () => {
   const metadata = {
-    errorModel: 'dag-group-qem-v1',
+    errorModel: 'dag-group-qem-v2',
     clusterStrategy: 'dag-groups',
     geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
     primitives: [],

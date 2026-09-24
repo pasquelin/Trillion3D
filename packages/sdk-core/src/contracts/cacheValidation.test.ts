@@ -143,6 +143,7 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     ],
     [{ ...slim, schema: 1, formatVersion: 1 }, 'UNSUPPORTED_FORMAT'],
     [{ ...slim, errorModel: 'bounds-diagonal-boundary-v1' }, 'STALE_CACHE'],
+    [{ ...slim, errorModel: 'dag-group-qem-v1' }, 'STALE_CACHE'],
     [{ ...slim, errorModel: undefined }, 'STALE_CACHE'],
   ] as [unknown, string][])
     assert.throws(

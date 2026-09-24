@@ -1273,7 +1273,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identidad de la caché para los errores de DAG por clúster: el error QEM del grupo proyectado a través de la esfera del grupo."
+    "summary": "Identidad de caché para los errores del DAG por clúster: error QEM absoluto del grupo sobre posiciones, normales y coordenadas de textura, limitado a la extensión del grupo; una caché v1 se rechaza."
   },
   "DagReport": {
     "summary": "Informe del DAG de una primitiva; solo sus advertencias las usa el motor.",
