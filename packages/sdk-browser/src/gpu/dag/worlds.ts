@@ -8,6 +8,10 @@ import { FRAME_VEC4, type PackedDag } from './types.ts';
  */
 const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10];
 
+/** First per-primitive word of primitive `w` in the frame buffer, behind its six planes: the
+ *  stretch, then the root (`+ 1`) and the record shift (`+ 2`), as `primitiveFrameWords` lays them. */
+export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4;
+
 /**
  * Object-to-view stretch of primitives whose linear part moved, recomputed for them only; returns
  * their count.
@@ -37,7 +41,7 @@ export function refreshWorldStretch(
     count++;
     const stretch = maxStretch(next.subarray(base, base + 16));
     packed.worldStretch[w] = stretch;
-    frameData[(w * FRAME_VEC4 + 6) * 4] = stretch;
+    frameData[primitiveWordAt(w)] = stretch;
   }
   return count;
 }
@@ -64,7 +68,7 @@ export function primitiveFrameWords(
   const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
     frameInts = new Uint32Array(frameData.buffer);
   for (let w = 0; w < packed.worldCount; w++) {
-    const at = (w * FRAME_VEC4 + 6) * 4;
+    const at = primitiveWordAt(w);
     frameData[at] = packed.worldStretch[w];
     frameInts[at + 1] = packed.rootNodes[w];
     frameInts[at + 2] = packed.recordShift[w];
