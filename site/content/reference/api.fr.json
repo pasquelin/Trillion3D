@@ -1585,7 +1585,9 @@
       "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "PHYSICS_BUDGET": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
       "PHYSICS_NESTED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
-      "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`."
+      "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
+      "PHYSICS_FORMAT": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`)."
     }
   },
   "enginePose": {

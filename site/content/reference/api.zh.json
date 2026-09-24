@@ -925,7 +925,9 @@
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
       "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。"
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
+      "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。"
     }
   },
   "EngineProfiler": {

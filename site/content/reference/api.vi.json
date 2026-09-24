@@ -932,7 +932,9 @@
       "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "PHYSICS_BUDGET": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
       "PHYSICS_NESTED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
-      "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`."
+      "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
+      "PHYSICS_FORMAT": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`)."
     }
   },
   "EngineProfiler": {

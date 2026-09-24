@@ -1585,7 +1585,9 @@
       "SCENE_NOT_SAVABLE": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "PHYSICS_BUDGET": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
       "PHYSICS_NESTED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
-      "PHYSICS_FAILED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`."
+      "PHYSICS_FAILED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
+      "PHYSICS_FORMAT": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`)."
     }
   },
   "enginePose": {

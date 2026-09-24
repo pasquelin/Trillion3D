@@ -925,7 +925,9 @@
       "SCENE_NOT_SAVABLE": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
       "PHYSICS_BUDGET": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, triângulos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`.",
       "PHYSICS_NESTED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, triângulos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`.",
-      "PHYSICS_FAILED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, triângulos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`."
+      "PHYSICS_FAILED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, triângulos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`.",
+      "PHYSICS_FORMAT": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`)."
     }
   },
   "EngineProfiler": {

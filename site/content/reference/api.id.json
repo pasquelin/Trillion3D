@@ -932,7 +932,9 @@
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
       "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
-      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`."
+      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`)."
     }
   },
   "EngineProfiler": {

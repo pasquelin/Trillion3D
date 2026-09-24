@@ -1585,7 +1585,9 @@
       "SCENE_NOT_SAVABLE": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
       "PHYSICS_BUDGET": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
       "PHYSICS_NESTED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
-      "PHYSICS_FAILED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`."
+      "PHYSICS_FAILED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
+      "PHYSICS_FORMAT": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`)."
     }
   },
   "enginePose": {

@@ -925,7 +925,9 @@
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
       "PHYSICS_NESTED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
-      "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다."
+      "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
+      "PHYSICS_FORMAT": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
+      "PHYSICS_OFF": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`)."
     }
   },
   "EngineProfiler": {
