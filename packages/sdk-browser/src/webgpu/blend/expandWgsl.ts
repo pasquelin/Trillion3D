@@ -1,4 +1,10 @@
-import { DRAW_UNPAGED, PLAN_SHARED_BIT, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './plan.ts';
+import {
+  DRAW_UNPAGED,
+  PLAN_PIPELINE_MASK,
+  PLAN_SHARED_BIT,
+  PLAN_SHIFT,
+  PLAN_VERTEX_CULL_BIT,
+} from './plan.ts';
 import { EXPAND_GROUP, expandUniformWgsl, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
 
 /** The kernel's eight storage buffers, in the rank order the shader declares. */
@@ -132,8 +138,9 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u){
  if(held==0u){return;}
  let entry=plan[uni.orderBase+i];
  let item=entry>>${PLAN_SHIFT}u;
- // The cull mode the vertex stage applies, above the item rank, as instanceWord packs it.
- let word=item|select(0u,(entry&3u)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
+ // The cull mode the vertex stage applies, above the item rank, as instanceWord packs it: the
+ // pipeline's rank among the three of its blend mode (planCull).
+ let word=item|select(0u,((entry&${PLAN_PIPELINE_MASK}u)%3u)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
  let d=draws[item];
  if(d.x==${DRAW_UNPAGED}u){
   for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,j*d.w);}

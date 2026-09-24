@@ -8,7 +8,6 @@ import { uploadDirtyRows } from '../pages/render/encodeDraws.ts';
 import { uploadClusterSpheres } from '../shadow/bounds.ts';
 import { moveRootRows } from '../pages/render/movedRoot.ts';
 import { createWebgpuRowState } from '../row/state.ts';
-import { createBoxCorners } from '../../hiz/hiz.ts';
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -51,7 +50,6 @@ function scatteredScene() {
     layout: {
       rows,
       drawSlots: ROWS,
-      boxCorners: createBoxCorners(ROWS),
       cornerPacked: new Float32Array(ROWS * CORNER_VALUES),
       cornerHold,
     },

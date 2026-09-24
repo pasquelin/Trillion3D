@@ -3829,6 +3829,10 @@
     "summary": "表面から跳ね返った光。常駐プロキシに対してトレースされる; デフォルトはオフ。",
     "description": "変更は、それを運ぶ経路ではその場で適用され、運ばない経路では次に開いたときに適用される。"
   },
+  "world.temporalAntialiasing": {
+    "summary": "時間方向のアンチエイリアス：フレームをまたいで蓄積するサブピクセルのずらし。既定で有効。",
+    "description": "書き込むと次のフレームから効き、履歴は破棄され、セッションは開き直さない。読むと画像が実際に持つもの：WebGL2 では false、有効にした後プログラムのコンパイル中も false。"
+  },
   "world.budget": {
     "summary": "世界のメモリプール。バイト単位で読み書きされる。",
     "members": {
@@ -4007,7 +4011,8 @@
       "pixelRatio": "画面の1ピクセルあたりの画像ピクセル数。",
       "controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
       "signal": "そのシグナルが中止されると世界の読み込みを止める。",
-      "physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。"
+      "physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
+      "temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。"
     }
   },
   "WorldPageSource": {
@@ -4627,7 +4632,8 @@
       "options.pixelRatio": "画面の1ピクセルあたりの画像ピクセル数。",
       "options.controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
       "options.signal": "そのシグナルが中止されると世界の読み込みを止める。",
-      "options.physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。"
+      "options.physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
+      "options.temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。"
     }
   },
   "crossVector3": {
