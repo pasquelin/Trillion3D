@@ -1,5 +1,4 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
@@ -51,7 +50,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         geometryPoolBytes: pools.geometryPool,
         texturePoolBytes: pools.texturePool,
         pixelError,
-        clearColor: scene.background instanceof Color ? scene.background.getHex() : undefined,
+        clearColor: scene.background?.getHex(), // read at opening; a change is written in place
         beforeFrame: () => {
           animating = frames.step(controls, scene);
           runtime.beforeFrame();

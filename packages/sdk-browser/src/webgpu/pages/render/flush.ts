@@ -52,7 +52,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
 /** Reads the settled image back once per submission, logging the first readback's colours. */
 async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { run, gpu, capture, diag, context } = rt,
-    { clearColor } = rt.setup;
+    { clearColor } = run;
   if (!capture.capturePending) {
     const revision = run.imageRevision,
       [width, height] = gpu.targetSize,
