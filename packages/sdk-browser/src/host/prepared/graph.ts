@@ -20,6 +20,7 @@ import type { SurfaceVariant } from './materials.ts';
 import type { GraphGeometry } from '../graph/geometry.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import { GraphGroup, GraphMesh } from '../graph/mesh.ts';
+import { isDrawnNode } from '../graph/kinds.ts';
 import { GraphNode } from '../graph/node.ts';
 import { type GraphCamera } from '../graph/camera.ts';
 import { type GraphLight } from '../graph/light.ts';
@@ -137,7 +138,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     if (declared.mesh !== null) {
       const mesh = reference('mesh', declared.mesh, built.get(declared.mesh)!);
       // Weights a node declares override its mesh's, on every primitive it draws.
-      if (declared.weights) mesh.traverse((part) => weigh(part as GraphMesh, declared.weights));
+      if (declared.weights)
+        mesh.traverse((part) => isDrawnNode(part) && weigh(part, declared.weights));
       carried.push(mesh);
     }
     if (declared.camera !== null)

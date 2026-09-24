@@ -31,8 +31,11 @@ export class WebglClusterPlacements {
       if (current) for (let c = 0; c < COLUMNS; c++) gl.disableVertexAttribArray(location + c);
       return null;
     }
-    const entry = this.upload(source, mesh!.released);
-    if (current === source) return current;
+    // A buffer made anew (its mesh given back, then drawn again) is pointed at again, whatever
+    // `current` says: the array still points at the deleted one.
+    const known = this.buffers.has(source),
+      entry = this.upload(source, mesh!.released);
+    if (known && current === source) return current;
     gl.bindBuffer(gl.ARRAY_BUFFER, entry.buffer);
     for (let c = 0; c < COLUMNS; c++) {
       gl.enableVertexAttribArray(location + c);
