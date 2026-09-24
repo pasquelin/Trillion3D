@@ -17,13 +17,12 @@ import type {
 } from '../../../sdk-core/src/index.ts';
 import type { BackendDrawCounters, BackendMetrics } from '../diagnostic/metricKeys.ts';
 import type { SceneToneMapping } from '../../../sdk-core/src/scene/core/environment.ts';
-import type { MemoryBudgets, MemoryBudgetsReport } from '../webgpu/pages/io/memory.ts';
+import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts';
 import type { CpuStepSummary } from '../stage/cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts';
 import type { PlacementRows } from '../placement/rows.ts';
 import type { BackendSceneUpdates } from '../placement/backendSceneUpdates.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
-
 type ViewSize = { width: number; height: number };
 export interface RenderBackend extends BackendSceneUpdates {
   id: string;
@@ -49,6 +48,7 @@ export interface RenderBackend extends BackendSceneUpdates {
   setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
+  signal?: AbortSignal; // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   /** Draws the engine's whole image — paged clusters, diagnostic pages, scene copies, or the
@@ -118,7 +118,7 @@ export interface RenderBackend extends BackendSceneUpdates {
   ): Promise<import('../scene/surfaceBuffer.ts').SurfaceCapture>;
   rasterRgba?(): Uint8Array;
   visibilityIds?(): Uint32Array;
-  dispose(): void;
+  dispose(): void | Promise<void>; // A release that finishes later resolves when it has.
 }
 export interface BackendContext {
   source: HostGraphNode;

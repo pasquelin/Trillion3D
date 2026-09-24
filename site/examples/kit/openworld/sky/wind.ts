@@ -1,4 +1,4 @@
-import { noise1 } from './random.ts';
+import { noise1 } from '../../random.ts';
 
 /** Hellmann's exponent for open land: wind speed grows as height^(1/7) above the ground. */
 const HELLMANN = 1 / 7;

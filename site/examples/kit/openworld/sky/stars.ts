@@ -1,5 +1,5 @@
 import type { MeshLike, NodeLike, SkyEngine } from './engine.ts';
-import { random } from './random.ts';
+import { mulberry32 } from '../../random.ts';
 
 /** Illuminance of a magnitude-0 star over the sun's, both outside the air (2.54 µlx / 128 klx). */
 const MAGNITUDE_ZERO = 2.54e-6 / 128_000;
@@ -26,7 +26,7 @@ export function createStars(
   engine: SkyEngine,
   options: { seed: number; count: number; radius: number; unit: number; pixelSolidAngle: number },
 ): Stars {
-  const next = random(options.seed);
+  const next = mulberry32(options.seed);
   const positions = new Float32Array(options.count * 3);
   const colours = new Float32Array(options.count * 3);
   const faintest = 10 ** (COUNT_SLOPE * FAINTEST);

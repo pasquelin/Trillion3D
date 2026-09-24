@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, opening, ease, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#1a1614');
@@ -31,7 +31,6 @@
       // ball whose surface faces the camera the same way: the light is baked into the picture, and
       // the scene's lamps do not touch it. Every ball here is painted on a canvas, pixel by pixel,
       // from its normal: a diffuse part, a highlight, a rim, and for metals a reflected room.
-      const mix = (a, b, t) => a.map((value, k) => value + (b[k] - value) * t);
       const clamp = (value) => Math.min(1, Math.max(0, value));
       const KEY = (() => { const l = [-0.5, 0.65, 0.58], n = Math.hypot(...l); return l.map((value) => value / n); })();
       // The room a metal reflects: a warm window high on the left, a dark floor, a bright horizon.
@@ -134,7 +133,6 @@
 
       let shown = null, rise = 0;
       const ui = controls({
-        mouse: 'Drag to walk around the sculpture: its light turns with you, because it lives in the picture',
         matcap: NAMES,
         sculpture: Object.keys(SHAPES),
         gallery: true,
@@ -161,22 +159,18 @@
 
       // The opening: the camera arcs in from the side while the sculpture rises out of its plinth,
       // turning, then keeps swinging slowly in front of the wall. A press or a wheel on the canvas stops the camera.
-      let circling = true, time = 0, turn = 0;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
-      const ease = (t) => 1 - (1 - Math.min(1, t)) ** 3;
+      opening(world, (time) => {
+        const arrive = ease.out(time / 4), angle = 1.9 - 1.5 * arrive + Math.sin(Math.max(0, time - 4) * 0.12) * 0.9;
+        const distance = 13 - 5.2 * arrive, height = 6.5 - 2.6 * arrive;
+        world.camera.position.set(Math.sin(angle) * distance, height, Math.cos(angle) * distance);
+      });
+      let time = 0, turn = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;
-        if (circling) {
-          const arrive = ease(time / 4), angle = 1.9 - 1.5 * arrive + Math.sin(Math.max(0, time - 4) * 0.12) * 0.9;
-          const distance = 13 - 5.2 * arrive, height = 6.5 - 2.6 * arrive;
-          world.camera.position.set(Math.sin(angle) * distance, height, Math.cos(angle) * distance);
-          world.controls.update();
-        }
         rise = Math.min(1, rise + step / 1.6);
         if (ui.turn) turn += step * 0.5;
-        const up = ease(rise);
+        const up = ease.out(rise);
         shown.holder.position.y = 0.2 + 2.7 * up;
         shown.holder.scale.setScalar(0.001 + up);
         shown.holder.rotation.set(0, turn + (1 - up) * 3, 0);

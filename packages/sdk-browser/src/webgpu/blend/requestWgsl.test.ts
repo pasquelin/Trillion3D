@@ -12,11 +12,59 @@ import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
 test('both passes request their tiles by the same rule, phase then position', () => {
   assert.match(TILE_REQUEST_WGSL, /fn requestPick\(pos:vec2f,choices:u32\)/);
   assert.match(TILE_REQUEST_WGSL, /let px=u32\(pos\.x\)\+u32\(pos\.y\);/);
-  assert.match(TILE_REQUEST_WGSL, /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u\)/);
+  assert.match(
+    TILE_REQUEST_WGSL,
+    /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u,\(px\/choices\/2u\)%3u\)/,
+  );
   for (const [nom, hote] of Object.entries({ BLEND_REQUEST_WGSL, SHADE_REQUEST_WGSL })) {
     assert.match(hote, /feedbackPhase\([a-z.]+,uni\.feedback\)/, `${nom}: phase first`);
     assert.match(hote, /requestPick\(/, `${nom}: choice by position`);
-    assert.match(hote, /mapRequest\(p\.sel,/, `${nom}: map by the shared rule`);
+    assert.match(hote, /mapRequest\(p,/, `${nom}: map by the shared rule`);
     assert.doesNotMatch(hote, /%6u|%10u/, `${nom} does not rewrite the choice`);
   }
+});
+
+// #361: an anisotropic read spreads its taps along the footprint, into tiles its centre does not
+// touch; the pixels of the footprint ask for the first tap, the middle one and the last by
+// position, placed by the read's own `tapOffset`. One tap puts all three on the centre.
+test('an anisotropic footprint asks for the tiles of its end taps, placed as the read places them', () => {
+  assert.match(
+    TILE_REQUEST_WGSL,
+    /at=r\.uv\+r\.axis\*tapOffset\(along\*\(r\.taps-1u\)\/2u,r\.taps\);/,
+  );
+  assert.match(TILE_REQUEST_WGSL, /slotWrapped\(s,at\)/);
+  const tap = (along: number, taps: number) => Math.floor((along * (taps - 1)) / 2);
+  for (const taps of [1, 2, 7, 8]) {
+    assert.equal(tap(0, taps), 0, `${taps} taps: the first`);
+    assert.equal(tap(2, taps), taps - 1, `${taps} taps: the last`);
+  }
+});
+
+// #360, #361: what a pixel asks is what it reads. The level a request asks follows the read of the
+// pass that posts it — `aniso` — never a constant: the blend and the shading read anisotropically,
+// so their maps ask the anisotropic level; a data map is never read by a cutout.
+test('a request asks the level of the read that posts it', () => {
+  // A page at the default filters asks the default level, and runs nothing of the filter rule.
+  assert.match(TILE_REQUEST_WGSL, /\}else\{lod=slotLod\(s,ddx,ddy\);\}/);
+  assert.match(TILE_REQUEST_WGSL, /next:bool,along:u32,aniso:bool,sampled:bool\)->u32\{/);
+  assert.match(TILE_REQUEST_WGSL, /let r=(color|data)Footprint\(slot,s,uv,ddx,ddy,aniso\);/);
+  assert.doesNotMatch(TILE_REQUEST_WGSL, /Footprint\(slot,s,uv,ddx,ddy,true\)/);
+  assert.match(TILE_REQUEST_WGSL, /dataRequestIndex\([^;]*,p\.next,p\.along,true,sampled\);/);
+  assert.match(
+    BLEND_REQUEST_WGSL,
+    /mapRequest\(p,[^;]*,gradX,gradY,\(in\.ids\.y&64u\)!=0u\);/,
+    'the item says whether its maps are sampled',
+  );
+});
+
+// #360, #361: the shadow cutout reads the isotropic level, and its cascades ask for it alone; the
+// camera cutout reads the base map as the shading does, so every map on screen asks one level.
+test('the shadow cutout asks the isotropic level it reads, the screen the anisotropic one', () => {
+  assert.match(
+    SHADE_REQUEST_WGSL,
+    /colorRequestIndex\([^;]*g\.xy,g\.zw,p\.next,1u,false,HAS_SAMPLING\);/,
+  );
+  assert.match(SHADE_REQUEST_WGSL, /mapRequest\(p,[^;]*,uv,ddx,ddy,HAS_SAMPLING\);/);
+  assert.doesNotMatch(TILE_REQUEST_WGSL, /\biso\b|cutout/);
+  assert.match(TILE_REQUEST_WGSL, /colorRequestIndex\([^;]*,p\.next,p\.along,true,sampled\);/);
 });

@@ -35,7 +35,7 @@
     <div id="marquee"></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, ease, circling } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#9fb4cc');
@@ -120,7 +120,7 @@
       // The drag: plain replaces the selection, Shift adds to it, Alt or Ctrl takes away. While
       // the box is open, the halos show what letting go would select.
       const marquee = document.getElementById('marquee');
-      let drag = null, count = null, circling = true;
+      let drag = null, count = null;
       const show = (entry, on) => {
         if (entry.outline.visible !== on) entry.outline.visible = on;
       };
@@ -140,8 +140,6 @@
         Object.assign(marquee.style, { display: 'block', transform: `translate(${rect[0]}px, ${rect[1]}px)`, width: `${rect[2] - rect[0]}px`, height: `${rect[3] - rect[1]}px` });
       }
       const rectOf = ({ x, y }, event) => [Math.min(x, event.clientX), Math.min(y, event.clientY), Math.max(x, event.clientX), Math.max(y, event.clientY)];
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
       world.canvas.addEventListener('pointerdown', (event) => {
         if (ui.mouse !== 'select' || event.button !== 0) return;
         world.canvas.setPointerCapture(event.pointerId);
@@ -176,7 +174,6 @@
         world.invalidate();
       };
       const ui = controls({
-        help: 'Select: drag a box; Shift adds, Alt removes. Turn: drag to fly round the garden',
         mouse: ['select', 'turn'],
         selectAll: everything(true),
         clear: everything(false),
@@ -191,10 +188,11 @@
       // rise; the camera circles slowly until the viewer's first press or wheel.
       let intro = 0;
       const introRect = (t) => {
-        const box = world.canvas.getBoundingClientRect(), e = t * t * (3 - 2 * t);
+        const box = world.canvas.getBoundingClientRect(), e = ease.smooth(t);
         const x = box.left + box.width * 0.22, y = box.top + box.height * 0.38;
         return [x, y, x + box.width * 0.56 * e, y + box.height * 0.26 * e];
       };
+      circling(world, 0.08);
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         if (intro >= 0 && drag) intro = -1;
@@ -210,14 +208,6 @@
             marquee.style.display = 'none';
             intro = -1;
           }
-        }
-        if (circling) {
-          const { position } = world.camera, { target } = world.controls, turn = step * 0.08;
-          const x = position.x - target.x, z = position.z - target.z;
-          position.set(target.x + x * Math.cos(turn) + z * Math.sin(turn), position.y, target.z + z * Math.cos(turn) - x * Math.sin(turn));
-          // Selecting, no orbit is in place to aim the camera: it looks at the target itself.
-          world.camera.lookAt(target);
-          world.controls.update();
         }
         // A selected piece rises off its plinth and turns; let go, it settles back.
         for (const entry of pieces) {

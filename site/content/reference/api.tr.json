@@ -919,6 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "BATCHED_WORLD_VIEW": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "RAYCAST_NO_VIEW": "Boyutu olmayan bir canvas'tan resim noktası istendi: içinden nişan alınacak bir resim yok.",
+      "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
+      "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
       "UNSUPPORTED_SCENE_FORMAT": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
       "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor."
     }
@@ -1502,7 +1504,12 @@
       "colorSpace": "Sayılarının nasıl okunduğu.",
       "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
       "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
-      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder."
+      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder.",
+      "offset": "`matrix`in neyden oluşturulduğu.",
+      "repeat": "Kaç kez sığdığı.",
+      "center": "Dönmenin ekseni.",
+      "rotation": "Dönme, radyan cinsinden.",
+      "addEventListener": "Ana makine dokuyu bıraktığında içe aktarıcıya haber verir."
     }
   },
   "HostTraversable": {
@@ -3454,6 +3461,8 @@
       "id": "İçe aktarılan sahnedeki dokunun kimliği: bir önbellek anahtarının ve bir mesajın onu adlandırdığı şey.",
       "name": "Kaynak dosyanın verdiği ad, hiçbiri vermediğinde boş; yalnızca mesajlar tarafından okunur.",
       "version": "Tekseller her değiştiğinde artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
+      "sampling": "Adresleme, filtreler veya anizotropi değiştiğinde artar: örnekleyici yeniden ayarlanır.",
+      "placement": "`transform` değiştiğinde artar: yerleşim yeniden yazılır, hiçbir şey yüklenmez.",
       "image": "Çözülmüş görsel. Kabı `unknown` kalır: yalnızca onu yükleyen sınır bilir.",
       "channel": "Örnekleyicinin okuduğu UV seti, `KHR_texture_transform`'un `texCoord`'u; motor 0 ve 1'i örnekler.",
       "wrapS": "Yatayda tekrar.",
@@ -3486,7 +3495,9 @@
       "flipY": "Görselin okunurken baş aşağı çevrilip çevrilmediği.",
       "anisotropy": "Görselin eğik açıda ne kadar keskin kaldığı.",
       "channel": "Dokunun geometrinin hangi UV setini takip ettiği.",
-      "version": "Her yazmada artırılır: bir malzemenin yeniden örneklemek için karşılaştırdığı şey.",
+      "version": "Resmin veya nasıl okunduğunun yazılmasıyla artar: bir malzemenin resmi yeniden göndermek için karşılaştırdığı şey.",
+      "sampling": "Adresleme, filtreler veya anizotropi yazıldığında artar: yeniden ayarlanır, hiçbir şey gönderilmez.",
+      "placement": "`repeat`, `offset` veya `rotation` yazıldığında artar: yeniden yerleştirilir, hiçbir şey gönderilmez.",
       "image": "Görselin kendisi: bir görsel, bir canvas, bir video ya da ham pikseller.",
       "layout": "Görselin pikselleri dışında ne tuttuğu: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Her pikselin nasıl saklandığı: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3938,10 +3949,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Sayfanın tuttuğu şey: mod, okunur ve yazılır.",
+    "summary": "Sayfanın tuttuğu şey: görünüm modu, okunur ve yazılır; açılan oturumlar ve sonuncusunun neden başarısız olduğu, yalnızca okunur.",
     "members": {
       "mode": "Görünüm modu: normal görsel için `'beauty'`, ya da motorun nasıl çalıştığını gösteren bir mod.",
       "sessions": "Dünyanın şimdiye kadar açtığı oturumlar: birini yeniden açan bir değişiklik burada görünür.",
+      "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
   },

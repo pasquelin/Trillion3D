@@ -1,4 +1,5 @@
 import type { HostRetentionDelta, StreamContext } from './types.ts';
+import { evictOldest } from './evictOldest.ts';
 
 export function createStreamingCache(context: StreamContext) {
   const { cache, state, maxPages, maxCachedBytes, pinned, jobs, emit, onEvict, catalog } = context;
@@ -10,30 +11,28 @@ export function createStreamingCache(context: StreamContext) {
     state.cachedBytes += array.byteLength;
   };
   const over = () =>
-    (maxPages && maxPages >= 1 && cache.size > maxPages) || state.cachedBytes > maxCachedBytes;
+    (!!maxPages && maxPages >= 1 && cache.size > maxPages) || state.cachedBytes > maxCachedBytes;
+  const pinnedOrLoading = (url: string) => pinned.has(url) || jobs.has(url);
+  const evictOne = (url: string) => {
+    const held = cache.get(url);
+    if (held) state.cachedBytes -= held.byteLength;
+    cache.delete(url);
+    state.evictions++;
+    emit('page-cache-eviction', 'Page evicted from the LRU cache', () => ({
+      version: 1,
+      url,
+      reason: 'capacity',
+      drawDetached: false,
+      resident: cache.size,
+      residentBytes: state.cachedBytes,
+      maxPages: maxPages ?? null,
+      maxCachedBytes,
+    }));
+    onEvict?.(url);
+  };
   const evict = () => {
     if (!over()) return;
-    let evicted = false;
-    for (const url of cache.keys()) {
-      if (!over()) break;
-      if (pinned.has(url) || jobs.has(url)) continue;
-      const held = cache.get(url);
-      if (held) state.cachedBytes -= held.byteLength;
-      cache.delete(url);
-      state.evictions++;
-      evicted = true;
-      emit('page-cache-eviction', 'Page evicted from the LRU cache', () => ({
-        version: 1,
-        url,
-        reason: 'capacity',
-        drawDetached: false,
-        resident: cache.size,
-        residentBytes: state.cachedBytes,
-        maxPages: maxPages ?? null,
-        maxCachedBytes,
-      }));
-      onEvict?.(url);
-    }
+    const evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
     if (!evicted && over()) {
       state.admissionBlocked++;
       emit('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({

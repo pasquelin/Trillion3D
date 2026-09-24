@@ -8,7 +8,7 @@ import {
   type RoadIndex,
 } from '../roads.ts';
 import type { Road, Settlement } from '../types.ts';
-import { random } from '../../sky/random.ts';
+import { mulberry32 } from '../../../random.ts';
 
 /**
  * Pedestrians in the towns and the city: a fixed pool walking the pavements beside the roads,
@@ -79,7 +79,7 @@ export function crowd(
   }));
   return {
     people,
-    next: random(seed ^ 0x51ed27),
+    next: mulberry32(seed ^ 0x51ed27),
     radius,
     places: places.filter((p) => PEOPLED.has(p.kind)),
     streets: roadIndex(streets),

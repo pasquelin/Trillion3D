@@ -31,7 +31,7 @@
     <p data-words="credit"></p>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture, side } from '../runtime/engine.js';
-      import { controls, seeded } from '../runtime/kit.js';
+      import { controls, seeded, opening, ease } from '../runtime/kit.js';
 
       // Three skies, one light each. A panorama is a picture of every direction at once: across,
       // the turn around the viewer; down, from straight up to straight down, the horizon halfway.
@@ -165,7 +165,7 @@
       world.controls.minDistance = 6;
       world.controls.maxDistance = 40;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
-      controls({ mouse: 'Drag to turn around · scroll to come closer', sky: Object.keys(SKIES), fieldOfView: [35, 100, 60, 1] }, (values, key) => {
+      controls({ sky: Object.keys(SKIES), fieldOfView: [35, 100, 60, 1] }, (values, key) => {
         if (key === undefined || key === 'sky') {
           const sky = SKIES[values.sky];
           for (const [name, dome] of Object.entries(domes)) dome.visible = name === values.sky;
@@ -182,26 +182,14 @@
 
       // The opening: low and close beside the knot, the camera draws back and rises, turning
       // until the first press or wheel on the canvas.
-      let circling = true, azimuth = 0.6;
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (circling = false), { passive: true });
-      function circle(time) {
-        const settle = 1 - (1 - Math.min(1, time / 4)) ** 3, reach = 7 + 11 * settle, rise = 0.05 + 0.2 * settle, { target } = world.controls;
+      opening(world, (time) => {
+        const azimuth = 0.6 + time * 0.08, settle = ease.out(time / 4), reach = 7 + 11 * settle, rise = 0.05 + 0.2 * settle, { target } = world.controls;
         world.camera.position.set(target.x + Math.sin(azimuth) * Math.cos(rise) * reach, target.y + Math.sin(rise) * reach, target.z + Math.cos(azimuth) * Math.cos(rise) * reach);
-      }
-      circle(0);
-      world.camera.lookAt(0, 2.4, 0);
-      world.onFrame(({ delta, time }) => {
-        const step = Math.min(delta, 0.05);
-        knot.rotation.y += step * 0.4;
-        if (circling) {
-          azimuth += step * 0.08;
-          circle(time);
-          world.controls.update();
-        }
+      });
+      world.onFrame(({ delta }) => {
+        knot.rotation.y += Math.min(delta, 0.05) * 0.4;
         world.invalidate();
       });
-      world.invalidate();
     </script>
   </body>
 </html>
