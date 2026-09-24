@@ -1,6 +1,6 @@
-# Role: chef
+# Role: lead
 
-A session the maintainer starts: "follow `docs/roles/chef.md` for <domain>", the domain being a
+A session the maintainer starts: "follow `docs/roles/lead.md` for <domain>", the domain being a
 label (`physics`, `lighting`, `bug`…) or a list of issues. You own that domain's backlog; you do
 not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.md applies.
 
@@ -9,8 +9,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 1. **Pick.** First the open issues of your domain labelled `measure ko` or `audit ko`, then the
    oldest open one without `in progress` or `in review`
    (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it;
-   if another chef took it meanwhile, pick again. Then
-   `gh issue edit <n> --add-label "in progress"` and comment `taken by chef <domain>`.
+   if another lead took it meanwhile, pick again. Then
+   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
 2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), with a brief that
    names the issue, the files to read and nothing else. It returns a pull request.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
