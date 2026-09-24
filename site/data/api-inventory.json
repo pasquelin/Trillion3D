@@ -2325,8 +2325,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/coplanar-layers.perf.ts",
-        "packages/sdk-browser/src/cluster/batchLayers.test.ts",
-        "packages/sdk-browser/src/cluster/batchLayers.ts",
+        "bench/witnesses/exact/batches/batchLayers.test.ts",
+        "bench/witnesses/exact/batches/batchLayers.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/visibility.ts",
         "packages/sdk-browser/src/webgpu/row/pageRow.ts",
         "packages/sdk-browser/src/webgpu/row/pageRowDepthBias.test.ts",
@@ -2580,10 +2580,10 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/page-collection.ts",
+        "bench/witnesses/exact/batches/batches.ts",
         "packages/sdk-browser/src/backend/autonomous/geometry.ts",
         "packages/sdk-browser/src/backend/defaultBackends.test.ts",
         "packages/sdk-browser/src/backend/defaultBackends.ts",
-        "packages/sdk-browser/src/cluster/batches.ts",
         "packages/sdk-browser/src/cluster/checked.test.ts",
         "packages/sdk-browser/src/cluster/pages.ts",
         "packages/sdk-browser/src/host/prepared/accessors.ts",
@@ -3511,7 +3511,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/oracles/browser/normal-cones.ts"],
+      "affectedConsumers": [
+        "bench/oracles/browser/normal-cones.ts",
+        "bench/witnesses/exact/batches/batchPrimitive.ts",
+        "bench/witnesses/exact/batches/batchSetup.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostAttributes"
     },
@@ -3592,6 +3596,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/exact/batches/batchDraw.ts",
+        "bench/witnesses/exact/batches/batches.ts",
         "bench/witnesses/exact/clusterBatches.ts",
         "bench/witnesses/three/sceneAdapter.ts",
         "tests/browser/support/webglClusterCoplanarBlend.ts",

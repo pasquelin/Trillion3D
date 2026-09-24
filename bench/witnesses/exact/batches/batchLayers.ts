@@ -1,5 +1,5 @@
-import { depthLayerUnits } from '../../../sdk-core/src/index.ts';
-import type { BatchPage } from './batchRange.ts';
+import { depthLayerUnits } from '../../../../packages/sdk-core/src/index.ts';
+import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
 import { BatchGroup } from './batchPrimitive.ts';
 
 /**

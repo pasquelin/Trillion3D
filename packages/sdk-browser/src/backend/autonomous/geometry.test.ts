@@ -1,8 +1,6 @@
 // G1: `geometry.ts` detaches by the set of pages actually attached (`attachees`,
 // a `Set` held by `attach`/`detach`) instead of scanning `allPages` — the whole DAG — at each frame.
 // Oracle: the version before batch G, copied as is in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
-import type { GraphScene } from '../../host/graph/scene.ts';
-import type { GraphMesh } from '../../host/graph/mesh.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -17,12 +15,12 @@ function fakeScene() {
     scene: {
       add: (m: object) => meshes.add(m),
       remove: (m: object) => meshes.delete(m),
-    } as unknown as GraphScene,
+    } as unknown as Parameters<typeof createAutonomousGeometry>[0]['scene'],
     meshes,
   };
 }
 
-function makeRec(id: number, triangles: number): PageRec & { mesh: GraphMesh } {
+function makeRec(id: number, triangles: number): Required<Pick<PageRec, 'mesh'>> & PageRec {
   return {
     id,
     url: `u${id}`,
@@ -40,13 +38,13 @@ function makeRec(id: number, triangles: number): PageRec & { mesh: GraphMesh } {
     renderOrder: 0,
     geometry: {} as THREE.BufferGeometry,
     // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
-    mesh: { matrix: { copy: () => {}, fromArray: () => {} } } as unknown as GraphMesh,
+    mesh: { matrix: { fromArray: () => {} } } as unknown as Required<PageRec>['mesh'],
     attached: false,
   };
 }
 
 function environnement(
-  scene: GraphScene,
+  scene: ReturnType<typeof fakeScene>['scene'],
   allPages: PageRec[],
   shown: PageRec[],
 ): Parameters<typeof createAutonomousGeometry>[0] {
@@ -165,7 +163,7 @@ test('an attached page wears the host declaration, not the engine surface record
   };
   const shown = [rec];
   createAutonomousGeometry(environnement(scene, [rec], shown)).sync();
-  const [attached] = [...meshes] as GraphMesh[];
+  const [attached] = [...meshes] as Required<PageRec>['mesh'][];
   assert.equal(attached.material, declaration);
   assert.equal((attached.material as THREE.Material).visible, true);
   declaration.dispose();

@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildLayerGroups, groupForPage, everyGroup } from './batchLayers.ts';
 import { BatchGroup } from './batchPrimitive.ts';
-import type { BatchPage } from './batchRange.ts';
+import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
 import { ClusterBatches } from './batches.ts';
-import type { ClusterDrawMesh } from './batchMesh.ts';
+import type { ClusterDrawMesh } from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { attributes } from './batches.fixture.ts';
-import { depthLayerUnits } from '../../../sdk-core/src/index.ts';
-import { surfaceOf } from '../page/surface.ts';
+import { depthLayerUnits } from '../../../../packages/sdk-core/src/index.ts';
+import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 
 const BASE_MATERIAL = new THREE.MeshBasicMaterial();
 const page = (extra: Partial<BatchPage>): BatchPage => ({

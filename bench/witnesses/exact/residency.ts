@@ -1,6 +1,6 @@
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
-import { ClusterBatches } from '../../../packages/sdk-browser/src/cluster/batches.ts';
+import { ClusterBatches } from './batches/batches.ts';
 import {
   asWholeMesh,
   type WholeMesh,
