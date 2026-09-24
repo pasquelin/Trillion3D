@@ -1,5 +1,5 @@
 // per-pixel shading of the CPU visbuffer.
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import * as THREE from 'three';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { shadeLit } from '../../../packages/sdk-browser/src/visibility/shader/lighting.ts';
