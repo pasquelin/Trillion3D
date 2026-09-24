@@ -2,7 +2,8 @@
 // scale), the old screen-error formula, and the worst true screen displacement search per family.
 // Kept apart from orchestration and reporting so the campaign file stays under the line budget.
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
-import { lois, mulberry32 } from './randomDraw.ts';
+import { mulberry32 } from '../../../site/examples/kit/random.ts';
+import { lois } from './randomDraw.ts';
 import type { Vec3, Mat3 } from './vecTypes.ts';
 
 export interface Cas {
