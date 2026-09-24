@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blendChunkWords, blendVertexShift, RUN_WORDS } from './runs.ts';
+import {
+  blendChunkWords,
+  blendVertexShift,
+  buildBlendRuns,
+  instanceItem,
+  RUN_SHARED,
+  RUN_WORDS,
+  runOwner,
+} from './runs.ts';
 import { expandBlendPlan, itemKept } from './expandCpu.ts';
 import { DRAW_UNPAGED, planEntry } from './plan.ts';
 
@@ -85,6 +93,41 @@ test('the two passes expand into two disjoint regions, each at its base', () => 
   assert.deepEqual(Array.from(base.expanded.subarray(10, 14)), [0, 100, 0, 101]);
   // The start vertex carries the absolute rank of the first instance: five, shifted by the stride.
   assert.deepEqual(Array.from(base.args.subarray(8, 12)), [48, 2, 5 << 6, 0]);
+});
+
+test('a double-sided paged item draws back then face in ONE run, its vertex stage culling', () => {
+  const base = decor();
+  // Two double-sided items, far to near: each sets the back (culls the face, 1) then the face.
+  const order = Uint32Array.from(
+    [0, 1].flatMap((item) => [planEntry(item, 1, true, true), planEntry(item, 2, true, true)]),
+  );
+  const runs = new Uint32Array(order.length * RUN_WORDS);
+  const runCount = buildBlendRuns(order, runs);
+  assert.equal(runCount, 1, 'four entries, one pipeline: one draw');
+  const total = expandBlendPlan({ ...base, order, runs, runCount });
+  assert.equal(total, 10, 'each item expands its clusters once per side');
+  const words = Array.from(base.expanded.subarray(0, 20)).filter((_, k) => k % 2 === 0);
+  // The paint order is the one two draws per item gave: back of 0, face of 0, back of 1, face of 1.
+  assert.deepEqual(words.map(instanceItem), [0, 0, 0, 0, 1, 1, 1, 1, 1, 1]);
+  assert.deepEqual(
+    words.map((word) => word >>> 30),
+    [1, 1, 2, 2, 1, 1, 1, 2, 2, 2],
+    'the cull mode of each instance',
+  );
+});
+
+test('the two faces of one item still name it: out of view, their run is not encoded', () => {
+  const faces = (item: number) => [planEntry(item, 1, true, true), planEntry(item, 2, true, true)];
+  assert.equal(runOwner(Uint32Array.from(faces(3)), 0, 2), 3);
+  assert.equal(runOwner(Uint32Array.from([...faces(3), ...faces(4)]), 0, 4), RUN_SHARED);
+});
+
+test('a pipeline cull leaves the instance word as the bare item rank', () => {
+  const base = decor();
+  const order = Uint32Array.from([entree(0, true, 2)]);
+  const runs = new Uint32Array(RUN_WORDS);
+  expandBlendPlan({ ...base, order, runs, runCount: buildBlendRuns(order, runs) });
+  assert.deepEqual(Array.from(base.expanded.subarray(0, 4)), [0, 100, 0, 101]);
 });
 
 test('the addressing stride holds the longest instance, and the chunk stays a multiple of three', () => {

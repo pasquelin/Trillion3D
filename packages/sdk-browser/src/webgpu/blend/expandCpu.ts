@@ -1,5 +1,5 @@
-import { DRAW_UNPAGED, planItem } from './plan.ts';
-import { RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
+import { DRAW_UNPAGED, planItem, planVertexCull } from './plan.ts';
+import { instanceWord, RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
 import type { createWebgpuBlendState } from './state.ts';
 
 /**
@@ -37,7 +37,8 @@ export const itemKept = (keep: Uint32Array, item: number) =>
 /**
  * Expands the sorted plan into an instance list and one indirect argument per run.
  *
- * An instance says two things: the item that carries it, and what it draws — the table entry of
+ * An instance says two things: the item that carries it — with the cull mode its vertex stage
+ * applies (`instanceWord`) — and what it draws — the table entry of
  * a paged cluster, the first index of its chunk for a primitive that is not. The list follows
  * plan order, hence paint order, and a run's draw starts at vertex `base << vertexShift` so the
  * shader finds the rank of its first instance there.
@@ -51,7 +52,7 @@ export function expandBlendPlan(x: BlendExpansion) {
     const at = run * RUN_WORDS,
       first = runs[at],
       entries = runs[at + 1],
-      owner = runOwner(order[first], entries),
+      owner = runOwner(order, first, entries),
       base = cursor;
     // A shared run draws clusters, all at the table stride; a run of a single unpaged item draws
     // its chunks, at the stride its geometry gave it.
@@ -60,14 +61,16 @@ export function expandBlendPlan(x: BlendExpansion) {
         ? draws[owner * 4 + 3]
         : x.maxVertexWords;
     for (let k = 0; k < entries; k++) {
-      const item = planItem(order[first + k]);
+      const entry = order[first + k],
+        item = planItem(entry);
       if (!itemKept(keep, item)) continue;
+      const word = instanceWord(item, planVertexCull(entry));
       const paged = draws[item * 4];
       if (paged === DRAW_UNPAGED) {
         const words = draws[item * 4 + 3],
           morceaux = draws[item * 4 + 1];
         for (let j = 0; j < morceaux; j++) {
-          expanded[cursor * 2] = item;
+          expanded[cursor * 2] = word;
           expanded[cursor * 2 + 1] = j * words;
           cursor++;
         }
@@ -76,7 +79,7 @@ export function expandBlendPlan(x: BlendExpansion) {
       const tableBase = draws[item * 4 + 2],
         tenues = itemCounts[paged];
       for (let j = 0; j < tenues; j++) {
-        expanded[cursor * 2] = item;
+        expanded[cursor * 2] = word;
         expanded[cursor * 2 + 1] = instances[tableBase + j];
         cursor++;
       }
