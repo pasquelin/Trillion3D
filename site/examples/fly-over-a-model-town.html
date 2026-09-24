@@ -644,6 +644,18 @@
         parent.add(mesh);
         return mesh;
       }
+      // Shapes each laid in place, joined into one: one mesh to draw, and one triangle tree for a
+      // ray (a ray tests every node it is given, one by one).
+      function join(shapes) {
+        const joined = { position: [], normal: [], index: [] };
+        for (const shape of shapes) {
+          const base = joined.position.length / 3;
+          joined.position.push(...shape.getAttribute('position').array);
+          joined.normal.push(...shape.getAttribute('normal').array);
+          joined.index.push(...Array.from(shape.index.array, (v) => v + base));
+        }
+        return geometry.createBuffer({ position: buffer.float32(joined.position, 3), normal: buffer.float32(joined.normal, 3), index: buffer.uint32(joined.index) });
+      }
 
       // The terrain sampled every 36 m over 5.4 km. Each triangle takes a band by its height
       // and steepness — meadow, forest floor, rock, snow — and each band is one mesh.
@@ -680,12 +692,10 @@
       const runway = place(geometry.box(34, 0.3, 1100), matte('#3b3d42', 0.9), [0, 0, 0]);
       for (let z = -500; z <= 500; z += 52) place(geometry.box(1.2, 0.05, 24), paint, [0, 0.17, z]);
       for (const end of [-530, 530]) for (let k = -3; k <= 3; k++) if (k) place(geometry.box(2.2, 0.05, 30), paint, [k * 4, 0.17, end]);
-      place(geometry.box(30, 14, 24), matte('#b9b2a4', 0.7), [-70, 7, 380]);
-      place(geometry.box(32, 1, 26), matte('#7a3b2e', 0.6), [-70, 14.5, 380]);
+      const hangar = [place(geometry.box(30, 14, 24), matte('#b9b2a4', 0.7), [-70, 7, 380]), place(geometry.box(32, 1, 26), matte('#7a3b2e', 0.6), [-70, 14.5, 380])];
 
       // The town: blocks of five colours with dark roofs, a church tower in the middle. The roofs
-      // and the spire are one shape, each laid in place first: one mesh to draw, and one triangle
-      // tree for a ray (a ray tests every node it is given, one by one).
+      // and the spire are one shape, each wider than the walls under it.
       const walls = ['#e6dac4', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => matte(colour, 0.7));
       const block = geometry.box(1, 1, 1), tops = [];
       for (let x = 330; x <= 690; x += 34)
@@ -697,22 +707,33 @@
         }
       place(geometry.box(12, 46, 12), walls[0], [510, 23, -400]);
       tops.push(geometry.cone(8.5, 26, 4).rotateY(Math.PI / 4).translate(510, 59, -400));
-      const joined = { position: [], normal: [], index: [] };
-      for (const top of tops) {
-        const base = joined.position.length / 3;
-        joined.position.push(...top.getAttribute('position').array);
-        joined.normal.push(...top.getAttribute('normal').array);
-        joined.index.push(...Array.from(top.index.array, (v) => v + base));
+      const roofs = place(join(tops), matte('#4a3d3a', 0.55), [0, 0, 0]);
+
+      // Forests on the lower slopes, none on the canyon floor, and round trees along the river:
+      // one shape per material, each tree laid in place first.
+      const pine = geometry.cone(4, 14, 7), crown = geometry.sphere(5, 12, 8), trunk = geometry.cylinder(0.6, 0.8, 5, 6);
+      const woods = [[], [], [], []];
+      for (let planted = 0, tries = 0; planted < 190 && tries < 5000; tries++) {
+        const [x, z] = [(next() - 0.5) * 3000, (next() - 0.5) * 3600], [, height, , , up] = sample(x, z);
+        if (height < 1 || height > 170 || up < 0.93 || levelled(x, z, RUNWAY) > 0 || levelled(x, z, TOWN) > 0 || Math.abs(x - riverX(z)) < 60 || gorgeDistance(x, z) < 120) continue;
+        const size = 0.7 + next() * 0.7;
+        woods[planted++ % 2].push(pine.clone().scale(size, size, size).translate(x, height + 7 * size - 1, z));
       }
-      const roofs = place(geometry.createBuffer({ position: buffer.float32(joined.position, 3), normal: buffer.float32(joined.normal, 3), index: buffer.uint32(joined.index) }), matte('#4a3d3a', 0.55), [0, 0, 0]);
+      for (let index = 0; index < 36; index++) {
+        const z = -900 + index * 52 + next() * 20, x = riverX(z) + (index % 2 ? 50 : -50) + next() * 12, height = terrain(x, z);
+        woods[2].push(trunk.clone().translate(x, height + 2.5, z));
+        woods[3].push(crown.clone().translate(x, height + 7.5, z));
+      }
+      const trees = [matte('#2f5a33', 0.9), matte('#3b6a38', 0.9), matte('#5a4332'), matte('#5f8a3a', 0.9)].map((matter, k) => place(join(woods[k]), matter, [0, 0, 0]));
+
       // THE GROUND under a point, asked of the physics: what the valley is built of — the
-      // terrain, the water, the runway, the roofs — is static in it, and an exact raycast
+      // terrain, the water, the runway, the hangar, the roofs, the trees — is static in it, and an exact raycast
       // (`world.raycast(ray, { exact: true })`) straight down from above the peaks finds, on the
       // triangles drawn, its height and whether a jet may touch down there: the runway or a flat
       // stretch of land. Asked a `reach`, a box that wide swept down the same way
       // (`world.raycast(ray, { shape })`) finds the highest ground within it as well. Off the map
       // there is none.
-      const floor = [...land, water, runway, roofs], down = math.ray(math.vector3(), math.vector3(0, -1, 0));
+      const floor = [...land, water, runway, ...hangar, roofs, ...trees], down = math.ray(math.vector3(), math.vector3(0, -1, 0));
       for (const node of floor) node.physics = 'static';
       const ground = groundProbes(async (x, z, reach) => {
         down.origin.set(x, 10000, z);
@@ -720,21 +741,6 @@
         const swept = reach > 0 && world.raycast(down, { shape: { type: 'box', halfExtents: { x: reach, y: 0.5, z: reach } }, maxDistance: 20000 });
         return (await Promise.all([exact, swept])).filter(Boolean).map((hit) => [hit.point.x, hit.point.y, hit.point.z, hit.normal.x, hit.normal.y, hit.normal.z, hit.object === runway || (land.includes(hit.object) && hit.normal.y > 0.97)]);
       });
-
-      // Forests on the lower slopes, none on the canyon floor, and round trees along the river.
-      const pines = [matte('#2f5a33', 0.9), matte('#3b6a38', 0.9)], pine = geometry.cone(4, 14, 7);
-      const leaves = matte('#5f8a3a', 0.9), crown = geometry.sphere(5, 12, 8), trunk = geometry.cylinder(0.6, 0.8, 5, 6), bark = matte('#5a4332');
-      for (let planted = 0, tries = 0; planted < 190 && tries < 5000; tries++) {
-        const [x, z] = [(next() - 0.5) * 3000, (next() - 0.5) * 3600], [, height, , , up] = sample(x, z);
-        if (height < 1 || height > 170 || up < 0.93 || levelled(x, z, RUNWAY) > 0 || levelled(x, z, TOWN) > 0 || Math.abs(x - riverX(z)) < 60 || gorgeDistance(x, z) < 120) continue;
-        const size = 0.7 + next() * 0.7;
-        place(pine, pines[planted++ % 2], [x, height + 7 * size - 1, z]).scale.setScalar(size);
-      }
-      for (let index = 0; index < 36; index++) {
-        const z = -900 + index * 52 + next() * 20, x = riverX(z) + (index % 2 ? 50 : -50) + next() * 12, height = terrain(x, z);
-        place(trunk, bark, [x, height + 2.5, z]);
-        place(crown, leaves, [x, height + 7.5, z]);
-      }
 
       // THE SKY at golden hour: bands of a dome from a warm horizon to a deep blue zenith, a low
       // sun, and three distant ranges paling into the haze — the farther, the lighter and bluer.
