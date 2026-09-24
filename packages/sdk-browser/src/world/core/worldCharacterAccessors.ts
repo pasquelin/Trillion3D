@@ -132,6 +132,20 @@ export function characterSettingAccessors(
     set landingDip(value: number) {
       setting('landingDip', value);
     },
+    /** Character only, with physics: kilograms the body presses on what it stands on; 80 by default. */
+    get mass() {
+      return settings.mass;
+    },
+    set mass(value: number) {
+      setting('mass', value);
+    },
+    /** Character only, with physics: newtons the body pushes bodies with; 250 by default, an adult's sustained push. */
+    get pushStrength() {
+      return settings.pushStrength;
+    },
+    set pushStrength(value: number) {
+      setting('pushStrength', value);
+    },
     /** Character only: called on landing with the downward speed in m/s; `null` by default. */
     get onLand() {
       return settings.onLand;

@@ -1,12 +1,8 @@
 import { arc, freshReport, isFloor, slide, type MoveReport } from './characterMove.ts';
 import type { CapsuleContact } from './capsule.ts';
-import {
-  RESPONSE_LEFT,
-  type CharacterEvents,
-  type CharacterInput,
-  type CharacterSettings,
-} from './characterSettings.ts';
+import type { CharacterEvents, CharacterInput, CharacterSettings } from './characterSettings.ts';
 import type { CharacterCollision } from './characterCollision.ts';
+import { createDrive, driveTick, type DriveStep } from './characterDrive.ts';
 
 /**
  * A CHARACTER BODY: a capsule with a velocity, integrated on a fixed tick against a collision
@@ -16,10 +12,8 @@ import type { CharacterCollision } from './characterCollision.ts';
  * body is ticked up to one tick past the present and the pose handed back is interpolated at
  * the present between the two ticks around it: smooth on any display, and drawn without delay.
  *
- * GROUND. On the ground the velocity closes 95 % of its gap to the wished one in
- * `responseTime` while a key is held and in `stopTime` once none is; in the air it does so
- * `airControl` times as fast as a start, and only while a key is held, so an unsteered jump
- * keeps its momentum. A body rises under `gravity` and falls under `fallGravity`. A walker
+ * GROUND. The speed it gathers and loses, and its jumps, are the drive's (`characterDrive.ts`),
+ * shared with the physics backend. A body rises under `gravity` and falls under `fallGravity`. A walker
  * blocked by a wall tries the same move raised by `stepHeight` and keeps it if it ends on a
  * floor further on; a walker whose floor drops by less than `stepHeight` follows it down, and
  * one whose floor drops by more falls.
@@ -33,12 +27,29 @@ import type { CharacterCollision } from './characterCollision.ts';
  *  contacts are read and how late a landing or a jump can be noticed: one tick, 8 ms. */
 const CHARACTER_TICK = 1 / 120;
 
-/** Remaining glide below which a grounded body with no key stops dead: 0.1 mm. */
-const REST = 1e-4;
+/** Ticks one call lives at most: a stalled page (a hidden tab, a long frame) resumes where it
+ *  stopped, 67 ms later at most, instead of spending one frame on the whole stall. */
+export const MAX_CHARACTER_TICKS = 8;
+
+/** What a character's controller drives, whatever the body collides with. */
+export interface CharacterBody {
+  /** The lowest point of the capsule, as last moved. */
+  readonly feet: Float64Array;
+  /** Metres per second. */
+  readonly velocity: Float64Array;
+  readonly onGround: boolean;
+  place(x: number, y: number, z: number): void;
+  pressJump(): void;
+  advance(delta: number, input: CharacterInput, events?: CharacterEvents): Float64Array;
+  /** Releases what the body holds outside the page; the triangle body holds nothing. */
+  dispose?(): void;
+}
 
 export function createCharacterBody(settings: CharacterSettings) {
   const capsule = { feet: new Float64Array(3), radius: 0, height: 0 },
-    velocity = new Float64Array(3),
+    drive = createDrive(),
+    velocity = drive.velocity,
+    step: DriveStep = { dx: 0, dz: 0, jumped: false },
     moving = { capsule, velocity },
     previous = new Float64Array(3),
     drawn = new Float64Array(3),
@@ -47,9 +58,6 @@ export function createCharacterBody(settings: CharacterSettings) {
     before = new Float64Array(3),
     report: MoveReport = freshReport({ ground: false, wall: false, impact: 0 });
   let world: CharacterCollision | null = null,
-    grounded = true,
-    sinceGround = 0,
-    sinceJump = Infinity,
     carry = 0;
   const rules = { maxSlope: 0, onGround: false, stepTop: Infinity };
   const read = (onGround: boolean) => {
@@ -104,7 +112,7 @@ export function createCharacterBody(settings: CharacterSettings) {
     move(dx, 0, dz, true);
     if (report.wall && settings.stepHeight > 0) stepUp(dx, dz);
     velocity[1] = 0;
-    grounded = land(settings.stepHeight);
+    drive.grounded = land(settings.stepHeight);
   };
 
   /** Takes the settings' capsule; `settle` then stands the body if its feet are on a floor. */
@@ -115,46 +123,24 @@ export function createCharacterBody(settings: CharacterSettings) {
   const settle = () => {
     shape();
     start.set(capsule.feet);
-    grounded = !world || land(0);
+    drive.grounded = !world || land(0);
   };
 
   const tick = (h: number, input: CharacterInput, events: CharacterEvents) => {
-    sinceGround = grounded ? 0 : sinceGround + h;
-    sinceJump += h;
-    const speed = input.sprint ? settings.sprintSpeed : settings.walkSpeed;
-    const tx = input.wishX * speed,
-      tz = input.wishZ * speed,
-      wishing = tx !== 0 || tz !== 0;
-    let jumped = false;
-    if (world && sinceJump <= settings.jumpBuffer && sinceGround <= settings.coyoteTime) {
-      velocity[1] = settings.jumpSpeed;
-      [grounded, jumped, sinceGround, sinceJump] = [false, true, Infinity, Infinity];
-      events.onJump?.();
-    }
-    if (grounded && !wishing && velocity[0] === 0 && velocity[2] === 0) return;
-    const gather = -Math.log(RESPONSE_LEFT) / settings.responseTime,
-      brake = -Math.log(RESPONSE_LEFT) / settings.stopTime;
-    const rate = grounded ? (wishing ? gather : brake) : wishing ? gather * settings.airControl : 0;
-    const decay = Math.exp(-rate * h),
-      reach = rate > 0 ? (1 - decay) / rate : h;
-    const dx = tx * (h - reach) + velocity[0] * reach,
-      dz = tz * (h - reach) + velocity[2] * reach;
-    velocity[0] = tx + (velocity[0] - tx) * decay;
-    velocity[2] = tz + (velocity[2] - tz) * decay;
-    if (grounded && !wishing && Math.hypot(velocity[0], velocity[2]) < REST * rate)
-      velocity[0] = velocity[2] = 0;
+    if (!driveTick(drive, settings, input, h, world !== null, events, step)) return;
+    const { dx, dz, jumped } = step;
     start.set(capsule.feet);
     if (!world) {
       capsule.feet[0] += dx;
       capsule.feet[2] += dz;
       return;
     }
-    if (grounded) return walk(dx, dz);
+    if (drive.grounded) return walk(dx, dz);
     const [dy, vy] = arc(velocity[1], h, settings.gravity, settings.fallGravity);
     velocity[1] = vy;
     move(dx, dy, dz, false);
     if (!report.ground || report.impact < 0 || jumped) return;
-    [grounded, velocity[1]] = [true, 0];
+    [drive.grounded, velocity[1]] = [true, 0];
     events.onLand?.(report.impact);
   };
 
@@ -164,7 +150,7 @@ export function createCharacterBody(settings: CharacterSettings) {
     /** Metres per second. */
     velocity,
     get onGround() {
-      return grounded;
+      return drive.grounded;
     },
     /** Puts the body at `(x, y, z)` at rest: a teleport, not a move. Feet put on a floor
      *  stand on it; anywhere else they fall. */
@@ -172,7 +158,7 @@ export function createCharacterBody(settings: CharacterSettings) {
       [capsule.feet[0], capsule.feet[1], capsule.feet[2]] = [x, y, z];
       previous.set(capsule.feet);
       velocity.fill(0);
-      [sinceGround, carry] = [Infinity, 0];
+      [drive.sinceGround, carry] = [Infinity, 0];
       settle();
     },
     /** What to collide with, `null` for nothing; the body looks for its floor again. */
@@ -182,13 +168,19 @@ export function createCharacterBody(settings: CharacterSettings) {
     },
     /** The jump key went down: it is kept `jumpBuffer` seconds for a floor to jump from. */
     pressJump() {
-      sinceJump = 0;
+      drive.sinceJump = 0;
     },
     /** Lives `delta` seconds; returns the feet to draw at the present. */
     advance(delta: number, input: CharacterInput, events: CharacterEvents = {}) {
       shape();
       // `carry` is the present less the last tick's time, in (-tick, 0] between calls.
-      for (carry += Math.max(0, delta); carry > 0; carry -= CHARACTER_TICK) {
+      carry += Math.max(0, delta);
+      for (let ticks = 0; carry > 0; carry -= CHARACTER_TICK, ticks++) {
+        // The rest of a stall past the ceiling is dropped, not caught up.
+        if (ticks === MAX_CHARACTER_TICKS) {
+          carry = 0;
+          break;
+        }
         previous.set(capsule.feet);
         tick(CHARACTER_TICK, input, events);
       }
