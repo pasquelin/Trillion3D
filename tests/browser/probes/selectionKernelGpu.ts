@@ -2,6 +2,7 @@
 // by `packDagSelection`, uniforms from `writeDagUniforms`, passes `dagPrepare` through `dagMask`
 // in engine order (non-resident cut), then a readback of the GPU output.
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
+import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
@@ -25,22 +26,14 @@ async function executer({
   entete,
   totaux,
   bitsPage,
+  layoutEntries,
 }: ExecuterEntree): Promise<ExecutionResultat> {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
-  const lu = 'read-only-storage',
-    ecrit = 'storage';
-  const acces: GPUBindGroupLayoutEntry[] = (
-    [lu, lu, 'uniform', ecrit, ecrit, ecrit, lu, ecrit, lu] as const
-  ).map((type, binding) => ({
-    binding,
-    visibility: GPUShaderStage.COMPUTE,
-    buffer: { type },
-  }));
-  const layout = device.createBindGroupLayout({ entries: acces });
+  const layout = device.createBindGroupLayout({ entries: layoutEntries });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const etape = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
@@ -168,6 +161,7 @@ export async function selectionGpu(
     workgroup: SELECTION_WORKGROUP,
     entete: SELECTION_HEADER_WORDS,
     bitsPage: REQUEST_PAGE_MAX,
+    layoutEntries: dagBindEntries(),
     totaux: {
       selected: OUT_SELECTED_TRIANGLES,
       transparent: OUT_TRANSPARENT_TRIANGLES,

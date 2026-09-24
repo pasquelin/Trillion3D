@@ -38,12 +38,10 @@ type Inputs = {
   open?: typeof openMeasuredWorld;
 };
 
-/**
- * The session drawing a world, fed by a per-frame change list. What the scene asks is resolved off
- * the frame (`worldContents.ts`) and applied once before each frame: rows taken, parked or grown in
- * place (`placement/growth.ts`), poses, the background (`worldBackground.ts`). It is opened again,
- * on the world's device, once per burst, only for what it lacks: resource, material, rows, model.
- */
+/** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
+ *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
+ *  (`placement/growth.ts`), poses, background —, and opened again, on the world's device, once per
+ *  burst, only for what it lacks: resource, material, rows, model. */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
@@ -178,6 +176,8 @@ export function createWorldRuntime(inputs: Inputs) {
     get explorer() {
       return explorer;
     },
+    /** Settles once the scene changes made so far are resolved, drawn or not. */
+    resolved: () => resolving ?? Promise.resolve(),
     /** Settles once the session reflects every change made so far. */
     async settled() {
       while (resolving || reopens.running) await (resolving ?? reopens.running);

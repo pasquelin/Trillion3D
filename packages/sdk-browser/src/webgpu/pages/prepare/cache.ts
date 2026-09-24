@@ -5,9 +5,13 @@ import { type WebgpuPagesRuntime } from '../runtime.ts';
  * The engine's GPU page cache, with its trace hook. Cache events are sampled only if trace is
  * requested: otherwise no closure is posted, and the cache does not even have an observer to call.
  */
-export function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+export function createWebgpuPagesCache(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice,
+  slots = rt.setup.slots,
+) {
   const { diag, run, services } = rt,
-    { pageBytes, slots } = rt.setup;
+    { pageBytes } = rt.setup;
   const options = (
     diag.traceEnabled
       ? {

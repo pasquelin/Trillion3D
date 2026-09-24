@@ -14,7 +14,8 @@ import {
 import { WATER_PIECE_WORDS } from '../../../sdk-core/src/physics/index.ts';
 import type { JoltModule } from './joltModule.ts';
 
-/** The worker's water: none until `set`. Its waves are clocked by the steps it runs. */
+/** The worker's water: none until `set`. Its waves are clocked by the steps it runs, and by the
+ *  simulated time a world at rest let pass without a step, so they never stop while it sleeps. */
 export function createWaterStep() {
   let water: Water | null = null,
     cut = 0,
@@ -26,6 +27,14 @@ export function createWaterStep() {
       water = spec ? createWater(spec) : null;
       cut = water ? sliceLength(water) : 0;
       time = 0;
+    },
+    /** Simulated seconds the waves have run since the water was set. */
+    get time() {
+      return time;
+    },
+    /** `seconds` of simulated time passed with every body asleep: the waves ran on meanwhile. */
+    rest(seconds: number) {
+      if (water) time += seconds;
     },
     /** One step of `jolt` by `dt` seconds, `queued` being the page's commands: the pose count. */
     step(jolt: JoltModule, queued: Uint32Array | null, dt: number) {

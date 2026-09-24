@@ -1,6 +1,6 @@
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts';
-import { BLEND_MODES } from '../../scene/materialBlending.ts';
+import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './runs.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -135,16 +135,9 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.runs = [new Uint32Array(entries * RUN_WORDS), new Uint32Array(entries * RUN_WORDS)];
 }
 
-/** First pipeline rank of an item's blend mode. A transmissive item composes by the backdrop it
- *  reads, and a mode the engine has no name for is no mode at all: both are refused by name,
- *  never drawn as normal. */
-function modeBase(surface: PageSurface, transmissive: boolean) {
-  const { blending } = surface;
-  if (!blending) throw new Error('a transparent surface declares a blending no path draws');
-  if (transmissive && blending !== 'normal')
-    throw new Error(`a transmissive material cannot use ${blending} blending`);
-  return BLEND_MODES.indexOf(blending) * 3;
-}
+/** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
+const modeBase = (surface: PageSurface, transmissive: boolean) =>
+  BLEND_MODES.indexOf(drawnBlending(surface.blending, transmissive)) * 3;
 
 /** Two plan entries of a double-sided item, in the order the pass encoded: back, face. */
 function sidesOf(item: BlendGpuItem) {

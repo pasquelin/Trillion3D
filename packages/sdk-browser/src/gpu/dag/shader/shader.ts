@@ -1,3 +1,4 @@
+import { DAG_BINDINGS_WGSL } from './bindings.ts';
 import { DAG_ERROR_WGSL } from './error.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
@@ -28,15 +29,7 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,stateRow:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
-@group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
-@group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
-@group(0) @binding(2) var<uniform> views:array<Uniforms,MAX_VIEWS>;
-@group(0) @binding(3) var<storage, read_write> flags:array<u32>;
-@group(0) @binding(4) var<storage, read_write> out:Output;
-@group(0) @binding(5) var<storage, read_write> work:array<atomic<u32>>;
-@group(0) @binding(6) var<storage, read> worlds:array<mat4x4f>;
-@group(0) @binding(7) var<storage, read_write> frames:array<vec4f>;
-@group(0) @binding(8) var<storage, read> cold:array<u32>;
+${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
 const INF:f32=3.4e38;

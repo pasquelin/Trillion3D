@@ -1,6 +1,5 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import { Waves } from '../../../sdk-core/src/fluids/waves.ts';
+import { WaterSurface, type WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import {
   DEFAULT_PHYSICS_BUDGET,
   GRAVITY_PRESETS,
@@ -48,9 +47,9 @@ export function createWorldPhysics(
     paused = false,
     timeScale = 1,
     water: WaterSpec | null = null,
+    surface: WaterSurface | null = null,
     error: EngineError | null = null,
-    /** Told when a session starts or ends: the character's body changes with it. */
-    watcher: (() => void) | null = null;
+    watcher: (() => void) | null = null; // told when a session starts or ends (the character)
   const stopped = emptyPhysicsStats();
   const joints = createJointList(() => {
     session?.structure();
@@ -78,8 +77,7 @@ export function createWorldPhysics(
     loading.then(
       ({ createPhysicsSession }) => {
         if (!wanted || session) return;
-        // The session sizes its arrays from the budget: a copy of it, frozen, for its whole life.
-        const frozen = Object.freeze({ ...budget });
+        const frozen = Object.freeze({ ...budget }); // sizes the session's arrays for its life
         session = createPhysicsSession(root, frozen, invalidate, failed, joints.joints);
         session.writer.gravity(gravity.elements);
         if (water) session.setWater(water);
@@ -142,10 +140,15 @@ export function createWorldPhysics(
     },
     set water(spec: WaterSpec | null) {
       // Resolved here once, so a wrong wave throws on the page, not in the worker.
-      if (spec) new Waves(spec.waves);
+      surface = spec ? new WaterSurface(spec) : null;
       water = spec;
       session?.setWater(spec);
       invalidate();
+    },
+    /** The water's surface at the simulation's time, to draw it: the waves buoyancy reads, the
+     *  same numbers (`height`, `point`, `normal`). @defaultValue null (no water) */
+    get waterSurface(): WaterSurface | null {
+      return surface?.setTime(session?.waterTime() ?? 0) ?? null;
     },
     /** Counts and both clocks: worker milliseconds per step, page milliseconds per frame. */
     get stats(): Readonly<PhysicsStats> {

@@ -4,6 +4,7 @@ import { StepWords, createWater, sliceLength } from './buoyancy.ts';
 import { OCEAN } from './waves.fixture.ts';
 import { waveHeight, waveRest } from './surface.ts';
 import { Waves } from './waves.ts';
+import { WaterSurface } from './waterSurface.ts';
 import { BUOYANCY_WORDS, OP } from '../physics/layout.ts';
 
 test('steepness is normalised so that Σ Qᵢ·Aᵢ·kᵢ stays at most 1', () => {
@@ -62,4 +63,23 @@ test('a thin piece is sampled over a square a slice fraction wide: its plane sta
     BUOYANCY_WORDS + 8,
   );
   assert.ok(normal.every(Number.isFinite) && normal[1] > 0.5, `normal ${normal}`);
+});
+
+test('the drawn surface is the waves buoyancy reads: its points lie at its heights', () => {
+  const surface = new WaterSurface({ waves: OCEAN, level: 2 }).setTime(7.25);
+  const waves = new Waves(OCEAN);
+  waves.setTime(7.25);
+  const p = new Float64Array(3);
+  for (let i = 0; i < 400; i++) {
+    const x = (i % 20) * 1.9 - 19,
+      z = Math.floor(i / 20) * 2.3 - 23;
+    surface.point(x, z, p);
+    assert.ok(Math.abs(p[1] - 2 - waveHeight(waves, p[0], p[2])) < 1e-3, `at ${x}, ${z}`);
+    assert.ok(Math.abs(surface.height(p[0], p[2]) - p[1]) < 1e-3);
+  }
+  assert.equal(surface.crest, waves.crest);
+  // Set again with its phases carried, the surface goes on from where it was.
+  const again = new WaterSurface({ waves: surface.wavesNow(), level: 2 });
+  assert.deepEqual(again.point(3, -4, new Float64Array(3)), surface.point(3, -4, p));
+  assert.throws(() => new WaterSurface({ waves: [{ ...OCEAN[0], steepness: 2 }], level: 0 }));
 });
