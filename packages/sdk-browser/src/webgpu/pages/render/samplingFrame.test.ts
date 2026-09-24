@@ -40,7 +40,9 @@ test('a filter written on a map is in its header before the image that draws it 
     backend.render(cam);
     const written = header().slice(before);
     assert.ok(written.length > 0, 'the header was written');
-    const submit = gpu.submits[submitted];
+    // The image is the render's last submit: the copy of the picture `needsUpdate` moved (#362)
+    // is submitted before it.
+    const submit = gpu.submits.slice(submitted).at(-1);
     assert.ok(submit !== undefined, 'the image was submitted');
     assert.ok(
       written.every((write) => write.seq < submit),

@@ -1,5 +1,4 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
-import type { TextureRgba } from '../../visibility/types.ts';
 import { entryLevel, type TileLayout, type TilePlace } from '../../texture/tiles.ts';
 import type { WebgpuTilePool } from './pool.ts';
 import { createWebgpuTilePageTable, type TileKey, type WebgpuTilePageTable } from './pageTable.ts';
@@ -18,7 +17,7 @@ import { tailId, tileId, tileKeyOf } from './ids.ts';
 type TileSource =
   | { kind: 'bytes'; tail: TailBytes }
   | { kind: 'baked'; sha256: string; atlas: number; tail: TailBytes }
-  | { kind: 'host'; map: Texture; rgba: TextureRgba | null };
+  | { kind: 'host'; map: Texture };
 
 /** A texture of the atlas: tile geometry, pool lane, texels, and its record — none for the fill. */
 export type TileTexture = {
