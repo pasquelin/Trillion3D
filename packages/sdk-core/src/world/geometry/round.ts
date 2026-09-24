@@ -174,9 +174,7 @@ function sweep(
   // Carried round a closed curve, the frame comes back turned about the tangent: each ring takes
   // back its share of that turn, so the last ring lands on the first and the tube closes.
   const [first, last] = [normals[0], normals[count]];
-  const turn = closed
-    ? Math.atan2(dotVector3(t0, cross(first, last)), dotVector3(first, last))
-    : 0;
+  const turn = closed ? Math.atan2(dotVector3(t0, cross(first, last)), dotVector3(first, last)) : 0;
   const b = new GeometryBuilder();
   b.grid(count, pieces(radialSegments, 3), (u, v) => {
     const i = Math.round(u * count),
