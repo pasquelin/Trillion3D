@@ -6792,8 +6792,7 @@
       "onLand": "Appelée à l’atterrissage avec la vitesse de descente, en mètres par seconde : un son, une secousse.",
       "onJump": "Appelée quand le corps quitte le sol sur un saut.",
       "collision": "Ce que le corps heurte — les collisionneurs du monde, ou le monde d’un moteur physique par la même jointure (`CharacterCollision`). `null` marche à plat là où se tient le corps, sans jamais tomber.",
-      "update": "Vit `delta` secondes ; renvoie si la caméra a bougé, et émet `change` quand c’est le cas.",
-      "physics": "La physique du monde, quand elle tourne : le corps est alors le personnage virtuel de Jolt dans le worker physique et rencontre chaque corps de la simulation ; `null` revient à `collision`. Le corps garde sa place au changement."
+      "update": "Vit `delta` secondes ; renvoie si la caméra a bougé, et émet `change` quand c’est le cas."
     }
   },
   "CharacterCollision": {
@@ -7169,6 +7168,22 @@
     "members": {
       "budget": "Enveloppes fixes, lues une fois au démarrage de la physique.",
       "gravity": "La gravité du monde : un préréglage ou un vecteur."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Tout ce que `world.controls.vehicle` peut conduire : il reçoit l’entrée à chacun de ses changements.",
+    "members": {
+      "drive": "Reçoit les pédales et le volant, chaque fois qu’une touche les change."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Ce qu’un conducteur demande à un véhicule : les pédales et le volant, tels que les touches de `world.controls` `'vehicle'` les règlent.",
+    "description": "La physique du véhicule — moteur, roues, suspension — y répond ; ce contrat est tout ce que les contrôles en savent.",
+    "members": {
+      "throttle": "Accélérateur, de 0 à 1.",
+      "brake": "Pédale de frein, de 0 à 1.",
+      "steer": "Volant, de −1 tout à gauche à 1 tout à droite.",
+      "handbrake": "Si le frein à main est tiré."
     }
   }
 }

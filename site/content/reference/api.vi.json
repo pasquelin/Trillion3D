@@ -6954,8 +6954,7 @@
       "onLand": "Được gọi khi đáp đất với tốc độ hướng xuống, tính bằng mét trên giây: một âm thanh, một rung lắc.",
       "onJump": "Được gọi khi thân thể rời khỏi mặt đất trong một cú nhảy.",
       "collision": "Những gì thân thể va chạm vào — các vật cản va chạm của thế giới, hoặc thế giới của một backend vật lý qua cùng một điểm nối (`CharacterCollision`). `null` đi bằng phẳng nơi thân thể đang đứng, không bao giờ rơi.",
-      "update": "Trải qua `delta` giây; trả về liệu camera có di chuyển hay không, và phát ra `change` khi nó có di chuyển.",
-      "physics": "Vật lý của thế giới, khi đang chạy: thân thể khi đó là nhân vật ảo của Jolt trong worker vật lý và gặp mọi vật thể của mô phỏng; `null` trở về `collision`. Thân thể giữ nguyên chỗ khi chuyển."
+      "update": "Trải qua `delta` giây; trả về liệu camera có di chuyển hay không, và phát ra `change` khi nó có di chuyển."
     }
   },
   "CharacterCollision": {
@@ -7170,6 +7169,22 @@
     "members": {
       "budget": "Giới hạn cố định, đọc một lần khi vật lý bắt đầu.",
       "gravity": "Trọng lực của thế giới: thiết lập sẵn hoặc vectơ."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Bất cứ thứ gì `world.controls.vehicle` có thể lái: nhận đầu vào mỗi khi nó thay đổi.",
+    "members": {
+      "drive": "Nhận bàn đạp và vô lăng mỗi khi một phím thay đổi chúng."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Điều người lái yêu cầu ở phương tiện: bàn đạp và vô lăng, như các phím của `world.controls` `'vehicle'` đặt.",
+    "description": "Vật lý của chính phương tiện — động cơ, bánh xe, hệ thống treo — đáp lại; hợp đồng này là tất cả những gì điều khiển biết.",
+    "members": {
+      "throttle": "Chân ga, từ 0 đến 1.",
+      "brake": "Bàn đạp phanh, từ 0 đến 1.",
+      "steer": "Vô lăng, từ −1 hết bên trái đến 1 hết bên phải.",
+      "handbrake": "Phanh tay có đang kéo không."
     }
   }
 }
