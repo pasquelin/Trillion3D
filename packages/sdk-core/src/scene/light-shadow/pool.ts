@@ -37,6 +37,8 @@ export function createShadowPool(side: number) {
     rank = new Int32Array(pages),
     requested = new Int32Array(pages).fill(-1),
     dirty = new Uint8Array(pages),
+    /** Its depth is wrong, not only coarse: stale, it is read no more (`hideStale`). */
+    hidden = new Uint8Array(pages),
     valid = new Uint8Array(pages),
     /** The static layer holds this page's static casters, current. */
     layered = new Uint8Array(pages),
@@ -66,9 +68,7 @@ export function createShadowPool(side: number) {
   const init = () => {
     owner.fill(-1);
     requested.fill(-1);
-    dirty.fill(0);
-    valid.fill(0);
-    layered.fill(0);
+    for (const flags of [dirty, hidden, valid, layered]) flags.fill(0);
     for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
     freeCount = pages;
     evicted.fill(0);
@@ -99,10 +99,12 @@ export function createShadowPool(side: number) {
       return refetched;
     },
     /** The page is stale from now on — its moving casters only, or its static ones too —, at the
-     *  most of what it already was; its wait never restarts. True when it was current. */
-    stale(page: number, nowMs: number, frame: number, level = STALE_FULL) {
+     *  most of what it already was; its wait never restarts. `hide` when its depth is wrong, not
+     *  only coarser than the view wants: it is read no more until redrawn. True when it was current. */
+    stale(page: number, nowMs: number, frame: number, level = STALE_FULL, hide = true) {
       const was = dirty[page];
       if (was < level) dirty[page] = level;
+      if (hide) hidden[page] = 1;
       if (was) return false;
       since[page] = nowMs;
       sinceFrame[page] = frame;
@@ -115,15 +117,16 @@ export function createShadowPool(side: number) {
     },
     /** The page's draw in `mode` has landed: current, and readable. */
     drew(table: ShadowTable, page: number, mode: number) {
-      dirty[page] = 0;
+      dirty[page] = hidden[page] = 0;
       valid[page] = 1;
       layered[page] = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && layered[page]) ? 1 : 0;
       table.write(owner[page], page | PAGE_MAPPED | PAGE_VALID);
     },
-    /** Every stale page still read says so: a reader falls back to a coarser current page. */
+    /** Every page staled with `hide` and still read says so: a reader falls back to a coarser
+     *  current page. A page stale for detail only stays read until redrawn. */
     hideStale(table: ShadowTable) {
       for (let page = 0; page < pages; page++)
-        if (dirty[page] && valid[page])
+        if (hidden[page] && valid[page])
           table.write(owner[page], page | PAGE_MAPPED | PAGE_VALID | PAGE_STALE);
     },
     /** The page keeps its place and its requests, but its depth is read no more until it is
@@ -145,9 +148,7 @@ export function createShadowPool(side: number) {
       if (owner[page] < 0) return;
       table.write(owner[page], 0);
       owner[page] = -1;
-      dirty[page] = 0;
-      valid[page] = 0;
-      layered[page] = 0;
+      dirty[page] = hidden[page] = valid[page] = layered[page] = 0;
       requested[page] = -1;
       free[freeCount++] = page;
     },
@@ -184,9 +185,7 @@ export function createShadowPool(side: number) {
         refetched++;
       }
       owner[page] = entry;
-      valid[page] = 0;
-      layered[page] = 0;
-      dirty[page] = 0;
+      valid[page] = layered[page] = dirty[page] = 0;
       pool.stale(page, nowMs, frame);
       requested[page] = reportFrame;
       table.write(entry, page | PAGE_MAPPED);

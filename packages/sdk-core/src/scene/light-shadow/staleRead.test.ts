@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { PAGE_STALE, PAGE_VALID } from './virtual.ts';
+import { PAGE_INDEX_MASK, PAGE_STALE, PAGE_VALID } from './virtual.ts';
 import { SUN, VIEW, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
 
 /** A sun whose level `finest + 4` the shading reads at `pages`, drawn and settled. */
@@ -76,4 +76,37 @@ test('a pure camera translation redraws no page whose casters and light are stat
   assert.equal(plan.counts.invalidatedPages, 0);
   assert.equal(plan.pool.used, 3, 'the pages still in the clipmap stay mapped');
   assert.ok(entries.every((entry) => current(plan.table.words[entry])));
+});
+
+test('a page restaled for detail stays readable until it is redrawn', () => {
+  const { store, plan, entries } = drawnSun(row(3));
+  // One page a frame. The representation changed everywhere: the camera rests, the pages go stale,
+  // but their depth is the same world at another precision.
+  plan.observeCost(plan.budget.budgetMs, 1);
+  plan.representationChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  let frame = 40;
+  assert.equal(
+    cycle(plan, store, frame, () => entries),
+    1,
+  );
+  const stale = () =>
+    entries.filter((entry) => plan.pool.dirty[plan.table.words[entry] & PAGE_INDEX_MASK]);
+  assert.equal(stale().length, 2, 'two pages wait to be redrawn');
+  while (stale().length) {
+    assert.ok(
+      entries.every((entry) => current(plan.table.words[entry])),
+      'stale for detail: still read, never hidden',
+    );
+    cycle(plan, store, ++frame, () => entries);
+  }
+  assert.equal(frame, 42, 'each redrawn, one a frame');
+});
+
+test('a page staled by a caster change is hidden until it is redrawn', () => {
+  const { store, plan, entries } = drawnSun(row(3));
+  plan.observeCost(plan.budget.budgetMs, 1);
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  cycle(plan, store, 50, () => entries);
+  const hidden = entries.filter((entry) => plan.table.words[entry] & PAGE_STALE);
+  assert.equal(hidden.length, 2, 'the two pages not yet redrawn are hidden');
 });

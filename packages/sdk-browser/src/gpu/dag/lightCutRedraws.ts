@@ -42,27 +42,32 @@ export function createLightCutRedraws(
     reported: true,
     reading: Promise.resolve(),
   }));
-  const redraw = new Set<number>(),
+  /** Each page to draw again, and whether its depth is wrong — dropped work, or a flag nobody
+   *  reads — and is hidden meanwhile, or only coarser — an escalation — and stays read. */
+  const redraw = new Map<number, boolean>(),
     waiting = new Set<number>();
   const limit = createViewLimit(viewCap);
   let epoch = 0,
     /** Residency changed since the waiting pages were last released. */
     moved = false;
-  const add = (into: Set<number>, pages: ArrayLike<number>, count: number) => {
-    for (let i = 0; i < count; i++) into.add(pages[i]);
+  const again = (page: number, hide: boolean) => redraw.set(page, hide || !!redraw.get(page));
+  const add = (pages: ArrayLike<number>, count: number) => {
+    for (let i = 0; i < count; i++) again(pages[i], true);
   };
   const read = (slot: (typeof slots)[number], flags: number) => {
     const dropped = (flags & WORK_DROPPED) !== 0;
     let views = 0;
     for (let i = 0; i < slot.count; i++) views = Math.max(views, slot.views[i] + 1);
     limit.read(views, dropped);
-    if (dropped) return add(redraw, slot.pages, slot.count);
+    if (dropped) return add(slot.pages, slot.count);
     // Residency moved since the frame was encoded: what it lacked may be there now. A frame whose
     // requests were not copied waits for nothing: what it lacked was never asked for.
-    const into = slot.epoch !== epoch || !slot.reported ? redraw : waiting,
+    const now = slot.epoch !== epoch || !slot.reported,
       escalated = flags >>> ESCALATED_VIEWS;
     for (let i = 0; i < slot.count; i++)
-      if ((escalated >>> slot.views[i]) & 1) into.add(slot.pages[i]);
+      if ((escalated >>> slot.views[i]) & 1)
+        if (now) again(slot.pages[i], false);
+        else waiting.add(slot.pages[i]);
   };
   return {
     /** Copies this frame's flag word with its `count` drawn `pages`, drawn in the cut's `views` —
@@ -78,7 +83,7 @@ export function createLightCutRedraws(
       if (!count) return undefined;
       const slot = slots.find(({ busy }) => !busy);
       if (!slot) {
-        add(redraw, pages, count);
+        add(pages, count);
         return undefined;
       }
       slot.busy = true;
@@ -119,17 +124,18 @@ export function createLightCutRedraws(
       if (!moved) return;
       moved = false;
       epoch++;
-      for (const page of waiting) redraw.add(page);
+      for (const page of waiting) again(page, false);
       waiting.clear();
     },
     /** Light views a frame may draw in: `viewCap` until a frame drops (`createViewLimit`). */
     get viewLimit() {
       return limit.value;
     },
-    /** Hands every page to draw again to `visit`, then forgets them; returns how many. */
-    takeRedraw(visit: (page: number) => void) {
+    /** Hands every page to draw again to `visit`, and whether it is hidden until then; forgets
+     *  them; returns how many. */
+    takeRedraw(visit: (page: number, hide: boolean) => void) {
       const count = redraw.size;
-      for (const page of redraw) visit(page);
+      for (const [page, hide] of redraw) visit(page, hide);
       redraw.clear();
       return count;
     },
