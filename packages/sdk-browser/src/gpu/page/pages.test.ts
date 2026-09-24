@@ -1,7 +1,9 @@
-import { mockDevice } from '../../../../../tests/kit/gpu/pagesDevice.ts';
+import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPageCache } from './pages.ts';
+
+const LIMITS = { maxBufferSize: 1024 };
 // A slot is the size of the largest cluster: a small page that reuses it writes only its bytes,
 // and the slot's tail keeps those of the previous page without anyone reading them — a row names
 // its page offset and index count, and visibility as well as shading refuse any triangle beyond
@@ -9,8 +11,7 @@ import { createGpuPageCache } from './pages.ts';
 // of four that `writeBuffer` requires goes extra, as zeros. The three pages reuse the same slot,
 // and the sample counts only what is actually transferred.
 test('a reused GPU slot receives only the bytes of its page, padded to what the queue needs', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device, writes } = mockDevice();
+  const { device, writes } = fakeDevice({ limits: LIMITS });
   const octets: Record<string, number[]> = {
     large: [1, 2, 3, 4, 5, 6, 7, 8],
     small: [9, 10, 11, 12],
@@ -19,7 +20,7 @@ test('a reused GPU slot receives only the bytes of its page, padded to what the 
   const source = { read: async (key: string) => new Uint8Array(octets[key]) };
   const cache = createGpuPageCache(device, source, { pageBytes: 8, slots: 1 });
   const pages = [await cache.load('large'), await cache.load('small'), await cache.load('odd')];
-  const envois = writes.map((write) => [...write.bytes]),
+  const envois = writes.map((write) => [...written(write)]),
     slot = pages[0].slot;
   assert.deepEqual(envois, [octets.large, octets.small, [...octets.odd, 0, 0, 0]]);
   assert.deepEqual([pages[1].slot, pages[2].slot], [slot, slot]);
@@ -28,8 +29,7 @@ test('a reused GPU slot receives only the bytes of its page, padded to what the 
   assert.equal(cache.stats().uploadedBytes, 8 + 4 + 8);
 });
 test('a cache hit does not fence the whole GPU device', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device, writes, fences } = mockDevice();
+  const { device, writes, fences } = fakeDevice({ limits: LIMITS });
   const cache = createGpuPageCache(
     device,
     { read: async () => new Uint8Array([1, 2, 3, 4]) },
@@ -42,8 +42,7 @@ test('a cache hit does not fence the whole GPU device', async () => {
   assert.equal(writes.length, 1);
 });
 test('page fetches overlap while GPU uploads stay ordered', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device, writes } = mockDevice({ maxBufferSize: 1024 });
+  const { device, writes } = fakeDevice({ limits: LIMITS });
   let current = 0,
     peak = 0;
   const source = {
@@ -80,8 +79,7 @@ test('storage binding size is rejected before buffer creation', () => {
   );
 });
 test('dispose aborts an in-flight load and does not write after destroy', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device, writes, destroyed } = mockDevice();
+  const { device, writes, destroyed } = fakeDevice({ limits: LIMITS });
   let resume!: () => void;
   const source = {
     read: async (_key: string, signal?: AbortSignal) =>
@@ -102,11 +100,10 @@ test('dispose aborts an in-flight load and does not write after destroy', async 
   await assert.rejects(pending);
   await closed;
   assert.equal(writes.length, 0);
-  assert.equal(destroyed(), 1);
+  assert.equal(destroyed.length, 1);
 });
 test('unload releases an unpinned slot so later loads can reuse it', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device, writes } = mockDevice();
+  const { device, writes } = fakeDevice({ limits: LIMITS });
   const cache = createGpuPageCache(
     device,
     { read: async () => new Uint8Array([1, 2, 3, 4]) },
@@ -119,8 +116,7 @@ test('unload releases an unpinned slot so later loads can reuse it', async () =>
   assert.equal(writes.length, 2);
 });
 test('an aborted concurrent load does not prevent a separate non-aborted load for the same key', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device, writes } = mockDevice();
+  const { device, writes } = fakeDevice({ limits: LIMITS });
   const controller = new AbortController();
   const source = {
     read: async (_key: string, signal?: AbortSignal) => {
@@ -142,8 +138,7 @@ test('an aborted concurrent load does not prevent a separate non-aborted load fo
   assert.equal(writes.length, 1);
 });
 test('GPU diagnostics expose queue, read, upload, pins and eviction while observer errors stay isolated', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device } = mockDevice();
+  const { device } = fakeDevice({ limits: LIMITS });
   const events: string[] = [];
   const cache = createGpuPageCache(
     device,
@@ -174,8 +169,7 @@ test('GPU diagnostics expose queue, read, upload, pins and eviction while observ
   await cache.dispose();
 });
 test('GPU page read retries once and reports the failed status without changing the load result', async () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
-  const { device } = mockDevice();
+  const { device } = fakeDevice({ limits: LIMITS });
   let attempts = 0;
   const phases: Array<{ phase: string; context: Record<string, unknown> }> = [];
   const cache = createGpuPageCache(
