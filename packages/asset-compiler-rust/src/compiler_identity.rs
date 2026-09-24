@@ -103,6 +103,15 @@ mod tests {
         assert!(include_str!("../build.rs").contains("cargo:rerun-if-changed=src\""));
     }
 
+    // Behaviour: the page codec is linked into the compiler: its sources are watched and hashed
+    // as the compiler's own, so a codec edit moves the key (#558).
+    #[test]
+    fn the_build_script_hashes_the_page_codec() {
+        let script = include_str!("../build.rs");
+        assert!(script.contains("cargo:rerun-if-changed={CODEC}/src"));
+        assert!(script.contains("source_files(&Path::new(CODEC).join(\"src\"), &mut files)"));
+    }
+
     // Behaviour: shapes cooked by another Jolt are another product: the key moves with the commit.
     #[test]
     fn another_jolt_is_another_key() {
