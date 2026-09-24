@@ -17,8 +17,16 @@ const HOME_PATH = /\/(?:Users|home)\/[A-Za-z0-9._-]+\//;
 
 test('no tracked file points into a home directory', async () => {
   const tracked = await gitPaths(['ls-files', '-z'], fileURLToPath(root));
+  // A submodule is tracked as one entry, a directory: its files are another repository's.
+  const submodules = new Set(
+    await gitPaths(
+      ['config', '-z', '--file', '.gitmodules', '--get-regexp', 'path'],
+      fileURLToPath(root),
+    ).catch(() => []),
+  );
   const offenders: string[] = [];
   for (const file of tracked) {
+    if ([...submodules].some((line) => line.endsWith(`\n${file}`))) continue;
     const bytes = await readFile(new URL(file, root));
     if (HOME_PATH.test(bytes.toString('latin1'))) offenders.push(file);
   }

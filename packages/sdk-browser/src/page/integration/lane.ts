@@ -1,3 +1,4 @@
+import { besideModule } from '../../host/besideModule.ts';
 import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts';
 import type {
   PageIntegrationAnswer,
@@ -32,12 +33,7 @@ export function createPageIntegrationLane() {
   let worker: Worker | undefined,
     alive = true,
     nextId = 1;
-  // The worker module carries the extension of the module that launches it: `.ts` in a source
-  // tree served as-is, `.js` in a built `dist/`.
-  const source = new URL(
-    import.meta.url.endsWith('.ts') ? './pageIntegrationWorker.ts' : './pageIntegrationWorker.js',
-    import.meta.url,
-  );
+  const source = besideModule('pageIntegrationWorker', import.meta.url);
   const breakLane = () => {
     if (!alive) return;
     alive = false;

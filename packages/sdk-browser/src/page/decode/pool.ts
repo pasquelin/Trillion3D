@@ -1,3 +1,4 @@
+import { besideModule } from '../../host/besideModule.ts';
 import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts';
 import {
   ID,
@@ -50,13 +51,7 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
   let nextId = 1,
     alive = true,
     retired = false;
-  // The worker module carries the extension of the module that launches it: `.ts` in a source
-  // tree served as-is, `.js` in a built `dist/`. A fixed string would always hit the wrong file
-  // on one of the two sides, and a missing worker would send everything to the fallback without saying so.
-  const source = new URL(
-    import.meta.url.endsWith('.ts') ? './pageDecodeWorker.ts' : './pageDecodeWorker.js',
-    import.meta.url,
-  );
+  const source = besideModule('pageDecodeWorker', import.meta.url);
   const spawn = () => {
     const worker = new Worker(source, { type: 'module' });
     worker.onmessage = (event: MessageEvent) => receive(worker, event.data as PageDecodeAnswer);

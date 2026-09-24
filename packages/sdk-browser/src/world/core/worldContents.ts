@@ -28,7 +28,10 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   const stale = new Set<Mesh>(),
     unseated = new Set<Mesh>();
   let openedModels = new Set<LoadedModel>();
+  /** Moves whenever a seat may have changed (`SceneLink.seatEpoch`). */
+  let seatEpoch = 0;
   const forget = (mesh: Mesh) => {
+    seatEpoch++;
     resolved.delete(mesh);
     unseated.delete(mesh);
     cuts.leave(mesh);
@@ -73,8 +76,7 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     const seated: Mesh[] = [];
     for (const { batch, from } of batches.growHeld((mesh) => seated.push(mesh))) {
       grow(from, batch.rows!);
-      poses.touch(batch, 0);
-      poses.touch(batch, batch.rows!.capacity - 1);
+      poses.touchRange(batch, 0, batch.rows!.capacity - 1);
     }
     seated.forEach(writeRow);
   }
@@ -83,6 +85,7 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
    *  transmissive surface takes a row like any other: the session draws each row of it as its own
    *  blended draw, ordered by depth. */
   function seat(grow?: Grow) {
+    seatEpoch++;
     const seating = [...unseated];
     unseated.clear();
     for (const mesh of seating) {
@@ -106,6 +109,9 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     /** The row each seated mesh holds. */
     seats: batches.seats,
     poses,
+    get seatEpoch() {
+      return seatEpoch;
+    },
     resolve,
     seat,
     /** A mesh's geometry or material was written: it is read again on the next resolve. */
@@ -120,6 +126,7 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     reopenNeeded: () => batches.waiting() || !same(openedModels, members.models),
     /** Sizes the batches and gathers what the next session opens on; marks it opened. */
     plan() {
+      seatEpoch++;
       const kept = batches.reopen();
       scene.updateMatrixWorld();
       for (const batch of kept)
