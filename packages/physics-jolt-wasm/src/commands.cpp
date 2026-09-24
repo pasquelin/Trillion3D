@@ -1,5 +1,6 @@
-// The command buffer: body creation with its shape, cooked shapes restored and released, removal, teleport, kinematic moves, velocity,
-// impulses, wake/freeze, gravity. Word layouts: `packages/sdk-core/src/physics/layout.ts`.
+// The command buffer: body creation with its shape, cooked shapes restored and released, removal
+// (its joints first), teleport, kinematic moves, velocity, impulses, wake/freeze, gravity; joints
+// are `joints.cpp`'s. Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
 #include "restore.h"
 #include "words.h"
@@ -78,6 +79,10 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       ++added;
       continue;
     }
+    if (op == JOINT || op == UNJOINT || op == MOTOR) {
+      w += jointCommand(w);
+      continue;
+    }
     if (op == CHARACTER || op == CHARACTER_MOVE) {
       w += characterCommand(w);
       continue;
@@ -121,6 +126,7 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       case REMOVE: {
         BodyID id = slot.id;
         leaveAll(slot.engine);
+        dropJoints(index);
         slot = Slot{};
         bodies.RemoveBody(id);
         bodies.DestroyBody(id);
