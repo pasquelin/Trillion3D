@@ -1509,8 +1509,6 @@
       "a-capped-section": "مستويات القص: أغطية ستنسل",
       "decals-on-a-surface": "الاختيار (raycast)",
       "sculpt-a-sphere": "الاختيار (raycast)",
-      "a-texture-turned-and-tiled": "تكرار وإزاحة ودوران النسيج على WebGPU",
-      "texture-filters-compared": "مرشحات النسيج والتباين الاتجاهي على WebGPU",
       "a-video-on-a-screen": "نُسُج فيديو حية",
       "the-webcam-as-a-texture": "نُسُج فيديو حية",
       "four-ways-to-blend": "كل أنماط المزج",

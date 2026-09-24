@@ -338,8 +338,6 @@
       "a-capped-section": "clipping planes: stencil caps",
       "decals-on-a-surface": "picking (raycast)",
       "sculpt-a-sphere": "picking (raycast)",
-      "a-texture-turned-and-tiled": "texture repeat, offset and rotation on WebGPU",
-      "texture-filters-compared": "texture filters and anisotropy on WebGPU",
       "a-video-on-a-screen": "live video textures",
       "the-webcam-as-a-texture": "live video textures",
       "four-ways-to-blend": "every blending mode",
