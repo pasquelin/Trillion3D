@@ -8,6 +8,6 @@
 export const BLEND_REQUEST_WGSL = `fn blendRequest(in:VSOut,wrap:u32,gradX:vec2f,gradY:vec2f)->u32{
  if(!feedbackPhase(in.position.xy,uni.feedback)){return 0u;}
  let p=requestPick(in.position.xy,MAP_CHOICES);
- return mapRequest(p.sel,vec2u(in.ids.x,in.ids.z),in.maps,in.uv,wrap,gradX,gradY,p.next,p.along);
+ return mapRequest(p,vec2u(in.ids.x,in.ids.z),in.maps,in.uv,wrap,gradX,gradY,false);
 }
 `;
