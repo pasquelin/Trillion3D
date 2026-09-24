@@ -14,7 +14,8 @@ import {
   SAMPLE_TRANSFORMED,
 } from './sampling.ts';
 
-/** The most taps an anisotropic read takes, as current hardware does. */
+/** The most taps an anisotropic read takes: a cost ceiling chosen to bound the shader, below the
+ *  16 WebGPU accepts as `maxAnisotropy`. */
 const MAX_TAPS = 8;
 /** Elongation a footprint may have and still be read once, at the isotropic level, like a
  *  texture granted no anisotropy: a surface seen face-on, up to rounding. */
