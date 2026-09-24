@@ -5,6 +5,12 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, services } = rt;
   if (run.lost) throw new Error('WEBGPU_LOST');
+  // A shadow pool the device is still answering for: its answer asks a frame, held or not.
+  const grant = rt.lights.shadowGrant;
+  if (grant && !grant.settled) {
+    await grant.done;
+    return true;
+  }
   if (run.frameHeld) {
     // A held frame still waits for a contract program in flight: its arrival breaks the hold
     // (`onReady`) but asks no frame, and a loop gone idle would stay unlit (#536). A failed

@@ -19,7 +19,8 @@ type Granted<P, R> = { pool: P; made: R };
  * Out of memory, absorbed: what a pool needs is allocated under an out-of-memory scope
  * (`deviceMade`), and a refusal shrinks that pool — half the bytes it would have held, drawn
  * again by its own rule — until the device grants it or the pool reaches its floor (`floor`: the
- * root cover of the geometry, one layer per lane of the textures). The pool in place is never
+ * root cover of the geometry, one layer per lane of the textures, the smallest screen's side of the
+ * shadows). The pool in place is never
  * replaced by one the device refused, so the frame goes on: what no longer fits draws coarser,
  * through the budget ladder every pool already follows. A refusal is published once per request
  * as `gpu-out-of-memory`, naming the pool, the bytes asked and the bytes granted (`null` when even
@@ -27,7 +28,7 @@ type Granted<P, R> = { pool: P; made: R };
  */
 async function grantedPool<P extends Pool, R extends Made>(options: {
   device: GPUDevice;
-  name: 'geometry' | 'texture';
+  name: 'geometry' | 'texture' | 'shadow';
   budgetBytes: number;
   draw: (budgetBytes: number) => P;
   make: (pool: P) => R;
@@ -91,6 +92,16 @@ export const grantedTexturePool = <R extends Made>(
     floor: 'minimum',
     diagnose,
   });
+
+/** The shadow pool the device grants for `budgetBytes`, by its own rule (`shadowPoolFor`); `make`
+ *  allocates its texture. */
+export const grantedShadowPool = <P extends Pool, R extends Made>(
+  device: GPUDevice,
+  budgetBytes: number,
+  draw: (budgetBytes: number) => P,
+  diagnose: Diagnose,
+  make: (pool: P) => R,
+) => grantedPool({ device, name: 'shadow', budgetBytes, draw, make, floor: 'minimum', diagnose });
 
 /** A geometry pool's probe: its buffer, under the probe's label. */
 export const geometryProbe = (device: GPUDevice) => (pool: GeometryPool) =>
