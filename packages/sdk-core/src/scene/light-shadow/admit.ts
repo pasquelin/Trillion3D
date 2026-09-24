@@ -27,9 +27,9 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * How many pages is the budget's alone: its fixed milliseconds over the measured cost of a page.
  * What the light cut bounds is the light views a frame draws in (`setViewLimit`) — one view never
  * overflows its lists —, never the pages: a view takes every page the budget pays for. A stale page
- * the frame reads and does not draw is hidden once the frame's pages are committed
- * (`pool.hideStale`): the shading reads the next coarser current level, never its old depth. All
- * arrays are allocated once.
+ * whose depth is wrong, and that the frame does not draw, is hidden once the frame's pages are
+ * committed (`pool.hideStale`): the shading reads the next coarser current level, never its old
+ * depth. A page stale for detail only keeps being read until redrawn. All arrays are allocated once.
  */
 export function createShadowAdmission(capacity: number, poolPages: number) {
   const candidates = new Int32Array(capacity),

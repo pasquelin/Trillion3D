@@ -96,9 +96,10 @@ export function encodeShadowCasters(
 
 /**
  * Before a plan: the pages a light cut drew short go stale again, whole — residency having moved
- * (`residencyMoved`) and the camera rested when that is what they waited for —, and the views a
- * frame may draw in follow the cut's limit (`../../gpu/dag/lightCutRedraws.ts`); without a light
- * cut, nothing limits them. The pages themselves are the budget's alone (`admit.ts`).
+ * (`residencyMoved`) and the camera rested when that is what they waited for, hidden meanwhile
+ * only when they miss casters —, and the views a frame may draw in follow the cut's limit
+ * (`../../gpu/dag/lightCutRedraws.ts`); without a light cut, nothing limits them. The pages
+ * themselves are the budget's alone (`admit.ts`).
  */
 export function redrawShortPages(
   rt: WebgpuPagesRuntime,
@@ -115,8 +116,8 @@ export function redrawShortPages(
   if (residencyMoved) redraws.residencyChanged();
   if (plan.resting) redraws.rest();
   const { pool } = plan;
-  const pages = redraws.takeRedraw((page) => {
-    if (pool.owner[page] >= 0) pool.stale(page, nowMs, frame, STALE_FULL);
+  const pages = redraws.takeRedraw((page, hide) => {
+    if (pool.owner[page] >= 0) pool.stale(page, nowMs, frame, STALE_FULL, hide);
   });
   plan.admission.setViewLimit(redraws.viewLimit);
   if (pages)
