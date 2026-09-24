@@ -73,6 +73,22 @@ fn extracted(dir: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+/// The regular files left anywhere under `dir`.
+fn files(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for path in entries.flatten().map(|entry| entry.path()) {
+        if path.is_dir() {
+            out.extend(files(&path));
+        } else {
+            out.push(path);
+        }
+    }
+    out
+}
+
 /// The package or archive once the case is done.
 fn cleanup(dir: PathBuf) {
     fs::remove_dir_all(&dir).expect("cleanup");
