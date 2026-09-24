@@ -148,6 +148,7 @@ export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/tra
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
 export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
+export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
 export {
   createEngineCamera,

@@ -36,7 +36,7 @@ export function createShadowThresholds(pool: ShadowPool) {
       for (let page = 0; page < pool.pages; page++) {
         const at = drawnAt[page];
         if (pool.owner[page] < 0 || Number.isNaN(at) || at === current) continue;
-        if (pool.stale(page, nowMs, frame, STALE_FULL, false)) staled++;
+        if (pool.stale(page, nowMs, frame, STALE_FULL)) staled++;
       }
       return staled;
     },

@@ -1,0 +1,40 @@
+import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
+import { shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
+import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
+
+/** The shadow pool at its largest — the side of the largest screen, and its static layer: the
+ *  shadows never hold more, whatever the screen. */
+export const SHADOW_POOL_BYTES = 2 * shadowAtlasBytes(shadowPoolSide(Infinity, Infinity));
+/** The GPU total by default: the three pools at their defaults, what a world held before it had
+ *  one total. */
+export const DEFAULT_GPU_BUDGET =
+  SHADOW_POOL_BYTES + DEFAULT_GEOMETRY_POOL_BUDGET + DEFAULT_TEXTURE_POOL_BUDGET;
+/** The CPU total by default: the decoded-page cache's default. */
+export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES;
+
+const checkTotal = (bytes: number, name: string) => {
+  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
+};
+
+/**
+ * One memory budget, split by a fixed rule — never by what the machine says it has:
+ * - GPU: the shadow pool first, at its largest (`SHADOW_POOL_BYTES`); the rest in two halves, the
+ *   geometry pool and the texture pool, each no larger than its ceiling. A total under the shadow
+ *   pool leaves the other two at their floors — the root cover, one layer per lane —, which the
+ *   pools' own clamps name.
+ * - CPU: the decoded-page cache takes the whole total, the only CPU pool the engine bounds.
+ * At the defaults, the split gives each pool its own default.
+ */
+export function splitMemoryBudget(gpu: number, cpu: number) {
+  checkTotal(gpu, 'INVALID_GPU_BUDGET');
+  checkTotal(cpu, 'INVALID_CPU_BUDGET');
+  const half = Math.floor(Math.max(0, gpu - SHADOW_POOL_BYTES) / 2);
+  return {
+    shadowPool: Math.min(gpu, SHADOW_POOL_BYTES),
+    geometryPool: Math.max(1, Math.min(DEFAULT_GEOMETRY_POOL_BUDGET, half)),
+    texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
+    pageCache: cpu,
+  };
+}
