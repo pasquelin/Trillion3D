@@ -430,6 +430,11 @@ Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
+On WebGPU a page enters the pool only after the pages it depends on, the clusters of the group
+that replaces it, read from the compiled group links (`webgpu/residency/admission.ts`): loading a
+wanted page or a shadow caster brings its missing dependencies first, each after its own, up to
+the pinned root cover. A page whose dependency has no bytes yet, or does not fit, is not loaded; it
+stays drawn through its resident ancestor. Both tiers of the residency queue share this one path.
 Shared URLs occupy one slot across instances. Two counters say different things:
 
 | Field            | Meaning                                                                                         | Reported by          |
