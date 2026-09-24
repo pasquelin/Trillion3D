@@ -167,3 +167,30 @@ test('the pose barrier loads the whole caster list; outside it, one upload slice
     mock.restoreAll();
   }
 });
+
+// A report taken while the tier loads rewrites its list in place: the load keeps the list it began
+// with, so which casters end resident depends on no timing.
+test('the tier loads the list it began with, whatever a report rewrites meanwhile', async () => {
+  const pages = ['a', 'b', 'c', 'd'].map(pageOf);
+  const [a, b, c, d] = pages;
+  const tracking = createWebgpuPageTracking(pages);
+  const cache = lruCache(3),
+    load = cache.load;
+  const live = [a, b, c, d];
+  cache.load = async (url: string) => {
+    await load(url);
+    live.splice(0, live.length, a, d, b, c);
+  };
+  await createWebgpuResidentEnsurer({
+    getCache: () => cache as never,
+    tracking,
+    bootstrapKey: new Uint8Array(tracking.keyCount),
+    hasBytes: () => true,
+    isLost: () => false,
+    traceEnabled: false,
+    traceDiagnostic: () => {},
+    shadowPages: () => live,
+    settling: () => true,
+  })([], 1, 1);
+  assert.deepEqual([...cache.resident.keys()].sort(), ['a', 'b', 'c']);
+});

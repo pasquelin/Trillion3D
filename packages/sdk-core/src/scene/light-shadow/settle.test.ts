@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import { LIGHT_SETTINGS, type SceneLight } from '../light/contracts.ts';
-import { SUN, cycle, lampPages, planFrame, sunPages } from './lightShadow.fixture.ts';
+import { SUN, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
+import { PAGE_MAPPED } from './virtual.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -152,4 +153,21 @@ test('a report past its list holds only once the pages it listed fill the pool',
     plan.commit();
   }
   assert.equal(plan.settled(store), true, 'the listed pages fill the pool: nothing more fits');
+});
+
+// The GPU appends a report's entries in its atomic order: which pages a full pool maps must not
+// follow it, or two captures of one pose hold different shadows.
+test('which pages a full pool maps does not depend on the order the report lists them in', () => {
+  const mapped = (order: (entries: number[]) => number[]) => {
+    const { store, plan, fine } = smallPool();
+    report(plan, store, 1, order(fine));
+    planFrame(plan, store, 2);
+    return fine.filter((entry) => plan.table.words[entry] & PAGE_MAPPED);
+  };
+  const forward = mapped((entries) => entries);
+  assert.equal(forward.length, 16);
+  assert.deepEqual(
+    mapped((entries) => entries.slice().reverse()),
+    forward,
+  );
 });

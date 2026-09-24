@@ -1,5 +1,5 @@
 import { LIGHT_KIND, LIGHT_SETTINGS } from '../light/contracts.ts';
-import { RANKS, type ShadowPool } from './pool.ts';
+import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -29,7 +29,8 @@ const CAP: number = LIGHT_SETTINGS.shadowRequestCap;
 
 /**
  * Reads a request report back: every page the shading asked for is either touched — mapped, it
- * becomes the most recently requested — or allocated. Allocation goes coarse first: a sun's
+ * becomes the most recently requested — or allocated. Allocation goes coarse first, then by table
+ * entry, so which pages a full pool refuses is the same from one run to the next: a sun's
  * higher levels and a lamp's higher mips cover the most pixels per page, and they are what a
  * finer page falls back to, so the pool never serves a fine page before the coarse one under it.
  * Coarseness is measured within each light (`sunCoarseness`, `lampCoarseness`), as admission
@@ -51,9 +52,12 @@ export function createShadowRequests(
     needX = new Int32Array(CAP),
     needY = new Int32Array(CAP),
     needRank = new Float64Array(CAP),
-    /** Allocation keys: the coarsest first, then in report order, packed into one number. */
-    order = new Float64Array(CAP),
+    /** Allocation order: the coarsest first, then by table entry — never the report's order, the
+     *  order the GPU's atomics appended the entries in. */
+    order = new Int32Array(CAP),
     scratch = new Int32Array(4);
+  const coarsestFirst = (a: number, b: number) =>
+    needRank[b] - needRank[a] || needEntry[a] - needEntry[b] || a - b;
   /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`). */
   const counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 };
   return {
@@ -106,14 +110,14 @@ export function createShadowRequests(
         }
         needEntry[needs] = entry;
         needSlice[needs] = slice;
-        order[needs] = (RANKS / 2 - needRank[needs]) * CAP + needs;
+        order[needs] = needs;
         needs++;
       }
       if (!needs) return;
-      order.subarray(0, needs).sort();
+      order.subarray(0, needs).sort(coarsestFirst);
       pool.beginAllocation(report.frame);
       for (let k = 0; k < needs; k++) {
-        const n = order[k] % CAP;
+        const n = order[k];
         const page = pool.take(table, needEntry[n], report.frame, nowMs, frame);
         if (page < 0) {
           counts.refused += needs - k;

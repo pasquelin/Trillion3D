@@ -3,7 +3,7 @@ import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
 /** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
-export const RANKS = 1024;
+const RANKS = 1024;
 
 /** How stale a page is: only its moving casters changed, or its static ones too. */
 export const STALE_DYNAMIC = 1,

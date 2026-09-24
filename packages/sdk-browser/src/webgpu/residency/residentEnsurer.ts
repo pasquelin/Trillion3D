@@ -160,7 +160,10 @@ export function createWebgpuResidentEnsurer({
         tracking.markPinned(key);
       }
     }
-    if (!full && shadowPages().length) await loadShadowTier(shadowPages(), cache, signal);
+    // A copy: the tier's list is rewritten in place by every report taken while this one loads,
+    // and a loop resumed on another list keeps neither its order nor its count of free slots.
+    const lower = full ? [] : shadowPages();
+    if (lower.length) await loadShadowTier(lower.slice(), cache, signal);
     traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
       ...payload({
         loaded: loaded(),
