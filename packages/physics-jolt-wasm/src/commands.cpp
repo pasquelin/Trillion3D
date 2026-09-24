@@ -1,16 +1,9 @@
 // The command buffer: body creation with its shape, removal, teleport, kinematic moves, velocity,
 // impulses, wake/freeze, gravity. Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
+#include "words.h"
 
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
-#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
-#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
-#include <Jolt/Physics/Collision/Shape/CylinderShape.h>
-#include <Jolt/Physics/Collision/Shape/MeshShape.h>
-#include <Jolt/Physics/Collision/Shape/SphereShape.h>
-
-#include <cstring>
 
 using namespace JPH;
 
@@ -22,8 +15,6 @@ enum Op : uint32_t {
   ADD = 1, REMOVE, TELEPORT, MOVE_KINEMATIC, VELOCITY, IMPULSE, WAKE, GRAVITY, GRAVITY_SCALE,
   VIEW, FLAGS, MATERIAL
 };
-enum ShapeKind : uint32_t { BOX = 0, SPHERE, CAPSULE, CYLINDER, TRIANGLES, HULL };
-constexpr uint32_t ADD_WORDS = 23;
 /// Words of each fixed-size command, by opcode (layout.ts).
 constexpr uint32_t SIZES[] = {0, 0, 2, 9, 9, 5, 5, 2, 4, 3, 9, 3, 4};
 /** Adds in one batch past which the broad phase is rebuilt after it. */
@@ -31,61 +22,12 @@ constexpr uint32_t BULK_ADDS = 256;
 /// Density every shape is built with; a body's mass is set from the engine's density or mass.
 constexpr float SHAPE_DENSITY = 1000.0f;
 
-float f32(const uint32_t *w) {
-  float value;
-  std::memcpy(&value, w, 4);
-  return value;
-}
-Vec3 vec3(const uint32_t *w) { return Vec3(f32(w), f32(w + 1), f32(w + 2)); }
-Quat quat(const uint32_t *w) { return Quat(f32(w), f32(w + 1), f32(w + 2), f32(w + 3)).Normalized(); }
-
-RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
-  uint64_t key = 0;
-  uint32_t bits[3];
-  std::memcpy(bits, (float[3]){a, b, c}, 12);
-  for (uint32_t v : {kind, bits[0], bits[1], bits[2]}) key = key * 0x100000001B3ull ^ v;
-  auto &cache = world().primitives;
-  if (auto found = cache.find(key); found != cache.end()) return found->second;
-  RefConst<Shape> shape;
-  if (kind == BOX) {
-    float smallest = std::min(a, std::min(b, c));
-    shape = new BoxShape(Vec3(a, b, c), std::min(cDefaultConvexRadius, smallest * 0.5f));
-  } else if (kind == SPHERE) shape = new SphereShape(a);
-  else if (kind == CAPSULE) shape = new CapsuleShape(a, b);
-  else shape = new CylinderShape(a, b, std::min(cDefaultConvexRadius, std::min(a, b) * 0.5f));
-  cache.emplace(key, shape);
-  return shape;
-}
-
-RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices, uint32_t indices) {
-  if (kind == HULL) {
-    Array<Vec3> points;
-    points.reserve(vertices);
-    for (uint32_t i = 0; i < vertices; ++i) points.push_back(vec3(data + i * 3));
-    ShapeSettings::ShapeResult result = ConvexHullShapeSettings(points).Create();
-    return result.HasError() ? nullptr : result.Get();
-  }
-  VertexList list;
-  list.reserve(vertices);
-  for (uint32_t i = 0; i < vertices; ++i) list.push_back(Float3(f32(data + i * 3), f32(data + i * 3 + 1), f32(data + i * 3 + 2)));
-  const uint32_t *index = data + vertices * 3;
-  IndexedTriangleList triangles;
-  triangles.reserve(indices / 3);
-  for (uint32_t i = 0; i + 2 < indices; i += 3) triangles.push_back(IndexedTriangle(index[i], index[i + 1], index[i + 2]));
-  ShapeSettings::ShapeResult result = MeshShapeSettings(list, triangles).Create();
-  return result.HasError() ? nullptr : result.Get();
-}
-
 bool add(const uint32_t *w) {
   World &world = trillion::world();
-  uint32_t engine = w[1], index = engine & INDEX_MASK, motion = w[2], layer = w[3], kind = w[4],
-           flags = w[5];
+  uint32_t engine = w[1], index = engine & INDEX_MASK, motion = w[2], layer = w[3], flags = w[5];
   if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused)
     return (world.error = BAD_COMMAND, false);
-  // A mesh has no volume: only a body that never moves by force may be one (the page refuses it).
-  RefConst<Shape> shape = kind <= CYLINDER ? primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15))
-                          : kind == TRIANGLES && motion == 2 ? nullptr
-                                                             : meshShape(kind, w + ADD_WORDS, w[21], w[22]);
+  RefConst<Shape> shape = shapeOf(w);
   // A refused shape fails its body alone: the page hears its id and removes it.
   if (!shape) {
     world.slots[index] = {};

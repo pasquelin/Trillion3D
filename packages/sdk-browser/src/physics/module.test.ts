@@ -111,3 +111,30 @@ test('a shape the module refuses fails its body alone; the world steps on', asyn
   assert.ok(step(jolt) >= 0 && jolt.active() === 1, 'the other body still falls');
   assert.equal(jolt.poses(1)[0] & ~ASLEEP_BIT, id(1, 1));
 });
+
+test('a leave the event buffer cannot take is owed, and sent first at the next step', async () => {
+  const jolt = await startModule({ contactEvents: 1 });
+  pile(jolt, 1, true);
+  const writer = new CommandWriter();
+  // A second box lands on the first: two pairs, each enter in a step of its own.
+  writer.add(body(id(2, 1), 2, 3, 0.5, FLAG.events));
+  const enters = new Set<number>();
+  for (let s = 0; s < 240 && enters.size < 2; s++) {
+    step(jolt, s ? undefined : writer);
+    for (const [type, a, b] of events(jolt)) if (type === EVENT.begin) enters.add(a ^ b);
+  }
+  assert.equal(enters.size, 2, 'both pairs touch');
+  // The first box leaves both pairs at once, with room for one event.
+  const removal = new CommandWriter();
+  removal.remove(1);
+  step(jolt, removal);
+  const first = events(jolt);
+  assert.equal(first.length, 1, 'one leave fits the buffer');
+  assert.equal(jolt.owedLeaves(), 1, 'the other one is owed');
+  jolt.step(null, 0);
+  const second = events(jolt);
+  assert.equal(second.length, 1, 'the owed leave comes at the next step');
+  const leaves = [...first, ...second].map(([type, a, b]) => (type === EVENT.end ? a ^ b : -1));
+  assert.deepEqual(new Set(leaves), enters);
+  assert.equal(jolt.owedLeaves(), 0);
+});
