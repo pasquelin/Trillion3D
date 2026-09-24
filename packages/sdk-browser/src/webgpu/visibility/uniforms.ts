@@ -5,6 +5,7 @@ import { computeRasterReady } from '../pages/render/encodeVisSetup.ts';
 import type { WebgpuVisState } from '../pages/state/vis.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADE_UNIFORM_BYTES, writeSunSlice } from '../../visibility/shader/request.ts';
+import { pixelScaleOf } from '../../camera/pixelFootprint.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 
 /** `uni.mode` of the resolve, per diagnostic view (`../../visibility/shader/shadeWgsl.ts`); beauty is zero. */
@@ -74,8 +75,9 @@ export function writeWebgpuVisibilityUniforms(
   shadeInts[20] = tableRows;
   // Texture image-feedback phase: one pixel in sixteen speaks, all of them during a convergence.
   shadeInts[22] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
-  // The sun's shadow slice, so resolve asks for the tiles a foliage shadow reads; with no sun to
-  // shadow, a faceless slice, and nothing is asked.
+  // The sun's clipmap, and the pixel scale that picks its level, so resolve asks for the tiles a
+  // foliage shadow reads; with no sun to shadow, a header of zeros, and nothing is asked.
+  shadeUniPacked[23] = run.lastCamera ? pixelScaleOf(run.gate.cam.projection, height) : 0;
   writeSunSlice(rt.lights, shadeUniPacked);
   shadeInts[21] = SHADE_MODE[diagnostic] ?? 0;
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked);

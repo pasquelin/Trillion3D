@@ -1,144 +1,116 @@
-import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../../../gpu/draw/draw.ts';
-import { SHADOW_PASS } from '../../../gpu/shadow/atlas.ts';
-import { visBindEntries } from '../../core/bindEntries.ts';
-import { regionScissor, regionViewport } from './encodeShadows.ts';
+import { DRAW_INDIRECT_STRIDE } from '../../../gpu/draw/draw.ts';
+import { MAX_SHADOW_REGIONS, SHADOW_PASS } from '../../../gpu/shadow/atlas.ts';
+import { SHADOW_LAYER_PASS } from '../../../gpu/shadow/staticLayer.ts';
+import { HIZ_UNTESTED } from '../../../gpu/shadow/occlusion.ts';
+import { REGION_RESTORE, REGION_STATIC } from '../../shadow/regions.ts';
+import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
+import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { encodeShadowCasters } from '../../shadow/casters.ts';
+
+/** Pyramid slot of each region this frame, `HIZ_UNTESTED` for a region drawn as culled, and the
+ *  region each slot was given to. */
+const slotOf = new Uint32Array(MAX_SHADOW_REGIONS),
+  regionOf = new Uint32Array(MAX_SHADOW_REGIONS);
 
 /**
- * Bind group of a region: the visibility-buffer raster's, three bindings aside — the instance list
- * is the one culling kept for this region, the slot table places it in that list, and the uniform
- * names the slot. Groups survive images and are rebuilt only if one of the resources they hold has
- * changed identity.
+ * The pages a moving caster is drawn over get a pyramid of their static layer, and each restored
+ * region keeps only the moving casters it does not hide from the light
+ * (`../../../gpu/shadow/occlusion.ts`). A frame without a restored region, or before the pyramids
+ * exist, tests nothing. Returns whether the restored regions draw from the visible lists.
  */
-function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: number) {
-  const { vis, gpu, lights } = rt;
-  const cacheBuffer = gpu.cache?.buffer,
-    { visBindGroupLayout, concatPos, concatUv, pageTable, textures, mapsSampler } = vis;
-  const { cull } = lights;
-  if (
-    !visBindGroupLayout ||
-    !cacheBuffer ||
-    !concatPos ||
-    !concatUv ||
-    !pageTable ||
-    !textures ||
-    !mapsSampler ||
-    !vis.zeroFlags ||
-    !cull
-  )
-    return;
-  // What the groups name and which can change identity — the colour tile pool, not the streamer
-  // that holds it — compared in place: nothing is allocated per region or per image.
-  const key = lights.shadowGroupsKey,
-    pool = textures.color.views;
-  if (
-    key[0] !== cacheBuffer ||
-    key[1] !== concatPos ||
-    key[2] !== concatUv ||
-    key[3] !== pageTable ||
-    key[4] !== pool ||
-    key[5] !== cull.kept
-  ) {
-    key[0] = cacheBuffer;
-    key[1] = concatPos;
-    key[2] = concatUv;
-    key[3] = pageTable;
-    key[4] = pool;
-    key[5] = cull.kept;
-    lights.shadowGroups.fill(undefined);
+function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, count: number) {
+  const { lights, run, layout, setup } = rt,
+    { regions, pageHiz, occlusion, cull, spheres, shadows } = lights;
+  if (!pageHiz || !occlusion || !cull || !spheres || !shadows) return false;
+  let pages = 0;
+  for (let region = 0; region < count; region++) {
+    const restored = regions.startOf(region) === REGION_RESTORE;
+    if (restored) regionOf[pages] = region;
+    slotOf[region] = restored ? pages++ : HIZ_UNTESTED;
   }
-  let group = lights.shadowGroups[region];
-  if (!group) {
-    group = device.createBindGroup({
-      layout: visBindGroupLayout,
-      entries: visBindEntries({
-        cache: cacheBuffer,
-        position: concatPos,
-        pageTable,
-        flags: vis.zeroFlags,
-        uniform: cull.drawUniform,
-        uniformOffset: region * PAGE_BIND_ALIGN,
-        uv: concatUv,
-        textures,
-        sampler: mapsSampler,
-        instances: cull.kept,
-        slotOffsets: cull.offsets,
-      }),
-    });
-    lights.shadowGroups[region] = group;
-  }
-  return group;
+  if (!pages) return false;
+  pageHiz.encode(encoder, pages, (slot, out, at) => {
+    const region = regionOf[slot];
+    out[at] = regions.x(region);
+    out[at + 1] = regions.y(region);
+  });
+  const inputs = {
+    spheres: spheres.buffer,
+    kept: cull.kept,
+    indirect: cull.indirect,
+    views: shadows.faceUniform,
+    pyramid: pageHiz.pyramid,
+  };
+  const rows = layout.rows.packedCount;
+  occlusion.encode(encoder, inputs, count, (r) => slotOf[r], rows, setup.maxCorners, run.frame);
+  return true;
 }
 
 /**
- * Shadow depth pass: first per-region cull, which keeps from the image's instance list only the
- * clusters touching the light range and the region volume; then one render pass for all regions, and
- * one indirect draw per region.
+ * Shadow depth pass: first the casters of each light view drawn, selected from the light and
+ * culled per region (`encodeShadowCasters`); then the static layer's pages drawn in full, if any;
+ * then the moving casters of each restored page tested against its static layer; then one render
+ * pass over the pool, where each region starts from its page cleared to far or restored from the
+ * static layer, and draws its casters.
  *
- * **The viewport stays that of the whole face; only the scissor bounds the region.** That is the
- * whole rule: a vertex lands on exactly the same texel as in a full redraw, and the scissor only
- * drops pixels outside the region. Clear-to-far follows the same scissor, so pages the region does
- * not cover keep the depth they had. Two draw calls per region, whatever the scene's coplanar layer
- * count.
+ * **The viewport is the physical page, the matrix the virtual page's own projection.** The page
+ * fills the clip square, so the rasterizer clips every caster at its edge and no other page of the
+ * pool is touched; the scissor says the same square once more.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  regions: number,
+  count: number,
 ) {
-  const { lights, vis, run, layout, setup } = rt,
-    { shadows, cull, spheres } = lights,
-    { gpuDraw } = vis;
+  const { lights, vis, run } = rt,
+    { shadows, cull, regions, staticLayer, occlusion } = lights;
   lights.shadowDraws = 0;
-  if (!regions || !shadows || !cull || !spheres || !gpuDraw || !vis.visBindGroupLayout)
-    return false;
-  const first = shadowRegionGroup(rt, device, 0);
-  if (!first) return false;
-  cull.flushVolumes(regions);
-  cull.encode(
-    encoder,
-    {
-      spheres: spheres.buffer,
-      source: gpuDraw.instanceBuffer,
-    },
-    regions,
-    gpuDraw.slots,
-    layout.rows.packedCount,
-    setup.maxCorners,
-  );
-  cull.counts.sample(encoder, cull.indirect, regions, run.frame);
-  lights.shadowDraws = regions;
+  if (!count || !shadows?.view || !cull || !vis.visBindGroupLayout) return false;
+  if (regions.layered && !staticLayer) return false;
+  if (!shadowRegionGroup(rt, device, 0)) return false;
+  if (!encodeShadowCasters(rt, encoder, count)) return false;
+  cull.counts.sample(encoder, cull.indirect, count, run.frame);
+  lights.shadowDraws = count;
   const drawsBefore = run.gpuDrawCalls;
-  const pass = encoder.beginRenderPass({
-    label: SHADOW_PASS,
-    colorAttachments: [],
-    depthStencilAttachment: { view: shadows.view, depthLoadOp: 'load', depthStoreOp: 'store' },
-  });
-  for (let region = 0; region < regions; region++) {
-    const viewport = region * 3,
-      scissor = region * 4;
-    const side = regionViewport[viewport + 2];
-    if (side <= 0) continue;
-    const group = shadowRegionGroup(rt, device, region);
-    if (!group) continue;
-    pass.setViewport(regionViewport[viewport], regionViewport[viewport + 1], side, side, 0, 1);
-    pass.setScissorRect(
-      regionScissor[scissor],
-      regionScissor[scissor + 1],
-      regionScissor[scissor + 2],
-      regionScissor[scissor + 3],
-    );
-    pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
-    pass.setBindGroup(0, group);
-    pass.setPipeline(shadows.clear);
-    pass.draw(3);
-    run.gpuDrawCalls++;
-    pass.setPipeline(shadows.depth);
-    pass.drawIndirect(cull.indirect, region * DRAW_INDIRECT_STRIDE);
-    run.gpuDrawCalls++;
-  }
-  pass.end();
+  const draw = (target: GPUTextureView, label: string, layer: boolean, tested: boolean) => {
+    const pass = encoder.beginRenderPass({
+      label,
+      colorAttachments: [],
+      depthStencilAttachment: { view: target, depthLoadOp: 'load', depthStoreOp: 'store' },
+    });
+    for (let region = 0; region < count; region++) {
+      const start = regions.startOf(region);
+      if (layer !== (start === REGION_STATIC)) continue;
+      const visible = tested && start === REGION_RESTORE;
+      const group = shadowRegionGroup(rt, device, region, visible);
+      if (!group) continue;
+      const x = regions.x(region),
+        y = regions.y(region);
+      pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
+      pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
+      if (start === REGION_RESTORE) {
+        pass.setPipeline(staticLayer!.restore);
+        pass.setBindGroup(0, staticLayer!.group);
+      } else {
+        pass.setPipeline(shadows.clear);
+        pass.setBindGroup(0, group);
+        pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
+      }
+      pass.draw(3);
+      pass.setPipeline(shadows.depth);
+      pass.setBindGroup(0, group);
+      pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
+      const commands = visible ? occlusion!.visibleIndirect : cull.indirect;
+      pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
+      run.gpuDrawCalls += 2;
+    }
+    pass.end();
+  };
+  if (regions.layered) draw(staticLayer!.view, SHADOW_LAYER_PASS, true, false);
+  const tested = encodeOcclusion(rt, encoder, count);
+  draw(shadows.view, SHADOW_PASS, false, tested);
   lights.shadowDrawCalls = run.gpuDrawCalls - drawsBefore;
   return true;
 }

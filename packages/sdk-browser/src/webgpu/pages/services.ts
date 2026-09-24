@@ -3,13 +3,13 @@ import { updateTransparentSpan } from '../transparent/spans.ts';
 import { createWebgpuResidencyMirror } from '../residency/mirror.ts';
 import { createPageRowWriter } from '../row/pageRow.ts';
 import { createWebgpuRowCommit } from '../row/commit.ts';
-import { noteResidenceChange } from '../shadow/bounds.ts';
 import { createWebgpuRowSync } from '../row/sync.ts';
 import { createWebgpuResidencySets } from '../residency/sets.ts';
 import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
 import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
+import { createShadowTier } from '../residency/shadowTier.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
@@ -33,7 +33,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    onOffsetChange: (page, words) => (rows.touchPage(page), updateTransparentSpan(rt, page, words)),
+    // The CPU cut reads residency from the pool: its shadows compare the slot at their next plan.
+    onOffsetChange: (page, words) => (
+      rows.touchPage(page),
+      updateTransparentSpan(rt, page, words),
+      rt.lights.residence.notePool(page, packedPages.length)
+    ),
   });
   /**
    * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
@@ -61,8 +66,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawSlots,
     () => !!gpu.cache,
     commit,
-    // Origin of the resource change: the page enters residency or leaves it.
-    (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
+    // Origin of the resource change: the page enters residency or leaves it. The shadows compare
+    // the flag at their next plan (`../shadow/residence.ts`).
+    (rec) => (
+      run.gate.resourcesChanged(),
+      rt.lights.residence.noteRow(rows.pageIndexOf(rec) ?? -1, packedPages.length)
+    ),
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
@@ -118,6 +127,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
+  const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
+  const shadowTier = createShadowTier({
+    packedPages,
+    keyCount: tracking.keyCount,
+    keyOf: tracking.keyOf,
+    room,
+  });
   const ensureResident = createWebgpuResidentEnsurer({
     getCache: () => gpu.cache,
     tracking,
@@ -127,11 +143,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
+    shadowPages: () => shadowTier.pages,
   });
   const residency = createWebgpuResidencyQueue({
     tracking,
     sets: residencySets,
-    room: () => Math.max(0, rt.setup.slots - bootstrapUrls.size),
+    room,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
     updatePins,
@@ -153,6 +170,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     bootstrapState,
     ensureResident,
     residency,
+    shadowTier,
     queueCutResidency: residency.queueCutResidency,
     ...publication,
   };

@@ -10,7 +10,7 @@ import { visLayerTop } from '../../visibility/uniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './encoder.ts';
 import { encodeSurfaceLighting } from './encodeBlend.ts';
 import { uploadDirtyRows } from './encodeDraws.ts';
-import { uploadClusterSpheres } from '../../shadow/bounds.ts';
+import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
 import {
   encodeEmptySurfaces,
   computeRasterStages,
@@ -57,9 +57,13 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // kept up to date BEFORE `uploadDirtyRows`, which clears those marks.
   refreshDrawItemWords(rt, visLayerTop(rt.vis), vis.gpuDraw);
   timing.encodeCounts.fichesTeleversees = 0;
-  // World spheres of the rows the table just changed, run by run like the table itself: that is
-  // what shadow culling reads, and nothing else writes them.
-  if (rt.lights.cull) uploadClusterSpheres(rt, device);
+  // World spheres of the rows the table just changed, run by run like the table itself, and their
+  // mobility on the interval that covers those runs: that is what shadow culling reads, and
+  // nothing else writes them.
+  if (rt.lights.cull) {
+    uploadClusterSpheres(rt, device);
+    uploadRowMobility(rt, device, rows.dirtyFrom, rows.dirtyTo);
+  }
   // World corners of the same rows, run by run: what GPU projection reads. Like the two above, it is
   // taken BEFORE `uploadDirtyRows`, which clears those marks.
   uploadRowCorners(rt);
@@ -74,15 +78,14 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // Row words restat the rows: uploading their runs is what consumes the change flag.
   if (useIndirect) {
     sendDrawItemWords(rt);
+    // The camera draws its own rows: under the CPU cut, the light casters it adds sit behind them.
     vis.gpuDraw!.encode(
       encoder,
-      rows.packedCount,
+      run.gpuFrameActive ? rows.packedCount : run.cameraRows,
       maxVertexCount,
       run.gpuFrameActive ? run.gpuSelection : undefined,
     );
     rows.rowsChanged = false;
-    // Shadow casters read the compact's commands before the visibility passes truncate them.
-    rt.lights.cull?.keepSourceCounts(encoder, vis.gpuDraw!.indirectBuffer);
   }
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
   // when it exists, blends its own between its passes — small triangles under the reference split,

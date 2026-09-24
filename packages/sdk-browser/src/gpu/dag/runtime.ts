@@ -85,8 +85,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const fail = () => ((state.dead = true), voidCuts());
   const previousWorlds = packed.worlds.slice(),
     frameInts = new Uint32Array(frameData.buffer);
-  // Residency bits extend the cold records, in the same buffer: the same view serves as
-  // comparison mirror and write source, with no parallel array.
+  // Residency bits extend the cold records in their buffer: one view, mirror and write source.
   const residentWord = residentBase(pageCount),
     bits = new Uint32Array(
       packed.pageCones.buffer,
@@ -121,9 +120,11 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteOffset,
         next.byteLength,
       );
-      if (stretched) device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
-      // Cuts in hand and in flight keep the revision they were cut at, and still name what to
-      // stream: dropping them left a model moved every frame with no cut at all (#358).
+      if (stretched) {
+        device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
+        resources.frameWrites.count++;
+      }
+      // Cuts in hand and in flight keep their revision and still name what to stream (#358).
       if (posesMoved) state.worldRevision++;
       return true;
     },
@@ -136,6 +137,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       const at = (w * FRAME_VEC4 + 6) * 4 + 1;
       frameInts[at] = node;
       device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
+      resources.frameWrites.count++;
       // Its pages leave the cut outright, neither streamed nor counted: another cut from here.
       voidCuts();
     },
@@ -144,9 +146,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
       const count = updateResidencyBits(next, bits, residentWord, changes, touched);
       if (!count) return false;
-      // One write per contiguous word range, never one per page: what goes to the GPU is now
-      // only one bit per cluster, and a thousand small writes are not worth the single one they
-      // replace.
+      // One write per contiguous word range, never one per page: one bit per cluster goes up,
+      // and a thousand small writes are not worth the single one they replace.
       const spans = coalesceResidencyRanges(touched, count, ranges);
       for (let r = 0; r < spans; r++) {
         const from = (residentWord + ranges[r * 2]) * 4,

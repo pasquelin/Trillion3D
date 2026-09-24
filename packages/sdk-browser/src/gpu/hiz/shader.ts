@@ -36,6 +36,11 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
  * reads the box count and writes its own reject counters into the state the GPU partition holds,
  * and the boxes are those the partition packed in the same submission. No value is inferred
  * there: a verdict is written, or the row stays at zero.
+ *
+ * The copy and the reduction also build several pyramids in one dispatch, one per `z`: `uni.g` is
+ * then the stride between two pyramids and each one's level 0 starts at the texel its `bounds`
+ * entry names — the shadow pages' pyramids (`../shadow/pageHiz.ts`). The camera's `g` is zero:
+ * one pyramid, from texel zero.
  */
 export const HIZ_SHADER = `struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad0:u32,pad1:u32,triangles:u32,pad2:u32,pad3:u32,pad4:u32,}
@@ -48,21 +53,24 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad
 @compute @workgroup_size(8, 8)
 fn copyDepth(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=uni.a||id.y>=uni.b){return;}
- let z=textureLoad(level0,vec2i(i32(id.x),i32(id.y)),0).r;
- pyramid[uni.c+id.y*uni.a+id.x]=z;
+ var origin=vec2i(0);
+ if(uni.g!=0u){origin=vec2i(bounds[id.z].minX,bounds[id.z].minY);}
+ let z=textureLoad(level0,origin+vec2i(i32(id.x),i32(id.y)),0).r;
+ pyramid[uni.c+id.z*uni.g+id.y*uni.a+id.x]=z;
 }
 @compute @workgroup_size(8, 8)
 fn reduceHiz(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=uni.e||id.y>=uni.f){return;}
  let x0=id.x*2u;let y0=id.y*2u;
+ let src=uni.a+id.z*uni.g;
  // Reverse-Z: the FARTHEST of a square is the MINIMUM.
- var far=pyramid[uni.a+y0*uni.b+x0];
- if(x0+1u<uni.b){far=min(far,pyramid[uni.a+y0*uni.b+x0+1u]);}
+ var far=pyramid[src+y0*uni.b+x0];
+ if(x0+1u<uni.b){far=min(far,pyramid[src+y0*uni.b+x0+1u]);}
  if(y0+1u<uni.c){
-  far=min(far,pyramid[uni.a+(y0+1u)*uni.b+x0]);
-  if(x0+1u<uni.b){far=min(far,pyramid[uni.a+(y0+1u)*uni.b+x0+1u]);}
+  far=min(far,pyramid[src+(y0+1u)*uni.b+x0]);
+  if(x0+1u<uni.b){far=min(far,pyramid[src+(y0+1u)*uni.b+x0+1u]);}
  }
- pyramid[uni.d+id.y*uni.e+id.x]=far;
+ pyramid[uni.d+id.z*uni.g+id.y*uni.e+id.x]=far;
 }
 ${HIZ_FAR_WGSL}
 // Only boxes the frame tests travel this far, each carrying the verdict row it answers for;

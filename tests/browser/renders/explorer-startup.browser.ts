@@ -11,6 +11,7 @@ import { sdkMounts, threeStackMounts } from '../support/renderHarness.ts';
 import { buildSite, SITE_OUTPUT } from '../../../scripts/docs/site.ts';
 import type { MeasuredWorld } from '../../../bench/witnesses/measurement.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
+import { measureOutput } from '../../../bench/core/paths.ts';
 
 declare global {
   var framesRequested: number;
@@ -33,7 +34,7 @@ interface TargetsResult {
 }
 
 const root = resolve(import.meta.dirname, '../../..');
-const out = resolve(root, 'benchmark-runs/explorer-startup');
+const out = measureOutput('explorer-startup');
 await mkdir(out, { recursive: true });
 const cacheMounts = threeStackMounts(root, out);
 await buildSite();

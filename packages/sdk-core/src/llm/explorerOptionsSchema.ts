@@ -82,7 +82,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       type: 'boolean',
       default: true,
       description:
-        'Invalidation of shadow map pages per 128x128 page. false triggers redraw of entire cube/cascade faces.',
+        'Invalidation of shadow map pages per 128x128 page. false stales every page of each light a moving object touches.',
     },
     bounce: {
       type: 'boolean',

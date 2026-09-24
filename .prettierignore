@@ -1,6 +1,5 @@
 node_modules/
 dist/
-benchmark-runs/
 **/target/
 package-lock.json
 

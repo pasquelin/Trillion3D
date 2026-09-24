@@ -1,7 +1,8 @@
 import type { ProfiledWorld } from './profile.ts';
-import { kitWord, language } from './words.ts';
+import { kitWord, labelOf, language } from './words.ts';
 
-/** What the stats corner reads of a frame: the engine's own counters, `null` when not measured. */
+/** What the stats corner reads of a frame: the engine's own counters, `null` when not measured.
+ *  Any other counter the frame publishes rides along under its own name (`shadowLines`). */
 interface FrameCounters {
   selectedTriangles?: number | null;
   drawCalls?: number | null;
@@ -38,11 +39,26 @@ export interface StatsSample extends FrameCounters {
 const count = (value: number) => Math.round(value).toLocaleString(language());
 
 /**
+ * The shadow counters of a frame, read from the names the engine publishes (`shadow…`): a
+ * counter measured shows, zero included — zero is what a still scene must read —, and one the
+ * engine does not hold (`null`, or absent) has no line. A duration (`…Ms`) prints in ms.
+ */
+export function shadowLines(frame: object): [string, string][] {
+  const lines: [string, string][] = [];
+  for (const [key, value] of Object.entries(frame)) {
+    if (!/^shadows?[A-Z]/.test(key) || typeof value !== 'number') continue;
+    if (key.endsWith('Ms')) lines.push([labelOf(key.slice(0, -2)), `${value.toFixed(2)} ms`]);
+    else lines.push([labelOf(key), count(value)]);
+  }
+  return lines;
+}
+
+/**
  * The lines the corner shows, English label then value; the corner shows each label in the page's
- * language, `kit.stats.<label>` of the examples' words (`words.ts`). A counter the engine did not measure has no
- * line at all, never a dash or a zero; the triangles fall back to the scene's own count, named
- * so, when the frame does not measure them; a still image keeps its last rate, marked held, and
- * its last GPU time, marked last.
+ * language, `kit.stats.<label>` of the examples' words (`words.ts`). A counter the engine did not
+ * measure has no line at all, never a dash, and no zero but a shadow counter's (`shadowLines`);
+ * the triangles fall back to the scene's own count, named so, when the frame does not measure
+ * them; a still image keeps its last rate, marked held, and its last GPU time, marked last.
  */
 export function statLines(sample: StatsSample): [string, string][] {
   const lines: [string, string][] = [];
@@ -61,7 +77,7 @@ export function statLines(sample: StatsSample): [string, string][] {
       sample.gpuFrameLast ? 'GPU frame (last)' : 'GPU frame',
       `${sample.gpuFrameMs.toFixed(2)} ms`,
     ]);
-  return lines;
+  return [...lines, ...shadowLines(sample)];
 }
 
 /** Triangles of the visible meshes built in the scene: indexed, or three vertices each. Points

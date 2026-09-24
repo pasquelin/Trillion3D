@@ -145,3 +145,18 @@ test('a light added with a resolution that throws is still written to the open s
   assert.deepEqual(failures, ['World scene resolution failed']);
   assert.equal(added.length, 1);
 });
+
+test('a scene change with nothing to draw does not stop the next one from opening a session', async () => {
+  const scene = new Scene(() => Promise.reject(new Error('no loader')));
+  const openings: unknown[] = [];
+  // Node has no GPU: a session asked for fails to open, which is how the attempt is seen.
+  const runtime = runtimeOf(scene, Promise.resolve(), (error) => openings.push(error));
+  // A page sets its background before its model arrives: that change has nothing to open.
+  scene.background = null;
+  await new Promise((done) => setTimeout(done, 10));
+  assert.equal(openings.length, 0);
+  scene.add(object.mesh(geometry.box()));
+  await until(() => openings.length > 0);
+  runtime.dispose();
+  assert.equal(openings.length, 1, 'the mesh asks for a session');
+});

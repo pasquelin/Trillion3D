@@ -4,6 +4,7 @@ import type { GpuDraw } from './contract.ts';
 import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { drawBindEntries, drawShader } from './shader.ts';
+import { createLightRowMap, type LightRowMap } from './lightRows.ts';
 
 /**
  * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest
@@ -61,6 +62,7 @@ export async function createGpuDraw(
     let boundMask = itemsBuf,
       bindGroup = makeBindGroup(boundMask);
     const uniData = new Uint32Array(UNIFORM_BYTES / 4);
+    let rowMap: LightRowMap | undefined;
     return {
       uploadItems(items, from, to) {
         const last = Math.min(to, slotCap - 1);
@@ -72,6 +74,7 @@ export async function createGpuDraw(
           items.byteOffset + from * DRAW_ITEM_U32 * 4,
           (last - from + 1) * DRAW_ITEM_U32 * 4,
         );
+        rowMap?.markRows(from, last);
       },
       encode(encoder, count, maxVertexCount, selection) {
         if (disposed) return;
@@ -100,6 +103,9 @@ export async function createGpuDraw(
         pass.setPipeline(scatterPipeline);
         pass.dispatchWorkgroups(liveGroups);
         pass.end();
+      },
+      lightRows(pages) {
+        return (rowMap ??= createLightRowMap(device, itemsBuf, pages, buffers));
       },
       itemsBuffer: itemsBuf,
       restBitsBuffer: restBuf,

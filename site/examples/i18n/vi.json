@@ -289,7 +289,8 @@
       "wave": "Sóng",
       "dance": "Nhảy múa",
       "speed": "Tốc độ",
-      "colour": "Màu"
+      "colour": "Màu",
+      "shadow": "Bóng"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Chọn một trường hợp trong bảng; ở “free”, kéo để nhìn quanh.",
+    "controls": {
+      "case": "Trường hợp",
+      "caster": "Vật đổ bóng"
+    },
+    "readouts": {
+      "Look for": "Hãy xem"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng.",
+    "controls": {
+      "pushStrength": "Lực đẩy (N)",
+      "platformSpeed": "Tốc độ bệ",
+      "stackAgain": "Xếp lại"
+    },
+    "readouts": {
+      "awake": "Đang hoạt động",
+      "speed": "Tốc độ"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "Vật thể",
       "awake": "Đang chạy",
       "step": "Bước"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng.",
-    "controls": {
-      "pushStrength": "Lực đẩy (N)",
-      "platformSpeed": "Tốc độ bệ",
-      "stackAgain": "Xếp lại"
-    },
-    "readouts": {
-      "awake": "Đang hoạt động",
-      "speed": "Tốc độ"
     }
   }
 }

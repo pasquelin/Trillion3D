@@ -1,78 +1,141 @@
-import { lightDirection, type SceneLight, type ShadowViewpoint } from '../light/contracts.ts';
+import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
-import { pageRowsOf } from './pages.ts';
-import type { createShadowSliceTable } from './slices.ts';
-import { sunCascadeOf } from './sunCascades.ts';
+import type { ShadowPool } from './pool.ts';
+import type { ShadowTable } from './table.ts';
+import type { SunLevels } from './sunLevels.ts';
+import { lampFacesOf, lampPagesAt, sunPageMetres } from './virtual.ts';
+import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 
-/** Matrix of a face, the time to project a box: allocated once, never per frame. */
-const matrix = new Float32Array(16);
+type Changes = ReturnType<typeof createShadowChanges>;
+
+/** Face matrices of the lamp being invalidated, and the rectangle a box covers on each face:
+ *  `u0, u1, v0, v1` in normalised coordinates, or `NaN` when a corner lies behind the light. */
+const matrices = new Float32Array(6 * 16);
+const rects = new Float64Array(6 * 4);
+
+/** Writes the normalised rectangle box `min..max` covers on `face`, or NaN when not flat. */
+function faceRect(face: number, min: ArrayLike<number>, max: ArrayLike<number>) {
+  const b = face * 16,
+    r = face * 4;
+  rects[r] = rects[r + 2] = Infinity;
+  rects[r + 1] = rects[r + 3] = -Infinity;
+  for (let corner = 0; corner < 8; corner++) {
+    const x = corner & 1 ? max[0] : min[0],
+      y = corner & 2 ? max[1] : min[1],
+      z = corner & 4 ? max[2] : min[2];
+    const m = matrices;
+    const w = m[b + 3] * x + m[b + 7] * y + m[b + 11] * z + m[b + 15];
+    if (w <= 1e-6) {
+      rects[r] = NaN;
+      return;
+    }
+    const u = (m[b] * x + m[b + 4] * y + m[b + 8] * z + m[b + 12]) / w,
+      v = (m[b + 1] * x + m[b + 5] * y + m[b + 9] * z + m[b + 13]) / w;
+    rects[r] = Math.min(rects[r], u);
+    rects[r + 1] = Math.max(rects[r + 1], u);
+    rects[r + 2] = Math.min(rects[r + 2], v);
+    rects[r + 3] = Math.max(rects[r + 3], v);
+  }
+}
+
+/** True when lamp page `(x, y)` of `mip` on `face` meets that face's rectangle. */
+function lampPageMeets(face: number, mip: number, x: number, y: number) {
+  const r = face * 4;
+  if (Number.isNaN(rects[r])) return true;
+  const pages = lampPagesAt(mip);
+  // `y` grows downward in the page grid, upward in normalised space.
+  const u0 = (2 * x) / pages - 1,
+    v1 = 1 - (2 * y) / pages;
+  return (
+    rects[r + 1] >= u0 &&
+    rects[r] <= u0 + 2 / pages &&
+    rects[r + 3] >= v1 - 2 / pages &&
+    rects[r + 2] <= v1
+  );
+}
+
+/** Writes the light-plane rectangle of a world box under the sun of `slice` into `rects[0..4)`. */
+function sunRect(sun: SunLevels, slice: number, min: ArrayLike<number>, max: ArrayLike<number>) {
+  const f = slice * 9,
+    frame = sun.frame;
+  rects[0] = rects[2] = Infinity;
+  rects[1] = rects[3] = -Infinity;
+  for (let corner = 0; corner < 8; corner++) {
+    const x = corner & 1 ? max[0] : min[0],
+      y = corner & 2 ? max[1] : min[1],
+      z = corner & 4 ? max[2] : min[2];
+    const u = frame[f] * x + frame[f + 1] * y + frame[f + 2] * z,
+      v = frame[f + 3] * x + frame[f + 4] * y + frame[f + 5] * z;
+    rects[0] = Math.min(rects[0], u);
+    rects[1] = Math.max(rects[1], u);
+    rects[2] = Math.min(rects[2], v);
+    rects[3] = Math.max(rects[3], v);
+  }
+}
+
+/** True when sun page `(level, ax, ay)` — rows down the `up` axis — meets `rects[0..4)`. */
+function sunPageMeets(level: number, ax: number, ay: number) {
+  const page = sunPageMetres(level);
+  return (
+    rects[1] >= ax * page &&
+    rects[0] <= (ax + 1) * page &&
+    -rects[2] >= ay * page &&
+    -rects[3] <= (ay + 1) * page
+  );
+}
 
 /**
- * What stales the pages of a shadow light, and nothing more.
+ * What stales the mapped pages of a shadow light, and nothing more. Only mapped pages can be
+ * stale: a page nobody reads has no content to keep, and is drawn whole when first asked for.
  *
- * - **The light has moved, changed range or slice**: all its maps are wrong, all
- *   their pages go back to waiting.
- * - **A sun cascade extent has slid by whole pages**: only the strip that entered restarts;
- *   the pages that stayed inside still describe the same world. As long as the extent is the
- *   same — still camera, or a move smaller than a page —, the map is kept as-is. A slide of a
- *   extent side or more, a new depth anchor or a new radius restart the cascade in full.
- * - **An object has moved in the light's range**: only the pages its projected box covers
- *   restart. The rest of the face still describes the scene, since nothing else has changed.
+ * - **The light moved, changed, or its clipmap changed projection** (`whole`): every page, and
+ *   none is read until redrawn — its depth was drawn under a projection the record no longer holds.
+ * - **An object moved within its reach**: only the pages its projected box covers — the rest
+ *   still describes the scene, since nothing else changed. An object already moving stales only
+ *   their moving casters: the static layer under them holds. With per-page invalidation off,
+ *   every page of each light the box touches, the rule from before per-page maps.
+ *
+ * Returns the pages staled.
  */
 export function invalidateLightPages(
-  slices: ReturnType<typeof createShadowSliceTable>,
-  changes: ReturnType<typeof createShadowChanges>,
+  pool: ShadowPool,
+  table: ShadowTable,
+  sun: SunLevels,
+  changes: Changes,
   light: SceneLight,
   slice: number,
-  faceCount: number,
-  side: number,
-  lightRevision: number,
-  view: ShadowViewpoint,
+  whole: boolean,
+  byPage: boolean,
   nowMs: number,
   frame: number,
-  byPage: boolean,
 ) {
-  const { dirty } = slices;
-  const rows = pageRowsOf(side);
-  const whole = !slices.noted[slice] || slices.revision[slice] !== lightRevision;
-  const sun = light.kind === 'directional';
-  const range = sun ? 0 : (light.range ?? 0);
-  const x = light.position?.[0] ?? 0,
-    y = light.position?.[1] ?? 0,
-    z = light.position?.[2] ?? 0;
-  for (let face = 0; face < faceCount; face++) {
-    let all = whole;
-    if (sun) {
-      const { originX, originY, anchor, radius } = sunCascadeOf(
-        view,
-        lightDirection(light),
-        face,
-        side,
-      );
-      if (slices.cascadeSlide(slice, face, rows, originX, originY, anchor, radius, nowMs, frame))
-        all = true;
-    }
-    if (all) {
-      dirty.whole(slice, face, rows, nowMs, frame);
-      continue;
-    }
-    let ready = false;
-    for (let box = 0; box < changes.count; box++) {
-      if (!changes.touches(box, x, y, z, range)) continue;
-      // Without per-page invalidation the whole face restarts: that is the behaviour from before
-      // the batch, kept so the identity proof compares the same engine twice.
-      if (!byPage) {
-        dirty.whole(slice, face, rows, nowMs, frame);
-        break;
-      }
-      if (!ready) {
-        writeFace(matrix, 0, null, 0, light, face, view, side);
-        ready = true;
-      }
-      const moved = changes.read(box);
-      dirty.box(slice, face, rows, matrix, 0, moved.min, moved.max, nowMs, frame);
+  let staled = 0;
+  const isSun = light.kind === 'directional',
+    faces = lampFacesOf(LIGHT_KIND[light.kind]);
+  const range = isSun ? 0 : (light.range ?? 0);
+  const [x, y, z] = light.position ?? [0, 0, 0];
+  if (!isSun && !whole && changes.count)
+    for (let face = 0; face < faces; face++) writeFace(matrices, face * 16, null, 0, light, face);
+  for (let box = 0; box < (whole ? 1 : changes.count); box++) {
+    if (!whole && !changes.touches(box, x, y, z, range)) continue;
+    const moved = whole || !byPage ? undefined : changes.read(box);
+    if (moved && isSun) sunRect(sun, slice, moved.min, moved.max);
+    if (moved && !isSun)
+      for (let face = 0; face < faces; face++) faceRect(face, moved.min, moved.max);
+    for (let page = 0; page < pool.pages; page++) {
+      if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
+      const key = pool.view[page];
+      const meets =
+        !moved ||
+        (isSun
+          ? sunPageMeets(key, pool.x[page], pool.y[page])
+          : lampPageMeets(key >> 4, key & 15, pool.x[page], pool.y[page]));
+      const level = moved?.moving ? STALE_DYNAMIC : STALE_FULL;
+      if (!meets) continue;
+      if (pool.stale(page, nowMs, frame, level)) staled++;
+      if (whole) pool.withdraw(table, page);
     }
   }
-  slices.noteRevision(slice, lightRevision);
+  return staled;
 }

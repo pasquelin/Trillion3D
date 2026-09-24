@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts';
-import { wantsContractLighting } from './lightResources.ts';
+import { followLightThreshold, wantsContractLighting } from './lightResources.ts';
+import { createWebgpuLightState } from '../state/lights.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 const LAMPE: SceneLight = {
@@ -56,4 +57,10 @@ test('`unlit` stays the diagnostic view, lights or not', () => {
   assert.equal(wantsContractLighting(b.rt), false);
   b.store.add({ ...LAMPE });
   assert.equal(wantsContractLighting(b.rt), false);
+});
+
+test('the light cuts select at the camera threshold, budget included', () => {
+  const lights = createWebgpuLightState(32);
+  assert.equal(followLightThreshold(lights, 1, 0.5), 1);
+  assert.equal(followLightThreshold(lights, 1, 8), 8);
 });

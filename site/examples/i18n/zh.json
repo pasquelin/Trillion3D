@@ -289,7 +289,8 @@
       "wave": "波浪",
       "dance": "跳舞",
       "speed": "速度",
-      "colour": "颜色"
+      "colour": "颜色",
+      "shadow": "阴影"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10,000",
+        "1000": "1,000",
         "5000": "5,000",
-        "1000": "1,000"
+        "10000": "10,000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "在面板中选择一个情形；在“free”中拖动以环顾四周。",
+    "controls": {
+      "case": "情形",
+      "caster": "投影物"
+    },
+    "readouts": {
+      "Look for": "留意"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子。",
+    "controls": {
+      "pushStrength": "推力（牛）",
+      "platformSpeed": "平台速度",
+      "stackAgain": "重新堆叠"
+    },
+    "readouts": {
+      "awake": "活动中",
+      "speed": "速度"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "物体",
       "awake": "活动",
       "step": "步长"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子。",
-    "controls": {
-      "pushStrength": "推力（牛）",
-      "platformSpeed": "平台速度",
-      "stackAgain": "重新堆叠"
-    },
-    "readouts": {
-      "awake": "活动中",
-      "speed": "速度"
     }
   }
 }

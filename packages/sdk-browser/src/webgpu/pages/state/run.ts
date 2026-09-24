@@ -31,8 +31,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   lastCamera: HostCamera | undefined;
   gpuSelection: GpuSelection | undefined;
   gpuFrameActive: boolean;
-  /** True when the Hi-Z pyramid was built in the current submission: the transparent occlusion test
-   *  never strips a pyramid of another image. */
+  /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
   hizPyramidFresh: boolean;
   gpuMetricsReady: boolean;
   deferredDrops: Set<string>;
@@ -53,8 +52,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
   noOccluderHistory: boolean;
-  /** True on an image whose view differs from the previous one's: the GPU partition then lets
-   *  every row be withdrawn from the occluders again. */
+  /** The view moved since the last image: every row may leave the occluders again. */
   hizViewMoved: boolean;
   previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
@@ -62,6 +60,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   cpuHizCounts: HizCounts;
   cpuHizCounted: boolean;
   rowsSyncedFrame: number;
+  cameraRows: number; // rows the CPU cut draws on screen; its light casters sit behind them
   motion: CameraMotion;
   selectionUniforms: SelectionUniforms;
   /** Result of the CPU cut, reused image after image so the cut allocates nothing. */
@@ -162,6 +161,7 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     cpuHizCounts: createHizCounts(),
     cpuHizCounted: false,
     rowsSyncedFrame: -1,
+    cameraRows: 0,
     motion: {},
     selectionUniforms: createSelectionUniforms(),
     selectResult: createSelectionResult(),

@@ -16,7 +16,7 @@
  */
 export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
  let slot=atomicAdd(&out.count,1u);
- if(slot>=uni.listCap){atomicOr(&out.overflow,1u);return;}
+ if(slot>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[slot]=packRequest(page,quantizePriority(pixels));
 }
 `;

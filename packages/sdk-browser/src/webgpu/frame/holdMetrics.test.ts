@@ -87,7 +87,13 @@ function tenue() {
         candidateOverflow: false,
       },
     },
-    lights: { plan: { counts: { pendingPages: 0, waitedMs: 0 } } },
+    lights: {
+      plan: {
+        counts: { pendingPages: 0, waitedMs: 0, cachedPages: 0, poolPages: 0 },
+        pool: { refetched: 0 },
+        requests: { counts: { requested: 0 } },
+      },
+    },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },
   } as unknown as WebgpuPagesRuntime;
@@ -154,4 +160,31 @@ test('a cut page waiting for its bytes forbids holding the frame', () => {
   assert.equal(rt.run.frameHeld, false);
   pending.count = 0;
   assert.equal(holdWebgpuFrame(rt, device), true);
+});
+
+test('the shadow counters of a frame are published under their public names', () => {
+  const { rt } = tenue();
+  const lights = rt.lights as unknown as Record<string, unknown> & {
+    plan: { counts: Record<string, number>; requests: { counts: Record<string, number> } };
+  };
+  lights.plan.requests.counts.requested = 211;
+  lights.plan.counts.cachedPages = 205;
+  lights.plan.counts.poolPages = 311;
+  lights.plan.counts.pendingPages = 6;
+  lights.shadowPages = 6;
+  lights.lightRuns = 2;
+  lights.cull = { counts: { counts: () => ({ frame: 40, regions: 6, kept: 77 }) } };
+  const metrics = metricsOf(rt);
+  assert.deepEqual(
+    [
+      metrics.shadowPagesRequested,
+      metrics.shadowPagesCached,
+      metrics.shadowPoolPages,
+      metrics.shadowPagesDrawn,
+      metrics.shadowPagesPending,
+      metrics.shadowLightCuts,
+      metrics.shadowCastersKept,
+    ],
+    [211, 205, 311, 6, 6, 2, 77],
+  );
 });

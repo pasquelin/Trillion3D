@@ -18,18 +18,7 @@ export type { SceneLightStore } from '../../sdk-core/src/scene/light/store.ts';
 export { createShadowPlan } from '../../sdk-core/src/scene/light-shadow/plan.ts';
 export type { ShadowPlan } from '../../sdk-core/src/scene/light-shadow/plan.ts';
 export { createTransport } from '../../sdk-core/src/lighting/transport/transport.ts';
-export { desiredFaceSide, SHADOW_FACE_SIDES } from '../../sdk-core/src/scene/light-shadow/atlas.ts';
 export { exportLightingGltf } from '../../sdk-core/src/lighting/scene/gltf.ts';
-export {
-  faceCountOf,
-  POINT_FACE_AXES,
-  SHADOW_CULL_FLOATS,
-  SHADOW_FACE_FLOATS,
-  SHADOW_FACE_MASK_WORD,
-  SHADOW_SLICE_FLOATS,
-  writeFace,
-} from '../../sdk-core/src/scene/light-shadow/faces.ts';
-export { forEachShadowFace } from '../../sdk-core/src/scene/light-shadow/casters.ts';
 export { LIGHT_FIELD } from '../../sdk-core/src/scene/light/fields.ts';
 export {
   LIGHT_KIND,
@@ -54,7 +43,12 @@ export type {
   Surface,
   Vec3,
 } from '../../sdk-core/src/lighting/scene/types.ts';
-export { pageRowsOf, SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/pages.ts';
+export {
+  POINT_FACE_AXES,
+  SHADOW_CULL_FLOATS,
+  SHADOW_RECORD_FLOATS,
+  writeFace,
+} from '../../sdk-core/src/scene/light-shadow/faces.ts';
 export {
   PROXY_CHILD_WORDS,
   PROXY_CHILDREN,
@@ -70,8 +64,9 @@ export type {
   SceneProxyColumns,
   SceneProxyDescriptor,
 } from '../../sdk-core/src/contracts/proxy.ts';
-export { RECTS_PER_SLICE } from '../../sdk-core/src/scene/light-shadow/slices.ts';
 export { regionRect } from '../../sdk-core/src/scene/light-shadow/volume.ts';
+export { SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/virtual.ts';
+export type { ShadowRequestReport } from '../../sdk-core/src/scene/light-shadow/requests.ts';
 export { solveTransportOracle } from '../../sdk-core/src/lighting/transport/oracle.ts';
 export type {
   TransportOptions,

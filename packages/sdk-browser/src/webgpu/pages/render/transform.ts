@@ -20,6 +20,7 @@ import { transformRootBoxes } from '../../../math/batchBoxes.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 const local = new Float64Array(16),
+  current = new Float64Array(16),
   parentWorld = new Float64Array(16),
   parentInverse = new Float64Array(16),
   trs = new Float64Array(3),
@@ -30,6 +31,12 @@ const local = new Float64Array(16),
   moved = new Float64Array(BOX_VALUES);
 /** One flag per selection root: under the moved node or not. Grown once, never per move. */
 let underNode = new Uint8Array(0);
+
+/** True when `world`, rounded to single precision, is `matrix`. */
+function standsAt(world: Float64Array, matrix: Float32Array) {
+  for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false;
+  return true;
+}
 
 /** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
 function findNode(source: HostGraphNode, nodeName: string) {
@@ -67,6 +74,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // A non-finite pose is refused here, before any inversion: further on it would become a NaN
   // world matrix, then a null normal, then a black surface with no readable cause.
   assertFiniteTransform(matrix, nodeName);
+  // The world the node already stands at, to the precision the request carries: moving it there
+  // moves nothing — a node's first write included, which the local comparison below cannot judge.
+  if (standsAt(hostWorldChainInto(current, node), matrix)) return;
   copyElements(local, matrix);
   if (node.parent) {
     // The requested pose is a WORLD pose: bringing it back into the parent's space needs the
@@ -107,7 +117,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   for (let i = 0; i < roots.length; i++) {
     const root = roots[i];
     underNode[i] = isUnder(root.pages[0]?.sourceMesh, node) ? 1 : 0;
-    if (underNode[i] && root.worldBox) boxUnionBatch(moved, root.worldBox, 1);
+    if (!underNode[i] || !root.worldBox) continue;
+    boxUnionBatch(moved, root.worldBox, 1);
+    lights.mobility.move(i);
   }
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
@@ -151,7 +163,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     movedMin[axis] = moved[axis];
     movedMax[axis] = moved[axis + 3];
   }
-  lights.plan.worldChanged(movedMin, movedMax);
+  lights.plan.worldChanged(movedMin, movedMax, !lights.mobility.takePromoted());
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */

@@ -10,7 +10,7 @@ import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
  * whether it exists come out, and a rectangle no mip covers is never rejected. It travels with
  * `hiddenByPyramid` below, the only reader outside this module.
  */
-const HIZ_LEVEL_WGSL = `
+export const HIZ_LEVEL_WGSL = `
 /** Mirror of \`premierNiveau\` (../../hiz/occlusion.ts): lowest mip that can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
  if(span<${HIZ_KERNEL_TEXELS}){return 0u;}

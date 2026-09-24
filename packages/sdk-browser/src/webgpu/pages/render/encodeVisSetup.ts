@@ -130,7 +130,8 @@ export function computeRasterStages(
   input.uvs = ready.concatUv;
   input.textures = ready.textures;
   input.sampler = ready.mapsSampler;
-  input.pageRows = tableRows;
+  // Under the CPU cut the rows behind the camera's are light casters, never drawn on screen.
+  input.pageRows = run.gpuFrameActive ? tableRows : Math.min(tableRows, run.cameraRows);
   input.maxTriangles = Math.ceil(maxVertexCount / 3);
   input.idsView = idsView;
   input.depthView = depthTarget;

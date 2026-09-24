@@ -1,3 +1,4 @@
+import type { LightRowMap } from './lightRows.ts';
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts';
 
 export const DRAW_INDIRECT_STRIDE = 16;
@@ -16,6 +17,9 @@ export const UNIFORM_BYTES = 32,
  * reject, without any per-frame walk gathering them.
  */
 export const DRAW_ITEM_U32 = 5;
+/** The draw record as every kernel that reads `items` declares it: `DRAW_ITEM_U32` words. */
+export const DRAW_ITEM_WGSL =
+  'struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}';
 /**
  * Slots a compaction needs for `layerSlots` coplanar layers — one layer means the six slots this
  * path has always had, and a scene with no stacked coplanar surface asks for exactly that. Each
@@ -55,8 +59,8 @@ export type GpuDraw = {
   /**
    * `items` holds packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five are
    * properties of the page-table row and not of the frame, so only the rows `[from, to]` a page
-   * arriving, leaving or changing rank has just rewritten travel to the card, one call per run of
-   * such rows. Nothing here allocates.
+   * arriving, leaving or changing rank has just rewritten, drawn or not, travel to the card, one
+   * call per run of such rows. Nothing here allocates.
    */
   uploadItems(items: Uint32Array, from: number, to: number): void;
   /**
@@ -73,6 +77,12 @@ export type GpuDraw = {
     maxVertexCount: number,
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
   ): void;
+  /**
+   * The page → row map a light cut's drawn pages are resolved through, created at the first call
+   * for a catalogue of `pages` pages (`lightRows.ts`). The rows this draw's `uploadItems` sends are
+   * the rows the map remaps.
+   */
+  lightRows(pages: number): LightRowMap;
   /** Draw records as the GPU holds them: what the GPU partition reads to know each
    *  row's bin, layer and triangles. */
   itemsBuffer: GPUBuffer;

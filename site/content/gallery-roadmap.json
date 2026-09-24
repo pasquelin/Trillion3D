@@ -548,6 +548,11 @@
       "file": "examples/a-long-shadowed-street.html"
     },
     {
+      "id": "shadows-case-by-case",
+      "theme": "lights",
+      "file": "examples/shadows-case-by-case.html"
+    },
+    {
       "id": "flat-shadows-on-the-floor",
       "theme": "lights",
       "file": "examples/flat-shadows-on-the-floor.html"

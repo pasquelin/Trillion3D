@@ -289,7 +289,8 @@
       "wave": "Gelombang",
       "dance": "Menari",
       "speed": "Kecepatan",
-      "colour": "Warna"
+      "colour": "Warna",
+      "shadow": "Bayangan"
     }
   },
   "a-scene-of-your-own": {
@@ -1902,10 +1903,32 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Pilih kasus di panel; di “free”, seret untuk melihat sekeliling.",
+    "controls": {
+      "case": "Kasus",
+      "caster": "Pembuat bayangan"
+    },
+    "readouts": {
+      "Look for": "Perhatikan"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya.",
+    "controls": {
+      "pushStrength": "Gaya dorong (N)",
+      "platformSpeed": "Kecepatan platform",
+      "stackAgain": "Tumpuk lagi"
+    },
+    "readouts": {
+      "awake": "Aktif",
+      "speed": "Kecepatan"
     }
   },
   "rolling-on-terrain": {
@@ -1940,18 +1963,6 @@
       "bodies": "Benda",
       "awake": "Aktif",
       "step": "Langkah"
-    }
-  },
-  "walk-with-collisions": {
-    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya.",
-    "controls": {
-      "pushStrength": "Gaya dorong (N)",
-      "platformSpeed": "Kecepatan platform",
-      "stackAgain": "Tumpuk lagi"
-    },
-    "readouts": {
-      "awake": "Aktif",
-      "speed": "Kecepatan"
     }
   }
 }

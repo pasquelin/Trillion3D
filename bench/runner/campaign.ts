@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { campaignIdentity, canResume } from './report/provenance.ts';
 import { parseArgs, scenesOf } from './options.ts';
+import { measureOutput } from '../core/paths.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 // Argument groups that lines name in one word, replaced at execution.
@@ -38,7 +39,7 @@ const LIGNES = `
 fixe | held frame: locked camera, no GPU work expected | TOUTES --pixelError 0,1,2 --soleil PLEINE
 mobile | campaign baseline: moving camera, sun, four views, two thresholds | TOUTES --pixelError 0,1 MOBILE PLEINE
 sans-lumiere | raw albedo: lighting cost by difference with \`mobile\` | TOUTES --pixelError 1 --camera-mobile PLEINE
-soleil-sans-ombres | sun without shadow maps: cascade cost by difference with \`mobile\` | DEUX --pixelError 1 MOBILE PLEINE --ombres off
+soleil-sans-ombres | sun without shadow maps: shadow-map cost by difference with \`mobile\` | DEUX --pixelError 1 MOBILE PLEINE --ombres off
 res-1872 | 1872×1053 resolution | DEUX --pixelError 1 MOBILE --largeur 1872 --hauteur 1053
 res-1248 | 1248×702 resolution | DEUX --pixelError 1 MOBILE QUART
 res-624 | 624×351 resolution | DEUX --pixelError 1 MOBILE --largeur 624 --hauteur 351
@@ -141,7 +142,7 @@ async function run(
 
 if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2));
-  const out = resolve(flags.get('out') ?? join(ROOT, '.mesure/out/global'));
+  const out = resolve(flags.get('out') ?? measureOutput('global'));
   const only = flags.get('seulement')?.split(',').filter(Boolean);
   const chosen = CAMPAGNE.filter(([name]) => !only || only.includes(name));
   const scenes = scenesOf(flags);

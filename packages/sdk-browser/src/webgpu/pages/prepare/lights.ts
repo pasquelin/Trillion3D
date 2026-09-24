@@ -1,7 +1,8 @@
 import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
-import { createGpuShadowAtlas, shadowAtlasBytes } from '../../../gpu/shadow/atlas.ts';
+import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
+import { createShadowPageRequests } from '../../shadow/pageRequests.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
@@ -12,10 +13,10 @@ const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 const SHADOW_APPROXIMATIONS = [
   'blended clusters hold no visibility row, so they reach no shadow draw table and cast no shadow; only the opaque path casts a real cutout, and an attenuated tinted shadow is a later lot',
   'tile light lists bound the per-pixel loop of the opaque path to the published per-tile budget; the blend pass loops over the declared lights instead, bounded by maxLights',
-  'shadow slice priority uses an angular screen-coverage estimate, not an adjoint',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
-  'the shadow millisecond budget folds a region fixed cost into an averaged per-page cost',
-  'a sun cascade whose world window moves is redrawn whole: the atlas has no ring addressing',
+  'the shadow millisecond budget folds a page fixed cost into an averaged per-page cost',
+  'shadow pages are asked for by the opaque resolve alone: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
+  'a shadow page asked for is allocated when its request report comes back, a frame or two later: meanwhile the pixel reads the next coarser level',
 ];
 
 /**
@@ -45,12 +46,15 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   try {
     lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
     lights.cull = await createGpuShadowCull(device, drawSlots);
+    lights.pageRequests = createShadowPageRequests(device, lights.shadows.requestBuffer);
   } catch (error) {
     if (isCancelled(rt.signal)) throw error;
     lights.shadows?.dispose();
     lights.cull?.dispose();
+    lights.pageRequests?.dispose();
     lights.shadows = undefined;
     lights.cull = undefined;
+    lights.pageRequests = undefined;
     lights.shadowReason = `shadow atlas unavailable: ${String(error)}`;
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
   }
@@ -59,9 +63,9 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     version: 1,
     settings: { ...LIGHT_SETTINGS },
     tileLists: !!lights.tiles,
-    shadowAtlas: lights.shadows ? lights.shadows.size : null,
+    // The atlas is sized at the first frame (`../../shadow/poolSize.ts`, diagnostic `shadow-pool`).
+    shadowAtlas: !!lights.shadows,
     shadowCullRows: lights.cull ? drawSlots : null,
-    shadowAtlasBytes: lights.shadows ? shadowAtlasBytes() : 0,
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowPageInvalidation: lights.plan.pageInvalidation,
     unavailable: lights.shadowReason,

@@ -1417,7 +1417,7 @@
   },
   "HostScene": {
     "summary": "Graf tampilan host tempat sebuah mesin menggambar: apa yang disimpannya, bagaimana ia dijelajahi, dan warna bersih yang dibaca komposisi.",
-    "description": "Mesin menulis miliknya sendiri sebagai `GraphScene` (`graph/scene.ts`).",
+    "description": "Membangunnya milik sebuah batas host; menulis salah satunya, `HostDrawScene`.",
     "members": {
       "traverse": "Mengunjungi dirinya sendiri, lalu subtree-nya.",
       "background": "Yang mengisi gambar di belakang.",
@@ -1544,28 +1544,26 @@
       "maxLightsPerTile": "Cahaya yang disimpan sebuah tile layar; loop piksel dibatasi angka ini (X2).",
       "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
-      "shadowUpdatesPerFrame": "Paling banyak wilayah bayangan per bingkai: batas atas buffer, tidak pernah pengaturan kualitas. Anggaran milidetik hampir selalu berhenti lebih dulu; batas atas ini hanya sebuah batas akhir, dan satu-satunya batasan pada perangkat tanpa jam GPU.",
-      "shadowPage": "Sisi sebuah halaman atlas-bayangan, dalam texel: sel invalidasi sebuah muka. Sebuah objek bergerak hanya membuat basi halaman yang dicakup kotak proyeksinya, tidak pernah seluruh muka.",
+      "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
       "shadowBudgetMs": "Anggaran tahap bayangan, dalam milidetik GPU per bingkai (X4, RX3). Halaman yang diinvalidasi melebihi itu menunggu giliran; tidak pernah hilang, dan keterlambatannya dipublikasikan.",
       "shadowAgingPerFrame": "Bobot menunggu dalam prioritas sebuah halaman, per bingkai dihabiskan dalam antrean: melawan kelaparan.",
       "shadowCostBlend": "Porsi sampel sebuah bingkai dalam biaya rata-rata sebuah halaman: penghalusan eksponensial pengatur waktunya.",
-      "shadowAtlasSize": "Sisi atlas bayangan kedalaman, dalam texel.",
-      "shadowSliceMax": "Sisi maksimum sebuah irisan bayangan; sebuah muka point-light menempati seperenam luasnya.",
-      "shadowSliceMin": "Sisi minimum sebuah irisan bayangan: di bawah itu, cahaya menyimpan irisannya tanpa menghalusinya.",
       "pcfTaps": "Sadapan PCF per piksel dan per cahaya berbayangan (X2).",
       "spotEdgeSoftness": "Lebar tepi yang dihaluskan sebuah kerucut spot, dalam satuan kosinus: melawan staircasing.",
-      "sunCascades": "Cascade sebuah cahaya directional: setidaknya tiga, tidak pernah lebih dari muka sebuah irisan.",
-      "sunShadowFarFraction": "Porsi frustum kamera yang dicakup cascade, dari bidang dekat menuju jauh. Di luar itu, sebuah permukaan tetap terang tanpa bayangan yang dilempar: aproksimasi bernama, dipublikasikan di diagnostik.",
-      "sunCascadeRatioMax": "Rasio antara dua batas pemisah cascade berurutan: pada sebuah jahitan, kepadatan texel berubah tepat sebesar rasio ini, dan tidak ada lagi yang memutuskan lompatan ketajaman antar cascade. Batas bawah bidang dekat diturunkan darinya — `jarak bayangan / rasio^cascade`.",
       "sunFarShadowOffsetMetres": "Offset asal sinar bayangan-jauh sepanjang normal, dalam meter. Ini hanya berfungsi meninggalkan bidang permukaan bercahaya; obat sesungguhnya melawan self-shadowing adalah mulai sepanjang sinar, di bawah.",
-      "sunFarShadowStartCells": "Mulai sinar bayangan-jauh sepanjang arahnya sendiri, dalam sel proxy. Titik bercahaya berasal dari geometri halus, pengoklusi dari proxy kasar: di mana proxy duduk di atas permukaan sungguhan, sebuah sinar dimulai dari nol akan mengenai permukaan yang diteranginya. Sel proxy adalah skala di bawahnya proxy tidak mengatakan apa-apa; mulai dari sana melewati kontak palsu itu tanpa menciptakan sebuah bayangan. Konsekuensinya bernama: pengoklusi lebih dekat dari satu sel sepanjang sinar tidak membawa bayangan jauh, dan yang itu tetap dengan cascade-cascade.",
-      "sunCascadeDepthScale": "Tarikan mundur bidang dekat sebuah cascade, dalam radius bolanya: yang duduk di atas cascade, antara itu dan matahari, harus masuk peta untuk melempar bayangannya di sana. Perluasan menambah dua radius di kedua sisi, kelonggaran yang ditinggalkan jangkar kedalamannya pada bola itu (`../light-shadow/sunFaces.ts`).",
+      "sunFarShadowStartCells": "Mulai sinar bayangan-jauh sepanjang arahnya sendiri, dalam sel proxy. Titik bercahaya berasal dari geometri halus, pengoklusi dari proxy kasar: di mana proxy duduk di atas permukaan sungguhan, sebuah sinar dimulai dari nol akan mengenai permukaan yang diteranginya. Sel proxy adalah skala di bawahnya proxy tidak mengatakan apa-apa; mulai dari sana melewati kontak palsu itu tanpa menciptakan sebuah bayangan. Konsekuensinya bernama: pengoklusi lebih dekat dari satu sel sepanjang sinar tidak membawa bayangan jauh, dan yang itu tetap dengan tingkat-tingkat clipmap.",
       "shadowDepthBias": "Bias bayangan dalam meter, tidak pernah dalam satuan kedalaman: kedalaman terproyeksi sebuah irisan sangat tidak linear, sebuah konstanta dalam kedalaman ternormalisasi akan berupa meter dekat cahaya dan milimeter jauh darinya. Shader membawa meter itu kembali ke kedalaman pada titik yang dipertimbangkan.",
       "shadowSlopeBias": "Bias kemiringan, dalam meter per satuan `tan(acos(N·L))`, dibatasi `shadowSlopeBiasMax`.",
       "shadowSlopeBiasMax": "Bias kemiringan terbesar.",
       "shadowNearFraction": "Bidang dekat sebuah irisan: sebuah pecahan dari rentang, tidak pernah kurang dari batas bawah ini.",
       "shadowNearMin": "Jarak bayangan terdekat.",
-      "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel irisan. Ini yang menutup jahitan antara dua muka sebuah point light dan menghapus acne serong; ini dalam texel bukan meter supaya tetap sebanding dengan resolusi yang didapat cahaya itu."
+      "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel irisan. Ini yang menutup jahitan antara dua muka sebuah point light dan menghapus acne serong; ini dalam texel bukan meter supaya tetap sebanding dengan resolusi yang didapat cahaya itu.",
+      "shadowPagesPerFrame": "Halaman bayangan yang digambar paling banyak per bingkai: batas atas buffer, bukan pengaturan kualitas. Anggaran milidetik hampir selalu berhenti lebih dulu; batas ini hanya batas terakhir, dan satu-satunya pada perangkat tanpa jam GPU.",
+      "lampFaceSize": "Sisi mip terhalus dari muka lampu, dalam texel: 32 × 32 halaman berukuran 128 (pool: `shadowPoolSide`).",
+      "shadowTableEntries": "Entri tabel halaman bayangan, satu kata per halaman virtual: buffer tetap 4 MiB. Muat enam belas matahari atau 128 lampu titik; cahaya yang tidak mendapat tempat tidak diberi bayangan, dan dihitung.",
+      "shadowRequestCap": "Halaman virtual yang boleh diminta shading per bingkai; sisanya meminta lagi pada bingkai berikutnya.",
+      "sunLevels": "Tingkat clipmap cahaya terarah. Tingkat `L` memiliki texel `2^L` meter, dan sebuah piksel membaca tingkat yang texelnya tidak melebihi jejaknya sendiri: enam belas tingkat mencakup rasio jauh/dekat 2^15. Di luar tingkat terakhir, bayangan jauh mengambil alih.",
+      "sunLevelPages": "Halaman per sisi dari cakupan satu tingkat clipmap di sekitar kamera. Ini kapasitas, bukan penyetelan: setiap piksel membaca kerapatannya sendiri selama `height / tan(halfFovY)` tidak melebihi `sunLevelPages · shadowPage / 2` = 4096 (kanvas 4K dengan bidang vertikal 55°); di luar itu, piksel luar membaca tingkat berikutnya dengan setengah kerapatan."
     }
   },
   "LOD_QUALITY": {
@@ -2134,7 +2132,7 @@
     "summary": "Eksekusi berturut-turut dengan keunggulan itu sebelum berpindah: sebuah rentetan, bukan kebetulan."
   },
   "POINT_FACES": {
-    "summary": "Muka sebuah irisan: enam untuk sebuah point, satu untuk sebuah spot, cascade matahari."
+    "summary": "Muka irisan lampu titik: enam."
   },
   "POINT_FACE_AXES": {
     "summary": "Enam sumbu sebuah point light, dalam urutan yang dipulihkan shader dari sumbu utama cahaya → arah titik: +X, −X, +Y, −Y, +Z, −Z.",
@@ -2625,9 +2623,6 @@
       "toArray": "Keempat angka itu sebagai sebuah daftar."
     }
   },
-  "RECTS_PER_SLICE": {
-    "summary": "Persegi panjang sebuah irisan: `(x, y, side)` per muka, enam muka disiapkan untuk setiap irisan."
-  },
   "Ray": {
     "summary": "Sebuah setengah garis: titik asal dan arah satuan.",
     "members": {
@@ -2703,23 +2698,10 @@
     "summary": "Versi paket mesin ini."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Float sebuah volume wilayah: pusat dan bidang jauh, sumbu muka dan setengah sudut, lalu — untuk sebuah kotak, ditandai setengah sudut negatif — dua sumbu lain dengan setengah panjangnya."
-  },
-  "SHADOW_FACE_FLOATS": {
-    "summary": "Float sebuah muka dalam buffer irisan: matriksnya, persegi panjang atlas — float keempatnya 1 setelah digambar, 0 tidak pernah —, lalu empat kata: mask halaman-tersimpan, satu bit per halaman fisik yang menyimpan sebuah kedalaman dari extent saat ini, baris delapan dalam dua kata, dan halaman fisik dari titik asal extent, `x` lalu `y`, tempat pembacaan membungkus koordinat extent.",
-    "description": "Sebuah halaman extent yang masuk tapi belum digambar masih menyimpan apa yang ditinggalkan sisi jauh di sana: pembacaan harus mengetahuinya dan jatuh ke cascade berikutnya, tidak pernah menyampelnya. Sebuah halaman yang hanya menunggu digambar ulang masih tersimpan, dan dibaca."
-  },
-  "SHADOW_FACE_MASK_WORD": {
-    "summary": "Kata muka bayangan sebuah cahaya dalam rekaman GPU-nya."
-  },
-  "SHADOW_FACE_SIDES": {
-    "summary": "Sisi muka yang tahu cara ditempatkan atlas, dari terbesar ke terkecil."
+    "summary": "Float volume culling: pusat dan bidang jauh, sumbu muka dan setengah sudut, lalu — untuk kotak, ditandai setengah sudut negatif — dua sumbu lainnya dengan setengah panjangnya, lalu kata yang menyatakan pembuat bayangan mana yang digambar wilayah, tampilan potongan cahaya yang memilihnya, dan dua pengisi."
   },
   "SHADOW_PAGE": {
-    "summary": "Sisi sebuah halaman atlas, dalam texel: sel invalidasi sebuah muka."
-  },
-  "SHADOW_SLICE_FLOATS": {
-    "summary": "Float sebuah irisan: enam muka ditambah sebuah header `vec4f` (faces, kind, side, pad)."
+    "summary": "Sisi halaman bayangan, dalam texel: satuan pool, peta virtual, dan invalidasi."
   },
   "SINGULAR_DETERMINANT": {
     "summary": "Ambang batas, pada determinan yang TERNORMALISASI.",
@@ -2862,7 +2844,7 @@
   },
   "SceneLight": {
     "summary": "Sebuah cahaya scene, versi 2.",
-    "description": "Satuannya radiometrik dan linear (P1): `color` adalah warna linear dan `intensity` intensitas radiometrik tegas positif — sebuah radiansi untuk `rect`. Empat jenis, dan tidak ada yang lain menghasilkan cahaya dalam mesin ini (P6): - `point`: sebuah posisi dan jangkauan dalam meter di luarnya ia tidak menyinari apa pun; - `spot`: sama ditambah sebuah arah dan setengah sudut kerucut dalam radian; - `directional`: matahari atau langit mendung — sebuah arah propagasi, tanpa posisi dan tanpa jangkauan, iradiansi sama di mana pun, dan bayangan cascade yang mengikuti kamera; - `rect`: sebuah persegi panjang satu sisi berukuran `size` meter berpusat pada `position`, memancar sepanjang `direction`, lebarnya sepanjang `right`; tanpa bayangan yang dilempar (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bidang yang tidak dipakai sebuah jenis ditolak saat validasi: sebuah cahaya directional dengan posisi akan jadi janji yang tidak akan ditepati mesin.",
+    "description": "Satuannya radiometrik dan linear (P1): `color` adalah warna linear dan `intensity` intensitas radiometrik tegas positif — sebuah radiansi untuk `rect`. Empat jenis, dan tidak ada yang lain menghasilkan cahaya dalam mesin ini (P6): - `point`: sebuah posisi dan jangkauan dalam meter di luarnya ia tidak menyinari apa pun; - `spot`: sama ditambah sebuah arah dan setengah sudut kerucut dalam radian; - `directional`: matahari atau langit mendung — sebuah arah propagasi, tanpa posisi dan tanpa jangkauan, iradiansi sama di mana pun, dan bayangan clipmap yang mengikuti kamera; - `rect`: sebuah persegi panjang satu sisi berukuran `size` meter berpusat pada `position`, memancar sepanjang `direction`, lebarnya sepanjang `right`; tanpa bayangan yang dilempar (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`). Bidang yang tidak dipakai sebuah jenis ditolak saat validasi: sebuah cahaya directional dengan posisi akan jadi janji yang tidak akan ditepati mesin.",
     "members": {
       "id": "Nama cahaya itu.",
       "kind": "Point, spot, matahari atau persegi panjang.",
@@ -3027,8 +3009,8 @@
     "members": {
       "lightsActive": "Cahaya kontrak `SceneLight` yang disinari bingkai ini. Null pada mesin yang mengabaikannya.",
       "lightsSampled": "Benar saat pencahayaan bingkai ini berjalan dalam mode sampel-nya — sebuah gambar bergerak yang diakumulasikan pada sebuah riwayat, tempat sebuah piksel dengan lebih banyak cahaya dari `samplesPerPixel` men-shading sebagian himpunan yang digambar —, salah saat setiap piksel men-shading setiap cahaya, seperti dilakukan sebuah gambar diam. Null pada mesin yang mengabaikan cahaya.",
-      "shadowsUpdated": "Irisan bayangan digambar ulang bingkai ini, paling banyak batas atas terpublikasi penjadwal. Nol adalah nilai normal sebuah scene diam: sebuah cahaya tetap menyimpan irisannya.",
-      "shadowFacesDrawn": "Yang dihasilkan ulang tahap bayangan: muka (view) dan panggilan gambar yang benar-benar dikodekan. Ini biaya per cahaya berbayangan, dipisah dari yang lain. Null pada mesin yang tidak menggambar bayangan apa pun.",
+      "shadowsUpdated": "Cahaya bayangan yang halamannya digambar bingkai ini. Nol adalah nilai normal adegan diam: cahaya tetap mempertahankan halamannya.",
+      "shadowFacesDrawn": "Tampilan cahaya yang digambar pass bayangan — satu tingkat clipmap matahari, satu muka lampu pada satu mip —, dan panggilan gambar yang benar-benar dikodekan. Null pada mesin yang tidak menggambar bayangan.",
       "shadowDrawCalls": "Panggilan gambar bayangan.",
       "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan keterlambatan dalam milidetik yang tertua di antaranya. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
@@ -3036,28 +3018,43 @@
       "shadowWaitMs": "Berapa lama mereka menunggu.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "gpuShadowsMs": "Waktu GPU bayangan.",
-      "gpuLightingMs": "Waktu GPU pencahayaan."
+      "gpuLightingMs": "Waktu GPU pencahayaan.",
+      "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
+      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
+      "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
+      "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
+      "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
+      "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
+      "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
     }
   },
   "ShadowPlan": {
-    "summary": "Wilayah bayangan mana yang digambar bingkai ini, dan mana yang menunggu.",
+    "summary": "Kerja bayangan bingkai: halaman virtual mana yang digambar, dan mana yang menunggu.",
     "members": {
-      "slices": "Irisan bayangan.",
-      "regions": "Wilayah bayangan.",
-      "budget": "Anggaran waktu.",
-      "coverage": "Apa yang dicakup setiap cahaya.",
-      "counts": "Hitungan untuk diagnostik.",
-      "worldChanged": "Sebuah node bergerak: kotaknya masuk daftar yang akan dikonsumsi penjadwal bingkai berikutnya.",
-      "representationChanged": "Dunia yang sama pada presisi lain — tingkat detail, residensi, ubin warna —: kotaknya menunggu kamera diam, lalu masuk daftar (`changes.ts`).",
-      "deferredChanges": "Benar selama sebuah perubahan representasi menunggu kamera diam: bingkai tidak boleh tertahan sebelum sebuah rencana mengonsumsinya.",
-      "releaseDeferred": "Bingkai tidak merencanakan bayangan apa pun — tanpa atlas, tanpa cahaya, view tanpa cahaya —: gabungan tersimpan langsung masuk daftar, tempat rencana berikutnya membacanya, alih-alih mencegah bingkai untuk tertahan.",
-      "observeCost": "Pengatur waktu tahap Bayangan sebuah bingkai, dilaporkan ke halaman yang digambar ulangnya.",
-      "setBudgetMs": "Anggaran yang dipublikasikan host; nilai tak terhingga atau negatif ditolak, tidak dibulatkan.",
-      "setPageInvalidation": "Mematikan invalidasi per-halaman: setiap muka yang tersentuh dimulai ulang penuh. Menyala secara bawaan.",
-      "pageInvalidation": "Halaman untuk digambar lagi.",
-      "plan": "Memilih wilayah bingkai ini. Mengembalikan jumlahnya; `plan.regions` menjelaskannya satu demi satu, dan halaman yang dicakupnya sudah dihapus dari antrean.",
-      "reissue": "Wilayah bingkai ini tidak bisa dikodekan: halamannya kembali ke antrean. Mereka meninggalkannya saat penerimaan, karena penjadwal dan tahap itu hanya bicara lewat daftar ini; kalau tahap itu tidak menggambar apa-apa, antrean harus menemukan mereka lagi.",
-      "reset": "Memulai lagi."
+      "budget": "Anggaran milidetik tahap Bayangan dan biaya terukur satu halaman.",
+      "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
+      "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
+      "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
+      "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
+      "releaseDeferred": "Bingkai tidak merencanakan bayangan: gabungan yang ditahan langsung masuk ke daftar.",
+      "observeCost": "Pengatur waktu pass Bayangan sebuah bingkai, dibagi ke halaman yang digambarnya.",
+      "setBudgetMs": "Anggaran yang diterbitkan host, dalam milidetik GPU per bingkai.",
+      "setPageInvalidation": "Mematikan invalidasi per halaman: objek bergerak membuat usang setiap halaman cahaya yang disentuhnya. Aktif secara default.",
+      "pageInvalidation": "Apakah objek bergerak hanya membuat usang halaman yang tertutup kotaknya.",
+      "plan": "Merencanakan bingkai: membuat usang yang bergerak, membaca laporan terakhir, menerima halaman untuk digambar.",
+      "reissue": "Halaman bingkai tidak dapat dikodekan: tetap usang, dan menunggu bingkai berikutnya.",
+      "reset": "Memulai lagi.",
+      "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan (`thresholds.ts`).",
+      "table": "Tabel halaman: satu kata per halaman virtual, dan rentang yang dipegang setiap cahaya di dalamnya.",
+      "pool": "Halaman fisik pool dan halaman virtual yang disimpan masing-masing.",
+      "sun": "Clipmap setiap matahari: kerangkanya, rentang kedalaman, tingkat terhalus, dan cakupannya.",
+      "records": "Irisan bayangan, satu per cahaya yang menghasilkan bayangan.",
+      "requests": "Laporan permintaan yang dibaca kembali: yang disebut, dialokasikan, atau ditolak laporan terakhir.",
+      "admission": "Halaman bingkai ini, dalam urutan penerimaan.",
+      "stamp": "Yang diserahkan shading, cahaya, dan tampilan ke gambar berikutnya: laporan yang dicap dengannya dan tidak menyebut hal baru membuktikan gambar hanya membaca yang sudah digambar.",
+      "settled": "Benar setelah sebuah laporan membuktikan keadaan saat ini tidak meminta apa pun: gambar boleh ditahan.",
+      "receive": "Sebuah laporan permintaan kembali; rencana berikutnya membacanya. Yang lebih baru menggantikan yang belum dibaca.",
+      "commit": "Halaman bingkai telah dikodekan, masing-masing di entri `modes`-nya: penggambarannya selesai sebelum apa pun membacanya."
     }
   },
   "ShadowViewpoint": {
@@ -3068,7 +3065,8 @@
       "halfFovY": "Setengah bukaan vertikalnya.",
       "aspect": "Lebar dibagi tinggi.",
       "near": "Jarak terdekat.",
-      "far": "Jarak terjauh."
+      "far": "Jarak terjauh.",
+      "pixelNear": "Ukuran dunia satu piksel di bidang dekat: jejak terhalus yang dimiliki piksel tampilan."
     }
   },
   "Shape": {
@@ -3368,22 +3366,22 @@
   "TableTexture": {
     "summary": "Status sampler satu tekstur glTF, dalam kata-kata mesin.",
     "members": {
-      "name": "Namanya.",
-      "sampler": "Peringkat sampler glTF yang dideklarasikannya, `null` bila tidak ada.",
       "image": "Gambar mana.",
       "wrapS": "Berulang melintang.",
       "wrapT": "Berulang menaik.",
       "magFilter": "Filter saat lebih besar.",
-      "minFilter": "Filter saat lebih kecil."
+      "minFilter": "Filter saat lebih kecil.",
+      "name": "Namanya.",
+      "sampler": "Peringkat sampler glTF yang dideklarasikannya, `null` bila tidak ada."
     }
   },
   "TableTextureSlot": {
-    "summary": "Satu slot peta yang terisi: tekstur mana, set koordinat mana, dan transformasi yang dideklarasikannya.",
+    "summary": "Satu slot peta terisi: tekstur mana, set koordinat mana, dan 3×3 yang disusun untuknya.",
     "members": {
       "texture": "Tekstur mana.",
-      "texCoord": "Set UV mana yang disampel: milik transformasinya bila transformasi itu menyebut satu set, jika tidak miliknya sendiri.",
-      "slotTexCoord": "Set UV yang disebut slot itu sendiri, sebelum transformasi apa pun: slot yang menyebut set selain yang pertama digambar dari salinan teksturnya, yang tidak sesuai dengan peringkat mana pun.",
-      "transform": "`KHR_texture_transform` yang dideklarasikan slot — geseran, putaran dalam radian, regangan, masing-masing `null` bila tidak disebut — atau `null` bila tidak ada."
+      "texCoord": "Set UV mana.",
+      "transform": "Transform UV-nya, 3×3.",
+      "slotTexCoord": "Set UV yang disebut slot itu sendiri, sebelum transformasi apa pun: slot yang menyebut set selain yang pertama digambar dari salinan teksturnya, yang tidak sesuai dengan peringkat mana pun."
     }
   },
   "TelemetryReport": {
@@ -3935,8 +3933,8 @@
       "pagePlanMs": "Waktu yang dihabiskan merencanakan kedatangan.",
       "lightsActive": "Cahaya kontrak `SceneLight` yang disinari bingkai ini. Null pada mesin yang mengabaikannya.",
       "lightsSampled": "Benar saat pencahayaan bingkai ini berjalan dalam mode sampel-nya — sebuah gambar bergerak yang diakumulasikan pada sebuah riwayat, tempat sebuah piksel dengan lebih banyak cahaya dari `samplesPerPixel` men-shading sebagian himpunan yang digambar —, salah saat setiap piksel men-shading setiap cahaya, seperti dilakukan sebuah gambar diam. Null pada mesin yang mengabaikan cahaya.",
-      "shadowsUpdated": "Irisan bayangan digambar ulang bingkai ini, paling banyak batas atas terpublikasi penjadwal. Nol adalah nilai normal sebuah scene diam: sebuah cahaya tetap menyimpan irisannya.",
-      "shadowFacesDrawn": "Yang dihasilkan ulang tahap bayangan: muka (view) dan panggilan gambar yang benar-benar dikodekan. Ini biaya per cahaya berbayangan, dipisah dari yang lain. Null pada mesin yang tidak menggambar bayangan apa pun.",
+      "shadowsUpdated": "Cahaya bayangan yang halamannya digambar bingkai ini. Nol adalah nilai normal adegan diam: cahaya tetap mempertahankan halamannya.",
+      "shadowFacesDrawn": "Tampilan cahaya yang digambar pass bayangan — satu tingkat clipmap matahari, satu muka lampu pada satu mip —, dan panggilan gambar yang benar-benar dikodekan. Null pada mesin yang tidak menggambar bayangan.",
       "shadowDrawCalls": "Panggilan gambar bayangan.",
       "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan keterlambatan dalam milidetik yang tertua di antaranya. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
@@ -3983,7 +3981,13 @@
       "geometryPoolSaturated": "Halaman yang dibutuhkan bingkai saat ini melebihi kapasitas slot kolam.",
       "texturePoolClamp": "Alasan pembatasan kolam tekstur: `minimum`, `device-limit`.",
       "hizCulled": "Cluster yang ditemukan tersembunyi uji oklusi bingkai ini; `null` di mana jalur itu tidak menghitungnya.",
-      "shadowPagesResident": "Halaman bayangan yang tersimpan di memori bingkai ini; `null` di mana jalur itu tidak punya satu pun."
+      "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
+      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
+      "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
+      "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
+      "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
+      "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
+      "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
     }
   },
   "WorldOptions": {
@@ -4594,8 +4598,8 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Penjadwal bayangan.",
-    "description": "Pekerjaan sebuah bingkai bukan lagi \"empat lampu\" melainkan **halaman basi paling prioritas, sampai anggaran satu milidetik** (RX3, X4): sebuah lampu atau cascade yang bergerak membuat seluruh petanya basi, sebuah objek yang bergerak hanya membuat basi halaman yang dicakup kotak terproyeksinya, dan halaman yang ditolak bingkai ini menunggu bingkai berikutnya — tidak pernah hilang, keterlambatannya dipublikasikan. Sebuah lampu tetap dalam scene diam tetap tidak berbiaya apa pun (X5). Semua array dialokasikan sekali; `plan()` tidak akan pernah mengalokasikan."
+    "summary": "Penjadwal bayangan peta virtual.",
+    "description": "Shading mencatat halaman yang dibacanya; laporannya, dibaca kembali beberapa bingkai kemudian, mengalokasikan yang kurang dari pool tetap. Yang bergerak membuat usang halaman terpeta yang ditutupinya. Sebuah bingkai lalu menggambar halaman usang yang dibaca gambar — yang kasar lebih dulu, hingga anggaran milidetik —, dan sisanya menunggu, tidak pernah hilang, keterlambatannya diterbitkan. Adegan diam, yang shading-nya tidak berjalan lagi, tidak meminta apa pun dan tidak menggambar apa pun. Semua array dialokasikan sekali; `plan()` tidak mengalokasikan apa pun."
   },
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
@@ -4670,10 +4674,6 @@
     "summary": "Berapa banyak unit perangkat keras yang digerakkan sebuah layer untuk sebuah cluster MENUJU kamera, sebagai magnitudo: nol atau lebih, tidak pernah bertanda.",
     "description": "Setiap jalur membaca fungsi tunggal ini dan memberinya tanda untuk uji kedalamannya sendiri."
   },
-  "desiredFaceSide": {
-    "summary": "Sisi wajah yang layak didapat sebuah lampu: jangkauannya diproyeksikan di layar, dibatasi oleh bagiannya dari atlas.",
-    "description": "Sebuah lampu yang menutupi seluruh layar dan sendirian mengambil `shadowSliceMax`; pada tiga puluh lampu bayangan, masing-masing menurunkan dirinya sendiri alih-alih membiarkan yang terakhir tanpa irisan. Lantainya adalah `shadowSliceMin`: tidak ada lampu yang hilang karena kurangnya ruang selama masih ada yang tersisa."
-  },
   "detectCapabilities": {
     "summary": "Memeriksa apa yang bisa digambar mesin ini, dan mengatakan alasannya saat tidak bisa."
   },
@@ -4745,9 +4745,6 @@
   "exportLightingGltf": {
     "summary": "glTF dan buffer biner little-endian terpisah; adapter memiliki persistensinya."
   },
-  "faceCountOf": {
-    "summary": "Wajah yang benar-benar digambar untuk sebuah lampu: enam untuk titik, satu untuk spot, dan cascade untuk directional — tidak pernah lebih dari enam wajah yang dicadangkan per irisan."
-  },
   "filter": {
     "summary": "Aturan pengambilan sampel tekstur."
   },
@@ -4768,10 +4765,6 @@
   },
   "filter.nearestMipNearest": {
     "summary": "Piksel terdekat dari salinan lebih kecil terdekat."
-  },
-  "forEachShadowFace": {
-    "summary": "Mengunjungi setiap wajah dari setiap lampu yang mendeklarasikan bayangan dan memegang sebuah irisan: pemindaian tunggal yang dibagi bersama oleh penghitung, publikasi held-mask dan setiap pembaca per-wajah lainnya.",
-    "description": "Hitungan wajah adalah milik jenis lampunya; `fn` dibatasi oleh irisan dan wajah yang dipublikasikan."
   },
   "frameStatistics": {
     "summary": "Laju bingkai dan kehalusan dari waktu di antara bingkai."
@@ -6225,9 +6218,6 @@
     "summary": "Ukuran kolam decode: tidak pernah lebih dari core yang dilaporkan mesin, tidak pernah lebih dari batas atas paket, tidak pernah lebih dari batas admisi yang sudah berlaku pada transfer, dan setidaknya satu.",
     "description": "Sebuah nilai yang hilang atau bukan bilangan bulat sama dengan satu executor: pada sebuah platform yang tidak melaporkan apa pun, kita tidak mengarang paralelisme."
   },
-  "pageRowsOf": {
-    "summary": "Halaman per sisi sebuah wajah `side`-texel, dibatasi oleh apa yang bisa dibawa mask."
-  },
   "perspectiveProjection": {
     "summary": "Proyeksi perspektif sebuah kamera dengan `fov` derajat vertikal, rasio `aspect`, bidang dekat `near`, zoom `zoom`."
   },
@@ -6761,8 +6751,8 @@
     "summary": "Menurunkan semua yang dibaca sebuah bingkai dari `into.world`, sudah diatur, dan optik yang dideklarasikan: proyeksi dalam konvensi kedalaman mesin, lalu view, view-projection dan keenam bidang frustum (`updateCameraFrame`), bingkai render (`renderOrigin.ts`) dan mata."
   },
   "writeFace": {
-    "summary": "Menulis matriks view-projection sebuah wajah pada slotnya dalam `matrices`, dan, jika reject diaktifkan, volume yang dilawannya terhadap region `rect` wajah itu.",
-    "description": "Keduanya mulai dari sumbu yang sama dan bidang yang sama — satu perhitungan, jadi tidak ada risiko mereka membidik arah berbeda. Sebuah point mengambil sumbu `POINT_FACE_AXES` dan 90°; sebuah spot mengambil arahnya dan kerucutnya yang dilebarkan; sebuah directional mengambil cascade `face`, yang mengikuti kamera. Jari-jari pemancar, pada bagiannya, tidak menyentuh proyeksi maupun reject: pengecualiannya persis sebuah bola, ditulis di tempat kedalaman bayangan ditulis, dan sebuah bidang dekat yang dinaikkan akan menghapus sebuah kubus darinya. `rect` adalah bagian wajah yang digambar ulang, dalam koordinat ternormalisasi; `FULL_FACE` secara default, dan volumenya kemudian persis yang dari sebelum invalidasi per-halaman. Sebuah cluster yang bola dunianya tidak menyentuh jangkauan maupun volume ini tidak bisa menulis apa pun di region: proyeksi dan scissor akan menolaknya tetap saja. Reject karenanya eksak, tidak pernah aproksimasi kualitas — region tidak berubah sebesar satu texel pun."
+    "summary": "Menulis matriks view-projection muka lampu di slotnya dalam `matrices`, dan, jika culling aktif, volume yang dilawankannya pada persegi panjang `rect` muka itu.",
+    "description": "Keduanya berangkat dari sumbu dan bidang yang sama — satu perhitungan, jadi tidak ada risiko mengarah ke arah berbeda. Titik mengambil sumbu `POINT_FACE_AXES` dan 90°; spot mengambil arahnya dan kerucutnya yang diperlebar. Jari-jari pemancar tidak menyentuh proyeksi maupun culling: pengecualiannya tepat sebuah bola, ditulis di tempat kedalaman bayangan ditulis. `rect` adalah bagian muka yang digambar, dalam koordinat ternormalisasi; `FULL_FACE` secara default. Klaster yang bola dunianya tidak menyentuh jangkauan maupun volume ini tidak dapat menulis apa pun di dalamnya: proyeksi dan viewport toh akan menolaknya, jadi culling-nya tepat."
   },
   "BeforeFrameInfo": {
     "summary": "Yang diterima sebuah hook before-frame: detik yang baru saja diintegrasikan pengontrol, dan sejak dunia dimulai.",
@@ -7035,6 +7025,35 @@
       "gravity": "Gravitasi dunia: preset atau vektor."
     }
   },
+  "SHADOW_RECORD_FLOATS": {
+    "summary": "Float dari catatan bayangan yang dibaca shading sebuah cahaya: enam matriks muka lampu, lalu kerangka bidang matahari — `right, zNear`, `up, zFar`, `axis, 0` —, lalu asal cakupan setiap tingkat clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau tingkat (matahari), tangen setengah bidang lampu atau tingkat terhalus matahari, bidang dekat lampu, dan entri pertama catatan di tabel halaman."
+  },
+  "ShadowRequestReport": {
+    "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",
+    "members": {
+      "frame": "Bingkai yang shading-nya menulis laporan.",
+      "layoutEpoch": "Tata letak tabel yang dipakai bingkai itu untuk membaca (`ShadowTable.layoutEpoch`).",
+      "stamp": "Cap rencana saat bingkai itu dikodekan (`ShadowPlan.stamp`).",
+      "count": "Entri yang diminta, mungkin lebih dari yang dimuat `entries`: sisanya meminta lagi pada bingkai berikutnya.",
+      "entries": "Entri yang diminta, paling banyak `count` pertama."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Apa pun yang bisa dikemudikan `world.controls.vehicle`: menerima masukan setiap kali berubah.",
+    "members": {
+      "drive": "Menerima pedal dan setir setiap kali tombol mengubahnya."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Yang diminta pengemudi dari kendaraan: pedal dan setir, sebagaimana tombol `world.controls` `'vehicle'` mengaturnya.",
+    "description": "Fisika kendaraan itu sendiri — mesin, roda, suspensi — menjawabnya; kontrak ini adalah semua yang diketahui kontrol.",
+    "members": {
+      "throttle": "Pedal gas, 0 sampai 1.",
+      "brake": "Pedal rem, 0 sampai 1.",
+      "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
+      "handbrake": "Apakah rem tangan ditarik."
+    }
+  },
   "GraphAttribute": {
     "members": {
       "count": "Berapa banyak vertex.",
@@ -7260,22 +7279,6 @@
       "x": "Kiri ke kanan.",
       "y": "Bawah ke atas.",
       "z": "Belakang ke depan."
-    }
-  },
-  "VehicleDriver": {
-    "summary": "Apa pun yang bisa dikemudikan `world.controls.vehicle`: menerima masukan setiap kali berubah.",
-    "members": {
-      "drive": "Menerima pedal dan setir setiap kali tombol mengubahnya."
-    }
-  },
-  "VehicleInput": {
-    "summary": "Yang diminta pengemudi dari kendaraan: pedal dan setir, sebagaimana tombol `world.controls` `'vehicle'` mengaturnya.",
-    "description": "Fisika kendaraan itu sendiri — mesin, roda, suspensi — menjawabnya; kontrak ini adalah semua yang diketahui kontrol.",
-    "members": {
-      "throttle": "Pedal gas, 0 sampai 1.",
-      "brake": "Pedal rem, 0 sampai 1.",
-      "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
-      "handbrake": "Apakah rem tangan ditarik."
     }
   }
 }
