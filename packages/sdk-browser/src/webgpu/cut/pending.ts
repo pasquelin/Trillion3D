@@ -19,16 +19,50 @@ import { awaitsPageBytes } from '../row/pageSlots.ts';
  */
 export type CutPending = ReturnType<typeof createCutPending>;
 
+/** True while a record, or a bundle it is installed after, still waits for its bytes. */
+const awaitsClosure = (rec: PageRec) => {
+  if (awaitsPageBytes(rec)) return true;
+  const dependencies = rec.dependencies;
+  if (dependencies)
+    for (let i = 0; i < dependencies.length; i++) if (awaitsPageBytes(dependencies[i])) return true;
+  return false;
+};
+
 export function createCutPending(packedPages: readonly PageRec[], delta: CutDelta) {
   /** Records of the missing pages, held at their key rank by the set itself. */
   const records: PageRec[] = [];
   const missing = createDenseKeySet(packedPages.length, records);
   /** Ranks of the set: read straight from the array, the call is reserved for what moves. */
   const slots = missing.slots;
+  /** The records a cut record's closure names (`PageRec.dependencies`): their bytes arriving or
+   *  leaving moves cut records the journal does not name. */
+  const named = new Uint8Array(Math.max(1, packedPages.length));
+  for (const rec of packedPages)
+    for (const dependency of rec.dependencies ?? [])
+      if (dependency.packedIndex !== undefined) named[dependency.packedIndex] = 1;
+  /** A dependency arrived (`settle`: drop the members now complete) or left (`rescan`: the cut is
+   *  re-read). Both are done once, when the set is next read. */
+  let settle = false,
+    rescan = false;
+  const reconcile = () => {
+    if (rescan)
+      for (let id = 0; id < packedPages.length; id++)
+        if (packedPages[id].dependencies?.length && delta.has(id) && awaitsClosure(packedPages[id]))
+          missing.add(id, packedPages[id]);
+    if (settle || rescan)
+      for (let i = missing.count - 1; i >= 0; i--)
+        if (!awaitsClosure(records[i])) missing.remove(missing.list[i]);
+    settle = rescan = false;
+  };
   return {
-    /** Records still awaited, and their count: the held image only reads that count. */
-    records,
+    /** Records still awaited, their own bytes or those of their closure, and their count: the held
+     *  image only reads that count. */
+    get records() {
+      reconcile();
+      return records;
+    },
     get count() {
+      reconcile();
       return missing.count;
     },
     /** The difference that has just been applied: exits first, entries next. */
@@ -42,14 +76,18 @@ export function createCutPending(packedPages: readonly PageRec[], delta: CutDelt
       for (let i = 0; i < delta.enteredCount; i++) {
         const id = entries[i];
         const rec = packedPages[id];
-        if (awaitsPageBytes(rec) && slots[id] < 0) missing.add(id, rec);
+        if (slots[id] < 0 && awaitsClosure(rec)) missing.add(id, rec);
       }
     },
-    /** A page's bytes have just arrived or left; outside the cut, nothing to say of it. */
+    /** A page's bytes have just arrived or left. */
     touch(id: number) {
-      if (!delta.has(id)) return;
       const rec = packedPages[id];
-      if (awaitsPageBytes(rec)) missing.add(id, rec);
+      if (named[id]) {
+        if (awaitsPageBytes(rec)) rescan = true;
+        else settle = true;
+      }
+      if (!delta.has(id)) return;
+      if (awaitsClosure(rec)) missing.add(id, rec);
       else missing.remove(id);
     },
   };

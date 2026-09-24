@@ -35,9 +35,16 @@ export function createPageParents(roots: readonly ClusterRoot<PageRec>[]) {
  * after its own, up to the pinned root cover. The queue therefore walks one closed set, with no
  * special case: whatever the tier, a page never enters the pool before its parents.
  *
+ * Two readers, one closure. The pool holds clusters, not bundles, so admission walks the cluster
+ * parents (`createPageParents`); the bytes come by bundle, so the request reads the compiled bundle
+ * lists (`PageRec.dependencies`, `../cut/pending.ts`). The cook refuses a bundle list that misses
+ * the bundle of a parent or is not closed, so the bundles of every page walked here are requested
+ * and retained with the page. Loading whole bundles here instead would spend pool slots on
+ * siblings nothing draws.
+ *
  * `admit` returns the number of pages it loaded, or -1 when a dependency has no bytes yet or was
- * reclaimed before the page could follow it: the page then waits for a later pass, drawn through
- * its resident ancestor. A full pool is not caught here: the load throws, and the caller stops.
+ * reclaimed before the page could follow it: the page then waits for its requested bytes, drawn
+ * through its resident ancestor. A full pool is not caught here: the load throws, and the caller stops.
  */
 export function createPageAdmission(options: {
   getCache: () => PoolCache | undefined;

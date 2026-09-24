@@ -7,6 +7,10 @@ import type { ClusterRoot } from '../../page/selection/types.ts';
 import { createPageParents } from './admission.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
 import { lruCache, pageOf } from './residentEnsurer.fixture.ts';
+import { linkBundleDependencies } from '../../page/selection/bundleDependencies.ts';
+import { RequestStamps, collectPendingUrls } from '../../page/selection/selection.ts';
+import { createCutDelta } from '../cut/delta.ts';
+import { createCutPending } from '../cut/pending.ts';
 
 /** One placement: the root `r`, the mid cluster `m` replacing the leaves `a` and `b`, and `r`
  *  replacing `m`. Group 0 turns `m` into `r`, group 1 turns `a` and `b` into `m`. */
@@ -70,13 +74,48 @@ test('a requested page brings its missing dependencies, each loaded before what 
   assert.deepEqual([...cache.pins].sort(), ['a', 'b'], 'only what the image holds is pinned');
 });
 
-test('a page whose dependency cannot be resident is never admitted', async () => {
+test('a page whose parent is outside the cut brings its bundle, then both load in order', async () => {
   const { pages, parentsOf } = placement();
-  const [, m, a] = pages;
-  // The middle cluster has no bytes yet: the leaf waits, drawn through its resident ancestor.
-  const early = ensurerOver(8, pages, { parentsOf, hasBytes: (rec) => rec !== m });
-  await early.want(a);
-  assert.deepEqual(early.loads, [], 'neither the leaf nor anything above the missing page');
+  const [r, m, a] = pages;
+  // Bundles: 0 holds the root, 1 the mid cluster, 2 the leaves; each lists what it follows.
+  const streams = { pages: [[], [0], [0, 1]].map((dependencies) => ({ dependencies })) };
+  const primitive = { pages: [0, 1, 2, 2].map((stream) => ({ stream })), streams };
+  pages.forEach((page, index) => {
+    page.streamUrl = `bundle-${[0, 1, 2, 2][index]}`;
+    page.requestIndex = [0, 1, 2, 2][index];
+    page.packedIndex = index;
+    if (page !== r) page.array = undefined;
+  });
+  linkBundleDependencies(primitive as never, pages);
+  const delta = createCutDelta(pages, []),
+    pending = createCutPending(pages, delta);
+  const requested = () => collectPendingUrls(pending.records, [], new RequestStamps(3));
+  const arrive = (url: string, bytes: Uint32Array | undefined) =>
+    pages.forEach(
+      (page, id) => page.streamUrl === url && ((page.array = bytes), pending.touch(id)),
+    );
+  // Only the leaf is in the cut: its parent's bundle is requested with it, parents first.
+  delta.apply([2]);
+  pending.apply();
+  assert.deepEqual(requested(), ['bundle-1', 'bundle-2']);
+  // The leaf's bytes alone do not complete it: the parent is still asked for.
+  arrive('bundle-2', new Uint32Array(1));
+  assert.deepEqual(requested(), ['bundle-1']);
+  arrive('bundle-1', new Uint32Array(1));
+  assert.equal(pending.count, 0);
+  // The parent's bytes leaving puts the leaf's request back.
+  arrive('bundle-1', undefined);
+  assert.deepEqual(requested(), ['bundle-1']);
+  arrive('bundle-1', new Uint32Array(1));
+  const { loads, want } = ensurerOver(8, pages, { parentsOf, hasBytes: (rec) => !!rec.array });
+  await want(a);
+  assert.deepEqual(loads, ['r', 'm', 'a'], 'the parent fetched outside the cut loads first');
+  assert.equal(m.dependencies?.[0], r);
+});
+
+test('a page whose dependency does not fit is never admitted', async () => {
+  const { pages, parentsOf } = placement();
+  const [, , a] = pages;
   // A pool full of pinned pages refuses the root: nothing below it enters either.
   const full = ensurerOver(1, pages, { parentsOf });
   await full.cache.load('held');
