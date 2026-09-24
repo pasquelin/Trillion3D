@@ -1687,6 +1687,7 @@
       "bounds": "Kotak yang diisi model itu, dalam kerangkanya sendiri.",
       "lights": "Cahaya di bawah model — yang dibawa berkas sumbernya, sebagai node: sebuah halaman mengedit, memindah atau menghapusnya seperti miliknya sendiri, dan mereka bergerak bersama model itu.",
       "record": "Semua yang disimpan dunia tentang model ini: alamatnya, manifest dan grafnya.",
+      "getObjectByName": "Node pertama di bawah dengan nama ini: model, node dari berkas sumbernya, lalu anak lain mana pun — cahaya yang dibawa berkas, node yang ditempatkan halaman.",
       "metadata": "Manifest terkompilasi model itu — primitifnya, `sourceTriangles` — dan `clusters`, cluster yang disimpan halamannya, setiap tingkat DAG-nya dihitung.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
     }
