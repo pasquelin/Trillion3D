@@ -96,10 +96,10 @@ export function bindClusterMaterial(
   uniforms.i1(33, 'flatShaded', (material as { flatShading?: boolean }).flatShading ? 1 : 0);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
+  // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).
+  uniforms.i1(35, 'depthShaded', mat.model === SURFACE_MODEL.depth ? 1 : 0);
   // Which faces turn their normal toward the eye: none, the back faces of a surface drawn from
   // behind, or both, whose normal map's tangents then turn with them.
-  // A depth material shows the frame's depth ramp in place of its colour (`renderer.ts`).
-  uniforms.i1(35, 'depthShaded', mat.model === SURFACE_MODEL.depth ? 1 : 0);
   uniforms.i1(34, 'faceSides', doubleSided ? 2 : backSide ? 1 : 0);
   state.apply(material, doubleSided, backSide, polygonOffsetUnits);
 }
