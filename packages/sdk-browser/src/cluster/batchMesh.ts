@@ -1,7 +1,6 @@
 import { IDENTITY_MATRIX4, type Side } from '../../../sdk-core/src/index.ts';
 import type { HostAttributes, HostMaterials, HostMesh } from '../host/resources.ts';
 import type { DrawRanges } from './batchRange.ts';
-import type { ClusterDraw } from './batches.ts';
 import { firstMaterial, sideOf } from '../scene/materialSide.ts';
 
 export type { HostAttributes, HostMaterials };
@@ -36,6 +35,9 @@ type Released = { readonly released: Set<() => void> };
  *  the fields a diagnostic submission draws. It stays inside the engine's own shapes — the
  *  crossing back to the host library is `asHostLibrary`, and this is not one. */
 export const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as WholeMesh;
+
+/** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
+export type ClusterDraw = ClusterDrawMesh | WholeMesh;
 
 /** A backend whose paged clusters the engine's program draws publishes its submissions here.
  *  The raster oracle and the tests read them; a host never does, so the public backend

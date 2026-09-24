@@ -9,7 +9,7 @@ import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/s
 import type { ExactPagesRenderState } from './render.ts';
 import type { WebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
-import { ClusterBatches } from '../../../packages/sdk-browser/src/cluster/batches.ts';
+import { ClusterBatches } from './batches/batches.ts';
 
 /** A transparent copy the host renderer draws whole, as its triangles are counted. */
 type CountedCopy = {

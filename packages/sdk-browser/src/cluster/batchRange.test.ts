@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DrawRanges, IndexRangeAllocator } from './batches.ts';
+import {
+  DrawRanges,
+  IndexRangeAllocator,
+} from '../../../../bench/witnesses/exact/batches/batches.ts';
 
 const total = (allocator: IndexRangeAllocator) =>
   allocator.freeRanges.reduce((sum, range) => sum + range.length, 0);

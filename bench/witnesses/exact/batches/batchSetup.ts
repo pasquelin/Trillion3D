@@ -1,5 +1,5 @@
-import type { BatchPage } from './batchRange.ts';
-import type { HostAttributes } from './batchMesh.ts';
+import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
+import type { HostAttributes } from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { PrimitiveIndex, BatchGroup } from './batchPrimitive.ts';
 import { buildLayerGroups } from './batchLayers.ts';
 

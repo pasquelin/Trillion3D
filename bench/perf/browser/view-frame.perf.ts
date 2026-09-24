@@ -66,6 +66,7 @@ const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande]
 /** Fields the instance displacement never reads: shared across every fixture record/root. */
 const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
+const emptyMesh = () => new GraphMesh(new GraphGeometry(), []);
 const pageOf = (matrix: THREE.Matrix4, mesh?: GraphMesh): PageRec => ({
   id: 0,
   url: '',
@@ -91,9 +92,7 @@ const instanceDe = (pages: number) => {
     racines: ClusterRoot<PageRec>[] = [];
   for (let i = 0; i < pages; i++) {
     basePages.push(pageOf(new THREE.Matrix4().makeTranslation(i, i * 2, i * 3)));
-    clones.push(
-      pageOf(new THREE.Matrix4(), i % 3 ? new GraphMesh(new GraphGeometry(), []) : undefined),
-    );
+    clones.push(pageOf(new THREE.Matrix4(), i % 3 ? emptyMesh() : undefined));
   }
   for (let i = 0; i < 10; i++) {
     baseRoots.push({ world: new THREE.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
@@ -123,10 +122,7 @@ const passeInstance =
     fn(instance, basePages, baseRoots, transformation.toArray(new Float64Array(16)));
     const output: number[] = [];
     for (const rec of instance.pages)
-      output.push(
-        ...Array.from(rec.matrix.elements),
-        ...Array.from(rec.mesh?.matrix.elements ?? []),
-      );
+      output.push(...Array.from(rec.matrix.elements), ...(rec.mesh?.matrix.elements ?? []));
     for (const root of instance.roots) output.push(...Array.from(root.world.elements));
     return Float64Array.from(output);
   };

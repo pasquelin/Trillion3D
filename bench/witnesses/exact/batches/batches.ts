@@ -1,16 +1,24 @@
-import type { BatchPage } from './batchRange.ts';
+import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
 import { PrimitiveIndex, BatchGroup } from './batchPrimitive.ts';
-import { wholeMeshTriangles, type ClusterDrawMesh, type WholeMesh } from './batchMesh.ts';
+import {
+  wholeMeshTriangles,
+  type ClusterDraw,
+  type WholeMesh,
+} from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { setupClusterBatches } from './batchSetup.ts';
 import { everyGroup } from './batchLayers.ts';
 import { updateClusterBatches } from './batchUpdate.ts';
-import type { WebglClusterOwner } from '../webgl/cluster/owner.ts';
-import type { HostDrawCamera } from '../camera/world.ts';
-import { drawClusterBatches, type ClusterDrawScene } from '../webgl/cluster/batchDraw.ts';
-import type { SceneCopy } from '../webgl/cluster/copyCulling.ts';
-import { EngineError } from '../../../sdk-core/src/index.ts';
-export { IndexRangeAllocator, DrawRanges } from './batchRange.ts';
-export type { BatchPage } from './batchRange.ts';
+import type { WebglClusterOwner } from '../../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
+import type { HostDrawCamera } from '../../../../packages/sdk-browser/src/camera/world.ts';
+import { drawClusterBatches } from './batchDraw.ts';
+import type { ClusterDrawScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
+import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
+import { EngineError } from '../../../../packages/sdk-core/src/index.ts';
+export {
+  IndexRangeAllocator,
+  DrawRanges,
+} from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
+export type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
 
 export type ClusterBatchStats = {
   drawCalls: number;
@@ -29,8 +37,6 @@ export type ClusterBatchStats = {
 };
 
 const NO_MESHES: WholeMesh[] = [];
-/** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
-export type ClusterDraw = ClusterDrawMesh | WholeMesh;
 /** What draws: the engine-owned WebGL2 program's public surface, or nothing at all. */
 export type ClusterDrawOwner = Pick<WebglClusterOwner, keyof WebglClusterOwner>;
 

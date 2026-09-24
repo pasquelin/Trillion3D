@@ -1,5 +1,14 @@
-import { type BatchPage, DrawRanges, IndexRangeAllocator } from './batchRange.ts';
-import type { ClusterDrawMesh, ClusterGeometry, GpuBuffer, HostAttributes } from './batchMesh.ts';
+import {
+  type BatchPage,
+  DrawRanges,
+  IndexRangeAllocator,
+} from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
+import type {
+  ClusterDrawMesh,
+  ClusterGeometry,
+  GpuBuffer,
+  HostAttributes,
+} from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 
 type PageSlot = { offset: number; length: number };
 type UpdateRange = GpuBuffer['updateRanges'][number];

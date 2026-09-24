@@ -1,7 +1,10 @@
 import * as THREE from 'three';
-import { surfaceOf } from '../page/surface.ts';
+import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 import { ClusterBatches, type BatchPage } from './batches.ts';
-import { isClusterDrawMesh, type ClusterDrawMesh } from './batchMesh.ts';
+import {
+  isClusterDrawMesh,
+  type ClusterDrawMesh,
+} from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 
 /** The surface a page wears: the engine's record, and the host declaration behind it. */
 export const wears = (material: THREE.Material) => ({
