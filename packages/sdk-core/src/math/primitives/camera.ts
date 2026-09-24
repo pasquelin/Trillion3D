@@ -25,6 +25,26 @@ import { invertMatrix4 } from '../matrix/matrix4Inverse.ts';
 
 const DEG2RAD = Math.PI / 180;
 
+/** Half the height a perspective camera of vertical field `fov` degrees, zoomed by `zoom`, sees
+ *  one unit ahead: `tan(fov / 2) / zoom`. Its projection, its rays and a pixel's size read it. */
+export function perspectiveSlope(fov: number, zoom = 1) {
+  return Math.tan(DEG2RAD * 0.5 * fov) / zoom;
+}
+
+/** The view of an orthographic camera: its `box` scaled by `zoom` about the box centre, as
+ *  `[centre x, centre y, half width, half height]` written into `out`. */
+export function orthographicView(
+  box: { left: number; right: number; top: number; bottom: number },
+  zoom: number,
+  out = new Float64Array(4),
+) {
+  out[0] = (box.right + box.left) / 2;
+  out[1] = (box.top + box.bottom) / 2;
+  out[2] = (box.right - box.left) / (2 * zoom);
+  out[3] = (box.top - box.bottom) / (2 * zoom);
+  return out;
+}
+
 /**
  * Perspective projection of a camera with vertical `fov` degrees, ratio `aspect`, near plane
  * `near`, zoom `zoom`. Reversed depth, infinite far plane: `near` projects to
@@ -37,7 +57,7 @@ export function perspectiveProjection<T extends NumberSink>(
   near: number,
   zoom: number,
 ) {
-  const top = (near * Math.tan(DEG2RAD * 0.5 * fov)) / zoom;
+  const top = (near * perspectiveSlope(fov)) / zoom; // this order, bit for bit the reference's
   const height = 2 * top,
     width = aspect * height;
   const left = -0.5 * width,

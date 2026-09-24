@@ -1,23 +1,29 @@
 // The SDK's source entries are public; browser probes are launched by the host, outside pnpm test.
 // `pageDecodeWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
-// integration lane load them by URL, never by import.
+// integration lane load them by URL, never by import; so does `physicsWorker.ts`, the physics session.
 import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
   entry: [
     'site/app/main.tsx',
     'site/examples/kit/index.ts',
-    // The open world's play layer and its simulation worker, built as runtime entries.
-    'site/examples/kit/openworld/index.ts',
-    'site/examples/kit/openworld/play/sim.worker.ts',
     'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
     'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
+    'packages/sdk-browser/src/physics/physicsWorker.ts',
     'packages/sdk-node/src/index.mts',
     'packages/sdk/{index,browser,node}.{ts,mts}',
-    'scripts/generate-sdk-facade.ts',
     'packages/page-codec/geometryPage.ts',
     'packages/**/*.test.ts',
-    'scripts/*.ts',
+    // The scripts `package.json` and the workflows run are found by knip itself; the tests and
+    // the browser proofs, run by `node --test`, are entries by rule. Any other script is dead.
+    'scripts/*.test.ts',
+    'scripts/*.browser.ts',
+    // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
+    // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`).
+    'scripts/docs-examples-assets.ts',
+    'scripts/docs-examples-thumbnails.ts',
+    'scripts/site-first-load.ts',
+    'scripts/ltc-fit.ts',
     'bench/runner/bench.ts',
     // Served to the harness page and imported by URL, never by local import.
     'bench/runner/cutPage.ts',
@@ -65,7 +71,7 @@ const config: KnipConfig = {
   // Rust is a platform tool; DaisyUI is loaded by Tailwind; the site build copies SVG files of
   // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
   ignoreDependencies: ['daisyui', 'flag-icons'],
-  ignoreBinaries: ['rustc'],
+  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
   ignoreUnresolved: ['/runner/witnessPage.ts'],
 };

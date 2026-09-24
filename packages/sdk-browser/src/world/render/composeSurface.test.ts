@@ -69,3 +69,67 @@ test('the explicit capture binds the drawing buffer, samples it, composes, then 
     );
   }
 });
+
+/** The presentation diagnostics a capture raises when the engine cleared to `0x2244ff`, the
+ *  session having opened on red. */
+function presentation(options: object, background: unknown) {
+  const found: Record<string, unknown>[] = [];
+  const capture = createExplorerCapture({
+    canvas: { width: 2, height: 2 } as HTMLCanvasElement,
+    camera: {} as never,
+    context: {
+      bindFramebuffer: () => {},
+      viewport: () => {},
+      // What the active engine actually cleared to, after the background changed in place.
+      readPixels: (
+        _x: number,
+        _y: number,
+        _w: number,
+        _h: number,
+        _f: number,
+        _t: number,
+        pixels: Uint8Array,
+      ) => pixels.set([0x22, 0x44, 0xff, 0xff]),
+      drawingBufferWidth: 2,
+      drawingBufferHeight: 2,
+    } as unknown as WebGL2RenderingContext,
+    // The colour the session opened on: stale the moment the background changes in place.
+    options: { clearColor: 0xff0000, ...options } as never,
+    directGpu: false,
+    state: {
+      active: { id: 'engine', render: () => {}, scene: { background } } as unknown as RenderBackend,
+      measuring: false,
+    },
+    check: () => {},
+    diagnose: (_phase, _message, context) => found.push((context ?? {}) as Record<string, unknown>),
+    compose: Object.assign(() => {}, { dispose() {} }),
+  });
+  capture();
+  const raised = found.filter((entry) => entry.kind === 'presentation');
+  assert.ok(raised.length > 0, 'no presentation diagnostic was raised');
+  return raised;
+}
+
+/** A background changed after the session opened is written in place on the active engine's own
+ *  scene (`graphBackground`), never on `options.clearColor`: the presentation diagnostic must
+ *  read that live colour, or a background changed without a reopen reads as a false mismatch
+ *  (#342). */
+test('the presentation diagnostic follows a changed background, not the colour the session opened on', () => {
+  for (const entry of presentation({}, { getHex: () => 0x2244ff })) {
+    assert.equal(entry.clearColor, '#2244ff', 'read the stale, opened-on colour');
+    assert.equal(entry.matchesClearAtTopLeft, true, 'a changed background read as a mismatch');
+  }
+});
+
+// #402: the WebGPU engine keeps its background as a linear record without `getHex`, so the
+// diagnostic fell back to the colour the session opened on: it reads the world's colour now.
+test('the presentation diagnostic reads the world’s colour whatever record the engine keeps', () => {
+  const record = { isColor: true, r: 0.016, g: 0.058, b: 1 };
+  for (const entry of presentation({ currentClearColor: () => 0x2244ff }, record)) {
+    assert.equal(entry.clearColor, '#2244ff', 'read the stale, opened-on colour');
+    assert.equal(entry.matchesClearAtTopLeft, true);
+  }
+  // A background removed after opening clears with the default, never the opened-on colour.
+  for (const entry of presentation({ currentClearColor: () => undefined }, null))
+    assert.equal(entry.clearColor, '#171d28', 'a removed background read the opened-on colour');
+});

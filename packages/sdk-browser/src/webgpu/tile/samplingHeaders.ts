@@ -1,4 +1,4 @@
-import { followHostTexture } from '../../host/textureImport.ts';
+import { followHostTexture, hostTextureWrites } from '../../host/textureImport.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts';
 import { SAMPLE_FILTER_MASK } from './sampling.ts';
@@ -21,7 +21,9 @@ export const HEADERS_WRITTEN = 1,
  * (`setSampling`, `pageTable.ts`). Each atlas walks the records it holds, brings each up to its
  * host at this render (`followHostTexture`), and rewrites a header only when the record's
  * counters moved past the ones it was last written at: another engine following the same record
- * first does not hide the change from this one. `force` writes every header, the first time.
+ * first does not hide the change from this one. No slot is walked while no host write was
+ * announced since the last follow: a still scene costs one comparison. `force` writes every
+ * header, the first time.
  * Colour slots whose header moved are added to `colorMoved`; the result is a mask of
  * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`.
  */
@@ -48,5 +50,10 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
   };
   const colour = atlasHeaders(color),
     other = atlasHeaders(data);
-  return (force: boolean, colorMoved?: Set<number>) => colour(force, colorMoved) | other(force);
+  let followed = -1;
+  return (force: boolean, colorMoved?: Set<number>) => {
+    if (!force && followed === hostTextureWrites()) return 0;
+    followed = hostTextureWrites();
+    return colour(force, colorMoved) | other(force);
+  };
 }

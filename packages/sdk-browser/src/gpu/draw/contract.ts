@@ -53,10 +53,14 @@ export type SlotLayout = {
 };
 export type GpuDraw = {
   /**
-   * `items` holds `count` packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five
-   * are properties of the page-table row and not of the frame, so only the rows `[itemsFrom,
-   * itemsTo]` — the ones a page arriving, leaving or changing rank has just rewritten — travel to
-   * the card; `itemsTo < itemsFrom` sends nothing. Nothing here allocates.
+   * `items` holds packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five are
+   * properties of the page-table row and not of the frame, so only the rows `[from, to]` a page
+   * arriving, leaving or changing rank has just rewritten travel to the card, one call per run of
+   * such rows. Nothing here allocates.
+   */
+  uploadItems(items: Uint32Array, from: number, to: number): void;
+  /**
+   * Compacts the `count` rows the card holds into one indirect command per slot.
    *
    * Each row's occluder/tested half (`restBits`) and each slot's row count (`slotUsed`) are no
    * longer uploaded: the GPU partition writes them into these same buffers, in the same command
@@ -65,10 +69,7 @@ export type GpuDraw = {
    */
   encode(
     encoder: GPUCommandEncoder,
-    items: Uint32Array,
     count: number,
-    itemsFrom: number,
-    itemsTo: number,
     maxVertexCount: number,
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
   ): void;

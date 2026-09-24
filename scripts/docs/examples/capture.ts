@@ -23,7 +23,7 @@ export function thumbnailDelay(html: string): number {
 export const RENDER_ONLY = '[data-example-overlay], body > p { display: none }';
 
 /** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
-export async function drawnShare(page: Page): Promise<number> {
+async function drawnShare(page: Page): Promise<number> {
   const png = await page.locator('canvas#view').screenshot({ style: RENDER_ONLY });
   return page.evaluate(
     async (dataUrl: string) => {
@@ -59,8 +59,10 @@ export async function openExample(
   gpu = true,
 ) {
   const page = await browser.newPage({ viewport });
-  const errors: string[] = [];
+  const errors: string[] = [],
+    requests: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('request', (request) => requests.push(request.url()));
   if (!gpu)
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'gpu', { get: () => undefined, configurable: true });
@@ -71,5 +73,5 @@ export async function openExample(
     await page.waitForTimeout(500);
     drawn = await drawnShare(page);
   }
-  return { page, errors, drawn };
+  return { page, errors, drawn, requests };
 }
