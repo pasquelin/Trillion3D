@@ -22,7 +22,7 @@ export interface WaveSpec {
 }
 
 /** Deep-water gravity, m/s²: a wave's angular speed is `sqrt(GRAVITY × k)`. */
-export const WAVE_GRAVITY = 9.81;
+const WAVE_GRAVITY = 9.81;
 const TAU = Math.PI * 2;
 
 /**

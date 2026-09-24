@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { StepWords, createWater } from './buoyancy.ts';
-import { WAVE_FUNCTIONS, WaveUniforms, waveCode } from './waveCode.ts';
+import { WAVE_FUNCTIONS, WaveUniforms, waveCode, waveUniformDeclaration } from './waveCode.ts';
 import { OCEAN, heightGap, kernels } from './waveCode.fixture.ts';
 import { waveHeight, waveRest } from './surface.ts';
 import { Waves } from './waves.ts';
@@ -65,6 +65,11 @@ test('WGSL and GLSL are printed from the same statements', () => {
       .map((line) => line.replace(/u?[wW]aves\[/g, 'W['));
   assert.deepEqual(body(wgsl), body(glsl));
   assert.equal(body(wgsl).length, 2 * 4 * 7);
+  assert.equal(
+    waveUniformDeclaration(4, 'wgsl', 'waves', { group: 1, binding: 2 }),
+    '@group(1) @binding(2) var<uniform> waves: array<vec4<f32>, 8>;',
+  );
+  assert.equal(waveUniformDeclaration(4, 'glsl', 'uWaves'), 'uniform vec4 uWaves[8];');
   for (const name of Object.values(WAVE_FUNCTIONS)) {
     assert.match(wgsl, new RegExp(`fn ${name}\\(px: f32, pz: f32, previous: f32\\) -> vec3<f32>`));
     assert.match(glsl, new RegExp(`vec3 ${name}\\(float px, float pz, float previous\\)`));
