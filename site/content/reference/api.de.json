@@ -1148,7 +1148,7 @@
   },
   "createPageStreamer": {
     "summary": "Begrenzte Lesevorgänge, nach Priorität und ohne Duplikat.",
-    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt sowohl in Einträgen als auch in Bytes; angeheftete Einträge überleben die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Festhalten behält."
+    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt sowohl in Einträgen als auch in Bytes; angeheftete Einträge überleben die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Festhalten behält. Der Cache ist `kept`, wenn der Aufrufer einen übergibt (`pageCache.ts`): Der Streamer reserviert dann seine Manifest-Tabellen und seine Transfer-Warteschlange von der CPU-Summe des Caches, verwirft, was der Katalog nicht mehr in dieser Größe nennt, und lässt die Seiten beim Freigeben für die nächste Sitzung dort."
   },
   "createPathGovernor": {
     "summary": "Ein Regler."
@@ -6339,8 +6339,8 @@
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
       "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Nie von der Maschine gelesen.",
-      "cpu": "Bytes CPU-Speicher, die die dekodierten Seiten der Welt halten dürfen; beim nächsten Laden einer Szene übernommen.",
-      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Cache dekodierter Seiten nimmt die CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
+      "cpu": "Bytes CPU-Speicher, die die Welt halten darf: ihre dekodierten Seiten, ihre Manifest-Tabellen und ihre Transfer-Warteschlange zusammen. Eine Änderung gilt sofort: Seiten gehen nach letzter Nutzung, bis sie passen.",
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Cache dekodierter Seiten nimmt die CPU-Summe, abzüglich der Manifest-Tabellen und der Transfer-Warteschlange der aktuellen Sitzung. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {

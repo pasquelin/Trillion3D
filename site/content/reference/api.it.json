@@ -1148,7 +1148,7 @@
   },
   "createPageStreamer": {
     "summary": "Letture limitate, per priorità e senza duplicati.",
-    "description": "Una richiesta ancora in attesa in coda viene scartata quando il suo ultimo consumatore se ne va; una richiesta già in transito può arrivare nella cache. La cache è un insieme «usato meno di recente» limitato sia in voci che in byte; le voci fissate sopravvivono allo sfratto, quindi un chiamante mantiene la propria copertura mostrata trattenendola."
+    "description": "Una richiesta ancora in attesa in coda viene scartata quando il suo ultimo consumatore se ne va; una richiesta già in transito può arrivare nella cache. La cache è un insieme «usato meno di recente» limitato sia in voci che in byte; le voci fissate sopravvivono allo sfratto, quindi un chiamante mantiene la propria copertura mostrata trattenendola. La cache è `kept` quando il chiamante ne fornisce una (`pageCache.ts`): il lettore riserva allora le sue tabelle di manifesto e la sua coda di trasferimenti sul totale CPU della cache, scarta ciò che il catalogo non nomina più a quella dimensione, e vi lascia le pagine quando viene rilasciato, per la sessione successiva."
   },
   "createPathGovernor": {
     "summary": "Un regolatore."
@@ -6339,8 +6339,8 @@
       "physics": "I limiti della fisica (corpi, triangoli, corpi decorativi, memoria), letti una volta all’avvio; superarne uno solleva `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte di memoria CPU che `raycast` tiene per gli alberi di triangoli, condivisi da tutti i mondi della pagina; oltre, l’albero usato meno di recente viene scartato. Impostalo per cambiare l’involucro.",
       "gpu": "Byte di memoria GPU che il mondo può occupare, tutti i serbatoi insieme; impostalo per ridisegnare ogni serbatoio secondo la regola di ripartizione (`split`). Mai letto dalla macchina.",
-      "cpu": "Byte di memoria CPU che le pagine decodificate del mondo possono occupare; applicato al prossimo caricamento di scena.",
-      "split": "Come si dividono i due totali: il serbatoio delle ombre al suo massimo, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; la cache delle pagine decodificate prende il totale CPU. Ciò che dà la regola, prima di un serbatoio impostato da solo."
+      "cpu": "Byte di memoria CPU che il mondo può occupare: le sue pagine decodificate, le sue tabelle di manifesto e la sua coda di trasferimenti insieme. Una modifica si applica subito: le pagine escono per ultimo uso finché non stanno nel totale.",
+      "split": "Come si dividono i due totali: il serbatoio delle ombre al suo massimo, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; la cache delle pagine decodificate prende il totale CPU, meno le tabelle di manifesto e la coda di trasferimenti della sessione in corso. Ciò che dà la regola, prima di un serbatoio impostato da solo."
     }
   },
   "world.diagnostic": {

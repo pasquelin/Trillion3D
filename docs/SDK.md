@@ -848,7 +848,9 @@ as `world.budget.split`:
 - GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
   in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
   each pool its own default, so a page that sets nothing sees no change.
-- CPU: the decoded-page cache takes the whole total, taken by the next scene load.
+- CPU: the session's manifest tables and its transfer queue are reserved first; the decoded-page
+  cache holds the rest. A change applies at once: pages leave by last use until they fit, save those
+  the frame keeps.
 
 ```js
 world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split
@@ -875,7 +877,9 @@ device cannot hold even the root cover.
 **Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
 allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
 device refuses it, the pool
-is drawn again at half its bytes, down to its floor (the root cover, one layer per lane). The pool
+is drawn again at half its bytes, down to its floor (the root cover, one layer per lane, the
+smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that casts
+a shadow, and its static layer is refused whole: shadow pages are then drawn with every caster. The pool
 in place is only ever replaced by one the device grants. The frame goes on, coarser where the
 smaller pool no longer holds the view, and no exception reaches the page. The
 `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
@@ -1027,8 +1031,12 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)).
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
-- A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
-  implemented.
+- A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
+  session on it and rebuilds from its decoded-page cache, fetching no page or bundle it still holds.
+  `gpu-device-recovered` says the time from the loss to the first frame drawn after it
+  (`recoveryMs`). Baked texture levels are read again, and cross-API fallback is not implemented.
+- Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
+  lost device.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
   cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the

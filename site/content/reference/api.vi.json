@@ -4574,7 +4574,7 @@
   },
   "createPageStreamer": {
     "summary": "Các lần đọc có giới hạn, ưu tiên và không trùng lặp.",
-    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại."
+    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại. Bộ nhớ đệm là `kept` khi bên gọi trao một cái (`pageCache.ts`): khi đó bộ đọc dành trước các bảng manifest và hàng đợi truyền của nó từ tổng CPU của bộ nhớ đệm, bỏ những gì danh mục không còn gọi tên ở kích thước đó, và để lại các trang ở đó khi được giải phóng, cho phiên kế tiếp."
   },
   "createPathGovernor": {
     "summary": "Một bộ điều tiết."
@@ -6600,8 +6600,8 @@
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
       "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Không bao giờ đọc từ máy.",
-      "cpu": "Số byte bộ nhớ CPU mà các trang đã giải mã của thế giới được giữ; áp dụng ở lần tải cảnh kế tiếp.",
-      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bộ đệm trang đã giải mã lấy tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
+      "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: các trang đã giải mã, các bảng manifest và hàng đợi truyền của nó cộng lại. Một thay đổi áp dụng ngay: các trang rời đi theo lần dùng cuối cho đến khi vừa.",
+      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bộ đệm trang đã giải mã lấy tổng CPU, trừ các bảng manifest và hàng đợi truyền của phiên hiện tại. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {

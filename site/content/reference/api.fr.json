@@ -1148,7 +1148,7 @@
   },
   "createPageStreamer": {
     "summary": "Lectures bornées, par priorité et sans doublon.",
-    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant."
+    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant. Le cache est `kept` quand l’appelant en fournit un (`pageCache.ts`) : le lecteur réserve alors ses tables de manifeste et sa file de transferts sur le total CPU du cache, écarte ce que le catalogue ne nomme plus à cette taille, et y laisse les pages quand il est libéré, pour la session suivante."
   },
   "createPathGovernor": {
     "summary": "Un régulateur."
@@ -6347,8 +6347,8 @@
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
       "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Jamais lu sur la machine.",
-      "cpu": "Octets de mémoire CPU que les pages décodées du monde peuvent tenir ; pris au prochain chargement de scène.",
-      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le cache de pages décodées prend le total CPU. Ce que donne la règle, avant un réservoir réglé seul."
+      "cpu": "Octets de mémoire CPU que le monde peut tenir : ses pages décodées, ses tables de manifeste et sa file de transferts ensemble. Un changement s’applique aussitôt : les pages partent par dernier usage jusqu’à tenir.",
+      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le cache de pages décodées prend le total CPU, moins les tables de manifeste et la file de transferts de la session en place. Ce que donne la règle, avant un réservoir réglé seul."
     }
   },
   "world.diagnostic": {

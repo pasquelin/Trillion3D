@@ -4574,7 +4574,7 @@
   },
   "createPageStreamer": {
     "summary": "Pembacaan terbatas, terprioritaskan dan tanpa duplikat.",
-    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi baik oleh entri maupun byte; entri yang di-pin bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menahannya."
+    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi baik oleh entri maupun byte; entri yang di-pin bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menahannya. Cache-nya `kept` ketika pemanggil menyerahkan satu (`pageCache.ts`): streamer lalu mencadangkan tabel manifes dan antrean transfernya dari total CPU cache, membuang apa yang tidak lagi dinamai katalog pada ukuran itu, dan meninggalkan halaman di sana saat dilepas, untuk sesi berikutnya."
   },
   "createPathGovernor": {
     "summary": "Sebuah governor."
@@ -6600,8 +6600,8 @@
       "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya.",
       "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Tidak pernah dibaca dari mesin.",
-      "cpu": "Byte memori CPU yang boleh ditahan halaman terdekode dunia; diterapkan pada pemuatan adegan berikutnya.",
-      "split": "Cara kedua total dibagi: pool bayangan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cache halaman terdekode mengambil total CPU. Hasil aturan, sebelum sebuah pool diatur sendiri."
+      "cpu": "Byte memori CPU yang boleh ditahan dunia: halaman terdekodenya, tabel manifesnya, dan antrean transfernya bersama-sama. Perubahan langsung berlaku: halaman keluar berdasarkan penggunaan terakhir sampai muat.",
+      "split": "Cara kedua total dibagi: pool bayangan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cache halaman terdekode mengambil total CPU, dikurangi tabel manifes dan antrean transfer sesi yang berjalan. Hasil aturan, sebelum sebuah pool diatur sendiri."
     }
   },
   "world.camera": {
