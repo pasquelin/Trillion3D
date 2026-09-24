@@ -33,11 +33,17 @@
       "CPU frame": "CPU 帧",
       "page hooks": "页面代码",
       "engine CPU": "引擎 CPU"
+    },
+    "failure": {
+      "title": "这个示例因为一个错误停下了"
+    },
+    "banner": {
+      "close": "关闭"
     }
   },
   "a-city-from-rules": {
+    "banner": "拖动来四处飞。动一下滑块，城市就会重新盖起来。",
     "controls": {
-      "mouse": "拖动来四处飞行；每个设置都会按规则重新建造城市",
       "blocks": "街区",
       "maxHeight": "最高高度",
       "density": "密度",
@@ -52,8 +58,8 @@
     }
   },
   "a-cloud-of-points": {
+    "banner": "拖动绕着点云转。选另一个形状，看它变化。",
     "controls": {
-      "mouse": "拖动来绕着云转；换一个形状，旧的会卷走消失，新的慢慢展开",
       "shape": "形状",
       "spin": "旋转"
     },
@@ -71,6 +77,7 @@
     }
   },
   "a-colour-ramp-in-linear-light": {
+    "banner": "选一种颜色，看光把它从暗变亮。",
     "controls": {
       "colour": "颜色",
       "glow": "发光",
@@ -78,6 +85,7 @@
     }
   },
   "a-field-of-pebbles": {
+    "banner": "拖动四处看看。移动太阳，看鹅卵石的影子。",
     "controls": {
       "sunTurn": "太阳方向",
       "sunHeight": "太阳高度",
@@ -86,13 +94,14 @@
     }
   },
   "a-first-world": {
+    "banner": "拖动绕着方块转。给它换个新颜色。",
     "controls": {
       "colour": "颜色"
     }
   },
   "a-game-board-seen-from-above": {
+    "banner": "拖动来移动棋盘。滚动或双指捏合来缩放。方向键平移。",
     "controls": {
-      "mouse": "拖动来移动棋盘 · 滚轮或双指缩放 · 方向键平移",
       "play": "开始",
       "speed": "速度",
       "follow": "跟随",
@@ -106,6 +115,7 @@
     }
   },
   "a-lamp-in-its-glass": {
+    "banner": "拖动四处看看。摇一摇灯笼，看光怎么动。",
     "controls": {
       "swing": "摆动",
       "lamp": "灯",
@@ -114,6 +124,7 @@
     }
   },
   "a-lighthouse-beam": {
+    "banner": "拖动四处看看。让光束转得更快或更宽。",
     "controls": {
       "turnsPerMinute": "每分钟转数",
       "beamWidth": "光束宽度",
@@ -121,8 +132,8 @@
     }
   },
   "a-long-shadowed-street": {
+    "banner": "拖动顺着街道看。拖动时间，影子会变长。滚轮前进。",
     "controls": {
-      "mouse": "拖动来环顾大街，滚轮前进；拖动时间，影子会在街上拉长并爬上墙面",
       "hour": "时刻",
       "traffic": "交通",
       "flyAgain": "再飞一次"
@@ -133,8 +144,8 @@
     }
   },
   "a-matcap-sculpture": {
+    "banner": "拖动绕着雕塑走。它的光会跟着你转。",
     "controls": {
-      "mouse": "拖动来绕着雕塑走：它的光会跟着你转，因为光就在图片里",
       "matcap": "Matcap",
       "sculpture": "雕塑",
       "gallery": "展厅",
@@ -157,8 +168,8 @@
     }
   },
   "a-mesh-built-by-hand": {
+    "banner": "拖动绕着宝石转。每一颗都是一个点一个点搭出来的。关掉锐利切面，让角落共用。",
     "controls": {
-      "mouse": "拖动来绕着宝石转；关掉锐利切面，让角落共用",
       "points": "点",
       "waist": "腰身",
       "height": "高度",
@@ -172,8 +183,8 @@
     }
   },
   "a-model-from-obj": {
+    "banner": "拖动绕着棋盘转。滚动来靠近。",
     "controls": {
-      "mouse": "拖动来绕着棋盘转，滚轮靠近：看看 OBJ 变成了什么",
       "view": "视图",
       "sunAngle": "太阳角度",
       "sunHeight": "太阳高度",
@@ -192,8 +203,8 @@
     }
   },
   "a-model-from-usdz": {
+    "banner": "拖动绕着国际象棋走。滚动到棋子跟前。",
     "controls": {
-      "mouse": "拖动来绕着棋盘走；用滚轮下到棋子旁边",
       "view": "视图",
       "turn": "转动"
     },
@@ -216,8 +227,8 @@
     }
   },
   "a-molecule": {
+    "banner": "拖动绕着分子转。选另一个，看原子飞过去。",
     "controls": {
-      "mouse": "拖动来绕着分子转；换一个，它的原子会飞到新位置",
       "molecule": "分子",
       "style": "样式",
       "spin": "旋转"
@@ -241,6 +252,7 @@
     }
   },
   "a-neon-sign": {
+    "banner": "拖动四处看看。让霓虹灯发光、闪烁。",
     "controls": {
       "star": "星星",
       "wave": "波浪",
@@ -261,6 +273,7 @@
     }
   },
   "a-ring-of-lamps": {
+    "banner": "拖动四处看看。加几盏灯，让它们转起来。",
     "controls": {
       "lamps": "灯",
       "speed": "速度",
@@ -269,6 +282,7 @@
     }
   },
   "a-robot-that-walks-and-waves": {
+    "banner": "拖动四处看看。把走路、挥手和跳舞混在一起。",
     "controls": {
       "walk": "走路",
       "wave": "波浪",
@@ -278,6 +292,7 @@
     }
   },
   "a-scene-of-your-own": {
+    "banner": "拖动四处看看。改改时间、风和屋顶。",
     "controls": {
       "hour": "时刻",
       "wind": "风",
@@ -285,8 +300,8 @@
     }
   },
   "a-softbox-panel": {
+    "banner": "拖动四处走走。把灯板变大，反光就变柔和了。",
     "controls": {
-      "mouse": "拖动来绕着布景走；把面板变大，看高光变柔和",
       "panelWidth": "面板宽度",
       "power": "功率",
       "colour": "颜色",
@@ -298,6 +313,7 @@
     }
   },
   "a-staircase-from-one-step": {
+    "banner": "拖动四处看看。改一下台阶，楼梯就重新搭好。",
     "controls": {
       "climb": "爬升",
       "turnPerStep": "每级转角",
@@ -305,6 +321,7 @@
     }
   },
   "a-terrain-from-a-height-map": {
+    "banner": "拖动在山上飞。拖动一天中的时间。",
     "controls": {
       "hour": "时刻",
       "sunColour": "太阳颜色",
@@ -312,8 +329,8 @@
     }
   },
   "a-texture-turned-and-tiled": {
+    "banner": "拖动四处看看。把墙上的图旋转、重复。后面的面板就是画好的瓷砖原样。",
     "controls": {
-      "mouse": "拖动来环顾四周；后面的面板就是画好的瓷砖原样",
       "tile": "瓷砖",
       "wrap": "边缘",
       "tilesAcross": "横向瓷砖数",
@@ -342,8 +359,8 @@
     }
   },
   "a-tube-along-a-spline": {
+    "banner": "拖动四处看看。珠子沿着管子滑动。",
     "controls": {
-      "mouse": "拖动来环顾四周；珠子沿着管子走的曲线滑行",
       "path": "路径",
       "radius": "半径",
       "sides": "边数",
@@ -364,6 +381,7 @@
     }
   },
   "a-vase-turned-on-the-lathe": {
+    "banner": "拖动四处看看。改变花瓶的宽度和高度。",
     "controls": {
       "width": "宽度",
       "height": "高度",
@@ -372,8 +390,8 @@
     }
   },
   "a-video-on-a-screen": {
+    "banner": "拖动看看房间。屏幕上放的是真正的视频。",
     "controls": {
-      "mouse": "拖动来环顾房间；屏幕播放的是真正的视频元素",
       "playing": "正在播放",
       "openVideo": "打开视频"
     },
@@ -387,8 +405,8 @@
     }
   },
   "a-video-panorama": {
+    "banner": "拖动环顾四周。想的话可以打开你自己的视频。在你按下之前，画面会自己转。",
     "controls": {
-      "mouse": "拖动来环顾四周；在你按下之前，画面会自己转",
       "playing": "正在播放",
       "fieldOfView": "视野",
       "openVideo": "打开视频"
@@ -402,8 +420,8 @@
     }
   },
   "a-wall-of-cameras": {
+    "banner": "点一个小屏幕，把它放大。选每台摄像机看什么。",
     "controls": {
-      "mouse": "点击一个监控画面把它放上大屏幕；告诉摄像头要看什么",
       "watch": "监视"
     },
     "choices": {
@@ -431,6 +449,7 @@
     }
   },
   "a-wave-across-a-grid": {
+    "banner": "拖动四处看看。让方块波浪更高或更快。",
     "controls": {
       "height": "高度",
       "speed": "速度",
@@ -440,8 +459,8 @@
     }
   },
   "a-world-of-blocks": {
+    "banner": "拖动绕着小岛飞。把海水升高，淹没山谷。",
     "controls": {
-      "mouse": "拖动来绕着小岛飞；升高海面，看山谷被淹没",
       "seed": "种子",
       "seaLevel": "海平面",
       "hour": "时刻",
@@ -452,8 +471,8 @@
     }
   },
   "before-and-after-slider": {
+    "banner": "拖动圆形旋钮来比较。拖动画面来转动。",
     "controls": {
-      "mouse": "拖动圆形旋钮移动分界线；拖动画面绕着广场转",
       "before": "之前"
     },
     "choices": {
@@ -473,8 +492,8 @@
     }
   },
   "blobs-that-merge": {
+    "banner": "拖动绕着灯走。给它加热，水滴就会融在一起。",
     "controls": {
-      "mouse": "拖动来绕着灯走；调高黏度，液滴会互相融在一起",
       "stickiness": "黏度",
       "heat": "热度",
       "wax": "蜡"
@@ -484,6 +503,7 @@
     }
   },
   "bricks-with-a-normal-map": {
+    "banner": "拖动四处看看。移动灯，看砖块的凹凸。",
     "controls": {
       "sweep": "扫动",
       "lamp": "灯",
@@ -492,9 +512,7 @@
     }
   },
   "click-to-pick": {
-    "controls": {
-      "help": "点击一个形状：它会亮起来，面板会告诉你射线碰到了哪里。"
-    },
+    "banner": "点一个形状。它会亮起来，面板会告诉你点中了哪里。",
     "readouts": {
       "picked": "选中",
       "point": "点",
@@ -511,8 +529,8 @@
     }
   },
   "colours-on-the-vertices": {
+    "banner": "拖动转动星球。每个角都有自己的颜色。",
     "controls": {
-      "mouse": "拖动来转动星球；每个顶点都有自己的颜色",
       "palette": "调色板",
       "seaLevel": "海平面",
       "relief": "起伏",
@@ -528,8 +546,8 @@
     }
   },
   "compressed-textures": {
+    "banner": "拖动绕着喷泉走。靠近看，细节会慢慢出现。",
     "controls": {
-      "mouse": "拖动来绕着喷泉走；向下滚到一块瓷砖，看它的细节到来",
       "sunTurn": "太阳方向",
       "sunHeight": "太阳高度"
     },
@@ -548,8 +566,8 @@
     }
   },
   "copies-along-a-path": {
+    "banner": "拖动看看公园。多加几个复制品，直到连成隧道。",
     "controls": {
-      "mouse": "拖动来环顾公园；增加副本，直到拱门连成隧道",
       "copies": "副本",
       "twist": "扭转",
       "speed": "速度",
@@ -560,6 +578,7 @@
     }
   },
   "crates-under-a-spotlight": {
+    "banner": "拖动四处看看。改变聚光灯的角度和颜色。",
     "controls": {
       "angle": "角度",
       "softness": "柔和度",
@@ -571,8 +590,8 @@
     }
   },
   "create-and-dispose": {
+    "banner": "拖动四处走走。看零件不停地出现又消失。滚轮靠近。",
     "controls": {
-      "mouse": "拖动来绕着喷泉走 · 滚轮靠近",
       "perSecond": "每秒",
       "copies": "副本",
       "burst": "一阵喷发",
@@ -595,8 +614,8 @@
     }
   },
   "curved-surfaces": {
+    "banner": "拖动四处走走。把网格调低，看每条曲线里的三角形。",
     "controls": {
-      "mouse": "拖动来逛展厅；把网格调小，就能看到组成每条曲面的三角形",
       "grid": "网格",
       "facets": "切面",
       "turntable": "转台"
@@ -614,8 +633,8 @@
     }
   },
   "dashed-lines": {
+    "banner": "拖动绕着太阳转。改变虚线的线段和空隙。",
     "controls": {
-      "mouse": "拖动来绕着太阳转；改变线段和间隙，每条轨道都会跟着变",
       "lines": "线条",
       "dash": "线段",
       "gap": "间隙",
@@ -632,8 +651,8 @@
     }
   },
   "detail-by-pixel-error": {
+    "banner": "拖动走过大道。靠近一个花瓶，再走远。",
     "controls": {
-      "mouse": "拖动来走过大道；靠近一个花瓶，再远远离开",
       "pixelError": "像素误差",
       "view": "视图"
     },
@@ -656,8 +675,8 @@
     }
   },
   "edges-and-wireframe": {
+    "banner": "拖动四处看看。调高阈值，只留下锋利的棱。",
     "controls": {
-      "mouse": "拖动来环顾四周；提高阈值，只留下锐利的折痕",
       "view": "视图",
       "threshold": "阈值",
       "lines": "线条",
@@ -678,8 +697,8 @@
     }
   },
   "every-image-format": {
+    "banner": "拖动沿着画架走。降低画质，凑近看看。",
     "controls": {
-      "mouse": "拖动来沿着画架走；降低质量，近看 JPEG 和 WebP",
       "quality": "质量",
       "lookAt": "看向"
     },
@@ -720,8 +739,8 @@
     }
   },
   "flat-shadows-on-the-floor": {
+    "banner": "拖动绕着日晷走。拖动时间，影子会转。",
     "controls": {
-      "mouse": "拖动来绕着日晷走；拖动时间，每个影子都会跟着太阳转",
       "hour": "时刻",
       "darkness": "暗度",
       "timeLapse": "延时",
@@ -735,6 +754,7 @@
     }
   },
   "fly-over-a-model-town": {
+    "banner": "驾驶喷气机穿过圆环。推高油门起飞。",
     "choices": {
       "view": {
         "cockpit": "座舱",
@@ -800,8 +820,8 @@
     }
   },
   "four-ways-to-blend": {
+    "banner": "拖动从侧面看。每块板用自己的方式混合颜色。从左到右：正常、相加、相减、相乘。",
     "controls": {
-      "mouse": "从左到右：正常、相加、相减、相乘；拖动从侧面看它们",
       "inks": "墨水",
       "opacity": "不透明度",
       "circle": "环绕"
@@ -815,8 +835,8 @@
     }
   },
   "frame-the-model": {
+    "banner": "双击一个物体就能拉近。拖动来转动。滚轮缩放。",
     "controls": {
-      "mouse": "双击一个物体来取景；拖动旋转，滚轮缩放",
       "model": "物体",
       "margin": "边距",
       "drift": "漂移"
@@ -845,8 +865,8 @@
     }
   },
   "from-a-grain-to-a-planet": {
+    "banner": "滚动，从一粒沙缩放到整个星球。拖动来旋转。",
     "controls": {
-      "mouse": "用滚轮从一粒沙子一直缩放到整个星球；拖动旋转",
       "toTheGrain": "去看沙粒",
       "toTheBeach": "去海滩",
       "toTheIsland": "去小岛",
@@ -867,6 +887,7 @@
     }
   },
   "from-clay-to-chrome": {
+    "banner": "拖动四处看看。同一种颜色，分别是黏土、金属和铬。",
     "controls": {
       "colour": "颜色",
       "lamps": "灯",
@@ -874,6 +895,7 @@
     }
   },
   "from-noon-to-dusk": {
+    "banner": "拖动四处看看。把时间从中午拖到夜晚。",
     "controls": {
       "speed": "速度",
       "hour": "时刻",
@@ -881,6 +903,7 @@
     }
   },
   "glass-on-the-table": {
+    "banner": "拖动四处看看。改变玻璃弯折光线的方式。",
     "controls": {
       "refraction": "折射",
       "thickness": "厚度",
@@ -889,8 +912,8 @@
     }
   },
   "helpers-to-see-the-scene": {
+    "banner": "拖动四处走走。关掉辅助线，看原本的画面。",
     "controls": {
-      "mouse": "拖动来绕着布景走；关掉辅助工具，看镜头原本的样子",
       "helpers": "辅助工具",
       "dolly": "推拉镜头",
       "bulb": "灯泡"
@@ -908,8 +931,8 @@
     }
   },
   "inside-a-panorama": {
+    "banner": "拖动来转动。滚动来靠近。选另一片天空。",
     "controls": {
-      "mouse": "拖动来转动 · 滚轮靠近",
       "sky": "天空",
       "fieldOfView": "视野"
     },
@@ -925,8 +948,8 @@
     }
   },
   "inside-the-g-buffer": {
+    "banner": "拖动四处走走。选一个缓冲区，看看画面里面。",
     "controls": {
-      "mouse": "拖动来绕着球场走 · 选一个缓冲区看看画面里面",
       "buffer": "缓冲区",
       "turning": "旋转"
     },
@@ -954,8 +977,8 @@
     }
   },
   "instances-in-colour": {
+    "banner": "拖动让银河倾斜。滚动钻进去。",
     "controls": {
-      "mouse": "拖动来倾斜星系；用滚轮潜进去",
       "count": "数量",
       "arms": "旋臂",
       "twist": "扭转",
@@ -969,8 +992,8 @@
     }
   },
   "keyframes-by-hand": {
+    "banner": "拖动绕着书桌转。看台灯从一个关键帧跳到另一个。把一次跳跃的关键帧显示成台灯的淡色副本。",
     "controls": {
-      "mouse": "拖动来绕着书桌转；把一次跳跃的关键帧显示成台灯的淡色副本",
       "timing": "节奏",
       "onionSkin": "洋葱皮",
       "speed": "速度"
@@ -997,8 +1020,8 @@
     }
   },
   "labels-that-follow": {
+    "banner": "拖动绕着太阳转。标签跟着行星走。滚轮靠近。",
     "controls": {
-      "mouse": "拖动来绕着太阳转，滚轮靠近；标签跟着行星一起走",
       "show": "显示",
       "speed": "速度",
       "lineThemUp": "排成一排"
@@ -1034,6 +1057,7 @@
     }
   },
   "leaves-cut-by-alpha": {
+    "banner": "拖动四处看看。拖动阈值，看叶子的边缘。",
     "controls": {
       "branches": "树枝",
       "leaves": "树叶",
@@ -1042,6 +1066,7 @@
     }
   },
   "letters-carved-in-relief": {
+    "banner": "拖动四处看看。让光扫过刻出来的字。",
     "controls": {
       "rake": "斜光",
       "warm": "暖",
@@ -1050,8 +1075,8 @@
     }
   },
   "light-from-a-probe": {
+    "banner": "拖动绕着花园转。选一个地方，看它的光。",
     "controls": {
-      "mouse": "拖动来逛花园；选一个地方，雕塑就会带上那里的光",
       "place": "地点",
       "turn": "转动",
       "strength": "强度",
@@ -1071,8 +1096,8 @@
     }
   },
   "light-in-real-units": {
+    "banner": "拖动在广场上走。选一个时刻，从中午到月光。",
     "controls": {
-      "mouse": "拖动来走过广场；选一个时刻，看摄像机如何适应，从 10 万勒克斯到月夜",
       "moment": "时刻",
       "lampLumens": "路灯流明",
       "autoExposure": "自动曝光",
@@ -1100,6 +1125,7 @@
     }
   },
   "lights-from-the-scene-file": {
+    "banner": "拖动四处看看。这些灯是跟着模型文件一起来的。",
     "controls": {
       "lamp": "灯",
       "power": "功率",
@@ -1107,8 +1133,8 @@
     }
   },
   "lines-in-colour": {
+    "banner": "拖动来转动。选另一条规则，看笔把它画出来。",
     "controls": {
-      "mouse": "拖动来绕着图形转；换一条规则，笔会从头开始画",
       "figure": "图形",
       "palette": "调色板",
       "pace": "速度",
@@ -1134,6 +1160,7 @@
     }
   },
   "marble-bust-on-its-pedestal": {
+    "banner": "拖动绕着胸像转。把灯绕着它的头移动。",
     "controls": {
       "lampTurn": "台灯方向",
       "lampHeight": "台灯高度",
@@ -1146,6 +1173,7 @@
     }
   },
   "memory-on-a-budget": {
+    "banner": "拖动四处看看。少给点内存，看什么还清楚。",
     "controls": {
       "memory": "内存",
       "view": "视图"
@@ -1164,8 +1192,8 @@
     }
   },
   "move-rotate-scale-gizmo": {
+    "banner": "拖动手柄来移动、旋转或放大物体。在旁边拖动就能四处看。",
     "controls": {
-      "help": "拖动一个手柄。在旁边拖动来转动摄像机。",
       "mode": "模式",
       "axes": "坐标轴",
       "snap": "吸附"
@@ -1187,8 +1215,8 @@
     }
   },
   "no-hitch-on-first-draw": {
+    "banner": "拖动四处看看。图表显示两幅画面之间的时间。",
     "controls": {
-      "mouse": "拖动来环顾展厅 · 图表是帧与帧之间的时间",
       "turning": "旋转",
       "revealAgain": "再显示一次"
     },
@@ -1203,8 +1231,8 @@
     }
   },
   "normals-and-depth-seen": {
+    "banner": "拖动四处走走。切换视图，看渲染器存了什么。",
     "controls": {
-      "mouse": "拖动来绕着球场走；切换视图，看渲染器是怎样存储这些表面的",
       "see": "查看",
       "spin": "旋转"
     },
@@ -1225,6 +1253,7 @@
     }
   },
   "observatory-streamed": {
+    "banner": "拖动四处看看。切换视图，看模型是怎么切开的。",
     "controls": {
       "view": "视图",
       "pixelError": "像素误差"
@@ -1240,8 +1269,8 @@
     }
   },
   "one-clip-many-objects": {
+    "banner": "拖动绕着体育场转。选人浪怎样穿过观众。",
     "controls": {
-      "mouse": "拖动来绕着体育场转；选择同一段动画怎样分给球迷",
       "pattern": "图案",
       "speed": "速度"
     },
@@ -1258,8 +1287,8 @@
     }
   },
   "orbit-around-a-clockwork": {
+    "banner": "拖动来转。右键拖动来平移。滚动放大齿轮。",
     "controls": {
-      "mouse": "产品查看器：拖动旋转 · 右键拖动平移 · 滚轮放大齿轮的齿",
       "view": "视图",
       "speed": "速度",
       "brass": "黄铜"
@@ -1274,6 +1303,7 @@
     }
   },
   "painted-and-textured": {
+    "banner": "拖动四处看看。改变形状上的颜色和格子。",
     "controls": {
       "checks": "方格",
       "paint": "颜料",
@@ -1282,8 +1312,8 @@
     }
   },
   "reading-pixels-back": {
+    "banner": "拖动四处看看。那张小图是把画面读回成数字。",
     "controls": {
-      "mouse": "拖动来环顾四周 · 右下角的图是读回成数字的画面",
       "sunHeight": "太阳高度",
       "live": "实时",
       "turning": "旋转",
@@ -1300,8 +1330,8 @@
     }
   },
   "ride-a-roller-coaster": {
+    "banner": "坐在车上拖动来转头。关掉过山车就能看公园。",
     "controls": {
-      "mouse": "坐在过山车上时，拖动来转头。关掉过山车就能绕着公园转",
       "ride": "乘坐",
       "loops": "环"
     },
@@ -1311,8 +1341,8 @@
     }
   },
   "save-the-scene": {
+    "banner": "把塔推倒，然后重新打开保存的场景。",
     "controls": {
-      "help": "把塔推倒，然后再打开保存的场景。",
       "knockDown": "推倒",
       "save": "保存",
       "open": "打开"
@@ -1325,8 +1355,8 @@
     }
   },
   "scattered-on-a-surface": {
+    "banner": "拖动转动星球。让森林爬上山。",
     "controls": {
-      "mouse": "拖动来绕着星球转；提高最陡坡度，森林就会爬上山",
       "trees": "树",
       "rocks": "岩石",
       "steepest": "最陡",
@@ -1339,8 +1369,8 @@
     }
   },
   "see-the-triangles": {
+    "banner": "滚动拉远拉近。离得远时，胸像只需要更少、更大的三角形。",
     "controls": {
-      "mouse": "用滚轮拉远再拉近：离得远时，胸像需要更少、更大的三角形",
       "view": "视图",
       "pixelError": "像素误差",
       "sideBySide": "并排"
@@ -1363,8 +1393,8 @@
     }
   },
   "select-with-a-box": {
+    "banner": "拖一个框来选择。Shift 添加，Alt 移除。切到转身就能四处看。",
     "controls": {
-      "help": "选择：拖出一个框；Shift 添加，Alt 移除。转动：拖动来飞过花园",
       "mouse": "鼠标",
       "selectAll": "全选",
       "clear": "清除"
@@ -1380,8 +1410,8 @@
     }
   },
   "several-views-one-page": {
+    "banner": "拖动大画面来转动。小画面可以滚动和拖动。这样来缩放和平移，双击复位。",
     "controls": {
-      "mouse": "拖动大视图来转动它；在小视图上用滚轮和拖动来缩放和平移，双击复位",
       "explode": "拆开",
       "windFrom": "风从",
       "windSpeed": "风速"
@@ -1397,8 +1427,8 @@
     }
   },
   "shadows-from-the-sun": {
+    "banner": "拖动在花园里走。拖动时间，影子会转。",
     "controls": {
-      "mouse": "拖动来逛花园；拖动时间，每个影子都会转，方尖碑的尖顶在它的时刻石上走动",
       "hour": "时刻",
       "day": "日期",
       "latitude": "纬度",
@@ -1430,8 +1460,8 @@
     }
   },
   "shapes-cut-and-extruded": {
+    "banner": "拖动四处看看。把深度设为零，就能看到平平的形状。",
     "controls": {
-      "mouse": "拖动来环顾四周；深度为零时留下平平的剪纸形状",
       "depth": "深度",
       "bevel": "倒角",
       "bevelSize": "倒角大小",
@@ -1444,6 +1474,7 @@
     }
   },
   "shapes-on-a-turntable": {
+    "banner": "拖动四处看看。改变颜色和旋转。",
     "controls": {
       "colour": "颜色",
       "speed": "速度",
@@ -1451,8 +1482,8 @@
     }
   },
   "side-by-side-stereo": {
+    "banner": "拖动左边的图来转动。对眼，直到两个点变成一个。",
     "controls": {
-      "mouse": "在左边的图上拖动来转动；把眼睛往中间看，直到两个点变成一个",
       "viewing": "观看方式",
       "separation": "间距",
       "speed": "速度"
@@ -1469,8 +1500,8 @@
     }
   },
   "sky-and-ground-light": {
+    "banner": "拖动从下面和上面看。选一个地方，换掉它的天空。",
     "controls": {
-      "mouse": "拖动从下面和上面看；每个地方都用它的天空给顶面上色，用它的地面给底面上色",
       "place": "地点",
       "skyStrength": "天空强度",
       "sun": "太阳",
@@ -1492,8 +1523,8 @@
     }
   },
   "smooth-edges-over-time": {
+    "banner": "拖动看电线。关掉平滑，就会看到锯齿。",
     "controls": {
-      "mouse": "拖动来看电线；关掉平滑，看它们碎成台阶",
       "smoothing": "平滑",
       "circle": "环绕"
     },
@@ -1506,8 +1537,8 @@
     }
   },
   "snow-of-sprites": {
+    "banner": "拖动绕着小屋走。把雪变成暴风雪。",
     "controls": {
-      "mouse": "拖动来绕着小木屋走；把它变成暴风雪，雪花会变密并横着飞",
       "weather": "天气",
       "wind": "风"
     },
@@ -1523,8 +1554,8 @@
     }
   },
   "sound-made-visible": {
+    "banner": "点击舞台听一段旋律。拖动绕着舞台走：柱子是音高，珍珠是声波本身。",
     "controls": {
-      "mouse": "拖动来绕着舞台走；柱子是音高，珍珠是声波本身",
       "layout": "布局",
       "height": "高度",
       "playMelody": "播放旋律",
@@ -1539,20 +1570,20 @@
       }
     },
     "words": {
-      "hint": "点击舞台听一段旋律",
       "listening": "正在听麦克风：唱歌、吹口哨、拍手吧",
       "refused": "麦克风被拒绝了：改为播放旋律",
       "silence": "安静。点击舞台再听一次旋律"
     }
   },
   "spin-an-astrolabe": {
+    "banner": "拖动让它往任何方向转，倒过来也行。滚动来缩放。",
     "controls": {
-      "mouse": "拖动来往任何方向转它，倒过来也行 · 滚轮缩放",
       "turning": "旋转",
       "sun": "太阳"
     }
   },
   "street-lamp-at-night": {
+    "banner": "拖动四处看看。打开夜晚，点亮路灯。",
     "controls": {
       "night": "夜晚",
       "bounce": "反弹光",
@@ -1564,8 +1595,8 @@
     }
   },
   "ten-thousand-objects": {
+    "banner": "拖动绕着星球转。滚动进入岩石环。",
     "controls": {
-      "mouse": "拖动来绕着星球转；用滚轮钻进星环，直到一块岩石占满画面",
       "view": "视图",
       "pixelError": "像素误差",
       "drift": "漂移"
@@ -1589,8 +1620,8 @@
     }
   },
   "texture-filters-compared": {
+    "banner": "拖动沿着跑道看。每条跑道用自己的方式让画面变平滑。从左到右：最近点、线性、三线性、各向异性。",
     "controls": {
-      "mouse": "拖动来沿着跑道看；从左到右：最近点、线性、三线性、各向异性",
       "picture": "图片",
       "anisotropy": "各向异性"
     },
@@ -1605,8 +1636,8 @@
     }
   },
   "the-material-family": {
+    "banner": "拖动四处走走。把光调成夜晚，看看什么还在发光。",
     "controls": {
-      "mouse": "拖动来绕着这一家走；把光调成夜晚，看哪些种类还在发亮",
       "light": "光",
       "shape": "形状",
       "lookAt": "看向",
@@ -1657,8 +1688,8 @@
     }
   },
   "the-webcam-as-a-texture": {
+    "banner": "按下按钮来使用你的摄像头。拖动沿着墙看。",
     "controls": {
-      "mouse": "拖动来沿着墙看；只有按下按钮时才会请求你的摄像头",
       "useMyCamera": "使用我的摄像头",
       "layout": "布局",
       "mirror": "镜像"
@@ -1680,8 +1711,8 @@
     }
   },
   "toon-shading": {
+    "banner": "拖动绕着小岛转。把阴影换成卡通色带。",
     "controls": {
-      "mouse": "拖动来绕着小岛转；切换着色方式，看光分成一条条色带",
       "shading": "着色",
       "outlines": "轮廓",
       "sun": "太阳",
@@ -1696,8 +1727,8 @@
     }
   },
   "turn-toward-a-target": {
+    "banner": "拖动四处看看。打开指针来操控无人机。",
     "controls": {
-      "mouse": "拖动来环顾四周；打开指针，操控无人机，每个天线都会跟着转",
       "turn": "转动",
       "turnSpeed": "转动速度",
       "followPointer": "跟随指针"
@@ -1714,8 +1745,8 @@
     }
   },
   "two-lenses-one-scene": {
+    "banner": "拖动绕着小镇转。换一个镜头，看看街道。",
     "controls": {
-      "mouse": "拖动来绕着小镇转；换一个镜头，看街道变直",
       "lens": "镜头",
       "fieldOfView": "视野",
       "isometric": "等轴",
@@ -1736,8 +1767,8 @@
     }
   },
   "uvs-of-every-shape": {
+    "banner": "拖动四处看看。一个字母加一个数字给每个格子起名字。",
     "controls": {
-      "mouse": "拖动来环顾四周；一个字母和一个数字给图片的每一格起名字",
       "pattern": "图案",
       "repeat": "重复",
       "slide": "滑动",
@@ -1752,6 +1783,7 @@
     }
   },
   "walk-through-a-temple": {
+    "banner": "按开始，然后用 W A S D 跑，用空格跳。",
     "controls": {
       "keys": "引擎的角色控制：菜单里的“开始”会锁定鼠标用来看，W A S D 跑（AZERTY 键盘上是 Z Q S D），Shift 冲刺，空格跳，Esc 放开鼠标。这个页面还加了 R 重新跑，M 静音。",
       "look": "视角",
@@ -1778,8 +1810,8 @@
     }
   },
   "waves-of-points": {
+    "banner": "拖动绕着田野转。选一个图案来改变波浪。",
     "controls": {
-      "mouse": "拖动来绕着场地转；选一个图案，浮标下的波浪会改变形状",
       "pattern": "图案",
       "height": "高度",
       "speed": "速度"
@@ -1798,8 +1830,8 @@
     }
   },
   "what-hides-what": {
+    "banner": "拖动四处看看。树篱把金色的结藏了起来。",
     "controls": {
-      "mouse": "拖动来环顾四周；树篱把金色的结藏在死胡同尽头",
       "hedgeHeight": "树篱高度",
       "view": "视图",
       "aboveOrInside": "上方或里面"
@@ -1821,12 +1853,14 @@
     }
   },
   "zoom-down-the-colonnade": {
+    "banner": "按滑动变焦，看柱子被拉长。",
     "controls": {
       "fieldOfView": "视野",
       "dollyZoom": "滑动变焦"
     }
   },
   "openworld": {
+    "banner": "用 W A S D 走路。在汽车或飞机旁按 E 上去。",
     "controls": {
       "keys": "WASD 行走 · Shift 奔跑 · 空格 跳跃 · C 蹲下 · E 上下汽车或飞机",
       "teleport": "传送",

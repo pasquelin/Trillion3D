@@ -2,7 +2,7 @@ import type { Vec3 } from '../../../../../scripts/docs/examples/openworld/plan/c
 import type { GeometryLike, MeshLike, SkyEngine } from './engine.ts';
 import { createPool, spawn, step, type Pool } from './pool.ts';
 import type { Preset } from './presets.ts';
-import type { Random } from './random.ts';
+import type { Random } from '../../random.ts';
 import type { Wind } from './wind.ts';
 
 /**

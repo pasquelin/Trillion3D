@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, opening } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       const sand = material.meshStandard({ color: '#b59a73', roughness: 0.9 });
@@ -73,27 +73,18 @@
 
       // The automatic zoom runs until the viewer takes the camera: a press or a wheel on the canvas
       // stops it for good, and the button starts it again from wherever the viewer left the view.
-      let zooming = true, phase = 0, kept = spanned();
+      let phase = 0, kept = spanned();
+      const zoom = opening(world, (time) => place(51 - Math.cos(phase + time / 2) * 39, kept));
       function start() {
         kept = spanned();
         phase = Math.acos(Math.min(1, Math.max(-1, (51 - world.camera.fov) / 39)));
-        zooming = true;
-        world.invalidate();
+        zoom.restart();
       }
-      for (const type of ['pointerdown', 'wheel'])
-        world.canvas.addEventListener(type, () => (zooming = false), { passive: true });
-      controls({ fieldOfView: [12, 90, 50, 1], dollyZoom: () => (zooming ? (zooming = false) : start()) }, (values, key) => {
+      controls({ fieldOfView: [12, 90, 50, 1], dollyZoom: () => (zoom.gliding ? zoom.stop() : start()) }, (values, key) => {
         if (key !== 'fieldOfView') return;
-        zooming = false;
+        zoom.stop();
         place(values.fieldOfView);
       }, world);
-      world.onFrame(({ delta }) => {
-        if (!zooming) return;
-        // No longer than a tenth of a second a step: the first frame after a pause does not jump.
-        phase += Math.min(delta, 0.1) / 2;
-        place(51 - Math.cos(phase) * 39, kept);
-      });
-      place(12, kept);
     </script>
   </body>
 </html>

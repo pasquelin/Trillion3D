@@ -69,25 +69,6 @@
         opacity: 1;
         transition: opacity 0.18s;
       }
-      #banner {
-        top: 38%;
-        left: 50%;
-        width: calc(100% - 32px);
-        transform: translate(-50%, -50%);
-        text-align: center;
-        text-shadow: 0 2px 8px #000;
-        transition: opacity 0.4s;
-      }
-      #banner b {
-        display: block;
-        font-size: 56px;
-        color: #ffd27a;
-      }
-      #banner span {
-        display: block;
-        margin-top: 6px;
-        font-size: 18px;
-      }
     </style>
   </head>
   <body>
@@ -95,10 +76,9 @@
     <div id="hud" class="layer" data-example-overlay data-hud><span id="orbs"></span><span id="clock"></span><span id="sound" data-words="sound"></span></div>
     <div id="dot" class="layer" data-example-overlay data-hud></div>
     <div id="veil" class="layer" data-example-overlay></div>
-    <div id="banner" class="layer" data-example-overlay data-hud></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, play, words } from '../runtime/kit.js';
+      import { announce, brownNoise, controls, mix, play, sineHash, whiteNoise, words } from '../runtime/kit.js';
       const say = words();
 
       // ── The course: data, nothing of the engine inside. The temple is built at life size, in
@@ -130,7 +110,6 @@
       // points outward. The field of view and the aspect turn it into a point, so a hand only
       // ever shows at the sides of any screen.
       const ARM = { SHOULDER: [0.19, -0.3, 0.06], UPPER: 0.3, FORE: 0.27, HAND: 0.075 };
-      const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
       const along = (a, b, k = 1) => a.map((value, i) => value + b[i] * k);
       const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
       const unit = (a) => along([0, 0, 0], a, 1 / Math.hypot(...a));
@@ -234,8 +213,6 @@
       // the lamps and the ornaments are not in it.
       const solid = object.group();
       world.scene.add(solid);
-      // A fixed scatter (a sine hash): the same temple on every visit.
-      const hash = (index, k) => { const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
 
       // The lava: an orange-red glow that cools in crusts — low rounded lumps of dark red-brown
       // that still smoulder, smaller and fewer near the course — split by bright yellow cracks.
@@ -245,13 +222,13 @@
       const crust = material.meshStandard({ color: '#4a2418', roughness: 0.95, emissive: '#5c1606', emissiveIntensity: 0.7 });
       const seam = geometry.capsule(0.05, 1, 2, 8), crack = glowing('#ffc45c', 4);
       for (let index = 0; index < 48; index++) {
-        const [u, v, w] = [1, 2, 3].map((k) => hash(index, k)), x = u * 25 - 12.5, near = Math.abs(x) < 5;
+        const [u, v, w] = [1, 2, 3].map((k) => sineHash(index, k)), x = u * 25 - 12.5, near = Math.abs(x) < 5;
         if (near && index % 2) continue;
         const size = (near ? 0.45 : 1) * (0.8 + w * 2);
         part(ball, crust, [x, PIT, v * 57 - 43.5], world.scene, [size, 0.16 + 0.1 * w, size * (0.6 + u * 0.8)]).rotation.y = w * 3;
       }
       for (let index = 0; index < 18; index++) {
-        const [u, v, w] = [8, 9, 10].map((k) => hash(index, k));
+        const [u, v, w] = [8, 9, 10].map((k) => sineHash(index, k));
         part(seam, crack, [u * 25 - 12.5, PIT + 0.01, v * 57 - 43.5], world.scene, [0.6 + w * 0.6, 0.8 + w * 1.6, 1.4]).rotation.set(0, w * 6, Math.PI / 2);
       }
       for (const [x, z] of [[-3, 6], [3, -6], [-3, -18], [3, -30], [-3, -40]])
@@ -259,7 +236,7 @@
       // Embers climbing out of the lava: small glowing beads, moved every frame.
       const ember = glowing('#ff8a2a', 5), bead = geometry.sphere(0.05, 8, 6);
       const embers = Array.from({ length: 40 }, (_, index) => ({
-        mesh: put(bead, ember, [0, PIT, 0]), x: hash(index, 4) * 24 - 12, z: hash(index, 5) * 56 - 43, rise: 0.6 + hash(index, 6), at: hash(index, 7) * 14,
+        mesh: put(bead, ember, [0, PIT, 0]), x: sineHash(index, 4) * 24 - 12, z: sineHash(index, 5) * 56 - 43, rise: 0.6 + sineHash(index, 6), at: sineHash(index, 7) * 14,
       }));
       // The walls: dark ashlar on a base course, and a colonnade before each — marble shafts on
       // plinths under capitals, an architrave, a pilaster behind each shaft and an arch of three
@@ -429,13 +406,8 @@
         master = audio.createGain();
         master.gain.value = muted || !game.running ? 0 : 0.8;
         master.connect(audio.destination);
-        noise = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
-        const deep = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
-        const [white, brown] = [noise.getChannelData(0), deep.getChannelData(0)];
-        for (let i = 0, last = 0; i < white.length; i++) {
-          white[i] = Math.random() * 2 - 1;
-          brown[i] = last = (last + 0.02 * white[i]) / 1.02;
-        }
+        noise = whiteNoise(audio, 2);
+        const deep = brownNoise(audio, 2);
         const source = audio.createBufferSource(), filter = audio.createBiquadFilter();
         [source.buffer, source.loop, filter.type, filter.frequency.value] = [deep, true, 'lowpass', 160];
         rumble = audio.createGain();
@@ -491,7 +463,7 @@
       // ── The heads-up display and the keys. Walking, sprinting and jumping are the controller's;
       // the page adds R and M.
       const $ = (id) => document.getElementById(id);
-      const [hud, orbsShown, clockShown, soundShown, veil, banner] = ['hud', 'orbs', 'clock', 'sound', 'veil', 'banner'].map($);
+      const [hud, orbsShown, clockShown, soundShown, veil] = ['hud', 'orbs', 'clock', 'sound', 'veil'].map($);
       const KEYS = [
         { action: 'run', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
         { action: 'look', keys: ['Mouse'] },
@@ -501,10 +473,6 @@
         { action: 'sound', keys: ['M'] },
         { action: 'pause', keys: ['Esc'] },
       ];
-      function announce(title, line = '') {
-        banner.style.opacity = title ? 1 : 0;
-        if (title) banner.innerHTML = `<b>${title}</b><span>${line}</span>`;
-      }
       // R and M are letters, not places: read by the character they type on any layout.
       addEventListener('keydown', (event) => {
         if (event.repeat) return;
@@ -553,17 +521,21 @@
         camera.lookAt(IDOL.x, eye - 0.35, IDOL.z);
         locate();
       }
-      function restart() {
+      // A run again clears the banner; the first run leaves it the line of what to do.
+      function reset() {
         [state, checkpoint, started, finished, taken] = ['run', checkpoints[0], null, null, 0];
         checkpoints.forEach((entry, index) => lit(entry, index === 0));
         for (const { orb } of orbs) orb.visible = true;
         Object.assign(world.controls, PACE);
         spawn(checkpoint.platform);
         veil.classList.remove('on');
-        announce('');
         world.invalidate();
       }
-      restart();
+      function restart() {
+        reset();
+        announce('');
+      }
+      reset();
       controls({
         keys: 'The engine\'s character control: the menu\'s Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.',
         look: [0.5, 3, 1],
