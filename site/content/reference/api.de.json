@@ -460,7 +460,7 @@
     "description": "`memory(world)` ist das, was die Welt jetzt hält (`world.budget`); die beiden Reservoirs bauen die Einstellung, die eine Welt annimmt."
   },
   "budget.memory": {
-    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die beiden Reservoirs und das Maximum jedes einzelnen."
+    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die GPU- und CPU-Summen, ihre Aufteilung nach der Regel, beide Pools und die Obergrenze jedes Pools."
   },
   "budget.geometryPool": {
     "summary": "Eine Reservoir-Einstellung für Geometrie von `bytes`, bereit, einer Welt gegeben zu werden.",
@@ -6334,10 +6334,13 @@
     "members": {
       "geometryPoolCeiling": "Die größten Reservoirs, die eine Welt anfordern kann: die Startbudgets der Engine.",
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
-      "geometryPool": "GPU-Speicher-Bytes, die für Geometrieseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
-      "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
+      "geometryPool": "Bytes GPU-Speicher für Geometrieseiten; setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Textur-Pool lässt.",
+      "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Geometrie-Pool lässt.",
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
-      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern."
+      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
+      "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Nie von der Maschine gelesen.",
+      "cpu": "Bytes CPU-Speicher, die die dekodierten Seiten der Welt halten dürfen; beim nächsten Laden einer Szene übernommen.",
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Cache dekodierter Seiten nimmt die CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {
@@ -7394,12 +7397,6 @@
       "slider": "Eine Schiene entlang `axis`: eine Schublade, ein Kolben. `limits` in Metern.",
       "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
       "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
-    }
-  },
-  "JointHost": {
-    "summary": "Die Weltseite eines Gelenks: was ein Schreiben darauf von der Simulation verlangt.",
-    "members": {
-      "motor": "Der Motor hat sich geändert."
     }
   }
 }

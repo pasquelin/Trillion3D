@@ -2897,8 +2897,8 @@
         "packages/sdk-browser/src/frame/costAudit.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.ts",
         "packages/sdk-browser/src/world/core/worldFrames.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/core/worldSession.ts",
         "packages/sdk-browser/src/world/diagnostic/frameDiagnostic.test.ts",
@@ -4266,17 +4266,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".Joint"
     },
     {
-      "name": "JointHost",
-      "kind": "type",
-      "definingModule": "packages/sdk-core/src/physics/joint.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointHost"
-    },
-    {
       "name": "JointKind",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/physics/joint.ts",
@@ -4453,7 +4442,6 @@
       "affectedConsumers": [
         "bench/oracles/browser/core-math-shadows.ts",
         "bench/oracles/browser/gpuLightTileColumnOracle.ts",
-        "packages/sdk-browser/src/gpu/dag/lightCutRedraws.ts",
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/atlas.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
@@ -5325,6 +5313,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/joints.ts",
         "packages/sdk-browser/src/visibility/shader/shadingNormal.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts",
         "scripts/ltc-fit.ts"
@@ -6066,7 +6055,7 @@
         "packages/sdk-browser/src/physics/tickResults.ts",
         "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts"
+        "packages/sdk-browser/src/world/core/worldBudget.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsBudget"

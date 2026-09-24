@@ -4291,7 +4291,7 @@
     }
   },
   "budget.memory": {
-    "summary": "Các ngân sách bộ nhớ mà một thế giới đang giữ ngay bây giờ: cả hai bể và mức lớn nhất mà mỗi bể có thể lớn tới."
+    "summary": "Ngân sách bộ nhớ thế giới đang giữ: tổng GPU và CPU, cách chia theo quy tắc, hai pool và mức tối đa của mỗi pool."
   },
   "budget.texturePool": {
     "summary": "Một cài đặt bể kết cấu có `bytes`, sẵn sàng trao cho một thế giới.",
@@ -6595,10 +6595,13 @@
     "members": {
       "geometryPoolCeiling": "Các bể lớn nhất mà một thế giới có thể yêu cầu: các ngân sách khởi đầu của bộ máy.",
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
-      "geometryPool": "Số byte bộ nhớ GPU giữ cho các trang hình học; đặt nó để thay đổi phong bì.",
-      "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì.",
+      "geometryPool": "Số byte bộ nhớ GPU dành cho trang hình học; đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng và pool kết cấu.",
+      "texturePool": "Số byte bộ nhớ GPU dành cho trang kết cấu, `null` trên engine không có pool kết cấu (WebGL2); đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng và pool hình học.",
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
-      "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn."
+      "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
+      "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Không bao giờ đọc từ máy.",
+      "cpu": "Số byte bộ nhớ CPU mà các trang đã giải mã của thế giới được giữ; áp dụng ở lần tải cảnh kế tiếp.",
+      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bộ đệm trang đã giải mã lấy tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {
@@ -7395,12 +7398,6 @@
       "slider": "Một ray dọc theo `axis`: ngăn kéo, pít-tông. `limits` tính bằng mét.",
       "distance": "Giữ `anchor` trên `a` và `anchorB` trên `b` cách nhau đúng độ dài, hoặc trong `limits`.",
       "cone": "Một khớp cầu có `axis` đung đưa trong hình nón nửa góc `limits.max`."
-    }
-  },
-  "JointHost": {
-    "summary": "Phía thế giới của một khớp: điều mà một lần ghi vào nó yêu cầu mô phỏng.",
-    "members": {
-      "motor": "Động cơ đã thay đổi."
     }
   }
 }
