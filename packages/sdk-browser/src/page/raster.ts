@@ -13,7 +13,7 @@ import type { PageRec } from './selection/selection.ts';
 import type { PageSurface } from './surface.ts';
 import { rasterTriangle, type RasterTarget } from './rasterFill.ts';
 import { resolveCameraWorld, type HostCamera } from '../camera/world.ts';
-import { drawnRanges, submittedDraws } from '../cluster/batchMesh.ts';
+import { drawnRanges, drawWorld, submittedDraws } from '../cluster/batchMesh.ts';
 
 export const RASTER_BACKGROUND = 0x171d28;
 const BACKGROUND = RASTER_BACKGROUND;
@@ -79,7 +79,7 @@ export function rasterPageRecords(
   for (const draw of submittedDraws(backend)) {
     const index = draw.geometry.index,
       position = draw.geometry.attributes.position,
-      world = draw.matrix.elements,
+      world = drawWorld(draw),
       rgb = colorOf(draw.material),
       vertex = (i: number) => (index ? index.array[i] : i);
     for (const [first, length] of drawnRanges(draw))
