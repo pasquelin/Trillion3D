@@ -73,7 +73,10 @@ async function streamed(file: object, triangles = DEFAULT_PHYSICS_BUDGET.triangl
   const added: BodyRecord[] = [];
   const add = writer.add.bind(writer);
   // The pose is scratch the streamer reuses: copied as it goes by.
-  writer.add = (record) => (added.push({ ...record, position: [...record.position] }), add(record));
+  writer.add = (record) => (
+    added.push({ ...record, position: Array.from(record.position) }),
+    add(record)
+  );
   const { state } = createPhysicsPoses(budget.bodies, scene);
   const bodies = createPhysicsBodies(writer, budget, {} as PhysicsHost, scene, state);
   const errors: { code: string }[] = [];
@@ -95,7 +98,16 @@ async function streamed(file: object, triangles = DEFAULT_PHYSICS_BUDGET.triangl
   await new Promise((resolve) => setTimeout(resolve, 10));
   const hit = new Uint32Array(HIT_WORDS);
   const session = { cast: async () => hit, objectOf: tiles.modelOf, materialOf: tiles.materialOf };
-  return { tiles, model, added, errors, fetched, bodies, hit, session: session as PhysicsSession };
+  return {
+    tiles,
+    model,
+    added,
+    errors,
+    fetched,
+    bodies,
+    hit,
+    session: session as unknown as PhysicsSession,
+  };
 }
 
 /** A two-triangle tile at `x` along its collider. */
