@@ -319,7 +319,8 @@
       "hands-in-vr": "VR'da eller",
       "teleport-in-vr": "VR'da ışınlanmak",
       "controllers-in-vr": "VR'da kumandalar",
-      "ar-on-the-table": "Masada AR"
+      "ar-on-the-table": "Masada AR",
+      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU'da köşe başına renkler",
@@ -482,7 +483,6 @@
       "breaking-things": "bir fizik motoru entegrasyonu",
       "cloth-and-rope": "bir fizik motoru entegrasyonu",
       "soft-bodies": "bir fizik motoru entegrasyonu",
-      "rolling-on-terrain": "bir fizik motoru entegrasyonu",
       "hinges-and-joints": "bir fizik motoru entegrasyonu",
       "walk-with-collisions": "bir fizik motoru entegrasyonu",
       "drive-a-car": "bir fizik motoru entegrasyonu",

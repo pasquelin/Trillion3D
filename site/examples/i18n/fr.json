@@ -1907,5 +1907,36 @@
         "1000": "1 000"
       }
     }
+  },
+  "rolling-on-terrain": {
+    "banner": "Cliquez sur le sol pour y lâcher une balle. Pluie en lâche vingt de plus.",
+    "controls": {
+      "matter": "Matière",
+      "rain": "Pluie"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    },
+    "choices": {
+      "matter": {
+        "rubber": "caoutchouc",
+        "stone": "pierre",
+        "ice": "glace"
+      }
+    }
+  },
+  "a-walker-among-balls": {
+    "banner": "Le marcheur fait le tour de la salle et pousse les balles. Balles en ajoute vingt.",
+    "controls": {
+      "walking": "Marche",
+      "balls": "Balles"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "awake": "Éveillés",
+      "step": "Pas"
+    }
   }
 }

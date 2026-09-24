@@ -319,7 +319,8 @@
       "hands-in-vr": "VR里的手",
       "teleport-in-vr": "在VR中传送",
       "controllers-in-vr": "VR手柄",
-      "ar-on-the-table": "桌上的AR"
+      "ar-on-the-table": "桌上的AR",
+      "a-walker-among-balls": "球堆里的行走者"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU上的逐顶点颜色",
@@ -482,7 +483,6 @@
       "breaking-things": "物理引擎集成",
       "cloth-and-rope": "物理引擎集成",
       "soft-bodies": "物理引擎集成",
-      "rolling-on-terrain": "物理引擎集成",
       "hinges-and-joints": "物理引擎集成",
       "walk-with-collisions": "物理引擎集成",
       "drive-a-car": "物理引擎集成",

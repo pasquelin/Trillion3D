@@ -319,7 +319,8 @@
       "hands-in-vr": "VRの中の手",
       "teleport-in-vr": "VRの中でテレポートする",
       "controllers-in-vr": "VRのコントローラー",
-      "ar-on-the-table": "テーブルの上のAR"
+      "ar-on-the-table": "テーブルの上のAR",
+      "a-walker-among-balls": "ボールの中を歩く人"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPUでの頂点カラー",
@@ -482,7 +483,6 @@
       "breaking-things": "物理エンジンとの連携",
       "cloth-and-rope": "物理エンジンとの連携",
       "soft-bodies": "物理エンジンとの連携",
-      "rolling-on-terrain": "物理エンジンとの連携",
       "hinges-and-joints": "物理エンジンとの連携",
       "walk-with-collisions": "物理エンジンとの連携",
       "drive-a-car": "物理エンジンとの連携",

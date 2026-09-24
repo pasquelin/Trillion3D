@@ -319,7 +319,8 @@
       "hands-in-vr": "Руки в VR",
       "teleport-in-vr": "Телепорт в VR",
       "controllers-in-vr": "Контроллеры в VR",
-      "ar-on-the-table": "AR на столе"
+      "ar-on-the-table": "AR на столе",
+      "a-walker-among-balls": "Ходок среди мячей"
     },
     "missing": {
       "colours-on-the-vertices": "цвета по вершинам в WebGPU",
@@ -482,7 +483,6 @@
       "breaking-things": "интеграция физического движка",
       "cloth-and-rope": "интеграция физического движка",
       "soft-bodies": "интеграция физического движка",
-      "rolling-on-terrain": "интеграция физического движка",
       "hinges-and-joints": "интеграция физического движка",
       "walk-with-collisions": "интеграция физического движка",
       "drive-a-car": "интеграция физического движка",

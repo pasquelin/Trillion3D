@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Rolling on terrain</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      // A compiled valley: its collision was cooked with it — a height field for the grid, tiles
+      // for the boulders — and the physics streams it in on its own once it is on.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#cfe0ee');
+      world.camera.far = 400;
+      await world.scene.load('../assets/examples/terrain/cache/native/full/manifest.json');
+
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      sun.position.set(40, 60, 20);
+      world.scene.add(
+        sun,
+        light.hemisphere({ intensity: 1.1, color: '#ffffff', groundColor: '#6d7a5a' }),
+      );
+      world.camera.position.set(70, 45, 70);
+      world.controls.target.set(0, 0, 0);
+
+      const matters = {
+        rubber: material.meshStandard({ color: '#d0453f', roughness: 0.5, physics: 'rubber' }),
+        stone: material.meshStandard({ color: '#8f8a83', roughness: 0.9, physics: 'stone' }),
+        ice: material.meshStandard({ color: '#a9d8f0', roughness: 0.1, physics: 'ice' }),
+      };
+      const ball = geometry.sphere(1, 24, 16),
+        next = seeded(5),
+        balls = [];
+      const drop = (x, y, z, matter) => {
+        const body = object.mesh(ball, matters[matter]);
+        body.position.set(x, y, z);
+        body.castShadow = true;
+        // A dynamic body: a sphere read from the geometry, rolling on the cooked ground.
+        body.physics = 'dynamic';
+        world.scene.add(body);
+        balls.push(body);
+      };
+      const rain = () => {
+        for (let i = 0; i < 20; i++)
+          drop((next() - 0.5) * 100, 30, (next() - 0.5) * 100, settings.matter);
+      };
+      const settings = controls({ matter: ['rubber', 'stone', 'ice'], rain }, () => {}, world);
+      rain();
+
+      // A click asks the physics where the ray meets the ground: the exact cooked surface, not the
+      // model's box. A ball is dropped two metres above that point.
+      document.getElementById('view').addEventListener('pointerdown', async (event) => {
+        const hit = await world.raycast({ x: event.offsetX, y: event.offsetY }, { exact: true });
+        if (hit) drop(hit.point.x, hit.point.y + 2, hit.point.z, settings.matter);
+      });
+
+      const bodies = readout('bodies'),
+        awake = readout('awake'),
+        step = readout('step');
+      world.onFrame(() => {
+        const s = world.physics.stats;
+        bodies(String(s.bodies));
+        awake(String(s.active));
+        step(`${s.stepMs.toFixed(2)} ms`);
+      });
+    </script>
+  </body>
+</html>

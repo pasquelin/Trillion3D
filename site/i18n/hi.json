@@ -1478,7 +1478,8 @@
       "hands-in-vr": "VR में हाथ",
       "teleport-in-vr": "VR में टेलीपोर्ट",
       "controllers-in-vr": "VR में नियंत्रक",
-      "ar-on-the-table": "मेज़ पर AR"
+      "ar-on-the-table": "मेज़ पर AR",
+      "a-walker-among-balls": "गेंदों के बीच चलने वाला"
     },
     "missing": {
       "colours-on-the-vertices": "WebGPU पर प्रति-वर्टेक्स रंग",
@@ -1641,7 +1642,6 @@
       "breaking-things": "फ़िज़िक्स इंटीग्रेशन",
       "cloth-and-rope": "फ़िज़िक्स इंटीग्रेशन",
       "soft-bodies": "फ़िज़िक्स इंटीग्रेशन",
-      "rolling-on-terrain": "फ़िज़िक्स इंटीग्रेशन",
       "hinges-and-joints": "फ़िज़िक्स इंटीग्रेशन",
       "walk-with-collisions": "फ़िज़िक्स इंटीग्रेशन",
       "drive-a-car": "फ़िज़िक्स इंटीग्रेशन",

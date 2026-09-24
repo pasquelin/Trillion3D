@@ -1478,7 +1478,8 @@
       "hands-in-vr": "Tangan dalam VR",
       "teleport-in-vr": "Teleport dalam VR",
       "controllers-in-vr": "Kontroler dalam VR",
-      "ar-on-the-table": "AR di atas meja"
+      "ar-on-the-table": "AR di atas meja",
+      "a-walker-among-balls": "Pejalan di antara bola"
     },
     "missing": {
       "colours-on-the-vertices": "warna per-vertex di WebGPU",
@@ -1641,7 +1642,6 @@
       "breaking-things": "integrasi fisika",
       "cloth-and-rope": "integrasi fisika",
       "soft-bodies": "integrasi fisika",
-      "rolling-on-terrain": "integrasi fisika",
       "hinges-and-joints": "integrasi fisika",
       "walk-with-collisions": "integrasi fisika",
       "drive-a-car": "integrasi fisika",
