@@ -2956,7 +2956,10 @@
       "pose": "Um nó se moveu.",
       "structure": "Um nó ganhou ou perdeu filhos.",
       "content": "A forma ou o material de um nó mudou.",
-      "posed": "Muitos nós moveram-se de uma vez, escritos diretamente na sua árvore (os corpos da física): avisado uma vez."
+      "posed": "Muitos nós moveram-se de uma vez, escritos diretamente na sua árvore (os corpos da física): avisado uma vez.",
+      "seat": "A linha de onde o nó é desenhado, ou `null`: dezesseis floats por coluna a partir de `row * 16` em `batch.rows.matrices`, lidos no lugar pelo renderizador. Quem posiciona nós aos milhares (a física) escreve ali as matrizes de mundo, válidas enquanto `seatEpoch` não mudar, e indica as linhas escritas com `placed`.",
+      "seatEpoch": "Muda sempre que uma linha é ocupada, liberada ou realocada: toda resposta anterior de `seat` fica obsoleta.",
+      "placed": "As linhas `from` a `to` de `batch` foram escritas via `seat`: desenhadas no próximo quadro."
     }
   },
   "SceneNode": {

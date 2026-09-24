@@ -3037,7 +3037,10 @@
       "pose": "Một node đã di chuyển.",
       "structure": "Một node được thêm hoặc mất con.",
       "content": "Hình dạng hoặc vật liệu của một node đã thay đổi.",
-      "posed": "Nhiều nút di chuyển cùng lúc, ghi thẳng vào cây của chúng (các vật thể vật lý): báo một lần."
+      "posed": "Nhiều nút di chuyển cùng lúc, ghi thẳng vào cây của chúng (các vật thể vật lý): báo một lần.",
+      "seat": "Hàng mà nút được vẽ từ đó, hoặc `null`: mười sáu số thực theo cột bắt đầu tại `row * 16` của `batch.rows.matrices`, được bộ vẽ đọc tại chỗ. Bên đặt nút theo hàng nghìn (vật lý) tự ghi ma trận thế giới vào đó, hợp lệ khi `seatEpoch` chưa đổi, và báo các hàng đã ghi qua `placed`.",
+      "seatEpoch": "Thay đổi mỗi khi một hàng được lấy, giải phóng hoặc cấp lại: mọi câu trả lời trước đó của `seat` đều cũ.",
+      "placed": "Các hàng `from` đến `to` của `batch` đã được ghi qua `seat`: vẽ ở khung hình tiếp theo."
     }
   },
   "SceneNode": {

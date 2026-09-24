@@ -5197,7 +5197,10 @@
       "pose": "Un nodo se ha movido.",
       "structure": "Un nodo ha ganado o perdido hijos.",
       "content": "La forma o el material de un nodo ha cambiado.",
-      "posed": "Muchos nodos se movieron a la vez, escritos directamente en su árbol (los cuerpos de la física): avisado una vez."
+      "posed": "Muchos nodos se movieron a la vez, escritos directamente en su árbol (los cuerpos de la física): avisado una vez.",
+      "seat": "La fila desde la que se dibuja el nodo, o `null`: dieciséis flotantes por columnas desde `row * 16` en `batch.rows.matrices`, leídos en su sitio por el renderizador. Quien coloca nodos por miles (la física) escribe ahí sus matrices de mundo, válidas mientras `seatEpoch` no cambie, y nombra las filas escritas con `placed`.",
+      "seatEpoch": "Cambia cuando una fila se ocupa, se libera o se reasigna: toda respuesta anterior de `seat` queda obsoleta.",
+      "placed": "Las filas `from` a `to` de `batch` se escribieron mediante `seat`: se dibujan en el siguiente fotograma."
     }
   },
   "SceneNode": {

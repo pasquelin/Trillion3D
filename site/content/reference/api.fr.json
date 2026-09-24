@@ -5205,7 +5205,10 @@
       "pose": "Un nœud a bougé.",
       "structure": "Un nœud a gagné ou perdu des enfants.",
       "content": "La forme ou le matériau d’un nœud a changé.",
-      "posed": "Plusieurs nœuds ont bougé d’un coup, écrits directement dans leur arbre (les corps de la physique) : dit une seule fois."
+      "posed": "Plusieurs nœuds ont bougé d’un coup, écrits directement dans leur arbre (les corps de la physique) : dit une seule fois.",
+      "seat": "La ligne d’où le nœud est dessiné, ou `null` : seize flottants par colonne à `row * 16` de `batch.rows.matrices`, lus sur place par le rendu. Un propriétaire qui place des nœuds par milliers (la physique) y écrit lui-même leurs matrices monde, tant que `seatEpoch` tient, et nomme les lignes écrites par `placed`.",
+      "seatEpoch": "Change dès qu’une ligne est prise, libérée ou réallouée : toute réponse de `seat` antérieure est périmée.",
+      "placed": "Les lignes `from` à `to` de `batch` ont été écrites par `seat` : dessinées à la prochaine image."
     }
   },
   "SceneNode": {
