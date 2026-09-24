@@ -17,7 +17,7 @@ export function floater(
   id: number,
   position: number[],
   density: number,
-  shape: Pick<BodyRecord, 'shape' | 'size' | 'parts'>,
+  shape: Pick<BodyRecord, 'shape' | 'size'> & Partial<Pick<BodyRecord, 'parts'>>,
 ): BodyRecord {
   return {
     id: id | (1 << 24),
