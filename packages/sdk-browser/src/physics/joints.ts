@@ -107,10 +107,11 @@ export function createPhysicsJoints(
     generation[index] = ((generation[index] ?? 0) + 1) % GENERATIONS;
     const id = index | (generation[index] << GENERATION_SHIFT);
     const { limits, spring } = joint.options;
-    // A distance keeps its length, or stays within the limits from 0; the others have none.
+    // A distance keeps its length, or stays within the limits from 0 up to its length, or up to
+    // the minimum when that is further; the others have none.
     const distance = joint.kind === 'distance';
     const min = limits?.min ?? (!distance ? -Infinity : limits ? 0 : frames.length);
-    const max = limits?.max ?? (distance ? frames.length : Infinity);
+    const max = limits?.max ?? (distance ? Math.max(min, frames.length) : Infinity);
     writer.joint({
       id,
       kind: JOINT[joint.kind],
