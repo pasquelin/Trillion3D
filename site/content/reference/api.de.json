@@ -1578,6 +1578,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "BATCHED_WORLD_VIEW": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "RAYCAST_NO_VIEW": "Ein Bildpunkt wurde von einem Canvas ohne Größe verlangt: Es gibt kein Bild, durch das man zielen kann.",
+      "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden, aus einem Grund ohne eigenen Code (`world.diagnostic.error`): Der geworfene Fehler steht in `details.cause`.",
+      "WEBGPU_LOST": "WebGPU hat sein Gerät verloren, oder ein Fehler darauf hat einen Zustand hinterlassen, aus dem nichts zeichnen kann: geworfen von `render`, `flush` und den Lesevorgängen, die das Gerät brauchen, benannt durch die Diagnose `gpu-device-lost`, und in `world.diagnostic.error`, wenn sich deshalb eine Sitzung nicht öffnen ließ.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann."
     }
@@ -6392,10 +6394,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Was die Seite hält: der Modus, lesbar und schreibbar.",
+    "summary": "Was die Seite hält: der Ansichtsmodus, lesbar und schreibbar; die geöffneten Sitzungen und warum die letzte scheiterte, nur lesbar.",
     "members": {
       "mode": "Der Ansichtsmodus: `'beauty'` für das normale Bild, oder ein Modus, der zeigt, wie die Engine arbeitet.",
       "sessions": "Sitzungen, die die Welt bisher geöffnet hat: Eine Änderung, die eine wieder öffnet, zeigt sich hier.",
+      "error": "Warum sich die letzte Sitzung nicht öffnen ließ, als benannter Engine-Fehler: Sein `code` ist einer der auf `EngineError` dokumentierten (`WEBGPU_LOST`, wenn WebGPU sein Gerät verloren hat), oder `SESSION_OPEN_FAILED` für einen Grund ohne eigenen. Ein `EngineError` mit dokumentiertem Code ist der geworfene selbst; jeder andere Fehler wird umgewandelt, und der geworfene Fehler steht dann in `details.cause`. `null` ab dem Beginn jeder Öffnung, und wenn nichts versucht wird.",
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },
