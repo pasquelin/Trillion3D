@@ -11957,8 +11957,8 @@
       },
       {
         "name": "background",
-        "type": "Color | Texture | null",
-        "desc": "What fills the image behind every object: a colour, a picture, or `null` for the default."
+        "type": "Color | null",
+        "desc": "What fills the image behind every object: a colour, or `null` for the default. A change — set, or written in place (`background.setHSL(...)`) — shows at the next frame, the session kept. A picture is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
