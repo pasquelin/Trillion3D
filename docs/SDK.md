@@ -932,6 +932,20 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
   point.
+- **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
+  bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
+  puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
+  taken out with either, and made again when the body returns. `anchor` (where they connect; the
+  end on `a` for a distance, `anchorB` the end on `b`) and `axis` (the hinge's pin, the slider's
+  rail, the cone's middle) are world points read when the joint is first made, then kept in each
+  body's frame. `limits: { min, max }` stop it — radians for a hinge (−π to π), metres for a slider
+  or a distance (whose default is its length), the half angle `max` for a cone —; `spring:
+{ frequency, damping }` makes the stop of a hinge, slider or distance soft. `motor: { mode:
+'velocity' | 'position', target, maxForce }` drives a hinge or a slider, the position measured
+  from where the joint was made; `j.motor` changes it at any time. `breakForce` is the pull in
+  newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is
+  called, and the bodies part. A tuning a kind lacks (a motor on a fixed joint) throws
+  `RangeError`. Live example: [hinges and joints](../site/examples/hinges-and-joints.html).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
