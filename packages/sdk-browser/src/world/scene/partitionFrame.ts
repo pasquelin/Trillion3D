@@ -1,7 +1,8 @@
 /**
- * The session's side of a partitioned scene (#404): the cells its first camera needs are read and
- * placed before the engines read the rows (`primePartitions`), and before every frame the cells
- * follow the camera through the session's streamer and active engine (`createPartitionFrame`).
+ * The session's side of a partitioned scene (#404): the rows are sized for its camera's reach and
+ * the cells that camera needs are read and placed before the engines read the rows
+ * (`primePartitions`), and before every frame the cells follow the camera through the session's
+ * streamer and active engine (`createPartitionFrame`).
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../scene/partition/plan.ts`).
  */
@@ -22,8 +23,8 @@ function eyeOf(camera: HostCamera) {
 }
 
 /**
- * Reads and places the cells `camera` needs, each through the streamer at the head of its queue;
- * resolves with the bytes read.
+ * Sizes the rows for `camera`'s reach, then reads and places the cells it needs, each through the
+ * streamer at the head of its queue; resolves with the bytes read.
  */
 export async function primePartitions(
   partitions: readonly PartitionCells[],
@@ -43,8 +44,8 @@ type Inputs = {
   streamer: Streamer;
   camera: HostCamera;
   active: () => RenderBackend;
-  /** Asked when rows must grow and the active engine cannot grow them in place: the owner opens
-   *  the session again on the grown rows. Absent, the cell waits. */
+  /** Asked once the camera's reach outgrew the rows sized at open: the owner opens the session
+   *  again, sized for it. Absent, a cell past those rows waits. */
   renew?: () => void;
 };
 
@@ -59,16 +60,13 @@ export function createPartitionFrame(inputs: Inputs) {
   };
   return () => {
     const backend = active();
-    const grow = backend.growPlacements
-      ? backend.growPlacements.bind(backend)
-      : renew && ((): void => renew());
     const io = {
       bytes: (url: string) => streamer.getBytes(url),
       loading: (url: string) => streamer.loading(url),
       request,
       update: (...range: Parameters<NonNullable<RenderBackend['updatePlacements']>>) =>
         backend.updatePlacements?.(...range),
-      grow,
+      outgrown: renew,
     };
     const reach = cellReach(camera);
     const eye = eyeOf(camera);

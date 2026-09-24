@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
+import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { GraphGroup } from '../../host/graph/mesh.ts';
 import { createPartitionCells, type PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { createPageStreamer } from '../../streaming/pages.ts';
-import { createPartitionFrame } from './partitionFrame.ts';
+import { createPartitionFrame, primePartitions } from './partitionFrame.ts';
 
 type Io = Parameters<PartitionCells['frame']>[2];
 
@@ -69,7 +69,13 @@ test('a frame reads the cells within the far plane of its camera, visible first 
 test('a pebble far below any error target is read while the far plane lets it be drawn', () => {
   // Nothing coarser stands for an unread cell before #23: a small object within the far plane is
   // read whatever it projects to, or it would be missing from the image for good.
-  const pebble = { url: 'pebble.json', sha256: '', bytes: 1, nodes: 1, size: 0.01 };
+  const pebble = {
+    url: 'pebble.json',
+    sha256: '',
+    bytes: 1,
+    meshes: [[0, 1] as const],
+    size: 0.01,
+  };
   const cells = createPartitionCells({
     partition: {
       version: 1,
@@ -92,23 +98,80 @@ test('a pebble far below any error target is read while the far plane lets it be
   assert.deepEqual(asked, [[['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE]]);
 });
 
-test('rows grow in the engine that can, and open the session again where it cannot', () => {
-  const rows = {} as PlacementRows;
-  const grown: PlacementRows[] = [];
-  let renewed = 0;
-  for (const backend of [
-    { growPlacements: (_from: PlacementRows, to: PlacementRows) => void grown.push(to) },
-    {},
-  ]) {
-    const { cells, seen } = recording();
-    createPartitionFrame({
-      partitions: [cells],
-      streamer: streamer().port,
-      camera: hostFramingCamera(60, 1, 0.1, 100),
-      active: () => backend as unknown as RenderBackend,
-      renew: () => void renewed++,
-    })!();
-    seen[0].io.grow!(rows, rows);
+test('a reach past the rows sized at open asks the owner to open the session again', () => {
+  const renew = () => {};
+  const { cells, seen } = recording();
+  createPartitionFrame({
+    partitions: [cells],
+    streamer: streamer().port,
+    camera: hostFramingCamera(60, 1, 0.1, 100),
+    active: () => ({}) as RenderBackend,
+    renew,
+  })!();
+  assert.equal(seen[0].io.outgrown, renew);
+});
+
+/** A grid of `side`² cells ten metres wide, each placing four nodes of one of two meshes. */
+function grid(side: number) {
+  const cells: TableCell[] = [];
+  const bodies = new Map<string, Uint8Array>();
+  for (let x = 0; x < side; x++)
+    for (let z = 0; z < side; z++) {
+      const url = `https://cache.test/key/cell-${x}-${z}.json`;
+      const mesh = (x + z) % 2;
+      const nodes = [0, 1, 2, 3].map((at) => ({
+        parent: null,
+        mesh,
+        matrix: null,
+        translation: [x * 10 + at * 2, 0, z * 10 + at * 2],
+        rotation: null,
+        scale: null,
+      }));
+      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 1, nodes })));
+      const bounds = [x * 10, 0, z * 10, x * 10 + 8, 1, z * 10 + 8];
+      cells.push({ url, sha256: '', bytes: 1, bounds, size: 1, meshes: [[mesh, 4]] });
+    }
+  const partition = {
+    version: 1,
+    bounds: [0, 0, 0, side * 10, 1, side * 10],
+    meshes: [0, 1],
+    cells,
+  };
+  const meshes = new Map([0, 1].map((rank) => [rank, placedMesh([{ meshes: rank }])]));
+  const port = {
+    readBytes: async (url: string) => bodies.get(url)!,
+    getBytes: (url: string) => bodies.get(url),
+    loading: () => false,
+    request: async () => {},
+  } as unknown as ReturnType<typeof createPageStreamer>;
+  const root = new GraphGroup();
+  const partitioned = createPartitionCells({
+    partition,
+    base: 'https://cache.test/key/',
+    root,
+    parents: [],
+    meshes,
+  });
+  return { partitioned, port };
+}
+
+test('on a WebGPU explorer, which grows no buffer, a walk never leaves a cell waiting for rows', async () => {
+  // A plain explorer session: its engine cannot grow rows in place and no owner reopens it.
+  const { partitioned, port } = grid(24);
+  const camera = hostFramingCamera(60, 16 / 9, 0.1, 30);
+  camera.position.set(5, 2, 5);
+  await primePartitions([partitioned], camera, port);
+  const frame = createPartitionFrame({
+    partitions: [partitioned],
+    streamer: port,
+    camera,
+    active: () => ({}) as RenderBackend,
+  })!;
+  for (let step = 0; step <= 46; step++) {
+    camera.position.set(5 + step * 5, 2, 5 + step * 5);
+    camera.updateMatrixWorld();
+    frame();
+    assert.equal(partitioned.stats().waiting, 0, `step ${step}`);
   }
-  assert.deepEqual([grown, renewed], [[rows], 1]);
+  assert.ok(partitioned.stats().held > 1, 'the cells around the camera are placed');
 });

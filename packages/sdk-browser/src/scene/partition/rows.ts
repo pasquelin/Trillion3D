@@ -2,8 +2,8 @@
  * The rows a partitioned scene places its cells' nodes on. Each mesh the cells place is drawn by
  * one host mesh per primitive whose association carries an instance buffer (`placement/rows.ts`):
  * a cell's node takes the same row in every one of them, and gives it back — parked — when its
- * cell leaves. A mesh short of rows grows every buffer to the same larger capacity
- * (`growPlacementRows`), which the session takes in place where its path can (`growth.ts`).
+ * cell leaves. The buffers are sized when a session opens, before its engines read them
+ * (`sizeRows`), for every node its reach can hold at once (`plan.ts`): none grows while it draws.
  */
 import {
   createPlacementRows,
@@ -33,39 +33,29 @@ export type RowLink = { meshes?: number; primitives?: number; placements?: Place
 /** One mesh the cells place: its primitives' links, sharing one row numbering. */
 export type PlacedMesh = { readonly links: readonly RowLink[]; readonly free: number[] };
 
-/** Hands the session each buffer a mesh replaced and its successor. */
-export type GrowRows = (from: PlacementRows, to: PlacementRows) => void;
-
 /** A placed mesh over `links`, each given one parked row. */
 export function placedMesh(links: readonly RowLink[]): PlacedMesh {
   for (const link of links) link.placements = createPlacementRows(1);
   return { links, free: [0] };
 }
 
-/** How many rows every link of `mesh` holds. */
-const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capacity ?? 0;
+/** How many rows every buffer of `mesh` holds. */
+export const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capacity ?? 0;
 
-/** Grows every buffer of `mesh` to hold `needed` rows, handing each replacement to `grow`. */
-function growMesh(mesh: PlacedMesh, needed: number, grow: GrowRows) {
-  const held = capacityOf(mesh);
-  if (needed <= held) return;
-  let capacity = held;
-  for (const link of mesh.links) {
-    const from = link.placements!;
-    const to = growPlacementRows(from, needed);
-    link.placements = to;
-    capacity = to.capacity;
-    grow(from, to);
+/** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, its rows
+ *  kept: before its session's engines read them, never under one that draws. */
+export function sizeRows(meshes: ReadonlyMap<number, PlacedMesh>, needed: Map<number, number>) {
+  for (const [rank, rows] of needed) {
+    const mesh = meshes.get(rank);
+    if (!mesh) continue; // placing its cell refuses it (`PREPARED_SCENE_MISMATCH`)
+    const held = capacityOf(mesh);
+    if (rows <= held) continue;
+    for (const link of mesh.links) link.placements = growPlacementRows(link.placements!, rows);
+    for (let row = capacityOf(mesh) - 1; row >= held; row--) mesh.free.push(row);
   }
-  for (let row = capacity - 1; row >= held; row--) mesh.free.push(row);
 }
 
-/** Reserves `count` more rows of `mesh`, growing it when it is short. */
-export function reserveRows(mesh: PlacedMesh, count: number, grow: GrowRows) {
-  if (mesh.free.length < count) growMesh(mesh, capacityOf(mesh) + count - mesh.free.length, grow);
-}
-
-/** Takes a free row of `mesh` (`reserveRows` first). */
+/** Takes a free row of `mesh`. */
 export const takeRow = (mesh: PlacedMesh) => mesh.free.pop()!;
 
 /** Parks `row` of every buffer of `mesh` and frees it. */

@@ -73,7 +73,7 @@ export function buildWorldSource(plan: WorldPlan) {
       primitives.push({ ...primitive, mesh: primitive.mesh + offset });
     for (const [node, link] of graph.associations) {
       const moved = { ...link, meshes: (link.meshes ?? 0) + offset };
-      // Rows a partition's cells place grow on the model's own link: the session reads them there.
+      // Rows a partition's cells place are sized on the model's own link: the session reads them there.
       if (link.placements)
         Object.defineProperty(moved, 'placements', {
           get: () => link.placements,

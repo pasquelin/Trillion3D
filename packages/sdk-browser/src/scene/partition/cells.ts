@@ -4,13 +4,15 @@
  * The scene tables leave the nodes that only place a mesh to spatial cells (`tablePartition.ts`).
  * Before each frame (`frame`), the cells the camera needs (`plan.ts`) are asked of the session's
  * page streamer — the one request queue, verified by fingerprint like any page — nearest first,
- * then those one diagonal ahead at the prefetch priority,
+ * then those a fraction of the reach ahead at the prefetch priority,
  * and those it holds are placed within the arrival budget: each node takes a row of its mesh
  * (`rows.ts`), written with the world matrix the engine composes for a child of its core parent
  * (`hostWorldChainInto`, `hostLocalInto`), the same bits a host node there would have had. A cell
  * past its reach gives its rows back, parked. A parent that moved rewrites the rows under it.
- * Before the session's first frame, `prime` reads the cells its first camera needs, and nothing
- * else: what the first frame costs is bounded by the view, not by the world.
+ * Before the session's first frame, `prime` sizes the rows for every node its camera's reach can
+ * hold at once (`residentRows`) and reads the cells that camera needs, and nothing else: what the
+ * first frame costs, and the rows, are bounded by the view, not by the world. A reach that later
+ * outgrows the rows asks the session's owner to open it again: nothing grows under an engine.
  */
 import { MATRIX_VALUES, multiplyMatrix4, EngineError } from '../../../../sdk-core/src/index.ts';
 import {
@@ -20,16 +22,9 @@ import {
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { GraphNode } from '../../host/graph/node.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { inCellFrame, planCells } from './plan.ts';
-import {
-  releaseRow,
-  rowLocal,
-  reserveRows,
-  takeRow,
-  type GrowRows,
-  type PlacedMesh,
-  type RowLink,
-} from './rows.ts';
+import { inCellFrame, planCells, residentRows } from './plan.ts';
+import { capacityOf, releaseRow, rowLocal, sizeRows, takeRow } from './rows.ts';
+import type { PlacedMesh, RowLink } from './rows.ts';
 
 type Placement = { mesh: PlacedMesh; row: number; parent: GraphNode; local: Float64Array };
 type Inputs = {
@@ -55,6 +50,9 @@ export function createPartitionCells(inputs: Inputs) {
   const worlds = new Map<GraphNode, Float64Array>();
   const touched = new Map<RowLink, { from: number; to: number }>();
   let waiting = 0;
+  /** The reach, in the cells' frame, the rows are sized for; and the largest a frame has asked. */
+  let sized = 0,
+    wanted = 0;
   const worldOf = (node: GraphNode) => {
     let world = worlds.get(node);
     if (!world) worlds.set(node, (world = hostWorldChainInto(new Float64Array(16), node)));
@@ -77,8 +75,8 @@ export function createPartitionCells(inputs: Inputs) {
       touch(link, row);
     }
   };
-  /** Places `cell` from its bytes; false when a mesh is short of rows and nothing may grow. */
-  const place = (cell: number, bytes: Uint8Array, grow: GrowRows | undefined) => {
+  /** Places `cell` from its bytes; false when a mesh is short of rows (a reach past `sized`). */
+  const place = (cell: number, bytes: Uint8Array) => {
     const nodes = assertCellNodes(JSON.parse(new TextDecoder().decode(bytes)));
     const needed = new Map<PlacedMesh, number>();
     for (const node of nodes) {
@@ -89,8 +87,7 @@ export function createPartitionCells(inputs: Inputs) {
         });
       needed.set(mesh, (needed.get(mesh) ?? 0) + 1);
     }
-    for (const [mesh, count] of needed) if (mesh.free.length < count && !grow) return false;
-    for (const [mesh, count] of needed) reserveRows(mesh, count, grow!);
+    for (const [mesh, count] of needed) if (mesh.free.length < count) return false;
     const placements = nodes.map((node) => {
       const parent = node.parent === null ? root : parents[node.parent];
       const mesh = meshes.get(node.mesh)!;
@@ -125,8 +122,13 @@ export function createPartitionCells(inputs: Inputs) {
   return {
     /** Every cell as the streamer's catalogue reads it. */
     pages: cells.map(({ url, bytes, sha256 }) => ({ url, bytes, sha256 })),
-    /** The cells placed now, and those a mesh short of rows keeps waiting. */
-    stats: () => ({ cells: cells.length, held: held.size, waiting }),
+    /** The cells placed now, those a mesh short of rows keeps waiting, and the rows sized. */
+    stats: () => ({
+      cells: cells.length,
+      held: held.size,
+      waiting,
+      rows: [...meshes.values()].reduce((sum, mesh) => sum + capacityOf(mesh), 0),
+    }),
     /** Before a frame seen from `eye`: far cells leave, near ones are asked for, nearest first,
      *  then those ahead, and those already read are placed within `budgetMs` — one at least. */
     frame(
@@ -134,19 +136,23 @@ export function createPartitionCells(inputs: Inputs) {
       reach: number,
       /** What a frame reads and writes through the session: the verified bytes the streamer
        *  holds, whether it is reading an address, a request — `ahead` for cells read before they
-       *  are needed —, rows written, and a buffer grown; without `grow`, a mesh short of rows
-       *  keeps its cell waiting. */
+       *  are needed —, rows written, and the owner told once when the reach outgrew the rows
+       *  sized at open: it opens the session again, sized for it (`prime`). */
       io: {
         bytes(url: string): Uint8Array | undefined;
         loading(url: string): boolean;
         request(urls: readonly string[], ahead: boolean): void;
         update(rows: PlacementRows, from: number, to: number): void;
-        grow?: (from: PlacementRows, to: PlacementRows) => void;
+        outgrown?: () => void;
       },
       budgetMs: number,
     ) {
       followParents();
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
+      if (local.reach > Math.max(sized, wanted)) {
+        wanted = local.reach;
+        io.outgrown?.();
+      }
       const plan = planCells(cells, local.eye, local.reach, new Set(held.keys()));
       plan.leave.forEach(leave);
       const started = performance.now();
@@ -165,20 +171,25 @@ export function createPartitionCells(inputs: Inputs) {
             continue;
           }
           if (placed && performance.now() - started > budgetMs) continue;
-          if (place(cell, bytes, io.grow)) placed++;
+          if (place(cell, bytes)) placed++;
           else waiting++;
         }
         if (ask.length) io.request(ask, ahead);
       }
       flush(io.update);
     },
-    /** Reads and places every cell a camera at `eye` needs — within its reach, none ahead —,
-     *  before the session reads the rows; resolves with the bytes read. */
+    /** Before a session's engines read the rows: sizes them for the reach of a camera at `eye`,
+     *  or the largest a frame asked, then reads and places every cell that camera needs — within
+     *  its reach, none ahead —; resolves with the bytes read. */
     async prime(eye: ArrayLike<number>, reach: number, read: (url: string) => Promise<Uint8Array>) {
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
-      const { visible } = planCells(cells, local.eye, local.reach, new Set(held.keys()));
+      const plan = planCells(cells, local.eye, local.reach, new Set(held.keys()));
+      plan.leave.forEach(leave);
+      if (Math.max(local.reach, wanted) > sized)
+        sizeRows(meshes, residentRows(cells, (sized = Math.max(local.reach, wanted))));
+      const { visible } = plan;
       const bodies = await Promise.all(visible.map((cell) => read(cells[cell].url)));
-      visible.forEach((cell, at) => place(cell, bodies[at], () => {}));
+      visible.forEach((cell, at) => place(cell, bodies[at]));
       touched.clear();
       return bodies.reduce((sum, bytes) => sum + bytes.byteLength, 0);
     },

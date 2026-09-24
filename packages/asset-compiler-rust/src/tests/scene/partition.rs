@@ -99,8 +99,9 @@ fn placed_nodes_leave_the_core_for_cells_boxed_around_them() {
             seen += 1;
         }
         assert_eq!(
-            cell["nodes"],
-            json!(body["nodes"].as_array().expect("nodes").len())
+            cell["meshes"],
+            json!([[0, body["nodes"].as_array().expect("nodes").len()]]),
+            "how many nodes of each mesh it places"
         );
         assert_eq!(
             cell["size"].as_f64().expect("size"),
