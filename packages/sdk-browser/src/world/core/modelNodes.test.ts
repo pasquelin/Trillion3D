@@ -8,10 +8,10 @@ import { createWorldPoses } from './worldPoses.ts';
 /** A compiled model's graph as its loader builds it: a root, a turbine and its rotor, and a
  *  crane nobody looks up. */
 function compiledModel() {
-  const root = new G.GraphNode(),
-    turbine = new G.GraphNode(),
-    rotor = new G.GraphNode(),
-    crane = new G.GraphNode();
+  const root = new G.Object3D(),
+    turbine = new G.Object3D(),
+    rotor = new G.Object3D(),
+    crane = new G.Object3D();
   root.name = 'Scene';
   turbine.name = 'turbine';
   turbine.position.set(10, 0, 0);

@@ -61,7 +61,7 @@ test('contract: the published pose is the world pose, never the local pose', () 
 
 test('boundary: the held-frame gate sees a rig move that the host has not walked', () => {
   const gate = createWebglFrameGate();
-  const source = new G.GraphNode();
+  const source = new G.Object3D();
   const rig = creeRig();
   const viewport: [number, number] = [800, 600];
   /** A frame of a Three-rendered engine, reduced to what pose decides there. */
