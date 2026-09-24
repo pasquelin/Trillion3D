@@ -4174,7 +4174,10 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
-        "packages/sdk-browser/src/world/core/worldLoadProgress.test.ts"
+        "packages/sdk-browser/src/world/core/worldLoadProgress.test.ts",
+        "packages/sdk-browser/src/world/core/worldSession.ts",
+        "packages/sdk-browser/src/world/session/lifecycle.ts",
+        "packages/sdk-browser/src/world/session/lifecyclePages.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/runtime/jobs\".JobProgress"
