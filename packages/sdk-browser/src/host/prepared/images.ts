@@ -29,7 +29,7 @@ async function decodeAddress(url: string, signal: AbortSignal | undefined, meter
   const response = await fetch(url, { signal, credentials: 'same-origin' });
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   // Metered once accepted: a refused body is never read, so its length never joins the total.
-  return createImageBitmap(await meter(response).blob(), BITMAP);
+  return createImageBitmap(await meter.read(response, url).blob(), BITMAP);
 }
 
 async function decodeBytes(bytes: Uint8Array<ArrayBuffer>, type: string) {

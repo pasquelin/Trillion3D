@@ -21,7 +21,8 @@ export async function loadPreparedSceneTables(
   signal?: AbortSignal,
   meter: ByteMeter = unmetered,
 ) {
-  const response = meter(await checked(new URL(SCENE_TABLES_FILE, base).href, signal));
+  const url = new URL(SCENE_TABLES_FILE, base).href;
+  const response = meter.read(await checked(url, signal), url);
   const body = await response.arrayBuffer();
   const tables = assertSceneTables(JSON.parse(new TextDecoder().decode(body)));
   return { tables, bytes: body.byteLength };

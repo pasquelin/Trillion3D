@@ -111,14 +111,16 @@ resolves is queued and drawn once it does. The SDK has no asset URL default: a h
 for a full cache); a pointer or manifest of another scope is rejected with `SCOPE_MISMATCH`.
 
 `scene.load(url, { onProgress })` reports how far a load has got, with the `JobProgress` shape
-`createJob` uses. `{ phase: 'bytes', completed, total }` is heard at each chunk of every file the
-load reads — the manifest, the scene tables, the binary, the images: `total` adds each file's
-declared length as it opens and is corrected to what its body held, so the last event has
-`completed === total`. Between them come `{ phase: 'manifest' }` once the manifest is read,
+`createJob` uses. `{ phase: 'bytes', completed, total }` is heard from the moment the manifest is read:
+`total` is then every file the manifest declares, at once, and each chunk of every file the load
+reads adds to `completed`, whatever the server says of its length or compression. The share
+`completed / total` never goes down, and the last event, once the files the load did not need are
+dropped, has `completed === total`. Between them come `{ phase: 'manifest' }` once the manifest is read,
 `{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
 as each file the scene reads lands. The first pages follow the load:
 `await world.awaitPages({ onProgress })` settles once the pages the view reads are resident, and
-reports `{ phase: 'pages', completed, total }` as each one it lacked lands, the last event with
+reports `{ phase: 'pages', completed, total }` as each one it lacked lands (`total` counts each
+page once), the last event with
 `completed === total`. One callback given to both drives a progress bar from the first byte to
 the first pages (example `watch-a-world-load`).
 

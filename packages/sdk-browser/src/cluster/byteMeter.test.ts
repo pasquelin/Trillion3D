@@ -14,27 +14,64 @@ const answer = (chunks: number[], headers: Record<string, string> = {}) =>
     { headers },
   );
 
-test('the meter counts every chunk against the declared lengths and ends on loaded === total', async () => {
+/** A meter and the shares it reported, `loaded / total`. */
+function listened() {
   const heard: [number, number][] = [];
   const meter = byteMeter((loaded, total) => heard.push([loaded, total]));
-  const first = meter(answer([3, 4], { 'content-length': '7' }));
-  const second = meter(answer([5], { 'content-length': '5' }));
-  assert.deepEqual(heard, [
-    [0, 7],
-    [0, 12],
-  ]);
-  assert.equal((await first.arrayBuffer()).byteLength, 7, 'the body reads whole through it');
-  await second.arrayBuffer();
-  assert.deepEqual(heard.at(-1), [12, 12]);
-  assert.ok(heard.every(([loaded, total]) => loaded <= total));
+  const shares = () => heard.map(([loaded, total]) => loaded / total);
+  const rising = () => shares().every((share, at, all) => at === 0 || share >= all[at - 1]!);
+  return { heard, meter, shares, rising };
+}
+
+test('no length and a gzip body count against the plan: the share rises, full only at the end', async () => {
+  const { heard, meter, shares, rising } = listened();
+  await meter.read(answer([5]), 'http://cache/clusters.json').arrayBuffer();
+  assert.deepEqual(heard, [], 'nothing is heard before the plan');
+  meter.plan(
+    new Map([
+      ['http://cache/a.bin', 4],
+      ['http://cache/b.json', 6],
+      ['http://cache/c.bin', 10],
+    ]),
+  );
+  assert.deepEqual(heard, [[5, 25]], 'the plan sets the whole total at once');
+  await meter.read(answer([2, 2]), 'http://cache/a.bin').arrayBuffer();
+  const gzip = { 'content-length': '3', 'content-encoding': 'gzip' };
+  await meter.read(answer([3, 3], gzip), 'http://cache/b.json').blob();
+  await meter.read(answer([1], { 'content-length': '900' }), 'http://cache/image.png').blob();
+  await meter.read(answer([4, 6], { 'content-length': '1' }), 'http://cache/c.bin').arrayBuffer();
+  assert.ok(rising(), `the share never goes down: ${shares()}`);
+  assert.ok(
+    shares()
+      .slice(0, -1)
+      .every((share) => share < 1),
+    'full only on the last chunk',
+  );
+  assert.deepEqual(heard.at(-1), [26, 26]);
 });
 
-test('a body with no length, or an encoded one, corrects the total to what it held', async () => {
-  const heard: [number, number][] = [];
-  const meter = byteMeter((loaded, total) => heard.push([loaded, total]));
-  await meter(answer([2, 2])).arrayBuffer();
-  await meter(answer([6], { 'content-length': '3', 'content-encoding': 'gzip' })).blob();
-  await meter(answer([1], { 'content-length': '9' })).arrayBuffer();
-  assert.deepEqual(heard.at(-1), [11, 11]);
-  assert.ok(heard.every(([loaded, total]) => loaded <= total));
+test('settle drops the planned files never read, and the last event is complete', async () => {
+  const { heard, meter, rising } = listened();
+  meter.plan(
+    new Map([
+      ['http://cache/read.bin', 3],
+      ['http://cache/unread.bin', 100],
+    ]),
+  );
+  await meter.read(answer([3]), 'http://cache/read.bin').arrayBuffer();
+  assert.deepEqual(heard.at(-1), [3, 103]);
+  meter.settle();
+  assert.deepEqual(heard.at(-1), [3, 3]);
+  await meter.read(answer([2]), 'http://cache/late.png').blob();
+  assert.deepEqual(heard.at(-1), [5, 5], 'a read after the load keeps the count whole');
+  assert.ok(rising());
+});
+
+test('a planned body shorter than declared gives its shortfall back, never lowering the share', async () => {
+  const { heard, meter, rising } = listened();
+  meter.plan(new Map([['http://cache/short.bin', 10]]));
+  const body = meter.read(answer([3, 4]), 'http://cache/short.bin');
+  assert.equal((await body.arrayBuffer()).byteLength, 7, 'the body reads whole through it');
+  assert.deepEqual(heard.at(-1), [7, 7]);
+  assert.ok(rising());
 });

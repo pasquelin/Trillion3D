@@ -26,15 +26,20 @@ test('scene.load reports the manifest, the tables, then every resource the scene
   assert.equal(last.completed, last.total, 'the last resource closes the count');
 });
 
-test('scene.load reports the bytes of every file as they land, up to their total', async () => {
+test('scene.load reports bytes against the declared files: the share rises, full only at the end', async () => {
+  // The site is served with no Content-Length, one chunk per file: the plan alone sets the total.
   const bytes = (await heardLoading()).filter((event) => event.phase === 'bytes');
   assert.ok(bytes.length > 1, 'bytes are heard while the files arrive');
-  const counts = bytes.map((event) => event.completed as number);
+  const shares = bytes.map((event) => (event.completed as number) / (event.total as number));
   assert.ok(
-    counts.every((count, at) => at === 0 || count >= counts[at - 1]!),
-    'never back',
+    shares.every((share, at) => at === 0 || share >= shares[at - 1]!),
+    `never back: ${shares}`,
   );
+  assert.ok(
+    shares.slice(0, -1).every((share) => share < 1),
+    `full only at the end: ${shares}`,
+  );
+  assert.ok((bytes[0]!.total as number) > 1_000_000, 'the first event already counts the binary');
   const last = bytes.at(-1)!;
-  assert.ok((last.total as number) > 100_000, 'the manifest, tables and binary are all counted');
-  assert.equal(last.completed, last.total, 'the last chunk reaches the total');
+  assert.equal(last.completed, last.total, 'the load closes the count');
 });
