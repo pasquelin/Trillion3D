@@ -17,8 +17,8 @@ import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 const MODEL = `${HOST}assets/examples/a-model-from-obj/cache/native/full/manifest.json`;
 const NODE = 'white-queen-d1';
@@ -30,7 +30,7 @@ const nextTurn = () => new Promise((done) => setImmediate(done));
 type Paged = ReturnType<typeof webgpuPagesBackend> & { selectedPageIds(): string[] };
 
 /** True when `node` is `ancestor` or sits under it. */
-const under = (node: HostGraphNode | null | undefined, ancestor: HostGraphNode) => {
+const under = (node: Object3D | null | undefined, ancestor: Object3D) => {
   for (let walk = node; walk; walk = walk.parent) if (walk === ancestor) return true;
   return false;
 };

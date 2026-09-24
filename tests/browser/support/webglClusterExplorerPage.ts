@@ -19,7 +19,7 @@ export function execute() {
     mounted = mountExplorerProof(
       fixture,
       camera,
-      (object: G.GraphNode) => object.userData.lodRole === 'exact',
+      (object: G.Object3D) => object.userData.lodRole === 'exact',
     );
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { backend, draw, target, calls } = mounted;
