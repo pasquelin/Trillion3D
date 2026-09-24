@@ -1,5 +1,6 @@
 import { EngineError } from '../../contracts/cache.ts';
 import { IDENTITY_MATRIX4, copyMatrix4 } from '../matrix/matrix4.ts';
+import { linkTransformNode } from './links.ts';
 
 /**
  * Engine transform hierarchy, data-oriented: a node is an index into flat
@@ -7,7 +8,8 @@ import { IDENTITY_MATRIX4, copyMatrix4 } from '../matrix/matrix4.ts';
  * column-major world matrix. `localViews[i]` and `worldViews[i]` are sixteen-number views on
  * `local` and `world`, created at growth and never during an update: the GPU reads the
  * whole buffer, the kernel formulas read a node's view. Writes go through the setters,
- * which mark what they change. A growth replaces every array: a caller rereads
+ * which mark what they change. Each node lists its children, so a subtree walk never reads
+ * outside the subtree (`links.ts`). A growth replaces every array: a caller rereads
  * `tree.world` or `tree.worldViews` after an add.
  */
 export interface TransformTree {
@@ -29,16 +31,13 @@ export interface TransformTree {
   /** Freed indices, reused before extending `end`. */
   free: Int32Array;
   /** How many freed indices wait. */ freeCount: number;
-  /** Update order, parents before children, and each node's rank in that order. */
-  order: Int32Array;
-  /** Each node's rank in `order`. */ orderAt: Int32Array;
-  /** Nodes in `order`. */ orderCount: number;
-  /** Whether `order` must be rebuilt. */ orderDirty: boolean;
-  /** Traversal work buffers: depth, ancestor chain, buckets, stamps. */
-  depth: Int32Array;
+  /** Each node's children as a linked list, −1 for none: a subtree walk costs the subtree. */
+  firstChild: Int32Array;
+  /** Last child, where an attach links. */ lastChild: Int32Array;
+  /** Next child of the same parent. */ nextSibling: Int32Array;
+  /** Previous child of the same parent. */ previousSibling: Int32Array;
   /** Ancestor chain buffer. */ chain: Int32Array;
-  /** Bucket buffer. */ buckets: Int32Array;
-  /** Stamp buffer. */ stamp: Uint32Array;
+  /** Stamp buffer: what a traversal passes from a parent to its children. */ stamp: Uint32Array;
   /** Current traversal number. */ call: number;
 }
 
@@ -81,17 +80,17 @@ function reserve(tree: TransformTree, capacity: number) {
   tree.version = grown(tree.version, Uint32Array, capacity);
   tree.seen = grown(tree.seen, Uint32Array, capacity);
   tree.free = grown(tree.free, Int32Array, capacity);
-  tree.order = grown(tree.order, Int32Array, capacity);
-  tree.orderAt = grown(tree.orderAt, Int32Array, capacity);
-  tree.depth = new Int32Array(capacity);
+  tree.firstChild = grown(tree.firstChild, Int32Array, capacity);
+  tree.lastChild = grown(tree.lastChild, Int32Array, capacity);
+  tree.nextSibling = grown(tree.nextSibling, Int32Array, capacity);
+  tree.previousSibling = grown(tree.previousSibling, Int32Array, capacity);
   tree.chain = new Int32Array(capacity);
-  tree.buckets = new Int32Array(capacity + 1);
   tree.stamp = grown(tree.stamp, Uint32Array, capacity);
 }
 
 /** An empty hierarchy, ready for `capacity` nodes without growth. */
 export function createTransformTree(capacity = 64): TransformTree {
-  const tree = { end: 0, freeCount: 0, orderCount: 0, orderDirty: false, call: 0 } as TransformTree;
+  const tree = { end: 0, freeCount: 0, call: 0 } as TransformTree;
   reserve(tree, Math.max(1, capacity));
   return tree;
 }
@@ -117,7 +116,9 @@ export function addTransformNode(tree: TransformTree, parent = -1) {
     if (tree.end === tree.capacity) reserve(tree, tree.capacity * 2);
     node = tree.end++;
   }
-  tree.parent[node] = parent;
+  tree.parent[node] = -1;
+  tree.firstChild[node] = tree.lastChild[node] = -1;
+  linkTransformNode(tree, node, parent);
   tree.flags[node] = NODE_ALIVE | NODE_AUTO_UPDATE | NODE_TRS_DIRTY | NODE_LOCAL_CHANGED;
   setNodePosition(tree, node, 0, 0, 0);
   setNodeQuaternion(tree, node, 0, 0, 0, 1);
@@ -126,12 +127,6 @@ export function addTransformNode(tree: TransformTree, parent = -1) {
   tree.worldViews[node].set(IDENTITY_MATRIX4);
   tree.version[node] = 0;
   tree.seen[node] = 0;
-  // An up-to-date order already contains the parent: the newcomer slots after it, at the end of the
-  // order. A stale order will be rebuilt in full.
-  if (!tree.orderDirty) {
-    tree.orderAt[node] = tree.orderCount;
-    tree.order[tree.orderCount++] = node;
-  }
   return node;
 }
 
