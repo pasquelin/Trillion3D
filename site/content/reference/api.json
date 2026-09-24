@@ -14427,7 +14427,7 @@
       {
         "name": "transform",
         "type": "readonly number[]",
-        "desc": "UV transform of the sampler, `KHR_texture_transform` composed into three rows of three."
+        "desc": "UV transform of the sampler, `KHR_texture_transform` composed into a 3 × 3 matrix stored column-major: entries 0 to 2 the first column, 6 and 7 the translation."
       }
     ],
     "description": ""
