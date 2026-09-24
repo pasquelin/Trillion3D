@@ -2952,6 +2952,7 @@
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/page/cut/state.ts",
         "packages/sdk-browser/src/webgl/cluster/copyCulling.ts",
+        "packages/sdk-browser/src/webgpu/blend/footprint.ts",
         "packages/sdk-browser/src/webgpu/blend/state.ts"
       ],
       "disposition": "retained",

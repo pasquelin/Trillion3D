@@ -1,4 +1,5 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
+import { blendFootprintHeld, holdBlendRanking } from './footprint.ts';
 import { planItem } from './plan.ts';
 import { buildBlendRuns } from './runs.ts';
 import { rowParked } from '../../placement/rows.ts';
@@ -155,8 +156,11 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
     blendState.runCount[0] = 0;
     blendState.runCount[1] = 0;
     blendState.transmissiveInView = 0;
+    blendState.footprint.held = false;
     return 0;
   }
+  // Inputs bit-identical to the last ranking: it stands, mask and runs included (`footprint.ts`).
+  if (blendFootprintHeld(blendState, eye)) return blendState.footprint.rejected;
   refreshEyeKeys(blendState, eye);
   const rejected = rejectByFrustum(blendState);
   const items = blendState.blendGpu,
@@ -166,6 +170,7 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
     blendState.orderMoved[pass] = true;
     blendState.runCount[pass] = buildBlendRuns(orders[pass], blendState.runs[pass]);
   }
+  holdBlendRanking(blendState.footprint, rejected);
   return rejected;
 }
 
