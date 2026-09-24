@@ -921,6 +921,11 @@
       "file": "examples/detail-by-pixel-error.html"
     },
     {
+      "id": "watch-a-world-load",
+      "theme": "streaming",
+      "file": "examples/watch-a-world-load.html"
+    },
+    {
       "id": "ten-thousand-objects",
       "theme": "streaming",
       "file": "examples/ten-thousand-objects.html"
