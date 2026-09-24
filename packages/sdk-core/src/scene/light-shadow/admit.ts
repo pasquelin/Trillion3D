@@ -46,8 +46,14 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * its turn like any page: redrawing it every frame something moves would starve the finer ones. Only
  * the view limit can hold one back, when the frame's floor pages span more views than the light
  * cut holds: unread floors go oldest first by their wait, so the one held back leads the next frame,
- * and no face waits longer than the floor views over the limit, in frames. All arrays are allocated
- * once.
+ * and no face waits longer than the floor views over the limit, in frames.
+ *
+ * **A moving light draws coarse first.** A finer page's wait counts from its light's pose (`posed`,
+ * the frame the plan saw it claimed, moved or changed in), not from when it went stale: a page
+ * was owed no draw at a pose already left, so a light moved every frame draws its pages coarsest
+ * first within the budget — no finer page overtakes a coarser one by the frames it waited —, and
+ * its finer pages come once it stops. Floors keep their whole wait: they take turns past the view
+ * limit. All arrays are allocated once.
  */
 export function createShadowAdmission(capacity: number, poolPages: number) {
   const candidates = new Int32Array(capacity),
@@ -116,6 +122,7 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
       budget: ShadowBudget,
       latest: number,
       frame: number,
+      posed: ArrayLike<number>,
     ) {
       count = 0;
       let found = 0,
@@ -129,10 +136,10 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
           continue;
         }
         found++;
-        const wait = frame - pool.sinceFrame[page];
+        const since = pool.sinceFrame[page];
         // Only the best `capacity` can be drawn.
         if (!pool.valid[page] && isFloor(records, sun, page, pool))
-          unread = rank(floors, unread, page, wait);
+          unread = rank(floors, unread, page, frame - since);
         else
           kept = rank(
             candidates,
@@ -140,7 +147,8 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
             page,
             (pool.valid[page] ? 0 : 1) +
               coarseness(records, sun, page, pool) +
-              wait * LIGHT_SETTINGS.shadowAgingPerFrame,
+              (frame - Math.max(since, posed[pool.slice[page]])) *
+                LIGHT_SETTINGS.shadowAgingPerFrame,
           );
       }
       for (let k = 0; k < unread && count < capacity; k++)

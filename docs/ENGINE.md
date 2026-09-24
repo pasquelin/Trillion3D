@@ -237,12 +237,18 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
   whatever the budget, which pays it before any finer page; a floor still read, stale for its
   moving casters or for detail, waits its turn like any page, so an object that keeps moving never
-  starves the finer pages. A new light asks for its floor itself from its first frame, until a
-  report of it comes back — every face of a lamp, and the sun's floor pages within the view's far
-  distance —, as if the latest report named it. When the frame's unread floor pages span more views
+  starves the finer pages. A new light, and a light that moved or changed, asks for its floor
+  itself until a report written at its current pose comes back — every face of a lamp, and the
+  sun's floor pages within the view's far distance —, as if the latest report named it: a report
+  from a past pose names only the faces and pages that pose's receivers read. When the frame's unread floor pages span more views
   than the light cut holds, they go oldest first by their wait, so each is drawn within as many
   frames as there are floor views past the limit. So a pixel that falls back past a withdrawn page
   reads a current floor, never the far ray of a sun or the unshadowed answer of a lamp.
+- **A moving light follows within the frame.** Its move withdraws every page of its past pose, so
+  none is read again before it is drawn at the new one. The frame draws its floor, then the pages
+  the latest report named, coarsest first within the budget: a finer page's wait counts from the
+  light's pose, not from when it went stale, so no finer page overtakes a coarser one while the
+  light keeps moving. Its finer pages come as the budget allows, and once it stops.
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
