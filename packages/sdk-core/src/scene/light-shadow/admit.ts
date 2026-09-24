@@ -18,11 +18,16 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * the marking receiver-driven. It waits unreadable: a pass that reads without asking — blend,
  * water — would otherwise read its old depth for as long as no report names it.
  *
- * Priority: a page never drawn before one merely stale — the first reads a coarser level, the
- * second an older depth —, a coarse page before a fine one — it covers more pixels, and the
- * finer ones fall back to it —, and the wait already suffered, which rises frame by frame and
- * prevents starvation. The first page always passes: on a device whose single page exceeds the
- * budget, the wait would otherwise never end.
+ * Priority: a page the image cannot read — never drawn, or hidden because its depth is wrong, a
+ * light that moved or a caster under it — before one stale for detail only — the first reads a
+ * coarser level or no shadow, the second a coarser depth —, a coarse page before a fine one — it
+ * covers more pixels, and the finer ones fall back to it —, and the wait already suffered, which
+ * rises frame by frame and prevents starvation. A wait counts from the light's current pose
+ * (`records.posed`): what a page waited at a past pose is owed to no reader. A light that moves
+ * every frame thus restarts the wait of all its pages together, and they stay coarse first: its
+ * shadow follows it the same frame at the coarsest level its receivers read, finer as far as the
+ * budget pays, never at a past pose — the finer pages come once it stops. The first page always
+ * passes: on a device whose single page exceeds the budget, the wait would otherwise never end.
  *
  * How many pages is the budget's alone: its fixed milliseconds over the measured cost of a page.
  * What the light cut bounds is the light views a frame draws in (`setViewLimit`) — one view never
@@ -76,9 +81,10 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
           continue;
         }
         const value =
-          (pool.valid[page] ? 0 : 1) +
+          (pool.valid[page] && !pool.hidden[page] ? 0 : 1) +
           coarseness(records, sun, page, pool) +
-          (frame - pool.sinceFrame[page]) * LIGHT_SETTINGS.shadowAgingPerFrame;
+          (frame - Math.max(pool.sinceFrame[page], records.posed[pool.slice[page]])) *
+            LIGHT_SETTINGS.shadowAgingPerFrame;
         score[page] = value;
         found++;
         // Only the best `capacity` can be drawn: kept in order, a tie behind the earlier page.

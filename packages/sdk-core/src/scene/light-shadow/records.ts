@@ -21,6 +21,8 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     kind = new Int32Array(MAX_SHADOW_SLICES).fill(-1),
     revision = new Uint32Array(MAX_SHADOW_SLICES),
     noted = new Uint8Array(MAX_SHADOW_SLICES),
+    /** The frame each light took the pose its pages are owed at (`admit.ts`). */
+    posed = new Int32Array(MAX_SHADOW_SLICES),
     claimed = new Uint8Array(MAX_SHADOW_SLICES);
   /** Every page of `slice` back to the pool. */
   const dropPages = (slice: number) => {
@@ -38,6 +40,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
   return {
     taken,
     kind,
+    posed,
     /** Slices held by a light: zero when no light casts a shadow. */
     get count() {
       let held = 0;

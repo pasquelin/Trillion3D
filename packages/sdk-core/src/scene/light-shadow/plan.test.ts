@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
+import { PAGE_MAPPED, PAGE_STALE, PAGE_VALID } from './virtual.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 import { SUN, VIEW, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 
@@ -161,12 +161,10 @@ test('a light that moves reads none of its pages until each is drawn again', () 
   // A page costs the whole budget: one a frame.
   plan.observeCost(plan.budget.budgetMs, 1);
   planFrame(plan, store, 3);
-  assert.ok(
-    pages.every((entry) => word(entry) === PAGE_MAPPED),
-    'mapped, not readable',
-  );
   plan.commit();
-  assert.equal(pages.filter((entry) => word(entry) & PAGE_VALID).length, 1, 'the one redrawn');
+  const current = pages.filter((entry) => !(plan.table.words[entry] & PAGE_STALE));
+  assert.equal(current.length, 1, 'the one redrawn');
+  assert.equal(word(current[0]), PAGE_MAPPED | PAGE_VALID);
 });
 
 test('a stale page no report names is not left readable to a pass that reads without asking', () => {

@@ -84,6 +84,7 @@ export function createShadowPool(side: number) {
     rank,
     requested,
     dirty,
+    hidden,
     valid,
     layered,
     since,
