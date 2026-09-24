@@ -4,6 +4,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import {
   MAX_ANISOTROPY,
   SAMPLE_ANISOTROPY_SHIFT,
+  SAMPLE_MAG_HALF,
   SAMPLE_MAG_NEAREST,
   SAMPLE_MIN_NEAREST,
   SAMPLE_MIP_NEAREST,
@@ -40,11 +41,33 @@ test('each filter name sets its base filter and mip rule, on a texture created i
   assert.equal(filterOf({ minFilter: 'nearest' }), SAMPLE_MIN_NEAREST | SAMPLE_MIP_NONE);
   assert.equal(filterOf({ minFilter: 'linear' }), SAMPLE_MIP_NONE);
   assert.equal(
-    filterOf({ minFilter: 'nearest-mip-nearest' }),
-    SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
+    filterOf({ minFilter: 'nearest-mip-nearest', magFilter: 'nearest' }),
+    SAMPLE_MAG_NEAREST | SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
   );
-  assert.equal(filterOf({ minFilter: 'nearest-mip-linear' }), SAMPLE_MIN_NEAREST);
+  assert.equal(
+    filterOf({ minFilter: 'nearest-mip-linear', magFilter: 'nearest' }),
+    SAMPLE_MAG_NEAREST | SAMPLE_MIN_NEAREST,
+  );
   assert.equal(filterOf({ minFilter: 'linear-mip-nearest' }), SAMPLE_MIP_NEAREST);
+});
+
+// #360, #361: GL's switch between magnification and minification (OpenGL ES 3.0 § 3.8.11): at
+// level 0.5 for a linear magnification over a `nearest-mip-*` minification, at 0 otherwise. Under
+// the switch, level 0 with the magnification filter.
+test('minification starts at level 0.5 for a linear magnification over a nearest mip', () => {
+  const half = (fields: Partial<Texture>) => (filterOf(fields) & SAMPLE_MAG_HALF) !== 0;
+  assert.ok(half({ minFilter: 'nearest-mip-nearest' }));
+  assert.ok(half({ minFilter: 'nearest-mip-linear' }));
+  for (const fields of [
+    { minFilter: 'nearest-mip-nearest', magFilter: 'nearest' },
+    { minFilter: 'nearest' },
+    { minFilter: 'linear-mip-nearest' },
+    { minFilter: 'linear-mip-linear' },
+  ] as const)
+    assert.ok(!half(fields), JSON.stringify(fields));
+  assert.match(SAMPLING_WGSL, /let mag=raw<=select\(0\.0,0\.5,\(s\.sampling&512u\)!=0u\);/);
+  assert.match(SAMPLING_WGSL, /if\(mag\|\|\(s\.sampling&8u\)!=0u\)\{lod=0\.0;\}/);
+  assert.match(SAMPLING_WGSL, /select\(2u,1u,mag\)/);
 });
 
 // #360, #361: a filter without `mip` on a texture of the compiled cache picks the read inside a
@@ -56,7 +79,7 @@ test('a filter without mip pins level 0 on a page texture, never on a compiled o
   assert.equal(filterOf({ minFilter: 'linear' }), SAMPLE_MIP_NONE);
   assert.equal(
     filterOf({ minFilter: 'nearest-mip-nearest' }, true),
-    SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
+    filterOf({ minFilter: 'nearest-mip-nearest' }),
     'a mip rule is the same on both',
   );
 });
