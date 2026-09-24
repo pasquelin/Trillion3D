@@ -35,10 +35,14 @@ export class GraphRotation {
   _y: number;
   _z: number;
   _w: number;
-  /** The four numbers, each write announced. */
+  // The four numbers are accessors over `_x`…`_w`: each write is announced.
+  /** The first number. */
   declare x: number;
+  /** The second number. */
   declare y: number;
+  /** The third number. */
   declare z: number;
+  /** The fourth number. */
   declare w: number;
   /** Called after every write; replaced through `_onChange`. */
   _onChangeCallback: () => void = silent;
@@ -115,9 +119,13 @@ export class GraphAngles {
   _z = 0;
   _order = 'XYZ';
   /** The three angles and their order, each write announced. */
+  /** The first angle, in radians. */
   declare x: number;
+  /** The second angle, in radians. */
   declare y: number;
+  /** The third angle, in radians. */
   declare z: number;
+  /** The order the three angles turn in, `'XYZ'` unless set. */
   declare order: string;
   /** Called after every write; replaced through `_onChange`. */
   _onChangeCallback: () => void = silent;

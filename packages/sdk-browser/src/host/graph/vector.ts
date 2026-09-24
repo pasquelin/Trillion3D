@@ -11,8 +11,11 @@ import type { HostPoint } from '../resources.ts';
 
 /** Three numbers of a pose or a point: plain data fields, and the operations a controller uses. */
 export class GraphVector {
+  /** Left to right. */
   x: number;
+  /** Bottom to top. */
   y: number;
+  /** Back to front. */
   z: number;
   constructor(x = 0, y = 0, z = 0) {
     this.x = x;

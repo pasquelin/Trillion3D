@@ -72,20 +72,35 @@ export class GraphSurface extends Releasable {
   /** What the resource is; `family` says which surface. */
   readonly kind = 'surface' as const;
   // The raster state every family carries, set by `raster` at the reference's values.
+  /** Whether it is drawn. */
   declare visible: boolean;
+  /** Which faces, as the host's constant. */
   declare side: number;
+  /** The host draws a double-sided transparent surface in one pass instead of back then front. */
   declare forceSinglePass: boolean;
+  /** Whether vertex colours tint it. */
   declare vertexColors: boolean;
+  /** Whether the display curve applies. */
   declare toneMapped: boolean;
+  /** Whether it tests depth. */
   declare depthTest: boolean;
+  /** Whether it writes depth. */
   declare depthWrite: boolean;
+  /** The depth test's comparison. */
   declare depthFunc: number;
+  /** Whether it writes colour. */
   declare colorWrite: boolean;
+  /** Whether depth is offset. */
   declare polygonOffset: boolean;
+  /** Slope part of the offset. */
   declare polygonOffsetFactor: number;
+  /** Constant part of the offset. */
   declare polygonOffsetUnits: number;
+  /** Whether it blends. */
   declare transparent: boolean;
+  /** How opaque it is. */
   declare opacity: number;
+  /** Alpha below which pixels drop. */
   declare alphaTest: number;
   [field: string]: unknown;
   /** The family it belongs to. */

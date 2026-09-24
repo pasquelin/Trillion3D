@@ -6777,9 +6777,12 @@
   "GraphAngles": {
     "summary": "Cùng một hướng dưới dạng ba góc và thứ tự của chúng, thông báo các lần ghi theo cùng cách.",
     "members": {
-      "x": "Ba góc và thứ tự của chúng, mỗi lần ghi đều được thông báo.",
+      "x": "Góc thứ nhất, tính bằng radian.",
       "set": "Ghi ba góc, và thứ tự nếu có; thông báo một lần.",
-      "setFromRotation": "Các góc của `q` theo thứ tự này (`Euler` của lõi); thông báo trừ khi `quiet`."
+      "setFromRotation": "Các góc của `q` theo thứ tự này (`Euler` của lõi); thông báo trừ khi `quiet`.",
+      "y": "Góc thứ hai, tính bằng radian.",
+      "z": "Góc thứ ba, tính bằng radian.",
+      "order": "Thứ tự quay của ba góc, `'XYZ'` nếu chưa đặt."
     }
   },
   "GraphArray": {
@@ -6834,7 +6837,8 @@
       "data": "Bộ đệm mà nó xem.",
       "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
       "array": "Vùng lưu trữ chứa các phần tử.",
-      "count": "Bao nhiêu đỉnh."
+      "count": "Bao nhiêu đỉnh.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
     }
   },
   "GraphInterleavedBuffer": {
@@ -6844,7 +6848,8 @@
       "count": "Bao nhiêu đỉnh.",
       "version": "Tăng bởi `needsUpdate`.",
       "array": "Vùng lưu trữ.",
-      "stride": "Số lượng số mỗi đỉnh."
+      "stride": "Số lượng số mỗi đỉnh.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
     }
   },
   "GraphMesh": {
@@ -6903,14 +6908,17 @@
   "GraphRotation": {
     "summary": "Một hướng `(x, y, z, w)` mà các lần ghi gọi `_onChangeCallback`.",
     "members": {
-      "x": "Bốn số, mỗi lần ghi đều được thông báo.",
+      "x": "Con số đầu tiên.",
       "set": "Ghi bốn số, thông báo một lần.",
       "copy": "Lấy các số của một phép quay khác.",
       "fromArray": "Đọc bốn số từ một danh sách.",
       "setFromAngles": "Phép quay của `angles`, theo thứ tự của chúng (`localTurnQuaternion`); thông báo trừ khi `quiet`.",
       "setFromRotationMatrix": "Phép quay của phần 3×3 phía trên của một ma trận theo cột có các cột độ dài đơn vị.",
       "premultiply": "Trở thành `q` rồi đến phép quay này, `q · this`.",
-      "invert": "Trở thành phép quay ngược lại."
+      "invert": "Trở thành phép quay ngược lại.",
+      "y": "Con số thứ hai.",
+      "z": "Con số thứ ba.",
+      "w": "Con số thứ tư."
     }
   },
   "GraphSurface": {
@@ -6925,7 +6933,22 @@
       "family": "Họ mà nó thuộc về.",
       "needsUpdate": "`needsUpdate = true` sau một thay đổi: mọi bên đọc lấy lại các trường.",
       "copy": "Lấy mọi tham số của `source`, màu và vectơ được sao chép, kết cấu dùng chung.",
-      "clone": "Một bề mặt cùng họ với cùng tham số."
+      "clone": "Một bề mặt cùng họ với cùng tham số.",
+      "visible": "Nó có được vẽ hay không.",
+      "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
+      "forceSinglePass": "Ứng dụng chủ vẽ một bề mặt trong suốt hai mặt trong một chặng thay vì sau rồi trước.",
+      "vertexColors": "Các màu đỉnh có tô màu nó hay không.",
+      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
+      "depthWrite": "Nó có ghi độ sâu hay không.",
+      "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
+      "colorWrite": "Nó có ghi màu hay không.",
+      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
+      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
+      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
+      "transparent": "Nó có pha trộn hay không.",
+      "opacity": "Nó mờ đục đến mức nào.",
+      "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ.",
+      "depthTest": "Có kiểm tra độ sâu hay không."
     }
   },
   "GraphTexture": {
@@ -6954,7 +6977,10 @@
       "image": "Hình ảnh đã giải mã, trong vật chứa riêng của ứng dụng chủ.",
       "needsUpdate": "`needsUpdate = true` sau một thay đổi: bên đọc tải nó lên lại.",
       "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay.",
-      "clone": "Một kết cấu cùng ảnh và trạng thái, được thông báo là đã đổi."
+      "clone": "Một kết cấu cùng ảnh và trạng thái, được thông báo là đã đổi.",
+      "repeat": "Số lần nó vừa khít.",
+      "center": "Tâm xoay.",
+      "rotation": "Góc xoay, tính bằng radian."
     }
   },
   "GraphVector": {
@@ -6969,7 +6995,10 @@
       "length": "Độ dài của nó.",
       "setLength": "Giữ hướng, đặt độ dài.",
       "distanceTo": "Khoảng cách tới một điểm.",
-      "fromArray": "Đọc ba số từ một danh sách."
+      "fromArray": "Đọc ba số từ một danh sách.",
+      "x": "Trái sang phải.",
+      "y": "Dưới lên trên.",
+      "z": "Sau ra trước."
     }
   }
 }
