@@ -35,16 +35,14 @@ function world() {
         url: 'near.json',
         sha256: '',
         bytes: 1,
-        bounds: [0, 0, 0, 5, 5, 5],
-        size: 3,
+        parents: [[null, [0, 0, 0, 5, 5, 5]]],
         meshes: [[7, 2]],
       },
       {
         url: 'far.json',
         sha256: '',
         bytes: 1,
-        bounds: [5000, 0, 0, 5010, 5, 5],
-        size: 3,
+        parents: [[0, [5000, -10, 0, 5010, -5, 5]]], // under the core node, 10 m up
         meshes: [[7, 1]],
       },
     ],
