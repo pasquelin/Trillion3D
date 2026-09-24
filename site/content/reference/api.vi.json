@@ -6998,5 +6998,157 @@
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
       "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`."
     }
+  },
+  "ContactEvent": {
+    "summary": "Những gì một va chạm trao cho người nghe: vật kia, xung lực và điểm chạm.",
+    "members": {
+      "other": "Vật bị chạm; `null` khi nó đã rời cảnh.",
+      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải; 0 khi `leave`.",
+      "point": "Điểm tiếp xúc, hệ thế giới; gốc tọa độ khi `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Sự kiện của một vật: chạm lần đầu kèm xung lực (`contact`), và chạm bắt đầu hoặc kết thúc."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Ngân sách vật lý mặc định của engine.",
+    "members": {
+      "bodies": "Vật thể mọi loại cùng lúc.",
+      "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
+      "decorative": "Vật trang trí cùng lúc.",
+      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Các trọng lực có tên, tính bằng m/s² theo −y.",
+    "members": {
+      "earth": "Của Trái Đất.",
+      "moon": "Của Mặt Trăng.",
+      "mars": "Của Sao Hỏa.",
+      "none": "Không trọng lực."
+    }
+  },
+  "GravityInput": {
+    "summary": "Một trọng lực: tên thiết lập sẵn, hoặc vectơ tính bằng m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Tên một thiết lập sẵn trọng lực."
+  },
+  "ObjectPhysics": {
+    "summary": "Vật lý của một vật, như `obj.physics` giữ: bản ghi sống về vật là gì và làm gì.",
+    "description": "Việc ghi đến mô phỏng ở bước kế tiếp; `velocity` đọc những gì bước cuối để lại.",
+    "members": {
+      "type": "Cách vật di chuyển; gán lại `obj.physics` để thay đổi.",
+      "shape": "Hình đã khai báo, nếu có.",
+      "sensor": "Vật có chỉ báo va chạm không.",
+      "ccd": "Va chạm liên tục có bật không.",
+      "decorative": "Vật có phải mảnh vụn trang trí không.",
+      "velocity": "Vận tốc thẳng, m/s, như bước cuối để lại; ghi vào để ném vật.",
+      "asleep": "Vật có đang ngủ không: đứng yên, và không được mô phỏng cho tới khi có gì đánh thức.",
+      "mass": "Khối lượng tính bằng kilôgam; `undefined` lấy mật độ vật liệu nhân thể tích.",
+      "gravityScale": "Nhân trọng lực của thế giới cho vật này.",
+      "friction": "Ma sát ép buộc; `undefined` lấy của vật liệu.",
+      "restitution": "Độ nảy ép buộc; `undefined` lấy của vật liệu.",
+      "applyImpulse": "Đẩy vật ngay, một xung lực tính bằng N·s qua khối tâm; đánh thức nó.",
+      "wake": "Đánh thức vật, dù đang ngủ hay không.",
+      "on": "Gọi `handler` khi có sự kiện va chạm của vật này.",
+      "listens": "Có trình xử lý va chạm nào không."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Các chất liệu có tên cho `material.physics`, từ giá trị sổ tay làm tròn.",
+    "members": {
+      "wood": "Gỗ.",
+      "metal": "Thép.",
+      "rubber": "Cao su.",
+      "ice": "Băng.",
+      "stone": "Đá.",
+      "glass": "Thủy tinh."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Những gì `obj.physics` nhận ngoài ba từ của nó.",
+    "members": {
+      "type": "Cách vật di chuyển.",
+      "mass": "Khối lượng tính bằng kilôgam; bỏ trống thì là mật độ vật liệu nhân thể tích của hình.",
+      "shape": "Hình va chạm; bỏ trống thì suy ra từ hình học.",
+      "gravityScale": "Nhân trọng lực của thế giới cho vật này; 0 là lơ lửng.",
+      "sensor": "Báo va chạm mà không va chạm: một vùng kích hoạt.",
+      "ccd": "Va chạm liên tục, cho vật nhỏ nhanh có thể xuyên qua tường mỏng.",
+      "decorative": "Mảnh vụn: chỉ gặp thế giới tĩnh, và chỉ được mô phỏng khi trong tầm và trong tầm nhìn. Giới hạn bởi `budget.physics.decorative`.",
+      "friction": "Thay ma sát của vật liệu, từ 0 trở lên.",
+      "restitution": "Thay độ nảy của vật liệu, từ 0 đến 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Các giới hạn cố định của vật lý một thế giới; không bao giờ đọc từ máy.",
+    "members": {
+      "bodies": "Vật thể mọi loại cùng lúc.",
+      "triangles": "Tam giác của mọi hình tam giác tĩnh cùng lúc.",
+      "decorative": "Vật trang trí cùng lúc.",
+      "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Phía thế giới của một vật: điều mà việc ghi vào `obj.physics` yêu cầu mô phỏng.",
+    "members": {
+      "rebuild": "Một thiết lập lúc tạo vật đã đổi: vật được tạo lại.",
+      "tune": "Ma sát, độ nảy hoặc hệ số trọng lực đã đổi.",
+      "listened": "Việc muốn nhận sự kiện va chạm có đổi không.",
+      "velocity": "Vận tốc đã được ghi.",
+      "impulse": "Một xung lực đã được áp dụng.",
+      "wake": "Vật đã được đánh thức."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Tên một thiết lập sẵn chất liệu."
+  },
+  "PhysicsMatter": {
+    "summary": "Chất liệu của một vật: mật độ (kg/m³), ma sát và độ nảy.",
+    "members": {
+      "density": "kg/m³, cho khối lượng của vật.",
+      "friction": "Mức bám của vật, từ 0 trở lên.",
+      "restitution": "Mức nảy của vật, từ 0 đến 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Những gì có thể gán cho `obj.physics`."
+  },
+  "PhysicsShape": {
+    "summary": "Một hình va chạm, khi hình suy ra từ hình học không phù hợp.",
+    "description": "Kích thước tính trong hệ riêng của vật, trước tỉ lệ."
+  },
+  "PhysicsStats": {
+    "summary": "Những gì vật lý thế giới báo: số đếm của tick cuối, và hai đồng hồ tách riêng.",
+    "members": {
+      "bodies": "Các vật mà mô phỏng giữ.",
+      "active": "Số vật còn chạy sau tick cuối.",
+      "stepMs": "Mili giây worker mỗi bước cố định, tick cuối: đồng hồ của worker, không bao giờ cộng với đồng hồ trang.",
+      "mainMs": "Mili giây trang mà vật lý dùng ở khung cuối (giai đoạn CPU `physics`).",
+      "poses": "Tư thế mà tick cuối gửi về.",
+      "events": "Sự kiện va chạm mà tick cuối gửi về."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Cách một vật di chuyển: không bao giờ, do trang (`kinematic`, đẩy thứ nó gặp), hoặc do mô phỏng."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, vật lý của thế giới.",
+    "members": {
+      "enabled": "Các vật có được mô phỏng không. Bật lần đầu sẽ tải vật lý.",
+      "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
+      "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
+      "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "budget": "Các giới hạn cố định (`budget.physics`), đọc một lần khi vật lý bắt đầu.",
+      "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Những gì `createWorld(canvas, { physics })` nhận ngoài `true`.",
+    "members": {
+      "budget": "Giới hạn cố định, đọc một lần khi vật lý bắt đầu.",
+      "gravity": "Trọng lực của thế giới: thiết lập sẵn hoặc vectơ."
+    }
   }
 }

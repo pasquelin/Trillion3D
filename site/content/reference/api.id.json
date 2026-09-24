@@ -6998,5 +6998,157 @@
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
       "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`."
     }
+  },
+  "ContactEvent": {
+    "summary": "Apa yang diberikan kontak kepada pendengarnya: objek lain, impuls, dan titik sentuh.",
+    "members": {
+      "other": "Objek yang tersentuh; `null` setelah keluar dari adegan.",
+      "impulse": "N·s: kecepatan mendekat sepanjang normal kali massa tereduksi pasangan, diperkirakan sebelum solver; 0 pada `leave`.",
+      "point": "Titik kontak, kerangka dunia; titik asal pada `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Peristiwa benda: sentuhan pertama dengan impuls (`contact`), dan sentuhan dimulai atau berakhir."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Anggaran fisika bawaan mesin.",
+    "members": {
+      "bodies": "Benda dari semua jenis sekaligus.",
+      "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
+      "decorative": "Benda dekoratif sekaligus.",
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Gravitasi bernama, dalam m/s² sepanjang −y.",
+    "members": {
+      "earth": "Milik Bumi.",
+      "moon": "Milik Bulan.",
+      "mars": "Milik Mars.",
+      "none": "Tanpa gravitasi."
+    }
+  },
+  "GravityInput": {
+    "summary": "Gravitasi: nama preset, atau vektor dalam m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Nama preset gravitasi."
+  },
+  "ObjectPhysics": {
+    "summary": "Fisika satu objek, seperti dipegang `obj.physics`: catatan hidup tentang apa benda itu dan apa yang dilakukannya.",
+    "description": "Penulisan sampai ke simulasi pada langkah berikutnya; `velocity` membaca apa yang ditinggalkan langkah terakhir.",
+    "members": {
+      "type": "Cara benda bergerak; tetapkan ulang `obj.physics` untuk mengubahnya.",
+      "shape": "Bentuk yang dinyatakan, jika ada.",
+      "sensor": "Apakah benda hanya melaporkan kontak.",
+      "ccd": "Apakah tabrakan kontinu aktif.",
+      "decorative": "Apakah benda adalah puing dekoratif.",
+      "velocity": "Kecepatan linear, m/s, seperti ditinggalkan langkah terakhir; tulis untuk melempar benda.",
+      "asleep": "Apakah benda tidur: diam, dan tidak disimulasikan sampai sesuatu membangunkannya.",
+      "mass": "Massa dalam kilogram; `undefined` memakai massa jenis material kali volume.",
+      "gravityScale": "Mengalikan gravitasi dunia untuk benda ini.",
+      "friction": "Gesekan paksa; `undefined` memakai milik material.",
+      "restitution": "Pantulan paksa; `undefined` memakai milik material.",
+      "applyImpulse": "Mendorong benda seketika, impuls dalam N·s melalui pusat massanya; membangunkannya.",
+      "wake": "Membangunkan benda, tidur atau tidak.",
+      "on": "Memanggil `handler` pada peristiwa kontak benda ini.",
+      "listens": "Apakah ada penangan kontak."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Bahan bernama untuk `material.physics`, dari nilai buku pegangan yang dibulatkan.",
+    "members": {
+      "wood": "Kayu.",
+      "metal": "Baja.",
+      "rubber": "Karet.",
+      "ice": "Es.",
+      "stone": "Batu.",
+      "glass": "Kaca."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Apa yang diterima `obj.physics` selain tiga katanya.",
+    "members": {
+      "type": "Cara benda bergerak.",
+      "mass": "Massa dalam kilogram; jika tidak diisi, massa jenis material kali volume bentuk.",
+      "shape": "Bentuk tabrakan; jika tidak diisi, disimpulkan dari geometri.",
+      "gravityScale": "Mengalikan gravitasi dunia untuk benda ini; 0 melayang.",
+      "sensor": "Melaporkan kontak tanpa bertabrakan: volume pemicu.",
+      "ccd": "Tabrakan kontinu, untuk benda kecil cepat yang bisa menembus dinding tipis.",
+      "decorative": "Puing: hanya bertemu dunia statis, dan hanya disimulasikan dalam jangkauan dan terlihat. Dibatasi `budget.physics.decorative`.",
+      "friction": "Mengganti gesekan material, 0 ke atas.",
+      "restitution": "Mengganti pantulan material, 0 sampai 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Batas tetap fisika sebuah dunia; tidak pernah dibaca dari mesin.",
+    "members": {
+      "bodies": "Benda dari semua jenis sekaligus.",
+      "triangles": "Segitiga dari semua bentuk segitiga statis sekaligus.",
+      "decorative": "Benda dekoratif sekaligus.",
+      "memoryBytes": "Byte memori modul fisika: batas keras, modul tak bisa tumbuh melewatinya."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Sisi dunia dari sebuah benda: apa yang diminta tulisan pada `obj.physics` kepada simulasi.",
+    "members": {
+      "rebuild": "Pengaturan saat benda dibuat berubah: benda dibuat ulang.",
+      "tune": "Gesekan, pantulan, atau skala gravitasi berubah.",
+      "listened": "Apakah keinginan peristiwa kontak berubah.",
+      "velocity": "Kecepatan ditulis.",
+      "impulse": "Impuls diberikan.",
+      "wake": "Benda dibangunkan."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Nama preset bahan."
+  },
+  "PhysicsMatter": {
+    "summary": "Bahan sebuah benda: massa jenis (kg/m³), gesekan, dan pantulan.",
+    "members": {
+      "density": "kg/m³, untuk massa benda.",
+      "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Apa yang bisa diisikan ke `obj.physics`."
+  },
+  "PhysicsShape": {
+    "summary": "Bentuk tabrakan, bila yang disimpulkan dari geometri tidak cocok.",
+    "description": "Ukuran berada dalam kerangka objek sendiri, sebelum skalanya."
+  },
+  "PhysicsStats": {
+    "summary": "Apa yang dilaporkan fisika dunia: hitungan tick terakhir, dan kedua jam terpisah.",
+    "members": {
+      "bodies": "Benda yang dipegang simulasi.",
+      "active": "Benda aktif setelah tick terakhir.",
+      "stepMs": "Milidetik worker per langkah tetap, tick terakhir: jam worker, tidak pernah dijumlahkan dengan jam halaman.",
+      "mainMs": "Milidetik halaman yang dipakai fisika pada bingkai terakhir (tahap CPU `physics`).",
+      "poses": "Pose yang dikirim tick terakhir.",
+      "events": "Peristiwa kontak yang dikirim tick terakhir."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Cara benda bergerak: tidak pernah, oleh halaman (`kinematic`, mendorong yang ditemui), atau oleh simulasi."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, fisika dunia.",
+    "members": {
+      "enabled": "Apakah benda disimulasikan. Menyalakannya memuat fisika pertama kali.",
+      "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
+      "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
+      "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "budget": "Batas tetap (`budget.physics`), dibaca sekali saat fisika mulai.",
+      "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Apa yang diterima `createWorld(canvas, { physics })` selain `true`.",
+    "members": {
+      "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
+      "gravity": "Gravitasi dunia: preset atau vektor."
+    }
   }
 }

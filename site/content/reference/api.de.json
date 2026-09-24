@@ -6997,5 +6997,157 @@
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
       "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`."
     }
+  },
+  "ContactEvent": {
+    "summary": "Was ein Kontakt seinen Zuhörern gibt: das andere Objekt, den Impuls und den Berührungspunkt.",
+    "members": {
+      "other": "Das berührte Objekt; `null`, sobald es die Szene verlassen hat.",
+      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt; 0 bei `leave`.",
+      "point": "Der Kontaktpunkt im Weltrahmen; der Ursprung bei `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Die Ereignisse eines Körpers: erste Berührung mit Impuls (`contact`) und Berührung begonnen oder beendet."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Die Standard-Physikbudgets der Engine.",
+    "members": {
+      "bodies": "Körper jeder Art gleichzeitig.",
+      "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
+      "decorative": "Dekorative Körper gleichzeitig.",
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Benannte Schwerkräfte, in m/s² entlang −y.",
+    "members": {
+      "earth": "Die der Erde.",
+      "moon": "Die des Mondes.",
+      "mars": "Die des Mars.",
+      "none": "Keine Schwerkraft."
+    }
+  },
+  "GravityInput": {
+    "summary": "Eine Schwerkraft: der Name einer Vorgabe oder ein Vektor in m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Der Name einer Schwerkraftvorgabe."
+  },
+  "ObjectPhysics": {
+    "summary": "Die Physik eines Objekts, wie `obj.physics` sie hält: ein lebender Datensatz dessen, was der Körper ist und tut.",
+    "description": "Schreibvorgänge erreichen die Simulation beim nächsten Schritt; `velocity` liest, was der letzte Schritt ließ.",
+    "members": {
+      "type": "Wie sich der Körper bewegt; setze `obj.physics` neu, um es zu ändern.",
+      "shape": "Die angegebene Form, falls es eine gab.",
+      "sensor": "Ob der Körper nur Kontakte meldet.",
+      "ccd": "Ob kontinuierliche Kollision an ist.",
+      "decorative": "Ob der Körper dekorativer Trümmer ist.",
+      "velocity": "Lineare Geschwindigkeit, m/s, wie der letzte Schritt sie ließ; schreibe sie, um den Körper zu werfen.",
+      "asleep": "Ob der Körper schläft: in Ruhe und nicht mehr simuliert, bis ihn etwas weckt.",
+      "mass": "Masse in Kilogramm; `undefined` nimmt die Dichte des Materials mal das Volumen.",
+      "gravityScale": "Multipliziert die Schwerkraft der Welt für diesen Körper.",
+      "friction": "Reibung überschrieben; `undefined` nimmt die des Materials.",
+      "restitution": "Rückprall überschrieben; `undefined` nimmt den des Materials.",
+      "applyImpulse": "Stößt den Körper sofort an, ein Impuls in N·s durch seinen Schwerpunkt; weckt ihn.",
+      "wake": "Weckt den Körper, ob schlafend oder nicht.",
+      "on": "Ruft `handler` bei einem Kontaktereignis dieses Körpers auf.",
+      "listens": "Ob ein Kontakt-Handler gesetzt ist."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Benannte Materien für `material.physics`, gerundete Tabellenwerte.",
+    "members": {
+      "wood": "Holz.",
+      "metal": "Stahl.",
+      "rubber": "Gummi.",
+      "ice": "Eis.",
+      "stone": "Stein.",
+      "glass": "Glas."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Was `obj.physics` über seine drei Wörter hinaus annimmt.",
+    "members": {
+      "type": "Wie sich der Körper bewegt.",
+      "mass": "Masse in Kilogramm; weggelassen, die Dichte des Materials mal das Volumen der Form.",
+      "shape": "Die Kollisionsform; weggelassen, aus der Geometrie abgeleitet.",
+      "gravityScale": "Multipliziert die Schwerkraft der Welt für diesen Körper; 0 schwebt.",
+      "sensor": "Meldet Kontakte ohne Kollision: ein Auslösevolumen.",
+      "ccd": "Kontinuierliche Kollision, für schnelle kleine Körper, die sonst dünne Wände durchdringen.",
+      "decorative": "Trümmer: trifft nur die statische Welt und wird nur in Reichweite und im Blick simuliert. Begrenzt durch `budget.physics.decorative`.",
+      "friction": "Überschreibt die Reibung des Materials, ab 0.",
+      "restitution": "Überschreibt den Rückprall des Materials, 0 bis 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Die festen Grenzen der Physik einer Welt; nie vom Gerät gelesen.",
+    "members": {
+      "bodies": "Körper jeder Art gleichzeitig.",
+      "triangles": "Dreiecke aller statischen Dreiecksformen gleichzeitig.",
+      "decorative": "Dekorative Körper gleichzeitig.",
+      "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Die Weltseite eines Körpers: was ein Schreiben auf `obj.physics` von der Simulation verlangt.",
+    "members": {
+      "rebuild": "Eine Einstellung, mit der der Körper erzeugt wurde, hat sich geändert: Er wird neu erzeugt.",
+      "tune": "Reibung, Rückprall oder Schwerkraftfaktor hat sich geändert.",
+      "listened": "Ob sich der Wunsch nach Kontaktereignissen geändert hat.",
+      "velocity": "Die Geschwindigkeit wurde geschrieben.",
+      "impulse": "Ein Impuls wurde angewandt.",
+      "wake": "Der Körper wurde geweckt."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Der Name einer Materievorgabe."
+  },
+  "PhysicsMatter": {
+    "summary": "Die Materie eines Körpers: Dichte (kg/m³), Reibung und Rückprall.",
+    "members": {
+      "density": "kg/m³, für die Masse eines Körpers.",
+      "friction": "Wie stark ein Körper haftet, ab 0.",
+      "restitution": "Wie stark ein Körper springt, 0 bis 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Was `obj.physics` erhalten kann."
+  },
+  "PhysicsShape": {
+    "summary": "Eine Kollisionsform, wenn die aus der Geometrie abgeleitete nicht passt.",
+    "description": "Die Größen gelten im eigenen Rahmen des Objekts, vor seiner Skalierung."
+  },
+  "PhysicsStats": {
+    "summary": "Was die Physik der Welt meldet: Zählungen des letzten Ticks und beide Uhren getrennt.",
+    "members": {
+      "bodies": "Körper, die die Simulation hält.",
+      "active": "Wache Körper nach dem letzten Tick.",
+      "stepMs": "Worker-Millisekunden pro festem Schritt, letzter Tick: die Uhr des Workers, nie zu der der Seite addiert.",
+      "mainMs": "Seiten-Millisekunden der Physik im letzten Bild (die CPU-Stufe `physics`).",
+      "poses": "Posen, die der letzte Tick zurückgab.",
+      "events": "Kontaktereignisse, die der letzte Tick zurückgab."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Wie sich ein Körper bewegt: nie, durch die Seite (`kinematic`, schiebt, was er trifft) oder durch die Simulation."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, die Physik der Welt.",
+    "members": {
+      "enabled": "Ob Körper simuliert werden. Beim ersten Einschalten wird die Physik geladen.",
+      "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
+      "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
+      "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "budget": "Die festen Grenzen (`budget.physics`), einmal beim Start der Physik gelesen.",
+      "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Was `createWorld(canvas, { physics })` über `true` hinaus annimmt.",
+    "members": {
+      "budget": "Feste Grenzen, einmal beim Start der Physik gelesen.",
+      "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
+    }
   }
 }

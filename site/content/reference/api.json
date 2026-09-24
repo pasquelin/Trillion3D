@@ -2721,6 +2721,45 @@
     "description": ""
   },
   {
+    "id": "ContactEvent",
+    "module": "packages/sdk-core/src/physics/objectPhysics.ts",
+    "exports": ["ContactEvent"],
+    "section": "types",
+    "kind": "Type",
+    "title": "ContactEvent",
+    "signature": "interface ContactEvent",
+    "summary": "What a contact hands its listeners: the other object, the impulse and where it touched.",
+    "members": [
+      {
+        "name": "other",
+        "type": "Object3D | null",
+        "desc": "The object touched; `null` once it has left the scene."
+      },
+      {
+        "name": "impulse",
+        "type": "number",
+        "desc": "N·s: the approach speed along the normal times the pair's reduced mass, estimated before the solver runs; 0 on `leave`."
+      },
+      {
+        "name": "point",
+        "type": "{ x: number; y: number; z: number; }",
+        "desc": "The contact point, world frame; the origin on `leave`."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "ContactEventName",
+    "module": "packages/sdk-core/src/physics/objectPhysics.ts",
+    "exports": ["ContactEventName"],
+    "section": "types",
+    "kind": "Type",
+    "title": "ContactEventName",
+    "signature": "type ContactEventName = 'contact' | 'enter' | 'leave'",
+    "summary": "The events a body reports: first touch with an impulse (`contact`), and touch begun or ended.",
+    "description": ""
+  },
+  {
     "id": "ControlVector",
     "module": "packages/sdk-browser/src/camera/controls/types.ts",
     "exports": ["ControlVector"],
@@ -3048,6 +3087,39 @@
     "title": "DAG_ERROR_MODEL",
     "signature": "const DAG_ERROR_MODEL: 'dag-group-qem-v1'",
     "summary": "Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere.",
+    "description": ""
+  },
+  {
+    "id": "DEFAULT_PHYSICS_BUDGET",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["DEFAULT_PHYSICS_BUDGET"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "DEFAULT_PHYSICS_BUDGET",
+    "signature": "const DEFAULT_PHYSICS_BUDGET",
+    "summary": "The engine's default physics budgets.",
+    "members": [
+      {
+        "name": "bodies",
+        "type": "number",
+        "desc": "Bodies of every kind at once."
+      },
+      {
+        "name": "triangles",
+        "type": "number",
+        "desc": "Triangles of every static triangle shape at once."
+      },
+      {
+        "name": "decorative",
+        "type": "number",
+        "desc": "Decorative bodies at once."
+      },
+      {
+        "name": "memoryBytes",
+        "type": "number",
+        "desc": "Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it."
+      }
+    ],
     "description": ""
   },
   {
@@ -4589,6 +4661,39 @@
     "description": ""
   },
   {
+    "id": "GRAVITY_PRESETS",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["GRAVITY_PRESETS"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "GRAVITY_PRESETS",
+    "signature": "const GRAVITY_PRESETS",
+    "summary": "Named gravities, in m/s² along −y.",
+    "members": [
+      {
+        "name": "earth",
+        "type": "9.81",
+        "desc": "The Earth's."
+      },
+      {
+        "name": "moon",
+        "type": "1.62",
+        "desc": "The Moon's."
+      },
+      {
+        "name": "mars",
+        "type": "3.71",
+        "desc": "Mars's."
+      },
+      {
+        "name": "none",
+        "type": "0",
+        "desc": "No gravity."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "GeminiFunctionDeclaration",
     "module": "packages/sdk-core/src/llm/types.ts",
     "exports": ["GeminiFunctionDeclaration"],
@@ -5066,6 +5171,28 @@
     "title": "GpuTimingMethod",
     "signature": "type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2'",
     "summary": "How the GPU is timed: WebGPU timestamps, or the WebGL2 timer query.",
+    "description": ""
+  },
+  {
+    "id": "GravityInput",
+    "module": "packages/sdk-browser/src/physics/worldPhysics.ts",
+    "exports": ["GravityInput"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GravityInput",
+    "signature": "type GravityInput = GravityPreset | { x: number; y: number; z: number }",
+    "summary": "A gravity: a preset's name, or a vector in m/s².",
+    "description": ""
+  },
+  {
+    "id": "GravityPreset",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["GravityPreset"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GravityPreset",
+    "signature": "type GravityPreset = keyof typeof GRAVITY_PRESETS",
+    "summary": "A gravity preset's name.",
     "description": ""
   },
   {
@@ -8912,6 +9039,101 @@
     "description": ""
   },
   {
+    "id": "ObjectPhysics",
+    "module": "packages/sdk-core/src/physics/objectPhysics.ts",
+    "exports": ["ObjectPhysics"],
+    "section": "types",
+    "kind": "Type",
+    "title": "ObjectPhysics",
+    "signature": "class ObjectPhysics\nnew ObjectPhysics(option: PhysicsOption): ObjectPhysics",
+    "summary": "The physics of one object, as `obj.physics` holds it once set: a live record of what the body is and does.",
+    "parameters": [
+      {
+        "name": "option",
+        "type": "PhysicsOption",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "type",
+        "type": "PhysicsType",
+        "desc": "How the body moves; set `obj.physics` again to change it."
+      },
+      {
+        "name": "shape?",
+        "type": "PhysicsShape | undefined",
+        "desc": "The declared shape, when one was."
+      },
+      {
+        "name": "sensor",
+        "type": "boolean",
+        "desc": "Whether the body only reports contacts."
+      },
+      {
+        "name": "ccd",
+        "type": "boolean",
+        "desc": "Whether continuous collision is on."
+      },
+      {
+        "name": "decorative",
+        "type": "boolean",
+        "desc": "Whether the body is decorative debris."
+      },
+      {
+        "name": "velocity",
+        "type": "Vector3",
+        "desc": "Linear velocity, m/s, as the last step left it; write it to launch the body."
+      },
+      {
+        "name": "asleep",
+        "type": "boolean",
+        "desc": "Whether the body sleeps: at rest, and simulated no more until something wakes it."
+      },
+      {
+        "name": "mass",
+        "type": "number | undefined",
+        "desc": "Mass in kilograms; `undefined` takes the material's density times the volume."
+      },
+      {
+        "name": "gravityScale",
+        "type": "number",
+        "desc": "Multiplies the world's gravity for this body."
+      },
+      {
+        "name": "friction",
+        "type": "number | undefined",
+        "desc": "Friction override; `undefined` takes the material's."
+      },
+      {
+        "name": "restitution",
+        "type": "number | undefined",
+        "desc": "Restitution override; `undefined` takes the material's."
+      },
+      {
+        "name": "applyImpulse(x: number | { x: number; y: number; z: number; }, y?: number, z?: number)",
+        "type": "void",
+        "desc": "Pushes the body at once, an impulse in N·s through its centre of mass; wakes it."
+      },
+      {
+        "name": "wake()",
+        "type": "void",
+        "desc": "Wakes the body, asleep or not."
+      },
+      {
+        "name": "on(event: ContactEventName, handler: (event: ContactEvent) => void)",
+        "type": "() => void",
+        "desc": "Calls `handler` on a contact event of this body."
+      },
+      {
+        "name": "listens",
+        "type": "boolean",
+        "desc": "Whether any contact handler is set."
+      }
+    ],
+    "description": "Writes reach the simulation at the next step; `velocity` reads what the last step left."
+  },
+  {
     "id": "OcclusionFrameMetrics",
     "module": "packages/sdk-core/src/contracts/occlusionMetrics.ts",
     "exports": ["OcclusionFrameMetrics"],
@@ -9155,6 +9377,49 @@
     "title": "PATH_SWITCH_RUNS",
     "signature": "const PATH_SWITCH_RUNS: 5",
     "summary": "Consecutive executions at that lead before switching: a burst, not an accident.",
+    "description": ""
+  },
+  {
+    "id": "PHYSICS_MATERIALS",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PHYSICS_MATERIALS"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "PHYSICS_MATERIALS",
+    "signature": "const PHYSICS_MATERIALS",
+    "summary": "Named matters for `material.physics`, from handbook values rounded.",
+    "members": [
+      {
+        "name": "wood",
+        "type": "{ readonly density: 600; readonly friction: 0.5; readonly restitution: 0.3; }",
+        "desc": "Wood."
+      },
+      {
+        "name": "metal",
+        "type": "{ readonly density: 7800; readonly friction: 0.4; readonly restitution: 0.2; }",
+        "desc": "Steel."
+      },
+      {
+        "name": "rubber",
+        "type": "{ readonly density: 1100; readonly friction: 0.9; readonly restitution: 0.8; }",
+        "desc": "Rubber."
+      },
+      {
+        "name": "ice",
+        "type": "{ readonly density: 917; readonly friction: 0.03; readonly restitution: 0.05; }",
+        "desc": "Ice."
+      },
+      {
+        "name": "stone",
+        "type": "{ readonly density: 2600; readonly friction: 0.7; readonly restitution: 0.1; }",
+        "desc": "Stone."
+      },
+      {
+        "name": "glass",
+        "type": "{ readonly density: 2500; readonly friction: 0.4; readonly restitution: 0.4; }",
+        "desc": "Glass."
+      }
+    ],
     "description": ""
   },
   {
@@ -10345,6 +10610,255 @@
         "desc": "Frees the pointer."
       }
     ],
+    "description": ""
+  },
+  {
+    "id": "PhysicsBodyOptions",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsBodyOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsBodyOptions",
+    "signature": "interface PhysicsBodyOptions",
+    "summary": "What `obj.physics` accepts beyond its three words.",
+    "members": [
+      {
+        "name": "type?",
+        "type": "PhysicsType | undefined",
+        "desc": "How the body moves."
+      },
+      {
+        "name": "mass?",
+        "type": "number | undefined",
+        "desc": "Mass in kilograms; left out, the material's density times the shape's volume."
+      },
+      {
+        "name": "shape?",
+        "type": "PhysicsShape | undefined",
+        "desc": "The collision shape; left out, inferred from the geometry."
+      },
+      {
+        "name": "gravityScale?",
+        "type": "number | undefined",
+        "desc": "Multiplies the world's gravity for this body; 0 floats."
+      },
+      {
+        "name": "sensor?",
+        "type": "boolean | undefined",
+        "desc": "Reports contacts without colliding: a trigger volume."
+      },
+      {
+        "name": "ccd?",
+        "type": "boolean | undefined",
+        "desc": "Continuous collision, for fast small bodies that would pass through thin walls."
+      },
+      {
+        "name": "decorative?",
+        "type": "boolean | undefined",
+        "desc": "Debris: meets the static world only, and is simulated only in range and in view. Capped by `budget.physics.decorative`."
+      },
+      {
+        "name": "friction?",
+        "type": "number | undefined",
+        "desc": "Overrides the material's friction, 0 and up."
+      },
+      {
+        "name": "restitution?",
+        "type": "number | undefined",
+        "desc": "Overrides the material's restitution (bounciness), 0 to 1."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "PhysicsBudget",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsBudget"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsBudget",
+    "signature": "interface PhysicsBudget",
+    "summary": "The fixed envelopes of a world's physics; never read from the machine.",
+    "members": [
+      {
+        "name": "bodies",
+        "type": "number",
+        "desc": "Bodies of every kind at once."
+      },
+      {
+        "name": "triangles",
+        "type": "number",
+        "desc": "Triangles of every static triangle shape at once."
+      },
+      {
+        "name": "decorative",
+        "type": "number",
+        "desc": "Decorative bodies at once."
+      },
+      {
+        "name": "memoryBytes",
+        "type": "number",
+        "desc": "Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "PhysicsHost",
+    "module": "packages/sdk-core/src/physics/objectPhysics.ts",
+    "exports": ["PhysicsHost"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsHost",
+    "signature": "interface PhysicsHost",
+    "summary": "The world's side of a body: what a write on `obj.physics` asks of the simulation.",
+    "members": [
+      {
+        "name": "rebuild(body: ObjectPhysics)",
+        "type": "void",
+        "desc": "A setting the body was created with changed: it is created again."
+      },
+      {
+        "name": "tune(body: ObjectPhysics)",
+        "type": "void",
+        "desc": "Friction, restitution or gravity scale changed."
+      },
+      {
+        "name": "velocity(body: ObjectPhysics)",
+        "type": "void",
+        "desc": "The velocity was written."
+      },
+      {
+        "name": "impulse(body: ObjectPhysics, x: number, y: number, z: number)",
+        "type": "void",
+        "desc": "An impulse was applied."
+      },
+      {
+        "name": "wake(body: ObjectPhysics)",
+        "type": "void",
+        "desc": "The body was woken."
+      },
+      {
+        "name": "listened(body: ObjectPhysics)",
+        "type": "void",
+        "desc": "Whether contact events are wanted changed."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "PhysicsMaterialPreset",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsMaterialPreset"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsMaterialPreset",
+    "signature": "type PhysicsMaterialPreset = keyof typeof PHYSICS_MATERIALS",
+    "summary": "A matter preset's name.",
+    "description": ""
+  },
+  {
+    "id": "PhysicsMatter",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsMatter"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsMatter",
+    "signature": "interface PhysicsMatter",
+    "summary": "The matter a body is made of: density (kg/m³), friction and restitution.",
+    "members": [
+      {
+        "name": "density",
+        "type": "number",
+        "desc": "kg/m³, for a body's mass."
+      },
+      {
+        "name": "friction",
+        "type": "number",
+        "desc": "How much a body grips, 0 and up."
+      },
+      {
+        "name": "restitution",
+        "type": "number",
+        "desc": "How much a body bounces, 0 to 1."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "PhysicsOption",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsOption"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsOption",
+    "signature": "type PhysicsOption = PhysicsType | PhysicsBodyOptions",
+    "summary": "What `obj.physics` may be set to.",
+    "description": ""
+  },
+  {
+    "id": "PhysicsShape",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsShape"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsShape",
+    "signature": "type PhysicsShape",
+    "summary": "A collision shape, when the one inferred from the geometry is not wanted.",
+    "description": "Sizes are in the object's own frame, before its scale."
+  },
+  {
+    "id": "PhysicsStats",
+    "module": "packages/sdk-browser/src/physics/protocol.ts",
+    "exports": ["PhysicsStats"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsStats",
+    "signature": "interface PhysicsStats",
+    "summary": "What the world's physics reports: counts from the last tick, and both clocks apart.",
+    "members": [
+      {
+        "name": "bodies",
+        "type": "number",
+        "desc": "Bodies the simulation holds."
+      },
+      {
+        "name": "active",
+        "type": "number",
+        "desc": "Bodies awake after the last tick."
+      },
+      {
+        "name": "stepMs",
+        "type": "number",
+        "desc": "Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's."
+      },
+      {
+        "name": "mainMs",
+        "type": "number",
+        "desc": "Page milliseconds the physics took in the last frame (the `physics` CPU stage)."
+      },
+      {
+        "name": "poses",
+        "type": "number",
+        "desc": "Poses the last tick sent back."
+      },
+      {
+        "name": "events",
+        "type": "number",
+        "desc": "Contact events the last tick sent back."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "PhysicsType",
+    "module": "packages/sdk-core/src/physics/options.ts",
+    "exports": ["PhysicsType"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PhysicsType",
+    "signature": "type PhysicsType = 'static' | 'dynamic' | 'kinematic'",
+    "summary": "How a body moves: never, by the page (`kinematic`, pushing what it meets), or by the simulation.",
     "description": ""
   },
   {
@@ -16900,7 +17414,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.physics",
-    "signature": "world.physics: { enabled: boolean; get gravity(): Vector3; set gravity(g: GravityInput); paused: boolean; timeScale: number; budget: PhysicsBudget; readonly stats: Readonly...",
+    "signature": "world.physics: WorldPhysics",
     "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
     "members": [
       {
@@ -17747,6 +18261,77 @@
         "name": "baseUrl",
         "type": "string",
         "desc": "The address every page is read against."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "WorldPhysics",
+    "module": "packages/sdk-browser/src/physics/worldPhysics.ts",
+    "exports": ["WorldPhysics"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WorldPhysics",
+    "signature": "type WorldPhysics = ReturnType<typeof createWorldPhysics>['handle']",
+    "summary": "`world.physics`.",
+    "members": [
+      {
+        "name": "enabled",
+        "type": "boolean",
+        "desc": "Whether bodies are simulated. Turning it on fetches the physics the first time."
+      },
+      {
+        "name": "gravity",
+        "type": "Vector3",
+        "desc": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector."
+      },
+      {
+        "name": "paused",
+        "type": "boolean",
+        "desc": "Whether time stands still; writes still reach the bodies."
+      },
+      {
+        "name": "timeScale",
+        "type": "number",
+        "desc": "Simulated seconds per real second: 0.25 is slow motion."
+      },
+      {
+        "name": "budget",
+        "type": "PhysicsBudget",
+        "desc": "The fixed envelopes (`budget.physics`), read once when the physics starts."
+      },
+      {
+        "name": "stats",
+        "type": "Readonly<PhysicsStats>",
+        "desc": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame."
+      },
+      {
+        "name": "error",
+        "type": "EngineError | null",
+        "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "WorldPhysicsOptions",
+    "module": "packages/sdk-browser/src/physics/worldPhysics.ts",
+    "exports": ["WorldPhysicsOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WorldPhysicsOptions",
+    "signature": "interface WorldPhysicsOptions",
+    "summary": "What `createWorld(canvas, { physics })` accepts beyond `true`.",
+    "members": [
+      {
+        "name": "gravity?",
+        "type": "GravityInput | undefined",
+        "desc": "The world's gravity: a preset or a vector."
+      },
+      {
+        "name": "budget?",
+        "type": "Partial<PhysicsBudget> | undefined",
+        "desc": "Fixed envelopes, read once when the physics starts."
       }
     ],
     "description": ""

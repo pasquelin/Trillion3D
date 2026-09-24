@@ -18,7 +18,7 @@ export type GravityInput = GravityPreset | { x: number; y: number; z: number };
 
 /** What `createWorld(canvas, { physics })` accepts beyond `true`. */
 export interface WorldPhysicsOptions {
-  /** @defaultValue 'earth' */ gravity?: GravityInput;
+  /** The world's gravity: a preset or a vector. @defaultValue 'earth' */ gravity?: GravityInput;
   /** Fixed envelopes, read once when the physics starts. @defaultValue DEFAULT_PHYSICS_BUDGET */
   budget?: Partial<PhysicsBudget>;
 }

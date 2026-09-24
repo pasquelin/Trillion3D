@@ -6997,5 +6997,157 @@
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
       "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`."
     }
+  },
+  "ContactEvent": {
+    "summary": "Ce qu’un contact donne à ses écouteurs : l’autre objet, l’impulsion et le point touché.",
+    "members": {
+      "other": "L’objet touché ; `null` une fois sorti de la scène.",
+      "impulse": "N·s : la vitesse d’approche selon la normale fois la masse réduite de la paire, estimée avant le solveur ; 0 sur `leave`.",
+      "point": "Le point de contact, repère du monde ; l’origine sur `leave`."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Les événements d’un corps : premier contact avec une impulsion (`contact`), et contact commencé ou fini."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Les budgets physiques par défaut du moteur.",
+    "members": {
+      "bodies": "Corps de toute sorte à la fois.",
+      "triangles": "Triangles de toutes les formes triangulées statiques à la fois.",
+      "decorative": "Corps décoratifs à la fois.",
+      "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Gravités nommées, en m/s² selon −y.",
+    "members": {
+      "earth": "Celle de la Terre.",
+      "moon": "Celle de la Lune.",
+      "mars": "Celle de Mars.",
+      "none": "Pas de gravité."
+    }
+  },
+  "GravityInput": {
+    "summary": "Une gravité : le nom d’un préréglage, ou un vecteur en m/s²."
+  },
+  "GravityPreset": {
+    "summary": "Le nom d’un préréglage de gravité."
+  },
+  "ObjectPhysics": {
+    "summary": "La physique d’un objet, telle que la tient `obj.physics` une fois posée : un relevé vivant de ce qu’est et fait le corps.",
+    "description": "Les écritures atteignent la simulation au pas suivant ; `velocity` lit ce qu’a laissé le dernier pas.",
+    "members": {
+      "type": "Comment le corps bouge ; réaffecte `obj.physics` pour le changer.",
+      "shape": "La forme déclarée, s’il y en a une.",
+      "sensor": "Si le corps ne fait que signaler les contacts.",
+      "ccd": "Si la collision continue est active.",
+      "decorative": "Si le corps est un débris décoratif.",
+      "velocity": "Vitesse linéaire, m/s, telle que l’a laissée le dernier pas ; écris-la pour lancer le corps.",
+      "asleep": "Si le corps dort : au repos, et plus simulé jusqu’à ce que quelque chose le réveille.",
+      "mass": "Masse en kilogrammes ; `undefined` prend la densité du matériau fois le volume.",
+      "gravityScale": "Multiplie la gravité du monde pour ce corps.",
+      "friction": "Frottement imposé ; `undefined` prend celui du matériau.",
+      "restitution": "Rebond imposé ; `undefined` prend celui du matériau.",
+      "applyImpulse": "Pousse le corps d’un coup, une impulsion en N·s par son centre de masse ; le réveille.",
+      "wake": "Réveille le corps, endormi ou non.",
+      "on": "Appelle `handler` à un événement de contact de ce corps.",
+      "listens": "Si un gestionnaire de contact est posé."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "Matières nommées pour `material.physics`, d’après des valeurs de manuel arrondies.",
+    "members": {
+      "wood": "Bois.",
+      "metal": "Acier.",
+      "rubber": "Caoutchouc.",
+      "ice": "Glace.",
+      "stone": "Pierre.",
+      "glass": "Verre."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "Ce que `obj.physics` accepte en plus de ses trois mots.",
+    "members": {
+      "type": "Comment le corps bouge.",
+      "mass": "Masse en kilogrammes ; omise, la densité du matériau fois le volume de la forme.",
+      "shape": "La forme de collision ; omise, déduite de la géométrie.",
+      "gravityScale": "Multiplie la gravité du monde pour ce corps ; 0 flotte.",
+      "sensor": "Signale les contacts sans collision : un volume déclencheur.",
+      "ccd": "Collision continue, pour les petits corps rapides qui traverseraient les parois minces.",
+      "decorative": "Débris : ne rencontre que le monde statique, et n’est simulé qu’à portée et en vue. Plafonné par `budget.physics.decorative`.",
+      "friction": "Remplace le frottement du matériau, 0 et plus.",
+      "restitution": "Remplace le rebond du matériau, de 0 à 1."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Les enveloppes fixes de la physique d’un monde ; jamais lues sur la machine.",
+    "members": {
+      "bodies": "Corps de toute sorte à la fois.",
+      "triangles": "Triangles de toutes les formes triangulées statiques à la fois.",
+      "decorative": "Corps décoratifs à la fois.",
+      "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Le côté monde d’un corps : ce qu’une écriture sur `obj.physics` demande à la simulation.",
+    "members": {
+      "rebuild": "Un réglage de création du corps a changé : il est recréé.",
+      "tune": "Frottement, rebond ou échelle de gravité a changé.",
+      "listened": "Si les événements de contact voulus ont changé.",
+      "velocity": "La vitesse a été écrite.",
+      "impulse": "Une impulsion a été appliquée.",
+      "wake": "Le corps a été réveillé."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Le nom d’un préréglage de matière."
+  },
+  "PhysicsMatter": {
+    "summary": "La matière d’un corps : densité (kg/m³), frottement et rebond.",
+    "members": {
+      "density": "kg/m³, pour la masse d’un corps.",
+      "friction": "À quel point un corps accroche, de 0 à plus.",
+      "restitution": "À quel point un corps rebondit, de 0 à 1."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "Ce que `obj.physics` peut recevoir."
+  },
+  "PhysicsShape": {
+    "summary": "Une forme de collision, quand celle déduite de la géométrie ne convient pas.",
+    "description": "Les tailles sont dans le repère propre de l’objet, avant son échelle."
+  },
+  "PhysicsStats": {
+    "summary": "Ce que rapporte la physique du monde : comptes du dernier tick, et les deux horloges à part.",
+    "members": {
+      "bodies": "Corps que tient la simulation.",
+      "active": "Corps éveillés après le dernier tick.",
+      "stepMs": "Millisecondes du worker par pas fixe, dernier tick : l’horloge du worker, jamais ajoutée à celle de la page.",
+      "mainMs": "Millisecondes de page prises par la physique à la dernière image (l’étape CPU `physics`).",
+      "poses": "Poses renvoyées par le dernier tick.",
+      "events": "Événements de contact renvoyés par le dernier tick."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Comment un corps bouge : jamais, par la page (`kinematic`, poussant ce qu’il touche), ou par la simulation."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, la physique du monde.",
+    "members": {
+      "enabled": "Si les corps sont simulés. L’activer charge la physique la première fois.",
+      "gravity": "Gravité en m/s², un vecteur vivant ; mets un préréglage (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou un vecteur.",
+      "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
+      "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
+      "budget": "Les enveloppes fixes (`budget.physics`), lues une fois au démarrage de la physique.",
+      "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "Ce que `createWorld(canvas, { physics })` accepte en plus de `true`.",
+    "members": {
+      "budget": "Enveloppes fixes, lues une fois au démarrage de la physique.",
+      "gravity": "La gravité du monde : un préréglage ou un vecteur."
+    }
   }
 }
