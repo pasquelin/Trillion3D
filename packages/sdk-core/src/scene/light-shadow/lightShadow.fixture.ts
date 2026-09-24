@@ -4,7 +4,7 @@
 import type { SceneLight, ShadowViewpoint } from '../light/contracts.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import type { ShadowPlan } from './plan.ts';
-import { lampEntry, sunEntry } from './virtual.ts';
+import { LAMP_MIPS, SUN_LEVELS, lampEntry, sunEntry } from './virtual.ts';
 
 export const VIEW: ShadowViewpoint = {
   position: [0, 5, 0],
@@ -50,6 +50,15 @@ export function report(plan: ShadowPlan, store: SceneLightStore, frame: number, 
 /** Table entries of sun pages `[ax, ay]` at `level`, for the light in `slice`. */
 export const sunPages = (plan: ShadowPlan, slice: number, level: number, pages: number[][]) =>
   pages.map(([ax, ay]) => plan.table.baseOf(slice) + sunEntry(level, ax, ay));
+
+/** Table entry of the sun's floor page over the camera of the fixture: the one page of its last
+ *  level every fixture page lies under. Counted here, not read from the scheduler it tests. */
+export const sunFloor = (plan: ShadowPlan, slice: number) =>
+  sunPages(plan, slice, plan.sun.finest[slice] + SUN_LEVELS - 1, [[0, 0]])[0];
+
+/** Table entry of lamp `face`'s floor page, its one-page mip. */
+export const lampFloor = (plan: ShadowPlan, slice: number, face: number) =>
+  plan.table.baseOf(slice) + lampEntry(face, LAMP_MIPS - 1, 0, 0);
 
 /** Table entries of every page of lamp `face` at `mip`, for the light in `slice`. */
 export function lampPages(plan: ShadowPlan, slice: number, face: number, mip: number) {

@@ -19,8 +19,9 @@ disagreement is reported to the maintainer.
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
 5. **Never open an issue** unless the maintainer asks. A defect found on the way is one line in
-   your report. Sole exceptions: the measurer and the auditor open one per regression or finding,
-   and a lead splits an issue too large for one pull request; all of them write it as the writer.
+   your report. Sole exceptions: the measurer opens one per regression, and a lead splits an
+   issue too large for one pull request; both write it as the writer. The auditor never opens
+   one: a finding reopens the audited issue.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **The witness library stays a witness**: named only in bench, measurement and migration
@@ -43,7 +44,7 @@ Each role is `docs/roles/<role>.md`.
 | lead     | maintainer | owns one domain, delegates, merges, labels                        | writes code, measures        |
 | coder    | lead       | implements one issue, opens the pull request                      | merges, measures             |
 | reviewer | lead       | simplification then correctness pass on one pull request, verdict | merges, measures             |
-| measurer | maintainer | the one queue of browser proofs and benchmarks, on merged batches | edits code, merges           |
+| measurer | maintainer | browser proofs, benchmarks and example thumbnails, after merge    | edits code, merges           |
 | auditor  | maintainer | re-reads every merge on `develop` against CONTRIBUTING.md         | edits code, merges, measures |
 | writer   | anyone     | writes one issue on the template, from its patterns               | codes, measures              |
 
@@ -61,11 +62,12 @@ is one measurer and one auditor.
 | `measure ok`  | measurer | measured, no regression; numbers in a comment              |
 | `measure ko`  | measurer | on a new issue: the regression, linked to the measured one |
 | `audited`     | auditor  | on the pull request: the merge was re-read                 |
-| `audit ko`    | auditor  | on a new issue: the finding, linked to the audited one     |
+| `audit ko`    | auditor  | on the audited issue, reopened: the findings in a comment  |
 
 Measuring and auditing never block a pull request: the issue closes at merge, the measurer and the
-auditor only comment on it, and a failure becomes a new issue carrying the original's domain
-label. A lead always takes the `measure ko` and `audit ko` issues of its domain before a new one.
+auditor only comment on it. A regression becomes a new issue carrying the original's domain
+label; an audit finding reopens the original. A lead always takes the `measure ko` and
+`audit ko` issues of its domain before a new one.
 
 ## Interaction
 
