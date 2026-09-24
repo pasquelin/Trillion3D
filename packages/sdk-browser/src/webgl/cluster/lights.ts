@@ -28,6 +28,10 @@ type ClusterLight = MatrixNode &
     penumbra?: number;
     target?: MatrixNode;
   };
+
+/** The ambient irradiance a frame sums (r, g, b, and whether any ambient light counted), reused. */
+const AMBIENT = new Float64Array(4);
+
 /** A host scene background read by shape: a colour, in linear components, or anything else. */
 export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
 export type WebglClusterScene = {
@@ -108,7 +112,7 @@ export class WebglClusterLights {
     this.probe.reset();
     const lights = this.lights;
     lights.length = 0;
-    const ambient = [0, 0, 0, 0];
+    const ambient = AMBIENT.fill(0);
     scene.traverse((entry) => {
       const light = entry as ClusterLight;
       if (!light.isLight || !visibleThroughParents(light)) return;

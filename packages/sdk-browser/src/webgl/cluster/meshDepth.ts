@@ -12,8 +12,8 @@ type Instanced = {
 };
 
 /**
- * The depth a mesh is sorted by, the reference's: the clip-space z of its bounding sphere's
- * centre — the mesh's own sphere where it has one, the union of its placements' spheres for an
+ * The depth a mesh is sorted by, the reference's: the normalised-device z of its bounding
+ * sphere's centre (clip z over clip w, so a point behind the camera sorts as the reference sorts it) — the mesh's own sphere where it has one, the union of its placements' spheres for an
  * instanced mesh, its geometry's otherwise — never its origin, which a mesh whose vertices carry
  * their pose sets at the scene's. `screen` is the projection times the view.
  */
@@ -36,7 +36,8 @@ export function depthOf(mesh: DepthNode, screen: ArrayLike<number>) {
     y = m[1] * c.x + m[5] * c.y + m[9] * c.z + m[13],
     z = m[2] * c.x + m[6] * c.y + m[10] * c.z + m[14],
     w = m[3] * c.x + m[7] * c.y + m[11] * c.z + m[15];
-  return screen[2] * x + screen[6] * y + screen[10] * z + screen[14] * w;
+  const inverseW = 1 / (screen[3] * x + screen[7] * y + screen[11] * z + screen[15] * w);
+  return (screen[2] * x + screen[6] * y + screen[10] * z + screen[14] * w) * inverseW;
 }
 
 /** An instanced mesh's placement sphere, kept while its matrices and count are unchanged. */

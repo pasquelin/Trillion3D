@@ -25,7 +25,7 @@ import { type GraphCamera } from '../graph/camera.ts';
 import { type GraphLight } from '../graph/light.ts';
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks. */
-export type MeshRanks = { meshes?: number; primitives?: number };
+type MeshRanks = { meshes?: number; primitives?: number };
 
 type Inputs = {
   tables: PreparedSceneTables;

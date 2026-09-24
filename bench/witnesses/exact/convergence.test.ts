@@ -4,12 +4,18 @@
 // what the frame shows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts';
-import { drawnIndices } from '../pagesBackend.fixture.ts';
-import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
-import { submittedDraws, isClusterDrawMesh } from '../../cluster/batchMesh.ts';
+import { exactPagesBackend } from '../measurement.ts';
+import { drawnIndices } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
+import {
+  dagFixture,
+  wideCamera,
+} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
+import {
+  submittedDraws,
+  isClusterDrawMesh,
+} from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 
-/** The Three engine on the DAG fixture, with no page in memory at the start. */
+/** The exact witness on the DAG fixture, with no page in memory at the start. */
 function engine() {
   const fixture = dagFixture();
   const backend = exactPagesBackend({
