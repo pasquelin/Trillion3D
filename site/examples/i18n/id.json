@@ -1907,5 +1907,17 @@
         "1000": "1.000"
       }
     }
+  },
+  "walk-with-collisions": {
+    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya.",
+    "controls": {
+      "pushStrength": "Gaya dorong (N)",
+      "platformSpeed": "Kecepatan platform",
+      "stackAgain": "Tumpuk lagi"
+    },
+    "readouts": {
+      "awake": "Aktif",
+      "speed": "Kecepatan"
+    }
   }
 }

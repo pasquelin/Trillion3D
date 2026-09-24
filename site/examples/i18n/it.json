@@ -1907,5 +1907,17 @@
         "1000": "1.000"
       }
     }
+  },
+  "walk-with-collisions": {
+    "banner": "Clicca per guardarti intorno, poi cammina con W A S D e salta con Spazio: sali le scale e la rampa, viaggia sulla piattaforma, spingi le casse.",
+    "controls": {
+      "pushStrength": "Forza di spinta (N)",
+      "platformSpeed": "Velocità della piattaforma",
+      "stackAgain": "Impila di nuovo"
+    },
+    "readouts": {
+      "awake": "Svegli",
+      "speed": "Velocità"
+    }
   }
 }
