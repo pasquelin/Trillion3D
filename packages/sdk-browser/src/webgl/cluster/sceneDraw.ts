@@ -10,6 +10,7 @@ import { firstMaterial } from '../../scene/materialSide.ts';
 import type { ClusterDrawScene } from './batchDraw.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
+import { multiplyMatrix4 } from './matrices.ts';
 
 /** A node of the display graph, read by shape: a mesh is drawn whole, anything else is walked. */
 type DisplayNode = Partial<SceneCopy> & {
@@ -25,11 +26,34 @@ type DisplayScene = ClusterDrawScene & {
   onAfterRender?(): void;
 };
 
-/** View-space depth of a mesh's origin: what the draw order of see-through meshes reads. */
-const depthOf = (mesh: DisplayNode, view: ArrayLike<number>) => {
-  const m = mesh.matrix!.elements;
-  return view[2] * m[12] + view[6] * m[13] + view[10] * m[14] + view[14];
+type Centre = { readonly x: number; readonly y: number; readonly z: number };
+type Bounded = {
+  boundingSphere?: { center: Centre } | null;
+  computeBoundingSphere?(): void;
 };
+
+/**
+ * The depth a mesh is sorted by, the reference's: the clip-space z of its bounding sphere's
+ * centre — the mesh's own sphere where it has one, its geometry's otherwise — never its origin,
+ * which a mesh whose vertices carry their pose sets at the scene's. `screen` is the projection
+ * times the view.
+ */
+function depthOf(mesh: DisplayNode, screen: ArrayLike<number>) {
+  let sphere = (mesh as Bounded).boundingSphere;
+  if (sphere === undefined) {
+    const geometry = mesh.geometry as Bounded | undefined;
+    if (geometry && !geometry.boundingSphere) geometry.computeBoundingSphere?.();
+    sphere = geometry?.boundingSphere;
+  }
+  const c = sphere?.center ?? ORIGIN,
+    m = mesh.matrix!.elements;
+  const x = m[0] * c.x + m[4] * c.y + m[8] * c.z + m[12],
+    y = m[1] * c.x + m[5] * c.y + m[9] * c.z + m[13],
+    z = m[2] * c.x + m[6] * c.y + m[10] * c.z + m[14],
+    w = m[3] * c.x + m[7] * c.y + m[11] * c.z + m[15];
+  return screen[2] * x + screen[6] * y + screen[10] * z + screen[14] * w;
+}
+const ORIGIN: Centre = { x: 0, y: 0, z: 0 };
 
 /**
  * THE ENGINE'S DRAW OF A DISPLAY GRAPH: every visible mesh the graph holds, drawn whole by the
@@ -54,14 +78,18 @@ export function createSceneDraw(
   const opaque: WholeMesh[] = [],
     seeThrough: DisplayNode[] = [];
   let owner: WebglClusterOwner | undefined,
-    view: ArrayLike<number> = [],
     opened = false;
+  // The projection times the view, and each drawn mesh's depth, read once a frame.
+  const screen = new Float64Array(16),
+    depths = new Map<DisplayNode, number>();
+  const depth = (node: DisplayNode) => depths.get(node)!;
   const counters = { triangles: 0 };
   const collect = (node: DisplayNode) => {
     if (!node.visible) return;
     if (node.isMesh) {
       if (copied.has(node) || firstMaterial(node.material!)?.transparent) seeThrough.push(node);
       else opaque.push(node as WholeMesh);
+      depths.set(node, depthOf(node, screen));
     }
     for (const child of node.children) collect(child);
   };
@@ -79,10 +107,10 @@ export function createSceneDraw(
   const frontToBack = (a: DisplayNode, b: DisplayNode) =>
     a.renderOrder - b.renderOrder ||
     rankOf(a as WholeMesh) - rankOf(b as WholeMesh) ||
-    depthOf(b, view) - depthOf(a, view) ||
+    depth(a) - depth(b) ||
     a.id - b.id;
   const backToFront = (a: DisplayNode, b: DisplayNode) =>
-    a.renderOrder - b.renderOrder || depthOf(a, view) - depthOf(b, view) || a.id - b.id;
+    a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.id - b.id;
   return {
     render(_camera: HostCamera) {
       counters.triangles = 0;
@@ -97,8 +125,9 @@ export function createSceneDraw(
       try {
         scene.updateMatrixWorld();
         opaque.length = seeThrough.length = 0;
+        depths.clear();
+        multiplyMatrix4(screen, drawCamera.projection, drawCamera.view);
         for (const child of scene.children) collect(child);
-        view = drawCamera.view;
         (opaque as DisplayNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
         owner.draw(
