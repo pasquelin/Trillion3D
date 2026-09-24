@@ -5069,22 +5069,22 @@
       {
         "name": "x",
         "type": "number",
-        "desc": "The three angles and their order, each write announced."
+        "desc": "The first angle, in radians."
       },
       {
         "name": "y",
         "type": "number",
-        "desc": ""
+        "desc": "The second angle, in radians."
       },
       {
         "name": "z",
         "type": "number",
-        "desc": ""
+        "desc": "The third angle, in radians."
       },
       {
         "name": "order",
         "type": "string",
-        "desc": ""
+        "desc": "The order the three angles turn in, `'XYZ'` unless set."
       },
       {
         "name": "set(x: number, y: number, z: number, order?: string)",
@@ -5371,7 +5371,7 @@
       {
         "name": "needsUpdate",
         "type": "boolean",
-        "desc": ""
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       }
     ],
     "description": ""
@@ -5426,7 +5426,7 @@
       {
         "name": "needsUpdate",
         "type": "boolean",
-        "desc": ""
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       }
     ],
     "description": ""
@@ -5719,22 +5719,22 @@
       {
         "name": "x",
         "type": "number",
-        "desc": "The four numbers, each write announced."
+        "desc": "The first number."
       },
       {
         "name": "y",
         "type": "number",
-        "desc": ""
+        "desc": "The second number."
       },
       {
         "name": "z",
         "type": "number",
-        "desc": ""
+        "desc": "The third number."
       },
       {
         "name": "w",
         "type": "number",
-        "desc": ""
+        "desc": "The fourth number."
       },
       {
         "name": "set(x: number, y: number, z: number, w: number)",
@@ -5825,77 +5825,77 @@
       {
         "name": "visible",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether it is drawn."
       },
       {
         "name": "side",
         "type": "number",
-        "desc": ""
+        "desc": "Which faces, as the host's constant."
       },
       {
         "name": "forceSinglePass",
         "type": "boolean",
-        "desc": ""
+        "desc": "The host draws a double-sided transparent surface in one pass instead of back then front."
       },
       {
         "name": "vertexColors",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether vertex colours tint it."
       },
       {
         "name": "toneMapped",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether the display curve applies."
       },
       {
         "name": "depthTest",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether it tests depth."
       },
       {
         "name": "depthWrite",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether it writes depth."
       },
       {
         "name": "depthFunc",
         "type": "number",
-        "desc": ""
+        "desc": "The depth test's comparison."
       },
       {
         "name": "colorWrite",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether it writes colour."
       },
       {
         "name": "polygonOffset",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether depth is offset."
       },
       {
         "name": "polygonOffsetFactor",
         "type": "number",
-        "desc": ""
+        "desc": "Slope part of the offset."
       },
       {
         "name": "polygonOffsetUnits",
         "type": "number",
-        "desc": ""
+        "desc": "Constant part of the offset."
       },
       {
         "name": "transparent",
         "type": "boolean",
-        "desc": ""
+        "desc": "Whether it blends."
       },
       {
         "name": "opacity",
         "type": "number",
-        "desc": ""
+        "desc": "How opaque it is."
       },
       {
         "name": "alphaTest",
         "type": "number",
-        "desc": ""
+        "desc": "Alpha below which pixels drop."
       },
       {
         "name": "family",
@@ -6001,17 +6001,17 @@
       {
         "name": "repeat",
         "type": "Vector2",
-        "desc": ""
+        "desc": "How many times it fits."
       },
       {
         "name": "center",
         "type": "Vector2",
-        "desc": ""
+        "desc": "The pivot of the rotation."
       },
       {
         "name": "rotation",
         "type": "number",
-        "desc": ""
+        "desc": "The rotation, in radians."
       },
       {
         "name": "matrixAutoUpdate",
@@ -6109,17 +6109,17 @@
       {
         "name": "x",
         "type": "number",
-        "desc": ""
+        "desc": "Left to right."
       },
       {
         "name": "y",
         "type": "number",
-        "desc": ""
+        "desc": "Bottom to top."
       },
       {
         "name": "z",
         "type": "number",
-        "desc": ""
+        "desc": "Back to front."
       },
       {
         "name": "set(x: number, y: number, z: number)",

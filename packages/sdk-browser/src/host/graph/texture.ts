@@ -41,8 +41,11 @@ export class GraphTexture extends Releasable {
   colorSpace: string = HOST_COLOUR_SPACE_NONE;
   /** The coordinate transform: moved, stretched, turned about `center`. */
   readonly offset = new Vector2(0, 0);
+  /** How many times it fits. */
   readonly repeat = new Vector2(1, 1);
+  /** The pivot of the rotation. */
   readonly center = new Vector2(0, 0);
+  /** The rotation, in radians. */
   rotation = 0;
   /** Whether `matrix` is rebuilt from the four above. */
   matrixAutoUpdate = true;

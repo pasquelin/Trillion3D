@@ -6860,7 +6860,22 @@
       "family": "A família a que pertence.",
       "needsUpdate": "`needsUpdate = true` depois de uma alteração: cada leitor volta a ler os campos.",
       "copy": "Toma cada parâmetro de `source`, cores e vetores copiados, texturas partilhadas.",
-      "clone": "Uma superfície da mesma família com os mesmos parâmetros."
+      "clone": "Uma superfície da mesma família com os mesmos parâmetros.",
+      "visible": "Se é desenhado.",
+      "side": "Quais faces, como a constante do host.",
+      "forceSinglePass": "O host desenha uma superfície transparente de dois lados em um único passo em vez de trás depois frente.",
+      "vertexColors": "Se cores de vértice a tingem.",
+      "toneMapped": "Se a curva de exibição se aplica.",
+      "depthWrite": "Se escreve profundidade.",
+      "depthFunc": "A comparação do teste de profundidade.",
+      "colorWrite": "Se escreve cor.",
+      "polygonOffset": "Se a profundidade é deslocada.",
+      "polygonOffsetFactor": "Parte de inclinação do deslocamento.",
+      "polygonOffsetUnits": "Parte constante do deslocamento.",
+      "transparent": "Se ela mistura.",
+      "opacity": "O quão opaca é.",
+      "alphaTest": "Alfa abaixo do qual pixels são descartados.",
+      "depthTest": "Se faz o teste de profundidade."
     },
     "summary": "Uma superfície: os parâmetros de uma família, nos valores da referência salvo se a cena disser outra coisa.",
     "description": "A sua versão é incrementada por `needsUpdate`, que cada leitor compara."
@@ -6890,16 +6905,22 @@
       "userData": "Espaço livre para os dados de quem construiu a textura.",
       "format": "Os canais dos texels de uma textura bruta (`HOST_FORMAT_*`).",
       "needsUpdate": "`needsUpdate = true` depois de uma alteração: um leitor envia-a de novo.",
-      "clone": "Uma textura da mesma imagem e estado, anunciada como alterada."
+      "clone": "Uma textura da mesma imagem e estado, anunciada como alterada.",
+      "repeat": "Quantas vezes ela cabe.",
+      "center": "O pivô da rotação.",
+      "rotation": "A rotação, em radianos."
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
   },
   "GraphAngles": {
     "summary": "A mesma orientação como três ângulos e a sua ordem, anunciando as suas escritas da mesma forma.",
     "members": {
-      "x": "Os três ângulos e a sua ordem, cada escrita anunciada.",
+      "x": "O primeiro ângulo, em radianos.",
       "set": "Escreve os três ângulos, e a ordem quando dada; anunciado uma vez.",
-      "setFromRotation": "Os ângulos de `q` nesta ordem (o `Euler` do núcleo); anunciado exceto com `quiet`."
+      "setFromRotation": "Os ângulos de `q` nesta ordem (o `Euler` do núcleo); anunciado exceto com `quiet`.",
+      "y": "O segundo ângulo, em radianos.",
+      "z": "O terceiro ângulo, em radianos.",
+      "order": "A ordem em que os três ângulos rodam, `'XYZ'` salvo definição."
     }
   },
   "GraphArray": {
@@ -6915,7 +6936,8 @@
       "data": "O buffer que observa.",
       "offset": "Onde os seus números começam em cada vértice.",
       "array": "O armazenamento onde vivem os elementos.",
-      "count": "Quantos vértices."
+      "count": "Quantos vértices.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
     }
   },
   "GraphInterleavedBuffer": {
@@ -6925,7 +6947,8 @@
       "count": "Quantos vértices.",
       "version": "Incrementado por `needsUpdate`.",
       "array": "O armazenamento.",
-      "stride": "Números por vértice."
+      "stride": "Números por vértice.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
     }
   },
   "GraphMesh": {
@@ -6946,14 +6969,17 @@
   "GraphRotation": {
     "summary": "Uma orientação `(x, y, z, w)` cujas escritas chamam `_onChangeCallback`.",
     "members": {
-      "x": "Os quatro números, cada escrita anunciada.",
+      "x": "O primeiro número.",
       "set": "Escreve os quatro números, anunciado uma vez.",
       "copy": "Toma os números de outra rotação.",
       "fromArray": "Lê quatro números de uma lista.",
       "setFromAngles": "A rotação de `angles`, na sua ordem (`localTurnQuaternion`); anunciado exceto com `quiet`.",
       "setFromRotationMatrix": "A rotação do 3×3 superior de uma matriz por colunas cujas colunas têm comprimento unitário.",
       "premultiply": "Torna-se `q` seguido desta rotação, `q · this`.",
-      "invert": "Torna-se a rotação oposta."
+      "invert": "Torna-se a rotação oposta.",
+      "y": "O segundo número.",
+      "z": "O terceiro número.",
+      "w": "O quarto número."
     }
   },
   "GraphVector": {
@@ -6968,7 +6994,10 @@
       "length": "O seu comprimento.",
       "setLength": "Mantém a direção, define o comprimento.",
       "distanceTo": "Distância a um ponto.",
-      "fromArray": "Lê três números de uma lista."
+      "fromArray": "Lê três números de uma lista.",
+      "x": "Da esquerda para a direita.",
+      "y": "De baixo para cima.",
+      "z": "De trás para frente."
     }
   }
 }

@@ -6861,7 +6861,22 @@
       "family": "Keluarga tempat ia berada.",
       "needsUpdate": "`needsUpdate = true` setelah perubahan: setiap pembaca mengambil kolom-kolomnya lagi.",
       "copy": "Mengambil setiap parameter `source`, warna dan vektor disalin, tekstur dibagi.",
-      "clone": "Permukaan dari keluarga yang sama dengan parameter yang sama."
+      "clone": "Permukaan dari keluarga yang sama dengan parameter yang sama.",
+      "visible": "Apakah ia digambar.",
+      "side": "Sisi mana, sebagai konstanta host.",
+      "forceSinglePass": "Host menggambar sebuah permukaan transparan dua sisi dalam satu tahap, bukan belakang lalu depan.",
+      "vertexColors": "Apakah warna vertex mewarnainya.",
+      "toneMapped": "Apakah kurva tampilan diterapkan.",
+      "depthWrite": "Apakah ia menulis kedalaman.",
+      "depthFunc": "Perbandingan uji kedalamannya.",
+      "colorWrite": "Apakah ia menulis warna.",
+      "polygonOffset": "Apakah kedalaman digeser.",
+      "polygonOffsetFactor": "Bagian kemiringan dari pergeseran.",
+      "polygonOffsetUnits": "Bagian konstan dari pergeseran.",
+      "transparent": "Apakah ia mencampur.",
+      "opacity": "Seberapa opaque ia.",
+      "alphaTest": "Alpha di bawahnya piksel dijatuhkan.",
+      "depthTest": "Apakah ia menguji kedalaman."
     },
     "summary": "Permukaan: parameter satu keluarga, pada nilai referensi kecuali adegan menyatakan lain.",
     "description": "Versinya dinaikkan oleh `needsUpdate`, yang dibandingkan setiap pembaca."
@@ -6891,16 +6906,22 @@
       "userData": "Ruang bebas untuk data milik siapa pun yang membangun tekstur.",
       "format": "Kanal texel dari tekstur mentah (`HOST_FORMAT_*`).",
       "needsUpdate": "`needsUpdate = true` setelah perubahan: pembaca mengunggahnya lagi.",
-      "clone": "Tekstur dengan gambar dan keadaan yang sama, diumumkan sebagai berubah."
+      "clone": "Tekstur dengan gambar dan keadaan yang sama, diumumkan sebagai berubah.",
+      "repeat": "Berapa kali ia muat.",
+      "center": "Poros rotasi.",
+      "rotation": "Rotasi, dalam radian."
     },
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
   },
   "GraphAngles": {
     "summary": "Orientasi yang sama sebagai tiga sudut dan urutannya, mengumumkan penulisannya dengan cara yang sama.",
     "members": {
-      "x": "Tiga sudut dan urutannya, setiap penulisan diumumkan.",
+      "x": "Sudut pertama, dalam radian.",
       "set": "Menulis tiga sudut, dan urutannya bila diberikan; diumumkan sekali.",
-      "setFromRotation": "Sudut-sudut `q` dalam urutan ini (`Euler` inti); diumumkan kecuali `quiet`."
+      "setFromRotation": "Sudut-sudut `q` dalam urutan ini (`Euler` inti); diumumkan kecuali `quiet`.",
+      "y": "Sudut kedua, dalam radian.",
+      "z": "Sudut ketiga, dalam radian.",
+      "order": "Urutan putaran ketiga sudut, `'XYZ'` kecuali diatur."
     }
   },
   "GraphArray": {
@@ -6916,7 +6937,8 @@
       "data": "Buffer yang dilihatnya.",
       "offset": "Tempat angka-angkanya dimulai di setiap verteks.",
       "array": "Penyimpanan tempat elemen berada.",
-      "count": "Berapa banyak verteks."
+      "count": "Berapa banyak verteks.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
     }
   },
   "GraphInterleavedBuffer": {
@@ -6926,7 +6948,8 @@
       "count": "Berapa banyak verteks.",
       "version": "Dinaikkan oleh `needsUpdate`.",
       "array": "Penyimpanan.",
-      "stride": "Angka per verteks."
+      "stride": "Angka per verteks.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
     }
   },
   "GraphMesh": {
@@ -6947,14 +6970,17 @@
   "GraphRotation": {
     "summary": "Orientasi `(x, y, z, w)` yang penulisannya memanggil `_onChangeCallback`.",
     "members": {
-      "x": "Empat angka, setiap penulisan diumumkan.",
+      "x": "Angka pertama.",
       "set": "Menulis empat angka, diumumkan sekali.",
       "copy": "Mengambil angka rotasi lain.",
       "fromArray": "Membaca empat angka dari daftar.",
       "setFromAngles": "Rotasi dari `angles`, dalam urutannya (`localTurnQuaternion`); diumumkan kecuali `quiet`.",
       "setFromRotationMatrix": "Rotasi dari 3×3 atas matriks berurutan kolom yang kolom-kolomnya berpanjang satu.",
       "premultiply": "Menjadi `q` diikuti rotasi ini, `q · this`.",
-      "invert": "Menjadi putaran kebalikannya."
+      "invert": "Menjadi putaran kebalikannya.",
+      "y": "Angka kedua.",
+      "z": "Angka ketiga.",
+      "w": "Angka keempat."
     }
   },
   "GraphVector": {
@@ -6969,7 +6995,10 @@
       "length": "Panjangnya.",
       "setLength": "Mempertahankan arah, menetapkan panjang.",
       "distanceTo": "Jarak ke sebuah titik.",
-      "fromArray": "Membaca tiga angka dari daftar."
+      "fromArray": "Membaca tiga angka dari daftar.",
+      "x": "Kiri ke kanan.",
+      "y": "Bawah ke atas.",
+      "z": "Belakang ke depan."
     }
   }
 }
