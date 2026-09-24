@@ -17596,7 +17596,7 @@
     "section": "world",
     "kind": "Function",
     "title": "world.raycast()",
-    "signature": "world.raycast(at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null\nworld.raycast(at: CanvasPoint | Ray, options: PhysicsRaycastOptions): Promise<PhysicsIntersection | null>",
+    "signature": "world.raycast(at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null\nworld.raycast(at: CanvasPoint | Ray, options: { exact?: true; shape?: { type: 'sphere'; radius: number; } | { type: 'box'; halfExtents: { x: number; y: number; z: number; }; } | { type: 'capsule'; halfHe...): Promise<(Intersection & { material: number; }) | null>",
     "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
     "parameters": [
       {
