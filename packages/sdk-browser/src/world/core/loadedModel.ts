@@ -42,6 +42,17 @@ export class LoadedModel extends Object3D {
 
   /** Everything the world keeps about this model: its addresses, manifest and graph. */
   readonly record: ModelRecord;
+  /** The nodes its source file carried, told apart from those a page placed under it. */
+  private readonly carried = new WeakSet<Object3D>();
+  /** Whether `node` came with the source file: a saved scene leaves it to the file. */
+  _fromFile(node: Object3D) {
+    return this.carried.has(node);
+  }
+  /** Adds nodes the source file carried (`loadModel`). */
+  _addFromFile(...nodes: Object3D[]) {
+    for (const node of nodes) this.carried.add(node);
+    return this.add(...nodes);
+  }
   constructor(record: ModelRecord) {
     super();
     this.record = record;
@@ -110,7 +121,7 @@ export async function loadModel(
   });
   for (const record of imported.lights) {
     const lamp = lightFromRecord(record);
-    model.add(lamp, lamp.target);
+    model._addFromFile(lamp, lamp.target);
   }
   return model;
 }

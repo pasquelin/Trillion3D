@@ -4109,6 +4109,13 @@
   "object.group": {
     "summary": "Un nœud vide qui tient d’autres objets, pour qu’ils bougent ensemble."
   },
+  "object.clone": {
+    "summary": "Une copie d’un objet et de tout ce qu’il porte, qui ne partage rien avec lui : sa forme, ses matériaux, ses lumières et ses champs sont copiés.",
+    "description": "Un modèle chargé n’est pas copié : `null` pour lui, et il est laissé hors d’un groupe copié.",
+    "parameters": {
+      "source": "L’objet à copier."
+    }
+  },
   "object.points": {
     "summary": "Dessine chaque sommet d’une géométrie en point.",
     "parameters": {

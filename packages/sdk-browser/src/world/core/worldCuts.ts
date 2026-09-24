@@ -104,17 +104,17 @@ export function createWorldCuts() {
      *  no triangle. The mesh is counted among its users until it leaves. */
     async of(mesh: Mesh): Promise<Cut | null> {
       const { key: way, options } = readingOf(mesh);
-      let ways = readings.get(mesh.geometry);
-      if (!ways) readings.set(mesh.geometry, (ways = new Map()));
+      const ways = readings.get(mesh.geometry) ?? new Map<string, Reading>();
+      readings.set(mesh.geometry, ways);
       let reading = ways.get(way);
       const fresh = !reading || reading.version !== mesh.geometry.version;
       if (fresh) {
         const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options);
-        reading = {
-          version: mesh.geometry.version,
-          read: drawn ? readContent(drawn) : Promise.resolve(null),
-        };
+        const read = drawn ? readContent(drawn) : Promise.resolve(null);
+        reading = { version: mesh.geometry.version, read };
         ways.set(way, reading);
+        // A read that failed (no digest on this origin) is forgotten: the next asks again.
+        read.catch(() => ways.get(way)?.read === read && ways.delete(way));
       }
       const content = await reading!.read;
       const cut = content ? await resourceOf(content, fresh) : null;
