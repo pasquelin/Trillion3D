@@ -76,8 +76,9 @@ export function createWorldPoses() {
     ) {
       if (moved.size) {
         for (const node of moved) {
-          // Its chain, then its subtree: the tree recomputes only what a write left dirty.
-          node.updateWorldMatrix(true, true);
+          // Its chain, then its subtree: the tree recomputes only what a write left dirty. A leaf
+          // has no subtree to walk, and the walk scans the whole update order (O(n) per node).
+          node.updateWorldMatrix(true, node.children.length > 0);
           const visit = (child: Object3D, shown: boolean) => {
             const drawn = shown && child.visible;
             const seat = seats.get(child as Mesh);

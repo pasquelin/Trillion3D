@@ -156,16 +156,17 @@ export function createWorldFrames() {
     prepare,
     /**
      * The loop's work ahead of a frame, in this order: the controller steps the camera unless the
-     * page took the step, the scene's clips advance, the early hooks run. What they move is
-     * written to the renderer after them, so it is drawn in this frame.
-     * @returns Whether a clip still plays, and asks for the next frame.
+     * page took the step, the scene's clips advance, the physics draws its bodies, the early
+     * hooks run. What they move is written to the renderer after them, so it is drawn in this frame.
+     * @returns Whether a clip still plays or a body still moves, and asks for the next frame.
      */
-    step(controls: Stepped, scene: Object3D) {
+    step(controls: Stepped, scene: Object3D, physics: () => boolean = () => false) {
       const seconds = advance();
       if (controls.autoUpdate) controls.update(seconds);
       const playing = advanceMixers(scene, seconds);
+      const moving = physics();
       prepare(seconds);
-      return playing;
+      return playing || moving;
     },
     dispatch(metrics: FrameMetrics) {
       const now = performance.now();

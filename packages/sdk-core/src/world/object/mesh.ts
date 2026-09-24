@@ -2,6 +2,8 @@ import { Object3D } from './object3d.ts';
 import { Geometry } from '../geometry/geometry.ts';
 import { Material } from '../material/material.ts';
 import type { Box3 } from '../math/box3.ts';
+import { ObjectPhysics } from '../../physics/objectPhysics.ts';
+import type { PhysicsOption } from '../../physics/options.ts';
 
 /** How the triangles a mesh draws are read from its geometry. */
 export type Primitive =
@@ -17,6 +19,7 @@ export class Mesh extends Object3D {
   private _geometry: Geometry;
   private _material: Material | Material[];
   private readonly heard = () => this._link?.content(this);
+  private _physics: ObjectPhysics | null = null;
 
   /** How the geometry's vertices are read: triangles, points or lines. */
   readonly primitive: Primitive;
@@ -56,6 +59,20 @@ export class Mesh extends Object3D {
     this.hear(false);
     this._material = material;
     this.hear(true);
+    this.heard();
+  }
+  /**
+   * The mesh as a body of the world's physics, `null` when it is none. Set `'static'`,
+   * `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry.
+   * @defaultValue null
+   * @example box.physics = 'dynamic'; box.physics.applyImpulse(0, 5, 0);
+   */
+  get physics(): ObjectPhysics | null {
+    return this._physics;
+  }
+  set physics(option: PhysicsOption | ObjectPhysics | null) {
+    this._physics =
+      option === null || option instanceof ObjectPhysics ? option : new ObjectPhysics(option);
     this.heard();
   }
   override localBounds(): Box3 | null {
