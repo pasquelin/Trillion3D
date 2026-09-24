@@ -1,4 +1,4 @@
-// The page table's host side: a fixed window per slice, sized so every shadow light of the
+// The page table's host side: a fixed span per slice, sized so every shadow light of the
 // contract holds its range, and an upload of the words a frame changed, in contiguous runs,
 // nothing when nothing changed.
 import test from 'node:test';
@@ -7,13 +7,13 @@ import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import { createShadowTable } from './table.ts';
 import { SHADOW_TABLE_STRIDE } from './virtual.ts';
 
-test('a range starts at its slice window, and an entry names the slice whose range holds it', () => {
+test('a range starts at its slice span, and an entry names the slice whose range holds it', () => {
   const table = createShadowTable(1024);
   table.claim(0, 100);
   table.claim(1, 50);
   assert.deepEqual([table.baseOf(0), table.baseOf(1)], [0, SHADOW_TABLE_STRIDE]);
   assert.equal(table.sliceAt(SHADOW_TABLE_STRIDE + 49), 1);
-  assert.equal(table.sliceAt(SHADOW_TABLE_STRIDE + 50), -1, 'past the range, inside the window');
+  assert.equal(table.sliceAt(SHADOW_TABLE_STRIDE + 50), -1, 'past the range, inside the span');
   table.release(1);
   assert.equal(table.sliceAt(SHADOW_TABLE_STRIDE), -1);
   assert.equal(table.entries, MAX_SHADOW_SLICES * SHADOW_TABLE_STRIDE);

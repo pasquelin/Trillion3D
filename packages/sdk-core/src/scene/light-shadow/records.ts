@@ -59,7 +59,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
         }
       return -1;
     },
-    /** Gives `slice` the table range a light of kind `rank` needs, inside its own window. */
+    /** Gives `slice` the table range a light of kind `rank` needs, inside its own span. */
     fit(slice: number, rank: number) {
       if (kind[slice] === rank && table.baseOf(slice) >= 0) return;
       dropPages(slice);
