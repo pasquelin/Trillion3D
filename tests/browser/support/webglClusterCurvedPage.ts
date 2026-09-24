@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { threeCamera, threeGraph, threeMeshCopy } from '../../../bench/witnesses/three/fromGraphNodes.ts';
+import {
+  threeCamera,
+  threeGraph,
+  threeMeshCopy,
+} from '../../../bench/witnesses/three/fromGraphNodes.ts';
 import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import {
   createHostDrawCamera,

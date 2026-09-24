@@ -9,7 +9,6 @@
  * publishes a display-graph record (`packages/sdk-browser/src/cluster/blendSceneRecord.ts`): neither names a
  * library. A light of the engine's own graph is copied into the library by `fromGraphNodes.ts`.
  */
-import type { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
 import {
   installSceneLighting,
   type HostLight,

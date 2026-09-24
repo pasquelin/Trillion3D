@@ -21,10 +21,7 @@ function page(
 }
 function indexedQuad() {
   const geometry = new G.GraphGeometry();
-  geometry.setAttribute(
-    'position',
-    G.floatAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0], 3),
-  );
+  geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0], 3));
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   return geometry;
 }
@@ -66,8 +63,14 @@ test('the pages, level-of-detail and cluster views colour by residency, role and
   const resident = page('c1', declaration, { array: new Uint32Array(1) }),
     loading = page('c2', declaration);
   const pages = materials('pages').made;
-  assert.equal(((pages.materialFor(resident) as G.GraphSurface).color as G.Color).getHex(), 0x34d399);
-  assert.equal(((pages.materialFor(loading) as G.GraphSurface).color as G.Color).getHex(), 0xfbbf24);
+  assert.equal(
+    ((pages.materialFor(resident) as G.GraphSurface).color as G.Color).getHex(),
+    0x34d399,
+  );
+  assert.equal(
+    ((pages.materialFor(loading) as G.GraphSurface).color as G.Color).getHex(),
+    0xfbbf24,
+  );
   assert.equal(pages.materialFor(page('c9', declaration)), pages.materialFor(loading));
   const lod = materials('lod').made;
   const coarse = page('c1', declaration, { role: 'coarse' }),

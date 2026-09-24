@@ -60,7 +60,10 @@ export type Lampe = {
   readonly color: { setRGB(r: number, g: number, b: number): unknown };
   intensity: number;
   castShadow: boolean;
-  readonly position: { set(x: number, y: number, z: number): unknown; fromArray(a: number[]): unknown };
+  readonly position: {
+    set(x: number, y: number, z: number): unknown;
+    fromArray(a: number[]): unknown;
+  };
   readonly target?: { readonly position: { set(x: number, y: number, z: number): unknown } };
   distance?: number;
   decay?: number;
