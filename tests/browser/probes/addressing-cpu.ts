@@ -10,7 +10,7 @@
 import {
   importHostTexture,
   importWrapMode,
-} from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
+} from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { sampleLinear, wrapTexel } from '../../../packages/sdk-browser/src/visibility/math.ts';

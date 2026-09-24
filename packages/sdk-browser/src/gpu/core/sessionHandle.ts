@@ -18,8 +18,6 @@ export const sessionTag = (id: number) => `@t3d:${id}`;
 export const tagsIn = (message: string) => Array.from(message.matchAll(TAG), (m) => Number(m[1]));
 /** True when `label` names no session: what the device keeps for every session. */
 export const namesNoSession = (label: string | undefined) => !label || !TAGGED.test(label);
-/** A label as the engine wrote it, without its session's tag. */
-export const untag = (label: string | undefined) => label?.replace(/ ?@t3d:\d+$/, '') || undefined;
 
 const CREATES = [
   'createBuffer',
