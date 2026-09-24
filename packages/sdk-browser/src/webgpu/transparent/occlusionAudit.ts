@@ -43,15 +43,24 @@ export interface TransparentOcclusionAudit {
 export async function readTransparentOcclusionAudit(
   rt: WebgpuPagesRuntime,
 ): Promise<TransparentOcclusionAudit | null> {
-  const { blendState, layout, vis } = rt,
-    device = rt.setup.gpuDevice,
+  const { blendState, layout, vis, run } = rt,
+    device = rt.gpu.device,
     table = blendState.table,
     compaction = blendState.compaction,
     frame = vis.gpuPartition?.lastFrame;
-  if (!device || !table || !compaction || !blendState.occlusion || !frame || !vis.gpuHiz)
+  if (
+    run.lost ||
+    !device ||
+    !table ||
+    !compaction ||
+    !blendState.occlusion ||
+    !frame ||
+    !vis.gpuHiz
+  )
     return null;
   const words = await readGpuBuffer(device, compaction.occludedBuffer, table.capacity * 4);
-  if (!words) return null;
+  // A backend closed or lost while the read was in flight reads nothing more.
+  if (!words || run.lost || !vis.gpuHiz) return null;
   const verdicts = new Uint32Array(words.buffer, words.byteOffset, table.capacity);
   const keep: number[] = [];
   let examined = 0;

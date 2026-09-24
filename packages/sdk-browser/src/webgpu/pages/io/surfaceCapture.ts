@@ -90,7 +90,8 @@ export async function captureSurfaceView(
   options: CaptureOptions,
 ) {
   const { run, capture, context, diag } = rt,
-    { gpuDevice, viewport } = rt.setup;
+    { viewport } = rt.setup,
+    gpuDevice = rt.gpu.device;
   context.signal?.throwIfAborted();
   options.signal?.throwIfAborted();
   if (capture.capturing || capture.surfaceCapture)
