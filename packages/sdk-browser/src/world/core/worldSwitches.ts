@@ -11,7 +11,8 @@ interface SwitchedRuntime {
 /**
  * The world's render switches — bounced light, temporal antialiasing —: held by the world, given
  * to every session it opens (`held`), and written into the open one in place, the session
- * reopened only where it cannot take one.
+ * reopened only where it cannot take one. Temporal antialiasing reads back what the open session
+ * draws; before one opens, what the page asked (`world.temporalAntialiasing`).
  */
 export function worldSwitches(
   options: WorldOptions,
@@ -22,9 +23,6 @@ export function worldSwitches(
   const held = { bounce: false, temporalAntialiasing: options.temporalAntialiasing !== false };
   return {
     held,
-    /** Light bounced off the surfaces, traced against the resident proxy; off by default. A
-     *  change is applied in place on a path that carries it, and taken by the next opening on
-     *  one that does not. */
     get bounce() {
       return held.bounce;
     },
@@ -35,10 +33,6 @@ export function worldSwitches(
       if (session && !session.setBounce(on)) runtime().renew();
       invalidate();
     },
-    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it
-     *  takes effect at the next frame, history dropped, no session reopened. Read, it is what the
-     *  image carries: false on WebGL2, which has none, and while the program compiles after it was
-     *  turned on; before a session opens, what the page asked. */
     get temporalAntialiasing() {
       const session = runtime().explorer;
       if (session) return session.temporalAntialiasing();

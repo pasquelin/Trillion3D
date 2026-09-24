@@ -3998,7 +3998,8 @@
       "pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "controls": "Controller yang menggerakkan kamera dari canvas; `world.controls.kind` mengubahnya nanti.",
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
-      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
+      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
+      "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4632,7 +4633,8 @@
       "options.pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "options.controls": "Pengontrol yang menggerakkan kamera dari kanvas; `world.controls.kind` mengubahnya nanti.",
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
-      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
+      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
+      "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -6578,6 +6580,10 @@
   "world.bounce": {
     "summary": "Cahaya yang dipantulkan dari permukaan, ditelusuri terhadap proxy yang menetap; mati secara default.",
     "description": "Sebuah perubahan diterapkan di tempat pada sebuah jalur yang membawanya, dan diambil oleh pembukaan berikutnya pada yang tidak."
+  },
+  "world.temporalAntialiasing": {
+    "summary": "Antialiasing temporal: pergeseran subpiksel yang diakumulasi antarbingkai; aktif secara bawaan.",
+    "description": "Saat ditulis, berlaku pada bingkai berikutnya, riwayat dibuang, tanpa membuka ulang sesi. Saat dibaca, itulah yang dibawa gambar: false di WebGL2, dan selama program dikompilasi setelah diaktifkan."
   },
   "world.budget": {
     "summary": "Kolam memori dunia, dibaca dan diatur dalam byte.",
