@@ -115,7 +115,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         if (!castsShadow(store, slot)) continue;
         const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
         let slice = store.sliceOf(slot);
-        if (slice < 0) slice = records.claim();
+        if (slice < 0) slice = records.claim(frame);
         if (slice < 0 || !records.fit(slice, rank)) {
           counts.deny();
           store.assignSlice(slot, -1);
@@ -146,6 +146,8 @@ export function createShadowPlan(capacity: number, poolSide: number) {
           nowMs,
           frame,
         );
+        // Until a report of it comes back, a new light asks for its floor itself.
+        if (requests.latest < records.born[slice]) requests.floors(slice, view, nowMs, frame);
       }
       changes.settled();
       if (still) counts.invalidatedPages += thresholds.restale(nowMs, frame);

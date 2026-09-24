@@ -237,9 +237,12 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
   whatever the budget, which pays it before any finer page; a floor still read, stale for its
   moving casters or for detail, waits its turn like any page, so an object that keeps moving never
-  starves the finer pages. So a pixel that falls back past a withdrawn page reads a current floor,
-  never the far ray of a sun or the unshadowed answer of a lamp; those answer only before a light's
-  first report, and when the frame's floor pages span more views than the light cut holds.
+  starves the finer pages. A new light asks for its floor itself from its first frame, until a
+  report of it comes back — every face of a lamp, and the sun's floor pages within the view's far
+  distance —, as if the latest report named it. When the frame's unread floor pages span more views
+  than the light cut holds, they go oldest first by their wait, so each is drawn within as many
+  frames as there are floor views past the limit. So a pixel that falls back past a withdrawn page
+  reads a current floor, never the far ray of a sun or the unshadowed answer of a lamp.
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —

@@ -58,3 +58,40 @@ test('over budget, a lamp that moves every frame keeps the floor of each face re
   }
   assert.ok(plan.counts.pendingPages > 0, 'the finer pages wait on the budget');
 });
+
+test('a new light reads its floor from its first frame, before any report comes back', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add(SUN);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  plan.commit();
+  const sun = store.sliceOf(0),
+    lamp = store.sliceOf(1);
+  assert.ok(plan.table.words[sunFloor(plan, sun)] & PAGE_VALID, 'the sun floor');
+  for (let face = 0; face < 6; face++)
+    assert.ok(plan.table.words[lampFloor(plan, lamp, face)] & PAGE_VALID, `lamp face ${face}`);
+});
+
+test('past the view limit, the floors of lamps that all keep moving take turns by their wait', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  const lamps = [0, 1, 2];
+  for (const k of lamps)
+    store.add({ ...SUN, id: `lamp${k}`, kind: 'point', position: [k * 10, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  const slices = lamps.map((k) => store.sliceOf(k));
+  const read = slices.flatMap((slice) => lampPages(plan, slice, 0, 3));
+  // Still first, until the floors every new lamp asks for itself are drawn and no report names them.
+  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
+  plan.admission.setViewLimit(1);
+  const lastDrawn = lamps.map(() => 3);
+  for (let frame = 4; frame < 24; frame++) {
+    for (const k of lamps) store.set(`lamp${k}`, { position: [k * 10, 3 + frame / 10, 0] });
+    cycle(plan, store, frame, () => read);
+    for (const k of lamps) {
+      if (plan.table.words[lampFloor(plan, slices[k], 0)] & PAGE_VALID) lastDrawn[k] = frame;
+      assert.ok(frame - lastDrawn[k] < lamps.length, `lamp ${k} waits at frame ${frame}`);
+    }
+  }
+});

@@ -45,10 +45,13 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * back never finds nothing. A floor still read, stale for its moving casters or for detail, waits
  * its turn like any page: redrawing it every frame something moves would starve the finer ones. Only
  * the view limit can hold one back, when the frame's floor pages span more views than the light
- * cut holds; it is drawn the next frame. All arrays are allocated once.
+ * cut holds: unread floors go oldest first by their wait, so the one held back leads the next frame,
+ * and no face waits longer than the floor views over the limit, in frames. All arrays are allocated
+ * once.
  */
 export function createShadowAdmission(capacity: number, poolPages: number) {
   const candidates = new Int32Array(capacity),
+    floors = new Int32Array(capacity),
     score = new Float64Array(poolPages),
     list = new Int32Array(capacity),
     views = new Float64Array(capacity);
@@ -67,6 +70,19 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     }
     spent += cost;
     list[count++] = page;
+  };
+  /** Ranks `page` of `value` into `into`, whose best `kept` pages it holds in descending order — a
+   *  tie behind the earlier page —; returns how many it holds now. */
+  const rank = (into: Int32Array, kept: number, page: number, value: number) => {
+    score[page] = value;
+    let at = kept;
+    if (kept === capacity) {
+      if (!(value > score[into[kept - 1]])) return kept;
+      at--;
+    } else kept++;
+    for (; at > 0 && score[into[at - 1]] < value; at--) into[at] = into[at - 1];
+    into[at] = page;
+    return kept;
   };
   const coarseness = (records: ShadowRecords, sun: SunLevels, page: number, pool: ShadowPool) => {
     const slice = pool.slice[page];
@@ -102,9 +118,9 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
       frame: number,
     ) {
       count = 0;
-      if (latest < 0) return 0;
       let found = 0,
-        kept = 0;
+        kept = 0,
+        unread = 0;
       spent = opened = 0;
       for (let page = 0; page < pool.pages; page++) {
         if (pool.owner[page] < 0 || !pool.dirty[page]) continue;
@@ -113,25 +129,22 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
           continue;
         }
         found++;
-        if (!pool.valid[page] && isFloor(records, sun, page, pool)) {
-          if (count < capacity) admit(pool, page, budget.estimate(1) ?? 0);
-          continue;
-        }
-        const value =
-          (pool.valid[page] ? 0 : 1) +
-          coarseness(records, sun, page, pool) +
-          (frame - pool.sinceFrame[page]) * LIGHT_SETTINGS.shadowAgingPerFrame;
-        score[page] = value;
-        // Only the best `capacity` can be drawn: kept in order, a tie behind the earlier page.
-        let at = kept;
-        if (kept === capacity) {
-          if (!(value > score[candidates[kept - 1]])) continue;
-          at--;
-        } else kept++;
-        for (; at > 0 && score[candidates[at - 1]] < value; at--)
-          candidates[at] = candidates[at - 1];
-        candidates[at] = page;
+        const wait = frame - pool.sinceFrame[page];
+        // Only the best `capacity` can be drawn.
+        if (!pool.valid[page] && isFloor(records, sun, page, pool))
+          unread = rank(floors, unread, page, wait);
+        else
+          kept = rank(
+            candidates,
+            kept,
+            page,
+            (pool.valid[page] ? 0 : 1) +
+              coarseness(records, sun, page, pool) +
+              wait * LIGHT_SETTINGS.shadowAgingPerFrame,
+          );
       }
+      for (let k = 0; k < unread && count < capacity; k++)
+        admit(pool, floors[k], budget.estimate(1) ?? 0);
       for (let k = 0; k < kept && count < capacity; k++) {
         const cost = budget.estimate(1);
         if (cost !== null && count > 0 && spent + cost > budget.budgetMs) break;
