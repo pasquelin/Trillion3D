@@ -1659,7 +1659,7 @@
       "scope": "`'full'` 要求整个缓存,`'progressive'` 要求它的流式加载分片;范围不同的模型会按名称被拒绝。未设置时,模型会按其指针所声明的范围读取。",
       "stream": "页面配置的一个流式加载器;世界的会话会用自己的流式加载器进行加载。",
       "position": "模型的原点放在场景中的哪个位置。",
-      "onProgress": "接收加载进行到哪一步:读完清单时为 `manifest`,之后场景读取的每个文件到达时为 `resources`(在当时已知的 `total` 中已完成 `completed`)。事件是一个 `JobProgress`:包裹加载的 `createJob` 在此传入它的 `progress`。"
+      "onProgress": "收听加载进行到哪一步：读取的每个文件的每个数据块都会报告 `bytes`，直到 `completed === total`；清单读完时报告 `manifest`，场景表读完时报告 `tables`，之后场景读取的每个文件到达时报告 `resources`（目前已知 `total` 中的 `completed`）。事件是一个 `JobProgress`：包裹加载的 `createJob` 在此传入它的 `progress`，`world.awaitPages` 也以同样的形式报告首批页面。"
     }
   },
   "LoadedModel": {
@@ -3448,7 +3448,8 @@
       "textureLevelReads": "各个数据来源。`textureLevelReads`:正在从缓存中读取的已烘焙层级。`textureLevelsDecoded`:自会话开始以来已解码的已烘焙层级数。`textureLevelCacheBytes`:为了从中进一步切出图块而保留的、已解码层级所占用的宿主字节数,受固定预算限制。`textureScratchBuilds`:为没有已烘焙链条的纹理构建的临时纹理数,每次都要用到整个源图像。",
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
-      "textureScratchBuilds": "已构建的临时纹理数。"
+      "textureScratchBuilds": "已构建的临时纹理数。",
+      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。从 `texturePoolBytes` 中扣除。"
     }
   },
   "TextureLayout": {
@@ -3903,7 +3904,10 @@
     "summary": "本次会话各帧按阶段划分的性能剖析。"
   },
   "world.awaitPages": {
-    "summary": "一旦当前视图读取的页面都已常驻,就会兑现(`awaitViewPages`)。"
+    "summary": "一旦当前视图读取的页面都已常驻,就会兑现(`awaitViewPages`)。",
+    "parameters": {
+      "options": "`onProgress` 在页面陆续到达时收到 `pages`，即 `total` 中的 `completed`。"
+    }
   },
   "world.dispose": {
     "summary": "停止这个世界,并归还它占用的一切:GPU 内存、循环、控制器。"
@@ -4004,6 +4008,7 @@
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
       "textureScratchBuilds": "已构建的临时纹理数。",
+      "textureLiveBytes": "实时纹理占用的字节:每个纹理保留一张与自身等大的工作纹理。从 `texturePoolBytes` 中扣除。",
       "gpuAllocatedBytes": "设备上所有资源当前活跃分配的总字节数。",
       "gpuAllocatedByLabel": "按资源标签分组统计的已分配字节数。没有标签的分配会被归入 'unlabeled'。",
       "gpuAllocationsUnknownFormat": "格式无法识别的纹理数量。期望值为 0。",
@@ -6441,7 +6446,7 @@
   },
   "texture": {
     "summary": "`texture` 系列:一张图像,以及它是如何被采样的。",
-    "description": "彩色图像采用 sRGB,数据图像采用线性值;在写入像素之后设置 `needsUpdate`,可以让采样器重新读取它们。"
+    "description": "彩色图像采用 sRGB,数据图像采用线性值;写入像素后设置 `needsUpdate`,采样器会重新读取它们,并就地复制到已在 GPU 上的纹理中——只有尺寸变化才会重建纹理。视频是实时的:它的帧会自动到来。"
   },
   "texture.image": {
     "summary": "由页面中已有的一张图片制作出的彩色纹理:可以是一张图像、一个位图,或是一帧视频画面。",
@@ -6460,12 +6465,14 @@
   },
   "texture.canvas": {
     "summary": "显示一个 canvas 内容的纹理。",
+    "description": "在画布上重新绘制后,设置 `needsUpdate`:新像素会复制到已在 GPU 上的纹理中,不会重建任何东西。",
     "parameters": {
       "c": "要显示的 canvas。"
     }
   },
   "texture.video": {
-    "summary": "显示正在播放的视频的纹理。",
+    "summary": "显示正在播放的视频,或在视频中播放的摄像头流的纹理。",
+    "description": "每一帧新画面都会自动复制到已在 GPU 上的纹理中;暂停的视频不产生任何开销。",
     "parameters": {
       "v": "要显示的视频。"
     }

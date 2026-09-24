@@ -33,6 +33,29 @@ export function thumbnailDelay(html: string): number {
   return seconds;
 }
 
+/**
+ * The examples that legitimately draw under the proof's tenth (#527), each with the share it
+ * must still reach, the backends it is sparse on and why: every other example, and every example
+ * on a backend it is not declared for, keeps the tenth. The shares sit under the ones measured on
+ * 2026-09-24 (6.2 %, 5.5 %, 8.9 %), which a blank or a refused render never reaches.
+ */
+export const SPARSE: Record<string, { share: number; on: 'both' | 'webgl2' }> = {
+  // A slender spiral stair standing alone in a wide view, on either backend.
+  'a-staircase-from-one-step': { share: 0.04, on: 'both' },
+  // Small points on a black sky; the WebGL2 path has no antialiasing, so a point under a pixel
+  // that misses the pixel's centre is not drawn. WebGPU's temporal antialiasing keeps the tenth.
+  'a-cloud-of-points': { share: 0.04, on: 'webgl2' },
+  // A four-block tower on a grid of one-pixel lines; the WebGL2 path has no antialiasing, so
+  // the lines break up. WebGPU keeps the tenth.
+  'save-the-scene': { share: 0.06, on: 'webgl2' },
+};
+
+/** The share of its canvas an example must draw on a backend: a tenth, or its declared share. */
+export function leastDrawn(id: string, gpu: boolean): number {
+  const sparse = SPARSE[id];
+  return sparse && (sparse.on === 'both' || !gpu) ? sparse.share : 0.1;
+}
+
 /** A capture of the render alone: the example kit's panels and the credit line hidden. */
 export const RENDER_ONLY = '[data-example-overlay], body > p { display: none }';
 
@@ -56,10 +79,16 @@ async function drawnShare(page: Page): Promise<number> {
   );
 }
 
+/** The console lines the engine writes when it stops drawing (`worldHandles.ts`,
+ *  `interactive.ts`, `webgpu/pages/io/lost.ts`). */
+export const ENGINE_FAILURE =
+  /^(?:World session failed|\[trillion3d\] (?:Automatic rendering stopped|WebGPU device lost))/;
+
 /**
  * Opens one example file in a new page of `browser` and waits until its canvas shows an image,
- * `share` of it drawn at least (an engine that failed leaves the canvas blank); resolves with
- * the page and the errors it raised, which the caller closes and judges.
+ * `share` of it drawn at least, `leastDrawn` on that backend unless given (an engine that failed
+ * leaves the canvas blank); resolves with the page and the errors it raised or the engine logged,
+ * which the caller closes and judges.
  *
  * `gpu: false` hides `navigator.gpu` from the page, the machine an example must render on too:
  * naming no backend, it reaches `chooseBackends`, which takes the engine's own WebGL2 path.
@@ -69,13 +98,20 @@ export async function openExample(
   port: number,
   entry: GalleryEntry,
   viewport: { width: number; height: number },
-  share = 0.1,
+  share?: number,
   gpu = true,
 ) {
+  const least = share ?? leastDrawn(entry.id, gpu);
   const page = await browser.newPage({ viewport });
   const errors: string[] = [],
     requests: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  // The engine catches its own failures — a session that cannot open, a frame the WebGL2
+  // program refuses — and says them on the console: the page stays blank, and this names why.
+  page.on('console', (message) => {
+    if (message.type() === 'error' && ENGINE_FAILURE.test(message.text()))
+      errors.push(message.text());
+  });
   page.on('request', (request) => requests.push(request.url()));
   if (!gpu)
     await page.addInitScript(() => {
@@ -83,7 +119,7 @@ export async function openExample(
     });
   await page.goto(`http://127.0.0.1:${port}/${entry.file}`);
   let drawn = 0;
-  for (let attempt = 0; attempt < 30 && drawn < share; attempt++) {
+  for (let attempt = 0; attempt < 30 && drawn < least; attempt++) {
     await page.waitForTimeout(500);
     drawn = await drawnShare(page);
   }

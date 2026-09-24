@@ -7934,7 +7934,7 @@
       {
         "name": "onProgress?",
         "type": "((event: JobProgress) => void) | undefined",
-        "desc": "Hears how far the load has got: `manifest` once the manifest is read, then `resources` as each file the scene reads lands (`completed` of `total` known so far). The event is a `JobProgress`: a `createJob` wrapping the load passes its `progress` here."
+        "desc": "Hears how far the load has got: `bytes` at each chunk of every file read, up to `completed === total`; `manifest` once the manifest is read, `tables` once the scene tables are, then `resources` as each file the scene reads lands (`completed` of `total` known so far). The event is a `JobProgress`: a `createJob` wrapping the load passes its `progress` here, and `world.awaitPages` hears the first pages on the same shape."
       }
     ],
     "description": ""
@@ -15993,6 +15993,11 @@
         "name": "textureScratchBuilds?",
         "type": "number | null | undefined",
         "desc": "Scratch textures built."
+      },
+      {
+        "name": "textureLiveBytes?",
+        "type": "number | null | undefined",
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       }
     ],
     "description": "These fields live apart from `FrameMetrics` because they describe another queue than the frame: tiles arrive at their own pace, bounded by bytes and by frame, and the pool is sized once. All optional: an engine without textures leaves them absent, `null` says \"unmeasured\", never an estimate."
@@ -17828,8 +17833,15 @@
     "section": "world",
     "kind": "Function",
     "title": "world.awaitPages()",
-    "signature": "world.awaitPages(): Promise<void>",
+    "signature": "world.awaitPages(options?: { onProgress?: (event: JobProgress) => void; }): Promise<void>",
     "summary": "Resolves once the pages the current view reads are resident (`awaitViewPages`).",
+    "parameters": [
+      {
+        "name": "options?",
+        "type": "{ onProgress?: (event: JobProgress) => void; }",
+        "desc": "`onProgress` hears `pages`, `completed` of `total`, as they land."
+      }
+    ],
     "returns": {
       "type": "Promise<void>",
       "desc": ""
@@ -19098,6 +19110,11 @@
         "name": "textureScratchBuilds?",
         "type": "number | null | undefined",
         "desc": "Scratch textures built."
+      },
+      {
+        "name": "textureLiveBytes?",
+        "type": "number | null | undefined",
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       },
       {
         "name": "gpuAllocatedBytes?",
@@ -32629,7 +32646,7 @@
     "title": "texture",
     "signature": "const texture",
     "summary": "The `texture` family: an image and how it is sampled.",
-    "description": "Colour images are sRGB, data images are linear; `needsUpdate` after writing the pixels makes the samplers read them again."
+    "description": "Colour images are sRGB, data images are linear; `needsUpdate` after writing the pixels makes the samplers read them again, copied in place into the texture already on the GPU — only a new size builds it again. A video is live: its frames arrive by themselves."
   },
   {
     "id": "texture.image",
@@ -32711,7 +32728,7 @@
       "type": "Texture",
       "desc": ""
     },
-    "description": ""
+    "description": "After drawing on the canvas again, set `needsUpdate`: the new pixels are copied into the texture already on the GPU, nothing rebuilt."
   },
   {
     "id": "texture.video",
@@ -32721,7 +32738,7 @@
     "kind": "Function",
     "title": "texture.video()",
     "signature": "texture.video(v: HTMLVideoElement): Texture",
-    "summary": "A texture that shows a playing video.",
+    "summary": "A texture that shows a playing video, or a camera stream played in a video.",
     "parameters": [
       {
         "name": "v",
@@ -32733,7 +32750,7 @@
       "type": "Texture",
       "desc": ""
     },
-    "description": ""
+    "description": "Each new frame is copied into the texture already on the GPU by itself; a paused video costs nothing."
   },
   {
     "id": "texture.depth",
