@@ -1,6 +1,6 @@
 import type { EngineCamera } from '../../camera/world.ts';
 import { asHostLibrary } from '../../host/resources.ts';
-import { clusterColor } from '../../host/three/displayObjects.ts';
+import { clusterColor } from '../../diagnostic/colors.ts';
 import { hashId, screenErrorColor } from '../../diagnostic/colors.ts';
 import { projectedPageError, type PageRec } from '../../page/selection/selection.ts';
 import { triangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
@@ -61,7 +61,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
               ? 0x34d399
               : options.diagnostic === 'screen-error'
                 ? 0x00ff1f
-                : clusterColor(key, 0.75);
+                : new THREE.Color().setRGB(...clusterColor(key, 0.75).toArray());
       material = new THREE.MeshBasicMaterial({ color, side: asHostLibrary<THREE.Side>(side) });
       diagnosticMaterials.set(key, material);
     }

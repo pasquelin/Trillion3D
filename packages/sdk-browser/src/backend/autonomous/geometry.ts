@@ -84,8 +84,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
-    // The host declaration, not the engine's surface record: the record has no `visible`
-    // flag, and the host library silently drops every mesh whose material lacks one.
+    // The declaration, not the engine's surface record: the record has no `visible` flag, and
+    // the program submits nothing for a surface that is not visible.
     rec.mesh ??= hostPageMesh(rec.geometry, rec.declaration, rec.renderOrder);
     setHostPose(rec.mesh, rec.matrix);
     if (!rec.attached) {
