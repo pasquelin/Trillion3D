@@ -4204,15 +4204,6 @@
       "count": "Có bao nhiêu hộp."
     }
   },
-  "batch.multiplyMatrix4": {
-    "summary": "`out[i] = a[i] · b[i]` cho `count` ma trận dạng column-major lưu phẳng.",
-    "parameters": {
-      "out": "Nơi các tích số đi vào.",
-      "a": "Các ma trận bên trái.",
-      "b": "Các ma trận bên phải.",
-      "count": "Có bao nhiêu tích số."
-    }
-  },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` cho `count` điểm lưu mỗi điểm ba con số.",
     "parameters": {
@@ -6595,7 +6586,8 @@
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
       "geometryPool": "Số byte bộ nhớ GPU giữ cho các trang hình học; đặt nó để thay đổi phong bì.",
       "texturePool": "Số byte bộ nhớ GPU giữ cho các trang kết cấu; đặt nó để thay đổi phong bì.",
-      "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`."
+      "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
+      "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn."
     }
   },
   "world.camera": {

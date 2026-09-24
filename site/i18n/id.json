@@ -1509,8 +1509,6 @@
       "a-capped-section": "bidang clipping: tutup stencil",
       "decals-on-a-surface": "pemilihan (raycast)",
       "sculpt-a-sphere": "pemilihan (raycast)",
-      "a-texture-turned-and-tiled": "pengulangan, offset dan rotasi tekstur di WebGPU",
-      "texture-filters-compared": "filter tekstur dan anisotropi di WebGPU",
       "a-video-on-a-screen": "tekstur video langsung",
       "the-webcam-as-a-texture": "tekstur video langsung",
       "four-ways-to-blend": "setiap mode blending",

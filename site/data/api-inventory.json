@@ -5069,10 +5069,7 @@
       "currentEntryPoints": ["trillion3d (common)", "trillion3d (browser condition)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/math/batchRuntime.ts",
-        "packages/sdk-browser/src/world/batch/index.ts"
-      ],
+      "affectedConsumers": ["packages/sdk-browser/src/math/batchRuntime.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/batch/batch\".multiplyMatrix4Batch"
     },

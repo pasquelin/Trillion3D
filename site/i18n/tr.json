@@ -338,8 +338,6 @@
       "a-capped-section": "kesme düzlemleri: stencil kapaklar",
       "decals-on-a-surface": "ışınla seçim (raycast)",
       "sculpt-a-sphere": "ışınla seçim (raycast)",
-      "a-texture-turned-and-tiled": "WebGPU'da doku tekrarı, kayması ve döndürmesi",
-      "texture-filters-compared": "WebGPU'da doku filtreleri ve anizotropi",
       "a-video-on-a-screen": "canlı video dokuları",
       "the-webcam-as-a-texture": "canlı video dokuları",
       "four-ways-to-blend": "tüm karıştırma modları",
