@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PrimitiveIndex } from '../../cluster/batchPrimitive.ts';
+import { PrimitiveIndex } from '../../../../../bench/witnesses/exact/batches/batchPrimitive.ts';
 import { WebglClusterGeometry } from './geometry.ts';
-import { attributes } from '../../cluster/batches.fixture.ts';
+import { attributes } from '../../../../../bench/witnesses/exact/batches/batches.fixture.ts';
 
 type Upload = { kind: 'data' | 'sub'; bytes: number; offset: number };
 

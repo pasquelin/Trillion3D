@@ -3,7 +3,7 @@
 // rendered with and without temporal accumulation: at rest, under a camera pan, then after a
 // move of the tile.
 // Nothing internal is read: `setTransform` on one side, reread pixels and `frameHeld` on the other.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 import {
@@ -21,12 +21,12 @@ import { executerAccumulation } from './deviceProof.ts';
 /** The background and the red tile, the latter rotated by a third of a radian: its edges are oblique. */
 function scene() {
   const bati = batisseur();
-  const fond = new THREE.Mesh(carre(4), new THREE.MeshBasicMaterial({ color: 0x1b3a5c }));
+  const fond = G.mesh(carre(4), G.basicSurface({ color: 0x1b3a5c }));
   fond.name = 'fond';
   fond.position.z = -2;
   bati.source.add(fond);
   bati.ajoute(fond, 'exact-clusters', 4);
-  const rouge = new THREE.Mesh(carre(0.6), new THREE.MeshBasicMaterial({ color: 0xff2020 }));
+  const rouge = G.mesh(carre(0.6), G.basicSurface({ color: 0xff2020 }));
   rouge.name = 'carre';
   rouge.rotation.z = 0.33;
   bati.source.add(rouge);
@@ -35,7 +35,7 @@ function scene() {
 }
 
 /** The tile's move: the same rotation, pushed 0.5 on `x`. */
-const deplace = () => versApi(new THREE.Matrix4().makeRotationZ(0.33).setPosition(0.5, 0, 0));
+const deplace = () => versApi(new G.Matrix4().makeRotationZ(0.33).setPosition(0.5, 0, 0));
 
 /** A full run: at rest, then after a move. `temporel` picks the option. */
 async function executionComplete(device: GPUDevice, evenements: unknown[], temporel: boolean) {

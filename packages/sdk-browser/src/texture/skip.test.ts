@@ -21,10 +21,10 @@ const entry = (image: number, firstLevel: number, bakedLevels: number): TextureP
 const manifest = (previews: TexturePreview[]): ClusterManifest =>
   ({ textures: { url: 'x' }, texturePreviews: previews }) as unknown as ClusterManifest;
 
-// Behaviour: the skipped address is the one the host loader will ask for, by the rule the
-// caller gives it — never normalised here, or a `./` or a space encoded by `new URL`
-// would still read the image.
-test("a baked image address is the host's, as its rule writes it", () => {
+// Behaviour: the skipped address is the one the prepared scene will fetch, by the rule the
+// caller gives it — never rewritten here, or the two spellings of one address would miss
+// each other and the image would still be read.
+test("a baked image address is the reader's, as its rule writes it", () => {
   const urls = bakedImageUrls(
     manifest([entry(0, 2, 2), entry(1, 2, 2)]),
     [{ uri: './tex/a.png' }, { uri: 'tex/b c.png' }],

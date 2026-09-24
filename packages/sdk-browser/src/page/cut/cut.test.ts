@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, selectVisiblePages, type PageRec } from '../selection/selection.ts';
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts';
 import { dagCulling } from '../selection/helpers.fixture.ts';
@@ -29,7 +29,7 @@ function rootsOf(fixture: ReturnType<typeof dagFixture>) {
 }
 
 /** Clusters requested and shown by a cut, flat then hierarchical, under the same camera. */
-function bothCuts(cam: THREE.PerspectiveCamera) {
+function bothCuts(cam: G.GraphCamera) {
   const cut = (fixture: ReturnType<typeof dagFixture>) => {
     const result = selectVisiblePages(rootsOf(fixture), cameraMoteur(cam), ASK);
     fixture.geometry.dispose();
@@ -42,7 +42,7 @@ function bothCuts(cam: THREE.PerspectiveCamera) {
 }
 
 function lookingAt(from: [number, number, number], at: [number, number, number]) {
-  const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
+  const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 1000);
   cam.position.set(...from);
   cam.lookAt(...at);
   cam.updateMatrixWorld();

@@ -1,7 +1,7 @@
 // The trigger case of cone rejection under a non-uniform transform at small scale, shared by the
 // probe (`cone-non-uniform-scale.ts`) and the render proof of the same name: two real triangles at
 // large local coordinates, placed by a scale (1e-8, 1e-6, 1e-6), their face visible and large.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { triangleCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 
 export function triggerCase() {
@@ -10,8 +10,8 @@ export function triggerCase() {
   const cone = triangleCone(positions, indices);
   const min = [-1e6, -1e6, -1e6],
     max = [1e6, 1e6, 0];
-  const world = new THREE.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+  const world = new G.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
+  const camera = G.perspectiveCamera(60, 1, 0.1, 100);
   camera.position.set(6, 0, -9);
   camera.lookAt(0, 0, -0.5);
   camera.updateMatrixWorld(true);

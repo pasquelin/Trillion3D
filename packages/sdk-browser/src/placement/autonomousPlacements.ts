@@ -1,3 +1,4 @@
+import type { GraphScene } from '../host/graph/scene.ts';
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
 import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
 import { followPlacementRows } from './update.ts';
@@ -7,7 +8,6 @@ import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import { followBlendCopies, growBlendCopies } from '../cluster/blendCopyMesh.ts';
 import { autonomousBootstrap } from '../backend/autonomous/manifest.ts';
 import type { HostMaterials } from '../host/resources.ts';
-import type { HostDrawScene } from '../host/scene/graphNodes.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
@@ -41,7 +41,7 @@ type Placements = {
   baseMaterials: Map<PageRec, HostMaterials>;
   /** The host copies of blended and transmissive surfaces, and the graph that shows them. */
   blendCopies: BlendCopy[];
-  scene: HostDrawScene;
+  scene: GraphScene;
   gate: WebglFrameGate;
   /** Tells the instanced pages their rows were written (`webglPageBatches.ts`). */
   rowsWritten: () => void;

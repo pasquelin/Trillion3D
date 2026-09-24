@@ -14,18 +14,18 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/hold.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 
 installGpuGlobals();
 
 /** A host texture at the default sampling. */
 const host = () => {
-  const texture = new THREE.DataTexture(new Uint8Array(4), 1, 1);
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  const texture = G.dataTexture(new Uint8Array(4), 1, 1);
+  texture.magFilter = G.HOST_FILTER_LINEAR;
+  texture.minFilter = G.HOST_FILTER_LINEAR_MIP_LINEAR;
   return texture;
 };
-const record = (texture: THREE.Texture) => importHostTexture(texture as unknown as HostTexture);
+const record = (texture: G.GraphTexture) => importHostTexture(texture as unknown as HostTexture);
 
 /** A streamer over one colour and one data texture, both whole in their tail; counts the page
  *  table writes and the colour signals. */
@@ -92,7 +92,7 @@ test('the headers follow their hosts at each render, only what moved written', a
   assert.equal(writes(), opened, 'nothing moved: nothing written');
   // Three's order as often as the other: `needsUpdate` first, the filter after it.
   colour.needsUpdate = true;
-  colour.minFilter = THREE.NearestMipmapNearestFilter;
+  colour.minFilter = G.HOST_FILTER_NEAREST_MIP_NEAREST;
   colour.anisotropy = 8;
   await follow(textures);
   assert.equal(colourRecord.minFilter, 'nearest-mip-nearest', 'the filter written after it');
@@ -106,7 +106,7 @@ test('the headers follow their hosts at each render, only what moved written', a
   assert.deepEqual(signalled, [[1], []], 'signalled, no shadow reads a data map');
   assert.equal(writes(), opened + 2, 'one send per atlas that moved');
   // An addressing rides in the header too: written, and the cutout shadows told, as a filter.
-  colour.wrapS = THREE.RepeatWrapping;
+  colour.wrapS = G.HOST_WRAP_REPEAT;
   await follow(textures);
   assert.deepEqual(signalled, [[1], [], [1]], 'the colour slot, for its cutout shadows');
   assert.equal(writes(), opened + 3);
@@ -121,14 +121,14 @@ test('two engines over the same texture both write the change', async () => {
   const first = streamer([shared], record(host())),
     second = streamer([shared], record(host()));
   const opened = [first.writes(), second.writes()];
-  colour.magFilter = THREE.NearestFilter;
+  colour.magFilter = G.HOST_FILTER_NEAREST;
   assert.equal(await follow(first.textures), true, 'a filter rule switched on');
   assert.equal(second.textures.followSampling(), true, 'the second engine learns it too');
   assert.deepEqual([first.writes(), second.writes()], [opened[0] + 1, opened[1] + 1]);
   assert.deepEqual([first.signalled, second.signalled], [[[1]], [[1]]]);
-  colour.magFilter = THREE.LinearFilter;
+  colour.magFilter = G.HOST_FILTER_LINEAR;
   assert.equal(await follow(first.textures), true, 'switched off: the pages change class');
-  colour.wrapS = THREE.RepeatWrapping;
+  colour.wrapS = G.HOST_WRAP_REPEAT;
   assert.equal(await follow(first.textures), false, 'an addressing switches no filter rule');
   first.textures.destroy();
   second.textures.destroy();
@@ -136,11 +136,11 @@ test('two engines over the same texture both write the change', async () => {
 
 test('the map of a transparent surface alone follows its host, no surface reread', async () => {
   const map = host();
-  const surface = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.5, map });
+  const surface = G.standardSurface({ transparent: true, opacity: 0.5, map });
   const read = visMaterial(surface as unknown as HostMaterials).map!;
   const { textures, signalled } = streamer([read], record(host()));
-  map.magFilter = THREE.NearestFilter;
-  map.wrapT = THREE.MirroredRepeatWrapping;
+  map.magFilter = G.HOST_FILTER_NEAREST;
+  map.wrapT = G.HOST_WRAP_MIRRORED_REPEAT;
   await follow(textures);
   assert.deepEqual([read.magFilter, read.wrapT], ['nearest', 'mirror'], 'the item’s record');
   assert.deepEqual(signalled, [[1]]);
@@ -160,7 +160,7 @@ test('a filter changed on a held image releases it, and the image draws it', asy
   }
   await follow(textures);
   assert.equal(holdWebgpuFrame(rt, device), true, 'nothing moved: the image is held');
-  colour.magFilter = THREE.NearestFilter;
+  colour.magFilter = G.HOST_FILTER_NEAREST;
   await follow(textures);
   assert.equal(holdWebgpuFrame(rt, device), false, 'the next image is drawn');
   textures.destroy();

@@ -1252,18 +1252,7 @@
     }
   },
   "HostAttribute": {
-    "summary": "Bir host geometrisinin bir köşe özniteliği, iç içe geçmiş ya da değil: düzeni ve depolaması.",
-    "members": {
-      "isBufferAttribute": "Öznitelik, paylaşılan, iç içe geçmiş birine bakmak yerine kendi tamponuna sahip olduğunda host tarafından yükseltilir. Yalnızca kabul kapısı onu okur: motorun kendi çözümü her iki durumda da aynıdır, otonom WebGL2 programının bağlaması değil.",
-      "itemSize": "Köşe başına sayı.",
-      "count": "Kaç köşe.",
-      "normalized": "Tam sayıların 0'dan 1'e okunup okunmadığı.",
-      "array": "Depolama.",
-      "getX": "Host tarafından iç içelikten çıkarılmış ve denormalize edilmiş bir elemanın bileşeni.",
-      "getY": "Bir elemanın ikinci bileşeni.",
-      "getZ": "Bir elemanın üçüncü bileşeni.",
-      "getW": "Bir elemanın dördüncü bileşeni."
-    }
+    "summary": "Bir host geometrisinin bir köşe özniteliği, iç içe geçmiş ya da değil: düzeni ve depolaması."
   },
   "HostAttributes": {
     "summary": "Bir host geometrisinin adlandırılmış öznitelikleri.",
@@ -1322,32 +1311,17 @@
     "summary": "Bir tanı görünümünün serbest bırakabileceği bir host geometrisi.",
     "members": {
       "attributes": "Köşe öznitelikleri.",
-      "boundingBox": "Host'un hesapladığı yerel kutu.",
       "dispose": "Onu serbest bırakır."
     }
   },
   "HostDiagnosticMaterial": {
     "summary": "Bir tanı görünümünün bir mesh üzerine değiştirdiği, sonra serbest bıraktığı bir host yüzeyi: astığı şey `HostDiagnosticFactory` aracılığıyla gelir, asla bir içe aktarma yoluyla değil, bu yüzden hiçbir görünüm bir render kütüphanesi adlandırmaz.",
     "members": {
-      "version": "Her değişiklikte host tarafından artırılır: önbelleğe alınmış bir satırın alanlarını yeniden inşa etmek için karşılaştırdığı şey.",
-      "visible": "Çizilip çizilmediği.",
       "side": "Host'un sabiti olarak, hangi yüzler.",
-      "forceSinglePass": "Host, çift taraflı şeffaf bir yüzeyi arka sonra ön yerine tek bir geçişte çizer.",
-      "vertexColors": "Köşe renklerinin onu tonlayıp tonlamadığı.",
-      "toneMapped": "Ekran eğrisinin uygulanıp uygulanmadığı.",
-      "depthTest": "Host'un yüzeyle birlikte bildirdiği ve motorun pipeline'larının uyduğu raster durumu.",
-      "depthWrite": "Derinlik yazıp yazmadığı.",
-      "depthFunc": "Derinlik testinin karşılaştırması.",
-      "colorWrite": "Renk yazıp yazmadığı.",
-      "polygonOffset": "Derinliğin ötelenip ötelenmediği.",
-      "polygonOffsetFactor": "Ötelemenin eğim kısmı.",
-      "polygonOffsetUnits": "Ötelemenin sabit kısmı.",
-      "transparent": "Karışıp karışmadığı.",
-      "opacity": "Ne kadar opak olduğu.",
-      "alphaTest": "Piksellerin altında düştüğü alfa.",
       "dispose": "Onu serbest bırakır.",
       "clone": "Yüzeyin bir kopyası."
-    }
+    },
+    "description": "Tanılama görünümleri, ağları kendi kütüphanelerine ait olan tanıklara da hizmet eder: astıkları şey `HostDiagnosticFactory` üzerinden gelir ve yalnızca bu biçimle okunurlar."
   },
   "HostDisposable": {
     "summary": "Geldiği grafik serbest bırakıldığında motorun serbest bıraktığı bir host kaynağı: bir geometri, bir yüzey, bir doku.",
@@ -1376,67 +1350,23 @@
     }
   },
   "HostGeometry": {
-    "summary": "Bir host geometrisi: öznitelikleri, ve host'un onlar üzerinden hesapladığı yerel kutu.",
-    "members": {
-      "attributes": "Köşe öznitelikleri.",
-      "boundingBox": "Host'un hesapladığı yerel kutu."
-    }
+    "summary": "Bir host geometrisi: öznitelikleri, ve host'un onlar üzerinden hesapladığı yerel kutu."
   },
   "HostGraphNode": {
     "summary": "Bir dolaşımın gördüğü şekliyle host grafiğinin bir düğümü: kimliği, yerel pozu, host'un onun için çözdüğü dünya matrisi, ve zinciri.",
-    "description": "Motor, yerel pozlardan KENDİ dünya matrislerini hesaplar (`../world/tree.ts`); `matrixWorld`, HOST'un kendi çözümünün bir sınırın ona geri verdiği şey olduğu yerde okunur. `HostPlaced`'IN (`../resources.ts`) POZLANMIŞ BİR DÜĞÜMÜ DE NEDEN TANIMLADIĞI. İkisi bir kopya değildir: bir host'un sunduğu iki farklı çözüme göre anahtarlanmışlardır. `HostPlaced`, `updateWorldMatrix(ancestors, descendants)` ister — TEK bir düğümün zinciri, bir yerleştirme ve görünürlük dolaşımının çıktığı şey; bu ise `updateMatrixWorld(force)` ister — bir düğümün altındaki ALT AĞAÇ, bir tarama, bir sınır birleşimi ve bir replikasyonun tek bir çağrıda çözdüğü şey. İkisinden yalnızca birini sunan bir host, yalnızca yanıt verdiği sözleşmeyi karşılar, bu yüzden ikisi de diğerinin yerini tutamaz.",
-    "members": {
-      "parent": "Ebeveyni.",
-      "position": "Nerede durduğu.",
-      "quaternion": "Bir düğümün dönüşünün iki yüzü — motorun karşılaştırdığı kuaterniyon, ve içine kopyalanan Euler açıları — her biri kendi yazımlarını DUYURARAK: host'un zaten zincirlediği, bir hook'un değiştirmek yerine genişlettiği bir geri çağırma (`hooks.ts`). Alt çizgili iki üye, host kütüphanesinin özelidir, bu yüzden hook'un onlara ihtiyaç duyduğu yerde burada yazılırlar, ve kendi adlarını almazlar. Bu, özeli SDK'nın yayımlanmış sözleşmeler listesinin dışında tutar; onu yayımlanmış yüzeyin dışında TUTMAZ, çünkü `HostGraphNode` onu taşır. Taramanın zaten yaptığı gibi pozu kare başına karşılaştırmak, bağlantıyı kaldıracak olan şeydir — bu bu lotun işi değildir.",
-      "rotation": "Açı olarak nasıl döndürüldüğü.",
-      "scale": "Nasıl gerildiği.",
-      "matrixAutoUpdate": "Host'un kendisi `matrix`'i ayarladığında yanlış: matris pozun KENDİSİDİR ve hiçbir şey onu yeniden oluşturmaz.",
-      "matrix": "Yerel matrisi.",
-      "matrixWorld": "Dünya matrisi.",
-      "userData": "Motorun, host'un hiç görmediği ve yazamayacağı kendi kopyasını işaretlediği yer.",
-      "traverse": "Düğümün altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
-      "updateMatrixWorld": "Host'un kendi okuyucuları için, alt ağacın dünya matrislerini HOST GRAFİĞİNDE çözer."
-    }
+    "description": "Motor, yerel pozlardan KENDİ dünya matrislerini hesaplar (`../world/tree.ts`); `matrixWorld`, HOST'un kendi çözümünün bir sınırın ona geri verdiği şey olduğu yerde okunur. `HostPlaced`'IN (`../resources.ts`) POZLANMIŞ BİR DÜĞÜMÜ DE NEDEN TANIMLADIĞI. İkisi bir kopya değildir: bir host'un sunduğu iki farklı çözüme göre anahtarlanmışlardır. `HostPlaced`, `updateWorldMatrix(ancestors, descendants)` ister — TEK bir düğümün zinciri, bir yerleştirme ve görünürlük dolaşımının çıktığı şey; bu ise `updateMatrixWorld(force)` ister — bir düğümün altındaki ALT AĞAÇ, bir tarama, bir sınır birleşimi ve bir replikasyonun tek bir çağrıda çözdüğü şey. İkisinden yalnızca birini sunan bir host, yalnızca yanıt verdiği sözleşmeyi karşılar, bu yüzden ikisi de diğerinin yerini tutamaz."
   },
   "HostMaterial": {
-    "summary": "Motorun okuduğu şekliyle bir host malzemesi: her host malzemesinin paylaştığı, sınırda bir kez motorun `VisMaterial`'ına okunan yüzey parametreleri; yalnızca `sideOf` `side`'ı okur.",
-    "members": {
-      "version": "Her değişiklikte host tarafından artırılır: önbelleğe alınmış bir satırın alanlarını yeniden inşa etmek için karşılaştırdığı şey.",
-      "visible": "Çizilip çizilmediği.",
-      "side": "Host'un sabiti olarak, hangi yüzler.",
-      "forceSinglePass": "Host, çift taraflı şeffaf bir yüzeyi arka sonra ön yerine tek bir geçişte çizer.",
-      "vertexColors": "Köşe renklerinin onu tonlayıp tonlamadığı.",
-      "toneMapped": "Ekran eğrisinin uygulanıp uygulanmadığı.",
-      "depthTest": "Host'un yüzeyle birlikte bildirdiği ve motorun pipeline'larının uyduğu raster durumu.",
-      "depthWrite": "Derinlik yazıp yazmadığı.",
-      "depthFunc": "Derinlik testinin karşılaştırması.",
-      "colorWrite": "Renk yazıp yazmadığı.",
-      "polygonOffset": "Derinliğin ötelenip ötelenmediği.",
-      "polygonOffsetFactor": "Ötelemenin eğim kısmı.",
-      "polygonOffsetUnits": "Ötelemenin sabit kısmı.",
-      "transparent": "Karışıp karışmadığı.",
-      "opacity": "Ne kadar opak olduğu.",
-      "alphaTest": "Piksellerin altında düştüğü alfa."
-    }
+    "summary": "Motorun okuduğu şekliyle bir host malzemesi: her host malzemesinin paylaştığı, sınırda bir kez motorun `VisMaterial`'ına okunan yüzey parametreleri; yalnızca `sideOf` `side`'ı okur."
   },
   "HostMaterials": {
     "summary": "Bir yüzeyin bildirdiği şey: bir malzeme, ya da geometri grubu başına bir tane."
   },
   "HostMesh": {
-    "summary": "Kimliğe göre tutulan bir host mesh'i: çizim kaydı, şeffaflık tablosu ve seçim setleri, host'un yerleştirdiği yüzeyi adlandırır.",
-    "description": "Adı, ve taşınan bir alt ağacın geri kalanından ayırt edilmesi gerektiğinde ata zinciri okunur (`../webgpu/pages/render/transform.ts`); başka hiçbir şey değil.",
-    "members": {
-      "name": "Host'un onun için adı.",
-      "parent": "Bir dolaşım çıktığında, ebeveyni."
-    }
+    "summary": "Kimliğe göre tutulan bir host mesh'i: çizim kaydı, şeffaflık tablosu ve seçim setleri, host'un yerleştirdiği yüzeyi adlandırır."
   },
   "HostNode": {
-    "summary": "Kimliğe ve bir dolaşımın ihtiyaç duyduğu iki alana göre tutulan, host sahne grafiğinin bir düğümü.",
-    "members": {
-      "name": "Host'un onun için adı.",
-      "visible": "Çizilip çizilmediği."
-    }
+    "summary": "Kimliğe ve bir dolaşımın ihtiyaç duyduğu iki alana göre tutulan, host sahne grafiğinin bir düğümü."
   },
   "HostNodeMatrix": {
     "summary": "Aynı on altı float, terim terim YAZILABİLİR: bir sınırın bir host düğümüne ya da geri yüklediği bir host kamerasına geri koyduğu poz.",
@@ -1479,51 +1409,18 @@
   },
   "HostScene": {
     "summary": "Bir motorun içine çizdiği host görüntü grafiği: neyi tuttuğu, nasıl dolaşıldığı, ve kompozisyonun okuduğu temizleme rengi.",
-    "description": "Onu inşa etmek bir host sınırının işidir; birine yazmak, `HostDrawScene`.",
+    "description": "Motor kendininkini bir `GraphScene` (`graph/scene.ts`) olarak yazar.",
     "members": {
-      "name": "Host'un onun için adı.",
-      "visible": "Çizilip çizilmediği.",
       "traverse": "Kendini, sonra alt ağacı ziyaret eder.",
       "background": "Görselin arkasını neyin doldurduğu.",
       "children": "Tepesindeki düğümler."
     }
   },
   "HostTexture": {
-    "summary": "Bir host dokusu: host'un çözdüğü görsel ve bildirdiği örnekleyici durumu, o da kimliğe göre tutulur.",
-    "description": "Pikselleri `unknown` kalır: yalnızca onları yükleyen sınır kabını bilir.",
-    "members": {
-      "isTexture": "Host tarafından, örnekleyicisinin okuduğu nesnelerde yükseltilir: bir dokuyu, motorun numaralandırmadığı slotlarına sahip başka herhangi bir malzeme alanından ayıran şey.",
-      "uuid": "Dokuya özgü bir ad.",
-      "name": "Host'un onun için adı.",
-      "version": "Her içerik değişikliğinde host tarafından artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
-      "image": "Çözülmüş resim, host'un kendi kabında.",
-      "channel": "Örnekleyicinin okuduğu UV seti, `KHR_texture_transform`'un `texCoord`'u.",
-      "wrapS": "Host'un sabiti olarak, yatayda nasıl tekrarlandığı.",
-      "wrapT": "Host'un sabiti olarak, dikeyde nasıl tekrarlandığı.",
-      "magFilter": "Daha büyük gösterildiğinde filtre.",
-      "minFilter": "Daha küçük gösterildiğinde filtre.",
-      "anisotropy": "Eğik açıda keskinlik.",
-      "flipY": "Yüklemede satırların çevrilip çevrilmediği.",
-      "premultiplyAlpha": "Rengin alfa ile önceden çarpılıp çarpılmadığı.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
-      "colorSpace": "Sayılarının nasıl okunduğu.",
-      "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
-      "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
-      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder.",
-      "offset": "`matrix`in neyden oluşturulduğu.",
-      "repeat": "Kaç kez sığdığı.",
-      "center": "Dönmenin ekseni.",
-      "rotation": "Dönme, radyan cinsinden.",
-      "addEventListener": "Ana makine dokuyu bıraktığında içe aktarıcıya haber verir."
-    }
+    "summary": "Bir host dokusu: host'un çözdüğü görsel ve bildirdiği örnekleyici durumu, o da kimliğe göre tutulur."
   },
   "HostTraversable": {
-    "summary": "Motorun dolaştığı bir host düğümü: altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
-    "members": {
-      "name": "Host'un onun için adı.",
-      "visible": "Çizilip çizilmediği.",
-      "traverse": "Kendini, sonra alt ağacı ziyaret eder."
-    }
+    "summary": "Motorun dolaştığı bir host düğümü: altındaki alt ağaç, önce kendisi, host'un kendi sırasında."
   },
   "HostVector": {
     "summary": "Host'un sakladığı ve bir sınırın geri koyduğu şekliyle bir pozun üç sayısı.",
@@ -1785,9 +1682,6 @@
   "MANIFEST_BINARY_VERSION": {
     "summary": "Sürüm 4, sabit 16×16 önizleme girdilerini değişken ilerlemeli seviyelere dönüştürür: piksel sütununun artık bir adımı yoktur, her girdi kendi bayt aralığını adlandırır.",
     "description": "Başka bir sürümdeki bir dosya tamamen reddedilir: yanlış aralığı dilimleyen bir okuyucu, bir dokunun seviyelerini başka birinde gösterirdi. Sürüm 5, bir önizleme girdisini ondan on iki kelimeye genişletir — hizmet ettiği atlas ve `textures/` altında kaç seviyenin dosya olarak pişirildiği — ve pikselleri grafik kartının mip kuralını takip eder; sürüm 4 bir okuyucu girdiler arasında yanlış adımlardı, bu yüzden bu dosyayı reddeder. Sürüm 6, her sütunu korur ve geometri tanımlayıcısında başka bir geometri sayfasını adlandırır: `WGP2` float sayfası yerine kuantalanmış `WGP3` sayfası (`geometryPage.ts`), sürüm 6 bir okuyucunun çözmede baytlarını teker teker reddedeceği; dosyayı reddetmek bunu bir kerede söyler. Sürüm 7, bir önizleme girdisini on dört kelimeye genişletir — her blok ailesinin zinciri tuttuğu düzen, ya da hiçbiri — ve iki sütun ekler: blok sıkıştırılmış kuyruklar, BC ailesi sonra ASTC, tutulan her girdinin aralığı boyutlarından çıkarılarak; sürüm 6 bir okuyucu bunları bilmezdi, bu yüzden reddeder."
-  },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Bu çalışma zamanının okuduğu malzeme tablosunun sürümü."
   },
   "MATH_PATH_CONTRACT": {
     "summary": "Bu raporun sözleşmesinin sürümü.",
@@ -2100,9 +1994,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: yerel matris position, rotation, scale'den yeniden oluşturulur."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Bu çalışma zamanının okuduğu düğüm tablosunun sürümü."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Bir 3×3 normal matris."
@@ -2611,17 +2502,6 @@
       "onProgress": "Her olayda çağrılır."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Derlenmiş bir modelin taşıdığı düğüm ve malzeme tabloları.",
-    "members": {
-      "version": "Ürün sürümü.",
-      "nodeTableVersion": "Düğüm tablosu sürümü.",
-      "materialTableVersion": "Malzeme tablosu sürümü.",
-      "nodes": "Düğümler.",
-      "materials": "Malzemeler.",
-      "textures": "Dokular."
-    }
-  },
   "Primitive-common": {
     "summary": "Derlenmiş bir modelin, sayfaları ve hiyerarşisiyle birlikte bir mesh parçası.",
     "members": {
@@ -2794,12 +2674,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "\"Proxy\" önbellek ürününün sürümü.",
     "description": "Başka bir sürümün proxy'si reddedilir, asla tahmin edilmez."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Düğüm ve malzeme tablolarını tutan dosyanın adı."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Bir bütün olarak ürünün sürümü; taşıdığı her tablo kendi sırasında sürümlenir."
   },
   "SDK_VERSION": {
     "summary": "Bu motorun paketinin sürümü."
@@ -3403,27 +3277,18 @@
       "roughnessMap": "Pürüzlülük görseli.",
       "normalMap": "Normal görseli.",
       "aoMap": "Ortam gizlenme görseli.",
-      "emissiveMap": "Parlama görseli."
-    }
-  },
-  "TableNode": {
-    "summary": "Çizilen bir primitif: onu taşıyan düğüm, dünya pozu, giydiği yüzey ve aynı primitifin kopyaları arasındaki sırası — burada instancing budur, birkaç düğüm tarafından adlandırılan bir geometri.",
-    "description": "`bounds`, kaynak geometrinin dünya kutusudur; otonom sahne onun yerine yozlaşmış üçgenler yayımlar, bu yüzden bu, önbelleğin yanıtıdır, yükleyicinin değil.",
-    "members": {
-      "name": "Düğümün adı.",
-      "node": "Düğümün numarası.",
-      "parent": "Ebeveyninin numarası.",
-      "mesh": "Mesh'inin numarası.",
-      "primitive": "Primitifinin numarası.",
-      "material": "Malzemesinin sırası.",
-      "instance": "Hangi kopya olduğu.",
-      "matrix": "Dünya matrisi.",
-      "bounds": "Dünya kutusu."
+      "emissiveMap": "Parlama görseli.",
+      "kind": "Ana makinenin kurduğu yüzey: ışıksız, standart ya da fiziksel bir uzantı bildirildiğinde fiziksel.",
+      "alphaMode": "Alfanın nasıl okunduğu: yok sayılır, `alphaTest` değerinde kesilir ya da karıştırılır.",
+      "opacity": "Temel renk çarpanının alfası.",
+      "extensions": "Fiziksel uzantıların eklediği, ana makinenin parametre adlarıyla: bir çarpan, bir renk ya da bir aralık sayılar olarak, bir harita yuva olarak."
     }
   },
   "TableTexture": {
     "summary": "Bir glTF dokusunun örnekleyici durumu, motorun kelimeleriyle.",
     "members": {
+      "name": "Adı.",
+      "sampler": "Bildirdiği glTF örnekleyicisinin sırası, yoksa `null`.",
       "image": "Hangi görsel.",
       "wrapS": "Yatayda tekrar.",
       "wrapT": "Dikeyde tekrar.",
@@ -3432,11 +3297,12 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Bir dolu harita slotu: hangi doku, hangi koordinat seti, ve onun için oluşturulan 3×3.",
+    "summary": "Dolu bir harita yuvası: hangi doku, hangi koordinat takımı ve bildirdiği dönüşüm.",
     "members": {
       "texture": "Hangi doku.",
-      "texCoord": "Hangi UV seti.",
-      "transform": "UV dönüşümü, 3×3."
+      "texCoord": "Hangi UV kümesinin örneklendiği: dönüşümü bir küme adlandırıyorsa onunki, yoksa kendisininki.",
+      "slotTexCoord": "Yuvanın herhangi bir dönüşümden önce kendisinin adlandırdığı UV kümesi: ilkinden başka birini adlandıran bir yuva, dokusunun hiçbir sıraya karşılık gelmeyen bir kopyasından çizilir.",
+      "transform": "Yuvanın bildirdiği `KHR_texture_transform` — kaydırma, radyan cinsinden dönme, germe, belirtilmediğinde her biri `null` — ya da hiç yoksa `null`."
     }
   },
   "TelemetryReport": {
@@ -4309,10 +4175,6 @@
   "assertSceneProxy": {
     "summary": "Tek bir bayt istenmeden önce, bu motorun okuyamadığı bir proxy açıklayıcısını reddeder.",
     "description": "Açıklayıcısı olmayan bir manifesto bir hata değildir: bu, yansımadan önceki bir önbellektir, ve motor, sahip olmadığı bir geometriyi tahmin etmek yerine bunu söyler."
-  },
-  "assertSceneTables": {
-    "summary": "Tablolar, ya da adlandırılmış bir ret.",
-    "description": "Bilinmeyen bir sürüm asla tahmin edilmez: başka bir derleyici tarafından yazılmış, ya da bir tablo şekil değiştirmeden önceki bir ürün, bu okuyucunun bir sahneyi karşı karşılaştırabileceği hiçbir şey söylemez, ve onu yarı yarıya okumak bir format değişikliğini yanlış bir karşılaştırmaya dönüştürürdü."
   },
   "axisAngleQuaternion": {
     "summary": "Birim bir eksen etrafında `angle` radyanlık bir dönüşün kuaterniyonu."
@@ -7170,6 +7032,233 @@
     "members": {
       "budget": "Sabit sınırlar, fizik başlarken bir kez okunur.",
       "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
+    }
+  },
+  "GraphAngles": {
+    "summary": "Aynı yönelim üç açı ve sıraları olarak; yazımlarını aynı şekilde duyurur.",
+    "members": {
+      "x": "Birinci açı, radyan cinsinden.",
+      "set": "Üç açıyı ve verildiyse sırayı yazar; bir kez duyurulur.",
+      "setFromRotation": "`q`'nun bu sıradaki açıları (çekirdeğin `Euler`'i); `quiet` değilse duyurulur.",
+      "y": "İkinci açı, radyan cinsinden.",
+      "z": "Üçüncü açı, radyan cinsinden.",
+      "order": "Üç açının döndüğü sıra; ayarlanmadıkça `'XYZ'`."
+    }
+  },
+  "GraphArray": {
+    "summary": "Bir özniteliğin tuttuğu tipli diziler."
+  },
+  "GraphAttribute": {
+    "summary": "Kendi deposuna sahip bir öznitelik: köşe başına ardışık `itemSize` sayı.",
+    "members": {
+      "kind": "Öznitelik kendi tamponuna sahiptir.",
+      "count": "Kaç köşe.",
+      "version": "`needsUpdate` ile artırılır.",
+      "array": "Depolama.",
+      "updateRanges": "Son yüklemeden beri yazılan `array` aralıkları, tek başına gönderilir.",
+      "addUpdateRange": "`start`'tan itibaren `count` sayıyı yazılmış olarak işaretler.",
+      "clearUpdateRanges": "Yüklendikten sonra yazılan aralıkları unutur.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
+    }
+  },
+  "GraphElements": {
+    "summary": "İki öznitelik türünden biri."
+  },
+  "GraphGeometry": {
+    "summary": "Bir ağın çizdiği öznitelikler, onları indeksleyen üçgen listesi, onları hareket ettiren morf hedefleri ve üzerlerinde hesaplanan yerel kutu ile küre.",
+    "members": {
+      "kind": "Kaynağın ne olduğu.",
+      "name": "Adı.",
+      "index": "Üçgen listesi ya da köşeleri sırayla çizmek için `null`.",
+      "attributes": "Köşe öznitelikleri.",
+      "morphAttributes": "Her biçim değiştiren öznitelik için, morf hedefi başına bir öznitelik.",
+      "morphTargetsRelative": "Bir morf hedefi konum değil yer değiştirme tuttuğunda doğru.",
+      "groups": "Her biri tek bir yüzeyle çizilen indeks aralıkları.",
+      "drawRange": "İndeksin çizilen aralığı.",
+      "boundingBox": "Host'un hesapladığı yerel kutu.",
+      "boundingSphere": "Hesaplandıktan ya da bildirildikten sonra yerel küre.",
+      "userData": "Geometriyi kuranın verileri için serbest alan.",
+      "getIndex": "Üçgen listesi.",
+      "setIndex": "Üçgen listesini ayarlar.",
+      "getAttribute": "Bu adı taşıyan öznitelik.",
+      "setAttribute": "Bir özniteliğe ad verir.",
+      "deleteAttribute": "Bir özniteliği unutur.",
+      "hasAttribute": "Bu adda bir özniteliği olup olmadığı.",
+      "clone": "Her tamponun, gruplarının, aralığının ve sınırlarının kopyalarını tutan bir geometri.",
+      "toNonIndexed": "Aynı üçgenleri indekssiz çizen bir geometri: her köşe kendi başına bir tepe noktası.",
+      "computeBoundingBox": "Tüm köşeler üzerinde yerel kutuyu hesaplar.",
+      "computeBoundingSphere": "Yerel küreyi hesaplar: kutunun merkezinde, en uzak köşeye kadar."
+    }
+  },
+  "GraphInterleavedAttribute": {
+    "summary": "Serpiştirilmiş bir tamponun her köşesinin `offset` konumundaki `itemSize` sayıya bakan bir öznitelik.",
+    "members": {
+      "kind": "Öznitelik paylaşılan bir tampona bakar.",
+      "data": "Baktığı tampon.",
+      "offset": "Sayılarının her köşede nerede başladığı.",
+      "array": "Öğelerin bulunduğu depo.",
+      "count": "Kaç köşe.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
+    }
+  },
+  "GraphInterleavedBuffer": {
+    "summary": "Birkaç özniteliğin baktığı tek bir depo, her `stride` sayıda bir köşe.",
+    "members": {
+      "kind": "Birkaç özniteliğin baktığı tek bir depo.",
+      "count": "Kaç köşe.",
+      "version": "`needsUpdate` ile artırılır.",
+      "array": "Depo.",
+      "stride": "Köşe başına sayı.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
+    }
+  },
+  "GraphMesh": {
+    "summary": "Çizilen bir düğüm: bir geometri ve yüzeyi ya da geometri grubu başına bir yüzey.",
+    "members": {
+      "kind": "Tek bir yerleşimde ya da birkaçında çizilir (`GraphInstancedMesh`).",
+      "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
+      "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
+      "geometry": "Şekli.",
+      "material": "Yüzeyi ya da geometri grubu başına bir yüzey.",
+      "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
+    }
+  },
+  "GraphNode": {
+    "summary": "Grafın bir düğümü: adı, pozu, dünya matrisi, ebeveyni ve çocukları.",
+    "members": {
+      "id": "Düğümün oturumda benzersiz numarası.",
+      "kind": "Düğümün ne olduğu: grafın her okuyucusunun daralttığı şey.",
+      "name": "Host'un onun için adı.",
+      "parent": "Ebeveyni.",
+      "children": "Bu düğümün tuttuğu düğümler, sırayla.",
+      "up": "`lookAt` için hangi yönün yukarı olduğu.",
+      "position": "Nerede durduğu.",
+      "rotation": "Açı olarak nasıl döndürüldüğü.",
+      "quaternion": "Bir düğümün dönüşünün iki yüzü — motorun karşılaştırdığı kuaterniyon, ve içine kopyalanan Euler açıları — her biri kendi yazımlarını DUYURARAK: host'un zaten zincirlediği, bir hook'un değiştirmek yerine genişlettiği bir geri çağırma (`hooks.ts`). Alt çizgili iki üye, host kütüphanesinin özelidir, bu yüzden hook'un onlara ihtiyaç duyduğu yerde burada yazılırlar, ve kendi adlarını almazlar. Bu, özeli SDK'nın yayımlanmış sözleşmeler listesinin dışında tutar; onu yayımlanmış yüzeyin dışında TUTMAZ, çünkü `HostGraphNode` onu taşır. Taramanın zaten yaptığı gibi pozu kare başına karşılaştırmak, bağlantıyı kaldıracak olan şeydir — bu bu lotun işi değildir.",
+      "scale": "Nasıl gerildiği.",
+      "matrix": "Yerel matrisi.",
+      "matrixWorld": "Dünya matrisi.",
+      "matrixAutoUpdate": "Host'un kendisi `matrix`'i ayarladığında yanlış: matris pozun KENDİSİDİR ve hiçbir şey onu yeniden oluşturmaz.",
+      "matrixWorldAutoUpdate": "Hiçbir şey `matrixWorld` yazmadığında yanlış.",
+      "matrixWorldNeedsUpdate": "Yerel matris değiştiğinde ve dünya matrisi onu izlemediğinde ayarlanır.",
+      "visible": "Çizilip çizilmediği.",
+      "castShadow": "Gölge düşürüp düşürmediği.",
+      "receiveShadow": "Üzerine gölge düşüp düşmediği.",
+      "frustumCulled": "Bir işleyicinin onu görüş dışında atlayıp atlayamayacağı.",
+      "renderOrder": "Saydam şeyler arasında çizim sırası.",
+      "userData": "Motorun, host'un hiç görmediği ve yazamayacağı kendi kopyasını işaretlediği yer.",
+      "add": "`nodes`'u bu düğümün çocukları yapar; her biri önce önceki ebeveyninden alınır.",
+      "remove": "`nodes`'u bu düğümden alır.",
+      "removeFromParent": "Bu düğümü ebeveyninden alır.",
+      "clear": "Bu düğümden tüm çocukları alır.",
+      "traverse": "Düğümün altındaki alt ağaç, önce kendisi, host'un kendi sırasında.",
+      "updateMatrix": "Yerel matrisi pozdan oluşturur.",
+      "updateMatrixWorld": "Host'un kendi okuyucuları için, alt ağacın dünya matrislerini HOST GRAFİĞİNDE çözer.",
+      "updateWorldMatrix": "Bu düğümün dünya matrisini çözer; istenirse önce atalarınınkini, ardından alt ağacını.",
+      "applyMatrix4": "`m`'yi düğümün pozunun üzerine uygular, ardından pozu çarpımdan geri okur.",
+      "lookAt": "Düğümü, nokta ya da üç sayı olarak verilen bir dünya noktasına çevirir.",
+      "clone": "Aynı türde, aynı değerlerde bir düğüm; aksi söylenmedikçe çocukları da kopyalanır.",
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
+    }
+  },
+  "GraphNodeKind": {
+    "summary": "Grafın bir düğümünün ne olduğu: yalın bir düğüm, kök, bir grup, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
+  },
+  "GraphRotation": {
+    "summary": "Yazımları `_onChangeCallback`'i çağıran bir `(x, y, z, w)` yönelimi.",
+    "members": {
+      "x": "İlk sayı.",
+      "set": "Dört sayıyı yazar; bir kez duyurulur.",
+      "copy": "Başka bir dönüşün sayılarını alır.",
+      "fromArray": "Bir listeden dört sayı okur.",
+      "setFromAngles": "`angles`'ın kendi sırasındaki dönüşü (`localTurnQuaternion`); `quiet` değilse duyurulur.",
+      "setFromRotationMatrix": "Sütunları birim uzunlukta olan sütun öncelikli bir matrisin üst 3×3'ünün dönüşü.",
+      "premultiply": "`q` ardından bu dönüş olur, `q · this`.",
+      "invert": "Ters dönüş olur.",
+      "y": "İkinci sayı.",
+      "z": "Üçüncü sayı.",
+      "w": "Dördüncü sayı."
+    }
+  },
+  "GraphSurface": {
+    "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",
+    "description": "Sürümü, her okuyucunun karşılaştırdığı `needsUpdate` ile artırılır.",
+    "members": {
+      "uuid": "Yüzeye özgü bir ad.",
+      "name": "Adı.",
+      "version": "Her değişiklikte host tarafından artırılır: önbelleğe alınmış bir satırın alanlarını yeniden inşa etmek için karşılaştırdığı şey.",
+      "userData": "Yüzeyi kuranın verileri için serbest alan.",
+      "kind": "Kaynağın ne olduğu; `family` hangi yüzey olduğunu söyler.",
+      "family": "Ait olduğu aile.",
+      "needsUpdate": "Bir değişiklikten sonra `needsUpdate = true`: her okuyucu alanları yeniden alır.",
+      "copy": "`source`'un her parametresini alır; renkler ve vektörler kopyalanır, dokular paylaşılır.",
+      "clone": "Aynı aileden, aynı parametrelere sahip bir yüzey.",
+      "visible": "Çizilip çizilmediği.",
+      "side": "Host'un sabiti olarak, hangi yüzler.",
+      "forceSinglePass": "Host, çift taraflı şeffaf bir yüzeyi arka sonra ön yerine tek bir geçişte çizer.",
+      "vertexColors": "Köşe renklerinin onu tonlayıp tonlamadığı.",
+      "toneMapped": "Ekran eğrisinin uygulanıp uygulanmadığı.",
+      "depthWrite": "Derinlik yazıp yazmadığı.",
+      "depthFunc": "Derinlik testinin karşılaştırması.",
+      "colorWrite": "Renk yazıp yazmadığı.",
+      "polygonOffset": "Derinliğin ötelenip ötelenmediği.",
+      "polygonOffsetFactor": "Ötelemenin eğim kısmı.",
+      "polygonOffsetUnits": "Ötelemenin sabit kısmı.",
+      "transparent": "Karışıp karışmadığı.",
+      "opacity": "Ne kadar opak olduğu.",
+      "alphaTest": "Piksellerin altında düştüğü alfa.",
+      "depthTest": "Derinlik testi yapıp yapmadığı."
+    }
+  },
+  "GraphTexture": {
+    "summary": "Bir görüntü, okunduğu örnekleyici durumu ve koordinatlarının dönüşümü.",
+    "members": {
+      "kind": "Bir dokuyu yüzeyin diğer alanlarından ayırır: çözülmüş bir resim ya da ham teksel (`image`, `{ data, width, height }` tutar).",
+      "uuid": "Dokuya özgü bir ad.",
+      "name": "Host'un onun için adı.",
+      "mapping": "Nasıl adreslendiği: bir UV kümesiyle.",
+      "channel": "Örnekleyicinin okuduğu UV seti, `KHR_texture_transform`'un `texCoord`'u.",
+      "wrapS": "Host'un sabiti olarak, yatayda nasıl tekrarlandığı.",
+      "wrapT": "Host'un sabiti olarak, dikeyde nasıl tekrarlandığı.",
+      "magFilter": "Daha büyük gösterildiğinde filtre.",
+      "minFilter": "Daha küçük gösterildiğinde filtre.",
+      "anisotropy": "Eğik açıda keskinlik.",
+      "colorSpace": "Sayılarının nasıl okunduğu.",
+      "offset": "`matrix`in neyden oluşturulduğu.",
+      "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
+      "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
+      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
+      "premultiplyAlpha": "Rengin alfa ile önceden çarpılıp çarpılmadığı.",
+      "flipY": "Yüklemede satırların çevrilip çevrilmediği.",
+      "version": "Her içerik değişikliğinde host tarafından artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
+      "userData": "Dokuyu kuranın verileri için serbest alan.",
+      "format": "Ham bir dokunun teksellerinin kanalları (`HOST_FORMAT_*`).",
+      "image": "Çözülmüş resim, host'un kendi kabında.",
+      "needsUpdate": "Bir değişiklikten sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler.",
+      "updateMatrix": "`matrix`'i offset, repeat ve rotation'dan yeniden inşa eder.",
+      "clone": "Aynı görüntü ve durumda, değişmiş olarak duyurulan bir doku.",
+      "repeat": "Kaç kez sığdığı.",
+      "center": "Dönmenin ekseni.",
+      "rotation": "Dönme, radyan cinsinden."
+    }
+  },
+  "GraphVector": {
+    "summary": "Bir pozun ya da noktanın üç sayısı: düz veri alanları ve bir denetleyicinin kullandığı işlemler.",
+    "members": {
+      "set": "Üç sayıyı yazar.",
+      "copy": "Başka bir noktanın sayılarını alır.",
+      "clone": "Bir kopya.",
+      "add": "Başka bir vektör ekler.",
+      "sub": "Başka bir vektörü çıkarır.",
+      "multiplyScalar": "Üç sayıyı ölçekler.",
+      "length": "Uzunluğu.",
+      "setLength": "Yönü korur, uzunluğu ayarlar.",
+      "distanceTo": "Bir noktaya uzaklık.",
+      "fromArray": "Bir listeden üç sayı okur.",
+      "x": "Soldan sağa.",
+      "y": "Alttan üste.",
+      "z": "Arkadan öne."
     }
   },
   "VehicleDriver": {

@@ -1,7 +1,7 @@
 // The occluding scene the Hi-Z proofs share: a near opaque wall and a far opaque slab, offset,
 // so that view parallax takes the slab out from behind the wall and the occlusion verdict of
 // its clusters flips with the camera.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
 import type {
@@ -13,18 +13,12 @@ import { batisseur, carre, engine, libere, type ScenePreparee } from './sharedSc
 
 export function sceneOccultante(): ScenePreparee {
   const bati = batisseur();
-  const mur = new THREE.Mesh(
-    carre(0.8),
-    new THREE.MeshBasicMaterial({ color: 0xdedede, side: THREE.DoubleSide }),
-  );
+  const mur = G.mesh(carre(0.8), G.basicSurface({ color: 0xdedede, side: G.DOUBLE_SIDE }));
   mur.name = 'mur';
   mur.position.set(0, 0, 1);
   bati.source.add(mur);
   bati.ajoute(mur, 'exact-clusters', 0.8);
-  const dalle = new THREE.Mesh(
-    carre(0.25),
-    new THREE.MeshBasicMaterial({ color: 0x20c040, side: THREE.DoubleSide }),
-  );
+  const dalle = G.mesh(carre(0.25), G.basicSurface({ color: 0x20c040, side: G.DOUBLE_SIDE }));
   dalle.name = 'dalle';
   dalle.position.set(0.9, 0, -3);
   bati.source.add(dalle);

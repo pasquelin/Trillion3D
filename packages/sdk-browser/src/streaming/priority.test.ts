@@ -1,19 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { orderPendingUrls, pixelScaleOf, type PriorityRecord } from './priority.ts';
 import { referenceOrder } from '../../../../bench/oracles/browser/core-math-priority.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 
 function camera() {
-  const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
+  const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 1000);
   cam.position.set(0, 0, 5);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
   cam.updateProjectionMatrix();
   return cam;
 }
-const identity = new THREE.Matrix4();
+const identity = new G.Matrix4();
 function record(
   url: string,
   centre: [number, number, number],
@@ -95,7 +95,7 @@ test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) —
   const pixelScale = [500, 500];
   const record2 = (url: string, matrice: number[], sphere?: number[]): PriorityRecord => ({
     url,
-    matrix: new THREE.Matrix4().fromArray(matrice),
+    matrix: new G.Matrix4().fromArray(matrice),
     min: [-1, -1, -1],
     max: [1, 1, 1],
     lodError: 2,

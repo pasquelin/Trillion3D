@@ -1,7 +1,7 @@
 // Reading a rendered frame back: pixels, the frame-held wait, and the pixel comparisons the
 // browser proofs share. Split from `sharedSceneProof.ts` (scene construction and mounting)
 // to keep each file under the line gate.
-import type * as THREE from 'three';
+import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 /** `RenderBackend` does not declare `cpuFrameEnd` publicly; the object `webgpuPagesBackend`
@@ -15,7 +15,7 @@ interface BackendAvecCpuFrameEnd extends RenderBackend {
  *  a host does: that is what publishes the per-stage counters. */
 export async function image(
   backend: RenderBackend,
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
 ): Promise<{ pixels: Uint8Array; metriques: ReturnType<RenderBackend['metrics']> }> {
   backend.render(camera);
   (backend as BackendAvecCpuFrameEnd).cpuFrameEnd?.();
@@ -29,7 +29,7 @@ const PLAFOND = 64;
 /** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
 export async function jusquaTenue(
   backend: RenderBackend,
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
 ): Promise<{ rendue: number[] | undefined; tenue: number[] | null; rendues: number }> {
   let rendue: number[] | undefined,
     rendues = 0;

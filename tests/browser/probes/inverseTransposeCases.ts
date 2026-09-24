@@ -1,6 +1,6 @@
 // Geometry, camera, ground truth and CPU decision shared by the defect-6 reproduction
 // (`inverseTranspose3`, packages/sdk-browser/src/gpu/dag/shader/shader.ts). Split from the orchestration to hold `check:lines`.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   frustumExcludesBox,
   frustumPlanesFromMatrix,
@@ -22,6 +22,7 @@ import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts
 import { poseMonde } from './lightingNormalCases.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { project } from './cameraRig.ts';
 
 type Vec3T = [number, number, number];
 interface Boite {
@@ -40,14 +41,14 @@ export interface Cas extends Boite, CasEntree {
   positions: number[];
   indices: number[];
   cone: NormalCone;
-  world: THREE.Matrix4;
+  world: G.Matrix4;
   miroir: boolean;
 }
 
 export const VIEWPORT: [number, number] = [1000, 1000];
 // Fixed camera: on -Z, it looks at the origin where each object is recentred whatever its
 // rotation (see `construireCas`), so that only orientation varies from case to case.
-export const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+export const camera = G.perspectiveCamera(60, 1, 0.1, 100);
 camera.position.set(0, 0, -9);
 camera.lookAt(0, 0, 0);
 camera.updateMatrixWorld(true);
@@ -86,12 +87,13 @@ export function construireCas({
   const cone = triangleCone(positions, indices);
   const world = poseMonde({ s, kind, axis, angleDeg });
   if (miroir) for (const k of [8, 9, 10]) world.elements[k] = -world.elements[k];
-  const centerLocal = new THREE.Vector3(
+  const centerLocal = new G.Vector3(
     (min[0] + max[0]) / 2,
     (min[1] + max[1]) / 2,
     (min[2] + max[2]) / 2,
   );
-  world.setPosition(centerLocal.applyMatrix4(world).negate());
+  const centre = centerLocal.applyMatrix4(world).negate();
+  world.setPosition(centre.x, centre.y, centre.z);
   return { positions, indices, cone, min, max, world, s, kind, worldSize, axis, angleDeg, miroir };
 }
 
@@ -108,15 +110,15 @@ export function veriteTerrain(cas: Cas) {
     [3, 4, 5],
   ].map(([ia, ib, ic]) => {
     const v = [ia, ib, ic].map((i) =>
-      new THREE.Vector3().fromArray(cas.positions, i * 3).applyMatrix4(cas.world),
+      new G.Vector3().fromArray(cas.positions, i * 3).applyMatrix4(cas.world),
     );
-    const normale = new THREE.Vector3()
+    const normale = new G.Vector3()
       .subVectors(v[1], v[0])
-      .cross(new THREE.Vector3().subVectors(v[2], v[0]));
+      .cross(new G.Vector3().subVectors(v[2], v[0]));
     normale.normalize();
     const centre = v[0].clone().add(v[1]).add(v[2]).divideScalar(3);
-    const face = normale.dot(camera.position.clone().sub(centre).normalize());
-    const ndc = v.map((p) => p.clone().project(camera));
+    const face = normale.dot(new G.Vector3().copy(camera.position.clone().sub(centre)).normalize());
+    const ndc = v.map((p) => project(p.clone(), camera));
     const dansLeChamp = ndc.every(
       (p) => Math.abs(p.x) < 1 && Math.abs(p.y) < 1 && Math.abs(p.z) < 1,
     );
@@ -172,16 +174,15 @@ export function dansLeChamp(cas: Cas): boolean {
 export function decisionCpu(cas: Cas) {
   const ctx = coneContextFor(createConeContext(), cas.world, vue.eye);
   const coneRejette = coneCullsPageWith(ctx, cas.cone, cas.world, cas.min, cas.max);
-  const box = new THREE.Box3(
-    new THREE.Vector3(...cas.min),
-    new THREE.Vector3(...cas.max),
-  ).applyMatrix4(cas.world);
+  const box = new G.Box3(new G.Vector3(...cas.min), new G.Vector3(...cas.max)).applyMatrix4(
+    cas.world,
+  );
   const page = {
     ...pageDuCas(cas),
     id: '0',
     triangles: 2,
     matrix: cas.world,
-    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
+    material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
   const root = {
     world: cas.world,

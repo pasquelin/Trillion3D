@@ -10,7 +10,7 @@
 // the rig resolution — two frames per pose, the one that follows the move and the one that no
 // longer moves, each compared byte for byte to a fresh engine placed at once at the same world
 // pose. Matrices from a previous view would make one or the other diverge.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type {
   BackendDiagnostic,
   RenderBackend,
@@ -47,7 +47,7 @@ async function poseNeuve(device: GPUDevice, x: number, onDiag: (e: BackendDiagno
 export async function executer() {
   // The camera has only one local pose, set once: the rig carries the whole move.
   const camera = cameraFace(0),
-    rig = new THREE.Group();
+    rig = new G.GraphGroup();
   rig.add(camera);
   return surSceneOccultante({ stageProfile: true }, async (backend, device, onDiag, etapes) => {
     for (const x of POSES) {

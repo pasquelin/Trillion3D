@@ -1,6 +1,8 @@
 // Pure oracles for A3 and A4, side-effect free: `occlusion.bench.ts` measures them, unit tests
 // import them as reference.
 import * as THREE from 'three';
+import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
+import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts';
 import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts';
 import {
   HIZ_BOUNDS_VALUES,
@@ -50,9 +52,10 @@ function referenceProjectBoxToScreen(
  *  Reversed depth: nearest carries GREATER depth, so order is descending. */
 export function referenceSplitOccluders<T extends HizPage>(
   pages: T[],
-  cam: THREE.PerspectiveCamera,
+  camera: GraphCamera,
   viewport: [number, number],
 ) {
+  const cam = threeCamera(camera) as THREE.PerspectiveCamera;
   const ranked = pages.map((page, index) => {
     const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);
     return { page, index, nearest: bounds.nearestDepth, clipsNear: bounds.clipsNear };
@@ -72,11 +75,12 @@ export function referenceSplitOccluders<T extends HizPage>(
 export function referenceCountUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
   pyramid: HizPyramid,
-  cam: THREE.PerspectiveCamera,
+  camera: GraphCamera,
   viewport: [number, number],
   counts: HizCounts,
   bias = 0,
 ) {
+  const cam = threeCamera(camera) as THREE.PerspectiveCamera;
   const kept: T[] = [];
   for (const page of pages) {
     const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);

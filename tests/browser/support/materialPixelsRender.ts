@@ -2,6 +2,7 @@
 // the two images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
 // comparison) to keep each file under the line gate.
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { batisseur, engine, libere, type ScenePreparee } from './sharedSceneProof.ts';
 import { jusquaTenue } from './sceneImageProof.ts';
@@ -22,36 +23,45 @@ export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTML
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(1);
   renderer.setSize(SIZE, SIZE, false);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.outputColorSpace = G.HOST_COLOUR_SPACE_SRGB;
   renderer.toneMappingExposure = 1;
   return { renderer, canvas };
 }
 
 /** The fixture's square: a lit one carries normals, a normal-mapped one its tangents. */
-function square(fixture: Fixture): THREE.PlaneGeometry {
-  const geometry = new THREE.PlaneGeometry(2, 2);
+function square(fixture: Fixture): G.GraphGeometry {
+  const geometry = G.planeGeometry(2, 2);
   if (fixture.tangents)
     geometry.setAttribute(
       'tangent',
-      new THREE.Float32BufferAttribute(Array.from({ length: 4 }, () => [1, 0, 0, 1]).flat(), 4),
+      G.floatAttribute(Array.from({ length: 4 }, () => [1, 0, 0, 1]).flat(), 4),
     );
   return geometry;
 }
 
+/**
+ * The witness renderer's own camera: the library's copy of the engine camera, its optics and
+ * its world pose. This page is served alone, without the witnesses' `fromGraph` copies.
+ */
+function witnessCamera(camera: G.GraphCamera) {
+  const copy = new THREE.PerspectiveCamera(camera.fov, camera.aspect, camera.near, camera.far);
+  copy.matrixAutoUpdate = false;
+  copy.matrix.fromArray(camera.matrixWorld.elements);
+  copy.updateMatrixWorld(true);
+  return copy;
+}
+
 /** The prepared scene of one fixture: its square, what stands behind it, and the sun when lit. */
-export function sceneOf(fixture: Fixture, sun: THREE.Object3D): ScenePreparee {
+export function sceneOf(fixture: Fixture, sun: G.GraphNode): ScenePreparee {
   const builder = batisseur();
   const material = fixture.material();
-  const mesh = new THREE.Mesh(square(fixture), material);
+  const mesh = G.mesh(square(fixture), material);
   if (fixture.back) mesh.rotation.y = Math.PI;
   if (fixture.tilt) mesh.rotation.x = fixture.tilt;
   builder.source.add(mesh);
   builder.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
   if (fixture.behind !== undefined) {
-    const back = new THREE.Mesh(
-      new THREE.PlaneGeometry(4, 4),
-      new THREE.MeshBasicMaterial({ color: fixture.behind }),
-    );
+    const back = G.mesh(G.planeGeometry(4, 4), G.basicSurface({ color: fixture.behind }));
     back.position.z = -1;
     builder.source.add(back);
     builder.ajoute(back, 'exact-clusters', 2);
@@ -70,7 +80,7 @@ export function witnessImage(
   referenceBackend: BackendFactory,
   scene: ScenePreparee,
   renderer: THREE.WebGLRenderer,
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
 ): Uint8Array {
   const backend = referenceBackend({
     source: scene.source,
@@ -81,7 +91,7 @@ export function witnessImage(
   });
   renderer.toneMapping = backend.sceneLit!() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
   backend.render(camera);
-  renderer.render(asHostLibrary<THREE.Scene>(backend.scene), camera);
+  renderer.render(asHostLibrary<THREE.Scene>(backend.scene), witnessCamera(camera));
   const pixels = new Uint8Array(SIZE * SIZE * 4);
   const gl = renderer.getContext();
   gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
@@ -96,7 +106,7 @@ export async function engineImage(
   scene: ScenePreparee,
   device: GPUDevice,
   sceneLights: SdkCore.SceneLightStore,
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
   events: BackendDiagnostic[],
 ): Promise<{ pixels: number[] | undefined; held: boolean; dataUrl: string }> {
   const { backend, canvas } = engine(
