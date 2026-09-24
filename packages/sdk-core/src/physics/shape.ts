@@ -1,3 +1,4 @@
+import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
 import { SHAPE } from './layout.ts';
 import type { PhysicsShape, PhysicsType } from './options.ts';
@@ -16,8 +17,8 @@ type Scale = { x: number; y: number; z: number };
 
 const same = (a: number, b: number) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a));
 
-/** The geometry's positions scaled into the body's frame, and its triangle indices. */
-function scaledMesh(geometry: Geometry, scale: Scale) {
+/** The geometry's positions scaled into the body's frame. */
+function scaledVertices(geometry: Geometry, scale: Scale) {
   const source = geometry.getAttribute('position')?.array ?? new Float32Array(0);
   const vertices = new Float32Array(source.length);
   for (let i = 0; i < source.length; i += 3) {
@@ -25,11 +26,14 @@ function scaledMesh(geometry: Geometry, scale: Scale) {
     vertices[i + 1] = source[i + 1] * scale.y;
     vertices[i + 2] = source[i + 2] * scale.z;
   }
-  const count = vertices.length / 3;
-  const indices = geometry.index
+  return vertices;
+}
+
+/** The geometry's triangles, as indices into its vertices. */
+function triangleIndices(geometry: Geometry, vertexCount: number) {
+  return geometry.index
     ? Uint32Array.from(geometry.index.array)
-    : Uint32Array.from({ length: count - (count % 3) }, (_, i) => i);
-  return { vertices, indices };
+    : Uint32Array.from({ length: vertexCount - (vertexCount % 3) }, (_, i) => i);
 }
 
 /** A primitive the declared or inferred shape names exactly, or `null` when the scale bends it. */
@@ -74,7 +78,8 @@ function recipeShape(geometry: Geometry): PhysicsShape | null {
 /**
  * The collision shape of a body: the declared one, else the primitive its geometry was built as
  * (box, sphere, capsule, cylinder — exact), else its triangles when static, else the convex hull of
- * its vertices, computed in the worker.
+ * its vertices, computed in the worker. Triangles have no volume, hence no mass: a dynamic body
+ * declared as triangles is refused (`PHYSICS_FAILED`); its shape is a hull.
  */
 export function resolveShape(
   geometry: Geometry,
@@ -86,9 +91,20 @@ export function resolveShape(
   const exact = wanted && wanted.type !== 'triangles' && wanted.type !== 'hull';
   const found = exact ? primitive(wanted, scale) : null;
   if (found) return found;
+  if (wanted?.type === 'triangles' && type === 'dynamic')
+    throw new EngineError(
+      'PHYSICS_FAILED',
+      "A dynamic body cannot be triangles (no volume, no mass): use shape { type: 'hull' }.",
+    );
   const triangles = wanted?.type === 'triangles' || (wanted?.type !== 'hull' && type === 'static');
-  const { vertices, indices } = scaledMesh(geometry, scale);
-  return triangles
-    ? { shape: SHAPE.triangles, size: [0, 0, 0], vertices, indices, triangles: indices.length / 3 }
-    : { shape: SHAPE.hull, size: [0, 0, 0], vertices, triangles: 0 };
+  const vertices = scaledVertices(geometry, scale);
+  if (!triangles) return { shape: SHAPE.hull, size: [0, 0, 0], vertices, triangles: 0 };
+  const indices = triangleIndices(geometry, vertices.length / 3);
+  return {
+    shape: SHAPE.triangles,
+    size: [0, 0, 0],
+    vertices,
+    indices,
+    triangles: indices.length / 3,
+  };
 }

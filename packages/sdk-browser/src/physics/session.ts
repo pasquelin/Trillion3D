@@ -1,37 +1,35 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   CommandWriter,
-  POSE_WORDS,
   type PhysicsBudget,
   type PhysicsHost,
   physicsMatterOf,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createPhysicsBodies, flagsOf, hasBody } from './bodies.ts';
+import { besideModule } from '../host/besideModule.ts';
+import { createPhysicsBodies, flagsOf, hasBody, worldPoseOf } from './bodies.ts';
 import { emitContacts } from './contacts.ts';
 import { createPhysicsPoses } from './poses.ts';
 import {
+  emptyPhysicsStats,
+  eventsAt,
   PHYSICS_PROTOCOL,
-  resultBytes,
+  resultWords,
   type FromPhysics,
   type PhysicsResults,
-  type PhysicsStats,
 } from './protocol.ts';
 import { createPhysicsView } from './view.ts';
 
-/** The URL of a resource beside this module: `.ts` in a source tree served as is, `.js` built. */
-const beside = (name: string) =>
-  new URL(import.meta.url.endsWith('.ts') ? `./${name}.ts` : `./${name}.js`, import.meta.url);
-
 /**
- * Threads the step gets: the budget's, capped by the logical cores minus the page's own, and one
- * where memory cannot be shared (a page that is not cross-origin isolated).
+ * Threads the step gets: the budget's, capped by the logical cores minus the page's own; one where
+ * memory cannot be shared (a page that is not cross-origin isolated) or the cores are not reported.
  */
-const stepThreads = (wanted: number) =>
-  globalThis.crossOriginIsolated
-    ? Math.max(1, Math.min(Math.floor(wanted), (navigator.hardwareConcurrency || 2) - 1))
-    : 1;
+function stepThreads(wanted: number) {
+  const cores = navigator.hardwareConcurrency;
+  if (!globalThis.crossOriginIsolated || !Number.isInteger(cores) || cores < 2) return 1;
+  return Math.max(1, Math.min(Math.floor(wanted), cores - 1));
+}
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -84,13 +82,14 @@ export function createPhysicsSession(
       invalidate();
     },
   };
-  const bodies = createPhysicsBodies(writer, budget, host, root);
   const poses = createPhysicsPoses(budget.bodies, root);
+  const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const view = createPhysicsView();
-  const stats: PhysicsStats = { bodies: 0, active: 0, stepMs: 0, mainMs: 0, poses: 0, events: 0 };
-  const worker = new Worker(beside('physicsWorker'), { type: 'module' });
+  const stats = emptyPhysicsStats();
+  const worker = new Worker(besideModule('physicsWorker', import.meta.url), { type: 'module' });
   const threads = stepThreads(budget.threads);
-  const buffers = [new ArrayBuffer(resultBytes(budget)), new ArrayBuffer(resultBytes(budget))];
+  const bytes = resultWords(budget) * 4;
+  const buffers = [new ArrayBuffer(bytes), new ArrayBuffer(bytes)];
   worker.postMessage(
     {
       type: 'start',
@@ -110,17 +109,14 @@ export function createPhysicsSession(
   const results = (m: PhysicsResults) => {
     const began = performance.now();
     const words = new Uint32Array(m.buffer);
-    const moved = poses.receive(
-      words,
-      m.poses,
-      bodies.meshes,
-      (m.seconds * 1000) / clock.timeScale,
-      bodies.retire,
-    );
-    emitContacts(words, m.poses * POSE_WORDS, m.events, bodies.meshes);
+    // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
+    const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
+    const moved = poses.receive(words, m.poses, bodies, ms);
+    emitContacts(words, eventsAt(budget), m.events, bodies.meshOf);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active;
     Object.assign(stats, { active: m.active, poses: m.poses, events: m.events });
+    stats.droppedEvents += m.dropped;
     stats.bodies = bodies.count.bodies;
     stats.stepMs = m.steps ? m.stepMs / m.steps : stats.stepMs;
     worker.postMessage({ type: 'buffer', buffer: m.buffer }, [m.buffer]);
@@ -132,7 +128,13 @@ export function createPhysicsSession(
       ready = true;
       invalidate();
     } else if (data.type === 'results') results(data);
-    else failed(new EngineError(data.code, `Physics: ${data.message}`));
+    else {
+      // Bodies whose shape the module refused leave the simulation; the world runs on.
+      const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
+      for (const mesh of refused) bodies.retire(mesh.physics._index);
+      const names = refused.map((mesh) => mesh.name);
+      failed(new EngineError(data.code, data.message, names.length ? { names } : {}));
+    }
   };
   worker.onerror = (event) =>
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`));
@@ -140,10 +142,10 @@ export function createPhysicsSession(
   return {
     stats,
     writer,
-    /** Pauses or scales the simulation's time. */
+    /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
       Object.assign(clock, { paused, timeScale });
-      worker.postMessage({ type: 'clock', paused, timeScale });
+      worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },
     /** The scene's tree changed: bodies are reconciled before the next frame. */
     structure() {
@@ -159,11 +161,9 @@ export function createPhysicsSession(
     pose(node: Object3D) {
       node.traverse((child) => {
         if (!hasBody(child) || child.physics._host !== host) return;
-        child.updateWorldMatrix(true, false);
-        const q = child.getWorldQuaternion();
-        const p = child.getWorldPosition();
+        const { position, quaternion } = worldPoseOf(child);
         const move = child.physics.type === 'kinematic' ? 'moveKinematic' : 'teleport';
-        writer[move](child.physics._index, p.elements, [q.x, q.y, q.z, q.w]);
+        writer[move](child.physics._index, position, quaternion);
         writer.flags(child.physics._index, flagsOf(child));
       });
     },
@@ -175,7 +175,7 @@ export function createPhysicsSession(
         dirty = false;
         stats.bodies = bodies.count.bodies;
       }
-      const moving = poses.apply(bodies.meshes);
+      const moving = poses.apply(bodies);
       stats.mainMs = received;
       received = 0;
       view(camera, writer);
@@ -187,6 +187,7 @@ export function createPhysicsSession(
     },
     dispose() {
       bodies.clear();
+      poses.clear();
       writer.take();
       worker.terminate();
     },
