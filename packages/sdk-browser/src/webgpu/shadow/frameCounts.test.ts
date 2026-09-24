@@ -83,7 +83,7 @@ test('a representation change under an unlit frame stales its pages once the vie
   const planAt = (frame: number) => plan.plan(store, view, BOX_MIN, BOX_MAX, frame, frame * 16);
   planAt(0);
   const slice = store.sliceOf(0);
-  // The shading read one page; it is mapped and drawn.
+  // The shading read one page; it and the floor under it are mapped and drawn.
   const entry = plan.table.baseOf(slice) + sunEntry(plan.sun.finest[slice] + 4, 0, 0);
   plan.receive({
     frame: 0,
@@ -94,7 +94,7 @@ test('a representation change under an unlit frame stales its pages once the vie
   });
   planAt(1);
   plan.commit();
-  assert.equal(plan.pool.used, 1, 'the page is mapped');
+  assert.equal(plan.pool.used, 2, 'the page and its floor are mapped');
   // The slices survive the unlit view: what changes meanwhile must reach them.
   store.setView('unlit');
   plan.representationChanged([-1e3, 0, -1e3], [1e3, 2, 1e3]);
@@ -108,7 +108,7 @@ test('a representation change under an unlit frame stales its pages once the vie
   assert.equal(plan.deferredChanges, false, 'the unlit frame holds no union');
   store.setView('auto');
   planAt(2);
-  assert.equal(plan.counts.invalidatedPages, 1, 'the first lit plan stales the changed page');
+  assert.equal(plan.counts.invalidatedPages, 2, 'the first lit plan stales the changed pages');
 });
 
 test('pages a plan left pending hold nothing once the view is unlit or the light is gone', () => {
