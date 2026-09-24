@@ -153,6 +153,7 @@ export {
   environmentLights,
 } from './scene/core/environment.ts';
 export type { SceneToneMapping } from './scene/core/environment.ts';
+export type { SceneExponentialFog, SceneFog, SceneLinearFog } from './scene/core/fog.ts';
 export type {
   SceneEnvironment,
   SceneLight,

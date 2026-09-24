@@ -85,6 +85,7 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
         albedo.setEnabled(false);
         if (governs) dropAll();
         governs = false;
+        scene.fog = null;
         group.visible = false;
         epoch = store.epoch;
         return false;
@@ -99,6 +100,7 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
       if (store.unlit) dropAll();
       else rebuild();
       const sh = store.unlit ? undefined : store.environment?.irradiance;
+      scene.fog = (!store.unlit && store.environment?.fog) || null;
       if ((probe.visible = !!sh)) probe.sh.fromArray(sh);
       return true;
     },

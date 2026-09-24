@@ -1,6 +1,8 @@
 import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
+import { WebglClusterFog } from './fog.ts';
+import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
 import type { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
 
@@ -21,6 +23,8 @@ export type WebglClusterScene = {
   traverse(visitor: (entry: MatrixNode) => void): void;
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
+  /** The contract's fog, over every lit surface; none when absent. */
+  fog?: SceneFog | null;
 };
 
 const visibleThroughParents = (object: MatrixNode) => {
@@ -57,6 +61,7 @@ export class WebglClusterLights {
   private buffer: WebGLBuffer;
   private ltc: WebGLTexture;
   private probe: WebglClusterProbe;
+  private fog: WebglClusterFog;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
@@ -66,6 +71,7 @@ export class WebglClusterLights {
     gl.uniformBlockBinding(program, gl.getUniformBlockIndex(program, 'ClusterLights'), 0);
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
+    this.fog = new WebglClusterFog(gl, program);
   }
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
@@ -163,6 +169,7 @@ export class WebglClusterLights {
       write(base + 12, inner, outer, lamp!.decay ?? 2, 0);
     }
     this.probe.upload(view);
+    this.fog.upload(scene.fog, view);
     const gl = this.gl;
     // The host's texture units are unknown at frame start: the lobe is bound again every frame.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);

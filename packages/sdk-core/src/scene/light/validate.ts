@@ -5,6 +5,7 @@ import {
   TONE_MAPPING_RANK,
   type SceneEnvironment,
 } from '../core/environment.ts';
+import { validateSceneFog } from '../core/fog.ts';
 
 const finite = (value: unknown): value is number => typeof value === 'number' && isFinite(value);
 function vector(value: unknown, field: string, id: string): [number, number, number] {
@@ -163,7 +164,8 @@ export function validateSceneEnvironment(environment: SceneEnvironment): SceneEn
       exposure: environment?.exposure,
     });
   const validated: SceneEnvironment = { exposure: environment.exposure };
-  const { toneMapping, irradiance } = environment;
+  const { toneMapping, irradiance, fog } = environment;
+  if (fog !== undefined) validated.fog = validateSceneFog(fog);
   if (toneMapping !== undefined) {
     if (!(toneMapping in TONE_MAPPING_RANK))
       throw new EngineError('INVALID_SCENE_ENVIRONMENT', `unknown tone mapping ${toneMapping}`, {
