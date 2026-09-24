@@ -42,16 +42,16 @@ Parity means four things, and none of them is a pixel count:
 
 ## What it does
 
-| Area                   | Implemented scope                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Area                   | Implemented scope                                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Native compiler**    | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes and packages, with a dozen image formats, read by its own drivers (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine |
-| **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                                                                                                                                        |
-| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                                                                                                                                   |
-| **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                                                                                                                                              |
-| **Lighting**           | Cook-Torrance GGX, no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun through cascaded shadow maps under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap                                                                                                                                                |
-| **Memory**             | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                                                                                                                                            |
-| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped                                                                                                                                                                                                                                              |
-| **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                                                                                                                                        |
+| **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                       |
+| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                  |
+| **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                             |
+| **Lighting**           | Cook-Torrance GGX, no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun through cascaded shadow maps under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap                                                                                                                                        |
+| **Memory**             | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                           |
+| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped |
+| **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                       |
 
 ## Quick start
 
@@ -105,10 +105,10 @@ packages/asset-compiler-rust/target/release/trillion3d-compiler --jobs jobs.json
 Every consumer imports `trillion3d`. Conditional exports provide common maths and contracts in
 all environments, rendering APIs to browser bundlers, and native preparation APIs to Node.
 
-| Environment       | Available API                                                                                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Common and worker | Versioned contracts, maths, jobs, diagnostics and safety policy                                                                                                                             |
-| Node              | Common API plus native compiler process adapter and compilation jobs                                                                                                                        |
+| Environment       | Available API                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| Common and worker | Versioned contracts, maths, jobs, diagnostics and safety policy                       |
+| Node              | Common API plus native compiler process adapter and compilation jobs                  |
 | Browser bundler   | Common API plus `createWorld` and its families (`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, …) |
 
 An application owns the canvas, its resource URLs and controller disposal; the world owns its own
@@ -211,9 +211,8 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3
   cross-platform performance CI yet; WebAssembly serves the page decoder, three math kernels and
   the physics.
 - Physics ([docs/SDK.md](docs/SDK.md#physics)) steps Jolt on its thread pool when the page is
-  cross-origin isolated, on one worker elsewhere. In Chrome, 10,000 boxes landing at once still
-  cost the worker about 20 ms a step on eight threads, so the landing runs in slow motion; the
-  page keeps its pace and its share is about 3 ms a frame, not yet the 0.5 ms aimed at.
+  cross-origin isolated, on one worker elsewhere; what 10,000 boxes landing at once cost is
+  measured there.
 
 ## Licence
 

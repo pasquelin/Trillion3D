@@ -857,16 +857,18 @@ world.scene.add(floor, crate);
 crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
 ```
 
-- **Loading.** A world without physics fetches no byte of Jolt. The worker and
-  `joltPhysics.wasm` (1.27 MB) are fetched the first time physics is enabled; bodies set before
-  then are queued.
+- **Loading.** A world without physics fetches no byte of Jolt. The worker and its WebAssembly
+  module are fetched the first time physics is enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
-  `'none'`), `paused`, `timeScale` (0.25 is slow motion), `stats` and `error`.
+  `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
+  scale throws `RangeError`), `stats` and `error`.
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
-  its triangles when static and its convex hull, computed in the worker, when it moves. A dynamic
+  its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
+  body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
+  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named). A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
   teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
@@ -884,12 +886,15 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
   static world only, are simulated only in range and in view, and leave the simulation once asleep:
   their mesh stays where it came to rest (set `physics` again to simulate it anew).
-- **Budgets.** `world.budget.physics`: `bodies` 16,384, `triangles` 2,000,000, `decorative` 1,024,
-  `memoryBytes` 128 MiB (a hard ceiling: the module's memory cannot grow past it), `threads` 8
-  (Jolt's thread pool, the worker's thread included, when the page is cross-origin isolated; never
-  more than the logical cores minus the page's own; one elsewhere), read when the
-  physics starts. A request past one is refused with `PHYSICS_BUDGET` on `world.physics.error`.
-  The soft-body budget arrives with soft bodies.
+- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, static triangles,
+  decorative bodies, memory (a hard ceiling: the module's memory cannot grow past it), body pairs
+  and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
+  included, when the page is cross-origin isolated; never more than the logical cores minus the
+  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
+  refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
+  than its budget says so the same way, and an `enter` past the events budget is counted in
+  `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
+  bodies.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs`, on its own clock: the two are never added.
 
@@ -903,8 +908,9 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
   implemented.
-- Physics: 10,000 boxes landing at once cost the worker about 20 ms a step in Chrome on eight
-  threads (8–10 ms for the same module in Node), so the landing runs in slow motion; the page draws
-  on at its own pace, and its share is about 3 ms a frame that draws 10,000 new poses, above the
-  0.5 ms aimed at. Characters, joints, vehicles, soft bodies, cooked colliders and
+- Physics, `ten-thousand-bodies` (10,000 boxes landing at once, headless Chrome, cross-origin
+  isolated, eight threads): the worker's step is 15–17 ms p50 (8–10 ms for the same module in
+  Node), so the landing runs in slow motion; the page draws on at its own pace, and its `physics`
+  stage is 0.45–0.50 ms p50, 0.6–0.7 ms p95 a frame. The renderer's own work for 10,000 moved
+  instances is measured apart (#432). Characters, joints, vehicles, soft bodies, cooked colliders and
   loaded models as bodies arrive with the next physics issues (#396–#400).

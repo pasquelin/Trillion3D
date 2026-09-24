@@ -3120,6 +3120,21 @@
         "desc": "Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it."
       },
       {
+        "name": "bodyPairs",
+        "type": "number",
+        "desc": "Pairs of bodies whose bounds overlap in one step. A dense pile holds about four per body; a step that finds more misses contacts and raises `PHYSICS_BUDGET`."
+      },
+      {
+        "name": "contactConstraints",
+        "type": "number",
+        "desc": "Touching pairs solved in one step. A settled pile holds about two per body; a step that finds more misses contacts and raises `PHYSICS_BUDGET`."
+      },
+      {
+        "name": "contactEvents",
+        "type": "number",
+        "desc": "Contact events (`enter`, `leave`) one step reports. An `enter` past it is dropped and counted (`world.physics.stats.droppedEvents`), and its `leave` is never sent; a `leave` is only delayed."
+      },
+      {
         "name": "threads",
         "type": "number",
         "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
@@ -3942,15 +3957,15 @@
       },
       {
         "name": "PHYSICS_BUDGET",
-        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`."
       },
       {
         "name": "PHYSICS_NESTED",
-        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`."
       },
       {
         "name": "PHYSICS_FAILED",
-        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
+        "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`."
       }
     ],
     "description": ""
@@ -10701,6 +10716,21 @@
         "desc": "Bytes of the physics module's memory: a hard ceiling, the module cannot grow past it."
       },
       {
+        "name": "bodyPairs",
+        "type": "number",
+        "desc": "Pairs of bodies whose bounds overlap in one step. A dense pile holds about four per body; a step that finds more misses contacts and raises `PHYSICS_BUDGET`."
+      },
+      {
+        "name": "contactConstraints",
+        "type": "number",
+        "desc": "Touching pairs solved in one step. A settled pile holds about two per body; a step that finds more misses contacts and raises `PHYSICS_BUDGET`."
+      },
+      {
+        "name": "contactEvents",
+        "type": "number",
+        "desc": "Contact events (`enter`, `leave`) one step reports. An `enter` past it is dropped and counted (`world.physics.stats.droppedEvents`), and its `leave` is never sent; a `leave` is only delayed."
+      },
+      {
         "name": "threads",
         "type": "number",
         "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
@@ -10851,6 +10881,11 @@
         "name": "events",
         "type": "number",
         "desc": "Contact events the last tick sent back."
+      },
+      {
+        "name": "droppedEvents",
+        "type": "number",
+        "desc": "`enter` events dropped since the physics started, past `budget.physics.contactEvents` in one step (their `leave` is never sent)."
       }
     ],
     "description": ""
@@ -17430,7 +17465,7 @@
     "title": "world.bounce",
     "signature": "world.bounce: boolean",
     "summary": "Light bounced off the surfaces, traced against the resident proxy; off by default.",
-    "description": "A change is applied in place on a path that carries it, taken by the next opening on one that does not."
+    "description": "A change is applied in place on a path that carries it, and taken by the next opening on one that does not."
   },
   {
     "id": "world.physics",
@@ -17460,12 +17495,7 @@
       {
         "name": "timeScale",
         "type": "number",
-        "desc": "Simulated seconds per real second: 0.25 is slow motion."
-      },
-      {
-        "name": "budget",
-        "type": "PhysicsBudget",
-        "desc": "The fixed envelopes (`budget.physics`), read once when the physics starts."
+        "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
       },
       {
         "name": "stats",
@@ -18313,12 +18343,7 @@
       {
         "name": "timeScale",
         "type": "number",
-        "desc": "Simulated seconds per real second: 0.25 is slow motion."
-      },
-      {
-        "name": "budget",
-        "type": "PhysicsBudget",
-        "desc": "The fixed envelopes (`budget.physics`), read once when the physics starts."
+        "desc": "Simulated seconds per real second: 0.25 is slow motion, 0 stands still like `paused`."
       },
       {
         "name": "stats",
