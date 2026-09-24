@@ -6,7 +6,6 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
-
 ```
 packages/
   sdk-core/src/       77 *.test.ts — unit tests, next to their source
@@ -27,7 +26,6 @@ bench/
   runner/             83 modules: the measurement harness (README)
   witnesses/          33 modules: the host-library witnesses, never published
 ```
-
 <!-- tests-inventory:end -->
 
 The counts are read from the tree by `node scripts/tests-inventory.ts --write`, and
@@ -47,12 +45,12 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 
 ## 2. The Four Commands
 
-| Command             | What it runs                                                         |
-| ------------------- | -------------------------------------------------------------------- |
-| `pnpm test`         | every unit, integration, kit, bench-runner and script test           |
-| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially |
-| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report         |
-| `pnpm run validate` | full pre-merge validation gate                                       |
+| Command             | What it runs                                                                  |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `pnpm test`         | every unit, integration, kit, bench-runner and script test                    |
+| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially          |
+| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report                  |
+| `pnpm run validate` | full pre-merge validation gate                                                |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
@@ -130,7 +128,6 @@ inherited rather than the ones it caused, and the baseline lives here so the nex
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
 `TRILLION3D_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of #281: **2 fail** of
 64, always these two —
-
 - `explorer-startup`: the portal checks pass, then the geometry-garden lesson opens its world
   (`scene.load` resolves, the controls enable, a manual `world.render()` returns metrics), yet
   the world never schedules a frame: the canvas keeps its default 300 × 150 buffer under a CSS box
@@ -214,15 +211,15 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command                       | Role                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
-| `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
-| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                       |
-| `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
-| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
+| Command                       | Role                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
+| `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
+| `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite     |
+| `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
+| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |
 | `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections |
-| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
-| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
-| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |
+| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git            |
+| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links      |
