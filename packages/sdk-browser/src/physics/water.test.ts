@@ -15,6 +15,7 @@ import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { startModule, startThreaded } from './module.fixture.ts';
 import { cube, floater, floatingScene, raft, runWater } from './water.fixture.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
+import { fakeWorkers, loaded } from './worker.fixture.ts';
 
 const CALM: WaterSpec = { waves: [], level: 0 };
 const CHOP: WaterSpec = {
@@ -98,23 +99,8 @@ test('trajectories are bit-identical on one thread and on eight', async () => {
   }
 });
 
-/** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
-const loaded = () => import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
-
 test('water set or removed wakes every dynamic body, so one asleep floats or falls', async () => {
-  const workers: { onmessage(event: { data: unknown }): void; words: Uint32Array[] }[] = [];
-  const saved = globalThis.Worker;
-  globalThis.Worker = class {
-    words: Uint32Array[] = [];
-    onmessage = (_: { data: unknown }) => {};
-    constructor() {
-      workers.push(this);
-    }
-    postMessage(message: { type: string; words?: Uint32Array }) {
-      if (message.words) this.words.push(message.words);
-    }
-    terminate() {}
-  } as unknown as typeof Worker;
+  const { workers, restore } = fakeWorkers();
   try {
     const scene = new Group();
     const runtime = { invalidate() {}, explorer: null };
@@ -142,6 +128,6 @@ test('water set or removed wakes every dynamic body, so one asleep floats or fal
     assert.deepEqual(woken(), [OP.wake, body._index]);
     physics.dispose();
   } finally {
-    globalThis.Worker = saved;
+    restore();
   }
 });

@@ -1963,5 +1963,20 @@
       "awake": "Awake",
       "step": "Step"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Open the door and the drawer, swing the chain, then drop the stone on the bridge and watch it break.",
+    "controls": {
+      "openDoor": "Open the door",
+      "openDrawer": "Open the drawer",
+      "strength": "Bridge strength (N)",
+      "swingChain": "Swing the chain",
+      "dropStone": "Drop the stone",
+      "rebuild": "Rebuild the bridge"
+    },
+    "readouts": {
+      "joints": "Joints",
+      "broken": "Broken"
+    }
   }
 }

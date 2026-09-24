@@ -2,12 +2,8 @@ import type { HostMesh } from '../host/resources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import type { PageSurface } from '../page/surface.ts';
-import {
-  placementWorld,
-  rowParked,
-  type PlacementOf,
-  type PlacementRows,
-} from '../placement/rows.ts';
+import { placementWorld, type PlacementOf, type PlacementRows } from '../placement/rows.ts';
+import { notDrawn } from '../placement/hidden.ts';
 import { growPlaced } from '../placement/growth.ts';
 import { GraphMesh } from '../host/graph/mesh.ts';
 
@@ -51,13 +47,19 @@ export function createBlendCopy(
   // the copy for the ONE reader that needs it, the program that draws it.
   // A copy posed by a row is shown while the row is live: its flag is read here, then again each
   // time the owner reports the row written (`followBlendCopies`).
-  copy.visible = !rowParked(placement);
-  return Object.assign(copy as unknown as BlendCopy, { surface, placement });
+  const record = Object.assign(copy as unknown as BlendCopy, { surface, placement });
+  showBlendCopy(record);
+  return record;
 }
+
+/** Shows `copy` unless its source node is hidden or its row parked. */
+export const showBlendCopy = (copy: BlendCopy) => {
+  (copy as unknown as GraphMesh).visible = !notDrawn(copy);
+};
 
 /**
  * Rows `from` to `to` of `rows` were written: each copy they pose is shown again while its
- * row is live. True when one of `copies` is posed by `rows`.
+ * row is live and its source node shown. True when one of `copies` is posed by `rows`.
  */
 export function followBlendCopies(
   copies: BlendCopy[],
@@ -70,8 +72,7 @@ export function followBlendCopies(
     if (copy.placement?.rows !== rows) continue;
     posed = true;
     const { index } = copy.placement;
-    if (index >= from && index <= to)
-      (copy as unknown as GraphMesh).visible = !rowParked(copy.placement);
+    if (index >= from && index <= to) showBlendCopy(copy);
   }
   return posed;
 }
@@ -95,7 +96,17 @@ export function growBlendCopies(
   const clone = (template: BlendCopy, placement: PlacementOf) => {
     const world = placementWorld(placement.rows, placement.index);
     const { sourceMesh } = template.userData;
-    return createBlendCopy(sourceMesh!, template.renderOrder, world, template.surface, placement);
+    const made = createBlendCopy(
+      sourceMesh!,
+      template.renderOrder,
+      world,
+      template.surface,
+      placement,
+    );
+    // A copy grown under a hidden node stays hidden with it.
+    made.hidden = template.hidden;
+    showBlendCopy(made);
+    return made;
   };
   for (const { item } of growPlaced(copies, from, to, rebind, clone)) {
     copies.push(item);
