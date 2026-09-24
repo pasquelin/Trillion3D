@@ -3073,7 +3073,8 @@
         "scripts/docs/examples/chess-pieces.ts",
         "scripts/docs/examples/mesh.ts",
         "scripts/docs/examples/models.ts",
-        "scripts/docs/examples/solids.ts"
+        "scripts/docs/examples/solids.ts",
+        "scripts/docs/observatory/geometry.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/geometry/index\".geometry"
@@ -3093,6 +3094,7 @@
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "scripts/docs/examples/mesh.ts",
+        "scripts/docs/observatory/geometry.ts",
         "site/app/editor/GeometryFields.tsx",
         "site/app/editor/objects.ts"
       ],
