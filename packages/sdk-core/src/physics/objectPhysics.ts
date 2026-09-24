@@ -32,13 +32,6 @@ export interface PhysicsHost {
   listened(body: ObjectPhysics): void;
 }
 
-/** Where the world keeps its bodies' last step, by slot: flat arrays written by the thousand. */
-export interface PhysicsState {
-  /** 1 where the body sleeps. */ asleep: Uint8Array;
-  /** Six numbers per slot: the linear velocity, then the angular one. */ velocity: Float32Array;
-  /** The tick that last wrote each slot, from 1. */ stamp: Uint32Array;
-}
-
 /**
  * The physics of one object, as `obj.physics` holds it once set: a live record of what the body is
  * and does. Writes reach the simulation at the next step; `velocity` reads what the last step left.
@@ -60,7 +53,13 @@ export class ObjectPhysics {
   private readonly handlers = new Map<ContactEventName, Set<(event: ContactEvent) => void>>();
   /** The world simulating this body, set while it does. */ _host: PhysicsHost | null = null;
   /** The body's slot in the simulation, -1 outside one. */ _index = -1;
-  /** Where its world keeps its last step, while simulated. */ _state: PhysicsState | null = null;
+  /** Where its world keeps its bodies' last step, by slot (flat arrays written by the
+   *  thousand), while simulated. */
+  _state: {
+    /** 1 where the body sleeps. */ asleep: Uint8Array;
+    /** Six numbers per slot: the linear velocity, then the angular one. */ velocity: Float32Array;
+    /** The tick that last wrote each slot, from 1. */ stamp: Uint32Array;
+  } | null = null;
 
   constructor(option: PhysicsOption) {
     const o: PhysicsBodyOptions = typeof option === 'string' ? { type: option } : option;
@@ -94,7 +93,7 @@ export class ObjectPhysics {
     return this._state ? this._state.asleep[this._index] === 1 : this._asleep;
   }
   /** Simulated by `host` in slot `index`, its last step kept in `state`. */
-  _attach(host: PhysicsHost, index: number, state: PhysicsState) {
+  _attach(host: PhysicsHost, index: number, state: NonNullable<ObjectPhysics['_state']>) {
     this._host = host;
     this._index = index;
     this._state = state;
