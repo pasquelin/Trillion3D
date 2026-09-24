@@ -27,7 +27,13 @@ fn physics_cook(output: &Path) -> String {
         jolt.join("Jolt/Jolt.h").exists(),
         "Jolt submodule missing.\nRun: git submodule update --init"
     );
-    for watched in ["cook", "src/blob.h", "CMakeLists.txt", "JoltPhysics/Jolt"] {
+    for watched in [
+        "cook",
+        "src/blob.h",
+        "src/mesh.h",
+        "CMakeLists.txt",
+        "JoltPhysics/Jolt",
+    ] {
         println!("cargo:rerun-if-changed={PHYSICS}/{watched}");
     }
     let commit = Command::new("git")
@@ -103,17 +109,25 @@ fn main() -> std::io::Result<()> {
     println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed={CODEC}/src");
     let mut digest = Sha256::new();
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
+    // The inputs as hashed, one per line: what the compiler's own test reads (`compiler_identity`).
+    let inputs: Vec<String> = files
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect();
+    fs::write(output.join("implementation_inputs.txt"), inputs.join("\n"))?;
     for path in files {
         println!("cargo:rerun-if-changed={}", path.display());
         digest.update(path.to_string_lossy().as_bytes());
         digest.update([0]);
         digest.update(fs::read(path)?);
     }
-    let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
     let jolt = physics_cook(&output);
     println!("cargo:rustc-env=JOLT_COMMIT={jolt}");
     digest.update(jolt.as_bytes());
-    digest.update(fs::read(Path::new(PHYSICS).join("cook/cook.cpp"))?);
+    for source in ["cook/cook.cpp", "src/mesh.h"] {
+        digest.update(fs::read(Path::new(PHYSICS).join(source))?);
+    }
     fs::write(
         output.join("implementation_hash.txt"),
         format!("{:x}", digest.finalize()),
