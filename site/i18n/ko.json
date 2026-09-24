@@ -328,6 +328,7 @@
     "missing": {
       "colours-on-the-vertices": "WebGPU에서의 정점별 색상",
       "dashed-lines": "점선",
+      "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
       "a-line-that-draws-itself": "지오메트리의 그리기 범위",
       "shapes-from-an-svg": "SVG 경로 불러오기",

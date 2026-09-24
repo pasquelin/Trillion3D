@@ -1,6 +1,7 @@
 import { createSynchronousCanvasCapture } from '../../../gpu/core/presentation.ts';
 import { collectPendingUrls, type PageRec } from '../../../page/selection/selection.ts';
 import { awaitedPages } from '../../row/pageSlots.ts';
+import { withClosure } from '../../../page/selection/bundleDependencies.ts';
 import { rasterVisibilityIds, shadeVisibility } from '../../../visibility/buffer.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { defaultEngineCamera } from '../../../camera/world.ts';
@@ -162,7 +163,7 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
   stamps.begin();
   stamps.mark(rt.setup.bootstrap, urlScratch);
   stamps.mark(run.shown, urlScratch);
-  if (!run.coverageBudgetLimited) stamps.mark(run.desired, urlScratch);
+  if (!run.coverageBudgetLimited) withClosure(run.desired, (list) => stamps.mark(list, urlScratch));
   return urlScratch;
 }
 
@@ -189,6 +190,6 @@ export function retainedRanks(rt: WebgpuPagesRuntime) {
   ranks.begin();
   ranks.mark(rt.setup.bootstrap);
   ranks.mark(run.shown);
-  if (!run.coverageBudgetLimited) ranks.mark(run.desired);
+  if (!run.coverageBudgetLimited) withClosure(run.desired, ranks.mark);
   return ranks.finish();
 }
