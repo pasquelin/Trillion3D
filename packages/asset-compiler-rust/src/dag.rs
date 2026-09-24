@@ -19,6 +19,8 @@ use std::collections::HashMap;
 pub const DAG_CLUSTER_TRIANGLES: usize = 128;
 /// meshopt caps a meshlet at 255 vertices; a 128 triangle cluster never needs more.
 pub const DAG_CLUSTER_VERTICES: usize = 255;
+/// Group floor of the reference. Grouping does not enforce it (it only splits
+/// above `DAG_GROUP_MAX`); the DAG warnings and the stall report read it.
 pub const DAG_GROUP_MIN: usize = 8;
 pub const DAG_GROUP_MAX: usize = 32;
 /// 2x reduction per level bounds the depth of a 2^24 triangle mesh.

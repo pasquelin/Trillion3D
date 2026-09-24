@@ -10,7 +10,6 @@ import {
   createCutDelta,
   type CutDelta,
 } from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts';
-import { createCutCounts } from '../../../packages/sdk-browser/src/webgpu/cut/counts.ts';
 import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts';
 import { createBudgetRanking } from '../../../packages/sdk-browser/src/webgpu/residency/budgetRanking.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
@@ -18,7 +17,6 @@ import {
   createReferenceRanking,
   levelHistogram,
   referenceCutComplete,
-  referenceCutCounts,
   referencePendingUrls,
 } from '../../oracles/browser/cut-diff.ts';
 
@@ -56,8 +54,6 @@ for (let i = 0; i < PAGES; i++)
     transparent: alea() < 0.1,
     array: alea() < 0.995 ? new Uint32Array(3) : undefined,
   });
-const residentOffsetWords = new Int32Array(PAGES);
-for (let i = 0; i < PAGES; i++) residentOffsetWords[i] = alea() < 0.99 ? i * 4 : -1;
 
 const fenetre = (depart: number) => {
   const ids: number[] = [];
@@ -83,17 +79,15 @@ const desiredReference: PageRec[] = [],
   deltaReference = createCutDelta(pages, desiredReference);
 const desiredOptimisee: PageRec[] = [],
   deltaOptimisee = createCutDelta(pages, desiredOptimisee);
-const counts = createCutCounts(pages, residentOffsetWords, deltaOptimisee),
-  pending = createCutPending(pages, deltaOptimisee);
+const pending = createCutPending(pages, deltaOptimisee);
 
 const lecteursReference = (images: number[][]) => {
   const output = [];
   for (const ids of images) {
     deltaReference.apply(ids);
-    const totaux = referenceCutCounts(pages, ids, residentOffsetWords);
     const complete = referenceCutComplete(desiredReference);
     const attendues = referencePendingUrls(desiredReference, stampsReference, scratchReference);
-    output.push({ totaux, complete, attendues: attendues.length });
+    output.push({ complete, attendues: attendues.length });
   }
   return output;
 };
@@ -101,11 +95,10 @@ const lecteursOptimisee = (images: number[][]) => {
   const output = [];
   for (const ids of images) {
     deltaOptimisee.apply(ids);
-    const totaux = { ...counts.apply() };
     pending.apply();
     const complete = pending.count === 0;
     const attendues = collectPendingUrls(pending.records, scratchOptimisee, stampsOptimisee);
-    output.push({ totaux, complete, attendues: attendues.length });
+    output.push({ complete, attendues: attendues.length });
   }
   return output;
 };
@@ -164,7 +157,7 @@ for (const [regime, images] of regimes) {
   mesuresResultats.push(
     await mesure({
       name: `cut readers ${regime}`,
-      fichier: 'packages/sdk-browser/src/webgpu/cut/counts.ts',
+      fichier: 'packages/sdk-browser/src/webgpu/cut/pending.ts',
       cas: [{ name: `8 frames ${regime}`, input: images, size: COUPE * 8 }],
       calcul: lecteursOptimisee,
       attendu: lecteursReference,

@@ -3835,7 +3835,8 @@
       "texturePoolCeiling": "Bir dünyanın isteyebileceği en büyük doku havuzu, bayt cinsinden.",
       "geometryPool": "Geometri sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
       "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
-      "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır."
+      "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
+      "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın."
     }
   },
   "world.diagnostic": {
@@ -4191,15 +4192,6 @@
   },
   "batch": {
     "summary": "`batch` ailesi: bir döngü yerine bir kerede bin matris, çekirdeğin toplu çekirdekleri üzerinde (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
-  },
-  "batch.multiplyMatrix4": {
-    "summary": "Düz olarak saklanan `count` column-major matris için `out[i] = a[i] · b[i]`.",
-    "parameters": {
-      "out": "Çarpımların gittiği yer.",
-      "a": "Soldaki matrisler.",
-      "b": "Sağdaki matrisler.",
-      "count": "Kaç çarpım."
-    }
   },
   "batch.transformPoints": {
     "summary": "Her biri üç sayı olarak saklanan `count` nokta için `out[i] = m · points[i]`.",
