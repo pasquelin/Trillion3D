@@ -6812,6 +6812,7 @@
         "packages/sdk-browser/src/world/core/worldCamera.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "scripts/bench-physics.ts",
+        "scripts/docs-examples-flight.test.ts",
         "site/app/editor/commands.ts"
       ],
       "disposition": "retained",
