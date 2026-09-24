@@ -57,15 +57,8 @@ export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) =
 const held = new WeakMap<object, PageSurface>();
 const declarations = new WeakMap<PageSurface, HostMaterials>();
 
-let fills = 0;
-/** Records filled so far, first fills and refills alike: a reader of the texture records a fill
- *  refreshes — the WebGPU sampling headers (`../webgpu/tile/streamer.ts`) — follows them only when
- *  this moved, never per image (#360, #361). */
-export const surfaceFills = () => fills;
-
 /** Fills a record from a declaration, reusing the object so every holder sees the new fields. */
 function fill(into: PageSurface, material: HostMaterials): PageSurface {
-  fills++;
   return materialRaster(material, Object.assign(into, visMaterial(material)));
 }
 
