@@ -101,13 +101,14 @@ export function settledRt() {
 /**
  * Fake GPUDevice whose `createRenderPipelineAsync` distinguishes the variant by the module name
  * (set by `createCheckedShaderModule` via `${label}_LIGHTING` / `${label}_COMPOSE`): UNLIT resolves
- * at once, DIRECT and BOUNCE stay pending until `finishCompilation()` has been called, exactly like
- * a real compilation that lasts several frames.
+ * at once, DIRECT and BOUNCE stay pending until `finishCompilation()` (or `failCompilation()`) has
+ * been called, exactly like a real compilation that lasts several frames.
  */
 export function deferredLightingHarness() {
-  let resolveGate: () => void;
-  const gate = new Promise<void>((resolve) => {
+  let resolveGate: () => void, rejectGate: (error: Error) => void;
+  const gate = new Promise<void>((resolve, reject) => {
     resolveGate = resolve;
+    rejectGate = reject;
   });
   const device = {
     createBuffer: () => ({ destroy() {} }),
@@ -127,7 +128,11 @@ export function deferredLightingHarness() {
     createBindGroup: () => ({}),
     queue: { writeBuffer() {} },
   } as unknown as GPUDevice;
-  return { device, finishCompilation: () => resolveGate() };
+  return {
+    device,
+    finishCompilation: () => resolveGate(),
+    failCompilation: () => rejectGate(new Error('CONTRACT_COMPILE_FAILED')),
+  };
 }
 
 export const view = () => ({}) as GPUTextureView;
