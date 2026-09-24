@@ -12,6 +12,7 @@ import { openJolt, startJolt, type JoltModule } from './joltModule.ts';
 import { runJoltThread, type JoltThreadStart } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
+import { createWaterStep } from './water.ts';
 
 const scope = globalThis as unknown as {
   location: { href: string };
@@ -22,6 +23,7 @@ const scope = globalThis as unknown as {
 let jolt: JoltModule | null = null,
   results: ReturnType<typeof createTickResults> | null = null;
 const buffers: ArrayBuffer[] = [];
+const water = createWaterStep();
 const queued: Uint32Array[] = [];
 let paused = false,
   timeScale = 1,
@@ -42,12 +44,12 @@ function fail(error: unknown) {
   queued.length = 0;
 }
 
-/** Runs the queued commands and one step; `stepMs` counts the module's step alone, the clock the
- *  bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results. */
+/** Runs the queued commands and one step; `stepMs` counts the step and its buoyancy, the clock
+ *  the bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results. */
 function run(dt: number) {
   const words = queued.length ? concat(queued.splice(0)) : null;
   const t = performance.now();
-  const count = jolt!.step(words, dt);
+  const count = water.step(jolt!, words, dt);
   stepMs += performance.now() - t;
   results!.gather(count);
 }
@@ -128,6 +130,9 @@ scope.onmessage = ({ data: message }) => {
     post();
     // A tick held back for room in its results resumes.
     if (jolt && (owed >= PHYSICS_STEP || queued.length)) schedule(0);
+  } else if (message.type === 'water') {
+    water.set(message.water);
+    schedule(0);
   } else if (message.type === 'commands') {
     // Only a running simulation queues them: the page sends none before `ready`.
     if (!jolt) return;

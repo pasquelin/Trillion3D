@@ -3,6 +3,7 @@ import {
   BODY_INDEX,
   EVENT_WORDS,
   MODULE_ERROR,
+  WATER_PIECE_WORDS,
   POSE_WORDS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -28,6 +29,8 @@ interface JoltExports {
   jolt_error(): number;
   jolt_active_count(): number;
   jolt_owed_leaves(): number;
+  jolt_water_query(top: number, sliceLength: number): number;
+  jolt_water_pieces(): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -92,16 +95,15 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
   if (!commands || !poses || !events) throw outOfMemory();
   const maximum = Math.floor(budget.memoryBytes / PAGE) * PAGE;
   return {
-    /** Copies `words` into the command buffer, runs them, steps `dt` seconds; returns the pose
-     *  count. */
-    step(words: Uint32Array | null, dt: number) {
-      const count = words?.length ?? 0;
+    /** Copies `count` of `words` into the command buffer, runs them, steps `dt` seconds; returns
+     *  the pose count. */
+    step(words: Uint32Array | null, dt: number, count = words?.length ?? 0) {
       if (count > commandWords) {
         commands = jolt.jolt_buffer(0, count);
         if (!commands) throw outOfMemory();
         commandWords = count;
       }
-      if (words) new Uint32Array(memory.buffer, commands, count).set(words);
+      if (words) new Uint32Array(memory.buffer, commands, count).set(words.subarray(0, count));
       const posed = jolt.jolt_step(count, dt);
       if (posed === 0xffffffff)
         throw new EngineError(
@@ -122,6 +124,12 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     refused: () =>
       Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
     active: () => jolt.jolt_active_count(),
+    /** The pieces of the awake bodies reaching below `top`, cut past `sliceLength`
+     *  (`WATER_PIECE_WORDS` each), valid until the next step. */
+    water(top: number, sliceLength: number) {
+      const count = jolt.jolt_water_query(top, sliceLength);
+      return new Float32Array(memory.buffer, jolt.jolt_water_pieces(), count * WATER_PIECE_WORDS);
+    },
     /** Leaves a full event buffer held back: the next step sends them first. */
     owedLeaves: () => jolt.jolt_owed_leaves(),
     /** Whether the memory has grown to its budget: a trap then is the budget, not a fault. */

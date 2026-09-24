@@ -5,6 +5,7 @@ import {
   POSE_WORDS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
+import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { JoltThreadStart } from './joltThreads.ts';
 
 /** Version of the page ↔ worker messages below and of the word layouts they carry. */
@@ -27,6 +28,8 @@ export type ToPhysics =
   | { type: 'commands'; words: Uint32Array }
   /** The clock: `timeScale` is above 0 unless `paused` (the page sends a scale of 0 as a pause). */
   | { type: 'clock'; paused: boolean; timeScale: number }
+  /** The body of water the bodies float in (`fluids/buoyancy.ts`), or none. */
+  | { type: 'water'; water: WaterSpec | null }
   /** A result buffer the page has read, handed back. */
   | { type: 'buffer'; buffer: ArrayBuffer }
   /** Sent by the worker to a worker of its own: run one of the module's threads. */

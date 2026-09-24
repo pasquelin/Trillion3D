@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Worker as NodeWorker } from 'node:worker_threads';
 import {
   ASLEEP_BIT,
   CommandWriter,
@@ -15,9 +14,8 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
-import type { JoltThreadStart } from './joltThreads.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
-import { body, startModule, type Module } from './module.fixture.ts';
+import { body, startModule, startThreaded, type Module } from './module.fixture.ts';
 /** Drops a box on a floor, `seen` or behind the view; returns the step at which it sleeps. */
 async function dropBox(jolt: Module, seen: boolean) {
   const writer = new CommandWriter();
@@ -47,21 +45,12 @@ test('the committed module drops a box on a floor, then sends no pose once it sl
 });
 
 test('the threaded module steps on its pool, and a body asleep out of view says so', async () => {
-  const threads: NodeWorker[] = [];
-  const loader = new URL('./joltThreads.ts', import.meta.url).href;
-  const spawn = (start: JoltThreadStart) =>
-    threads.push(
-      new NodeWorker(
-        `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
-        { eval: true, workerData: start },
-      ),
-    );
-  const jolt = await startModule({}, { count: 3, spawn });
+  const { jolt, threads, close } = await startThreaded(3);
   try {
     assert.equal(threads.length, 2, 'two pool threads beside the stepping one');
     assert.ok((await dropBox(jolt, false)) > 0, 'the asleep record comes, out of view');
   } finally {
-    await Promise.all(threads.map((thread) => thread.terminate()));
+    await close();
   }
 });
 
