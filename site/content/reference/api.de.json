@@ -6860,7 +6860,22 @@
       "family": "Die Familie, zu der sie gehört.",
       "needsUpdate": "`needsUpdate = true` nach einer Änderung: jeder Leser liest die Felder erneut.",
       "copy": "Übernimmt jeden Parameter von `source`, Farben und Vektoren kopiert, Texturen geteilt.",
-      "clone": "Eine Oberfläche derselben Familie mit denselben Parametern."
+      "clone": "Eine Oberfläche derselben Familie mit denselben Parametern.",
+      "visible": "Ob sie gezeichnet wird.",
+      "side": "Welche Flächen, nach der Konstante des Hosts.",
+      "forceSinglePass": "Der Host zeichnet eine durchsichtige zweiseitige Oberfläche in einem Durchgang statt erst hinten dann vorne.",
+      "vertexColors": "Ob die Scheitelpunktfarben sie färben.",
+      "toneMapped": "Ob die Anzeigekurve angewendet wird.",
+      "depthWrite": "Ob sie die Tiefe schreibt.",
+      "depthFunc": "Der Vergleich des Tiefentests.",
+      "colorWrite": "Ob sie die Farbe schreibt.",
+      "polygonOffset": "Ob die Tiefe versetzt wird.",
+      "polygonOffsetFactor": "Steigungsanteil des Versatzes.",
+      "polygonOffsetUnits": "Konstanter Anteil des Versatzes.",
+      "transparent": "Ob sie sich mischt.",
+      "opacity": "Wie undurchsichtig sie ist.",
+      "alphaTest": "Alpha, unter dem Pixel verschwinden.",
+      "depthTest": "Ob sie die Tiefe prüft."
     },
     "summary": "Eine Oberfläche: die Parameter einer Familie, mit den Werten der Referenz, sofern die Szene nichts anderes sagt.",
     "description": "Ihre Version wird von `needsUpdate` erhöht, die jeder Leser vergleicht."
@@ -6890,16 +6905,22 @@
       "userData": "Freier Platz für die Daten dessen, der die Textur gebaut hat.",
       "format": "Die Kanäle der Texel einer Rohtextur (`HOST_FORMAT_*`).",
       "needsUpdate": "`needsUpdate = true` nach einer Änderung: ein Leser lädt sie erneut hoch.",
-      "clone": "Eine Textur mit demselben Bild und Zustand, als geändert gemeldet."
+      "clone": "Eine Textur mit demselben Bild und Zustand, als geändert gemeldet.",
+      "repeat": "Wie oft sie hineinpasst.",
+      "center": "Der Drehpunkt der Rotation.",
+      "rotation": "Die Rotation, in Radiant."
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
   },
   "GraphAngles": {
     "summary": "Dieselbe Ausrichtung als drei Winkel und ihre Reihenfolge, die ihre Schreibungen ebenso meldet.",
     "members": {
-      "x": "Die drei Winkel und ihre Reihenfolge, jede Schreibung gemeldet.",
+      "x": "Der erste Winkel, im Bogenmaß.",
       "set": "Schreibt die drei Winkel und, falls angegeben, die Reihenfolge; einmal gemeldet.",
-      "setFromRotation": "Die Winkel von `q` in dieser Reihenfolge (das `Euler` des Kerns); gemeldet, außer bei `quiet`."
+      "setFromRotation": "Die Winkel von `q` in dieser Reihenfolge (das `Euler` des Kerns); gemeldet, außer bei `quiet`.",
+      "y": "Der zweite Winkel, im Bogenmaß.",
+      "z": "Der dritte Winkel, im Bogenmaß.",
+      "order": "Die Reihenfolge, in der die drei Winkel drehen, `'XYZ'`, sofern nicht gesetzt."
     }
   },
   "GraphArray": {
@@ -6915,7 +6936,8 @@
       "data": "Der Puffer, den es betrachtet.",
       "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
       "array": "Der Speicher, in dem die Elemente liegen.",
-      "count": "Wie viele Vertices."
+      "count": "Wie viele Vertices.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
     }
   },
   "GraphInterleavedBuffer": {
@@ -6925,7 +6947,8 @@
       "count": "Wie viele Vertices.",
       "version": "Von `needsUpdate` erhöht.",
       "array": "Der Speicher.",
-      "stride": "Zahlen pro Vertex."
+      "stride": "Zahlen pro Vertex.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
     }
   },
   "GraphMesh": {
@@ -6946,14 +6969,17 @@
   "GraphRotation": {
     "summary": "Eine Ausrichtung `(x, y, z, w)`, deren Schreibungen `_onChangeCallback` aufrufen.",
     "members": {
-      "x": "Die vier Zahlen, jede Schreibung gemeldet.",
+      "x": "Die erste Zahl.",
       "set": "Schreibt die vier Zahlen, einmal gemeldet.",
       "copy": "Übernimmt die Zahlen einer anderen Rotation.",
       "fromArray": "Liest vier Zahlen aus einer Liste.",
       "setFromAngles": "Die Rotation von `angles` in ihrer Reihenfolge (`localTurnQuaternion`); gemeldet, außer bei `quiet`.",
       "setFromRotationMatrix": "Die Rotation der oberen 3×3 einer spaltenweise gespeicherten Matrix mit Spalten der Länge eins.",
       "premultiply": "Wird zu `q` gefolgt von dieser Rotation, `q · this`.",
-      "invert": "Wird zur entgegengesetzten Drehung."
+      "invert": "Wird zur entgegengesetzten Drehung.",
+      "y": "Die zweite Zahl.",
+      "z": "Die dritte Zahl.",
+      "w": "Die vierte Zahl."
     }
   },
   "GraphVector": {
@@ -6968,7 +6994,10 @@
       "length": "Seine Länge.",
       "setLength": "Behält die Richtung, setzt die Länge.",
       "distanceTo": "Abstand zu einem Punkt.",
-      "fromArray": "Liest drei Zahlen aus einer Liste."
+      "fromArray": "Liest drei Zahlen aus einer Liste.",
+      "x": "Von links nach rechts.",
+      "y": "Von unten nach oben.",
+      "z": "Von hinten nach vorn."
     }
   }
 }

@@ -6860,7 +6860,22 @@
       "family": "属するファミリー。",
       "needsUpdate": "変更後に `needsUpdate = true`：すべての読み手がフィールドを読み直す。",
       "copy": "`source` のすべてのパラメータを取り込む。色とベクトルは複製、テクスチャは共有。",
-      "clone": "同じファミリー・同じパラメータのサーフェス。"
+      "clone": "同じファミリー・同じパラメータのサーフェス。",
+      "visible": "描かれるかどうか。",
+      "side": "どの面か。ホストの定数として。",
+      "forceSinglePass": "ホストが両面透過表面を、裏・表の2パスではなく1パスで描く。",
+      "vertexColors": "頂点色が色づけするかどうか。",
+      "toneMapped": "表示カーブが適用されるかどうか。",
+      "depthWrite": "深度を書き込むかどうか。",
+      "depthFunc": "深度テストの比較方法。",
+      "colorWrite": "色を書き込むかどうか。",
+      "polygonOffset": "深度がオフセットされるかどうか。",
+      "polygonOffsetFactor": "オフセットの傾き成分。",
+      "polygonOffsetUnits": "オフセットの定数成分。",
+      "transparent": "ブレンドするかどうか。",
+      "opacity": "どれだけ不透明か。",
+      "alphaTest": "これを下回るとピクセルが破棄されるアルファ値。",
+      "depthTest": "深度テストを行うかどうか。"
     },
     "summary": "サーフェス：1 つのファミリーのパラメータ。シーンが別の値を示さない限りリファレンスの値。",
     "description": "そのバージョンは `needsUpdate` で増え、すべての読み手が比較する。"
@@ -6890,16 +6905,22 @@
       "userData": "テクスチャを作った者のデータのための自由な領域。",
       "format": "生テクスチャのテクセルのチャンネル（`HOST_FORMAT_*`）。",
       "needsUpdate": "変更後に `needsUpdate = true`：読み手が再アップロードする。",
-      "clone": "同じ画像と状態のテクスチャ。変更として通知される。"
+      "clone": "同じ画像と状態のテクスチャ。変更として通知される。",
+      "repeat": "何回収まるか。",
+      "center": "回転の中心。",
+      "rotation": "回転（ラジアン）。"
     },
     "summary": "画像と、それを読むサンプラー状態、そして座標の変換。"
   },
   "GraphAngles": {
     "summary": "同じ向きを 3 つの角度とその順序で表したもの。書き込みを同じように通知する。",
     "members": {
-      "x": "3 つの角度とその順序。書き込みごとに通知する。",
+      "x": "1 つ目の角度（ラジアン）。",
       "set": "3 つの角度と、指定があれば順序を書き込む。通知は 1 回。",
-      "setFromRotation": "この順序での `q` の角度（コアの `Euler`）。`quiet` でなければ通知する。"
+      "setFromRotation": "この順序での `q` の角度（コアの `Euler`）。`quiet` でなければ通知する。",
+      "y": "2 つ目の角度（ラジアン）。",
+      "z": "3 つ目の角度（ラジアン）。",
+      "order": "3 つの角度が回る順序。設定されなければ `'XYZ'`。"
     }
   },
   "GraphArray": {
@@ -6915,7 +6936,8 @@
       "data": "参照しているバッファ。",
       "offset": "各頂点内で数値が始まる位置。",
       "array": "要素が置かれるストレージ。",
-      "count": "頂点の数。"
+      "count": "頂点の数。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
     }
   },
   "GraphInterleavedBuffer": {
@@ -6925,7 +6947,8 @@
       "count": "頂点の数。",
       "version": "`needsUpdate` で増える。",
       "array": "ストレージ。",
-      "stride": "頂点あたりの数値の数。"
+      "stride": "頂点あたりの数値の数。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
     }
   },
   "GraphMesh": {
@@ -6946,14 +6969,17 @@
   "GraphRotation": {
     "summary": "書き込みが `_onChangeCallback` を呼ぶ向き `(x, y, z, w)`。",
     "members": {
-      "x": "4 つの数値。書き込みごとに通知する。",
+      "x": "1番目の数値。",
       "set": "4 つの数値を書き込む。通知は 1 回。",
       "copy": "別の回転の数値を取り込む。",
       "fromArray": "リストから 4 つの数値を読む。",
       "setFromAngles": "`angles` の順序での回転（`localTurnQuaternion`）。`quiet` でなければ通知する。",
       "setFromRotationMatrix": "列が単位長である列優先行列の左上 3×3 の回転。",
       "premultiply": "`q` の後にこの回転が続くもの、`q · this` になる。",
-      "invert": "逆向きの回転になる。"
+      "invert": "逆向きの回転になる。",
+      "y": "2番目の数値。",
+      "z": "3番目の数値。",
+      "w": "4番目の数値。"
     }
   },
   "GraphVector": {
@@ -6968,7 +6994,10 @@
       "length": "その長さ。",
       "setLength": "向きを保ち、長さを設定する。",
       "distanceTo": "点までの距離。",
-      "fromArray": "リストから 3 つの数値を読む。"
+      "fromArray": "リストから 3 つの数値を読む。",
+      "x": "左から右。",
+      "y": "下から上。",
+      "z": "奥から手前。"
     }
   }
 }

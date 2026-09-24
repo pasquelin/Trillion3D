@@ -157,6 +157,7 @@ export class GraphInterleavedBuffer implements Versioned {
     this.stride = stride;
     this.count = array.length / stride;
   }
+  /** `needsUpdate = true` after writing `array`: a reader uploads it again. */
   set needsUpdate(value: boolean) {
     if (value) this.version++;
   }
@@ -187,6 +188,7 @@ export class GraphInterleavedAttribute extends Elements {
   protected at(index: number) {
     return index * this.data.stride + this.offset;
   }
+  /** `needsUpdate = true` after writing `array`: a reader uploads it again. */
   set needsUpdate(value: boolean) {
     this.data.needsUpdate = value;
   }
@@ -194,6 +196,5 @@ export class GraphInterleavedAttribute extends Elements {
     return false;
   }
 }
-
 /** Either kind of attribute. */
 export type GraphElements = GraphAttribute | GraphInterleavedAttribute;
