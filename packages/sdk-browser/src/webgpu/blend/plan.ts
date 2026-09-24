@@ -124,7 +124,7 @@ export function buildBlendStatics(blendState: BlendState) {
 /** First pipeline rank of an item's blend mode. A transmissive item composes by the backdrop it
  *  reads, and a mode the engine has no name for is no mode at all: both are refused by name,
  *  never drawn as normal. */
-export function modeBase(surface: PageSurface, transmissive: boolean) {
+function modeBase(surface: PageSurface, transmissive: boolean) {
   const { blending } = surface;
   if (!blending) throw new Error('a transparent surface declares a blending no path draws');
   if (transmissive && blending !== 'normal')
