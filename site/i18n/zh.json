@@ -425,8 +425,6 @@
       "reflections-from-the-screen": "屏幕空间反射",
       "an-ocean": "渲染到贴图:水面反射与折射",
       "a-raging-sea": "自定义着色器材质",
-      "a-town-in-the-fog": "雾",
-      "fog-on-the-ground": "雾:高度雾",
       "fog-that-scatters-light": "体积雾与光束",
       "a-cloud-in-a-box": "体积渲染",
       "a-fire-in-a-volume": "体积渲染",
