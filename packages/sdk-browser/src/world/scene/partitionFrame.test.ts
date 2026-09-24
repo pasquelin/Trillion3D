@@ -155,12 +155,12 @@ function grid(side: number) {
   return { partitioned, port };
 }
 
-test('on a WebGPU explorer, which grows no buffer, a walk never leaves a cell waiting for rows', async () => {
-  // A plain explorer session: its engine cannot grow rows in place and no owner reopens it.
+test('on a WebGPU session, which grows no buffer, a walk never leaves a cell waiting for rows', async () => {
+  // Its engine cannot grow rows in place, and the reach stays the one the rows were sized for.
   const { partitioned, port } = grid(24);
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 30);
   camera.position.set(5, 2, 5);
-  await primePartitions([partitioned], camera, port);
+  await primePartitions([partitioned], camera, port, true);
   const frame = createPartitionFrame({
     partitions: [partitioned],
     streamer: port,
