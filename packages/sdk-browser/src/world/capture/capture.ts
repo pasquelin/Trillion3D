@@ -28,9 +28,12 @@ export function createExplorerCapture(inputs: Inputs) {
     visiblePresentationDiagnostics = new Set<string>();
   // A background set after the session opened is written in place on the active engine's own
   // scene (`hostBackground`, `worldBackground.write`); `options.clearColor` is only what the
-  // session opened on, so a diagnostic must read the colour the engine applies now, not that
-  // stale one, or a background changed without a reopen reads as a false mismatch.
+  // session opened on, so a diagnostic reads the colour of now: the world's own
+  // (`currentClearColor`), whatever record the engine keeps — the WebGPU one has no `getHex` —,
+  // the default when it has none, as the engine clears; else the host scene's, never that stale
+  // one, or a changed or removed background reads as a mismatch.
   const currentClearColor = () => {
+    if (options.currentClearColor) return options.currentClearColor() ?? DEFAULT_CLEAR_COLOR;
     const background = state.active.scene?.background as
       { getHex?: () => number } | null | undefined;
     return background?.getHex?.() ?? options.clearColor ?? DEFAULT_CLEAR_COLOR;

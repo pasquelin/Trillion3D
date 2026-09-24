@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, words, opening, ease } from '../runtime/kit.js';
+      import { controls, readout, seeded, words, opening, ease, valueNoise } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -33,17 +33,7 @@
       // Everything is placed relative to it, so a grain beside it keeps every digit it needs.
       const R = 8000;
       // Smooth noise in 3D, from a grid of hashed values.
-      const lattice = (i, j, k, seed) => {
-        let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(k, 1274126177) ^ Math.imul(seed, 1597334677);
-        h = Math.imul(h ^ (h >>> 13), 1274126177);
-        return ((h ^ (h >>> 16)) >>> 0) / 2147483648 - 1;
-      };
-      const { lerp } = math;
-      function noise(x, y, z, seed) {
-        const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z), u = ease.smooth(x - i), v = ease.smooth(y - j), w = ease.smooth(z - k);
-        const plane = (dk) => lerp(lerp(lattice(i, j, k + dk, seed), lattice(i + 1, j, k + dk, seed), u), lerp(lattice(i, j + 1, k + dk, seed), lattice(i + 1, j + 1, k + dk, seed), u), v);
-        return lerp(plane(0), plane(1), w);
-      }
+      const noise = valueNoise(1274126177);
       // The ground's height above the sea at a direction from the planet's centre. Every scale
       // has its octave — continents, hills, dunes, ripples, down to the roughness of a grain —
       // each as tall as its wavelength allows; the octaves finer than the mesh can hold (`finest`)

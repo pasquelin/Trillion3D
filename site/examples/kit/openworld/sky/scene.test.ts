@@ -6,48 +6,9 @@ import type {
 } from '../../../../../scripts/docs/examples/openworld/plan/contract.ts';
 import { cloudWindow, createClouds, wrapAround } from './clouds.ts';
 import { createEffects } from './effects.ts';
-import type { SkyEngine } from './engine.ts';
+import { fakeEngine } from './engine.fixture.ts';
 import { PRESETS } from './presets.ts';
-import { createSky } from './sky.ts';
 import { createWind } from './wind.ts';
-
-/** The engine's families as plain records: enough to build and move the sky's objects. */
-function fakeEngine(): SkyEngine {
-  const vector = () => ({
-    x: 0,
-    y: 0,
-    z: 0,
-    set(x: number, y: number, z: number) {
-      Object.assign(this, { x, y, z });
-    },
-  });
-  const node = () => ({
-    position: vector(),
-    rotation: vector(),
-    scale: vector(),
-    visible: true,
-    children: [] as unknown[],
-    add(...children: unknown[]) {
-      this.children.push(...children);
-    },
-  });
-  const colour = () => ({ ...vector(), setRGB: vector().set });
-  const material = (parameters: object = {}) => ({ ...parameters, color: colour() });
-  const light = () => ({ ...node(), color: colour(), groundColor: colour(), target: node() });
-  const float32 = (values: ArrayLike<number>) => ({ array: Float32Array.from(values) });
-  const withGeometry = (geometry: unknown) => ({ ...node(), geometry });
-  return {
-    geometry: { sphere: () => ({}), cone: () => ({}), createBuffer: (a: object) => a },
-    buffer: { float32, uint32: float32 },
-    material: { meshBasic: material, meshStandard: material, points: material, line: material },
-    object: { mesh: withGeometry, points: withGeometry, lineSegments: withGeometry, group: node },
-    light: { directional: light, hemisphere: light },
-    math: { color: colour },
-    texture: { data: () => ({}) },
-    blending: { normal: 'normal', additive: 'additive' },
-    side: { back: 'back', double: 'double' },
-  } as unknown as SkyEngine;
-}
 
 const wind = () => createWind(7, { speed: 8, heading: 0.5, gustiness: 0.4 });
 
@@ -129,41 +90,5 @@ describe('effects', () => {
   it('declares heat haze and neon glow as waiting on post-processing', () => {
     const haze = { ...sand, effect: 'heat-haze', name: 'road' } as const;
     assert.equal(make(emitter(haze, 2)).pending.length, 2);
-  });
-});
-
-describe('sky', () => {
-  it("runs a whole day on the page's world: lights, exposure, night and rain", () => {
-    const engine = fakeEngine();
-    type Hook = (frame: { delta: number }) => void;
-    const frames: Hook[] = [];
-    const scene = { ...engine.object.group(), background: null, fog: null, environment: null };
-    const camera = { ...engine.object.group(), far: 60_000, fov: 50 };
-    const world = {
-      scene,
-      camera,
-      exposure: 1,
-      onFrame: (hook: Hook) => frames.push(hook),
-      invalidate() {},
-    };
-    const sky = createSky({
-      world,
-      engine,
-      seed: 332,
-      size: 50_000,
-      tile: 1_000,
-      speed: 60,
-    } as never);
-    const seen = new Set<boolean>();
-    sky.rain.amount = 1;
-    for (let second = 0; second < 30; second++) {
-      frames[0]({ delta: 1 });
-      seen.add(sky.isNight);
-      assert.ok(Number.isFinite(world.exposure) && world.exposure > 0);
-      assert.ok(sky.nightFactor >= 0 && sky.nightFactor <= 1);
-    }
-    assert.deepEqual([...seen].sort(), [false, true]);
-    assert.ok(sky.rain.node.visible);
-    assert.equal(sky.lampIntensity({ night: false, intensity: 5 } as never), 5);
   });
 });
