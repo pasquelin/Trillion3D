@@ -91,20 +91,19 @@ export interface LoadedManifest {
   metadata: ClusterManifest;
   metadataUrl: string;
   base: string;
+  /** The length the manifest's `files` declare, by address: where a load's byte plan looks up
+   *  the files it reads. Empty for a cache that declares none. */
+  declared: ReadonlyMap<string, number>;
   timing: ManifestTiming;
 }
 
-/** Every file the manifest declares, address to length: its binary sidecar and its `files`. */
+/** The length of each file the manifest's `files` list, by address. */
 function declaredFiles(value: Record<string, unknown>, metadataUrl: string) {
   const files = new Map<string, number>();
-  const declare = (url: unknown, bytes: unknown) => {
-    if (typeof url === 'string' && typeof bytes === 'number' && bytes > 0)
-      files.set(new URL(url, metadataUrl).href, bytes);
-  };
-  const binary = value.binary as { url?: unknown; bytes?: unknown } | undefined;
-  declare(binary?.url, binary?.bytes);
   const listed = (value.files ?? {}) as Record<string, { bytes?: unknown } | undefined>;
-  for (const [name, file] of Object.entries(listed)) declare(name, file?.bytes);
+  for (const [name, file] of Object.entries(listed))
+    if (typeof file?.bytes === 'number' && file.bytes > 0)
+      files.set(new URL(name, metadataUrl).href, file.bytes);
   return files;
 }
 
@@ -115,8 +114,8 @@ function declaredFiles(value: Record<string, unknown>, metadataUrl: string) {
  *
  * A cache compiled with a binary sidecar hands over a small JSON and a column file: the columns are
  * mapped, never parsed, so the cost of reading a manifest stops growing with the cluster count. A
- * cache without one is read exactly as before, so older caches stay loadable. `meter` is planned
- * with every file the manifest declares once it is read, then counts each file as it arrives.
+ * cache without one is read exactly as before, so older caches stay loadable. `meter` counts each
+ * file read here as it arrives; the load that holds it plans the files it reads next.
  */
 export async function loadClusterManifest(
   manifestUrl: string,
@@ -142,7 +141,6 @@ export async function loadClusterManifest(
   // that declares no scope leaves the cache's own to be read.
   const scope = declared ?? (value.scope as AssetScope);
   located(() => assertCacheReady(value, scope), metadataResource.details);
-  meter.plan(declaredFiles(value, metadataUrl));
   let metadata: ClusterManifest,
     binaryBytes = 0,
     binaryMs = 0,
@@ -174,6 +172,7 @@ export async function loadClusterManifest(
     metadata,
     metadataUrl,
     base,
+    declared: declaredFiles(value, metadataUrl),
     timing: {
       format,
       jsonBytes: metadataResource.bytes,

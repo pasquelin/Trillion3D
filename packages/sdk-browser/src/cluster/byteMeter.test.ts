@@ -84,3 +84,18 @@ test('a manifest that declares no file is heard once, whole, when the load settl
   meter.settle();
   assert.deepEqual(heard, [[8, 8]]);
 });
+
+test('a planned file already read keeps the count it had, so the plan never lowers the share', async () => {
+  const { heard, meter, rising } = listened();
+  await meter.read(answer([4]), 'http://cache/tables.json').arrayBuffer();
+  meter.plan(
+    new Map([
+      ['http://cache/tables.json', 4],
+      ['http://cache/source.bin', 6],
+    ]),
+  );
+  assert.deepEqual(heard, [[4, 10]], 'the file read before the plan joins it once');
+  await meter.read(answer([6]), 'http://cache/source.bin').arrayBuffer();
+  assert.deepEqual(heard.at(-1), [10, 10], 'the last planned file fills the share');
+  assert.ok(rising());
+});

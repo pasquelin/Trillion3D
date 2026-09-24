@@ -18,6 +18,7 @@ import type { ExplorerEmitters } from '../session/session.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';
 import type { ByteMeter } from '../../cluster/byteMeter.ts';
+import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 
 /** World matrix of a mesh at load, reused from mesh to mesh. */
 const monde = new Float64Array(MATRIX_VALUES);
@@ -68,10 +69,14 @@ function resourceProgress(
   };
 }
 
+/** What a load that counts bytes adds: the meter of each read, and who hears the tables read. */
+type Metered = { meter?: ByteMeter; onTables?: (tables: PreparedSceneTables) => void };
+
 /** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
- *  the bytes of each as they arrive; `onPreparation` hears the tables read, then each resource. */
+ *  the bytes of each as they arrive, `onTables` hears the tables before those files are read;
+ *  `onPreparation` hears the tables read, then each resource. */
 export async function loadPreparedScene(
-  options: MeasuredWorldOptions & { meter?: ByteMeter },
+  options: MeasuredWorldOptions & Metered,
   metadata: ClusterManifest,
   sceneFile: string,
   base: string,
@@ -94,6 +99,7 @@ export async function loadPreparedScene(
   const { tables, bytes } = await loadPreparedSceneTables(base, signal, options.meter);
   const buildAt = performance.now();
   signal?.throwIfAborted();
+  options.onTables?.(tables);
   options.onPreparation?.({
     phase: 'tables',
     completed: 1,

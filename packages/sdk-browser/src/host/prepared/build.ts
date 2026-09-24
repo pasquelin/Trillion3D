@@ -9,7 +9,7 @@ import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/ta
 import type { BackendContext } from '../../backend/types.ts';
 import { checked } from '../../cluster/pages.ts';
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts';
-import { tableDocument } from '../../scene/tables.ts';
+import { sceneDocument } from '../../scene/tables.ts';
 import { bakedImageUrls } from '../../texture/skip.ts';
 import type { HostTexture } from '../resources.ts';
 import type { HostGraphNode } from '../scene/graphNodes.ts';
@@ -39,10 +39,8 @@ type Inputs = {
 export async function buildPreparedScene(inputs: Inputs) {
   const { tables, metadata, sceneFile, base, skipBaked, signal, track } = inputs;
   const meter = inputs.meter ?? unmetered;
-  const document = tableDocument(tables, sceneFile);
-  const documentUrl = new URL(sceneFile, base).href;
-  const bufferUrl = new URL(document.buffer, documentUrl).href;
-  const binary = document.views.length
+  const { document, documentUrl, bufferUrl } = sceneDocument(tables, sceneFile, base);
+  const binary = bufferUrl
     ? await track(
         bufferUrl,
         checked(bufferUrl, signal).then((response) =>
