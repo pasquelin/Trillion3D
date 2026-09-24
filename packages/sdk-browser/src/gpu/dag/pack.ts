@@ -1,6 +1,7 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
 import { REQUEST_PAGE_MAX } from './request.ts';
-import { leafCone, PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from '../core/selection.ts';
+import { PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from '../core/selection.ts';
+import { leafCone } from '../../page/cone/cone.ts';
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts';
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
