@@ -11,7 +11,7 @@ const hasCode =
 const tables = () => ({
   version: 2,
   nodeTableVersion: 2,
-  materialTableVersion: 3,
+  materialTableVersion: 4,
   geometryTableVersion: 1,
   scene: { name: null, nodes: [] },
   nodes: [],

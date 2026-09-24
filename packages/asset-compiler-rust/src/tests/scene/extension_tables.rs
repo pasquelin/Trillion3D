@@ -110,3 +110,24 @@ fn morph_targets_and_their_weights_are_laid_out() {
     assert_eq!(source["meshes"][0]["weights"], json!([0.5]));
     assert_eq!(tables["nodes"][0]["weights"], json!([0.25]));
 }
+
+// Issue #275: a texture whose only image is an extension's (`EXT_texture_webp`,
+// `EXT_texture_avif`) keeps it, as the reference loader reads it — the extension's first,
+// before the core `source`.
+#[test]
+fn a_texture_keeps_the_image_its_webp_or_avif_extension_names() {
+    let (_root, tables) = published(|gltf| {
+        gltf["extensionsUsed"] = json!(["EXT_texture_webp", "EXT_texture_avif"]);
+        gltf["images"] = json!([{"uri":"a.png"},{"uri":"b.webp"},{"uri":"c.avif"}]);
+        gltf["textures"] = json!([
+            {"extensions":{"EXT_texture_webp":{"source":1}}},
+            {"extensions":{"EXT_texture_avif":{"source":2}}},
+            {"source":0,"extensions":{"EXT_texture_webp":{"source":1}}},
+            {"source":0},
+        ]);
+    });
+    let images: Vec<_> = (0..4)
+        .map(|i| tables["textures"][i]["image"].clone())
+        .collect();
+    assert_eq!(images, [json!(1), json!(2), json!(1), json!(0)]);
+}

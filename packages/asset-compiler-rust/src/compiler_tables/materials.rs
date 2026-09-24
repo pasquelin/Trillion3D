@@ -1,9 +1,9 @@
-//! Material and texture tables: what the surface of the prepared scene is made of, read from the
+//! Material table: what the surface of the prepared scene is made of, read from the
 //! very glTF the cache publishes and written in the engine's own words.
 //!
 //! Every default here is glTF 2.0's own — base colour white, metal-rough one, alpha cutoff a half,
 //! index of refraction 1.5 — so a material that declares nothing comes out exactly as the loader
-//! would build it. Filters and wrapping are the sampler constants of the same specification.
+//! would build it.
 use super::physical::physical_params;
 use super::*;
 
@@ -146,50 +146,4 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
         }
     }
     entry
-}
-fn wrap(value: Option<&Value>) -> &'static str {
-    match value.and_then(Value::as_u64) {
-        Some(33071) => "clamp",
-        Some(33648) => "mirror",
-        _ => "repeat",
-    }
-}
-fn filter(value: Option<&Value>, default: &'static str) -> &'static str {
-    match value.and_then(Value::as_u64) {
-        Some(9728) => "nearest",
-        Some(9729) => "linear",
-        Some(9984) => "nearest-mip-nearest",
-        Some(9985) => "linear-mip-nearest",
-        Some(9986) => "nearest-mip-linear",
-        Some(9987) => "linear-mip-linear",
-        _ => default,
-    }
-}
-/// Sampler state of every texture of the published scene, at its own rank. A texture without a
-/// sampler takes the specification's defaults, the very ones the loader falls back to.
-pub(super) fn texture_table(g: &Value) -> Vec<Value> {
-    let samplers = g.get("samplers").and_then(Value::as_array);
-    let empty = json!({});
-    g.get("textures")
-        .and_then(Value::as_array)
-        .map(Vec::as_slice)
-        .unwrap_or_default()
-        .iter()
-        .map(|texture| {
-            let sampler = texture
-                .get("sampler")
-                .and_then(Value::as_u64)
-                .and_then(|id| samplers.and_then(|list| list.get(id as usize)))
-                .unwrap_or(&empty);
-            json!({
-                "name": texture.get("name").and_then(Value::as_str).unwrap_or(""),
-                "sampler": texture.get("sampler").and_then(Value::as_u64),
-                "image": texture.get("source").and_then(Value::as_u64),
-                "wrapS": wrap(sampler.get("wrapS")),
-                "wrapT": wrap(sampler.get("wrapT")),
-                "magFilter": filter(sampler.get("magFilter"), "linear"),
-                "minFilter": filter(sampler.get("minFilter"), "linear-mip-linear"),
-            })
-        })
-        .collect()
 }

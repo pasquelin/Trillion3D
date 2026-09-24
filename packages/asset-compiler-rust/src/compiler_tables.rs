@@ -15,9 +15,11 @@ mod graph;
 mod materials;
 mod physical;
 mod sparse;
+mod textures;
 use documents::document_table;
 use graph::{camera_table, light_table, node_table, scene_roots};
-use materials::{material_entry, texture_table};
+use materials::material_entry;
+use textures::texture_table;
 
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
 /// its own, and the tables it carries are versioned each in turn. Version 2 carries the whole
@@ -25,7 +27,7 @@ use materials::{material_entry, texture_table};
 /// glTF parse.
 const SCENE_TABLES_VERSION: u32 = 2;
 const NODE_TABLE_VERSION: u32 = 2;
-const MATERIAL_TABLE_VERSION: u32 = 3;
+const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
 

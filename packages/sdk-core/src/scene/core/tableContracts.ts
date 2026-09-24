@@ -18,7 +18,7 @@ const SCENE_TABLES_VERSION = 2;
 /** The version of the node table this runtime reads: every node, with its local pose. */
 const NODE_TABLE_VERSION = 2;
 /** The version of the material table this runtime reads. */
-const MATERIAL_TABLE_VERSION = 3;
+const MATERIAL_TABLE_VERSION = 4;
 /** The version of the geometry layout this runtime reads. */
 const GEOMETRY_TABLE_VERSION = 1;
 
