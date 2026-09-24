@@ -59,6 +59,11 @@ export interface ShadowFrameMetrics {
   gpuLightListsMs?: number | null;
   /** GPU time of shadows. */
   gpuShadowsMs?: number | null;
+  /** GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the
+   *  per-page cull, and the occlusion test of moving casters with the pyramids it reads. */
+  gpuShadowCullMs?: number | null;
+  /** GPU time of drawing those casters into the pages: the static layer, then the pool. */
+  gpuShadowRasterMs?: number | null;
   /** GPU time of lighting. */
   gpuLightingMs?: number | null;
 }

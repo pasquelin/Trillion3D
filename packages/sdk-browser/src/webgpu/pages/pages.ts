@@ -31,6 +31,7 @@ import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { setWebgpuClearColor } from './io/clearColor.ts';
+import { refreshWebgpuMaterials } from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
@@ -81,12 +82,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },
-    refreshMaterials() {
-      // Every row is written again at the next frame, and the writer rereads each surface whose
-      // version moved (`row/pageRowConstants.ts`); only values changed, so no resolve class did.
-      rt.layout.rows.tableEpoch++;
-      run.gate.sceneMoved();
-    },
+    refreshMaterials: () => refreshWebgpuMaterials(rt),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
     async prepare() {
@@ -116,8 +112,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       syncResident(rt);
     },
     pendingFrame: () => pendingWebgpuFrame(rt),
-    flush() {
-      return flushWebgpuPages(rt);
+    flush(options?: { image?: boolean }) {
+      return flushWebgpuPages(rt, options);
     },
     captureSurfaceView(camera, options) {
       return captureSurfaceView(rt, camera, options);

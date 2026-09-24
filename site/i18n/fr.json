@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Un rastériseur logiciel",
       "sound-from-the-gpu": "Du son par le GPU",
       "falling-boxes": "Des boîtes qui tombent",
+      "floating-crates": "Des caisses qui flottent",
       "ten-thousand-bodies": "Dix mille corps",
       "breaking-things": "Casser des objets",
       "cloth-and-rope": "Tissu et corde",
@@ -338,9 +339,6 @@
       "a-capped-section": "plans de coupe : bouchons au stencil",
       "decals-on-a-surface": "sélection au pointeur (lancer de rayon)",
       "sculpt-a-sphere": "sélection au pointeur (lancer de rayon)",
-      "a-video-on-a-screen": "textures vidéo en direct",
-      "the-webcam-as-a-texture": "textures vidéo en direct",
-      "four-ways-to-blend": "tous les modes de mélange",
       "avif-textures": "imports sources : images AVIF",
       "object-space-normals": "cartes de normales en espace objet",
       "a-bumpy-surface": "cartes de relief, de déplacement et de parallaxe",
@@ -411,7 +409,6 @@
       "a-medical-scan": "rendu volumique",
       "a-city-from-3d-tiles": "lecture des 3D Tiles",
       "rendering-in-a-worker": "rendu dans un worker (OffscreenCanvas)",
-      "a-video-panorama": "textures vidéo en direct",
       "an-atmospheric-sky": "modèle de ciel",
       "chrome-in-a-room": "éclairage par l’environnement (IBL)",
       "lit-by-an-hdr-image": "éclairage par l’environnement (IBL)",
@@ -481,7 +478,6 @@
       "breaking-things": "intégration d’un moteur physique",
       "cloth-and-rope": "intégration d’un moteur physique",
       "soft-bodies": "intégration d’un moteur physique",
-      "hinges-and-joints": "intégration d’un moteur physique",
       "drive-a-car": "intégration d’un moteur physique",
       "a-room-in-vr": "session WebXR",
       "a-360-photo-in-vr": "session WebXR",
@@ -1072,6 +1068,18 @@
           "Rendez des caisses <code>'dynamic'</code> et légères : le personnage les pousse avec <code>pushStrength</code> newtons, elles tombent, roulent et le repoussent."
         ],
         "tryIt": "Cliquez sur l’image, marchez avec Z Q S D, sautez avec Espace. Montez l’escalier, montez sur la plateforme, poussez la pile de caisses."
+      },
+      "connect-drive-and-break": {
+        "title": "Relier, entraîner et rompre",
+        "description": "Les liaisons tiennent deux corps ensemble, ou un corps au monde : une porte tourne sur sa charnière, un tiroir glisse sur son rail, une chaîne pend par ses maillons et un pont cède quand on tire trop fort.",
+        "steps": [
+          "Créez une liaison avec <code>joint.hinge(a, b, options)</code> ou ses sœurs — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — et confiez-la à <code>world.physics.add</code>. Mettez <code>null</code> pour <code>b</code> pour tenir un corps au monde.",
+          "<code>anchor</code> est le point où les corps se relient et <code>axis</code> la direction de l’axe ou du rail, tous deux dans le monde, lus quand la liaison est créée.",
+          "<code>limits</code> arrête la liaison : en radians pour une charnière, en mètres pour une glissière. Un <code>spring</code> rend la butée souple.",
+          "Un <code>motor</code> entraîne une charnière ou une glissière vers une vitesse ou une position. Changez <code>joint.motor</code> quand vous voulez.",
+          "<code>breakForce</code> est la traction, en newtons, au-delà de laquelle la liaison rompt : <code>joint.broken</code> passe à vrai et <code>joint.on('break', …)</code> est appelé."
+        ],
+        "tryIt": "Ouvrez la porte et le tiroir, puis lâchez la pierre sur le pont. Baissez la solidité du pont et reconstruisez-le : il cède sous son propre poids."
       },
       "your-own-scene": {
         "title": "Votre propre scène",

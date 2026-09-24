@@ -11,7 +11,8 @@ import { worldModelLoader } from './worldLoader.ts';
 import { createWorldRaycast } from './worldRaycast.ts';
 import { awaitViewPages, registerWorld } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
-import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
+import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts';
+import { sessionPools, worldBudget, type Pools } from './worldBudget.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
@@ -50,8 +51,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       sessionOptions(options, {
         gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
         ...switches.held,
-        geometryPoolBytes: pools.geometryPool,
-        texturePoolBytes: pools.texturePool,
+        ...sessionPools(pools),
         pixelError,
         clearColor: scene.background?.getHex(), // read at opening; a change is written in place
         currentClearColor: () => scene.background?.getHex(),

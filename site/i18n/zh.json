@@ -305,6 +305,7 @@
       "a-software-rasteriser": "软件光栅化器",
       "sound-from-the-gpu": "由GPU发出的声音",
       "falling-boxes": "掉落的箱子",
+      "floating-crates": "漂浮的木箱",
       "ten-thousand-bodies": "一万个物体",
       "breaking-things": "打碎物体",
       "cloth-and-rope": "布料与绳索",
@@ -338,9 +339,6 @@
       "a-capped-section": "裁剪平面:模板封盖",
       "decals-on-a-surface": "拾取(射线检测)",
       "sculpt-a-sphere": "拾取(射线检测)",
-      "a-video-on-a-screen": "实时视频贴图",
-      "the-webcam-as-a-texture": "实时视频贴图",
-      "four-ways-to-blend": "所有混合模式",
       "avif-textures": "更多源格式导入:AVIF图像",
       "object-space-normals": "物体空间法线贴图",
       "a-bumpy-surface": "凹凸、置换与视差贴图",
@@ -411,7 +409,6 @@
       "a-medical-scan": "体积渲染",
       "a-city-from-3d-tiles": "3D Tiles 输入",
       "rendering-in-a-worker": "在worker中渲染(OffscreenCanvas)",
-      "a-video-panorama": "实时视频贴图",
       "an-atmospheric-sky": "天空模型",
       "chrome-in-a-room": "环境光照(IBL)",
       "lit-by-an-hdr-image": "环境光照(IBL)",
@@ -481,7 +478,6 @@
       "breaking-things": "物理引擎集成",
       "cloth-and-rope": "物理引擎集成",
       "soft-bodies": "物理引擎集成",
-      "hinges-and-joints": "物理引擎集成",
       "drive-a-car": "物理引擎集成",
       "a-room-in-vr": "WebXR会话",
       "a-360-photo-in-vr": "WebXR会话",
@@ -1072,6 +1068,18 @@
           "让箱子成为轻的 <code>'dynamic'</code> 物体：角色以 <code>pushStrength</code> 牛顿的力推动它们，它们会倒下、翻滚并推回来。"
         ],
         "tryIt": "点击画面，用 W A S D 行走，空格键跳跃。登上台阶，乘上平台，推倒那堆箱子。"
+      },
+      "connect-drive-and-break": {
+        "title": "连接、驱动与断裂",
+        "description": "关节把两个物体连在一起，或把一个物体连到世界上：门绕铰链转动，抽屉沿滑轨滑动，铁链靠链环悬挂，桥被拉得太狠就会断。",
+        "steps": [
+          "用 <code>joint.hinge(a, b, options)</code> 或它的同类 — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — 创建关节，再交给 <code>world.physics.add</code>。把 <code>b</code> 设为 <code>null</code>，就能把物体固定到世界上。",
+          "<code>anchor</code> 是物体相连的位置，<code>axis</code> 是销轴或滑轨的方向，二者都在世界坐标中，在创建关节时读取。",
+          "<code>limits</code> 让关节停下：铰链用弧度，滑轨用米。<code>spring</code> 让止挡变软。",
+          "<code>motor</code> 把铰链或滑轨驱动到某个速度或位置。随时修改 <code>joint.motor</code>。",
+          "<code>breakForce</code> 是关节断开的拉力（牛顿）：超过它，<code>joint.broken</code> 变为 true，并调用 <code>joint.on('break', …)</code>。"
+        ],
+        "tryIt": "打开门和抽屉，再把石头扔到桥上。降低桥的强度并重建：它会在自身重量下断裂。"
       },
       "your-own-scene": {
         "title": "属于你自己的场景",

@@ -23,7 +23,7 @@ mod tga;
 mod tiff;
 mod webp;
 
-pub use decoded::{ImageDecoded, Transfer};
+pub use decoded::{DecodedImage, ImageDecoded, Transfer};
 
 /// Version of the image driver contract. Changing it requires rereading every driver, and
 /// invalidates caches: since `image-plugin-3`, a driver returns an `ImageDecoded` — the pixels, the
@@ -46,25 +46,6 @@ pub static DECODERS: &[&dyn ImageDecoder] = &[
     &bmp::BMP,
     &gif::GIF,
 ];
-
-/// What a driver returns as pixels. Two outputs, and no bridge from one to the other: reducing a
-/// float to eight bits would require a tone-mapping curve, hence a loss the source did not have,
-/// which the import policy forbids. A consumer that can only handle one variant refuses the other
-/// with a named report reason. Both carry **straight alpha**: a format with associated alpha is
-/// un-premultiplied by its driver, never returned as-is.
-pub enum DecodedImage {
-    /// RGBA 8 bits per channel, straight alpha, at least one pixel. `ImageDecoded::transfer` says
-    /// which transfer function these bytes are written in: the contract no longer assumes sRGB.
-    Rgba8(image::RgbaImage),
-    /// RGBA 32-bit floats per channel, **linear** and straight alpha, at least one pixel: what
-    /// high-dynamic-range formats return. `data` holds `width * height * 4` values, one pixel after
-    /// another, top row first.
-    RgbaF32 {
-        width: u32,
-        height: u32,
-        data: Vec<f32>,
-    },
-}
 
 /// A texture 2³² texels on a side has only thirty-three levels: beyond that, the field is lying.
 /// `dds` and `ktx2` read this count from their respective headers and apply the same bound.

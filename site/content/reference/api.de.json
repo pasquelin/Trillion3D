@@ -460,7 +460,7 @@
     "description": "`memory(world)` ist das, was die Welt jetzt hält (`world.budget`); die beiden Reservoirs bauen die Einstellung, die eine Welt annimmt."
   },
   "budget.memory": {
-    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die beiden Reservoirs und das Maximum jedes einzelnen."
+    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die GPU- und CPU-Summen, ihre Aufteilung nach der Regel, beide Pools und die Obergrenze jedes Pools."
   },
   "budget.geometryPool": {
     "summary": "Eine Reservoir-Einstellung für Geometrie von `bytes`, bereit, einer Welt gegeben zu werden.",
@@ -2357,12 +2357,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Die Matrizen, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
+    "summary": "Die Matrizen und der Tiefenbereich, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
     "members": {
       "projection": "Die Projektion.",
       "world": "Die Matrix der Kamera in der Welt.",
       "view": "Die Sichtmatrix.",
-      "eye": "Wo das Auge ist."
+      "eye": "Wo das Auge ist.",
+      "near": "Nächste Entfernung.",
+      "far": "Fernste Entfernung."
     }
   },
   "HostDrawOutput": {
@@ -2898,7 +2900,8 @@
       "signal": "Stoppt das Laden, wenn das Signal abgebrochen wird.",
       "scope": "`'full'` fordert den ganzen Cache an, `'progressive'` seinen Ausschnitt als Stream; ein Modell mit anderem Umfang wird bei seinem Namen abgelehnt. Ohne Wert wird das Modell mit dem Umfang gelesen, den sein Zeiger deklariert.",
       "stream": "Ein von der Seite eingestellter Stream; die Sitzung der Welt lässt Seiten mit ihrem eigenen ankommen.",
-      "position": "Wohin der Ursprung des Modells in der Szene geht."
+      "position": "Wohin der Ursprung des Modells in der Szene geht.",
+      "onProgress": "Hört, wie weit das Laden ist: `manifest`, sobald das Manifest gelesen ist, dann `resources`, sobald jede Datei ankommt, die die Szene liest (`completed` von dem bisher bekannten `total`). Das Ereignis ist ein `JobProgress`: ein `createJob`, der das Laden umschließt, übergibt hier sein `progress`."
     }
   },
   "LOD_QUALITY": {
@@ -3261,7 +3264,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera.",
+    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera: weiß bei `camera.near`, schwarz bei `camera.far`, dazwischen ein gerader Verlauf, gleich auf WebGPU und WebGL2.",
     "parameters": {
       "parameters": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
       "parameters.color": "Die Grundfarbe.",
@@ -5203,6 +5206,8 @@
       "shadowWaitMs": "Wie lange sie gewartet haben.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
+      "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
+      "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
       "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
       "shadowLightCuts": "Cluster-Schnitte der Lichter: einer pro gezeichneter Lichtansicht, null in einem ruhenden Bild.",
       "shadowPagesRequested": "Virtuelle Schattenseiten, die das Bild gelesen hat, wie sein letzter Anforderungsbericht sie nannte: was die Empfänger der Kamera markieren.",
@@ -5220,8 +5225,9 @@
       "counts": "Was der letzte Plan getan hat, in Seiten.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
+      "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
-      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
+      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltenen Boxen kommen sofort in die Liste.",
       "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
       "setBudgetMs": "Vom Host veröffentlichtes Budget in GPU-Millisekunden pro Bild.",
       "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: ein bewegtes Objekt macht jede Seite der Lichter ungültig, die es berührt. Standardmäßig aktiv.",
@@ -5669,7 +5675,7 @@
   },
   "texture": {
     "summary": "Die Familie `texture`: ein Bild und die Art, es abzutasten.",
-    "description": "Farbbilder sind in sRGB, Datenbilder in linear; `needsUpdate` nach dem Schreiben der Pixel lässt sie neu lesen."
+    "description": "Farbbilder sind in sRGB, Datenbilder linear; `needsUpdate` nach dem Schreiben der Pixel lässt die Sampler sie neu lesen, an Ort und Stelle in die Textur kopiert, die schon auf der GPU liegt — nur eine neue Größe baut sie neu. Ein Video ist live: seine Bilder kommen von selbst."
   },
   "texture.image": {
     "summary": "Eine Farbtextur aus einem bereits auf der Seite vorhandenen Bild: ein Bild, eine Bitmap oder ein Videobild.",
@@ -5688,12 +5694,14 @@
   },
   "texture.canvas": {
     "summary": "Eine Textur, die zeigt, was ein Canvas enthält.",
+    "description": "Nachdem der Canvas neu gezeichnet wurde, `needsUpdate` setzen: Die neuen Pixel werden in die Textur kopiert, die schon auf der GPU liegt, nichts wird neu gebaut.",
     "parameters": {
       "c": "Das zu zeigende Canvas."
     }
   },
   "texture.video": {
-    "summary": "Eine Textur, die ein abspielendes Video zeigt.",
+    "summary": "Eine Textur, die ein laufendes Video zeigt, oder einen Kamerastream, der in einem Video läuft.",
+    "description": "Jedes neue Bild wird von selbst in die Textur kopiert, die schon auf der GPU liegt; ein pausiertes Video kostet nichts.",
     "parameters": {
       "v": "Das zu zeigende Video."
     }
@@ -5823,7 +5831,8 @@
       "textureLevelReads": "Die Quellen. `textureLevelReads`: gebackene Stufen, die gerade im Cache gelesen werden. `textureLevelsDecoded`: seit Beginn dekodierte gebackene Stufen. `textureLevelCacheBytes`: Host-Bytes der dekodierten Stufen, die behalten werden, um daraus weitere Kacheln zu schneiden, unter einem festen Budget. `textureScratchBuilds`: für eine Textur ohne gebackene Kette gebaute Arbeitstexturen, jedes Mal die ganze Quelle.",
       "textureLevelsDecoded": "Dekodierte Stufen.",
       "textureLevelCacheBytes": "Bytes der behaltenen dekodierten Stufen.",
-      "textureScratchBuilds": "Gebaute temporäre Texturen."
+      "textureScratchBuilds": "Gebaute temporäre Texturen.",
+      "textureLiveBytes": "Bytes, die die Live-Texturen halten: je eine Arbeitstextur in ihrer eigenen Größe. Von `texturePoolBytes` abgezogen."
     }
   },
   "TextureLayout": {
@@ -6282,7 +6291,7 @@
       "jumpSpeed": "Nur Charakter: Aufwärtsgeschwindigkeit, mit der ein Sprung beginnt, in m/s; `sqrt(2 g h)` erreicht `h`, standardmäßig 1,1 m.",
       "gravity": "Nur Charakter: Abwärtsbeschleunigung, in m/s²; standardmäßig 9,80665.",
       "airControl": "Nur Charakter: wie schnell die Tasten in der Luft steuern, als Anteil der Bodenreaktion; standardmäßig 0,3, 0 ist ballistisch.",
-      "responseTime": "Nur Charakter: Sekunden, um 95 % der gewünschten Geschwindigkeit zu erreichen, oder um am Boden zu stoppen; standardmäßig ein Schritt-Takt (1 / 1,8 s).",
+      "responseTime": "Nur Charakter: Sekunden, die die Beine brauchen, um am Boden 95 % der gewünschten Geschwindigkeit zu erreichen; standardmäßig 0,12. Die Reibung des Bodens begrenzt den Start zuerst: Eine Sohle schiebt höchstens mit `μ g`, `μ` der Halt einer Gummisohle auf dem `material.physics` des Bodens (Stein ohne Physik), sodass ein Dauerlauf auf Stein in 0,45 s und auf Eis in 2,2 s erreicht ist.",
       "capsuleRadius": "Nur Charakter: Radius des Körpers, in Metern; standardmäßig eine halbe Schulterbreite (0,23 m).",
       "capsuleHeight": "Nur Charakter: Höhe des Körpers, in Metern; standardmäßig 1,75.",
       "eyeHeight": "Nur Charakter: Höhe der Kamera über den Füßen, in Metern; standardmäßig 1,64.",
@@ -6294,7 +6303,7 @@
       "onJump": "Nur Charakter: wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt; standardmäßig `null`.",
       "stride": "Nur Charakter: die Phase des Schritts in Radiant, ein Fuß trifft bei 0 und π auf; sonst 0.",
       "fallGravity": "Nur Charakter: Abwärtsbeschleunigung während des Fallens, in m/s²; standardmäßig 1,6 g, damit ein Sprung nicht schwebt.",
-      "stopTime": "Nur Charakter: Sekunden, um 95 % der Geschwindigkeit zu verlieren, sobald keine Taste mehr gedrückt ist, am Boden; standardmäßig 0,08.",
+      "stopTime": "Nur Charakter: Sekunden, die die Beine brauchen, um 95 % der Geschwindigkeit zu verlieren, sobald keine Taste mehr gedrückt ist, am Boden; standardmäßig 0,12. Die Reibung des Bodens begrenzt den Halt zuerst: Ein Dauerlauf gleitet `v² / (2 μ g)`, 0,8 m auf Stein und 3,8 m auf Eis; eine längere Zeit bremst sanfter.",
       "headBob": "Nur Charakter: Meter, um die das Auge bei jedem Schritt im Trab steigt und fällt; standardmäßig 0,035, 0 hält es waagerecht.",
       "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus.",
       "mass": "Nur Figur, mit Physik: Kilogramm, die der Körper auf seinen Untergrund drückt; standardmäßig 80.",
@@ -6330,10 +6339,13 @@
     "members": {
       "geometryPoolCeiling": "Die größten Reservoirs, die eine Welt anfordern kann: die Startbudgets der Engine.",
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
-      "geometryPool": "GPU-Speicher-Bytes, die für Geometrieseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
-      "texturePool": "GPU-Speicher-Bytes, die für Texturseiten gehalten werden; stelle es ein, um die Grenze zu ändern.",
+      "geometryPool": "Bytes GPU-Speicher für Geometrieseiten; setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Textur-Pool lässt.",
+      "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Geometrie-Pool lässt.",
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
-      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern."
+      "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
+      "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Nie von der Maschine gelesen.",
+      "cpu": "Bytes CPU-Speicher, die die dekodierten Seiten der Welt halten dürfen; beim nächsten Laden einer Szene übernommen.",
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Cache dekodierter Seiten nimmt die CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {
@@ -6461,6 +6473,8 @@
       "shadowWaitMs": "Wie lange sie gewartet haben.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
+      "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
+      "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
       "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
       "hizTestedClusters": "Was der Verdeckungstest bei einem Bild getan hat: die ihm gegebenen Cluster, die er eliminiert hat, und die, deren Bildschirmfußabdruck auf Stufe 0 den Sechzehn-Texel-Kernel überschreitet und daher aus einem gröberen Mip antworten. `hiz*Triangles` sind die Dreiecke derselben Cluster. Auf dem GPU-Pfad beschreiben sie ein ÄLTERES Bild als das, das sie rendert — `hizCountedFrame` sagt welches —, wie `gpuPassMs`, und zwei benachbarte Bilder tragen oft denselben Messwert. Keiner wird geschätzt: `null` für eine Engine, die keine Verdeckung testet, auf einem Gerät, dessen Urteile nicht zurückgelesen werden können, und solange kein Bild gezählt wurde.",
       "hizRejectedClusters": "Versteckte Cluster.",
@@ -6489,6 +6503,7 @@
       "textureLevelsDecoded": "Dekodierte Stufen.",
       "textureLevelCacheBytes": "Bytes der behaltenen dekodierten Stufen.",
       "textureScratchBuilds": "Gebaute temporäre Texturen.",
+      "textureLiveBytes": "Bytes, die die Live-Texturen halten: je eine Arbeitstextur in ihrer eigenen Größe. Von `texturePoolBytes` abgezogen.",
       "gpuAllocatedBytes": "Aktive zugewiesene Bytes auf dem Gerät, alle Ressourcen zusammen.",
       "gpuAllocatedByLabel": "Zugewiesene Bytes, gruppiert nach Ressourcenetikett. Zuweisungen ohne Etikett werden unter 'unlabeled' gruppiert.",
       "gpuAllocationsUnknownFormat": "Anzahl der Texturen mit nicht erkannten Formaten. Der erwartete Wert ist 0.",
@@ -6637,7 +6652,7 @@
   },
   "CharacterCameraControls": {
     "summary": "EIN CHARAKTER, gesehen durch seine Augen: ein Körper mit Masse, der geht, läuft, springt und fällt, und mit den Dreiecken der Welt als aufrechte Kapsel kollidiert.",
-    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf über `responseTime` und bremst über `stopTime`, behält seinen Schwung in der Luft, steigt unter `gravity` und fällt unter `fallGravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen, wippt mit dem Schritt um `headBob` und taucht bei der Landung ab um `landingDip` (`sdk-core/src/collision/characterEye.ts`); beide wirken auf das Auge nach dem Schritt des Körpers und bewegen nie den Körper selbst. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste, kein Abtauchen übrig — sendet nichts, sodass die Szene ruhig bleibt.",
+    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf über `responseTime` und bremst über `stopTime`, nie schneller, als die Reibung seines Bodens eine Sohle schieben lässt, sodass ein Halt auf Stein ein wenig und auf Eis weit gleitet, behält seinen Schwung in der Luft, steigt unter `gravity` und fällt unter `fallGravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen, wippt mit dem Schritt um `headBob` und taucht bei der Landung ab um `landingDip` (`sdk-core/src/collision/characterEye.ts`); beide wirken auf das Auge nach dem Schritt des Körpers und bewegen nie den Körper selbst. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste, kein Abtauchen übrig — sendet nichts, sodass die Szene ruhig bleibt.",
     "members": {
       "velocity": "Die Geschwindigkeit des Körpers in Metern pro Sekunde, live: `[x, y, z]`, y nach oben.",
       "onGround": "Ob die Füße auf einem Boden stehen.",
@@ -6860,8 +6875,11 @@
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
+      "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
+      "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
   },
   "ContactEvent": {
@@ -7008,6 +7026,19 @@
       "current": "Geschwindigkeit des Wassers (die Strömung eines Flusses), in m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Die Wasseroberfläche, wie die Seite sie zum Zeichnen liest (`world.physics.waterSurface`): das Wellenmodell, das der Auftrieb im Physik-Worker liest, dieselben Zahlen, zur Zeit der Simulation.",
+    "members": {
+      "level": "Höhe der Oberfläche in Ruhe, in Metern.",
+      "crest": "Höchster Punkt, den ein Wellenkamm über `level` erreicht, in Metern.",
+      "time": "Simulierte Sekunden, seit das Wasser gesetzt wurde: die Uhr der Wellen.",
+      "setTime": "Stellt die Wellen auf `t` simulierte Sekunden.",
+      "height": "Höhe der Oberfläche über dem Weltpunkt `(x, z)`, in Metern.",
+      "point": "Der Weltpunkt `[x, y, z]`, zu dem der Ruhepunkt `(x, level, z)` getragen wird, in `out`: ein Punkt für Punkt bewegtes Gitter ist die Oberfläche, Kämme so scharf wie die Wellen.",
+      "wavesNow": "Die deklarierten Wellen, jede Phase bis jetzt fortgeführt: erneut in `world.physics.water` gesetzt (dessen Wellen wieder bei 0 s beginnen), läuft die Oberfläche weiter, statt zu springen.",
+      "normal": "Einheitsnormale `[x, y, z]` der Oberfläche am Ruhepunkt `(x, z)`, in `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Eine Welle, wie eine Szene sie deklariert.",
     "members": {
@@ -7041,8 +7072,11 @@
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
+      "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus."
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
+      "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
   },
   "WorldPhysicsOptions": {
@@ -7220,17 +7254,6 @@
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
   },
-  "GraphAngles": {
-    "summary": "Dieselbe Ausrichtung als drei Winkel und ihre Reihenfolge, die ihre Schreibungen ebenso meldet.",
-    "members": {
-      "x": "Der erste Winkel, im Bogenmaß.",
-      "set": "Schreibt die drei Winkel und, falls angegeben, die Reihenfolge; einmal gemeldet.",
-      "setFromRotation": "Die Winkel von `q` in dieser Reihenfolge (das `Euler` des Kerns); gemeldet, außer bei `quiet`.",
-      "y": "Der zweite Winkel, im Bogenmaß.",
-      "z": "Der dritte Winkel, im Bogenmaß.",
-      "order": "Die Reihenfolge, in der die drei Winkel drehen, `'XYZ'`, sofern nicht gesetzt."
-    }
-  },
   "GraphArray": {
     "summary": "Die typisierten Arrays, die ein Attribut hält."
   },
@@ -7274,38 +7297,69 @@
   "GraphNodeKind": {
     "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
   },
-  "GraphRotation": {
-    "summary": "Eine Ausrichtung `(x, y, z, w)`, deren Schreibungen `_onChangeCallback` aufrufen.",
+  "Joint": {
+    "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",
+    "description": "Es hält, solange beide Körper simuliert werden und bis es bricht.",
+    "parameters": {
+      "options": "Was `joint.*` annimmt. Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
+      "options.anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
+      "options.anchorB": "Das Ende eines Abstands an `b`.",
+      "options.axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
+      "options.limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
+      "options.spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "options.motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "options.breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+    },
     "members": {
-      "x": "Die erste Zahl.",
-      "set": "Schreibt die vier Zahlen, einmal gemeldet.",
-      "copy": "Übernimmt die Zahlen einer anderen Rotation.",
-      "fromArray": "Liest vier Zahlen aus einer Liste.",
-      "setFromAngles": "Die Rotation von `angles` in ihrer Reihenfolge (`localTurnQuaternion`); gemeldet, außer bei `quiet`.",
-      "setFromRotationMatrix": "Die Rotation der oberen 3×3 einer spaltenweise gespeicherten Matrix mit Spalten der Länge eins.",
-      "premultiply": "Wird zu `q` gefolgt von dieser Rotation, `q · this`.",
-      "invert": "Wird zur entgegengesetzten Drehung.",
-      "y": "Die zweite Zahl.",
-      "z": "Die dritte Zahl.",
-      "w": "Die vierte Zahl."
+      "kind": "Was das Gelenk ist.",
+      "a": "Der erste Körper.",
+      "b": "Der zweite Körper oder `null` für die Welt.",
+      "options": "Womit es erzeugt wurde.",
+      "motor": "Der Motor eines Scharniers oder Schiebegelenks; `null` lässt es frei drehen oder gleiten.",
+      "broken": "Ob es gebrochen ist: über seine `breakForce` hinaus gezogen. Ein gebrochenes Gelenk hält nichts mehr.",
+      "on": "Ruft `handler` auf, wenn das Gelenk bricht."
     }
   },
-  "GraphVector": {
-    "summary": "Drei Zahlen einer Pose oder eines Punkts: einfache Datenfelder und die Operationen, die ein Controller nutzt.",
+  "JointKind": {
+    "summary": "Die Gelenke zwischen Körpern, jedes eine von Jolts eigenen Bedingungen."
+  },
+  "JointLimits": {
+    "summary": "Wie weit sich ein Gelenk bewegen darf: Radiant für ein Scharnier, Meter für ein Schiebegelenk oder einen Abstand, der halbe Kegelwinkel (`max`) für einen Kegel.",
     "members": {
-      "set": "Schreibt die drei Zahlen.",
-      "copy": "Übernimmt die Zahlen eines anderen Punkts.",
-      "clone": "Eine Kopie.",
-      "add": "Addiert einen anderen Vektor.",
-      "sub": "Zieht einen anderen Vektor ab.",
-      "multiplyScalar": "Skaliert die drei Zahlen.",
-      "length": "Seine Länge.",
-      "setLength": "Behält die Richtung, setzt die Länge.",
-      "distanceTo": "Abstand zu einem Punkt.",
-      "fromArray": "Liest drei Zahlen aus einer Liste.",
-      "x": "Von links nach rechts.",
-      "y": "Von unten nach oben.",
-      "z": "Von hinten nach vorn."
+      "min": "Bei einem Scharnier von −π bis 0, bei einem Schiebegelenk 0 oder weniger.",
+      "max": "Bei einem Scharnier von 0 bis π, bei einem Schiebegelenk 0 oder mehr."
+    }
+  },
+  "JointMotor": {
+    "summary": "Der Motor eines Scharniers oder Schiebegelenks: Er treibt das Gelenk auf eine Geschwindigkeit oder eine Position.",
+    "members": {
+      "mode": "`'velocity'`: rad/s oder m/s; `'position'`: Radiant oder Meter ab der Lage, in der das Gelenk entstand.",
+      "target": "Die zu erreichende Geschwindigkeit oder Position.",
+      "maxForce": "N·m für ein Scharnier, N für ein Schiebegelenk; weggelassen: unbegrenzt."
+    }
+  },
+  "JointOptions": {
+    "summary": "Was `joint.*` annimmt.",
+    "description": "Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
+    "members": {
+      "anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
+      "anchorB": "Das Ende eines Abstands an `b`.",
+      "axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
+      "limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
+      "spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+    }
+  },
+  "joint": {
+    "summary": "Die Familie `joint`: zwei verbundene Körper oder ein Körper und die Welt (`b` null).",
+    "members": {
+      "fixed": "Verschweißt sie: Sie bewegen sich wie einer.",
+      "point": "Ein Kugelgelenk bei `anchor`: Sie drehen sich frei darum.",
+      "hinge": "Ein Stift bei `anchor` entlang `axis`: eine Tür, ein Rad. `limits` in Radiant.",
+      "slider": "Eine Schiene entlang `axis`: eine Schublade, ein Kolben. `limits` in Metern.",
+      "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
+      "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
     }
   }
 }

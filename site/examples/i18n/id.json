@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Tekan Main, lalu lari dengan W A S D dan lompat dengan Spasi.",
+    "banner": "Tekan Main, lalu lari dengan W A S D dan lompat dengan Spasi. Lepas lebih awal: di atas batu kamu meluncur sedikit sebelum berhenti.",
     "controls": {
       "keys": "Kendali karakter mesin: Main di menu mengunci mouse untuk melihat, W A S D untuk berlari (Z Q S D di AZERTY), Shift untuk berlari kencang, Spasi untuk melompat, Esc melepas mouse. Halaman menambahkan R untuk berlari lagi, M untuk membisukan.",
       "look": "Pandang",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Ubah ketinggian, ombak, kerapatan, dan arus air: peti mengapung, hanyut, tenggelam, lalu diam.",
+    "controls": {
+      "level": "Ketinggian",
+      "waves": "Ombak",
+      "density": "Kerapatan air",
+      "current": "Arus",
+      "drop": "Jatuhkan",
+      "again": "Lagi",
+      "slowMotion": "Gerak lambat"
+    },
+    "readouts": {
+      "bodies": "Benda",
+      "awake": "Aktif",
+      "step": "Langkah"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Sepuluh ribu kotak jatuh bersamaan. Panel menunjukkan biaya fisika secara langsung.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya.",
+    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya, dan lepaskan tombol di atas es untuk meluncur.",
     "controls": {
       "pushStrength": "Gaya dorong (N)",
       "platformSpeed": "Kecepatan platform",
@@ -1962,6 +1979,21 @@
       "bodies": "Benda",
       "awake": "Aktif",
       "step": "Langkah"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Buka pintu dan laci, ayunkan rantai, lalu jatuhkan batu ke jembatan dan lihat jembatan itu patah.",
+    "controls": {
+      "openDoor": "Buka pintu",
+      "openDrawer": "Buka laci",
+      "strength": "Kekuatan jembatan (N)",
+      "swingChain": "Ayunkan rantai",
+      "dropStone": "Jatuhkan batu",
+      "rebuild": "Bangun ulang jembatan"
+    },
+    "readouts": {
+      "joints": "Sambungan",
+      "broken": "Patah"
     }
   }
 }

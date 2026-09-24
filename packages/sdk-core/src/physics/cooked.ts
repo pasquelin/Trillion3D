@@ -29,7 +29,8 @@ interface CookedCollider {
   primitive: number;
   /** The glTF material of every triangle, or `null`. */
   material: number | null;
-  /** The DAG error the level was cut at, and the distance measured to the drawn level 0. */
+  /** The object's DAG error the level holds, and its distance measured to the drawn level 0, at
+   *  or under that tolerance. */
   tolerance: number;
   hausdorff: number;
   triangles: number;
@@ -48,6 +49,26 @@ export interface CookedInstance {
   restitution?: number;
 }
 
+/** A primitive whose collider Jolt refused: it collides with nothing, and is drawn all the same. */
+interface CookRefusal {
+  primitive: number;
+  mesh: number;
+  meshPrimitive: number;
+  /** Jolt's own error. */
+  reason: string;
+}
+
+/** The stage's counts, its largest tolerance and measured distance, and the refused primitives. */
+interface CookReport {
+  colliders: number;
+  instances: number;
+  unplaced: number;
+  triangles: number;
+  hausdorff: number;
+  tolerance: number;
+  refused: CookRefusal[];
+}
+
 /** The whole file. */
 export interface CookedPhysics {
   formatVersion: number;
@@ -55,7 +76,7 @@ export interface CookedPhysics {
   stage: { name: string; version: number };
   colliders: CookedCollider[];
   instances: CookedInstance[];
-  report: Record<string, number>;
+  report: CookReport;
 }
 
 /**

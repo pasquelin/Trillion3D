@@ -103,6 +103,23 @@ mod tests {
         assert!(include_str!("../build.rs").contains("cargo:rerun-if-changed=src\""));
     }
 
+    // Behaviour: the page codec is linked into the compiler: its sources are hashed as the
+    // compiler's own, so a codec edit moves the key (#558). Read from the list the build hashed.
+    #[test]
+    fn the_build_hashes_the_page_codec() {
+        let inputs: Vec<&str> =
+            include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
+                .lines()
+                .collect();
+        for input in [
+            "../page-codec-wasm/src/lib.rs",
+            "../page-codec-wasm/Cargo.toml",
+        ] {
+            assert!(inputs.contains(&input), "{input} is not hashed");
+        }
+        assert!(inputs.contains(&"src/compiler_identity.rs"));
+    }
+
     // Behaviour: shapes cooked by another Jolt are another product: the key moves with the commit.
     #[test]
     fn another_jolt_is_another_key() {

@@ -35,9 +35,11 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     budget = createShadowBudget(),
     counts = createShadowCounts(),
     admission = createShadowAdmission(capacity, pool.pages),
-    thresholds = createShadowThresholds(pool);
+    thresholds = createShadowThresholds(pool),
+    posed = new Int32Array(records.taken.length);
   let byPage = true,
     report: ShadowRequestReport | null = null,
+    resting = false,
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
@@ -64,11 +66,15 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     representationChanged: changes.representationChanged,
     /** The threshold the light cuts select casters at (`thresholds.ts`). */
     setThreshold: thresholds.set,
+    /** The camera rested at the last plan: its view was the one of the plan before. */
+    get resting() {
+      return resting;
+    },
     /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
       return changes.deferred || thresholds.pending;
     },
-    /** The frame plans no shadow: the held union enters the list at once. */
+    /** The frame plans no shadow: the held boxes enter the list at once. */
     releaseDeferred: changes.releaseDeferred,
     /** Timer of a frame's Shadows pass, reported to the pages it drew. */
     observeCost: budget.observe,
@@ -104,12 +110,13 @@ export function createShadowPlan(capacity: number, poolSide: number) {
       counts.beginFrame();
       records.release(store);
       const still = changes.observeView(view);
+      resting = still;
       if (!still) views++;
       for (let slot = 0; slot < store.count; slot++) {
         if (!castsShadow(store, slot)) continue;
         const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
         let slice = store.sliceOf(slot);
-        if (slice < 0) slice = records.claim();
+        if (slice < 0 && (slice = records.claim()) >= 0) posed[slice] = frame;
         if (slice < 0 || !records.fit(slice, rank)) {
           counts.deny();
           store.assignSlice(slot, -1);
@@ -118,7 +125,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         store.assignSlice(slot, slice);
         const light = store.light(store.ids[slot]);
         if (!light) continue;
-        let whole = records.moved(slice, store.revision[slot]);
+        let whole = records.moved(slice, light);
         if (rank === LIGHT_KIND.directional) {
           if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
             whole = true;
@@ -140,6 +147,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
           nowMs,
           frame,
         );
+        if (whole) posed[slice] = frame;
       }
       changes.settled();
       if (still) counts.invalidatedPages += thresholds.restale(nowMs, frame);
@@ -150,13 +158,14 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         requests.consume(read, nowMs, frame);
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
-      const waiting = admission.run(pool, table, records, sun, budget, requests.latest, frame);
+      requests.floors(posed, view, nowMs, frame);
+      const left = admission.run(pool, table, records, sun, budget, requests.latest, frame, posed);
       for (let i = 0; i < admission.count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
       }
       // What the pool cannot hold waits for nothing: it is published, never pending.
-      counts.endFrame(pool, records, requests.latest, waiting, nowMs, frame);
+      counts.endFrame(pool, records, requests.latest, left, nowMs, frame);
       return admission.count;
     },
     /** The frame's pages were encoded, each in its `modes` entry: their draws land before
@@ -184,6 +193,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
       counts.reset();
       admission.reset();
       report = null;
+      resting = false;
       settledStamp = -1;
     },
   };

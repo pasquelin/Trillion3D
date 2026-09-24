@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Nhấn Chơi, rồi chạy bằng W A S D và nhảy bằng phím cách.",
+    "banner": "Nhấn Chơi, rồi chạy bằng W A S D và nhảy bằng phím cách. Thả phím sớm: trên đá bạn trượt một chút trước khi dừng.",
     "controls": {
       "keys": "Điều khiển nhân vật của engine: nút Chơi trong menu khóa chuột để nhìn, W A S D để chạy (Z Q S D trên AZERTY), Shift để chạy nhanh, phím cách để nhảy, Esc thả chuột. Trang thêm R để chạy lại, M để tắt tiếng.",
       "look": "Nhìn",
@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Đổi mực nước, sóng, khối lượng riêng và dòng chảy: các thùng nổi, trôi, chìm rồi lắng lại.",
+    "controls": {
+      "level": "Mực nước",
+      "waves": "Sóng",
+      "density": "Khối lượng riêng của nước",
+      "current": "Dòng chảy",
+      "drop": "Thả",
+      "again": "Lại",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "awake": "Đang chạy",
+      "step": "Bước"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Mười nghìn hộp rơi cùng lúc. Bảng hiển thị chi phí vật lý theo thời gian thực.",
     "controls": {
@@ -1920,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng.",
+    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng, và thả phím trên băng để trượt.",
     "controls": {
       "pushStrength": "Lực đẩy (N)",
       "platformSpeed": "Tốc độ bệ",
@@ -1962,6 +1979,21 @@
       "bodies": "Vật thể",
       "awake": "Đang chạy",
       "step": "Bước"
+    }
+  },
+  "hinges-and-joints": {
+    "banner": "Mở cửa và ngăn kéo, đung đưa sợi xích, rồi thả hòn đá lên cây cầu và xem nó gãy.",
+    "controls": {
+      "openDoor": "Mở cửa",
+      "openDrawer": "Mở ngăn kéo",
+      "strength": "Độ bền của cầu (N)",
+      "swingChain": "Đung đưa xích",
+      "dropStone": "Thả hòn đá",
+      "rebuild": "Dựng lại cầu"
+    },
+    "readouts": {
+      "joints": "Khớp nối",
+      "broken": "Đã gãy"
     }
   }
 }

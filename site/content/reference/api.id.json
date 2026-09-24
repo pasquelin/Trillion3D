@@ -1340,12 +1340,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Matriks yang dipakai sebuah host menggambar sebuah bingkai, seperti diserahkan mesin.",
+    "summary": "Matriks dan rentang kedalaman yang dipakai sebuah host menggambar sebuah bingkai, seperti diserahkan mesin.",
     "members": {
       "projection": "Proyeksinya.",
       "world": "Matriks dunia kamera itu.",
       "view": "Matriks view-nya.",
-      "eye": "Tempat matanya berada."
+      "eye": "Tempat matanya berada.",
+      "near": "Jarak terdekat.",
+      "far": "Jarak terjauh."
     }
   },
   "HostDrawOutput": {
@@ -1674,7 +1676,8 @@
       "signal": "Menghentikan pemuatan saat sinyal dibatalkan.",
       "scope": "`'full'` membutuhkan seluruh cache, `'progressive'` irisan streaming-nya; sebuah model dari cakupan lain ditolak dengan menyebut namanya. Tidak diatur, model dibaca pada cakupan yang dideklarasikan pointer-nya.",
       "stream": "Sebuah streamer yang dikonfigurasi halaman; sesi dunia melakukan streaming dengan miliknya sendiri.",
-      "position": "Tempat titik asal model itu masuk ke dalam scene."
+      "position": "Tempat titik asal model itu masuk ke dalam scene.",
+      "onProgress": "Mendengar sejauh mana pemuatan berjalan: `manifest` setelah manifest dibaca, lalu `resources` saat setiap berkas yang dibaca adegan tiba (`completed` dari `total` yang diketahui sejauh ini). Peristiwanya adalah `JobProgress`: `createJob` yang membungkus pemuatan meneruskan `progress`-nya ke sini."
     }
   },
   "LoadedModel": {
@@ -3019,6 +3022,8 @@
       "shadowWaitMs": "Berapa lama mereka menunggu.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "gpuShadowsMs": "Waktu GPU bayangan.",
+      "gpuShadowCullMs": "Waktu GPU untuk memilih pembentuk bayangan dari halaman bayangan yang digambar bingkai: potongan cahaya, penyaringan per halaman, dan uji oklusi pembentuk yang bergerak beserta piramida yang dibacanya.",
+      "gpuShadowRasterMs": "Waktu GPU untuk menggambar pembentuk itu ke dalam halaman: lapisan statis, lalu pool.",
       "gpuLightingMs": "Waktu GPU pencahayaan.",
       "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
       "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
@@ -3036,8 +3041,9 @@
       "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
+      "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
-      "releaseDeferred": "Bingkai tidak merencanakan bayangan: gabungan yang ditahan langsung masuk ke daftar.",
+      "releaseDeferred": "Bingkai tidak merencanakan bayangan: kotak yang ditahan langsung masuk ke daftar.",
       "observeCost": "Pengatur waktu pass Bayangan sebuah bingkai, dibagi ke halaman yang digambarnya.",
       "setBudgetMs": "Anggaran yang diterbitkan host, dalam milidetik GPU per bingkai.",
       "setPageInvalidation": "Mematikan invalidasi per halaman: objek bergerak membuat usang setiap halaman cahaya yang disentuhnya. Aktif secara default.",
@@ -3513,7 +3519,8 @@
       "textureLevelReads": "Sumbernya. `textureLevelReads`: tingkat panggang yang sedang dibaca di cache. `textureLevelsDecoded`: tingkat panggang yang diurai sejak awal. `textureLevelCacheBytes`: byte host tingkat yang diurai disimpan untuk memotong lebih banyak ubin darinya, di bawah anggaran tetap. `textureScratchBuilds`: tekstur kerja dibangun untuk sebuah tekstur tanpa rantai panggang, seluruh sumber setiap kali.",
       "textureLevelsDecoded": "Tingkat yang diurai.",
       "textureLevelCacheBytes": "Byte tingkat yang diurai disimpan.",
-      "textureScratchBuilds": "Tekstur kerja yang dibangun."
+      "textureScratchBuilds": "Tekstur kerja yang dibangun.",
+      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya. Dikurangkan dari `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -3943,6 +3950,8 @@
       "shadowWaitMs": "Berapa lama mereka menunggu.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "gpuShadowsMs": "Waktu GPU bayangan.",
+      "gpuShadowCullMs": "Waktu GPU untuk memilih pembentuk bayangan dari halaman bayangan yang digambar bingkai: potongan cahaya, penyaringan per halaman, dan uji oklusi pembentuk yang bergerak beserta piramida yang dibacanya.",
+      "gpuShadowRasterMs": "Waktu GPU untuk menggambar pembentuk itu ke dalam halaman: lapisan statis, lalu pool.",
       "gpuLightingMs": "Waktu GPU pencahayaan.",
       "hizTestedClusters": "Yang dilakukan uji oklusi pada sebuah bingkai: cluster yang diserahkan padanya, yang dieliminasinya, dan yang jejak layar level-0-nya melebihi kernel enam belas-texel dan karenanya menjawab dari sebuah mip lebih kasar. `hiz*Triangles` adalah segitiga cluster yang sama itu. Pada jalur GPU mereka menjelaskan sebuah bingkai LEBIH AWAL dari yang merendernya — `hizCountedFrame` menyebut yang mana — seperti `gpuPassMs`, dan dua bingkai bersebelahan sering membawa sampel yang sama. Tidak ada yang diperkirakan: `null` pada mesin yang tidak menguji oklusi, pada perangkat yang putusannya tidak bisa dibaca ulang, dan selama belum ada bingkai yang dihitung.",
       "hizRejectedClusters": "Cluster yang disembunyikan.",
@@ -3971,6 +3980,7 @@
       "textureLevelsDecoded": "Tingkat yang diurai.",
       "textureLevelCacheBytes": "Byte tingkat yang diurai disimpan.",
       "textureScratchBuilds": "Tekstur kerja yang dibangun.",
+      "textureLiveBytes": "Byte yang disimpan tekstur hidup: satu tekstur kerja masing-masing, seukuran dirinya. Dikurangkan dari `texturePoolBytes`.",
       "gpuAllocatedBytes": "Byte teralokasi aktif pada perangkat di seluruh sumber daya.",
       "gpuAllocatedByLabel": "Byte teralokasi dikelompokkan menurut label sumber daya. Alokasi tanpa label dikelompokkan sebagai 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Jumlah tekstur dengan format yang tidak dikenal. Nilai yang diharapkan 0.",
@@ -4287,7 +4297,7 @@
     }
   },
   "budget.memory": {
-    "summary": "Anggaran memori yang disimpan sebuah dunia sekarang: kedua kolam dan yang terbesar masing-masing boleh tumbuh."
+    "summary": "Anggaran memori yang ditahan dunia saat ini: total GPU dan CPU, pembagiannya menurut aturan, kedua pool, dan batas terbesar masing-masing."
   },
   "budget.texturePool": {
     "summary": "Sebuah pengaturan kolam tekstur sebesar `bytes`, siap diserahkan ke sebuah dunia.",
@@ -5458,7 +5468,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Menaungi setiap titik menurut seberapa jauh dari kamera.",
+    "summary": "Menaungi setiap titik menurut seberapa jauh dari kamera: putih di `camera.near`, hitam di `camera.far`, gradasi lurus di antaranya, sama di WebGPU dan WebGL2.",
     "parameters": {
       "parameters": "Yang boleh dilewatkan sebuah halaman ke anggota material; setiap bidang opsional.",
       "parameters.color": "Warna dasar.",
@@ -6426,7 +6436,7 @@
   },
   "texture": {
     "summary": "Keluarga `texture`: sebuah gambar dan bagaimana ia disampel.",
-    "description": "Gambar warna adalah sRGB, gambar data adalah linear; `needsUpdate` setelah menulis piksel membuat sampler membacanya lagi."
+    "description": "Gambar warna adalah sRGB, gambar data adalah linear; `needsUpdate` setelah menulis piksel membuat sampler membacanya lagi, disalin di tempat ke tekstur yang sudah ada di GPU — hanya ukuran baru yang membangunnya lagi. Video bersifat hidup: bingkainya datang sendiri."
   },
   "texture.array": {
     "summary": "Sebuah tumpukan gambar berukuran sama dalam satu tekstur, satu layer masing-masing.",
@@ -6439,6 +6449,7 @@
   },
   "texture.canvas": {
     "summary": "Sebuah tekstur yang menampilkan apa yang dipegang sebuah canvas.",
+    "description": "Setelah menggambar ulang kanvas, setel `needsUpdate`: piksel baru disalin ke tekstur yang sudah ada di GPU, tidak ada yang dibangun ulang.",
     "parameters": {
       "c": "Canvas yang ditampilkan."
     }
@@ -6481,7 +6492,8 @@
     }
   },
   "texture.video": {
-    "summary": "Sebuah tekstur yang menampilkan sebuah video yang diputar.",
+    "summary": "Tekstur yang menampilkan video yang sedang diputar, atau aliran kamera yang diputar dalam video.",
+    "description": "Setiap bingkai baru disalin sendiri ke tekstur yang sudah ada di GPU; video yang dijeda tidak memakan biaya.",
     "parameters": {
       "v": "Video yang ditampilkan."
     }
@@ -6591,10 +6603,13 @@
     "members": {
       "geometryPoolCeiling": "Kolam terbesar yang boleh diminta sebuah dunia: anggaran awal mesin.",
       "texturePoolCeiling": "Kolam tekstur terbesar yang boleh diminta sebuah dunia, dalam byte.",
-      "geometryPool": "Byte memori GPU yang disimpan untuk halaman geometri; atur untuk mengubah amplopnya.",
-      "texturePool": "Byte memori GPU yang disimpan untuk halaman tekstur; atur untuk mengubah amplopnya.",
+      "geometryPool": "Byte memori GPU untuk halaman geometri; atur untuk mengubah amplop, dalam sisa yang ditinggalkan `gpu` di samping bayangan dan pool tekstur.",
+      "texturePool": "Byte memori GPU untuk halaman tekstur, `null` pada mesin tanpa pool tekstur (WebGL2); atur untuk mengubah amplop, dalam sisa yang ditinggalkan `gpu` di samping bayangan dan pool geometri.",
       "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
-      "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya."
+      "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya.",
+      "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Tidak pernah dibaca dari mesin.",
+      "cpu": "Byte memori CPU yang boleh ditahan halaman terdekode dunia; diterapkan pada pemuatan adegan berikutnya.",
+      "split": "Cara kedua total dibagi: pool bayangan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cache halaman terdekode mengambil total CPU. Hasil aturan, sebelum sebuah pool diatur sendiri."
     }
   },
   "world.camera": {
@@ -6650,11 +6665,11 @@
       "onLand": "Hanya character: dipanggil saat mendarat dengan kecepatan ke bawah dalam m/s; `null` secara default.",
       "pitchInput": "Hanya flight: stick pitch dalam [-1, 1] (hidung ke atas), ditambahkan ke tombol panah; 0 secara default.",
       "rebuildColliders": "Hanya character: membangun ulang pohon tabrakan, setelah collider bergerak atau berubah; sebuah `CharacterCollision` adalah dunianya sendiri dan diserahkan tanpa perubahan.",
-      "responseTime": "Hanya character: detik untuk mencapai 95% kecepatan yang diinginkan di tanah; 0,12 secara default.",
+      "responseTime": "Hanya character: detik yang dibutuhkan kaki untuk mencapai 95% kecepatan yang diinginkan, di tanah; 0,12 secara default. Gesekan lantai membatasi awal gerak lebih dulu: sol mendorong paling banyak `μ g`, `μ` cengkeraman sol karet pada `material.physics` lantai (batu tanpa fisika), sehingga lari santai tercapai dalam 0,45 s di batu dan 2,2 s di es.",
       "rollInput": "Hanya flight: stick roll dalam [-1, 1] (kiri), ditambahkan ke Q dan E; 0 secara default.",
       "sprintSpeed": "Hanya character: meter per detik dengan Shift ditahan; 6,5 secara default, kecepatan puncak orang dewasa tak terlatih.",
       "stepHeight": "Hanya character: tepian tertinggi yang dipanjat tanpa lompatan, meter; tinggi lutut (0,5 m) secara default.",
-      "stopTime": "Hanya character: detik untuk kehilangan 95% kecepatan begitu tidak ada tombol ditahan, di tanah; 0,08 secara default.",
+      "stopTime": "Hanya character: detik yang dibutuhkan kaki untuk kehilangan 95% kecepatan begitu tidak ada tombol ditahan, di tanah; 0,12 secara default. Gesekan lantai membatasi berhenti lebih dulu: lari santai meluncur `v² / (2 μ g)`, 0,8 m di batu dan 3,8 m di es; waktu yang lebih lama mengerem lebih lembut.",
       "stride": "Hanya character: fase langkah dalam radian, satu kaki melangkah pada 0 dan π; 0 sebaliknya.",
       "velocity": "Hanya character: kecepatan tubuh dalam meter per detik, sebuah salinan; nol sebaliknya.",
       "walkSpeed": "Hanya character: meter per detik berjalan kaki; 3,5 secara default, sebuah jog.",
@@ -6799,7 +6814,7 @@
   },
   "CharacterCameraControls": {
     "summary": "SEBUAH KARAKTER, dilihat lewat matanya: sebuah tubuh bermassa yang berjalan, berlari, melompat dan jatuh, dan bertabrakan dengan segitiga dunia sebagai sebuah kapsul tegak.",
-    "description": "Pointer memutar kepala seperti pada first person (`look.ts`). Tombol-tombolnya, berdasarkan `KeyboardEvent.code` jadi setiap tata letak keyboard memainkan tombol yang sama: W/S atau panah atas dan bawah berjalan maju dan mundur, A/D atau panah samping strafe, Shift berlari, Space melompat. Tubuh tidak mulai atau berhenti seketika: ia mengumpulkan kecepatan selama `responseTime` dan mengerem selama `stopTime`, mempertahankan momentumnya di udara, naik di bawah `gravity` dan jatuh di bawah `fallGravity`, memanjat tepian sampai `stepHeight`, meluncur sepanjang dinding dan berdiri di lereng sampai `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Kamera adalah mata, `eyeHeight` di atas kaki, mengangguk dengan langkah sebesar `headBob` dan menukik saat mendarat sebesar `landingDip` (`sdk-core/src/collision/characterEye.ts`); keduanya menumpang pada mata setelah langkah tubuh dan tidak pernah menggerakkan tubuh. Sebuah host yang menggerakkan kamera sendiri men-teleport tubuh ke sana, dalam keadaan diam. Sebuah karakter yang diam — di tanah, tanpa kecepatan, tanpa tombol, tanpa dip tersisa — tidak memancarkan apa pun, jadi scene tetap diam.",
+    "description": "Pointer memutar kepala seperti pada first person (`look.ts`). Tombol-tombolnya, berdasarkan `KeyboardEvent.code` jadi setiap tata letak keyboard memainkan tombol yang sama: W/S atau panah atas dan bawah berjalan maju dan mundur, A/D atau panah samping strafe, Shift berlari, Space melompat. Tubuh tidak mulai atau berhenti seketika: ia mengumpulkan kecepatan selama `responseTime` dan mengerem selama `stopTime`, tidak pernah lebih cepat daripada yang diizinkan gesekan lantainya bagi sol untuk mendorong, sehingga berhenti meluncur sedikit di batu dan jauh di es, mempertahankan momentumnya di udara, naik di bawah `gravity` dan jatuh di bawah `fallGravity`, memanjat tepian sampai `stepHeight`, meluncur sepanjang dinding dan berdiri di lereng sampai `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Kamera adalah mata, `eyeHeight` di atas kaki, mengangguk dengan langkah sebesar `headBob` dan menukik saat mendarat sebesar `landingDip` (`sdk-core/src/collision/characterEye.ts`); keduanya menumpang pada mata setelah langkah tubuh dan tidak pernah menggerakkan tubuh. Sebuah host yang menggerakkan kamera sendiri men-teleport tubuh ke sana, dalam keadaan diam. Sebuah karakter yang diam — di tanah, tanpa kecepatan, tanpa tombol, tanpa dip tersisa — tidak memancarkan apa pun, jadi scene tetap diam.",
     "members": {
       "velocity": "Kecepatan tubuh dalam meter per detik, langsung: `[x, y, z]`, y ke atas.",
       "onGround": "Apakah kaki berada di lantai.",
@@ -6861,8 +6876,11 @@
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
+      "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
-      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
+      "add": "Menambahkan sambungan (`joint.hinge(door, frame, …)` dan kerabatnya): dibuat begitu kedua bendanya disimulasikan, dan menahan sampai dilepas atau putus.",
+      "remove": "Melepas sambungan: benda-benda yang ditahannya berpisah dengan bebas."
     }
   },
   "ContactEvent": {
@@ -7009,6 +7027,19 @@
       "current": "Kecepatan air (arus sungai), dalam m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Permukaan air seperti yang dibaca halaman untuk menggambarnya (`world.physics.waterSurface`): model gelombang yang dibaca daya apung di worker fisika, angka yang sama, pada waktu simulasi.",
+    "members": {
+      "level": "Tinggi permukaan saat diam, dalam meter.",
+      "crest": "Titik tertinggi puncak gelombang di atas `level`, dalam meter.",
+      "time": "Detik simulasi sejak air dipasang: jam gelombang.",
+      "setTime": "Menyetel gelombang pada `t` detik simulasi.",
+      "height": "Tinggi permukaan di atas titik dunia `(x, z)`, dalam meter.",
+      "point": "Titik dunia `[x, y, z]` tempat titik diam `(x, level, z)` dibawa, ke `out`: kisi yang digeser titik demi titik adalah permukaannya, puncaknya setajam gelombangnya.",
+      "wavesNow": "Gelombang yang dideklarasikan, tiap fase dibawa ke saat ini: dipasang lagi di `world.physics.water` (yang gelombangnya mulai lagi dari 0 d), permukaan berlanjut dari posisinya alih-alih melompat.",
+      "normal": "Normal satuan `[x, y, z]` permukaan di titik diam `(x, z)`, ke `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Satu gelombang sebagaimana dideklarasikan sebuah adegan.",
     "members": {
@@ -7042,8 +7073,11 @@
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
+      "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
-      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`."
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
+      "add": "Menambahkan sambungan (`joint.hinge(door, frame, …)` dan kerabatnya): dibuat begitu kedua bendanya disimulasikan, dan menahan sampai dilepas atau putus.",
+      "remove": "Melepas sambungan: benda-benda yang ditahannya berpisah dengan bebas."
     }
   },
   "WorldPhysicsOptions": {
@@ -7221,17 +7255,6 @@
     },
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
   },
-  "GraphAngles": {
-    "summary": "Orientasi yang sama sebagai tiga sudut dan urutannya, mengumumkan penulisannya dengan cara yang sama.",
-    "members": {
-      "x": "Sudut pertama, dalam radian.",
-      "set": "Menulis tiga sudut, dan urutannya bila diberikan; diumumkan sekali.",
-      "setFromRotation": "Sudut-sudut `q` dalam urutan ini (`Euler` inti); diumumkan kecuali `quiet`.",
-      "y": "Sudut kedua, dalam radian.",
-      "z": "Sudut ketiga, dalam radian.",
-      "order": "Urutan putaran ketiga sudut, `'XYZ'` kecuali diatur."
-    }
-  },
   "GraphArray": {
     "summary": "Array bertipe yang disimpan sebuah atribut."
   },
@@ -7275,38 +7298,69 @@
   "GraphNodeKind": {
     "summary": "Apa sebuah node graf: node polos, akar, grup, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
   },
-  "GraphRotation": {
-    "summary": "Orientasi `(x, y, z, w)` yang penulisannya memanggil `_onChangeCallback`.",
+  "Joint": {
+    "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",
+    "description": "Sambungan menahan selama kedua benda disimulasikan, dan sampai ia putus.",
+    "parameters": {
+      "options": "Apa yang diterima `joint.*`. Titik dan sumbu ada di dunia, dibaca saat sambungan pertama kali dibuat.",
+      "options.anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak pada `a`.",
+      "options.anchorB": "Ujung jarak pada `b`.",
+      "options.axis": "Pasak engsel, rel peluncur, tengah kerucut.",
+      "options.limits": "Engsel, peluncur, jarak, dan kerucut: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya.",
+      "options.spring": "Engsel, peluncur, dan jarak: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
+      "options.motor": "Engsel dan peluncur: motor yang bisa diubah kapan saja lewat `joint.motor`.",
+      "options.breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati; bila tidak diisi, tidak pernah."
+    },
     "members": {
-      "x": "Angka pertama.",
-      "set": "Menulis empat angka, diumumkan sekali.",
-      "copy": "Mengambil angka rotasi lain.",
-      "fromArray": "Membaca empat angka dari daftar.",
-      "setFromAngles": "Rotasi dari `angles`, dalam urutannya (`localTurnQuaternion`); diumumkan kecuali `quiet`.",
-      "setFromRotationMatrix": "Rotasi dari 3×3 atas matriks berurutan kolom yang kolom-kolomnya berpanjang satu.",
-      "premultiply": "Menjadi `q` diikuti rotasi ini, `q · this`.",
-      "invert": "Menjadi putaran kebalikannya.",
-      "y": "Angka kedua.",
-      "z": "Angka ketiga.",
-      "w": "Angka keempat."
+      "kind": "Jenis sambungannya.",
+      "a": "Benda pertama.",
+      "b": "Benda kedua, atau `null` untuk dunia.",
+      "options": "Isian yang dipakai saat membuatnya.",
+      "motor": "Motor engsel atau peluncur; `null` membiarkannya berputar atau meluncur bebas.",
+      "broken": "Apakah ia putus: ditarik melewati `breakForce`-nya. Sambungan yang putus tidak menahan apa pun lagi.",
+      "on": "Memanggil `handler` saat sambungan putus."
     }
   },
-  "GraphVector": {
-    "summary": "Tiga angka dari pose atau titik: kolom data biasa, dan operasi yang dipakai pengendali.",
+  "JointKind": {
+    "summary": "Sambungan antarbenda, masing-masing salah satu batasan milik Jolt sendiri."
+  },
+  "JointLimits": {
+    "summary": "Seberapa jauh sambungan boleh bergerak: radian untuk engsel, meter untuk peluncur atau jarak, setengah sudut kerucut (`max`) untuk kerucut.",
     "members": {
-      "set": "Menulis tiga angka.",
-      "copy": "Mengambil angka titik lain.",
-      "clone": "Sebuah salinan.",
-      "add": "Menambahkan vektor lain.",
-      "sub": "Mengurangkan vektor lain.",
-      "multiplyScalar": "Menskalakan tiga angka.",
-      "length": "Panjangnya.",
-      "setLength": "Mempertahankan arah, menetapkan panjang.",
-      "distanceTo": "Jarak ke sebuah titik.",
-      "fromArray": "Membaca tiga angka dari daftar.",
-      "x": "Kiri ke kanan.",
-      "y": "Bawah ke atas.",
-      "z": "Belakang ke depan."
+      "min": "Engsel dari −π sampai 0, peluncur 0 atau kurang.",
+      "max": "Engsel dari 0 sampai π, peluncur 0 atau lebih."
+    }
+  },
+  "JointMotor": {
+    "summary": "Motor engsel atau peluncur: menggerakkan sambungan ke suatu kecepatan atau posisi.",
+    "members": {
+      "mode": "`'velocity'`: rad/s atau m/s; `'position'`: radian atau meter dari posisi saat sambungan dibuat.",
+      "target": "Kecepatan atau posisi yang dituju.",
+      "maxForce": "N·m untuk engsel, N untuk peluncur; bila tidak diisi, tanpa batas."
+    }
+  },
+  "JointOptions": {
+    "summary": "Apa yang diterima `joint.*`.",
+    "description": "Titik dan sumbu ada di dunia, dibaca saat sambungan pertama kali dibuat.",
+    "members": {
+      "anchor": "Tempat benda-benda terhubung: pasak engsel, bola sambungan titik, ujung jarak pada `a`.",
+      "anchorB": "Ujung jarak pada `b`.",
+      "axis": "Pasak engsel, rel peluncur, tengah kerucut.",
+      "limits": "Engsel, peluncur, jarak, dan kerucut: seberapa jauh ia bergerak. Jarak secara bawaan mempertahankan panjangnya.",
+      "spring": "Engsel, peluncur, dan jarak: melewati batas, pegas menariknya kembali alih-alih dinding; `frequency` dalam Hz, `damping` dari 0 (tidak ada) sampai 1 (kritis).",
+      "motor": "Engsel dan peluncur: motor yang bisa diubah kapan saja lewat `joint.motor`.",
+      "breakForce": "Tarikan dalam newton yang membuat sambungan putus bila dilewati; bila tidak diisi, tidak pernah."
+    }
+  },
+  "joint": {
+    "summary": "Keluarga `joint`: dua benda terhubung, atau benda dan dunia (`b` null).",
+    "members": {
+      "fixed": "Mengelas keduanya: bergerak sebagai satu.",
+      "point": "Sambungan bola di `anchor`: keduanya berputar bebas di sekitarnya.",
+      "hinge": "Pasak di `anchor` sepanjang `axis`: pintu, roda. `limits` dalam radian.",
+      "slider": "Rel sepanjang `axis`: laci, piston. `limits` dalam meter.",
+      "distance": "Menjaga `anchor` pada `a` dan `anchorB` pada `b` tetap sejauh panjangnya, atau dalam `limits`.",
+      "cone": "Sambungan bola yang `axis`-nya berayun di dalam kerucut dengan setengah sudut `limits.max`."
     }
   }
 }
