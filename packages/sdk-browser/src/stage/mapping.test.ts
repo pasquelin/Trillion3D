@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   addGpuPasses,
   directLightTimings,
-  GPU_PASS_LABELS,
   gpuPassStageOf,
   gpuShadowPartOf,
   shadowPagesGpuMs,
@@ -128,14 +127,23 @@ test('shadow time splits into choosing the casters and drawing them, from the sa
 
 // One table names every pass: a shadow row without its part would drop out of the split silently.
 test('every pass of a shadow stage names its shadow part, and no other pass does', () => {
-  const shadowStages = new Set(['shadows', 'shadowCasters']);
-  for (const label of GPU_PASS_LABELS)
-    assert.equal(
-      gpuShadowPartOf(label) !== 'other',
-      shadowStages.has(gpuPassStageOf(label)),
-      label,
-    );
-  assert.equal(gpuShadowPartOf('never-seen pass'), 'other');
+  const parts = {
+    [LIGHT_CUT_PASS]: 'cull',
+    'Trillion3D shadow cull': 'cull',
+    'Trillion3D shadow page pyramids': 'cull',
+    'Trillion3D shadow occlusion': 'cull',
+    [SHADOW_LAYER_PASS]: 'raster',
+    [SHADOW_PASS]: 'raster',
+    [LIGHT_TILES_PASS]: 'other',
+    [DEFERRED_LIGHTING_PASS]: 'other',
+    'Trillion3D DAG selection': 'other',
+    'never-seen pass': 'other',
+  };
+  for (const [label, part] of Object.entries(parts)) {
+    assert.equal(gpuShadowPartOf(label), part, label);
+    const shadowStage = ['shadows', 'shadowCasters'].includes(gpuPassStageOf(label));
+    assert.equal(part !== 'other', shadowStage, label);
+  }
 });
 
 test('the bench reference reads the same shadow split as the engine', () => {

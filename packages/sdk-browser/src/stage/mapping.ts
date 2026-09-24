@@ -87,8 +87,6 @@ export const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';
 export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other';
 /** Shadow part of a pass, by its label. A pass that serves no shadow page is `other`. */
 export const gpuShadowPartOf = (name: string) => PASSES[name]?.[2] ?? 'other';
-/** Every label the table names. */
-export const GPU_PASS_LABELS: readonly string[] = Object.freeze(Object.keys(PASSES));
 
 /** Stages the WebGPU engine can name, in the order they occur. */
 export const WEBGPU_STAGES = [
