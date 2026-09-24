@@ -36,14 +36,14 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
     await backend.flush();
     draws.length = 0;
     backend.render(camera());
-    // One visible cluster of one triangle, rasterised by both face passes: the triangle is counted
-    // once, the two passes show in the draw calls.
+    // One visible cluster of one triangle, rasterised by both faces in ONE draw: the vertex stage
+    // culls for each (plan.ts, VERTEX CULL), so the back and the face share the pipeline.
     assert.equal(backend.metrics().transparentSubmittedTriangles, 1);
-    assert.equal(backend.metrics().transparentDrawCalls, 2);
+    assert.equal(backend.metrics().transparentDrawCalls, 1);
     assert.equal(backend.metrics().transparentMeshes, 1);
     const blend = draws.filter((d) => d.indirect && d.entryPoint === 'vs');
-    assert.equal(blend.length, 2, 'both face passes draw indirectly');
-    for (const draw of blend) assert.equal(draw.instanceCount, 1, 'one instance per kept cluster');
+    assert.equal(blend.length, 1, 'both faces draw in one indirect call');
+    assert.equal(blend[0].instanceCount, 2, 'the kept cluster, once per face');
     const uploads = writes.length;
     backend.render(camera());
     assert.equal(
@@ -96,7 +96,7 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
     'page indices may add slots; forward vertices must not be copied a second time',
   );
 });
-test('clustered transparency switches LOD with resident coverage and retains both face passes', async () => {
+test('clustered transparency switches LOD with resident coverage and retains both faces', async () => {
   installGpuGlobals();
   const fixture = coarseQuadScene(),
     { device } = mockGpu();
@@ -131,8 +131,8 @@ test('clustered transparency switches LOD with resident coverage and retains bot
     assert.equal(backend.metrics().transparentSubmittedTriangles, 2);
     assert.equal(
       backend.metrics().transparentDrawCalls,
-      2,
-      'one indirect draw per face pass, however many clusters the compaction kept',
+      1,
+      'one indirect draw for both faces, however many clusters the compaction kept',
     );
   } finally {
     await backend.dispose();
@@ -171,7 +171,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     draws.length = 0;
     backend.render(camera());
     const blend = draws.filter((draw) => draw.indirect && draw.entryPoint === 'vs');
-    assert.equal(blend.length, 2, 'both faces are encoded');
+    assert.equal(blend.length, 1, 'both faces are encoded, in one draw');
     const instances = blend.reduce((total, draw) => total + (draw.instanceCount ?? 0), 0);
     assert.ok(instances > 0, 'both faces expand instances');
     const etale = buffers.find((buffer) => buffer.label === 'Trillion3D blend expanded instances');
