@@ -1677,6 +1677,7 @@
     "description": "Die Tasten bewegen sie entlang ihrer eigenen Achsen und drehen sie um diese, Rollen eingeschlossen; ein Ziehen schaut sich um. Nichts wird integriert, bis der Host `update(delta)` mit den verstrichenen Sekunden aufruft, und `update` gibt nur zurück — und sendet nur —, wenn eine Taste gehalten wird, ein Steuerknüppel-Eingang gesetzt ist oder ein Ziehen aussteht, sodass ein losgelassener Steuerknüppel die Szene unbewegt lässt. `autoForward` ist die einzige Ausnahme: eine im Reiseflug befindliche Kamera bewegt sich bei jedem `update` und fordert das nächste Bild an, indem sie jedes Mal `change` sendet. TASTEN, nach `KeyboardEvent.code`: W/S vor und zurück, A/D links und rechts, R/F auf und ab, Pfeiltasten für Nicken und Gieren, Q/E für Rollen. Nichts begrenzt eine Drehung: Eine gehaltene Taste lässt die Kamera immer weiter looping oder rollen, sodass ein Looping, eine Rolle, ein Immelmann oder ein Split-S wie am Steuerknüppel geflogen wird. `inputResponse` gibt den Tasten den Weg dieses Steuerknüppels. `dragToLook` (Standard) schaut um, während ein Zeiger gehalten wird; auf false gesetzt, schaut der Zeiger, sobald er sich über der Oberfläche bewegt; mit `pointerLook` auf false dreht er die Ansicht nie, allein die Tasten steuern. Eine Taste, die gedrückt wird, während Strg oder Meta gehalten wird, wird ignoriert, sodass ein Browser-Tastenkürzel (Strg+W, Cmd+S) nie steuert; der Modifikator muss losgelassen werden, damit die folgende Taste zählt.",
     "members": {
       "rollSpeed": "Radiant pro Sekunde, um die das Rollen bei voller Auslenkung dreht; Nicken und Gieren folgen ihm standardmäßig.",
+      "lookSpeed": "Radiant, um die sich die Ansicht pro Pixel Zeigerbewegung dreht; `null` (Standard) ist eine halbe Drehung pro Flächenhöhe, unabhängig von ihrer Größe.",
       "dragToLook": "Ob Ziehen die Ansicht dreht.",
       "pitchSpeed": "Radiant pro Sekunde, um die das Nicken bei voller Auslenkung dreht; `null` (Standard) entspricht `rollSpeed`.",
       "yawSpeed": "Radiant pro Sekunde, um die das Gieren bei voller Auslenkung dreht; `null` (Standard) entspricht `rollSpeed`.",
@@ -6261,7 +6262,7 @@
       "maxAzimuthAngle": "Nur Umlaufbahn: Ende dieses Bogens; er kann kleiner sein als `minAzimuthAngle`.",
       "autoRotate": "Nur Orbit: Radiant pro Sekunde, um die sie sich von selbst um `target` dreht, bis zum ersten Drücken oder Mausradschritt; standardmäßig 0.",
       "movementSpeed": "Flug und Ich-Perspektive: Welteinheiten pro Sekunde bei voller Taste; standardmäßig 1.",
-      "lookSpeed": "Ich-Perspektive und Figur: Radiant, um die sich die Ansicht pro Pixel Zeigerbewegung dreht.",
+      "lookSpeed": "Flug, Ich-Perspektive und Figur: Radiant, um die sich die Ansicht pro Pixel Zeigerbewegung dreht; `null` (Standard) behält den eigenen Wert jedes Controllers — 0.002 für einen Kopf, eine halbe Drehung pro Canvas-Höhe für den Flug.",
       "minPitch": "Ich-Perspektive und Figur: am tiefsten, wohin der Kopf blickt, in Radiant (0 ist der Horizont, negativ nach unten).",
       "maxPitch": "Ich-Perspektive und Figur: am höchsten, wohin der Kopf blickt, in Radiant oberhalb des Horizonts.",
       "pointerLook": "Nur Flug: ob der Zeiger die Ansicht dreht; bei false steuern allein die Tasten.",
@@ -6391,7 +6392,7 @@
   },
   "WorldControls": {
     "summary": "Die Arten, wie eine Seite die Kamera mit Maus und Tastatur lenken kann, oder `'none'`.",
-    "description": "`'firstPerson'` bewegt eine Kamera; `'character'` bewegt einen Körper — Masse, Schwerkraft, Sprünge, Kollisionen mit `world.controls.colliders` — und blickt durch seine Augen."
+    "description": "`'firstPerson'` bewegt eine Kamera; `'character'` bewegt einen Körper — Masse, Schwerkraft, Sprünge, Kollisionen mit `world.controls.colliders` — und blickt durch seine Augen. `'fly'` und `'firstPerson'` bewegen sich mit `world.controls.movementSpeed` und drehen sich mit `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Die Messwerte eines Bildes, wie der Host sie von der Engine kopiert hat, und zwei daraus zusammengesetzte, die eine Seite liest; `null`, wo der Pfad nicht zählt.",
@@ -6653,7 +6654,7 @@
     "summary": "DER KOPF EINES LÄUFERS, Zeiger gesperrt: der Zeiger dreht ihn, der Horizont bleibt gerade — Gieren um die Oberseite der Welt, Nicken begrenzt auf `[minPitch, maxPitch]`, nie Rollen.",
     "description": "Gemeinsam für jeden Controller, der durch die Augen einer Person blickt. ES IST SACHE DES HOSTS, DIE SPERRE ANZUFORDERN. Ein Browser gewährt eine Zeigersperre nur innerhalb einer Geste, also fordert der Kopf sie bei `pointerdown` an und veröffentlicht `lock()`, `unlock()` und `locked()` für einen Host, der lieber seinen eigenen Moment wählt; eine Sperre, aus der der Betrachter entkommt, stoppt einfach den Blick, und ein Ziehen ohne Sperre dreht den Kopf trotzdem.",
     "members": {
-      "lookSpeed": "Radiant gedreht pro Pixel Zeigerbewegung.",
+      "lookSpeed": "Radiant gedreht pro Pixel Zeigerbewegung; `null` (Standard) ist 0.002.",
       "minPitch": "Am tiefsten, wohin der Kopf blickt, in Radiant unterhalb des Horizonts, negativ gezählt (0 ist der Horizont); standardmäßig knapp vor senkrecht nach unten. Erhöhe ihn, damit ein Läufer nie in den eigenen Körper blickt.",
       "maxPitch": "Am höchsten, wohin der Kopf blickt, in Radiant oberhalb des Horizonts; standardmäßig knapp vor dem Zenit."
     }
