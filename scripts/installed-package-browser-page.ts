@@ -77,10 +77,12 @@ export async function evaluateInstalledPage({
     // A session that failed to open is named with its cause, never met later as a world that
     // "draws nothing yet" (#568); `page.evaluate` carries only the message out.
     const failure = world.diagnostic.error;
-    if (failure)
+    if (failure) {
+      const cause = failure.details?.cause;
       throw new Error(
-        `installed world ${target} did not open: ${failure.message} (${String(failure.details?.cause)})`,
+        `installed world ${target} did not open: ${failure.message}${cause === undefined ? '' : ` (${String(cause)})`}`,
       );
+    }
     world.render();
     return { world, view, metrics: sdk.metric.frame(world) };
   };
