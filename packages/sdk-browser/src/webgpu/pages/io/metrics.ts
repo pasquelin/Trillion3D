@@ -30,7 +30,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     { geometryPool } = rt.setup;
   const stats = gpu.cache?.stats();
   const vertexBytes = vertexBytesOf(gpu, vis);
-  const ledger = gpuDeviceLedgerOf(rt.setup.gpuDevice)?.snapshot();
+  const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
   // What the occlusion test dropped, from the path that ran it: counts the GPU wrote on the last
   // sampled image, or the CPU oracle's where no GPU test runs. `null` when neither has counted an
@@ -105,13 +105,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
 }
 
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
-export function disposeWebgpuPages(
-  rt: WebgpuPagesRuntime,
-  onGpuError: (event: GPUUncapturedErrorEvent) => void,
-) {
+export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   const { gpu, vis, capture, timing, blendState, services } = rt,
-    { gpuDevice, scene, pagedBlendCopies } = rt.setup;
-  gpuDevice?.removeEventListener?.('uncapturederror', onGpuError);
+    { scene, pagedBlendCopies } = rt.setup;
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
   rt.run.gate.release();
