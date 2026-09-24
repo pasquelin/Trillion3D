@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { bindClusterMaterial } from './materialBinding.ts';
-import { importHostTexture } from '../../host/surfaceImport.ts';
+import { importHostTexture } from '../../host/textureImport.ts';
 
 type Binding = Parameters<typeof bindClusterMaterial>[0];
 

@@ -1,5 +1,5 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
-import { importHostTexture } from '../../host/surfaceImport.ts';
+import { importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 import type { Side } from '../../../../sdk-core/src/index.ts';
