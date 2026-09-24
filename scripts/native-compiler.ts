@@ -1,14 +1,17 @@
 /**
  * The native compiler as the repository's own tools run it: the scene generators, the gallery
  * recipes, the render proofs and the bench. One executable rule — the SDK's own
- * (`resolveCompilerExecutable`: `TRILLION3D_COMPILER_BIN`, else this checkout's release build) —
- * and one triangle budget for every full cache.
+ * (`currentCompilerExecutable`: `TRILLION3D_COMPILER_BIN`, else this checkout's release build,
+ * refused while older than its sources) — and one triangle budget for every full cache.
  */
 import { spawnSync, type StdioOptions } from 'node:child_process';
-import { resolveCompilerExecutable } from '../packages/sdk-node/src/compiler/process.mts';
+import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/process.mts';
 
 /** The triangle budget of a `full` cache, the one every published and measured scene uses. */
 export const TRIANGLE_BUDGET = '150000';
+
+/** The compiler a cook runs; a cook asks first, so a stale build is refused before it writes. */
+export const nativeCompiler = () => currentCompilerExecutable();
 
 /** One `full` compile of `source` into `cache`, both relative to `cwd`. */
 export interface FullCompile {
@@ -37,7 +40,7 @@ export function compileFullCache({
   stdio = 'inherit',
 }: FullCompile) {
   const result = spawnSync(
-    resolveCompilerExecutable(),
+    nativeCompiler(),
     [
       source,
       cache,

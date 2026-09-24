@@ -69,6 +69,11 @@ jobs:
         with:
           path: ${{ env.NATIVE_BINARIES }}
           key: native-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
+      # A restored binary keeps the time it was built at, older than this checkout's files, and a
+      # launch refuses a compiler older than its sources (`sdk-node/src/compiler/freshness.mts`).
+      # The key above already proves these sources built it: it takes the checkout's time.
+      - if: steps.native.outputs.cache-hit == 'true'
+        run: touch $NATIVE_BINARIES
       # Dependency crates of both crates (`lint:native` runs Clippy on each, from its own
       # `Cargo.lock` into its own `target/`), only when Cargo will run: the key includes the rustc
       # version, hence after the toolchain.

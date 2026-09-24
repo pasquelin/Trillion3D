@@ -2860,6 +2860,7 @@
       "bounds": "La boîte que remplit le modèle, dans son propre repère.",
       "lights": "Les lumières sous le modèle — celles que portait le fichier source, en nœuds : une page les modifie, les déplace ou les retire comme les siennes, et elles bougent avec le modèle.",
       "record": "Tout ce que le monde garde sur ce modèle : ses adresses, son manifeste et son graphe.",
+      "getObjectByName": "Le premier nœud en dessous portant ce nom : le modèle, un nœud de son fichier source, puis tout autre enfant — une lumière portée par le fichier, un nœud placé par une page.",
       "metadata": "Le manifeste compilé du modèle — ses primitives, `sourceTriangles` — et `clusters`, les clusters que contiennent ses pages, chaque niveau de ses DAG compté.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
     }
