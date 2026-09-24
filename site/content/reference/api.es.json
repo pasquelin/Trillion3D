@@ -2900,7 +2900,8 @@
       "signal": "Detiene la carga cuando se cancela la señal.",
       "scope": "`'full'` solicita toda la caché, `'progressive'` su fracción en flujo; un modelo de otro alcance se rechaza por su nombre. Sin valor, el modelo se lee con el alcance que declara su puntero.",
       "stream": "Un flujo que la página ha ajustado; la sesión del mundo hace llegar las páginas con el suyo.",
-      "position": "A dónde va el origen del modelo en la escena."
+      "position": "A dónde va el origen del modelo en la escena.",
+      "onProgress": "Escucha cuánto ha avanzado la carga: `manifest` una vez leído el manifiesto, luego `resources` a medida que llega cada archivo que lee la escena (`completed` de un `total` conocido hasta ese momento). El evento es un `JobProgress`: un `createJob` que envuelve la carga pasa aquí su `progress`."
     }
   },
   "LOD_QUALITY": {
