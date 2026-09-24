@@ -24,7 +24,7 @@ try {
       width: 800,
       height: 500,
     });
-    if (errors.length || drawn < leastDrawn(entry.id))
+    if (errors.length || drawn < leastDrawn(entry.id, true))
       throw new Error(`${entry.id}: ${errors.join('; ') || 'blank'}`);
     const html = await readFile(resolve(site, entry.file), 'utf8');
     await page.waitForTimeout(thumbnailDelay(html) * 1000);
