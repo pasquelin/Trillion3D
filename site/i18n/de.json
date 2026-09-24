@@ -338,8 +338,6 @@
       "a-capped-section": "Schnittebenen: Stencil-Deckel",
       "decals-on-a-surface": "Auswahl per Klick (Raycast)",
       "sculpt-a-sphere": "Auswahl per Klick (Raycast)",
-      "a-texture-turned-and-tiled": "Wiederholung, Versatz und Drehung von Texturen unter WebGPU",
-      "texture-filters-compared": "Texturfilter und Anisotropie unter WebGPU",
       "a-video-on-a-screen": "Live-Videotexturen",
       "the-webcam-as-a-texture": "Live-Videotexturen",
       "four-ways-to-blend": "alle Mischmodi",
