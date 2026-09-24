@@ -7398,11 +7398,5 @@
       "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
       "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
     }
-  },
-  "JointHost": {
-    "summary": "Die Weltseite eines Gelenks: was ein Schreiben darauf von der Simulation verlangt.",
-    "members": {
-      "motor": "Der Motor hat sich geändert."
-    }
   }
 }

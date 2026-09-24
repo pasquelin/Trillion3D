@@ -3,11 +3,10 @@
 // the real device then refuses the pipeline or the dispatch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
 import { smallBindEntries, visBindEntries } from './bindEntries.ts';
 import { SMALL_BINDINGS, VIS_BINDINGS, VIS_UNIFORM_BYTES } from './bindLayout.ts';
-import { layoutCreators } from './layoutDevice.fixture.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 
 const buffer = {} as GPUBuffer;
@@ -45,8 +44,7 @@ test('every group that binds the visibility uniform spans the whole struct', () 
 });
 
 test('the fragment of the visibility pass sees the uniform it reads the stipple from', async () => {
-  installGpuGlobals();
-  const device = layoutCreators() as unknown as GPUDevice;
+  const { device } = fakeDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const entry = (
     visBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] }
