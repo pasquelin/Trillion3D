@@ -1028,7 +1028,6 @@
       "rafIntervalMs": "两帧之间的时间间隔。",
       "cpuFrameMs": "该帧的 CPU 耗时。",
       "cpuSubmitMs": "提交工作所耗费的 CPU 时间。",
-      "gpuMs": "该帧的 GPU 耗时。",
       "drawCalls": "引擎统计出的本帧绘制调用数。未统计时为 `null`:若为 0 会被误读为“没有绘制的一帧”。",
       "autonomousClusterDrawsTotal": "本会话中,引擎自有的 WebGL2 程序发出的按页绘制的簇数量。",
       "autonomousCopyDraws": "引擎自有的 WebGL2 程序在本帧绘制的场景副本数——即透射表面。",
@@ -1061,7 +1060,7 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
@@ -2889,7 +2888,7 @@
       "isScene": "始终为 `true`:用来把场景根节点和其他任何对象区分开来。",
       "environment": "光滑表面所反射的周围环境图像;没有时为 `null`。",
       "fog": "在 `near` 和 `far` 之间把物体渐渐淡化成 `color` 的雾效;没有时为 `null`。",
-      "background": "填充每个物体背后画面的内容:一种颜色、一张图片,或者留空使用默认值 `null`。",
+      "background": "填充每个对象背后画面的内容：一种颜色，或表示默认值的 `null`。更改会在下一帧显示，会话保持不变：在这里设置的新颜色，或通过其方法（`set`、`setRGB`、`setHex`、`setHSL`...）写入的当前颜色。直接写入 `.r`、`.g` 或 `.b` 不会被察觉：之后请重新设置 `background`。图片或任何没有 `getHex` 的值都会被拒绝（`UNSUPPORTED_SCENE_UPDATE`）：没有路径会绘制它。",
       "load": "加载一个已编译模型——通过它的清单 URL——并把它添加到这个场景中。",
       "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
       "fromJSON": "用 `toJSON` 保存的场景替换场景当前的内容，保留其 `helper` 标记；模型加载完后完成。其他格式或版本会被拒绝（`UNSUPPORTED_SCENE_FORMAT`）。读取期间发起的调用会按顺序一个接一个执行，每个都基于前一个留下的结果：两个保存的场景绝不会混在一起。"
@@ -4016,12 +4015,11 @@
     "description": "`'firstPerson'` 移动摄像机;`'character'` 移动身体——具有质量、重力、跳跃能力,并与 `world.controls.colliders` 碰撞——然后透过其双眼观看。"
   },
   "WorldFrameMetrics": {
-    "summary": "一帧的各项指标,以页面读取它们时所用的名称给出;某条路径不统计的地方为 `null`。",
+    "summary": "主机从引擎复制的一帧图像的指标,以及页面由它们组合读取的两个值;路径不计数之处为 `null`。",
     "members": {
       "rafIntervalMs": "两帧之间的时间间隔。",
       "cpuFrameMs": "该帧的 CPU 耗时。",
       "cpuSubmitMs": "提交工作所耗费的 CPU 时间。",
-      "gpuMs": "该帧的 GPU 耗时。",
       "drawCalls": "引擎统计出的本帧绘制调用数。未统计时为 `null`:若为 0 会被误读为“没有绘制的一帧”。",
       "autonomousClusterDrawsTotal": "本会话中,引擎自有的 WebGL2 程序发出的按页绘制的簇数量。",
       "autonomousCopyDraws": "引擎自有的 WebGL2 程序在本帧绘制的场景副本数——即透射表面。",
@@ -4054,7 +4052,7 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
@@ -6259,6 +6257,13 @@
   },
   "object.group": {
     "summary": "一个持有其他对象的空节点,使它们能够一起移动。"
+  },
+  "object.clone": {
+    "summary": "一个对象及其下所有内容的副本，与原对象不共享任何东西：它的形状、材质、灯光和字段都会被复制。",
+    "description": "已加载的模型不会被复制：对它返回 `null`，并且它会被排除在复制的组之外。",
+    "parameters": {
+      "source": "要复制的对象。"
+    }
   },
   "object.points": {
     "summary": "把一个几何体的每个顶点都绘制成一个点。",

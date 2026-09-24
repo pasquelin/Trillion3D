@@ -21,10 +21,18 @@ interface Look {
   mono?: boolean;
 }
 
-const look = ({ tone = 'neutral', soft = false, size = 'md', mono = false }: Look) =>
-  `badge ${tones[tone]} ${soft ? 'badge-soft' : ''} ${size === 'sm' ? 'badge-sm' : ''} ${mono ? 'font-mono' : ''}`;
+const look = ({ tone, soft = false, size = 'md', mono = false }: Look) =>
+  [
+    'badge',
+    tone ? tones[tone] : '',
+    soft ? 'badge-soft' : '',
+    size === 'sm' ? 'badge-sm' : '',
+    mono ? 'font-mono' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
-/** The DaisyUI badge: a short label beside a title or a value. */
+/** The DaisyUI badge: a short label beside a title or a value. Omit `tone` for a plain badge. */
 export function Badge({
   tone,
   soft,
@@ -33,5 +41,10 @@ export function Badge({
   className = '',
   ...props
 }: ComponentPropsWithoutRef<'span'> & Look) {
-  return <span className={`${look({ tone, soft, size, mono })} ${className}`} {...props} />;
+  return (
+    <span
+      className={[look({ tone, soft, size, mono }), className].filter(Boolean).join(' ')}
+      {...props}
+    />
+  );
 }

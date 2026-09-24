@@ -16,6 +16,10 @@ export interface BackendSceneUpdates {
    *  the rest parked: the session reads `to` from now on and holds its new rows, no table rebuilt
    *  (`growth.ts`). Absent, the owner opens the session again on `to`. */
   growPlacements?(from: PlacementRows, to: PlacementRows): void;
+  /** The clear colour behind the scene, `0xrrggbb` (`BackendContext.clearColor`), read by the
+   *  next frame: the held frame broken, nothing else walked. Absent, the owner opens the session
+   *  again, after the frame. */
+  setClearColor?(hex: number): void;
   /** Bounced light on or off in place, where the engine carries it (`BackendContext.bounce`). */
   setBounce?(on: boolean): void;
   /** The host surfaces the session was opened with had their values rewritten in place, their

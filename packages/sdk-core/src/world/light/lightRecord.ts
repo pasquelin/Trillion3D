@@ -18,15 +18,16 @@ const eye = new Vector3(),
 
 /**
  * A lamp as the engine's store holds it (`scene/light/contracts.ts`), placed by its world matrix,
- * or null for a kind the store does not hold or a light giving nothing. `range` is the page's
- * `distance`, or `reach` — what the world derives from its own extent — when the page left it
- * unbounded.
+ * or null for a kind the store does not hold or a light giving nothing. Whether it is shown — it
+ * and every node above it visible — is the caller's to decide (`worldLights.ts`). `range` is the
+ * page's `distance`, or `reach` — what the world derives from its own extent — when the page left
+ * it unbounded.
  *
  * A rectangle (`rectArea`) is the store's `rect`: its radiance `intensity`, its face looking down
  * the light's `-z`, its width along the light's `x`, and no cast shadow — the store refuses one.
  */
 export function lampRecord(light: Light, id: string, reach: number): SceneLight | null {
-  if (!LAMPS.has(light.kind) || !(light.intensity > 0) || !light.visible) return null;
+  if (!LAMPS.has(light.kind) || !(light.intensity > 0)) return null;
   const rectangle = light.kind === 'rectArea';
   const kind = rectangle ? 'rect' : (light.kind as SceneLight['kind']);
   light.getWorldPosition(eye);
@@ -59,13 +60,14 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
 
 /**
  * Adds what `light` gives from every direction — its irradiance, a function of the normal alone —
- * to the nine coefficients `sh` (`scene/core/environment.ts`): an ambient its colour times intensity
- * everywhere; a sky over a ground (`hemisphere`) its colour on normals toward its position seen
- * from the origin and `groundColor` on the opposite ones; a probe its coefficients, or its colour
- * everywhere when it carries none. A lamp adds nothing here. Returns whether it added anything.
+ * to the nine coefficients `sh` (`scene/core/environment.ts`): an ambient its colour times
+ * intensity everywhere; a sky over a ground (`hemisphere`) its colour on normals toward its
+ * position seen from the origin and `groundColor` on the opposite ones; a probe its coefficients,
+ * or its colour everywhere when it carries none. A lamp adds nothing here; whether the light is
+ * shown is the caller's to decide, as for `lampRecord`. Returns whether it added anything.
  */
 export function addLightIrradiance(light: Light, sh: number[]) {
-  if (!light.visible || !(light.intensity > 0)) return false;
+  if (!(light.intensity > 0)) return false;
   const scale = light.intensity;
   const colour = light.color.toArray().map((c) => c * scale);
   if (light.kind === 'ambient' || (light.kind === 'probe' && !light.sh))

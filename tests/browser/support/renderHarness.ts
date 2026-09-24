@@ -1,8 +1,8 @@
 // What the render proofs that open the built SDK in a page share: the mounts that serve it, the
 // compiled `three-stack` golden some of them load, and the gallery scene others open.
-import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import type { Page } from 'playwright';
+import { compileFullCache } from '../../../scripts/native-compiler.ts';
 import type { Mount } from '../../kit/server/staticServer.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 
@@ -22,15 +22,16 @@ export const sdkMounts = (root: string): Mount[] => [
   { prefix: '/vendor/meshoptimizer/', dir: resolve(root, 'node_modules/meshoptimizer') },
 ];
 
-/** Compiles the `three-stack` coplanar golden into `<out>/cache` with the native compiler
- *  (`TRILLION3D_COMPILER`, or the release build), and returns the mounts that serve it. */
+/** Compiles the `three-stack` coplanar golden into `<out>/cache` with the native compiler, and
+ *  returns the mounts that serve it. */
 export function threeStackMounts(root: string, out: string): Mount[] {
   const fixture = resolve(root, 'tests/fixtures/formats/coplanar/three-stack');
-  const compiler =
-    process.env.TRILLION3D_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
-  execFileSync(compiler, [fixture, resolve(out, 'cache'), 'full', '150000', '/fixture/'], {
-    stdio: 'pipe',
+  compileFullCache({
+    cwd: root,
+    source: fixture,
+    cache: resolve(out, 'cache'),
+    resourceBase: '/fixture/',
+    stdio: ['ignore', 'ignore', 'inherit'],
   });
   return [
     { prefix: '/cache/city/', dir: resolve(out, 'cache/native/full') },

@@ -45,7 +45,8 @@ export function renderGpuCut(
 ) {
   const { run, gpu, diag, context, services } = rt,
     { rows } = rt.layout,
-    { viewport, clearColor } = rt.setup,
+    { viewport } = rt.setup,
+    { clearColor } = run,
     gpuDevice = gpu.device,
     marks = rt.timing.marks;
   if (!gpuDevice || !gpu.cache || !run.gpuSelection) {

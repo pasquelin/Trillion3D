@@ -1,4 +1,5 @@
 import {
+  SELECTION_NONE as NONE,
   sameSelectionUniforms,
   type GpuCut,
   type GpuSelection,
@@ -9,7 +10,6 @@ import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/resid
 import { refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { residentBase, residentWords } from './layout.ts';
 import { FRAME_VEC4 } from './types.ts';
-import { SELECTION_NONE as NONE } from '../core/selection.ts';
 import { createDagDispatch } from './dispatch.ts';
 import type { createDagResources } from './resources.ts';
 
@@ -71,15 +71,18 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     residencyRevision: 0,
     submittedResidencyRevision: -1,
     readbackResidencyRevision: -1,
+    submittedWorldRevision: -1,
+    readbackWorldRevision: -1,
     mapped: [false, false],
     slot: 0,
   };
-  const fail = () => {
-    state.dead = true;
+  /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
+  const voidCuts = () => {
+    state.residencyRevision++;
     state.last = null;
-    state.lastSubmitted = undefined;
-    state.lastReadback = undefined;
   };
+  // A dead selection dispatches and drains nothing more.
+  const fail = () => ((state.dead = true), voidCuts());
   const previousWorlds = packed.worlds.slice(),
     frameInts = new Uint32Array(frameData.buffer);
   // Residency bits extend the cold records, in the same buffer: the same view serves as
@@ -99,14 +102,15 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     maskBuffer: flags,
     maskOffset: nodeCount,
     pageCount,
-    updateWorlds(next) {
+    get worldRevision() {
+      return state.worldRevision;
+    },
+    updateWorlds(next, posesMoved = true) {
       if (state.disposed || state.dead) return false;
       if (next.byteLength !== packed.worlds.byteLength)
         throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
       if (!worldsChanged(previousWorlds, next)) return false;
-      // The object-to-view stretch is the primitive's own; recompute it whenever its placement moves.
-      // A moving frame origin only moves translations: no stretch then moves, and the frame
-      // buffer is not rewritten. Read before the mirror copy.
+      // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
       const stretched = refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
@@ -118,10 +122,9 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteLength,
       );
       if (stretched) device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
-      state.worldRevision++;
-      state.last = null;
-      state.lastSubmitted = undefined;
-      state.lastReadback = undefined;
+      // Cuts in hand and in flight keep the revision they were cut at, and still name what to
+      // stream: dropping them left a model moved every frame with no cut at all (#358).
+      if (posesMoved) state.worldRevision++;
       return true;
     },
     parkWorld(w, parked) {
@@ -133,11 +136,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       const at = (w * FRAME_VEC4 + 6) * 4 + 1;
       frameInts[at] = node;
       device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
-      // The cut is another one from here: computed again and read back, as after a move.
-      state.worldRevision++;
-      state.last = null;
-      state.lastSubmitted = undefined;
-      state.lastReadback = undefined;
+      // Its pages leave the cut outright, neither streamed nor counted: another cut from here.
+      voidCuts();
     },
     updateResidency(next, changes) {
       if (state.disposed || state.dead || !residentCut) return false;
@@ -159,8 +159,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
           bytes,
         );
       }
-      state.residencyRevision++;
-      state.last = null;
+      voidCuts();
       return true;
     },
     dispatch,
@@ -179,12 +178,15 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         state.submittedResidencyRevision === state.residencyRevision &&
         (!state.lastReadback ||
           !sameSelectionUniforms(state.lastReadback, state.lastSubmitted) ||
-          state.readbackResidencyRevision !== state.residencyRevision)
+          state.readbackResidencyRevision !== state.residencyRevision ||
+          state.readbackWorldRevision !== state.worldRevision)
       ) {
+        // Cut again under the poses in place: a drain never hands back one they have left.
         selection.dispatch(state.lastSubmitted);
         await state.pending;
       }
-      return state.dead ? null : (state.last?.result ?? null);
+      const last = state.dead ? null : state.last;
+      return last?.worldRevision === state.worldRevision ? last.result : null;
     },
     dispose() {
       state.disposed = true;

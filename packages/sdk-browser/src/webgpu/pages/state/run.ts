@@ -9,10 +9,13 @@ import { unmirroredDrawn } from '../helpers.ts';
 import { createFrameGateCore, type FrameGateCore } from '../../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts';
 import { createWebgpuBudgetState, type WebgpuBudgetState } from '../../residency/budgetState.ts';
+import { RASTER_BACKGROUND } from '../../../page/raster.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
 export interface WebgpuRunState extends WebgpuBudgetState {
+  /** The clear colour every pass reads, `0xrrggbb`; set in place by `io/clearColor.ts`. */
+  clearColor: number;
   lost: boolean;
   overBudget: boolean;
   visible: number;
@@ -119,8 +122,9 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   occluderSignature: number;
 }
 
-export function createWebgpuRunState(): WebgpuRunState {
+export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunState {
   return {
+    clearColor,
     lost: false,
     overBudget: false,
     visible: 0,

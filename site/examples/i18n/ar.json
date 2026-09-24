@@ -30,6 +30,7 @@
       "geometry pool": "مخزن الأشكال",
       "lights": "أضواء",
       "GPU frame": "إطار GPU",
+      "GPU frame (last)": "إطار GPU (الأخير)",
       "CPU frame": "إطار CPU",
       "page hooks": "شيفرة الصفحة",
       "engine CPU": "CPU المحرك"

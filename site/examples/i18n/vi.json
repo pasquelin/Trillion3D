@@ -30,6 +30,7 @@
       "geometry pool": "kho hình học",
       "lights": "đèn",
       "GPU frame": "khung GPU",
+      "GPU frame (last)": "khung GPU (cuối)",
       "CPU frame": "khung CPU",
       "page hooks": "mã của trang",
       "engine CPU": "CPU của engine"

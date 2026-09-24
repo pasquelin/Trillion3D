@@ -1036,7 +1036,6 @@
       "rafIntervalMs": "Thời gian giữa hai khung hình.",
       "cpuFrameMs": "Thời gian CPU của khung hình.",
       "cpuSubmitMs": "Thời gian CPU để gửi công việc.",
-      "gpuMs": "Thời gian GPU của khung hình.",
       "drawCalls": "Số lệnh gọi vẽ của khung hình này, theo cách bộ máy đếm chúng. `null` khi nó chưa đếm: số không sẽ bị đọc thành một khung hình không có gì được vẽ.",
       "autonomousClusterDrawsTotal": "Số lệnh vẽ cụm theo trang do chương trình WebGL2 thuộc sở hữu của bộ máy phát ra trong phiên này.",
       "autonomousCopyDraws": "Các bản sao cảnh — các bề mặt truyền sáng — mà chương trình WebGL2 thuộc sở hữu của bộ máy đã vẽ ở khung hình này.",
@@ -1069,7 +1068,7 @@
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
-      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`.",
+      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
@@ -2962,7 +2961,7 @@
       "isScene": "Luôn là `true`: phân biệt gốc cảnh với bất kỳ vật thể nào khác.",
       "environment": "Một hình ảnh môi trường xung quanh mà các bề mặt bóng bẩy phản chiếu; `null` cho không có.",
       "fog": "Sương mù làm mờ dần các vật thể thành `color` giữa `near` và `far`; `null` cho không có.",
-      "background": "Những gì lấp đầy hình ảnh phía sau mỗi vật thể: một màu, một hình ảnh, hoặc `null` cho mặc định.",
+      "background": "Thứ lấp đầy hình phía sau mọi vật thể: một màu, hoặc `null` cho màu mặc định. Thay đổi hiện ra ở khung hình kế tiếp, phiên được giữ nguyên: một màu mới gán ở đây, hoặc màu hiện tại được ghi bằng các phương thức của nó (`set`, `setRGB`, `setHex`, `setHSL`...). Ghi trực tiếp vào `.r`, `.g` hoặc `.b` không được nhận biết: hãy gán lại `background` sau đó. Một hình ảnh, hoặc bất kỳ giá trị nào không có `getHex`, đều bị từ chối (`UNSUPPORTED_SCENE_UPDATE`): không đường vẽ nào vẽ nó.",
       "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
       "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
       "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
@@ -4012,12 +4011,11 @@
     "description": "`'firstPerson'` di chuyển một camera; `'character'` di chuyển một thân thể — khối lượng, trọng lực, các cú nhảy, va chạm với `world.controls.colliders` — và nhìn qua đôi mắt của nó."
   },
   "WorldFrameMetrics": {
-    "summary": "Các chỉ số của một khung hình, với tên mà một trang dùng để đọc chúng; `null` ở nơi đường xử lý đó không đếm.",
+    "summary": "Số liệu của một hình ảnh như máy chủ đã sao chép từ động cơ, và hai giá trị trang đọc được ghép từ chúng; `null` ở nơi đường dẫn không đếm.",
     "members": {
       "rafIntervalMs": "Thời gian giữa hai khung hình.",
       "cpuFrameMs": "Thời gian CPU của khung hình.",
       "cpuSubmitMs": "Thời gian CPU để gửi công việc.",
-      "gpuMs": "Thời gian GPU của khung hình.",
       "drawCalls": "Số lệnh gọi vẽ của khung hình này, theo cách bộ máy đếm chúng. `null` khi nó chưa đếm: số không sẽ bị đọc thành một khung hình không có gì được vẽ.",
       "autonomousClusterDrawsTotal": "Số lệnh vẽ cụm theo trang do chương trình WebGL2 thuộc sở hữu của bộ máy phát ra trong phiên này.",
       "autonomousCopyDraws": "Các bản sao cảnh — các bề mặt truyền sáng — mà chương trình WebGL2 thuộc sở hữu của bộ máy đã vẽ ở khung hình này.",
@@ -4050,7 +4048,7 @@
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
-      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`.",
+      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
@@ -6262,6 +6260,13 @@
   },
   "object.group": {
     "summary": "Một node trống giữ các đối tượng khác, để chúng di chuyển cùng nhau."
+  },
+  "object.clone": {
+    "summary": "Một bản sao của một đối tượng và mọi thứ bên dưới nó, không dùng chung gì với nó: hình dạng, vật liệu, đèn và các trường đều được sao chép.",
+    "description": "Một mô hình đã tải không được sao chép: trả về `null` cho nó, và nó bị bỏ ra khỏi một nhóm được sao chép.",
+    "parameters": {
+      "source": "Đối tượng cần sao chép."
+    }
   },
   "object.line": {
     "summary": "Vẽ một đường thẳng qua các đỉnh, lần lượt từng cái một.",

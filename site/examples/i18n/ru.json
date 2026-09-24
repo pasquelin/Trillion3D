@@ -30,6 +30,7 @@
       "geometry pool": "запас геометрии",
       "lights": "источники света",
       "GPU frame": "кадр GPU",
+      "GPU frame (last)": "кадр GPU (последний)",
       "CPU frame": "кадр CPU",
       "page hooks": "код страницы",
       "engine CPU": "CPU движка"

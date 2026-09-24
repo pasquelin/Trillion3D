@@ -45,13 +45,42 @@ export class ObservedComponents extends Observed {
   }
 }
 
-/** Chains `listener` after whatever the value already notified, so two owners both hear it. */
+/** The listeners chained on a value, and the one call that runs them in order. */
+const chains = new WeakMap<Observed, { call: () => void; listeners: (() => void)[] }>();
+
+/** Chains `listener` after whatever the value already notified, so two owners both hear it. A
+ *  listener already chained is not chained twice. */
 export function listen(value: Observed, listener: () => void) {
-  const previous = value._onChange;
-  value._onChange = previous
-    ? () => {
-        previous();
-        listener();
-      }
-    : listener;
+  const current = value._onChange;
+  if (current === listener) return;
+  if (!current) {
+    value._onChange = listener;
+    return;
+  }
+  let chain = chains.get(value);
+  if (chain?.call !== current) {
+    const listeners = [current];
+    chain = {
+      listeners,
+      call: () => {
+        for (const heard of listeners) heard();
+      },
+    };
+    chains.set(value, chain);
+    value._onChange = chain.call;
+  }
+  if (!chain.listeners.includes(listener)) chain.listeners.push(listener);
+}
+
+/** Takes `listener` off the value, the other owners chained with it kept. */
+export function unlisten(value: Observed, listener: () => void) {
+  const current = value._onChange;
+  if (current === listener) {
+    value._onChange = null;
+    return;
+  }
+  const chain = chains.get(value);
+  if (chain?.call !== current) return;
+  const at = chain.listeners.indexOf(listener);
+  if (at >= 0) chain.listeners.splice(at, 1);
 }

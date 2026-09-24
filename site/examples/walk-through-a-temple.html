@@ -182,15 +182,6 @@
       // and 70° up.
       Object.assign(world.controls, { minPitch: -1.05, maxPitch: 1.2 });
       const PACE = { walkSpeed: world.controls.walkSpeed, sprintSpeed: world.controls.sprintSpeed };
-      // The first pointer move after the lock is granted can carry the cursor's whole jump to
-      // the middle of the screen: the page drops that one move before the controller sees it.
-      let fresh = false;
-      document.addEventListener('pointerlockchange', () => (fresh = document.pointerLockElement !== null));
-      addEventListener('pointermove', (event) => {
-        if (!fresh || document.pointerLockElement === null) return;
-        fresh = false;
-        event.stopPropagation();
-      }, { capture: true });
 
       const matte = (color, roughness = 0.9, metalness = 0) => material.meshStandard({ color, roughness, metalness });
       const glowing = (emissive, emissiveIntensity) => material.meshStandard({ color: '#000000', emissive, emissiveIntensity });

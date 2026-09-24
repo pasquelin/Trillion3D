@@ -1,5 +1,5 @@
 import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import { DEG2RAD } from '../../../../sdk-core/src/world/math/spherical.ts';
+import { perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
 /**
  * The arithmetic every camera controller shares, on flat numbers alone: no DOM, no host
  * vector, no allocation beyond the buffers the caller owns. `math.test.ts`
@@ -48,9 +48,10 @@ export function clampAzimuth(theta: number, min: number, max: number) {
   return past - span < turn - past ? max : min;
 }
 
-/** World units a pixel is worth at `distance`, for a camera of vertical field `fov` degrees. */
-export function pixelWorldScale(distance: number, fov: number, height: number) {
-  return (2 * distance * Math.tan(DEG2RAD * fov * 0.5)) / Math.max(1, height);
+/** World units a pixel is worth at `distance`, for a camera of vertical field `fov` degrees
+ *  zoomed by `zoom`: a zoomed camera sees less, so a pixel spans less. */
+export function pixelWorldScale(distance: number, fov: number, height: number, zoom = 1) {
+  return (2 * distance * perspectiveSlope(fov, zoom)) / Math.max(1, height);
 }
 
 /**
