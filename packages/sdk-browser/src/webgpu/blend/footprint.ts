@@ -34,12 +34,13 @@ export function createBlendFootprint() {
 }
 export type BlendFootprint = ReturnType<typeof createBlendFootprint>;
 
-/** Compares `values` to `into` from `at`, overwriting as it goes; true when all were equal. */
-function hold(into: Float64Array, at: number, values: ArrayLike<number>, count: number) {
+/** Compares `count` of `values` from `from` to `into` from `at`, overwriting as it goes; true
+ *  when all were equal. */
+function hold(into: Float64Array, at: number, values: ArrayLike<number>, count: number, from = 0) {
   let same = true;
   for (let i = 0; i < count; i++)
-    if (into[at + i] !== values[i]) {
-      into[at + i] = values[i];
+    if (into[at + i] !== values[from + i]) {
+      into[at + i] = values[from + i];
       same = false;
     }
   return same;
@@ -62,16 +63,10 @@ function holdItems(footprint: BlendFootprint, items: readonly BlendGpuItem[]) {
       record[at] = flags;
       same = false;
     }
-    if (box) same = hold(record, at + 1, box, 6) && same;
-    else {
-      const m = item.matrix.elements;
-      if (record[at + 1] !== m[12] || record[at + 2] !== m[13] || record[at + 3] !== m[14]) {
-        record[at + 1] = m[12];
-        record[at + 2] = m[13];
-        record[at + 3] = m[14];
-        same = false;
-      }
-    }
+    // Without a box, the world origin of its mesh: the translation column of its matrix.
+    same =
+      (box ? hold(record, at + 1, box, 6) : hold(record, at + 1, item.matrix.elements, 3, 12)) &&
+      same;
   }
   footprint.itemsHeld = true;
   return same;
