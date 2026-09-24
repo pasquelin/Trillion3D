@@ -113,7 +113,8 @@ test('a pure camera translation redraws no page whose casters and light are stat
     );
   }
   assert.equal(plan.counts.invalidatedPages, 0);
-  assert.equal(plan.pool.used, 4, 'the pages still in the clipmap, and their floor, stay mapped');
+  // The three pages still in the clipmap, and the four floor pages of the sun's first frame.
+  assert.equal(plan.pool.used, 3 + 4, 'stay mapped');
   assert.ok(entries.every((entry) => current(plan.table.words[entry])));
 });
 
