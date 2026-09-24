@@ -1925,6 +1925,9 @@
         "stone": "taş",
         "ice": "buz"
       }
+    },
+    "words": {
+      "credit": "Vadi bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

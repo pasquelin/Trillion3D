@@ -1925,6 +1925,9 @@
         "stone": "石头",
         "ice": "冰"
       }
+    },
+    "words": {
+      "credit": "山谷为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

@@ -1925,6 +1925,9 @@
         "stone": "حجر",
         "ice": "جليد"
       }
+    },
+    "words": {
+      "credit": "وادٍ نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
     }
   },
   "a-walker-among-balls": {

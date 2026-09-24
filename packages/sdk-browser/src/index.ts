@@ -33,11 +33,7 @@ export {
   type PhysicsHost,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
-export type {
-  PhysicsIntersection,
-  PhysicsRaycastOptions,
-  SweptShape,
-} from './physics/raycast.ts';
+export type { PhysicsIntersection, PhysicsRaycastOptions, SweptShape } from './physics/raycast.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
 export * from './world/diagnostic/index.ts';
