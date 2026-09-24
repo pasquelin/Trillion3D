@@ -30,9 +30,9 @@ import {
  * The test reads nothing that can lose a pixel: a wrong verdict here only moves a row to the
  * other half, and the halves decide draw order. That is why the previous image's data need
  * little validation — a moved world, a resized target: the held rectangle is stale, the row is
- * at worst tested twice, and the image is the same. Only a rank that changed page is read as
- * never projected (`forgetFrom`, `forgetEnd`): what it holds is another page's, and the kept
- * flag above all must not pass from one page to the next.
+ * at worst tested twice, and the image is the same. A rank the table rewrote reaches this kernel
+ * with its words cleared (`forgetRows`): zero flags are a row never projected, and the kept flag
+ * above all must not pass from one page to the next.
  *
  * One exception to the withdrawal, so that a still view converges: a row the test kept while the
  * view stood still keeps its place among the occluders until the view moves (`FLAG_KEPT`). The
@@ -50,10 +50,9 @@ export const PARTITION_PROJECT_WGSL = `
 fn projectRows(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=uni.rows){return;}
  let base=i*${ROW_DATA_U32}u;
- // Last image's verdict, read before this image's Hi-Z test clears it. A row rewritten with
- // another page since then holds that page's: it is read as never projected.
- let fresh=i>=uni.forgetFrom&&i<uni.forgetEnd;
- let held=select(rowData[base+${ROW_FLAGS}u],0u,fresh);
+ // Last image's verdict, read before this image's Hi-Z test clears it. A row rewritten since
+ // then was cleared before this pass: its zero flags read as never projected.
+ let held=rowData[base+${ROW_FLAGS}u];
  var drawn=1u;
  // Kept by the test while the view stood still: an occluder until the view moves. Under the
  // antialiasing jitter a row at the edge of an occluder is hidden on one image and seen on the

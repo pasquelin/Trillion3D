@@ -45,8 +45,10 @@ export function banc(panne?: 'debordement' | 'envoi') {
       lodLevel: 0,
       complete: false,
     },
+    worldRevision: 0,
   };
   const selection = {
+    worldRevision: 0,
     updateResidency(flags: Uint32Array) {
       comptes.residence++;
       const change = vueResidence !== flags[0];
@@ -69,6 +71,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
           lodLevel: 0,
           complete: vueResidence === 1,
         },
+        worldRevision: 0,
       };
       return undefined;
     },
