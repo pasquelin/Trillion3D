@@ -75,6 +75,10 @@ test('A placement written without a version is recomposed at the next image, onl
   assert.equal(record.placement, placement + 1);
   assert.deepEqual([record.transform[6], record.transform[7]], [0.25, 0.5]);
   assert.ok(Math.abs(record.transform[0]) < 1e-9, 'the quarter turn read');
+  host.matrixAutoUpdate = false;
+  host.matrix.elements[6] = 0.75;
+  assert.ok(followHostTextures().has(record), 'a matrix the page owns, read as it stands');
+  assert.ok(!followHostTextures().has(record), 'and only when it moved');
 });
 
 // #360: `KHR_texture_transform` is applied by the loader to the texture's offset, repeat and
