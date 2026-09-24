@@ -35,8 +35,8 @@ export async function setWebgpuMemoryBudgets(
       : 0;
   const residentPages = () => gpu.cache?.stats().residentPages ?? 0;
   const before = { pages: residentPages(), tiles: residentTiles() };
-  // A pool is replaced only by one the device grants; `null`: even the floor was refused, and the
-  // pool in place stays.
+  // A pool is replaced only by one the device grants; none granted, even at its floor, and the pool
+  // in place stays.
   const device = gpu.device;
   const live = () => !!device && !run.lost;
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.

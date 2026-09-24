@@ -2888,8 +2888,8 @@
         "packages/sdk-browser/src/frame/costAudit.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.ts",
         "packages/sdk-browser/src/world/core/worldFrames.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/core/worldSession.ts",
         "packages/sdk-browser/src/world/diagnostic/frameDiagnostic.test.ts",
@@ -5955,7 +5955,7 @@
         "packages/sdk-browser/src/physics/tickResults.ts",
         "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts"
+        "packages/sdk-browser/src/world/core/worldBudget.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsBudget"

@@ -21,7 +21,7 @@ type Diagnose = (phase: string, message: string, context: Record<string, unknown
  * as `gpu-out-of-memory`, naming the pool, the bytes asked and the bytes granted (`null` when even
  * the floor was refused: the caller then keeps what it holds).
  */
-export async function grantedPool<P extends Pool>(options: {
+async function grantedPool<P extends Pool>(options: {
   name: 'geometry' | 'texture';
   budgetBytes: number;
   draw: (budgetBytes: number) => P;
