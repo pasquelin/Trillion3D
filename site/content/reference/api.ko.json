@@ -6778,8 +6778,7 @@
       "onLand": "착지 시, 아래 방향 속도(초당 미터)와 함께 호출된다: 소리, 흔들림.",
       "onJump": "점프로 몸체가 땅을 떠날 때 호출된다.",
       "collision": "몸체가 무엇과 충돌하는가 — 세계의 콜라이더, 또는 같은 접점을 통한 물리 백엔드의 세계(`CharacterCollision`). `null`이면 몸체는 출발한 높이 그대로 걷고, 결코 떨어지지 않는다.",
-      "update": "`delta`초만큼 진행한다; 카메라가 변했는지를 반환하며, 변했을 때 `change`를 발생시킨다.",
-      "physics": "월드의 물리가 실행 중일 때: 몸은 물리 worker 안의 Jolt 가상 캐릭터가 되어 시뮬레이션의 모든 물체와 만납니다. `null`이면 `collision`으로 돌아갑니다. 전환해도 몸은 제자리를 유지합니다."
+      "update": "`delta`초만큼 진행한다; 카메라가 변했는지를 반환하며, 변했을 때 `change`를 발생시킨다."
     }
   },
   "CharacterCollision": {
@@ -7169,6 +7168,22 @@
     "members": {
       "budget": "고정 한계, 물리가 시작될 때 한 번 읽습니다.",
       "gravity": "월드의 중력: 프리셋 또는 벡터."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle`이 운전할 수 있는 모든 것: 입력이 바뀔 때마다 받습니다.",
+    "members": {
+      "drive": "키가 바꿀 때마다 페달과 핸들을 받습니다."
+    }
+  },
+  "VehicleInput": {
+    "summary": "운전자가 차량에 요구하는 것: `world.controls` `'vehicle'`의 키가 정하는 페달과 핸들.",
+    "description": "차량 자체의 물리 — 엔진, 바퀴, 서스펜션 — 가 이에 답합니다. 컨트롤이 아는 것은 이 계약뿐입니다.",
+    "members": {
+      "throttle": "가속 페달, 0에서 1.",
+      "brake": "브레이크 페달, 0에서 1.",
+      "steer": "핸들, −1 왼쪽 끝에서 1 오른쪽 끝.",
+      "handbrake": "핸드브레이크가 당겨졌는지 여부."
     }
   }
 }

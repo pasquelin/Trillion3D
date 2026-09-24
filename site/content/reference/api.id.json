@@ -6954,8 +6954,7 @@
       "onLand": "Dipanggil saat mendarat dengan kecepatan ke bawah, dalam meter per detik: sebuah suara, sebuah goncangan.",
       "onJump": "Dipanggil saat tubuh meninggalkan tanah karena melompat.",
       "collision": "Apa yang ditabrakkan tubuh — collider dunia, atau dunia backend fisika lewat celah yang sama (`CharacterCollision`). `null` berjalan rata di tempat tubuh berdiri, tidak pernah jatuh.",
-      "update": "Menjalani `delta` detik; mengembalikan apakah kamera bergerak, dan memancarkan `change` saat ia bergerak.",
-      "physics": "Fisika dunia, saat berjalan: tubuh lalu menjadi karakter virtual Jolt di worker fisika dan bertemu setiap benda simulasi; `null` kembali ke `collision`. Tubuh tetap di tempatnya saat berganti."
+      "update": "Menjalani `delta` detik; mengembalikan apakah kamera bergerak, dan memancarkan `change` saat ia bergerak."
     }
   },
   "CharacterCollision": {
@@ -7170,6 +7169,22 @@
     "members": {
       "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
       "gravity": "Gravitasi dunia: preset atau vektor."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Apa pun yang bisa dikemudikan `world.controls.vehicle`: menerima masukan setiap kali berubah.",
+    "members": {
+      "drive": "Menerima pedal dan setir setiap kali tombol mengubahnya."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Yang diminta pengemudi dari kendaraan: pedal dan setir, sebagaimana tombol `world.controls` `'vehicle'` mengaturnya.",
+    "description": "Fisika kendaraan itu sendiri — mesin, roda, suspensi — menjawabnya; kontrak ini adalah semua yang diketahui kontrol.",
+    "members": {
+      "throttle": "Pedal gas, 0 sampai 1.",
+      "brake": "Pedal rem, 0 sampai 1.",
+      "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
+      "handbrake": "Apakah rem tangan ditarik."
     }
   }
 }

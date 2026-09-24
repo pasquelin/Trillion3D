@@ -6778,8 +6778,7 @@
       "onLand": "Saniyede metre cinsinden aşağı hızla, inişte çağrılır: bir ses, bir sarsıntı.",
       "onJump": "Gövde bir zıplamada yerden ayrıldığında çağrılır.",
       "collision": "Gövdenin neyle çarpıştığı — dünyanın çarpışma nesneleri, ya da aynı ek yeri üzerinden bir fizik backend'inin dünyası (`CharacterCollision`). `null`, gövdenin durduğu yerde düz yürür, asla düşmez.",
-      "update": "`delta` saniye yaşar; kameranın hareket edip etmediğini döndürür, ve ettiğinde `change` yayar.",
-      "physics": "Dünyanın fiziği çalışırken: gövde fizik worker’ındaki Jolt sanal karakteri olur ve simülasyonun her cismiyle karşılaşır; `null` `collision`’a döner. Geçişte gövde yerini korur."
+      "update": "`delta` saniye yaşar; kameranın hareket edip etmediğini döndürür, ve ettiğinde `change` yayar."
     }
   },
   "CharacterCollision": {
@@ -7169,6 +7168,22 @@
     "members": {
       "budget": "Sabit sınırlar, fizik başlarken bir kez okunur.",
       "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle`’ın sürebileceği her şey: girdi her değiştiğinde onu alır.",
+    "members": {
+      "drive": "Bir tuş değiştirdiğinde pedalları ve direksiyonu alır."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Sürücünün araçtan istediği: `world.controls` `'vehicle'` tuşlarının ayarladığı pedallar ve direksiyon.",
+    "description": "Aracın kendi fiziği — motor, tekerlekler, süspansiyon — bunlara yanıt verir; kontrollerin bildiği yalnızca bu sözleşmedir.",
+    "members": {
+      "throttle": "Gaz pedalı, 0 ile 1 arası.",
+      "brake": "Fren pedalı, 0 ile 1 arası.",
+      "steer": "Direksiyon, −1 tam sol ile 1 tam sağ arası.",
+      "handbrake": "El freninin çekili olup olmadığı."
     }
   }
 }

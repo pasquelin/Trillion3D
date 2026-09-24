@@ -6778,8 +6778,7 @@
       "onLand": "落地时调用,参数是向下的速度(米每秒):用于音效、震动。",
       "onJump": "身体因跳跃离开地面时调用。",
       "collision": "身体与之碰撞的对象——世界的碰撞体,或者通过相同接触点接入的物理后端世界(`CharacterCollision`)。为 `null` 时,身体会保持出发时的高度行走,永不下落。",
-      "update": "推进 `delta` 秒的生命;返回摄像机是否发生了变化,变化时会发出 `change`。",
-      "physics": "世界的物理运行时：身体就是物理 worker 中 Jolt 的虚拟角色，会与模拟中的每个物体相遇；`null` 则回到 `collision`。切换时身体保持原位。"
+      "update": "推进 `delta` 秒的生命;返回摄像机是否发生了变化,变化时会发出 `change`。"
     }
   },
   "CharacterCollision": {
@@ -7169,6 +7168,22 @@
     "members": {
       "budget": "固定上限，物理启动时读取一次。",
       "gravity": "世界的重力：预设或向量。"
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle` 可以驾驶的任何对象：每当输入变化时它都会收到。",
+    "members": {
+      "drive": "每当按键改变踏板和方向盘时收到它们。"
+    }
+  },
+  "VehicleInput": {
+    "summary": "驾驶者对载具的要求：踏板和方向盘，由 `world.controls` `'vehicle'` 的按键设定。",
+    "description": "载具自身的物理——发动机、车轮、悬挂——对其作出回应；控制只知道这份约定。",
+    "members": {
+      "throttle": "油门，0 到 1。",
+      "brake": "刹车踏板，0 到 1。",
+      "steer": "方向盘，−1 左打到底到 1 右打到底。",
+      "handbrake": "手刹是否拉起。"
     }
   }
 }

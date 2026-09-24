@@ -47,15 +47,9 @@ export interface CharacterCameraControls extends CameraControlBase, PersonHead, 
   /**
    * What the body collides with — the world's colliders, or a physics backend's world through
    * the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls.
-   * Unused while `physics` is set.
+   * Unused while the world's physics runs: the body is then the physics' own.
    */
   collision: CharacterCollision | null;
-  /**
-   * The world's physics, when it runs: the body is then Jolt's virtual character in the physics
-   * worker (`physicsCharacter.ts`) and meets every body of the simulation; `null` goes back to
-   * `collision`. The body keeps its place across the switch.
-   */
-  physics: CharacterPort | null;
   /** Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did. */
   update(delta?: number): boolean;
 }
@@ -108,17 +102,6 @@ export function createCharacterCameraControls(
       world = next;
       triangles.setWorld(next);
     },
-    get physics() {
-      return port;
-    },
-    set physics(next) {
-      if (next === port) return;
-      const [x, y, z] = body.feet;
-      body.dispose?.();
-      port = next;
-      body = next ? createPhysicsCharacter(next, api) : triangles;
-      body.place(x, y, z);
-    },
     locked: () => head.locked(),
     lock: () => head.lock(),
     unlock: () => head.unlock(),
@@ -144,6 +127,23 @@ export function createCharacterCameraControls(
       return gate(moved);
     },
   };
+  /**
+   * `physics`, kept off the public type: the world's physics, when it runs (`world.controls`
+   * hands it over). The body is then Jolt's virtual character in the physics worker
+   * (`physicsCharacter.ts`) and meets every body of the simulation; `null` goes back to
+   * `collision`. The body keeps its place across the switch.
+   */
+  Object.defineProperty(api, 'physics', {
+    get: () => port,
+    set(next: CharacterPort | null) {
+      if (next === port) return;
+      const [x, y, z] = body.feet;
+      body.dispose?.();
+      port = next;
+      body = next ? createPhysicsCharacter(next, api) : triangles;
+      body.place(x, y, z);
+    },
+  });
   const triangles = createCharacterBody(api);
   let body: CharacterBody = triangles;
   base.undo(() => body.dispose?.());
