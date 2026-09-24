@@ -9398,7 +9398,7 @@
       {
         "name": "update(seconds: number)",
         "type": "false",
-        "desc": "Advances every playing action by `seconds` and writes the sampled values."
+        "desc": "Advances every playing action by `seconds`, then writes each property the weighted blend of its actions' samples over its rest value."
       }
     ],
     "description": ""
