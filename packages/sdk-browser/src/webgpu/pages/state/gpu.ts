@@ -74,6 +74,8 @@ export interface WebgpuGpuState {
   /** Temporal-antialiasing pass and its two history targets; absent when the host refuses it or the
    *  device does not host it. */
   temporal: TemporalAntialiasing | undefined;
+  /** Whether the host wants the pass: set at preparation, then by `setTemporalAntialiasing`. */
+  temporalWanted: boolean;
 }
 
 /** The frozen colour the water composite rereads, and the depth its surface stage tests and
@@ -129,5 +131,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     presenter: undefined,
     deferred: undefined,
     temporal: undefined,
+    temporalWanted: true,
   };
 }

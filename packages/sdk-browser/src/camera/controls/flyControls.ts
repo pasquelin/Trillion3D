@@ -51,6 +51,11 @@ export interface FlyCameraControls extends SteeredCameraControls {
   yawInput: number;
   /** The roll deflection in [-1, 1], left positive as Q; as `pitchInput`. */
   rollInput: number;
+  /**
+   * Radians the view turns per pixel the pointer moves; `null` (the default) is half a turn per
+   * surface height, whatever the surface's size.
+   */
+  lookSpeed: number | null;
   /** Whether dragging turns the view. */
   dragToLook: boolean;
   /** Whether the pointer turns the view at all, by drag or hover; true by default. */
@@ -74,6 +79,7 @@ const PITCH: KeyAxis = [['ArrowUp'], ['ArrowDown']],
 /** A flight's default speeds, stick and look, which `world.controls` keeps as its own. */
 export const FLY_DEFAULTS = {
   rollSpeed: 0.4,
+  lookSpeed: null as number | null,
   pitchSpeed: null as number | null,
   yawSpeed: null as number | null,
   inputResponse: 0,
@@ -99,10 +105,10 @@ export function createFlyCameraControls(
   let lookPitch = 0,
     lookYaw = 0,
     held = false;
-  const height = () => surface.clientHeight || 1;
   const look = (dx: number, dy: number) => {
-    lookYaw -= (Math.PI * dx) / height();
-    lookPitch -= (Math.PI * dy) / height();
+    const speed = api.lookSpeed ?? Math.PI / (surface.clientHeight || 1);
+    lookYaw -= dx * speed;
+    lookPitch -= dy * speed;
   };
   const api: FlyCameraControls = {
     ...base.api,

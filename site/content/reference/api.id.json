@@ -1015,6 +1015,7 @@
       "pitchSpeed": "Radian per detik putaran pitch pada defleksi penuh; `null` (bawaan) adalah `rollSpeed`.",
       "yawSpeed": "Radian per detik putaran yaw pada defleksi penuh; `null` (bawaan) adalah `rollSpeed`.",
       "inputResponse": "Detik yang dibutuhkan sebuah tombol putar untuk mencapai defleksi penuh, dan yang dilepas untuk kembali ke nol: laju putaran naik seperti stik yang digerakkan tangan. 0, bawaannya, adalah menyala atau mati sekaligus. Sebuah stik yang masih berjalan menggerakkan kamera, jadi bingkai berlanjut sampai ia berada di tengah.",
+      "lookSpeed": "Radian yang diputar tampilan per piksel yang digerakkan pointer; `null` (bawaan) adalah setengah putaran per tinggi permukaan, berapa pun ukurannya.",
       "dragToLook": "Apakah menyeret memutar tampilan.",
       "pointerLook": "Apakah pointer memutar tampilan sama sekali, lewat seret atau melayang; benar secara bawaan.",
       "autoForward": "JELAJAH, mati secara bawaan: kamera terbang maju pada `movementSpeed` tanpa tombol ditekan, seperti sebuah pesawat. W lalu menambah `movementSpeed` (dua kali lebih cepat) dan S menghilangkannya (kamera diam di tempat); ia tidak pernah terbang mundur. Tidak ada yang bergerak sampai `update` berikutnya, jadi host yang menggambar ulang pada `change` meminta satu bingkai saat menyalakan jelajah.",
@@ -1542,8 +1543,7 @@
     "summary": "Pengaturan pencahayaan langsung yang dipublikasikan.",
     "description": "Ini adalah pilihan produk bernama, bukan konstanta terkubur: setiap batas saat berjalan membacanya ulang, dan diagnostik mempublikasikannya apa adanya.",
     "members": {
-      "maxLights": "Cahaya yang diterima kontrak secara total; melebihi itu, `addLight` menolak.",
-      "maxLightsPerTile": "Cahaya yang disimpan sebuah tile layar; loop piksel dibatasi angka ini (X2).",
+      "maxLights": "Cahaya yang diterima kontrak secara total; melebihi itu, `addLight` menolak. Sebuah tile layar menyimpan setiap cahaya yang menyentuhnya; daftarnya dan loop piksel dibatasi angka ini (X2).",
       "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
       "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
@@ -3880,7 +3880,7 @@
   },
   "WorldControls": {
     "summary": "Cara-cara sebuah halaman bisa mengarahkan kamera dengan mouse dan papan ketik, atau `'none'`.",
-    "description": "`'firstPerson'` menggerakkan sebuah kamera; `'character'` menggerakkan sebuah tubuh — massa, gravitasi, lompatan, tabrakan dengan `world.controls.colliders` — dan melihat lewat matanya."
+    "description": "`'firstPerson'` menggerakkan sebuah kamera; `'character'` menggerakkan sebuah tubuh — massa, gravitasi, lompatan, tabrakan dengan `world.controls.colliders` — dan melihat lewat matanya. `'fly'` dan `'firstPerson'` bergerak pada `world.controls.movementSpeed` dan berputar pada `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Metrik sebuah gambar sebagaimana host menyalinnya dari mesin, dan dua yang dibaca halaman yang disusun darinya; `null` di mana jalur tidak menghitung.",
@@ -4000,7 +4000,8 @@
       "pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "controls": "Controller yang menggerakkan kamera dari canvas; `world.controls.kind` mengubahnya nanti.",
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
-      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
+      "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
+      "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
     }
   },
   "WorldPageSource": {
@@ -4634,7 +4635,8 @@
       "options.pixelRatio": "Berapa banyak piksel gambar per piksel layar.",
       "options.controls": "Pengontrol yang menggerakkan kamera dari kanvas; `world.controls.kind` mengubahnya nanti.",
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
-      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu."
+      "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
+      "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
     }
   },
   "crossVector3": {
@@ -6581,6 +6583,10 @@
     "summary": "Cahaya yang dipantulkan dari permukaan, ditelusuri terhadap proxy yang menetap; mati secara default.",
     "description": "Sebuah perubahan diterapkan di tempat pada sebuah jalur yang membawanya, dan diambil oleh pembukaan berikutnya pada yang tidak."
   },
+  "world.temporalAntialiasing": {
+    "summary": "Antialiasing temporal: pergeseran subpiksel yang diakumulasi antarbingkai; aktif secara bawaan.",
+    "description": "Saat ditulis, berlaku pada bingkai berikutnya, riwayat dibuang, tanpa membuka ulang sesi. Saat dibaca, itulah yang dibawa gambar: false di WebGL2, dan selama program dikompilasi setelah diaktifkan."
+  },
   "world.budget": {
     "summary": "Kolam memori dunia, dibaca dan diatur dalam byte.",
     "members": {
@@ -6611,7 +6617,7 @@
       "minAzimuthAngle": "Hanya orbit: awal busur azimuth yang diizinkan, dalam radian dari +Z menuju +X.",
       "maxAzimuthAngle": "Hanya orbit: akhir busur itu; boleh lebih kecil dari `minAzimuthAngle`.",
       "movementSpeed": "Flight dan first person: unit dunia per detik pada stick penuh; 1 secara default.",
-      "lookSpeed": "Hanya first person: radian yang diputar tampilan per piksel yang digerakkan pointer.",
+      "lookSpeed": "Terbang, orang pertama, dan karakter: radian yang diputar tampilan per piksel yang digerakkan pointer; `null` (bawaan) mempertahankan nilai masing-masing — 0.002 untuk kepala, setengah putaran per tinggi canvas untuk terbang.",
       "minPitch": "Hanya first person: sepandang apa kepala melihat ke bawah, dalam radian (0 adalah horizon, negatif ke bawah).",
       "maxPitch": "Hanya first person: setinggi apa kepala melihat, dalam radian di atas horizon.",
       "pointerLook": "Hanya flight: apakah pointer memutar tampilan; salah dan hanya tombol yang mengemudikan.",
@@ -6817,7 +6823,7 @@
     "summary": "KEPALA SEORANG PEJALAN, terkunci pointer: pointer memutarnya, cakrawala tetap rata — yaw mengelilingi atas dunia, pitch dijepit ke `[minPitch, maxPitch]`, tidak pernah ada roll.",
     "description": "Dibagikan oleh setiap pengontrol yang melihat lewat mata seseorang. KUNCINYA ADALAH TERSERAH HOST UNTUK MEMINTANYA. Sebuah browser hanya memberikan sebuah pointer lock di dalam sebuah gesture, jadi kepala meminta pada `pointerdown` dan mempublikasikan `lock()`, `unlock()` dan `locked()` untuk sebuah host yang lebih suka memilih momennya sendiri; sebuah kunci yang dilarikan penonton hanya menghentikan pandangan, dan sebuah seret yang tidak terkunci tetap memutar kepala.",
     "members": {
-      "lookSpeed": "Radian yang diputar per piksel gerakan pointer.",
+      "lookSpeed": "Radian yang diputar per piksel gerakan pointer; `null` (bawaan) adalah 0.002.",
       "minPitch": "Sepandang apa kepala melihat ke bawah, dalam radian di bawah cakrawala dihitung negatif (0 adalah cakrawala); secara default sedikit sebelum lurus ke bawah. Naikkan agar seorang pejalan tidak pernah melihat ke dalam tubuhnya sendiri.",
       "maxPitch": "Setinggi apa kepala melihat, dalam radian di atas cakrawala; secara default sedikit sebelum zenith."
     }
