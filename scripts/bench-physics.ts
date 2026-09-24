@@ -151,7 +151,7 @@ function native(tool: string, words: Uint32Array, bodies: number, threads: numbe
   const phases = new Map<string, number>();
   const steps = [];
   for (const line of out.trim().split('\n')) {
-    const parts = line.split('\t').length > 1 ? line.split('\t') : line.split(' ');
+    const parts = line.startsWith('#') ? line.split('\t') : line.split(' ');
     if (parts[0] === '#') phases.set(parts[1], Number(parts[2]));
     else steps.push({ ms: Number(parts[0]), active: Number(parts[1]) });
   }
