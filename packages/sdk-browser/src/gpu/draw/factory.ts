@@ -68,8 +68,9 @@ export async function createGpuDraw(
         if (disposed) return;
         const n = Math.min(count, slotCap);
         // The range the row table just rewrote, and it alone: a frame that sees neither a page
-        // arrival nor an eviction sends not one byte of record.
-        const last = Math.min(itemsTo, n - 1);
+        // arrival nor an eviction sends not one byte of record. Rows past the drawn count go too —
+        // the CPU cut's light casters, which only the shadow pass reads —: the range is closed here.
+        const last = Math.min(itemsTo, slotCap - 1);
         if (last >= itemsFrom) {
           device.queue.writeBuffer(
             itemsBuf,
