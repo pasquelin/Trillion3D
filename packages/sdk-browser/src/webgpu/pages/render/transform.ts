@@ -15,7 +15,7 @@ import {
 import { assertFiniteTransform } from '../../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../../host/world/chain.ts';
 import { copyElements, sameElements } from '../../../math/matrixElements.ts';
-import { invalidateOccluderHistory } from '../io/drops.ts';
+import { moveRootRows } from './movedRoot.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -42,8 +42,8 @@ function findNode(source: HostGraphNode, nodeName: string) {
  * Moves a named node of the prepared scene (R8). The matrix is a column-major world matrix: it is
  * brought back into the parent's space, then set as-is as the local matrix, so that
  * `updateMatrixWorld` finds it identical. World boxes of the moved primitives are reprojected,
- * occluder history is dropped, and the motion box is declared to the shadow scheduler — slices of
- * lamps whose range touches this box become candidates again.
+ * their rows alone are rewritten (`movedRoot.ts`), and the motion box is declared to the shadow
+ * scheduler — slices of lamps whose range touches this box become candidates again.
  *
  * Nothing is drawn here: the move takes effect at the next image, with no per-image allocation.
  */
@@ -96,6 +96,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // expressed in the parent space JUST RESOLVED: a moved parent gives another `local` for the
   // same requested world pose, and the request is therefore not judged as no-effect.
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
+  // A host pose written in this same task is read before the engine's own write hides it.
+  run.gate.engineWriting();
   boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
     if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node))
@@ -128,18 +130,18 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
       isUnder(root.pages[0]?.sourceMesh, node),
     );
   for (const root of layout.selectionRoots) {
-    if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
+    if (!isUnder(root.pages[0]?.sourceMesh, node)) continue;
+    moveRootRows(rt, root);
+    if (!root.localBox || !root.worldBox) continue;
     if (!enLot) boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     boxUnionBatch(moved, root.worldBox, 1);
   }
-  layout.rows.tableEpoch++;
   // Origin of the scene change: this subtree's world matrices have just been rewritten. Only
   // poses moved — no node entered or left the scene — so the watched set is left as it stands
   // instead of being rebuilt from a walk of the source graph on the next image.
   run.gate.sceneMoved();
   // The hierarchy already carries this revision's matrices: the next image does not climb it.
   run.gate.noteWorldsUpdated();
-  invalidateOccluderHistory(run);
   if (boxIsEmpty(moved, 0)) return;
   for (let axis = 0; axis < 3; axis++) {
     movedMin[axis] = moved[axis];

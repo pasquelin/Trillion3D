@@ -39,7 +39,8 @@ export function createFrameGateCore(holdValues: number) {
   const cam = createEngineCamera();
   let worldsRevision = 0,
     watchRevision = -1,
-    pixelError = 0;
+    pixelError = 0,
+    hostPosesOwed = false;
   const gate = {
     revisions,
     hold,
@@ -123,13 +124,25 @@ export function createFrameGateCore(holdValues: number) {
     updateWorlds(worlds: HostWorldPlacements) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
+      hostPosesOwed = false;
       worlds.refresh();
       return true;
     },
+    /**
+     * To call before the engine writes a pose of its own, and before it announces the move: the
+     * move settles the watch, so a host pose write still unread in the same task would be taken
+     * as the engine's, and the roots it moved never named — their rows would keep the old world.
+     * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next world pass,
+     * which walks the index and reports it, exactly as after a host write alone. One comparison
+     * of two integers when the host wrote nothing, which is every image a model moves.
+     */
+    engineWriting() {
+      if (sceneWatch.pending()) hostPosesOwed = true;
+    },
     /** The hierarchy already carries the current revision's matrices: written by whoever just
-     *  walked them itself, on the only subtree it moved. */
+     *  walked them itself, on the only subtree it moved — unless a host write is owed. */
     noteWorldsUpdated() {
-      worldsRevision = revisions.scene;
+      if (!hostPosesOwed) worldsRevision = revisions.scene;
     },
     /** Lets go of the source graph: its writes no longer reach this gate. */
     release: () => sceneWatch.release(),
