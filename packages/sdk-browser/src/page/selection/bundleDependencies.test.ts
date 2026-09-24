@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { Primitive } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from './types.ts';
 import { linkBundleDependencies, withClosure } from './bundleDependencies.ts';
+import { awaitedPages } from '../../webgpu/row/pageSlots.ts';
 
 const recs = (names: string[]) => names.map((url) => ({ url }) as PageRec);
 const primitive = (streams: number[], dependencies: number[][]) =>
@@ -32,4 +33,14 @@ test('the retained cut carries the bundles it is installed after', () => {
   const marked: string[] = [];
   withClosure([pages[2]], (list) => list.forEach((rec) => marked.push(rec.url)));
   assert.deepEqual(marked, ['a', 'r', 'm']);
+});
+
+test('a record with its bytes still awaits while a bundle it follows has none', () => {
+  const pages = recs(['r', 'm', 'a']);
+  linkBundleDependencies(primitive([0, 1, 2], [[], [0], [0, 1]]), pages);
+  const [r, m, a] = pages;
+  r.array = a.array = new Uint32Array(1);
+  assert.deepEqual(awaitedPages([r, a], []), [a], 'the parent outside the list is missing');
+  m.array = new Uint32Array(1);
+  assert.deepEqual(awaitedPages([r, a], []), []);
 });
