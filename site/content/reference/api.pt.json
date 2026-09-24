@@ -1658,7 +1658,8 @@
       "signal": "Para o carregamento quando o sinal é abortado.",
       "scope": "`'full'` exige o cache inteiro, `'progressive'` seu recorte transmitido; um modelo de outro escopo é recusado pelo nome. Se não definido, o modelo é lido no escopo que seu ponteiro declara.",
       "stream": "Um streamer que a página configurou; a sessão do mundo transmite com o seu próprio.",
-      "position": "Para onde vai a origem do modelo na cena."
+      "position": "Para onde vai a origem do modelo na cena.",
+      "onProgress": "Ouve até onde o carregamento chegou: `manifest` quando o manifesto é lido, depois `resources` à medida que chega cada arquivo que a cena lê (`completed` de um `total` conhecido até então). O evento é um `JobProgress`: um `createJob` que envolve o carregamento passa aqui o seu `progress`."
     }
   },
   "LoadedModel": {
