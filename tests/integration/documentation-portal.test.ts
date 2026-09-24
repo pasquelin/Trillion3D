@@ -10,10 +10,10 @@ import ts from 'typescript';
 import { ISSUES, SECTIONS } from '../../site/content/model.ts';
 import type { PortalEntry } from '../../site/content/model.ts';
 import { DEMOS } from '../../site/demos/registry.ts';
-import { rawEntries } from '../../site/app/portal/data.ts';
+import { entriesIn } from '../../site/app/portal/data.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const ENTRIES: PortalEntry[] = rawEntries;
+const ENTRIES: PortalEntry[] = entriesIn('en');
 
 /** Names a file declares or re-exports, read once per file from its syntax tree. */
 const exportsOf = new Map<string, Set<string>>();
@@ -96,7 +96,7 @@ function resolveFrom(directory: string, specifier: string): string {
 }
 
 const ENTRY_POINTS: Record<string, string[]> = {
-  'web-geometry': ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'],
+  trillion3d: ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'],
 };
 
 function exampleModule(specifier: string): string[] | null {
@@ -138,7 +138,7 @@ test('every demo belongs to an entry of the portal', () => {
 });
 
 test('an entry in development names a listed issue, and every section is filled', () => {
-  const sections = new Set(SECTIONS.map((section) => section.id));
+  const sections = new Set(SECTIONS);
   const filled = new Set();
   const ids = new Set();
   for (const entry of ENTRIES) {

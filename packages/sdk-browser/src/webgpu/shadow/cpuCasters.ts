@@ -18,7 +18,7 @@ function createCpuCasterLists(device: GPUDevice, pageCount: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   return {
     frame: -1,
-    source: device.createBuffer({ label: 'WG CPU light casters', size: 4, usage: storage }),
+    source: device.createBuffer({ label: 'Trillion3D CPU light casters', size: 4, usage: storage }),
     indirect: device.createBuffer({ size: MAX_SHADOW_REGIONS * 16, usage: storage }),
     bases: new Uint32Array(MAX_SHADOW_REGIONS),
     lengths: new Uint32Array(MAX_SHADOW_REGIONS),
@@ -134,7 +134,7 @@ export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
     lists.words = new Uint32Array(1 << Math.ceil(Math.log2(total)));
     lists.source.destroy();
     lists.source = device.createBuffer({
-      label: 'WG CPU light casters',
+      label: 'Trillion3D CPU light casters',
       size: lists.words.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });

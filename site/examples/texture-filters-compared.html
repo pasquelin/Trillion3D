@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Texture filters</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #aebfd6;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #361: WebGPU samples each texture with its own `minFilter`, `magFilter` and
+      // `anisotropy`; until then the four lanes and the two signs look the same.
+      import { createWorld, geometry, material, object, light, math, texture, wrap, filter, side } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // Two pictures painted by this page: a fine checker ruled with thin lines, which shimmers and
+      // blurs as it recedes, and a street number, whose letters show how each filter reads a slant.
+      const SIZE = 256;
+      const card = document.createElement('canvas');
+      card.width = card.height = SIZE;
+      const pen = card.getContext('2d');
+      const PATTERNS = {
+        checker() {
+          for (let y = 0; y < 8; y++)
+            for (let x = 0; x < 8; x++) {
+              pen.fillStyle = (x + y) % 2 ? '#1d2230' : '#eef1f6';
+              pen.fillRect(x * 32, y * 32, 32, 32);
+            }
+          pen.strokeStyle = '#e8412c';
+          pen.lineWidth = 2;
+          for (let k = 0; k <= SIZE; k += 16) {
+            pen.beginPath();
+            pen.moveTo(k, 0);
+            pen.lineTo(k, SIZE);
+            pen.stroke();
+          }
+        },
+        lettering() {
+          pen.fillStyle = '#20242e';
+          pen.fillRect(0, 0, SIZE, SIZE);
+          pen.fillStyle = '#f4f1ea';
+          pen.fillRect(0, 0, SIZE, 10);
+          pen.font = 'bold 150px system-ui';
+          pen.textAlign = 'center';
+          pen.textBaseline = 'middle';
+          pen.fillText('42', SIZE / 2, SIZE / 2 + 8);
+        },
+      };
+      PATTERNS.checker();
+
+      // One lane per way of picking pixels, left to right: nearest, linear with no smaller copies,
+      // trilinear, trilinear and anisotropic; each its own texture of the same picture. The lanes
+      // repeat the picture by their UVs, twenty-four times along, so the placement words stay at
+      // their defaults and only the filters differ.
+      const LANES = [
+        { min: filter.nearest, mag: filter.nearest, anisotropy: 1 },
+        { min: filter.linear, mag: filter.linear, anisotropy: 1 },
+        { min: filter.linearMipLinear, mag: filter.linear, anisotropy: 1 },
+        { min: filter.linearMipLinear, mag: filter.linear, anisotropy: 16 },
+      ];
+      const LENGTH = 80, WIDTH = 2.4, ALONG = 24;
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#aebfd6');
+      const maps = LANES.map(({ min, mag, anisotropy }, k) => {
+        const map = texture.canvas(card);
+        map.wrap = wrap.repeat;
+        map.minFilter = min;
+        map.magFilter = mag;
+        map.anisotropy = anisotropy;
+        const strip = geometry.plane(WIDTH, LENGTH);
+        const uv = strip.attributes.uv;
+        for (let v = 0; v < uv.count; v++) uv.setXY(v, uv.getX(v), uv.getY(v) * ALONG);
+        const lane = object.mesh(strip, material.meshStandard({ map, roughness: 0.8 }));
+        lane.rotation.x = -Math.PI / 2;
+        lane.position.set((k - 1.5) * (WIDTH + 0.3), 0, -LENGTH / 2 + 4);
+        world.scene.add(lane);
+        return map;
+      });
+
+      // Close to the camera, two signs of a 16 × 16 pixel sprite, magnified: `nearest` keeps its
+      // squares, `linear` blurs them.
+      const INVADER = ['0000011111100000', '0001111111111000', '0011111111111100', '0111001111001110', '0111001111001110', '1111111111111111', '1111111111111111', '0011100000011100', '0110011001100110', '1100000000000011', '0110000000000110', '0011000000001100', '0000000000000000', '0000000000000000', '0000000000000000', '0000000000000000'];
+      const pixels = new Uint8Array(16 * 16 * 4);
+      INVADER.forEach((row, y) => [...row].forEach((bit, x) => pixels.set(bit === '1' ? [120, 255, 140, 255] : [16, 20, 32, 255], ((15 - y) * 16 + x) * 4)));
+      [filter.nearest, filter.linear].forEach((mag, k) => {
+        const map = texture.data(pixels, 16, 16);
+        map.colorSpace = 'srgb';
+        map.magFilter = mag;
+        map.minFilter = filter.nearest;
+        const sign = object.mesh(geometry.plane(1.6, 1.6), material.meshBasic({ map, side: side.double }));
+        sign.position.set((k - 0.5) * 2, 1.4, 2);
+        world.scene.add(sign);
+      });
+
+      world.scene.add(light.directional({ color: '#fff4e0', intensity: 2.6, position: [-3, 10, 6] }));
+      world.scene.add(light.hemisphere({ color: '#dfe8ff', groundColor: '#606060', intensity: 1 }));
+      world.camera.position.set(0, 1.6, 6.5);
+      world.camera.lookAt(0, 0.4, -10);
+      world.controls.target.set(0, 0.4, -10);
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 30;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.03;
+
+      // A control changes the picture or the fourth lane's anisotropy, never on its own.
+      let granted = null;
+      const ui = controls({
+        picture: Object.keys(PATTERNS),
+        anisotropy: [1, 16, 16, 1],
+      }, (values, key) => {
+        if (key === 'picture') {
+          PATTERNS[values.picture]();
+          for (const map of maps) map.needsUpdate = true;
+        }
+        if (key === undefined || key === 'anisotropy') maps[3].anisotropy = values.anisotropy;
+        granted?.(`${values.anisotropy} ×`);
+        world.invalidate();
+      }, world);
+      granted = readout('fourthLaneAnisotropy');
+      granted(`${ui.anisotropy} ×`);
+    </script>
+  </body>
+</html>

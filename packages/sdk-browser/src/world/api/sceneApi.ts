@@ -8,7 +8,7 @@ import type {
 } from '../../../../sdk-core/src/index.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
-import type { MemoryBudgets } from '../../webgpu/pages/io/memory.ts';
+import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 
 type Inputs = {
@@ -101,6 +101,14 @@ export function createExplorerSceneApi(inputs: Inputs) {
       const active = getActive();
       active.setBounce?.(on);
       return !!active.setBounce;
+    },
+    /** Host surfaces rewritten in place are read again; false when the active path cannot, and
+     *  only a new session will draw them. */
+    refreshMaterials() {
+      check();
+      const active = getActive();
+      active.refreshMaterials?.();
+      return !!active.refreshMaterials;
     },
     updateMaterial(primitive: string, material: Material) {
       check();

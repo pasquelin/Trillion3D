@@ -1,5 +1,5 @@
 SPDX-License-Identifier: CC0-1.0
-Auteur : Corpus WebGeometry, 2026-09-15
+Auteur : Corpus Trillion3D, 2026-09-15
 Origine : douze fichiers écrits octet par octet depuis la spécification publiée par Adobe pour les
 lecteurs tiers ; scene.gltf et scene.bin reprennent le quad de ../../tests/fixtures/formats/hdr/.
 https://creativecommons.org/publicdomain/zero/1.0/

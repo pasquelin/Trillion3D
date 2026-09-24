@@ -50,12 +50,12 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
     ],
   });
   const pipeline = device.createComputePipeline({
-    label: 'WG texture feedback reduce',
+    label: 'Trillion3D texture feedback reduce',
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: { module: device.createShaderModule({ code: REDUCE_WGSL }), entryPoint: 'reduce' },
   });
   const uniform = device.createBuffer({
-    label: 'WG texture feedback reduce uniform',
+    label: 'Trillion3D texture feedback reduce uniform',
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -82,7 +82,7 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
       const every = (phaseWord & FEEDBACK_EVERY) !== 0;
       const cols = every ? size[0] : Math.ceil(size[0] / FEEDBACK_STRIDE),
         rows = every ? size[1] : Math.ceil(size[1] / FEEDBACK_STRIDE);
-      const pass = encoder.beginComputePass({ label: 'WG texture feedback reduce' });
+      const pass = encoder.beginComputePass({ label: 'Trillion3D texture feedback reduce' });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, group!);
       pass.dispatchWorkgroups(Math.ceil(cols / WORKGROUP), Math.ceil(rows / WORKGROUP));

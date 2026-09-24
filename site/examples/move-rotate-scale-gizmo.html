@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Move, rotate, scale</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, helper, controls as family } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4] }), light.ambient({ intensity: 0.3 }));
+      world.scene.add(helper.grid(8, 8));
+      const crate = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ color: '#3c8ce0' }));
+      crate.position.set(0, 0.5, 0);
+      world.scene.add(crate);
+      world.camera.position.set(2, 1.8, 2.6);
+      world.camera.lookAt(0, 0.5, 0);
+      world.controls.target.set(0, 0.5, 0);
+
+      // The handles: drag an arrow, a ring or a cube; the camera rests while a handle is held.
+      const gizmo = family.transform(world).attach(crate);
+      controls(
+        { mode: ['translate', 'rotate', 'scale'], axes: ['world', 'local'], snap: false },
+        ({ mode, axes, snap }) => {
+          gizmo.setMode(mode);
+          gizmo.setSpace(axes);
+          gizmo.snap = snap ? { translate: 0.5, rotate: Math.PI / 12, scale: 0.25 } : {};
+        },
+      );
+
+      const pose = readout('position'), turns = readout('drags');
+      let drags = 0;
+      gizmo.addEventListener('change', () => pose(crate.position.toArray().map((v) => v.toFixed(2)).join(', ')));
+      gizmo.addEventListener('dragEnd', () => turns(String(++drags)));
+    </script>
+  </body>
+</html>

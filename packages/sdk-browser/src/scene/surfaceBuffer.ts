@@ -87,7 +87,7 @@ export function createSurfaceBuffer(
     for (const format of SURFACE_FORMATS)
       textures.push(
         device.createTexture({
-          label: `WG surface v1 ${format}`,
+          label: `Trillion3D surface v1 ${format}`,
           size: { width, height },
           format,
           usage:

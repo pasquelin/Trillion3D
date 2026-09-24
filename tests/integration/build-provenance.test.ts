@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fingerprintBuild } from '../../scripts/write-build-provenance.ts';
 
 test('build identity tracks executed modules and ignores its own generated provenance', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'wg-build-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-build-'));
   try {
     await writeFile(join(directory, 'engine.js'), 'export const value=1;');
     const first = await fingerprintBuild(directory);

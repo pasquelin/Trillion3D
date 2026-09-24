@@ -1,4 +1,3 @@
-import { startupGarden } from '../support/explorerStartupGarden.ts';
 import { startupSite } from '../support/explorerStartupSite.ts';
 import { startupTargets } from '../support/explorerStartupTargets.ts';
 // Standalone public startup proof using an original repository fixture and system Chrome.
@@ -157,7 +156,6 @@ try {
   );
   assert.deepEqual(diagnostics, []);
   await startupSite(page, `http://127.0.0.1:${serverPort(server)}`, out);
-  await startupGarden(page, `http://127.0.0.1:${serverPort(server)}`, out);
   assert.deepEqual(errors, []);
   const result = {
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),

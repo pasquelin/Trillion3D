@@ -4,8 +4,8 @@ import { rm } from 'node:fs/promises';
 import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
 
 /**
- * Writes the sources of the example scenes built around an imported model, under
- * `site/assets/examples/<scene>/source` as merged OBJ folders, then compiles each with this
+ * Writes the sources of the example scenes, under `site/assets/examples/<scene>/source` — an
+ * imported model with its setting, or a scene modelled in code — then compiles each with this
  * checkout's native compiler. An argument limits the run to one scene; `--source-only` skips
  * the compiler.
  */
@@ -13,8 +13,8 @@ const root = resolve(import.meta.dirname, '..'),
   examples = resolve(root, 'site/assets/examples'),
   only = process.argv.slice(2).find((argument) => !argument.startsWith('-')),
   compiler =
-    process.env.WG_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+    process.env.TRILLION3D_COMPILER ??
+    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
 
 const names = Object.keys(modelScenes).filter((name) => !only || name === only);
 if (!names.length) throw new Error(`Unknown example scene: ${only}`);

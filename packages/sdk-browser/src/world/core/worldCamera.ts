@@ -6,15 +6,24 @@ import type { OrthographicBox } from '../../camera/engineCamera.ts';
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
+import { createCharacterCameraControls } from '../../camera/controls/characterControls.ts';
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts';
 
-/** The ways a page can steer the camera with the mouse and keyboard, or `'none'`. */
-export type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'trackball' | 'panZoom' | 'none';
+/**
+ * The ways a page can steer the camera with the mouse and keyboard, or `'none'`. `'firstPerson'`
+ * moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with
+ * `world.controls.colliders` — and looks through its eyes.
+ */
+export type WorldControls =
+  'orbit' | 'fly' | 'firstPerson' | 'character' | 'trackball' | 'panZoom' | 'none';
 
 const position = new Vector3(),
   rotation = new Quaternion(),
   scale = new Vector3();
+
+/** The shape a frame is drawn at: the canvas's drawing buffer, its width over its height. */
+export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.max(1, canvas.height);
 
 /**
  * Puts the world's camera on the one a session draws from: its world pose, ancestors resolved,
@@ -117,6 +126,8 @@ export function worldControls(kind: WorldControls, camera: Camera, surface: HTML
       return createFlyCameraControls(camera, surface);
     case 'firstPerson':
       return createFirstPersonCameraControls(camera, surface);
+    case 'character':
+      return createCharacterCameraControls(camera, surface);
     case 'trackball':
       return createTrackballCameraControls(camera, surface);
     case 'panZoom':

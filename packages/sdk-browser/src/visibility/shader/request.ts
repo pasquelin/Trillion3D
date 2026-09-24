@@ -4,7 +4,6 @@ import {
   SHADOW_RECORD_INFO,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import type { WebgpuLightState } from '../../webgpu/pages/state/lights.ts';
-import { quartet } from './maps.ts';
 
 /**
  * What an opaque pixel asks of virtual textures: ONE tile rank, placed in the frame's
@@ -18,12 +17,14 @@ import { quartet } from './maps.ts';
  * this pixel's own footprint reads — the finest a receiver beside the caster reads its shadow at.
  * The triangle is projected on the light plane in texels of that level, the coordinate
  * derivative per shadow texel comes out — the affine `dpdx` of the shadow pass — and the
- * requested rank is that one. A coarser level reads a coarser mip, which a finer tile serves.
+ * requested rank is that one — the isotropic one, as the shadow pass's cutout reads it
+ * (`maskAlpha`); the camera cutout reads the base map as the shading does, and asks what the
+ * shading asks (`mapRequest`). A coarser level reads a coarser mip, which a finer tile serves.
  * The sun is its record's frame and header, copied into the pass uniform with the camera's
  * pixel scale: binding the record buffer would give it one more lifetime on the bind group. The
  * host shader declares `uni.sun`, `uni.pixelScale`, `uni.feedback`, `PageInfo`, `vertUv`,
- * `wrapOf`, `TILE_REQUEST_WGSL` and the class overrides — `HAS_UV`, `HAS_MASK` and one per map
- * (`materialClass.ts`) — before this block.
+ * `TILE_REQUEST_WGSL` and the class overrides — `HAS_UV`, `HAS_MASK`, `HAS_SAMPLING` and one
+ * per map (`materialClass.ts`) — before this block.
  */
 const HEADER_WORDS = 24;
 /** Floats of the sun the uniform carries: the three frame rows, then the header. */
@@ -63,9 +64,9 @@ fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:v
  if(p.sel>=MAP_CHOICES&&HAS_MASK){
   let uva=pageUv(page,h,i0);
   let g=sunLevelGradient(w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
-  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next);}
+  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,g.xy,g.zw,p.next,1u,false,HAS_SAMPLING);}
  }
- return mapRequest(p.sel,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,page.wrapModes,ddx,ddy,p.next);
+ return mapRequest(p,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,ddx,ddy,HAS_SAMPLING);
 }`;
 
 /**

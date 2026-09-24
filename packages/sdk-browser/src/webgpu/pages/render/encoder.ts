@@ -116,7 +116,7 @@ export function submitColorCopy(
 
 export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
   const pass = encoder.beginRenderPass({
-    label: 'WG clear',
+    label: 'Trillion3D clear',
     colorAttachments: [
       {
         view: rt.gpu.colorView!,

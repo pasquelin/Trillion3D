@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPresenter } from './presentation.ts';
+import { claimGpuDevice } from './deviceOwners.ts';
 
 test('presentation acquires a fresh canvas target after resizing, shared by fused and copy paths', () => {
   Object.assign(globalThis, { GPUShaderStage: { FRAGMENT: 2 } });
@@ -63,4 +64,26 @@ test('presentation acquires a fresh canvas target after resizing, shared by fuse
     presenter.dispose();
   }
   assert.equal(unconfigured, true);
+});
+
+test("a session's canvas is configured with the device itself, not the session's handle", () => {
+  Object.assign(globalThis, { GPUShaderStage: { FRAGMENT: 2 } });
+  let given: GPUDevice | undefined;
+  const canvas = {
+    getContext: () => ({
+      configure: (value: GPUCanvasConfiguration) => (given = value.device),
+      unconfigure() {},
+    }),
+  } as unknown as HTMLCanvasElement;
+  const made = () => ({});
+  const device = {
+    lost: new Promise(() => {}),
+    createBindGroupLayout: made,
+    createShaderModule: made,
+    createRenderPipeline: made,
+    createPipelineLayout: made,
+  } as unknown as GPUDevice;
+  const claim = claimGpuDevice(device, { error() {}, closedError() {}, lost() {} });
+  createGpuPresenter(claim.device, canvas).dispose();
+  assert.equal(given, device);
 });

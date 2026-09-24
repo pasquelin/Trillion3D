@@ -19,6 +19,8 @@ import type { PoolLane } from '../../texture/blockFormats.ts';
  * prepare; a streamed tile never is.
  */
 export type WebgpuTilePool = {
+  /** Its texture's label as the engine wrote it, before a session's tag. */
+  label: string;
   texture: GPUTexture;
   view: GPUTextureView;
   layers: number;
@@ -73,8 +75,9 @@ export function createWebgpuTilePool(
   // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination; a block
   // format cannot be one, and no browser image is ever copied into it.
   const attachment = texelBytes === 1 ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
+  const label = `Trillion3D texture pool ${options.kind} ${options.lane}`;
   const texture = device.createTexture({
-    label: `WG texture pool ${options.kind} ${options.lane}`,
+    label,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
     format,
     usage:
@@ -107,6 +110,7 @@ export function createWebgpuTilePool(
     resident++;
   };
   return {
+    label,
     texture,
     view: texture.createView({ dimension: '2d-array' }),
     layers,

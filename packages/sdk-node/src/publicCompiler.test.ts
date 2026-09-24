@@ -24,7 +24,7 @@ process.stderr.write(JSON.stringify({event:'complete',job:'job'})+'\\n');
 process.stdout.write(JSON.stringify({status:'ready',key:'k1',scope,url:'k1/clusters.json',pointer:path.join(output,'native',scope,'manifest.json'),cache:output})+'\\n');
 `;
 test('prepare relays events, reads the pointer from stdout and the manifest from disk', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-prepare-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-prepare-'));
   try {
     const executable = await fakeCompiler(root, readyCompiler);
     const events: string[] = [];
@@ -43,7 +43,7 @@ test('prepare relays events, reads the pointer from stdout and the manifest from
   }
 });
 test('compilation job progress always has a phase, including compiler lifecycle events', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-job-progress-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-job-progress-'));
   try {
     const executable = await fakeCompiler(root, readyCompiler);
     const phases: string[] = [];
@@ -61,7 +61,7 @@ test('compilation job progress always has a phase, including compiler lifecycle 
   }
 });
 test('prepare reports the compiler error code instead of a generic exit code', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-error-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-error-'));
   try {
     const executable = await fakeCompiler(
       root,
@@ -79,7 +79,7 @@ test('prepare reports the compiler error code instead of a generic exit code', a
   }
 });
 test('prepare rejects a compiler line that never ends', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-line-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-line-'));
   try {
     const executable = await fakeCompiler(
       root,
@@ -97,7 +97,7 @@ test('prepare rejects a compiler line that never ends', async () => {
   }
 });
 test('prepare writes a cancel line on stdin when the signal aborts, then kills after the grace period', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-cancel-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-cancel-'));
   try {
     const seen = join(root, 'stdin.txt');
     const executable = await fakeCompiler(
@@ -120,7 +120,7 @@ test('prepare writes a cancel line on stdin when the signal aborts, then kills a
   }
 });
 test('prepareMany hands the compiler one batch file and returns its summary', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-batch-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-batch-'));
   try {
     const executable = await fakeCompiler(
       root,

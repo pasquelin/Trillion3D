@@ -31,8 +31,8 @@ test('each side of each view has its row, and the rest is the difference', () =>
             geometryPoolClamp: 'scene',
             gpuAllocationsUnknownFormat: 0,
             gpuAllocatedByLabel: {
-              'WG material atlas rgba8unorm classe 0': 4_252_572_304,
-              'WG geometry page cache': 300_000_000,
+              'Trillion3D material atlas rgba8unorm classe 0': 4_252_572_304,
+              'Trillion3D geometry page cache': 300_000_000,
               unlabelled: 12,
             },
           },
@@ -47,8 +47,8 @@ test('each side of each view has its row, and the rest is the difference', () =>
   assert.equal(lignes[3], '');
   assert.equal(
     lignes[4],
-    '- sol · e1 · apres, heaviest: WG material atlas rgba8unorm classe 0 4252.6 MB, ' +
-      'WG geometry page cache 300.0 MB, unlabelled 0.0 MB',
+    '- sol · e1 · apres, heaviest: Trillion3D material atlas rgba8unorm classe 0 4252.6 MB, ' +
+      'Trillion3D geometry page cache 300.0 MB, unlabelled 0.0 MB',
   );
 });
 
@@ -61,7 +61,7 @@ test('a side without registry is unmeasured, never zero, and an unknown format i
           metrics: {
             gpuAllocatedBytes: 1_000,
             gpuAllocationsUnknownFormat: 2,
-            gpuAllocatedByLabel: { 'WG HDR lighting': 1_000 },
+            gpuAllocatedByLabel: { 'Trillion3D HDR lighting': 1_000 },
           },
         },
       }),
@@ -76,6 +76,9 @@ test('a side without registry is unmeasured, never zero, and an unknown format i
     '| generale | e1 | apres | 0.000 GB | unmeasured | unmeasured / unmeasured | unmeasured | 0.000 GB |',
   );
   assert.equal(lignes.length, 6);
-  assert.match(lignes[5], /^- generale · e1 · apres, heaviest: WG HDR lighting 0.0 MB — 2 texture/);
+  assert.match(
+    lignes[5],
+    /^- generale · e1 · apres, heaviest: Trillion3D HDR lighting 0.0 MB — 2 texture/,
+  );
   assert.match(lignes[5], /this total is not a proof$/);
 });

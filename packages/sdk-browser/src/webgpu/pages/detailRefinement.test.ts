@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
+import { untag } from '../../gpu/core/sessionHandle.ts';
 import {
   quadScene,
   camera,
@@ -106,7 +107,7 @@ test('streaming completion during image readback preserves the captured frame an
   });
   device.createBuffer = (descriptor) => {
     const buffer = createBuffer(descriptor);
-    if (descriptor.label === 'WG explicit capture')
+    if (untag(descriptor.label) === 'Trillion3D explicit capture')
       buffer.mapAsync = async () => {
         mapped();
         await gate;

@@ -30,7 +30,7 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
   if (!pipelines) throw new Error('SHADOW_PAGE_HIZ_UNAVAILABLE');
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const pyramid = device.createBuffer({
-      label: 'WG shadow page pyramids v1',
+      label: 'Trillion3D shadow page pyramids v1',
       size: MAX_SHADOW_PAGES * PAGE_HIZ_WORDS * 4,
       usage: GPUBufferUsage.STORAGE,
     }),
@@ -78,7 +78,7 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
       if (!count) return;
       for (let page = 0; page < count; page++) origin(page, originWords, page * BOUNDS_WORDS);
       device.queue.writeBuffer(origins, 0, originWords, 0, count * BOUNDS_WORDS);
-      const pass = encoder.beginComputePass({ label: 'WG shadow page pyramids' });
+      const pass = encoder.beginComputePass({ label: 'Trillion3D shadow page pyramids' });
       pass.setBindGroup(0, group, [0]);
       pass.setPipeline(pipelines.copyPipeline);
       pass.dispatchWorkgroups(SHADOW_PAGE / 8, SHADOW_PAGE / 8, count);

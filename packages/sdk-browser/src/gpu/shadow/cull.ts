@@ -53,18 +53,18 @@ export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
 export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const kept = device.createBuffer({
-    label: 'WG shadow kept clusters v1',
+    label: 'Trillion3D shadow kept clusters v1',
     size: Math.max(4, MAX_SHADOW_REGIONS * capacity * 4),
     usage: GPUBufferUsage.STORAGE,
   });
   const indirect = device.createBuffer({
-    label: 'WG shadow indirect v1',
+    label: 'Trillion3D shadow indirect v1',
     size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
     // `COPY_SRC` for the periodic sample of the kept counts, a diagnostic outside the pass.
     usage: GPUBufferUsage.INDIRECT | storage | GPUBufferUsage.COPY_SRC,
   });
   const faceVolumes = device.createBuffer({
-    label: 'WG shadow face volumes v1',
+    label: 'Trillion3D shadow face volumes v1',
     size: MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS * 4,
     // A storage array for the CPU lists' cull, a uniform for the light cut's (`lightCull.ts`).
     usage: storage | GPUBufferUsage.UNIFORM,
@@ -76,7 +76,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   });
   const offsets = device.createBuffer({ size: MAX_SHADOW_REGIONS * 4, usage: storage });
   const drawUniform = device.createBuffer({
-    label: 'WG shadow draw slots v1',
+    label: 'Trillion3D shadow draw slots v1',
     size: MAX_SHADOW_REGIONS * PAGE_BIND_ALIGN,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -183,7 +183,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         uniData[4] = from.commands;
         uniData[5] = capacity;
         device.queue.writeBuffer(uniforms, run * PAGE_BIND_ALIGN, uniData);
-        const pass = encoder.beginComputePass({ label: 'WG shadow cull' });
+        const pass = encoder.beginComputePass({ label: 'Trillion3D shadow cull' });
         pass.setBindGroup(0, group, [run * PAGE_BIND_ALIGN]);
         pass.setPipeline(scatter);
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(Math.min(rows, capacity) / 64)), faces);

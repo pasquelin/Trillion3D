@@ -22,12 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, texture, math, side } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, seeded } from '../runtime/kit.js';
 
-      function random(seed) {
-        let state = seed >>> 0;
-        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
-      }
       // A leaf picture: green inside an almond outline with a darker midrib, see-through outside it.
       function leafTexture() {
         const size = 256, canvas = document.createElement('canvas');
@@ -54,7 +50,8 @@
       const bark = material.meshStandard({ color: '#6b4a2e', roughness: 0.9 });
       // `alphaTest`: a leaf pixel whose alpha is under it is thrown away; the leaf is one rectangle.
       const leafMaterial = material.meshStandard({ map: leafTexture(), alphaTest: 0.5, side: side.double, roughness: 0.6 });
-      const leafShape = geometry.plane(0.28, 0.6), next = random(5), up = math.vector3(0, 1, 0);
+      // The branches and leaves are placed by a seeded sequence: the same tree on every run.
+      const leafShape = geometry.plane(0.28, 0.6), next = seeded(5), up = math.vector3(0, 1, 0);
       const branches = [], leaves = [];
       function grow(from, direction, length, radius, level) {
         const stick = object.mesh(geometry.cylinder(radius * 0.7, radius, length, 12), bark);

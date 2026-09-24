@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
+import { hasSidebar } from '../portal/routes.ts';
 import { SearchInput } from '../ui/Input.tsx';
 import { Note } from '../ui/Text.tsx';
 import { PrimaryNavigation } from './Header.tsx';
@@ -12,6 +13,7 @@ import { SidebarMenu } from './SidebarMenu.tsx';
 /** The Examples sidebar: a filter box over the ready examples, theme by theme. */
 function ExamplesMenu() {
   const { route } = usePortal();
+  const t = useWords(route.locale);
   const [query, setQuery] = useState('');
   const groups = examplesMenu(route, query);
   return (
@@ -19,16 +21,13 @@ function ExamplesMenu() {
       <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-2 bg-base-200 p-4">
         <SearchInput
           value={query}
-          placeholder={t(route.locale, 'sidebar.filterExamples')}
-          aria-label={t(route.locale, 'sidebar.filterExamples')}
+          placeholder={t('sidebar.filterExamples')}
+          aria-label={t('sidebar.filterExamples')}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      {groups.length > 0 ? (
-        <ExampleList groups={groups} />
-      ) : (
-        <Note role="status">{t(route.locale, 'sidebar.noResults')}</Note>
-      )}
+      {groups.length > 0 && <ExampleList groups={groups} />}
+      {groups.length === 0 && <Note role="status">{t('sidebar.noResults')}</Note>}
     </>
   );
 }
@@ -36,6 +35,7 @@ function ExamplesMenu() {
 /** The menu of the current area: each area has its own. */
 function AreaMenu() {
   const { route, entries } = usePortal();
+  if (!hasSidebar(route)) return null;
   if (route.area === 'examples') return <ExamplesMenu />;
   if (route.area === 'reports') return <SidebarMenu groups={reportMenu(route)} />;
   if (route.area === 'api') return <SidebarMenu groups={apiMenu(entries, route)} />;
@@ -49,9 +49,11 @@ interface SidebarProps {
 }
 
 /** The sidebar: a column the height of the page on wide screens, whose menu stays in view as the
- * page scrolls; a drawer over the page on narrow ones, with the areas at its top. */
+ * page scrolls; a drawer over the page on narrow ones, with the areas at its top. An area without
+ * a sidebar keeps the drawer, for the areas alone. */
 export function Sidebar({ open, panel, onClose }: SidebarProps) {
   const { route } = usePortal();
+  const t = useWords(route.locale);
   // The current page's entry comes into view, in the sidebar's own scroll only.
   useEffect(() => {
     const aside = panel.current;
@@ -63,15 +65,17 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
       aside.scrollTop += item.top - box.top - box.height / 3;
   }, [panel, route]);
   return (
-    <div className="contents lg:block lg:min-h-0 lg:border-r lg:border-base-300 lg:bg-base-200">
+    <div
+      className={`contents ${hasSidebar(route) ? 'lg:block lg:min-h-0 lg:border-e lg:border-base-300 lg:bg-base-200' : 'lg:hidden'}`}
+    >
       <aside
         ref={panel}
         id="sidebar"
-        aria-label={t(route.locale, 'sidebar.navigation')}
+        aria-label={t('sidebar.navigation')}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('a')) onClose();
         }}
-        className={`fixed bottom-0 left-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'invisible -translate-x-full'}`}
+        className={`fixed bottom-0 start-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'max-lg:invisible max-lg:-translate-x-full max-lg:rtl:translate-x-full'}`}
       >
         <PrimaryNavigation drawer />
         <AreaMenu key={route.area} />
@@ -80,7 +84,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
         <button
           type="button"
           className="fixed inset-0 top-16 z-40 bg-black/50 lg:hidden"
-          aria-label={t(route.locale, 'actions.closeMenu')}
+          aria-label={t('actions.closeMenu')}
           onClick={onClose}
         />
       )}

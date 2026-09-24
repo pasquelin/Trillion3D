@@ -11,7 +11,7 @@ import {
 } from './uniform.ts';
 import { createPartitionCounters } from './counters.ts';
 import { PARTITION_SHADER } from './shader.ts';
-import { dropValidation, openValidation, validationError } from '../core/errorScope.ts';
+import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { readGpuBuffer } from '../core/readback.ts';
 import type { GpuPartition, KeptFrame, PartitionSources } from './types.ts';
@@ -32,30 +32,33 @@ export async function createGpuPartition(
   const allocated = createGpuPartitionBuffers(device, slotCap);
   let disposed = false;
   try {
-    openValidation(device);
-    const module = device.createShaderModule({ code: PARTITION_SHADER });
-    if (await shaderFailed(device, module)) {
-      for (const buffer of allocated.all) buffer.destroy();
-      return undefined;
-    }
-    const projectLayout = createGpuPartitionLayout(device, 'projectRows'),
-      classifyLayout = createGpuPartitionLayout(device, 'classifyRows');
-    const pipelineFor = (layout: GPUBindGroupLayout, entryPoint: string) =>
-      device.createComputePipeline({
-        layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-        compute: { module, entryPoint },
-      });
-    const project = pipelineFor(projectLayout, 'projectRows'),
-      classify = pipelineFor(classifyLayout, 'classifyRows');
     // The pyramid changes identity on every target resize: the projection's group follows it,
     // remade only then. A fresh pyramid is all zeros — the far plane — and hides nothing.
     const buffers = { ...allocated, ...sources, pyramid };
-    let projectGroup = createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers);
-    const classifyGroup = createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers);
-    if (await validationError(device)) {
+    const made = await validated(device, async () => {
+      const module = device.createShaderModule({ code: PARTITION_SHADER });
+      if (await shaderFailed(module)) return undefined;
+      const projectLayout = createGpuPartitionLayout(device, 'projectRows'),
+        classifyLayout = createGpuPartitionLayout(device, 'classifyRows');
+      const pipelineFor = (layout: GPUBindGroupLayout, entryPoint: string) =>
+        device.createComputePipeline({
+          layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+          compute: { module, entryPoint },
+        });
+      return {
+        projectLayout,
+        project: pipelineFor(projectLayout, 'projectRows'),
+        classify: pipelineFor(classifyLayout, 'classifyRows'),
+        projectGroup: createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers),
+        classifyGroup: createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers),
+      };
+    });
+    if (!made) {
       for (const buffer of allocated.all) buffer.destroy();
       return undefined;
     }
+    const { projectLayout, project, classify, classifyGroup } = made;
+    let { projectGroup } = made;
     const writeUniform = createPartitionUniformWriter();
     // Rows rewritten with another page since the last image: their held rectangle, verdict and
     // history describe the page that left. Read as never projected, once, then forgotten.
@@ -128,7 +131,7 @@ export async function createGpuPartition(
           projectGroup = createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers);
         }
         const groups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP));
-        const pass = encoder.beginComputePass({ label: 'WG partition' });
+        const pass = encoder.beginComputePass({ label: 'Trillion3D partition' });
         pass.setPipeline(project);
         pass.setBindGroup(0, projectGroup);
         pass.dispatchWorkgroups(groups);
@@ -150,7 +153,6 @@ export async function createGpuPartition(
       },
     };
   } catch {
-    await dropValidation(device);
     for (const buffer of allocated.all)
       try {
         buffer.destroy();

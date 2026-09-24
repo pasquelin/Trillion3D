@@ -1,0 +1,1895 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "設定"
+    },
+    "menu": {
+      "play": "プレイ",
+      "resume": "つづける",
+      "restart": "やりなおす",
+      "controls": "設定",
+      "back": "もどる",
+      "paused": "一時停止中",
+      "again": "もう一度クリックしてつづけよう"
+    },
+    "keys": {
+      "Mouse": "マウス",
+      "Right button": "右ボタン",
+      "Wheel": "ホイール",
+      "Shift": "Shift",
+      "Space": "スペース",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "FPS",
+      "FPS (held)": "FPS（停止中）",
+      "triangles": "三角形",
+      "triangles (scene)": "三角形（シーン）",
+      "draw calls": "描画呼び出し",
+      "pages": "ページ",
+      "geometry pool": "ジオメトリ置き場",
+      "lights": "ライト",
+      "GPU frame": "GPUフレーム",
+      "CPU frame": "CPUフレーム",
+      "page hooks": "ページのコード",
+      "engine CPU": "エンジンCPU"
+    },
+    "failure": {
+      "title": "この例はエラーで止まりました"
+    },
+    "banner": {
+      "close": "閉じる"
+    }
+  },
+  "a-city-from-rules": {
+    "banner": "ドラッグして飛び回ろう。スライダーを動かすと町が建て直されるよ。",
+    "controls": {
+      "blocks": "ブロック",
+      "maxHeight": "最大の高さ",
+      "density": "密度",
+      "parks": "公園",
+      "seed": "シード",
+      "hour": "時刻",
+      "traffic": "交通"
+    },
+    "readouts": {
+      "buildings": "建物",
+      "parks": "公園"
+    }
+  },
+  "a-cloud-of-points": {
+    "banner": "ドラッグして雲のまわりを回ろう。ほかの形を選んで変わるのを見よう。",
+    "controls": {
+      "shape": "形",
+      "spin": "回転"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "渦巻銀河",
+        "globular cluster": "球状星団",
+        "ring nebula": "環状星雲",
+        "Lorenz attractor": "ローレンツ・アトラクター"
+      }
+    },
+    "readouts": {
+      "points": "点",
+      "colourGroups": "色のグループ"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "banner": "色を選んで、光が暗いところから明るいところへ変えていくのを見よう。",
+    "controls": {
+      "colour": "色",
+      "glow": "光",
+      "exposure": "露出"
+    }
+  },
+  "a-field-of-pebbles": {
+    "banner": "ドラッグして見回そう。太陽を動かして小石の影を見よう。",
+    "controls": {
+      "sunTurn": "太陽の向き",
+      "sunHeight": "太陽の高さ",
+      "first": "最初",
+      "last": "最後"
+    }
+  },
+  "a-first-world": {
+    "banner": "ドラッグして立方体のまわりを回ろう。新しい色をつけてみよう。",
+    "controls": {
+      "colour": "色"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "banner": "ドラッグして盤を動かそう。スクロールかピンチでズーム。矢印キーで移動。",
+    "controls": {
+      "play": "プレイ",
+      "speed": "速さ",
+      "follow": "追いかける",
+      "replay": "もう一度"
+    },
+    "readouts": {
+      "move": "手"
+    },
+    "words": {
+      "takes": "取る"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "banner": "ドラッグして見回そう。ランタンをゆらして光が動くのを見よう。",
+    "controls": {
+      "swing": "ゆれ",
+      "lamp": "ランプ",
+      "power": "パワー",
+      "glass": "ガラス"
+    }
+  },
+  "a-lighthouse-beam": {
+    "banner": "ドラッグして見回そう。光の束をもっと速く、もっと広く回そう。",
+    "controls": {
+      "turnsPerMinute": "1分あたりの回転",
+      "beamWidth": "光のはば",
+      "colour": "色"
+    }
+  },
+  "a-long-shadowed-street": {
+    "banner": "ドラッグして通りを見よう。時刻を動かすと影がのびるよ。ホイールで進もう。",
+    "controls": {
+      "hour": "時刻",
+      "traffic": "交通",
+      "flyAgain": "もう一度飛ぶ"
+    },
+    "readouts": {
+      "sunHeight": "太陽の高さ",
+      "shadow30MHouse": "高さ30 mの家の影"
+    }
+  },
+  "a-matcap-sculpture": {
+    "banner": "ドラッグして彫刻のまわりを歩こう。光もいっしょに回るよ。",
+    "controls": {
+      "matcap": "Matcap",
+      "sculpture": "彫刻",
+      "gallery": "ギャラリー",
+      "turn": "回す"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "赤い粘土",
+        "chrome": "クロム",
+        "gold": "金",
+        "jade": "ヒスイ",
+        "pearl": "真珠",
+        "obsidian": "黒曜石"
+      },
+      "sculpture": {
+        "knot": "結び目",
+        "rings": "輪",
+        "vase": "花びん"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "banner": "ドラッグして宝石のまわりを回ろう。どれも点をひとつずつ置いて作ったよ。とがった面をオフにすると角が共有されるよ。",
+    "controls": {
+      "points": "点",
+      "waist": "くびれ",
+      "height": "高さ",
+      "sharpFacets": "とがった面",
+      "colour": "色",
+      "spin": "回転"
+    },
+    "readouts": {
+      "verticesWritten": "書いた頂点",
+      "triangles": "三角形"
+    }
+  },
+  "a-model-from-obj": {
+    "banner": "ドラッグして盤のまわりを回ろう。スクロールで近づこう。",
+    "controls": {
+      "view": "表示",
+      "sunAngle": "太陽の角度",
+      "sunHeight": "太陽の高さ",
+      "turn": "回す"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "triangles": "三角形",
+        "clusters": "クラスター",
+        "lod": "詳細度"
+      }
+    },
+    "words": {
+      "credit": "この例のために作ったチェスセット、CC0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "a-model-from-usdz": {
+    "banner": "ドラッグしてチェスセットのまわりを歩こう。スクロールで駒まで近づこう。",
+    "controls": {
+      "view": "表示",
+      "turn": "回す"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "materials": "マテリアル",
+        "clusters": "クラスター",
+        "triangles": "三角形"
+      }
+    },
+    "readouts": {
+      "source": "元",
+      "boardWidth": "盤のはば",
+      "partsPlaced": "置いた部品",
+      "triangles": "三角形"
+    },
+    "words": {
+      "credit": "この例のためにコードで作ったチェスセット、CC0。ファイルは assets/examples/a-model-from-usdz/source/chess-set.usdz — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "a-molecule": {
+    "banner": "ドラッグして分子のまわりを回ろう。別の分子を選ぶと原子が飛んでいくよ。",
+    "controls": {
+      "molecule": "分子",
+      "style": "スタイル",
+      "spin": "回転"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "C60フラーレン",
+        "carbon nanotube": "カーボンナノチューブ",
+        "diamond crystal": "ダイヤモンドの結晶",
+        "DNA double helix": "DNAの二重らせん"
+      },
+      "style": {
+        "ball and stick": "球と棒",
+        "space filling": "空間充填",
+        "sticks": "棒"
+      }
+    },
+    "readouts": {
+      "atoms": "原子",
+      "bonds": "結合"
+    }
+  },
+  "a-neon-sign": {
+    "banner": "ドラッグして見回そう。ネオンを光らせて点滅させよう。",
+    "controls": {
+      "star": "星",
+      "wave": "波",
+      "glow": "光",
+      "pulse": "点滅",
+      "exposure": "露出",
+      "toneMapping": "トーンマッピング"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "ニュートラル",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "リニア"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "banner": "ドラッグして見回そう。ランプを増やして回してみよう。",
+    "controls": {
+      "lamps": "ランプ",
+      "speed": "速さ",
+      "power": "パワー",
+      "shadows": "影"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "banner": "ドラッグして見回そう。歩く、手をふる、おどるをまぜてみよう。",
+    "controls": {
+      "walk": "歩く",
+      "wave": "波",
+      "dance": "おどる",
+      "speed": "速さ",
+      "colour": "色",
+      "shadow": "影"
+    }
+  },
+  "a-scene-of-your-own": {
+    "banner": "ドラッグして見回そう。時刻、風、屋根を変えてみよう。",
+    "controls": {
+      "hour": "時刻",
+      "wind": "風",
+      "roof": "屋根"
+    }
+  },
+  "a-softbox-panel": {
+    "banner": "ドラッグして歩き回ろう。ライトのパネルを大きくすると光り方がやわらかくなるよ。",
+    "controls": {
+      "panelWidth": "パネルのはば",
+      "power": "パワー",
+      "colour": "色",
+      "swing": "ゆれ"
+    },
+    "readouts": {
+      "panel": "パネル",
+      "radiance": "放射輝度"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "banner": "ドラッグして見回そう。段を変えると階段が作り直されるよ。",
+    "controls": {
+      "climb": "のぼり",
+      "turnPerStep": "段ごとの回転",
+      "lantern": "ランタン"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "banner": "ドラッグして山の上を飛ぼう。一日の時刻を動かそう。",
+    "controls": {
+      "hour": "時刻",
+      "sunColour": "太陽の色",
+      "exposure": "露出"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "banner": "ドラッグして見回そう。かべの絵を回したりくり返したりしよう。奥のパネルは、描いたままのタイルだよ。",
+    "controls": {
+      "tile": "タイル",
+      "wrap": "はし",
+      "tilesAcross": "横のタイル数",
+      "turn": "回す",
+      "slideAcross": "横にずらす",
+      "slideUp": "上にずらす",
+      "flow": "流れる"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "くり返す",
+        "mirror": "鏡",
+        "clamp": "はしで止める"
+      },
+      "tile": {
+        "terracotta": "テラコッタ",
+        "azulejo": "アズレージョ",
+        "jade": "ヒスイ"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "タイル、回転"
+    },
+    "words": {
+      "up": "上"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "banner": "ドラッグして見回そう。ビーズが管にそって進むよ。",
+    "controls": {
+      "path": "道",
+      "radius": "半径",
+      "sides": "側面",
+      "slices": "輪切り",
+      "speed": "速さ",
+      "beads": "ビーズ",
+      "paint": "色"
+    },
+    "choices": {
+      "path": {
+        "knot": "結び目",
+        "coaster": "ジェットコースター",
+        "spiral": "らせん"
+      }
+    },
+    "readouts": {
+      "triangles": "三角形"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "banner": "ドラッグして見回そう。花びんのはばと高さを変えよう。",
+    "controls": {
+      "width": "はば",
+      "height": "高さ",
+      "gloss": "つや",
+      "spin": "回転"
+    }
+  },
+  "a-video-on-a-screen": {
+    "banner": "ドラッグして部屋を見回そう。画面には本物の動画が流れているよ。",
+    "controls": {
+      "playing": "再生中",
+      "openVideo": "ビデオを開く"
+    },
+    "readouts": {
+      "playing": "再生中",
+      "videoTime": "ビデオの時間"
+    },
+    "words": {
+      "yourFile": "きみのファイル",
+      "testCard": "テストパターン"
+    }
+  },
+  "a-video-panorama": {
+    "banner": "ドラッグしてぐるりと見回そう。自分の動画を開いてもいいよ。押すまでは、景色がひとりでに回るよ。",
+    "controls": {
+      "playing": "再生中",
+      "fieldOfView": "視野",
+      "openVideo": "ビデオを開く"
+    },
+    "readouts": {
+      "playing": "再生中"
+    },
+    "words": {
+      "yourFile": "きみのファイル",
+      "duskOverSea": "海の夕ぐれ"
+    }
+  },
+  "a-wall-of-cameras": {
+    "banner": "小さい画面をクリックすると大きく映るよ。それぞれのカメラが何を見るか選ぼう。",
+    "controls": {
+      "watch": "見張る"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "巡回",
+        "car": "車",
+        "balloon": "気球"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "車が見えているカメラ"
+    },
+    "words": {
+      "cam": "CAM",
+      "northGate": "北門",
+      "fountain": "噴水",
+      "eastRoad": "東通り",
+      "clockTower": "時計塔",
+      "cafe": "カフェ",
+      "southCorner": "南の角",
+      "noSignal": "信号なし",
+      "patrol": "巡回中",
+      "car": "車を追跡中",
+      "balloon": "気球を追跡中"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "banner": "ドラッグして見回そう。立方体の波を高く、速くしよう。",
+    "controls": {
+      "height": "高さ",
+      "speed": "速さ",
+      "ripples": "波紋",
+      "inner": "内側",
+      "outer": "外側"
+    }
+  },
+  "a-world-of-blocks": {
+    "banner": "ドラッグして島のまわりを飛ぼう。海を上げて谷を水びたしにしよう。",
+    "controls": {
+      "seed": "シード",
+      "seaLevel": "海面の高さ",
+      "hour": "時刻",
+      "clouds": "雲"
+    },
+    "readouts": {
+      "facesDrawn": "描いた面"
+    }
+  },
+  "before-and-after-slider": {
+    "banner": "丸いつまみをドラッグしてくらべよう。絵をドラッグすると回るよ。",
+    "controls": {
+      "before": "前"
+    },
+    "choices": {
+      "before": {
+        "clay": "粘土",
+        "no shadows": "影なし",
+        "no sun": "太陽なし",
+        "noon sun": "正午の太陽"
+      }
+    },
+    "words": {
+      "clay": "粘土",
+      "no shadows": "影なし",
+      "no sun": "太陽なし",
+      "noon sun": "正午の太陽",
+      "finished": "完成"
+    }
+  },
+  "blobs-that-merge": {
+    "banner": "ドラッグしてランプのまわりを歩こう。温めるとしずくがとけ合うよ。",
+    "controls": {
+      "stickiness": "ねばり",
+      "heat": "熱",
+      "wax": "ろう"
+    },
+    "readouts": {
+      "piecesWax": "ろうのかたまり"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "banner": "ドラッグして見回そう。ランプを動かしてレンガのでこぼこを見よう。",
+    "controls": {
+      "sweep": "スイープ",
+      "lamp": "ランプ",
+      "colour": "色",
+      "bricks": "レンガ"
+    }
+  },
+  "click-to-pick": {
+    "banner": "形をクリックしよう。光って、パネルがどこに当たったか教えてくれるよ。",
+    "readouts": {
+      "picked": "選んだもの",
+      "point": "点",
+      "distance": "きょり"
+    },
+    "words": {
+      "nothing": "なし",
+      "box": "箱",
+      "sphere": "球",
+      "cone": "円すい",
+      "torus": "トーラス",
+      "cylinder": "円柱",
+      "knot": "結び目"
+    }
+  },
+  "colours-on-the-vertices": {
+    "banner": "ドラッグして惑星を回そう。角ごとに自分の色があるよ。",
+    "controls": {
+      "palette": "パレット",
+      "seaLevel": "海面の高さ",
+      "relief": "起伏",
+      "spin": "回転"
+    },
+    "choices": {
+      "palette": {
+        "earth": "地球",
+        "lava": "溶岩",
+        "ice": "氷",
+        "candy": "キャンディ"
+      }
+    }
+  },
+  "compressed-textures": {
+    "banner": "ドラッグして噴水のまわりを歩こう。近づくと細かいところが出てくるよ。",
+    "controls": {
+      "sunTurn": "太陽の向き",
+      "sunHeight": "太陽の高さ"
+    },
+    "readouts": {
+      "texturesBlocks": "ブロックのテクスチャ",
+      "allFullDetail": "すべて最高の細かさで",
+      "poolFormat": "置き場の形式",
+      "tilesHeld": "持っているタイル",
+      "heldGpu": "GPUに置いた量"
+    },
+    "words": {
+      "credit": "この例のためにコードで描いた中庭とテクスチャ、CC0 — assets/examples/CREDITS.md を見てね",
+      "someOf": "{all}のうち{some}",
+      "notPlain": "{held} MiB（{plain} ではなく）",
+      "notMeasured": "ここでははかっていない"
+    }
+  },
+  "copies-along-a-path": {
+    "banner": "ドラッグして公園を見回そう。コピーを増やしてトンネルにしよう。",
+    "controls": {
+      "copies": "コピー",
+      "twist": "ねじれ",
+      "speed": "速さ",
+      "ride": "乗る"
+    },
+    "readouts": {
+      "archesPlaced": "置いたアーチ"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "banner": "ドラッグして見回そう。スポットライトの角度と色を変えよう。",
+    "controls": {
+      "angle": "角度",
+      "softness": "やわらかさ",
+      "colour": "色",
+      "power": "パワー"
+    },
+    "words": {
+      "credit": "W. Sitters による木箱のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "create-and-dispose": {
+    "banner": "ドラッグして歩き回ろう。部品が出てきては消えるのをずっと見られるよ。ホイールで近づこう。",
+    "controls": {
+      "perSecond": "1秒あたり",
+      "copies": "コピー",
+      "burst": "どっと出す",
+      "clearAll": "全部消す"
+    },
+    "choices": {
+      "copies": {
+        "share": "形を共有する",
+        "fresh": "毎回新しい形"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "生きている部品",
+      "created": "作った数",
+      "disposed": "片づけた数",
+      "gpuMemory": "GPUメモリ"
+    },
+    "words": {
+      "notMeasured": "はかっていない"
+    }
+  },
+  "curved-surfaces": {
+    "banner": "ドラッグして歩き回ろう。グリッドを下げると曲面の三角形が見えるよ。",
+    "controls": {
+      "grid": "グリッド",
+      "facets": "面",
+      "turntable": "回転台"
+    },
+    "readouts": {
+      "triangles": "三角形",
+      "facingYou": "きみの正面"
+    },
+    "words": {
+      "Klein bottle": "クラインのつぼ",
+      "Möbius strip": "メビウスの帯",
+      "Seashell": "貝がら",
+      "Dini's twist": "ディニのねじれ",
+      "Enneper saddle": "エネパーの鞍"
+    }
+  },
+  "dashed-lines": {
+    "banner": "ドラッグして太陽のまわりを回ろう。点線の線とすきまを変えよう。",
+    "controls": {
+      "lines": "線",
+      "dash": "線の長さ",
+      "gap": "すきま",
+      "spin": "回転"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "点線",
+        "solid": "実線"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "青い惑星の軌道の点線の数"
+    }
+  },
+  "detail-by-pixel-error": {
+    "banner": "ドラッグして大通りを歩こう。つぼに近づいてから、遠くへはなれよう。",
+    "controls": {
+      "pixelError": "ピクセル誤差",
+      "view": "表示"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "lod": "詳細度",
+        "screen-error": "画面の誤差",
+        "triangles": "三角形"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "描いた三角形",
+      "shareAvenue": "大通りの割合",
+      "trianglesAvenue": "大通りの三角形"
+    },
+    "words": {
+      "credit": "この例のためにコードで作ったつぼの並木道、CC0 — assets/examples/CREDITS.md を見てね",
+      "notCounted": "ここでは数えていない"
+    }
+  },
+  "edges-and-wireframe": {
+    "banner": "ドラッグして見回そう。しきい値を上げると、とがったふちだけ残るよ。",
+    "controls": {
+      "view": "表示",
+      "threshold": "しきい値",
+      "lines": "線",
+      "spin": "回転"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "面とへり",
+        "edges": "へり",
+        "wireframe": "ワイヤーフレーム",
+        "surface and wireframe": "面とワイヤーフレーム",
+        "surface": "面"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "へりの線分",
+      "wireframeSegments": "ワイヤーフレームの線分"
+    }
+  },
+  "every-image-format": {
+    "banner": "ドラッグしてイーゼルにそって歩こう。画質を下げて近くで見よう。",
+    "controls": {
+      "quality": "品質",
+      "lookAt": "見る"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "8つ全部",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "生のピクセル"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "生のピクセル"
+    },
+    "words": {
+      "samePicture": "512 × 512 · 同じ絵",
+      "lossless": "劣化なし",
+      "lossy": "劣化あり",
+      "colours256": "256色",
+      "uncompressed": "圧縮なし",
+      "shapes": "形、読みこみ時に描く",
+      "painted": "ページの中で描いた",
+      "bytes": "メモリ上のバイト",
+      "inMemory": "メモリに {size} · {note}",
+      "sentAs": "{type} として届いた"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "banner": "ドラッグして日時計のまわりを歩こう。時刻を動かすと影が回るよ。",
+    "controls": {
+      "hour": "時刻",
+      "darkness": "暗さ",
+      "timeLapse": "早送り",
+      "motion": "動き"
+    },
+    "readouts": {
+      "shadowLength": "影の長さ"
+    },
+    "words": {
+      "timesHeight": "高さの {times} 倍"
+    }
+  },
+  "fly-over-a-model-town": {
+    "banner": "ジェット機でリングをくぐろう。スロットルを上げて離陸しよう。",
+    "choices": {
+      "view": {
+        "cockpit": "コックピット",
+        "exterior": "外から"
+      },
+      "mode": {
+        "arcade": "アーケード — ジェットはねらった方へ飛ぶ。失速しないし、自分で立て直す",
+        "expert": "エキスパート — マウスが操縦かん。失速してきりもみになる"
+      },
+      "sensitivity": {
+        "Low": "低い",
+        "Medium": "ふつう",
+        "High": "高い"
+      },
+      "invert": {
+        "off": "オフ",
+        "on": "オン"
+      },
+      "sound": {
+        "on": "オン",
+        "off": "オフ"
+      }
+    },
+    "game": {
+      "title": "戦闘機",
+      "goal": "離陸して、10個の金の輪をくぐりながら谷をできるだけ速く飛ぼう。マウスでねらうと、ジェットがついてくる。",
+      "keys": {
+        "aim": "ねらう（アーケード）か操縦かん（エキスパート）",
+        "fineAim": "こまかくねらう（おしたまま）",
+        "throttle": "スロットルを上げる、下げる",
+        "afterburner": "アフターバーナー（おしたまま）",
+        "roll": "ロール（アーケードではねらいより優先）",
+        "rudder": "方向舵",
+        "airBrake": "エアブレーキ（おしたまま）",
+        "lookAround": "まわりを見る（おしたまま）",
+        "view": "コックピットか外からの眺め",
+        "zoom": "外の眺めをズーム",
+        "startOver": "最初から",
+        "pause": "一時停止"
+      },
+      "options": {
+        "view": "表示",
+        "mode": "モード",
+        "sensitivity": "マウスの感度",
+        "invert": "Yを反転",
+        "sound": "音"
+      }
+    },
+    "words": {
+      "testMode": "テストモード — マウスは固定されていない",
+      "rings": "輪 {passed}/{all}",
+      "complete": "コース完了",
+      "flyAgain": "{time} — R でもう一度飛ぶ",
+      "stall": "失速",
+      "pullUp": "機首を上げろ",
+      "turnBack": "引き返せ",
+      "crashed": "墜落",
+      "backToRunway": "滑走路にもどる…",
+      "backToRing": "最後の輪にもどる…",
+      "throttleUp": "W — スロットルを上げる（AZERTYならZ）",
+      "rolling": "滑走中 — {knots} ノット",
+      "liftOff": "マウスを上へ — 離陸"
+    }
+  },
+  "four-ways-to-blend": {
+    "banner": "ドラッグして横から見よう。パネルごとに色のまぜ方がちがうよ。左から右へ: ふつう、加算、減算、乗算。",
+    "controls": {
+      "inks": "インク",
+      "opacity": "不透明度",
+      "circle": "回る"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "赤、緑、青",
+        "cyan, magenta, yellow": "シアン、マゼンタ、イエロー",
+        "warm and cool": "あたたかい色と冷たい色"
+      }
+    }
+  },
+  "frame-the-model": {
+    "banner": "物をダブルクリックするとそこへズームするよ。ドラッグで回そう。ホイールでズーム。",
+    "controls": {
+      "model": "物",
+      "margin": "よゆう",
+      "drift": "ただよう"
+    },
+    "choices": {
+      "model": {
+        "everything": "全部",
+        "the gold ring": "金の指輪",
+        "the vase": "花びん",
+        "the king": "キング",
+        "the arch": "アーチ",
+        "the obelisk": "オベリスク"
+      }
+    },
+    "readouts": {
+      "framing": "収めたもの",
+      "radius": "半径",
+      "distance": "きょり"
+    },
+    "words": {
+      "the gold ring": "金の指輪",
+      "the vase": "花びん",
+      "the king": "キング",
+      "the arch": "アーチ",
+      "the obelisk": "オベリスク"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "banner": "スクロールして、砂つぶから惑星全体までズームしよう。ドラッグで回そう。",
+    "controls": {
+      "toTheGrain": "砂つぶへ",
+      "toTheBeach": "浜辺へ",
+      "toTheIsland": "島へ",
+      "toThePlanet": "惑星へ"
+    },
+    "readouts": {
+      "viewWidth": "見えているはば",
+      "youSee": "見えるもの"
+    },
+    "words": {
+      "grains of sand": "砂つぶ",
+      "sand and shells": "砂と貝がら",
+      "pebbles": "小石",
+      "the beach": "浜辺",
+      "the coast": "海岸",
+      "the island": "島",
+      "the planet": "惑星"
+    }
+  },
+  "from-clay-to-chrome": {
+    "banner": "ドラッグして見回そう。同じ色をねんど、金属、クロムでくらべよう。",
+    "controls": {
+      "colour": "色",
+      "lamps": "ランプ",
+      "swing": "ゆれ"
+    }
+  },
+  "from-noon-to-dusk": {
+    "banner": "ドラッグして見回そう。時刻を昼から夜まで動かそう。",
+    "controls": {
+      "speed": "速さ",
+      "hour": "時刻",
+      "adaptEyes": "目を慣らす"
+    }
+  },
+  "glass-on-the-table": {
+    "banner": "ドラッグして見回そう。ガラスが光を曲げる具合を変えよう。",
+    "controls": {
+      "refraction": "屈折",
+      "thickness": "厚み",
+      "tint": "色味",
+      "spin": "回転"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "banner": "ドラッグして歩き回ろう。ヘルパーを消すとそのままの絵が見えるよ。",
+    "controls": {
+      "helpers": "ヘルパー",
+      "dolly": "ドリー",
+      "bulb": "電球"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "全部",
+        "lights and camera": "ライトとカメラ",
+        "shapes and bounds": "形と境界",
+        "nothing": "なし"
+      }
+    },
+    "readouts": {
+      "helpersShown": "表示中のヘルパー"
+    }
+  },
+  "inside-a-panorama": {
+    "banner": "ドラッグして回ろう。スクロールで近づこう。ほかの空を選ぼう。",
+    "controls": {
+      "sky": "空",
+      "fieldOfView": "視野"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "夜明け",
+        "noon": "正午",
+        "dusk": "夕ぐれ"
+      }
+    },
+    "words": {
+      "credit": "パノラマは、このページが開くときにコードで描いている。何もダウンロードしない。"
+    }
+  },
+  "inside-the-g-buffer": {
+    "banner": "ドラッグして歩き回ろう。バッファを選んで絵の中をのぞこう。",
+    "controls": {
+      "buffer": "バッファ",
+      "turning": "回転"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "仕上がり",
+        "albedo": "下地の色",
+        "normals": "法線",
+        "depth": "深さ",
+        "triangle ids": "三角形の番号",
+        "material ids": "マテリアルの番号"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "各ピクセルが持つもの"
+    },
+    "words": {
+      "beauty": "光が当たった絵",
+      "albedo": "下地の色、光が当たる前",
+      "normals": "カメラから見て面が向いている方向",
+      "depth": "きょり: 近いと明るく、遠いと暗い",
+      "triangle ids": "どの三角形がそのピクセルをおおうか",
+      "material ids": "どのマテリアルがそのピクセルに色をぬるか",
+      "notOffered": "このレンダラーにはない"
+    }
+  },
+  "instances-in-colour": {
+    "banner": "ドラッグして銀河をかたむけよう。スクロールで中へ飛びこもう。",
+    "controls": {
+      "count": "数",
+      "arms": "うで",
+      "twist": "ねじれ",
+      "core": "中心",
+      "rim": "ふち",
+      "spin": "回転"
+    },
+    "readouts": {
+      "placementsDrawn": "描いたコピー",
+      "materials": "マテリアル"
+    }
+  },
+  "keyframes-by-hand": {
+    "banner": "ドラッグして机のまわりを回ろう。ランプがキーからキーへはねるのを見よう。1回のジャンプのキーを、ランプのうすいコピーで見せよう。",
+    "controls": {
+      "timing": "タイミング",
+      "onionSkin": "オニオンスキン",
+      "speed": "速さ"
+    },
+    "choices": {
+      "timing": {
+        "eased": "なめらか",
+        "linear": "リニア"
+      }
+    },
+    "readouts": {
+      "lastKey": "最後のキー"
+    },
+    "words": {
+      "rest": "休む",
+      "crouch": "しゃがむ",
+      "launch": "ふみきる",
+      "apex": "てっぺん",
+      "land": "着地",
+      "absorb": "ふんばる",
+      "look up": "見上げる",
+      "turn": "ふり向く",
+      "waking up": "目覚め中"
+    }
+  },
+  "labels-that-follow": {
+    "banner": "ドラッグして太陽のまわりを回ろう。ラベルが惑星といっしょに動くよ。ホイールで近づこう。",
+    "controls": {
+      "show": "表示",
+      "speed": "速さ",
+      "lineThemUp": "一列に並べる"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "太陽からのきょり",
+        "year": "1年",
+        "moons": "衛星",
+        "names only": "名前だけ"
+      }
+    },
+    "words": {
+      "Sun": "太陽",
+      "Mercury": "水星",
+      "Venus": "金星",
+      "Earth": "地球",
+      "Moon": "月",
+      "Mars": "火星",
+      "Jupiter": "木星",
+      "Saturn": "土星",
+      "Uranus": "天王星",
+      "Neptune": "海王星",
+      "fromEarth": "地球から384 400 km",
+      "ourStar": "わたしたちの星",
+      "au": "{au} 天文単位",
+      "month": "27日のひと月",
+      "year": "{days}日の1年",
+      "planets": "惑星8つ",
+      "earthsMoon": "地球の衛星",
+      "oneMoon": "衛星1つ",
+      "moons": "衛星{moons}個"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "banner": "ドラッグして見回そう。しきい値を動かして葉のふちを見よう。",
+    "controls": {
+      "branches": "枝",
+      "leaves": "葉",
+      "cutoff": "切り取りのしきい値",
+      "sun": "太陽"
+    }
+  },
+  "letters-carved-in-relief": {
+    "banner": "ドラッグして見回そう。ほられた文字に光を当てて動かそう。",
+    "controls": {
+      "rake": "光の角度",
+      "warm": "あたたかい",
+      "cool": "冷たい",
+      "letters": "文字"
+    }
+  },
+  "light-from-a-probe": {
+    "banner": "ドラッグして庭のまわりを回ろう。場所を選んでその光を見よう。",
+    "controls": {
+      "place": "場所",
+      "turn": "回す",
+      "strength": "強さ",
+      "keyLight": "メインライト",
+      "spin": "回転"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "夕日の砂漠",
+        "forest clearing": "森の空き地",
+        "neon alley": "ネオンの路地",
+        "snowfield": "雪原"
+      }
+    },
+    "readouts": {
+      "meanLight": "平均の光"
+    }
+  },
+  "light-in-real-units": {
+    "banner": "ドラッグして広場を歩こう。昼から月夜まで、時間を選ぼう。",
+    "controls": {
+      "moment": "時間",
+      "lampLumens": "街灯のルーメン",
+      "autoExposure": "自動露出",
+      "exposureValue": "露出値",
+      "turning": "回転"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "晴れた正午",
+        "overcast": "くもり",
+        "golden hour": "ゴールデンアワー",
+        "sunset": "日の入り",
+        "blue hour": "ブルーアワー",
+        "moonlit night": "月夜"
+      }
+    },
+    "readouts": {
+      "sun": "太陽",
+      "sky": "空",
+      "eachLamp": "街灯ひとつ",
+      "exposureValue": "露出値"
+    },
+    "words": {
+      "off": "オフ"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "banner": "ドラッグして見回そう。このランプはモデルのファイルに入っていたよ。",
+    "controls": {
+      "lamp": "ランプ",
+      "power": "パワー",
+      "colour": "色"
+    }
+  },
+  "lines-in-colour": {
+    "banner": "ドラッグして回ろう。別のルールを選ぶとペンがかいてくれるよ。",
+    "controls": {
+      "figure": "図形",
+      "palette": "パレット",
+      "pace": "ペース",
+      "redraw": "描きなおす",
+      "spin": "回転"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "ローレンツの蝶",
+        "Aizawa shell": "アイザワの貝",
+        "Thomas knot": "トーマスの結び目",
+        "Halvorsen propeller": "ハルヴォルセンのプロペラ"
+      },
+      "palette": {
+        "aurora": "オーロラ",
+        "sunset": "日の入り",
+        "embers": "燃えさし",
+        "ice": "氷"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "色のついた部分"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "banner": "ドラッグして胸像のまわりを回ろう。ランプを頭のまわりで動かそう。",
+    "controls": {
+      "lampTurn": "ランプの向き",
+      "lampHeight": "ランプの高さ",
+      "colour": "色",
+      "exposure": "露出",
+      "circle": "回る"
+    },
+    "words": {
+      "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "memory-on-a-budget": {
+    "banner": "ドラッグして見回そう。メモリーを減らして、何がくっきり残るか見よう。",
+    "controls": {
+      "memory": "メモリ",
+      "view": "表示"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "lod": "詳細度",
+        "clusters": "クラスター"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0。木箱: W. Sitters、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "banner": "ハンドルをドラッグして、物を動かしたり回したり大きくしたりしよう。横をドラッグすると見回せるよ。",
+    "controls": {
+      "mode": "モード",
+      "axes": "軸",
+      "snap": "スナップ"
+    },
+    "choices": {
+      "mode": {
+        "translate": "移動",
+        "rotate": "回転",
+        "scale": "拡大縮小"
+      },
+      "axes": {
+        "world": "ワールド",
+        "local": "ローカル"
+      }
+    },
+    "readouts": {
+      "position": "位置",
+      "drags": "ドラッグ回数"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "banner": "ドラッグして見回そう。グラフは絵と絵のあいだの時間だよ。",
+    "controls": {
+      "turning": "回転",
+      "revealAgain": "もう一度見せる"
+    },
+    "readouts": {
+      "worstFrameBefore": "前の最悪フレーム",
+      "worstFrameAfter": "後の最悪フレーム"
+    },
+    "words": {
+      "note": "14の面、それぞれちがうマテリアルや設定で、すべて同じフレームに表示。グラフはフレームの間の時間をえがき、金色の線は面が現れた瞬間だよ。",
+      "measuring": "はかり中",
+      "hidden": "かくれている"
+    }
+  },
+  "normals-and-depth-seen": {
+    "banner": "ドラッグして歩き回ろう。表示を切りかえてレンダラーがしまっているものを見よう。",
+    "controls": {
+      "see": "見る",
+      "spin": "回転"
+    },
+    "choices": {
+      "see": {
+        "lit": "光あり",
+        "normals": "法線",
+        "depth": "深さ"
+      }
+    },
+    "readouts": {
+      "colourMeans": "色の意味"
+    },
+    "words": {
+      "lit": "光とマテリアル",
+      "normals": "向き: 右が赤、上が緑、きみの方が青",
+      "depth": "きょり: 近いと白、遠いと暗い"
+    }
+  },
+  "observatory-streamed": {
+    "banner": "ドラッグして見回そう。表示を切りかえてモデルの分け方を見よう。",
+    "controls": {
+      "view": "表示",
+      "pixelError": "ピクセル誤差"
+    },
+    "choices": {
+      "view": {
+        "clusters": "クラスター",
+        "beauty": "仕上がり",
+        "pages": "ページ",
+        "lod": "詳細度",
+        "triangles": "三角形"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "banner": "ドラッグしてスタジアムのまわりを回ろう。ウェーブが客席をどう走るか選ぼう。",
+    "controls": {
+      "pattern": "パターン",
+      "speed": "速さ"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "ウェーブ",
+        "ripple outwards": "外へ広がる波",
+        "all at once": "全員いっしょに"
+      }
+    },
+    "readouts": {
+      "clips": "クリップ",
+      "fansPlayingIt": "それを再生しているファン"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "banner": "ドラッグで回ろう。右ドラッグで動かそう。スクロールで歯車にズームしよう。",
+    "controls": {
+      "view": "表示",
+      "speed": "速さ",
+      "brass": "真ちゅう"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "ななめ前",
+        "front": "正面",
+        "side": "横",
+        "top": "上"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "banner": "ドラッグして見回そう。形の色ぬりとチェックもようを変えよう。",
+    "controls": {
+      "checks": "チェック",
+      "paint": "色",
+      "second": "2番目",
+      "spin": "回転"
+    }
+  },
+  "reading-pixels-back": {
+    "banner": "ドラッグして見回そう。小さい絵は、景色を数字として読み返したものだよ。",
+    "controls": {
+      "sunHeight": "太陽の高さ",
+      "live": "ライブ",
+      "turning": "回転",
+      "savePng": "PNGを保存"
+    },
+    "readouts": {
+      "meanColour": "平均の色",
+      "brightest": "いちばん明るい",
+      "readBack": "読みもどし時間"
+    },
+    "words": {
+      "hover": "絵の上にマウスをのせて、ピクセルを読もう",
+      "pixel": "ピクセル {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "banner": "乗りながらドラッグして首を回そう。止めると公園を見回せるよ。",
+    "controls": {
+      "ride": "乗る",
+      "loops": "ループ"
+    },
+    "readouts": {
+      "speed": "速さ",
+      "gForce": "G（重力加速度）"
+    }
+  },
+  "save-the-scene": {
+    "banner": "タワーをたおして、保存したシーンをもう一度開こう。",
+    "controls": {
+      "knockDown": "たおす",
+      "save": "保存",
+      "open": "開く"
+    },
+    "readouts": {
+      "saved": "保存した量"
+    },
+    "words": {
+      "bytes": "{bytes} バイト"
+    }
+  },
+  "scattered-on-a-surface": {
+    "banner": "ドラッグして惑星を回そう。森を山の上までのぼらせよう。",
+    "controls": {
+      "trees": "木",
+      "rocks": "岩",
+      "steepest": "いちばん急な坂",
+      "seaLevel": "海面の高さ",
+      "spin": "回転"
+    },
+    "readouts": {
+      "treesPlanted": "植えた木",
+      "spotsRefused": "ことわった場所"
+    }
+  },
+  "see-the-triangles": {
+    "banner": "スクロールで遠ざかったり近づいたりしよう。遠くでは胸像の三角形は少なく大きくなるよ。",
+    "controls": {
+      "view": "表示",
+      "pixelError": "ピクセル誤差",
+      "sideBySide": "ならべる"
+    },
+    "choices": {
+      "view": {
+        "triangles": "三角形",
+        "clusters": "クラスター",
+        "lod": "詳細度",
+        "pages": "ページ",
+        "beauty": "仕上がり"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "描いた三角形",
+      "pagesMemory": "メモリ上のページ"
+    },
+    "words": {
+      "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "select-with-a-box": {
+    "banner": "わくをドラッグして選ぼう。Shiftで追加、Altで外す。ふり向くに切りかえると見回せるよ。",
+    "controls": {
+      "mouse": "マウス",
+      "selectAll": "全部選ぶ",
+      "clear": "クリア"
+    },
+    "choices": {
+      "mouse": {
+        "select": "選ぶ",
+        "turn": "ふり向く"
+      }
+    },
+    "readouts": {
+      "selected": "選んだ数"
+    }
+  },
+  "several-views-one-page": {
+    "banner": "大きい画面をドラッグして回そう。小さい画面はスクロールとドラッグで。ズームと移動ができて、ダブルクリックでもとにもどるよ。",
+    "controls": {
+      "explode": "ばらばらにする",
+      "windFrom": "風の向き",
+      "windSpeed": "風の速さ"
+    },
+    "readouts": {
+      "sailTurnsMinute": "1分あたりの羽根の回転"
+    },
+    "words": {
+      "perspective": "遠近",
+      "top": "上",
+      "front": "正面",
+      "side": "横、東から"
+    }
+  },
+  "shadows-from-the-sun": {
+    "banner": "ドラッグして庭を歩こう。時刻を動かすと影が回るよ。",
+    "controls": {
+      "hour": "時刻",
+      "day": "日",
+      "latitude": "緯度",
+      "sails": "帆"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "夏至",
+        "spring equinox": "春分",
+        "winter solstice": "冬至"
+      }
+    },
+    "readouts": {
+      "sunHeight": "太陽の高さ",
+      "sunBearing": "太陽の方角",
+      "obeliskShadow": "オベリスクの影"
+    },
+    "words": {
+      "S": "南",
+      "SW": "南西",
+      "W": "西",
+      "NW": "北西",
+      "N": "北",
+      "NE": "北東",
+      "E": "東",
+      "SE": "南東",
+      "belowHorizon": "地平線の下",
+      "bearing": "{point}（北から{degrees}°）"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "banner": "ドラッグして見回そう。深さを0にすると平らな形が見えるよ。",
+    "controls": {
+      "depth": "深さ",
+      "bevel": "面取り",
+      "bevelSize": "面取りの大きさ",
+      "bevelSegments": "面取りの分割数",
+      "curveSegments": "曲線の分割数",
+      "spin": "回転"
+    },
+    "readouts": {
+      "triangles": "三角形"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "banner": "ドラッグして見回そう。色と回転を変えよう。",
+    "controls": {
+      "colour": "色",
+      "speed": "速さ",
+      "spin": "回転"
+    }
+  },
+  "side-by-side-stereo": {
+    "banner": "左の絵をドラッグして回そう。二つの点が一つになるまで寄り目にしよう。",
+    "controls": {
+      "viewing": "見方",
+      "separation": "はなれ具合",
+      "speed": "速さ"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "寄り目",
+        "parallel": "平行"
+      }
+    },
+    "words": {
+      "leftEye": "左目",
+      "rightEye": "右目"
+    }
+  },
+  "sky-and-ground-light": {
+    "banner": "ドラッグして下から上から見よう。場所を選ぶと空が変わるよ。",
+    "controls": {
+      "place": "場所",
+      "skyStrength": "空の強さ",
+      "sun": "太陽",
+      "float": "うかぶ"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "正午の草原",
+        "snowfield": "雪原",
+        "red desert": "赤い砂漠",
+        "sunset beach": "夕日の浜辺",
+        "tropical lagoon": "熱帯のラグーン",
+        "overcast city": "くもりの街"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "上から見た空",
+      "groundFromBelow": "下から見た地面"
+    }
+  },
+  "smooth-edges-over-time": {
+    "banner": "ドラッグして電線を見よう。なめらかにするのを切ると、ギザギザが見えるよ。",
+    "controls": {
+      "smoothing": "なめらかさ",
+      "circle": "回る"
+    },
+    "readouts": {
+      "temporalAntialiasing": "時間方向のアンチエイリアス"
+    },
+    "words": {
+      "on": "オン",
+      "off": "オフ"
+    }
+  },
+  "snow-of-sprites": {
+    "banner": "ドラッグして小屋のまわりを歩こう。雪をふぶきに変えよう。",
+    "controls": {
+      "weather": "天気",
+      "wind": "風"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "しんしんと雪",
+        "light flurry": "ちらちら雪",
+        "blizzard": "ふぶき"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "ふっている雪"
+    }
+  },
+  "sound-made-visible": {
+    "banner": "ステージをクリックしてメロディを聞こう。ドラッグでステージのまわりを歩こう。棒は音の高さ、真珠は波そのものだよ。",
+    "controls": {
+      "layout": "ならべ方",
+      "height": "高さ",
+      "playMelody": "メロディを鳴らす",
+      "useMicrophone": "マイクを使う",
+      "silence": "静かに"
+    },
+    "choices": {
+      "layout": {
+        "ring": "輪",
+        "wall": "かべ",
+        "spiral": "らせん"
+      }
+    },
+    "words": {
+      "listening": "マイクを聞いているよ: 歌って、口笛をふいて、手をたたいて",
+      "refused": "マイクがことわられた: かわりにメロディが鳴るよ",
+      "silence": "静か。ステージをクリックすると、またメロディが聞こえる"
+    }
+  },
+  "spin-an-astrolabe": {
+    "banner": "ドラッグしてどの向きにも回そう、さかさまでも。スクロールでズーム。",
+    "controls": {
+      "turning": "回転",
+      "sun": "太陽"
+    }
+  },
+  "street-lamp-at-night": {
+    "banner": "ドラッグして見回そう。夜にして街灯をつけよう。",
+    "controls": {
+      "night": "夜",
+      "bounce": "はね返り",
+      "sun": "太陽",
+      "lamp": "ランプ"
+    },
+    "words": {
+      "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "ten-thousand-objects": {
+    "banner": "ドラッグして惑星のまわりを回ろう。スクロールして岩の輪の中へ。",
+    "controls": {
+      "view": "表示",
+      "pixelError": "ピクセル誤差",
+      "drift": "ただよう"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "clusters": "クラスター",
+        "lod": "詳細度"
+      }
+    },
+    "readouts": {
+      "objectsScene": "シーンの中の物",
+      "trianglesFile": "ファイルの三角形",
+      "trianglesDrawn": "描いた三角形"
+    },
+    "words": {
+      "credit": "この例のためにコードで作った惑星と小さな月、CC0 — assets/examples/CREDITS.md を見てね",
+      "million": "{count}百万",
+      "notCounted": "ここでは数えていない"
+    }
+  },
+  "texture-filters-compared": {
+    "banner": "ドラッグしてレーンにそって見よう。レーンごとに絵のなめらかさがちがうよ。左から右へ: 最近傍、リニア、トライリニア、異方性。",
+    "controls": {
+      "picture": "絵",
+      "anisotropy": "異方性"
+    },
+    "choices": {
+      "picture": {
+        "checker": "市松もよう",
+        "lettering": "文字"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "4番目のレーンの異方性"
+    }
+  },
+  "the-material-family": {
+    "banner": "ドラッグして歩き回ろう。光を夜にして、まだ光るものを見よう。",
+    "controls": {
+      "light": "光",
+      "shape": "形",
+      "lookAt": "見る",
+      "spin": "回転"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "家族全員",
+        "all": "家族全員",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "ゴールデンアワー",
+        "midday": "正午",
+        "night": "夜"
+      },
+      "shape": {
+        "knot": "結び目",
+        "sphere": "球",
+        "vase": "花びん",
+        "ring": "輪"
+      }
+    },
+    "readouts": {
+      "looking": "見ているもの",
+      "litByLamps": "ランプで照らされる"
+    },
+    "words": {
+      "meshBasic": "平らな色ひとつ、どのランプも見えない",
+      "meshLambert": "チョークみたいにマット: やわらかい光、つやなし",
+      "meshPhong": "プラスチック: 太陽がはね返るところに明るい点",
+      "meshStandard": "金属っぽさとざらざら、いつもの選択",
+      "meshPhysical": "スタンダード＋ガラス: 光が通りぬける",
+      "meshToon": "アニメ: 光が2本の平らな帯になる",
+      "meshNormal": "それぞれの点の向きを色で",
+      "meshMatcap": "ランプではなく、光の当たった球の絵で照らされる",
+      "allKinds": "8種類全部",
+      "yes": "はい",
+      "no": "いいえ",
+      "fiveOfEight": "8つのうち5つ"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "banner": "ボタンをおすと自分のカメラが使えるよ。ドラッグしてかべにそって見よう。",
+    "controls": {
+      "useMyCamera": "自分のカメラを使う",
+      "layout": "ならべ方",
+      "mirror": "鏡"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "ビデオウォール",
+        "one per screen": "画面ごとにひとつ"
+      }
+    },
+    "readouts": {
+      "source": "元"
+    },
+    "words": {
+      "noCamera": "カメラなし",
+      "yourCamera": "きみのカメラ",
+      "refused": "カメラがことわられた（{error}）",
+      "paintedSignal": "描いた信号"
+    }
+  },
+  "toon-shading": {
+    "banner": "ドラッグして島のまわりを回ろう。かげをアニメの帯に切りかえよう。",
+    "controls": {
+      "shading": "陰影",
+      "outlines": "輪郭線",
+      "sun": "太陽",
+      "wind": "風"
+    },
+    "choices": {
+      "shading": {
+        "toon": "アニメ風",
+        "matte": "マット",
+        "physical": "物理"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "banner": "ドラッグして見回そう。ポインターをオンにしてドローンを動かそう。",
+    "controls": {
+      "turn": "回す",
+      "turnSpeed": "回る速さ",
+      "followPointer": "ポインターを追う"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "一定の速さで",
+        "at once": "いっぺんに",
+        "on a spring": "ばねで"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "ねらいが合ったアンテナ"
+    }
+  },
+  "two-lenses-one-scene": {
+    "banner": "ドラッグして町のまわりを回ろう。レンズを切りかえて通りを見よう。",
+    "controls": {
+      "lens": "レンズ",
+      "fieldOfView": "視野",
+      "isometric": "アイソメトリック",
+      "drift": "ただよう"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "遠近法",
+        "orthographic": "平行投影"
+      }
+    },
+    "readouts": {
+      "lens": "レンズ"
+    },
+    "words": {
+      "orthographic": "平行投影、高さ {height} m",
+      "perspective": "{degrees}° の遠近法"
+    }
+  },
+  "uvs-of-every-shape": {
+    "banner": "ドラッグして見回そう。文字と数字がどのマスにも名前をつけているよ。",
+    "controls": {
+      "pattern": "パターン",
+      "repeat": "くり返し",
+      "slide": "ずらす",
+      "spin": "回転"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "テストパターン",
+        "checks": "チェック",
+        "arrows": "矢印"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "banner": "プレイをおして、W A S Dで走り、スペースでジャンプしよう。",
+    "controls": {
+      "keys": "エンジンのキャラクター操作: メニューの「プレイ」でマウスを固定して見回す、W A S D で走る（AZERTYなら Z Q S D）、Shift でダッシュ、スペースでジャンプ、Esc でマウスを放す。このページは、R で走りなおし、M で音を消すのを足している。",
+      "look": "視点",
+      "runAgain": "走りなおす"
+    },
+    "game": {
+      "title": "神殿パルクール",
+      "goal": "とちゅうで5つのオーブを集めて、金の像にたどりつこう。溶岩に落ちると、最後に光ったチェックポイントにもどされる。",
+      "keys": {
+        "run": "走る",
+        "look": "視点",
+        "sprint": "ダッシュ",
+        "jump": "ジャンプ",
+        "runAgain": "走りなおす",
+        "sound": "音のオン・オフ",
+        "pause": "一時停止"
+      }
+    },
+    "words": {
+      "checkpoint": "チェックポイント",
+      "finished": "{taken} / {orbs} オーブ · R で走りなおす",
+      "muted": "M 消音",
+      "sound": "M 音あり"
+    }
+  },
+  "waves-of-points": {
+    "banner": "ドラッグして野原のまわりを回ろう。もようを選ぶと波が変わるよ。",
+    "controls": {
+      "pattern": "パターン",
+      "height": "高さ",
+      "speed": "速さ"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "うねり",
+        "rain of stones": "石の雨",
+        "interference": "干渉",
+        "standing wave": "定常波",
+        "whirlpool": "うず"
+      }
+    },
+    "readouts": {
+      "points": "点"
+    }
+  },
+  "what-hides-what": {
+    "banner": "ドラッグして見回そう。生けがきが金色の結び目をかくしているよ。",
+    "controls": {
+      "hedgeHeight": "生け垣の高さ",
+      "view": "表示",
+      "aboveOrInside": "上から、または中から"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "visibility": "見えるかどうか"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "金の結び目",
+      "clustersTested": "調べたクラスター",
+      "clustersHidden": "かくれたクラスター",
+      "trianglesHidden": "かくれた三角形"
+    },
+    "words": {
+      "notCounted": "ここでは数えていない"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "banner": "ドリーズームをおして、柱がのびるのを見よう。",
+    "controls": {
+      "fieldOfView": "視野",
+      "dollyZoom": "ドリーズーム"
+    }
+  },
+  "openworld": {
+    "banner": "W A S Dで歩こう。車か飛行機の近くでEをおすと乗れるよ。",
+    "controls": {
+      "keys": "WASD 歩く · Shift 走る · Space ジャンプ · C しゃがむ · E 車や飛行機に乗り降り",
+      "teleport": "テレポート",
+      "timeOfDay": "時刻",
+      "daySpeed": "一日の速さ",
+      "pause": "一時停止",
+      "rain": "雨",
+      "geometryMB": "ジオメトリ MB",
+      "textureMB": "テクスチャ MB",
+      "view": "表示"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "ストリーミング"
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "パネルでケースを選ぼう。「free」ではドラッグして見回そう。",
+    "controls": {
+      "case": "ケース",
+      "caster": "影を落とす物"
+    },
+    "readouts": {
+      "Look for": "注目"
+    }
+  }
+}

@@ -58,7 +58,7 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (lights.spheres && lights.spheres.rows === drawSlots) return lights.spheres;
   lights.spheres?.buffer.destroy();
   const buffer = device.createBuffer({
-    label: 'WG cluster spheres v1',
+    label: 'Trillion3D cluster spheres v1',
     size: Math.max(1, drawSlots) * CLUSTER_SPHERE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
@@ -106,7 +106,7 @@ export function uploadRowMobility(
   if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
     lights.mobilityRows?.destroy();
     lights.mobilityRows = device.createBuffer({
-      label: 'WG shadow row mobility v1',
+      label: 'Trillion3D shadow row mobility v1',
       size: mobility.rowWords.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });

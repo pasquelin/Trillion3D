@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Perspective and ortho</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #cfe0f2;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
+      import { controls, readout, words, seeded, ease } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#cfe0f2');
+
+      // A toy city on a table: six by six blocks between streets, each block a few buildings or a
+      // park, and cars running down the streets. Seeded, so every visit builds the same town.
+      const random = seeded(27);
+      const matte = (color) => material.meshStandard({ color, roughness: 0.8 });
+      const WALLS = ['#e9d8bf', '#d9a78a', '#c9d3dc', '#f0e6d2', '#b9c7a8', '#e2b6a0'].map(matte);
+      const ROOF = matte('#6d6a70'), PAVING = matte('#d8d4cc'), GRASS = matte('#78a15a'), LEAF = matte('#3f7d45'), BARK = matte('#6b4a30');
+      const table = object.mesh(geometry.box(27, 0.6, 27), matte('#474b53'));
+      table.position.y = -0.3;
+      world.scene.add(table);
+      const blocks = object.group();
+      world.scene.add(blocks);
+      const buildings = [];
+      const add = (mesh, x, y, z) => (mesh.position.set(x, y, z), blocks.add(mesh), mesh);
+      const box = geometry.box(1, 1, 1), crown = geometry.cone(1, 1, 24), trunk = geometry.cylinder(0.08, 0.1, 1, 12);
+      for (let i = 0; i < 6; i++)
+        for (let j = 0; j < 6; j++) {
+          const cx = -10 + i * 4, cz = -10 + j * 4, centre = Math.max(Math.abs(cx), Math.abs(cz)) < 3;
+          const park = !centre && random() < 0.17;
+          add(object.mesh(geometry.box(3, 0.12, 3), park ? GRASS : PAVING), cx, 0.06, cz);
+          if (park) {
+            for (let t = 0; t < 5; t++) {
+              const x = cx + (random() - 0.5) * 2.2, z = cz + (random() - 0.5) * 2.2, h = 0.6 + random() * 0.5;
+              add(object.mesh(trunk, BARK), x, 0.12 + h * 0.25, z).scale.set(1, h * 0.5, 1);
+              add(object.mesh(crown, LEAF), x, 0.12 + h * 0.5 + h * 0.4, z).scale.set(0.32, h * 0.8, 0.32);
+            }
+            continue;
+          }
+          // A block is split into two or four lots; the middle block holds one tower.
+          const lots = centre ? [[0, 0, 2.4]] : random() < 0.5 ? [[-0.7, 0, 1.2], [0.7, 0, 1.2]] : [[-0.7, -0.7, 1.2], [0.7, -0.7, 1.2], [-0.7, 0.7, 1.2], [0.7, 0.7, 1.2]];
+          for (const [dx, dz, w] of lots) {
+            const tall = centre ? 11 : 0.8 + random() ** 2 * 5.5, deep = lots.length === 2 ? 2.6 : w;
+            const body = add(object.mesh(box, WALLS[Math.floor(random() * WALLS.length)]), cx + dx, 0, cz + dz);
+            const roof = add(object.mesh(box, ROOF), cx + dx, 0, cz + dz);
+            buildings.push({ body, roof, tall, w, deep, delay: Math.hypot(cx, cz) * 0.06 + random() * 0.3 });
+          }
+        }
+      // Cars: each drives along one street, one way, and comes round again at the table's edge.
+      const cars = Array.from({ length: 14 }, (_, k) => {
+        const mesh = add(object.mesh(box, matte(['#d8402e', '#f2c230', '#2f6fc1', '#f4f1ea'][k % 4])), 0, 0.2, 0);
+        const street = -12 + 4 * (1 + (k % 5)), across = k % 2 === 0;
+        mesh.scale.set(across ? 0.7 : 0.36, 0.3, across ? 0.36 : 0.7);
+        return { mesh, street: street + (k % 3 === 0 ? 0.22 : -0.22), across, at: random() * 26, speed: (k % 3 === 0 ? -1 : 1) * (1.5 + random() * 1.5) };
+      });
+
+      // A low golden sun for long shadows down the streets, and a cool sky to fill them.
+      world.scene.add(
+        light.directional({ color: '#ffcf9a', intensity: 3, position: [-16, 11, 9], castShadow: true }),
+        light.hemisphere({ color: '#b5ccff', groundColor: '#6b5a48', intensity: 0.75 }),
+      );
+
+      // TWO LENSES. A perspective camera shrinks what is far; an orthographic one keeps every size.
+      // Both frame the same thing: `half` is half the height seen at the target. A perspective
+      // lens of field `fov` sees it from `half / tan(fov / 2)`; the orthographic box is `half`
+      // tall at any distance. Going from one to the other narrows the field while backing away —
+      // a dolly zoom — until the rays are near parallel, then swaps the lens.
+      const eye = world.camera, flatEye = camera.orthographic({ near: 0.1, far: 6000 });
+      eye.far = 6000;
+      const target = [0, 1.5, 0], NARROWEST = 0.8, HALF = [3, 26];
+      eye.position.set(20, 15, 22);
+      world.controls.target.set(...target);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      const radians = (degrees) => (degrees * Math.PI) / 180;
+      const direction = () => {
+        const p = world.camera.position, d = [p.x - target[0], p.y - target[1], p.z - target[2]], length = Math.hypot(...d);
+        return { d: d.map((value) => value / length), length };
+      };
+      const standAt = (d, distance) => {
+        world.camera.position.set(target[0] + d[0] * distance, target[1] + d[1] * distance, target[2] + d[2] * distance);
+        world.controls.update();
+      };
+      const limit = (fov) => {
+        world.controls.minDistance = HALF[0] / Math.tan(radians(fov) / 2);
+        world.controls.maxDistance = HALF[1] / Math.tan(radians(fov) / 2);
+      };
+
+      let fovRef = 50, half = 0, k = 0, kAim = 0, drift = true, turn = null, lens = null;
+      controls({
+        lens: ['perspective', 'orthographic'],
+        fieldOfView: [10, 100, 50, 1],
+        isometric: () => {
+          // The isometric view: 45° round, and the diagonal of a cube pointing at the eye.
+          const { d } = direction(), az = Math.atan2(d[0], d[2]);
+          const shortest = ((((Math.PI / 4 - az + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+          turn = { from: [az, Math.acos(d[1])], to: [az + shortest, Math.acos(1 / Math.sqrt(3))], t: 0 };
+          drift = false;
+          world.invalidate();
+        },
+        drift: true,
+      }, (values, key) => {
+        if (key === 'lens') kAim = values.lens === 'orthographic' ? 1 : 0;
+        if (key === undefined || key === 'fieldOfView') {
+          // A new field keeps the frame: the camera slides to where it frames the same height.
+          // In the middle of a lens change, the change reads the new field when it ends.
+          const { d, length } = direction(), steady = k === kAim;
+          if (steady) half = length * Math.tan(radians(fovRef) / 2);
+          fovRef = values.fieldOfView;
+          if (steady && k === 0) eye.fov = fovRef;
+          if (steady) (limit(fovRef), standAt(d, half / Math.tan(radians(fovRef) / 2)));
+        }
+        if (key === 'drift') drift = values.drift;
+        world.invalidate();
+      }, world);
+      lens = readout('lens');
+
+      // A hand on the view stops every automatic move, and finishes a lens change at once.
+      const takeOver = () => {
+        drift = false;
+        turn = null;
+        if (k !== kAim) k = kAim ? Math.max(k, 0.999) : Math.min(k, 0.001);
+      };
+      world.canvas.addEventListener('pointerdown', takeOver);
+      world.canvas.addEventListener('wheel', takeOver, { passive: true });
+
+      // The orthographic box at the canvas's shape, written only when it changed.
+      const frameOrtho = () => {
+        const { clientWidth: w, clientHeight: h } = world.canvas, aspect = w && h ? w / h : 1;
+        if (flatEye.top !== half || flatEye.right !== half * aspect)
+          Object.assign(flatEye, { top: half, bottom: -half, left: -half * aspect, right: half * aspect });
+      };
+
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        // The opening: the town grows from the table outwards.
+        for (const { body, roof, tall, w, deep, delay } of buildings) {
+          const h = Math.max(0.02, tall * ease.inOut((time - delay) / 1.2));
+          body.scale.set(w, h, deep);
+          body.position.y = 0.12 + h / 2;
+          roof.scale.set(w * 0.8, 0.14, deep * 0.8);
+          roof.position.y = 0.12 + h + 0.07;
+        }
+        for (const car of cars) {
+          car.at = (((car.at + car.speed * step) % 26) + 26) % 26;
+          const along = car.at - 13;
+          car.mesh.position.set(car.across ? along : car.street, 0.2, car.across ? car.street : along);
+        }
+        let { d, length } = direction();
+        if (turn) {
+          turn.t = Math.min(1, turn.t + step / 1.4);
+          const [az, polar] = turn.from.map((value, n) => value + (turn.to[n] - value) * ease.inOut(turn.t));
+          d = [Math.sin(polar) * Math.sin(az), Math.cos(polar), Math.sin(polar) * Math.cos(az)];
+          if (turn.t === 1) turn = null;
+        } else if (drift) {
+          const az = Math.atan2(d[0], d[2]) + step * 0.08, flat = Math.hypot(d[0], d[2]);
+          d = [flat * Math.sin(az), d[1], flat * Math.cos(az)];
+        }
+        // Steady, the frame follows the wheel: the height seen is read back from the distance.
+        if (k === kAim) half = length * Math.tan(radians(fovRef) / 2);
+        if (k !== kAim) {
+          // The dolly zoom: the field narrows (or opens) on a log scale, the distance follows.
+          if (world.camera === flatEye) {
+            eye.position.copy(flatEye.position);
+            eye.quaternion.copy(flatEye.quaternion);
+            world.camera = eye;
+          }
+          k = kAim ? Math.min(1, k + step / 1.8) : Math.max(0, k - step / 1.8);
+          world.controls.maxDistance = 1e5;
+          world.controls.minDistance = 0;
+          const fov = k === 1 ? fovRef : Math.exp(Math.log(fovRef) + (Math.log(NARROWEST) - Math.log(fovRef)) * ease.inOut(k));
+          const distance = half / Math.tan(radians(fov) / 2);
+          eye.fov = fov;
+          eye.near = Math.max(0.1, distance * 0.02);
+          standAt(d, distance);
+          if (k === 1) {
+            // The rays are near parallel: the orthographic lens takes the same place.
+            flatEye.position.copy(eye.position);
+            flatEye.quaternion.copy(eye.quaternion);
+            frameOrtho();
+            world.camera = flatEye;
+          }
+          if (k === kAim) limit(fovRef);
+        } else standAt(d, length);
+        if (k === 1) frameOrtho();
+        lens(k === 1 ? say('orthographic', { height: (2 * half).toFixed(1) }) : say('perspective', { degrees: eye.fov.toFixed(1) }));
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

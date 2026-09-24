@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Copies along a path</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #a9c4e0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#a9c4e0');
+
+      // The path: a smooth closed curve through ten points, climbing and diving over a park.
+      const path = math.curve([[-8, 1.2, 4], [-3, 1, 6], [3, 2.2, 5.5], [7.5, 4.2, 3], [8.5, 3, -2], [5, 1.4, -5.5], [0, 2.8, -4], [-4, 4.4, -5.5], [-8.5, 3, -3], [-9.5, 1.6, 0.5]], true);
+      // A curve's own parameter does not run at an even pace; copies spaced by it would bunch up.
+      // A table of lengths along it turns a distance into a point, so the copies stand evenly.
+      const TABLE = 2000, lengths = [0];
+      let last = path.getPoint(0);
+      for (let k = 1; k <= TABLE; k++) {
+        const next = path.getPoint(k / TABLE);
+        lengths.push(lengths[k - 1] + next.distanceTo(last));
+        last = next;
+      }
+      const LENGTH = lengths[TABLE];
+      const parameterAt = (share) => {
+        const goal = (((share % 1) + 1) % 1) * LENGTH;
+        let low = 0, high = TABLE;
+        while (high - low > 1) {
+          const middle = (low + high) >> 1;
+          if (lengths[middle] < goal) low = middle;
+          else high = middle;
+        }
+        return (low + (goal - lengths[low]) / (lengths[high] - lengths[low] || 1)) / TABLE;
+      };
+      // Where a copy stands at a share of the way round, and its two angles: turned to face along
+      // the path (yaw), tipped with its slope (pitch). The roll about the path is the copy's own.
+      const pose = (share) => {
+        const t = parameterAt(share), at = path.getPoint(t), along = path.getTangent(t);
+        return { at, yaw: Math.atan2(along.x, along.z), pitch: -Math.asin(Math.max(-1, Math.min(1, along.y))) };
+      };
+      const place = (mesh, share, roll = 0, lift = 0) => {
+        const { at, yaw, pitch } = pose(share);
+        mesh.position.set(at.x, at.y + lift, at.z);
+        mesh.rotation.set(pitch, yaw, roll);
+      };
+
+      // One rail along the whole path: a tube swept along the same curve.
+      const steel = material.meshStandard({ color: '#c9ccd4', metalness: 0.8, roughness: 0.3 });
+      world.scene.add(object.mesh(geometry.tube(path, 600, 0.09, 10, true), steel));
+
+      // The copies: one arch shape and one sleeper shape, placed again and again along the path.
+      // Each is a mesh of its own that shares the shape; the colours run round the colour wheel.
+      const MAX = 240, SLEEPERS = 260;
+      const arch = geometry.torus(0.9, 0.06, 10, 40, Math.PI);
+      const sleeper = geometry.box(1.2, 0.07, 0.16);
+      const wheel = Array.from({ length: 12 }, (_, k) => material.meshStandard({ color: math.color().setHSL(k / 12, 0.75, 0.55), roughness: 0.35, metalness: 0.1 }));
+      const wood = material.meshStandard({ color: '#6b4a32', roughness: 0.8 });
+      const arches = Array.from({ length: MAX }, () => {
+        const mesh = object.mesh(arch, wheel[0]);
+        mesh.rotation.order = 'YXZ';
+        mesh.visible = false;
+        world.scene.add(mesh);
+        return mesh;
+      });
+      for (let k = 0; k < SLEEPERS; k++) {
+        const mesh = object.mesh(sleeper, wood);
+        mesh.rotation.order = 'YXZ';
+        place(mesh, k / SLEEPERS, 0, -0.1);
+        world.scene.add(mesh);
+      }
+      // Pillars down to the grass, every few metres.
+      const pillar = geometry.cylinder(0.07, 0.1, 1, 12).translate(0, 0.5, 0);
+      for (let k = 0; k < 36; k++) {
+        const { at } = pose(k / 36), post = object.mesh(pillar, steel);
+        post.position.set(at.x, 0, at.z);
+        post.scale.set(1, at.y - 0.14, 1);
+        world.scene.add(post);
+      }
+
+      // The train: five cars, each placed along the path like any other copy, a little apart.
+      const paint = material.meshStandard({ color: '#e8303a', roughness: 0.3, metalness: 0.3 });
+      const cars = Array.from({ length: 5 }, () => {
+        const car = object.mesh(geometry.capsule(0.3, 0.6, 8, 16).rotateX(Math.PI / 2), paint);
+        car.rotation.order = 'YXZ';
+        world.scene.add(car);
+        return car;
+      });
+
+      // The park around it: grass, and trees scattered away from the track's feet.
+      const grass = object.mesh(geometry.box(70, 0.2, 70), material.meshStandard({ color: '#5d8a3c', roughness: 0.9 }));
+      grass.position.y = -0.1;
+      world.scene.add(grass);
+      const leaves = material.meshStandard({ color: '#2f6b34', roughness: 0.8 }), bark = material.meshStandard({ color: '#5a3d2a', roughness: 0.9 });
+      const crown = geometry.cone(0.8, 2, 16).translate(0, 2, 0), trunk = geometry.cylinder(0.12, 0.16, 1, 8).translate(0, 0.5, 0);
+      // A seeded sequence (the kit's `seeded`): the same park on every run.
+      const next = seeded(5), feet = path.getPoints(200);
+      for (let k = 0; k < 70; k++) {
+        const x = (next() - 0.5) * 36, z = (next() - 0.5) * 30, size = 0.7 + next() * 0.7;
+        if (feet.some((foot) => Math.hypot(foot.x - x, foot.z - z) < 1.6 * size + 0.9)) continue;
+        for (const part of [object.mesh(crown, leaves), object.mesh(trunk, bark)]) {
+          part.position.set(x, 0, z);
+          part.scale.setScalar(size);
+          world.scene.add(part);
+        }
+      }
+
+      // Late afternoon: a low golden sun with long shadows, and a blue sky filling the shade.
+      world.scene.add(
+        light.directional({ color: '#ffc27a', intensity: 3.2, position: [-12, 7, 8], castShadow: true }),
+        light.hemisphere({ color: '#bcd4ff', groundColor: '#4a5a2c', intensity: 0.8 }),
+      );
+
+      const OVERVIEW = [2.5, 8.5, 13], LOOK = [-0.5, 1.8, 0];
+      world.camera.position.set(...OVERVIEW);
+      world.camera.lookAt(...LOOK);
+      world.controls.target.set(...LOOK);
+      world.controls.minDistance = 3;
+      world.controls.maxDistance = 32;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // Copies and twist place the arches again; the colours follow each arch's share of the way.
+      let copies = 0, reveal = 0, placed = null, resting = false;
+      const layout = ({ copies: count, twist }) => {
+        copies = count;
+        arches.forEach((mesh, k) => {
+          mesh.visible = k < count * reveal;
+          if (k >= count) return;
+          place(mesh, k / count, (twist * Math.PI * 2 * k) / count);
+          mesh.material = wheel[Math.floor((k / count) * wheel.length)];
+        });
+      };
+      const ui = controls({
+        copies: [8, MAX, 72, 1],
+        twist: [0, 6, 0, 0.05],
+        speed: [0, 3, 1],
+        ride: false,
+      }, (values, key) => {
+        resting = false;
+        if (key === undefined || key === 'copies' || key === 'twist') layout(values);
+        // The ride holds the camera, so the orbit lets go of it for the whole ride: a drag cannot
+        // fight the train, nor the orbit's limits bend the view. Off the train, the overview comes
+        // back as one pose — camera and target together — before the orbit takes it again.
+        if (key === 'ride') {
+          if (!values.ride) {
+            world.camera.position.set(...OVERVIEW);
+            world.controls.target.set(...LOOK);
+          }
+          world.controls.enabled = !values.ride;
+        }
+        world.invalidate();
+      }, world);
+      placed = readout('archesPlaced');
+
+      // The opening: the arches appear one after the other round the loop.
+      let travel = 0;
+      world.onFrame(({ delta }) => {
+        // A stopped train is placed once more after a change, then asks for no new frame.
+        if (resting) return;
+        resting = reveal >= 1 && !ui.speed;
+        const step = Math.min(delta, 0.05);
+        if (reveal < 1) {
+          reveal = Math.min(1, reveal + step / 2.5);
+          arches.forEach((mesh, k) => (mesh.visible = k < copies * reveal));
+        }
+        placed(String(Math.min(copies, Math.ceil(copies * reveal))));
+        travel += (step * ui.speed * 7) / LENGTH;
+        cars.forEach((car, k) => place(car, travel - k * (1.25 / LENGTH), 0, 0.32));
+        // Each arch rises a little as the train passes under it: a wave that follows the train.
+        for (let k = 0; k < copies; k++) {
+          const off = ((((k / copies - travel) % 1) + 1.5) % 1) - 0.5;
+          arches[k].scale.setScalar(1 + 0.25 * Math.exp(-(((off * LENGTH) / 2) ** 2)));
+        }
+        if (ui.ride) {
+          const eye = pose(travel + 0.8 / LENGTH).at, ahead = pose(travel + 4 / LENGTH).at;
+          world.camera.position.set(eye.x, eye.y + 0.75, eye.z);
+          world.camera.lookAt(ahead.x, ahead.y + 0.45, ahead.z);
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

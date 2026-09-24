@@ -31,7 +31,8 @@ test('transparent spans follow only changed resident pages through arrival, evic
       table.spans.every((v) => v === 0),
       'no unverified resident span at allocation',
     );
-    const spans = () => mock.writes.filter((w) => w.label === 'WG transparent cluster spans');
+    const spans = () =>
+      mock.writes.filter((w) => w.label === 'Trillion3D transparent cluster spans');
     const flush = () => {
       mock.writes.length = 0;
       rt.services.syncRows();
@@ -59,7 +60,7 @@ test('transparent spans follow only changed resident pages through arrival, evic
     assert.equal(table.spans[1], 3);
     assert.equal(flush().length, 0);
   } finally {
-    await disposeWebgpuPages(rt, () => {});
+    await disposeWebgpuPages(rt);
     scene.geoA.dispose();
     scene.geoB.dispose();
     scene.front.dispose();

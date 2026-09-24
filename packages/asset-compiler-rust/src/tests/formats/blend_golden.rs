@@ -48,7 +48,7 @@ fn a_truncated_file_and_an_ambiguous_directory_are_refused_by_name() {
         refused_golden_source(&truncated, "blend-tronque"),
         "blend-truncated"
     );
-    let dir = std::env::temp_dir().join(format!("wg-blend-deux-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("trillion3d-blend-deux-{}", std::process::id()));
     fs::create_dir_all(&dir).expect("dir");
     for name in ["a.blend", "b.blend"] {
         fs::copy(&truncated, dir.join(name)).expect("copy");

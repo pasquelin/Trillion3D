@@ -11,7 +11,8 @@ interface SelectProps extends Omit<ComponentPropsWithoutRef<'select'>, 'size'> {
 }
 
 /** Inputs show focus by their border alone, never by an outline or a ring. */
-const QUIET_FOCUS = 'focus:outline-none focus-within:outline-none focus-visible:outline-none';
+export const QUIET_FOCUS =
+  'focus:outline-none focus-within:outline-none focus-visible:outline-none';
 
 /** The legend of the field an input sits in, which names the input when it has no label. */
 const FieldLabel = createContext<string | undefined>(undefined);
@@ -64,7 +65,7 @@ export function Range({ className = '', ...props }: ComponentPropsWithoutRef<'in
   );
 }
 
-export function Toggle({ className = '', ...props }: ComponentPropsWithoutRef<'input'>) {
+function Toggle({ className = '', ...props }: ComponentPropsWithoutRef<'input'>) {
   return (
     <input
       aria-labelledby={labelledBy(props, useContext(FieldLabel))}
@@ -72,6 +73,19 @@ export function Toggle({ className = '', ...props }: ComponentPropsWithoutRef<'i
       className={`toggle toggle-primary toggle-sm ${QUIET_FOCUS} ${className}`}
       {...props}
     />
+  );
+}
+
+/** A toggle with its words beside it, the whole line clickable. */
+export function ToggleField({
+  label,
+  ...props
+}: ComponentPropsWithoutRef<'input'> & { label: ReactNode }) {
+  return (
+    <label className="label cursor-pointer gap-2 text-sm text-base-content">
+      <Toggle {...props} />
+      {label}
+    </label>
   );
 }
 

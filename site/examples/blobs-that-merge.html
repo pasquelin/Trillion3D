@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Blobs that merge</title>
+    <meta name="thumbnail" content="6" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0d0a12;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout, opening, ease } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0d0a12');
+
+      // A lava lamp on a side table, in a dark room. The glass is a profile turned on the lathe;
+      // its radius at each height also keeps the wax inside it.
+      const GLASS = [[0.95, 1.6], [1.2, 2.3], [1.3, 3], [1.15, 3.9], [0.85, 4.7], [0.62, 5.25]];
+      const wallAt = (y) => {
+        for (let k = 1; k < GLASS.length; k++)
+          if (y <= GLASS[k][1]) {
+            const [r0, y0] = GLASS[k - 1], [r1, y1] = GLASS[k];
+            return r0 + ((r1 - r0) * Math.max(0, y - y0)) / (y1 - y0);
+          }
+        return GLASS[GLASS.length - 1][0];
+      };
+
+      // The wax is a field: every blob adds a smooth bump that falls to zero at its reach, and the
+      // surface is where the sum crosses a level. Two blobs close enough add up between them and
+      // the level is crossed there too: a bridge grows, and the two become one.
+      const clamp01 = (value) => Math.min(1, Math.max(0, value));
+      function field(x, y, z, blobs, reach2) {
+        let sum = 0;
+        for (let b = 0; b < blobs.length; b += 5) {
+          const dy = (y - blobs[b + 1]) * blobs[b + 4];
+          const u = ((x - blobs[b]) ** 2 + dy * dy + (z - blobs[b + 2]) ** 2) / (blobs[b + 3] * blobs[b + 3] * reach2);
+          if (u < 1) sum += (1 - u) * (1 - u) * (1 - u);
+        }
+        // The glass, the floor of the lamp and its neck fade the field out: the surface closes
+        // before it would touch them.
+        const wall = wallAt(y) - 0.07 - Math.hypot(x, z);
+        return sum * clamp01(wall / 0.12) * clamp01((y - 1.62) / 0.1) * clamp01((5.15 - y) / 0.1);
+      }
+
+      // The blobs at a moment `s` of the loop, 0 to 1: a flat pool of melted wax on the bottom,
+      // and six drops that rise from it, cool at the top and sink back. Each runs a whole number
+      // of cycles per loop, so the loop has no seam.
+      const DROPS = [0, 1, 2, 3, 4, 5].map((index) => ({
+        phase: index / 6 + (index % 2) * 0.07,
+        cycles: index % 3 === 2 ? 2 : 1,
+        radius: 0.28 + ((index * 7) % 5) * 0.025,
+        angle: index * 2.4,
+        drift: 0.45 + (index % 3) * 0.15,
+      }));
+      // Five numbers a blob, one after the other: x, y, z, radius, squash.
+      function blobsAt(s) {
+        const blobs = [0.05 * Math.sin(s * Math.PI * 2), 1.72, 0, 0.78, 2.4];
+        for (const drop of DROPS) {
+          const turn = (s * drop.cycles + drop.phase) * Math.PI * 2;
+          const y = 1.95 + 2.8 * (0.5 - 0.5 * Math.cos(turn));
+          const room = Math.max(0, wallAt(y) - drop.radius - 0.14);
+          const out = Math.min(room, drop.drift * (1 + 0.4 * Math.sin(turn * 2))), angle = drop.angle + 0.6 * Math.sin(turn);
+          // A drop stretches as it climbs and flattens as it slows at the top.
+          blobs.push(Math.cos(angle) * out, y, Math.sin(angle) * out, drop.radius, 0.8 + 0.3 * Math.cos(turn));
+        }
+        return new Float64Array(blobs);
+      }
+
+      // The field is sampled on a lattice around the glass, and the surface drawn through it as a
+      // net: one vertex in every cell the level crosses, at the average of the crossings on its
+      // edges, and a square joining the four cells around every lattice edge the level cuts.
+      const H = 0.075, NX = 35, NY = 50, NZ = 35, X0 = -1.3125, Y0 = 1.5, Z0 = -1.3125;
+      const index3 = (i, j, k) => (k * (NY + 1) + j) * (NX + 1) + i;
+      const CORNERS = Array.from({ length: 8 }, (_, c) => [c & 1, (c >> 1) & 1, (c >> 2) & 1]);
+      const EDGES = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+      const values = new Float32Array((NX + 1) * (NY + 1) * (NZ + 1));
+      const cellVertex = new Int32Array(NX * NY * NZ), v = new Float64Array(8);
+      function wax(s, level, reach2) {
+        const blobs = blobsAt(s);
+        for (let k = 0; k <= NZ; k++)
+          for (let j = 0; j <= NY; j++)
+            for (let i = 0; i <= NX; i++) values[index3(i, j, k)] = field(X0 + i * H, Y0 + j * H, Z0 + k * H, blobs, reach2) - level;
+        const position = [], normal = [], triangles = [], parent = [];
+        cellVertex.fill(-1);
+        for (let k = 0; k < NZ; k++)
+          for (let j = 0; j < NY; j++)
+            for (let i = 0; i < NX; i++) {
+              let inside = 0;
+              for (let c = 0; c < 8; c++) {
+                v[c] = values[index3(i + (c & 1), j + ((c >> 1) & 1), k + ((c >> 2) & 1))];
+                if (v[c] > 0) inside++;
+              }
+              if (inside === 0 || inside === 8) continue;
+              let x = 0, y = 0, z = 0, crossings = 0;
+              for (const [a, b] of EDGES) {
+                if (v[a] > 0 === v[b] > 0) continue;
+                const t = v[a] / (v[a] - v[b]);
+                x += CORNERS[a][0] + (CORNERS[b][0] - CORNERS[a][0]) * t;
+                y += CORNERS[a][1] + (CORNERS[b][1] - CORNERS[a][1]) * t;
+                z += CORNERS[a][2] + (CORNERS[b][2] - CORNERS[a][2]) * t;
+                crossings++;
+              }
+              const px = X0 + (i + x / crossings) * H, py = Y0 + (j + y / crossings) * H, pz = Z0 + (k + z / crossings) * H;
+              // The normal is the way the field falls fastest, read across a small step.
+              const e = H * 0.5;
+              const gx = field(px + e, py, pz, blobs, reach2) - field(px - e, py, pz, blobs, reach2);
+              const gy = field(px, py + e, pz, blobs, reach2) - field(px, py - e, pz, blobs, reach2);
+              const gz = field(px, py, pz + e, blobs, reach2) - field(px, py, pz - e, blobs, reach2);
+              const length = Math.hypot(gx, gy, gz) || 1;
+              cellVertex[(k * NY + j) * NX + i] = position.length / 3;
+              parent.push(position.length / 3);
+              position.push(px, py, pz);
+              normal.push(-gx / length, -gy / length, -gz / length);
+            }
+        // Which drops are one piece: every square joins its four vertices into one set.
+        const root = (a) => (parent[a] === a ? a : (parent[a] = root(parent[a])));
+        const cell = (i, j, k) => cellVertex[(k * NY + j) * NX + i];
+        const square = (a, b, c, d) => {
+          // Turned so that its face looks out of the wax, the way the normals already do.
+          const at = (n) => position.slice(n * 3, n * 3 + 3);
+          const [pa, pb, pc] = [at(a), at(b), at(c)];
+          const ux = pb[0] - pa[0], uy = pb[1] - pa[1], uz = pb[2] - pa[2], vx = pc[0] - pa[0], vy = pc[1] - pa[1], vz = pc[2] - pa[2];
+          const facing = (uy * vz - uz * vy) * normal[a * 3] + (uz * vx - ux * vz) * normal[a * 3 + 1] + (ux * vy - uy * vx) * normal[a * 3 + 2];
+          triangles.push(...(facing > 0 ? [a, b, c, a, c, d] : [a, c, b, a, d, c]));
+          for (const other of [b, c, d]) parent[root(other)] = root(a);
+        };
+        for (let k = 1; k < NZ; k++)
+          for (let j = 1; j < NY; j++)
+            for (let i = 1; i < NX; i++) {
+              const here = values[index3(i, j, k)] > 0;
+              if (here !== values[index3(i + 1, j, k)] > 0) square(cell(i, j - 1, k - 1), cell(i, j, k - 1), cell(i, j, k), cell(i, j - 1, k));
+              if (here !== values[index3(i, j + 1, k)] > 0) square(cell(i - 1, j, k - 1), cell(i, j, k - 1), cell(i, j, k), cell(i - 1, j, k));
+              if (here !== values[index3(i, j, k + 1)] > 0) square(cell(i - 1, j - 1, k), cell(i, j - 1, k), cell(i, j, k), cell(i - 1, j, k));
+            }
+        const pieces = new Set(parent.map((_, n) => root(n))).size;
+        const shape = geometry.createBuffer({
+          position: buffer.float32(new Float32Array(position), 3),
+          normal: buffer.float32(new Float32Array(normal), 3),
+          index: buffer.uint32(triangles),
+        });
+        return { shape, pieces };
+      }
+
+      // The loop is cooked once into frames, each its own mesh, all in the scene from the first
+      // frame; playing is showing one and hiding the one before. Stickiness cooks them again.
+      const FRAMES = 160, LOOP = 10;
+      const waxMatter = material.meshStandard({ color: '#ff4a1c', emissive: '#ff3a0c', emissiveIntensity: 0.55, roughness: 0.32 });
+      // Stickiness is the level the surface is drawn at, with each bump's reach set so that one
+      // blob alone keeps its size: at a high level the bumps reach far, and blobs join from afar.
+      const reachFor = (stickiness) => {
+        const level = 0.05 + stickiness * 0.7;
+        return { level, reach2: 1 / (1 - Math.cbrt(level)) };
+      };
+      function cook(stickiness) {
+        const { level, reach2 } = reachFor(stickiness);
+        return Array.from({ length: FRAMES }, (_, frame) => wax(frame / FRAMES, level, reach2));
+      }
+      let cooked = cook(0.55);
+      const frames = cooked.map(({ shape }) => {
+        const mesh = object.mesh(shape, waxMatter);
+        mesh.visible = false;
+        world.scene.add(mesh);
+        return mesh;
+      });
+
+      // The lamp around the wax: a steel foot and cap, the glass between them.
+      const steel = material.meshStandard({ color: '#b9bdc6', metalness: 0.75, roughness: 0.28 });
+      const foot = object.mesh(geometry.lathe([[0.001, 0], [1.05, 0], [1.12, 0.1], [0.72, 1.45], [0.98, 1.6], [0.001, 1.6]], 64), steel);
+      const cap = object.mesh(geometry.lathe([[0.001, 5.24], [0.66, 5.24], [0.3, 6.3], [0.001, 6.3]], 64), steel);
+      const glass = material.meshStandard({ color: '#ffd4c4', roughness: 0.05, transparent: true, opacity: 0.16, depthWrite: false, side: 'double' });
+      const vessel = object.mesh(geometry.lathe(GLASS, 72), glass);
+      world.scene.add(foot, cap, vessel);
+      // A walnut side table on a dark floor, a wall behind to catch the glow.
+      const table = object.mesh(geometry.cylinder(2.6, 2.6, 0.16, 72), material.meshStandard({ color: '#4a2c1c', roughness: 0.45 }));
+      table.position.y = -0.08;
+      const leg = object.mesh(geometry.cylinder(0.22, 0.34, 3, 32), material.meshStandard({ color: '#3a2216', roughness: 0.5 }));
+      leg.position.y = -1.66;
+      const floor = object.mesh(geometry.box(40, 0.2, 40), material.meshStandard({ color: '#231c22', roughness: 0.8 }));
+      floor.position.y = -3.26;
+      const wall = object.mesh(geometry.box(40, 20, 0.2), material.meshStandard({ color: '#3a2c3c', roughness: 0.9 }));
+      wall.position.set(0, 5, -6);
+      world.scene.add(table, leg, floor, wall);
+
+      // Light: the lamp's own bulb in its foot and the glow of the wax, warm; a cold moon through
+      // a window casting the long shadows; the night sky's faint fill on everything else.
+      const bulb = light.point({ color: '#ff8a4a', intensity: 0, distance: 14, position: [0, 2.4, 0] });
+      const glow = light.point({ color: '#ff5a2a', intensity: 0, distance: 10, position: [0, 4.2, 0] });
+      const moon = light.directional({ color: '#9fb6ff', intensity: 1.3, position: [-6, 7, 5], castShadow: true });
+      world.scene.add(bulb, glow, moon, light.hemisphere({ color: '#5a6a9a', groundColor: '#2a1a16', intensity: 0.45 }));
+
+      world.camera.position.set(3.6, 4.6, 6.4);
+      world.camera.lookAt(0, 3, 0);
+      world.controls.target.set(0, 3, 0);
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 15; // the opening starts 14.9 away: the orbit never clamps it
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      let pieces = null, waiting = 0;
+      const ui = controls({
+        stickiness: [0, 1, 0.55],
+        heat: [0, 3, 1],
+        wax: '#ff4a1c',
+      }, (values, key) => {
+        if (key === 'stickiness') {
+          // Cooking every frame again takes a moment: done once the slider rests.
+          clearTimeout(waiting);
+          waiting = setTimeout(() => {
+            cooked = cook(values.stickiness);
+            cooked.forEach(({ shape }, frame) => (frames[frame].geometry = shape));
+            world.invalidate();
+          }, 250);
+        }
+        if (key === undefined || key === 'wax') {
+          waxMatter.color.set(values.wax);
+          waxMatter.emissive.set(values.wax);
+          glow.color.set(values.wax);
+        }
+        world.invalidate();
+      }, world);
+      pieces = readout('piecesWax');
+
+      // The opening: the room is dark, the lamp warms up as the camera comes to it.
+      const from = [7.5, 7.5, 12], to = [3.6, 4.6, 6.4];
+      // The viewer's hand wins: a press or a wheel on the canvas ends the opening where it is.
+      opening(world, (time) => {
+        const k = ease.out(time / 3.5);
+        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        return time < 3.5;
+      });
+      let time = 0, warm = 0, shown = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step * ui.heat;
+        if (warm < 1) {
+          warm = Math.min(1, warm + step / 3);
+          bulb.intensity = 26 * warm;
+          glow.intensity = 14 * warm;
+        }
+        const frame = Math.floor((time / LOOP) * FRAMES) % FRAMES;
+        if (frame !== shown || !frames[shown].visible) {
+          frames[shown].visible = false;
+          frames[frame].visible = true;
+          shown = frame;
+          pieces(String(cooked[frame].pieces));
+        }
+        // With no heat, once warm, the lamp asks for no new frame; the opening asks for its own.
+        if (ui.heat || warm < 1) world.invalidate();
+      });
+    </script>
+  </body>
+</html>

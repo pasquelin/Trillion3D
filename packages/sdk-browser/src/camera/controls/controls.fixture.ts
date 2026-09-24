@@ -1,3 +1,4 @@
+import { createOrbitCameraControls } from './orbitControls.ts';
 import type { ControlCamera, ControlVector } from './types.ts';
 
 /**
@@ -60,14 +61,15 @@ export function fixtureCamera(x = 0, y = 0, z = 10): FixtureCamera {
   };
 }
 
-type Recorded = { type: string; handler: EventListener };
+type Recorded = { type: string; handler: EventListener; capture: boolean };
 
-/** An event target that remembers what is still listening to it. */
+/** An event target that remembers what is still listening to it, and calls its capture
+ *  listeners first, until one stops the event (`stopImmediatePropagation`). */
 function recordingTarget() {
   const live: Recorded[] = [];
   const target = {
-    addEventListener(type: string, handler: EventListener) {
-      live.push({ type, handler });
+    addEventListener(type: string, handler: EventListener, options?: AddEventListenerOptions) {
+      live.push({ type, handler, capture: options?.capture === true });
     },
     removeEventListener(type: string, handler: EventListener) {
       const at = live.findIndex((entry) => entry.type === type && entry.handler === handler);
@@ -75,8 +77,14 @@ function recordingTarget() {
     },
   };
   const fire = (type: string, event: Record<string, unknown>) => {
-    const payload = { preventDefault() {}, ...event } as unknown as Event;
-    for (const entry of [...live]) if (entry.type === type) entry.handler(payload);
+    let stopped = false;
+    const payload = {
+      preventDefault() {},
+      stopImmediatePropagation: () => (stopped = true),
+      ...event,
+    } as unknown as Event;
+    const ordered = [...live].sort((a, b) => Number(b.capture) - Number(a.capture));
+    for (const entry of ordered) if (!stopped && entry.type === type) entry.handler(payload);
   };
   return { target, live, fire };
 }
@@ -91,6 +99,10 @@ export function fixtureSurface(height = 400) {
     ...view.target,
     clientHeight: height,
     clientWidth: height,
+    // The drawing buffer, as square as the CSS box.
+    width: height,
+    height,
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: height, height }),
     style: { touchAction: 'pan-y' },
     setPointerCapture(pointerId: number) {
       captured.add(pointerId);
@@ -160,4 +172,20 @@ export function fixturePinch(
   fire('pointerdown', from);
   fire('pointermove', to);
   fire('pointerup', to);
+}
+
+/** Rounded, and `+ 0` so a negative zero reads as the zero a reader expects. */
+export const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0;
+/** Where a camera stands, rounded. */
+export const at = ({ position }: { position: { x: number; y: number; z: number } }) =>
+  [round(position.x), round(position.y), round(position.z)] as const;
+
+/** An orbit `distance` away on +Z of a 400-pixel surface, with its emissions counted. */
+export function fixtureOrbit(distance = 10) {
+  const camera = fixtureCamera(0, 0, distance),
+    surface = fixtureSurface(400);
+  const controls = createOrbitCameraControls(camera, surface.element);
+  let changes = 0;
+  controls.addEventListener('change', () => changes++);
+  return { camera, surface, controls, changes: () => changes };
 }

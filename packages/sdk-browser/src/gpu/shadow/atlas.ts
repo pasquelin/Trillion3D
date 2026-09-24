@@ -14,7 +14,7 @@ import { SHADOW_REQUEST_WORDS } from '../../lighting/direct/shadowWgsl.ts';
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
-export const SHADOW_PASS = 'WG shadow atlas v1';
+export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** Alignment of a dynamic uniform offset: one drawn page per 256-byte entry. */
 const FACE_STRIDE = 256;
 /** Bytes actually read of an entry: the matrix, the atlas rectangle, the light envelope. */
@@ -40,17 +40,17 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
   let texture: GPUTexture | undefined;
   // Also storage: the occlusion test of the moving casters reads each region's matrix there.
   const faceUniform = device.createBuffer({
-    label: 'WG shadow faces v1',
+    label: 'Trillion3D shadow faces v1',
     size: MAX_SHADOW_REGIONS * FACE_STRIDE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const dataBuffer = device.createBuffer({
-    label: 'WG shadow records and page table v1',
+    label: 'Trillion3D shadow records and page table v1',
     size: RECORD_BYTES + LIGHT_SETTINGS.shadowTableEntries * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const requestBuffer = device.createBuffer({
-    label: 'WG shadow requests v1',
+    label: 'Trillion3D shadow requests v1',
     size: SHADOW_REQUEST_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
@@ -81,7 +81,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       depthCompare: compare,
     });
     const depth = device.createRenderPipeline({
-      label: 'WG shadow depth v1',
+      label: 'Trillion3D shadow depth v1',
       layout,
       vertex: { module, entryPoint: 'shadow_vs' },
       // No colour target: the fragment stage exists only to discard an opacity-mask cutout, and
@@ -91,7 +91,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       depthStencil: depthState(DEPTH_COMPARE),
     });
     const clear = device.createRenderPipeline({
-      label: 'WG shadow page clear v1',
+      label: 'Trillion3D shadow page clear v1',
       layout,
       vertex: { module, entryPoint: 'shadow_clear_vs' },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
@@ -127,7 +127,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         if (texture) throw new Error('the shadow pool is sized once');
         atlas.size = poolSide * SHADOW_PAGE;
         texture = device.createTexture({
-          label: 'WG shadow depth atlas v1',
+          label: 'Trillion3D shadow depth atlas v1',
           size: [atlas.size, atlas.size, 1],
           format: 'depth32float',
           usage:

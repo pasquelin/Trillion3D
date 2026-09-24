@@ -6,6 +6,8 @@ import {
   type TileLayout,
   type TilePlace,
 } from '../../texture/tiles.ts';
+import { TRANSFORM_WORDS, samplingWords } from './sampling.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
 
 /**
  * Page table of an atlas: for each tile of each streamed level of each texture, the pool place
@@ -17,13 +19,14 @@ import {
  * searches: one read, one tile, always showable.
  *
  * One buffer per atlas, in words: `[feedback offset, textures, start of entries, start of
- * levels]`, then four words per texture (`width | height << 16`, first tail level, last level,
- * tail place with the texture's pool tap in its top byte), then sixteen words per texture (the
- * first word of each streamed level, absolute), then the entries. Writes go out per texture, over
- * the span it has touched since the last flush.
+ * levels]`, ten words per texture (`width | height << 16`, first tail level, last level under the
+ * sampling word, tail place under the pool tap, UV transform — `sampling.ts`), sixteen per texture
+ * (each streamed level's first word), the entries. Writes go per texture, over its touched span.
  */
 export const PAGE_HEADER_WORDS = 4;
-export const PAGE_SLOT_WORDS = 4;
+export const PAGE_SLOT_WORDS = 4 + TRANSFORM_WORDS,
+  PAGE_TRANSFORM_WORD = 4,
+  PAGE_FILTER_SHIFT = 8;
 
 export type TileKey = { slot: number; level: number; tx: number; ty: number };
 
@@ -39,6 +42,8 @@ export type WebgpuTilePageTable = {
   /** The tail's place, and the tap every tile of the texture — this one included — is read by. */
   setTail(slot: number, place: TilePlace, tap: number): void;
   setTile(key: TileKey, place: TilePlace): void;
+  /** Filter word, addressing and UV transform (`samplingWords`); true when a word moved. */
+  setSampling(slot: number, texture: Texture, compiled: boolean): boolean;
   clearTile(key: TileKey): void;
   /** Sends the GPU what has changed; nothing when nothing moved. */
   flush(device: Pick<GPUDevice, 'queue'>): void;
@@ -74,7 +79,7 @@ export function createWebgpuTilePageTable(
       words[levelsAt + slot * MAX_LEVELS + level] = entriesAt + bases[slot] + layout.offsets[level];
   }
   const buffer = device.createBuffer({
-    label: `WG texture pages ${options.kind}`,
+    label: `Trillion3D texture pages ${options.kind}`,
     size: Math.max(16, words.byteLength),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
@@ -97,9 +102,10 @@ export function createWebgpuTilePageTable(
     return entriesAt + bases[slot] + layout.offsets[level] + ty * tw + tx;
   };
   const write = (slot: number, index: number, word: number) => {
-    if (words[index] === word) return;
+    if (words[index] === word) return false;
     words[index] = word;
     touch(slot, index, index);
+    return true;
   };
   /** Entries finer than a tile, under it: those its presence or departure serves. */
   const descend = (key: TileKey, visit: (index: number) => void) => {
@@ -142,6 +148,14 @@ export function createWebgpuTilePageTable(
     setTail(slot, place, tap) {
       const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS;
       write(slot, header + 3, place.x | (place.y << 8) | (place.layer << 16) | (tap << 24));
+    },
+    setSampling(slot, texture, compiled) {
+      const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS,
+        sampling = samplingWords(texture, compiled);
+      let moved = write(slot, at + 2, layouts[slot].last | (sampling[0] << PAGE_FILTER_SHIFT));
+      for (let i = 1; i <= TRANSFORM_WORDS; i++)
+        moved = write(slot, at + PAGE_TRANSFORM_WORD - 1 + i, sampling[i]) || moved;
+      return moved;
     },
     setTile(key, place) {
       const word = packEntry(place, key.level);

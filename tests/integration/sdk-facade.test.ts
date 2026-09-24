@@ -98,7 +98,7 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
-  assert.equal(inventory.exports.length, 655);
+  assert.equal(inventory.exports.length, 684);
   assert.deepEqual(inventory.collisions, []);
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair.
@@ -119,14 +119,14 @@ test('generated inventory and explicit facade files are current', async () => {
       `${name} belongs to the measurement entry, not the package`,
     );
   for (const [name, entryPoint] of [
-    ['CameraPose', 'web-geometry (common)'],
-    ['CameraPose', 'web-geometry (browser condition)'],
-    ['JobSnapshot', 'web-geometry (common)'],
-    ['World', 'web-geometry (browser condition)'],
-    ['WorldOptions', 'web-geometry (browser condition)'],
-    ['CompilationJob', 'web-geometry (node condition)'],
-    ['CompilationResult', 'web-geometry (node condition)'],
-    ['PrepareOptions', 'web-geometry (node condition)'],
+    ['CameraPose', 'trillion3d (common)'],
+    ['CameraPose', 'trillion3d (browser condition)'],
+    ['JobSnapshot', 'trillion3d (common)'],
+    ['World', 'trillion3d (browser condition)'],
+    ['WorldOptions', 'trillion3d (browser condition)'],
+    ['CompilationJob', 'trillion3d (node condition)'],
+    ['CompilationResult', 'trillion3d (node condition)'],
+    ['PrepareOptions', 'trillion3d (node condition)'],
   ]) {
     const entry = inventory.exports.find(
       (row) => row.name === name && row.currentEntryPoints.includes(entryPoint),

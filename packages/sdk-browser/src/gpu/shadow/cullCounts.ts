@@ -37,7 +37,7 @@ export function createGpuShadowCullCounts(device: GPUDevice) {
   });
   reader.adopt(
     device.createBuffer({
-      label: 'WG shadow cull counts readback',
+      label: 'Trillion3D shadow cull counts readback',
       size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     }),

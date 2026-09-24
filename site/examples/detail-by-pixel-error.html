@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Detail by pixel error</title>
+    <meta name="thumbnail" content="7" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #a9c6e4;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #1d2a3a;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p data-words="credit"></p>
+    <script type="module">
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, readout, words, language, opening, ease } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#a9c6e4');
+      // An afternoon sun down the avenue, and the sky's own light on the sides it misses.
+      world.scene.add(
+        light.directional({ intensity: 3.2, color: '#ffe4bd', position: [5, 7, 4], castShadow: true }),
+        light.hemisphere({ intensity: 0.9, color: '#d2e4ff', groundColor: '#6f7a4a' }),
+      );
+      // A maquette on a table: forty-four fluted urns, each turned in 17,000 triangles, lead to a
+      // bronze knot. The compiler cut every shape into clusters, and each cluster into coarser
+      // versions of itself; the whole avenue is a tenth of life size.
+      const avenue = await world.scene.load('../assets/examples/detail-by-pixel-error/cache/native/full/manifest.json');
+      world.camera.near = 0.01;
+      world.camera.far = 60;
+      world.controls.minDistance = 0.25;
+      world.controls.maxDistance = 14;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // The walk: from the head of the avenue towards the knot, eye a little above the urns.
+      const START = { eye: [0.45, 0.32, 5.4], look: [0, 0.14, 1.2] };
+      const END = { eye: [0.3, 0.26, 2.9], look: [0, 0.14, -2.4] };
+      world.camera.position.set(...START.eye);
+      world.controls.target.set(...START.look);
+      world.controls.update();
+
+      // `world.pixelError` is how far, in screen pixels, a coarser version of a cluster may stray
+      // from the exact surface before the engine draws a finer one. Far urns cover few pixels:
+      // a coarse version is already exact to the eye there, and it is the one drawn.
+      const OPENING = 24;
+      let settling = true;
+      const ui = controls({
+        pixelError: [0, OPENING, 1, 0.5],
+        view: ['beauty', 'lod', 'screen-error', 'triangles'],
+      }, (values, key) => {
+        // A hand on the slider ends the opening sweep: the slider leads from then on.
+        if (key === 'pixelError') settling = false;
+        if (!settling) world.pixelError = values.pixelError;
+        world.diagnostic.mode = values.view;
+        world.invalidate();
+      }, world);
+      const drawn = readout('trianglesDrawn'), share = readout('shareAvenue');
+      const total = avenue.metadata.sourceTriangles;
+      readout('trianglesAvenue')(total.toLocaleString(language()));
+      world.onFrame(({ metrics }) => {
+        const selected = metrics.selectedTriangles;
+        drawn(selected == null ? say('notCounted') : selected.toLocaleString(language()));
+        share(selected == null ? '—' : `${((100 * selected) / total).toFixed(1)} %`);
+      });
+
+      // The opening: the avenue appears at a coarse 24 pixels, every urn a few dozen facets;
+      // the error then falls to the slider's value and the detail pours in, while the eye walks
+      // down the avenue. A press or a wheel on the canvas hands the camera back at once.
+      opening(world, (time) => {
+        const t = ease.smooth((time - 0.5) / 12);
+        const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
+        world.camera.position.set(...at(START.eye, END.eye));
+        world.controls.target.set(...at(START.look, END.look));
+        return t < 1;
+      });
+      world.pixelError = OPENING;
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!settling) return;
+        time += Math.min(delta, 0.1);
+        const fall = ease.smooth((time - 1.2) / 3.5);
+        world.pixelError = OPENING + (ui.pixelError - OPENING) * fall;
+        settling = fall < 1;
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

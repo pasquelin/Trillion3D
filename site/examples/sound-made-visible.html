@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sound made visible</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0d0b16;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { announce, controls, whiteNoise, words, opening, ease } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0d0b16');
+
+      // Sixty-four bars, one per band of pitch from the lowest bass (warm) to the highest treble
+      // (cool). Sixteen glazes, made once; the sound only ever changes a bar's height.
+      const BARS = 64, STOPS = ['#ff3d6e', '#ffb03a', '#3de0c2', '#4a7dff', '#b36bff'];
+      const glazes = Array.from({ length: 16 }, (_, k) => {
+        const at = (k / 15) * (STOPS.length - 1), low = Math.floor(at), colour = math.color(STOPS[low]).lerp(math.color(STOPS[Math.min(STOPS.length - 1, low + 1)]), at - low);
+        return material.meshStandard({ color: colour, emissive: colour, emissiveIntensity: 0.35, roughness: 0.3, metalness: 0.2 });
+      });
+      const column = geometry.box(0.34, 1, 0.34).translate(0, 0.5, 0);
+      const bars = Array.from({ length: BARS }, (_, k) => {
+        const mesh = object.mesh(column, glazes[Math.floor((k / BARS) * 16)]);
+        world.scene.add(mesh);
+        return { mesh, from: [0, 0, 0], to: [0, 0, 0], level: 0 };
+      });
+      // Ninety-six pearls on an outer circle draw the wave itself, the air pressure moment by
+      // moment; a pale ball in the middle swells with the loudness.
+      const pearl = geometry.sphere(0.12, 16, 8), pearlGlaze = material.meshStandard({ color: '#f4efe6', emissive: '#6a5a8a', roughness: 0.25, metalness: 0.1 });
+      const pearls = Array.from({ length: 96 }, (_, k) => {
+        const mesh = object.mesh(pearl, pearlGlaze), angle = (k / 96) * Math.PI * 2;
+        mesh.position.set(10.5 * Math.cos(angle), 0.6, 10.5 * Math.sin(angle));
+        world.scene.add(mesh);
+        return mesh;
+      });
+      const heart = object.mesh(geometry.sphere(1, 64, 32), material.meshStandard({ color: '#e8e2f4', roughness: 0.18, metalness: 0.35 }));
+      heart.position.y = 1.4;
+      const stage = object.mesh(geometry.cylinder(13, 13.4, 0.4, 128), material.meshStandard({ color: '#231d33', roughness: 0.35, metalness: 0.3 }));
+      stage.position.y = -0.2;
+      const floor = object.mesh(geometry.cylinder(80, 80, 0.2, 96), material.meshStandard({ color: '#15121f', roughness: 0.9 }));
+      floor.position.y = -0.45;
+      world.scene.add(
+        heart,
+        stage,
+        floor,
+        light.directional({ color: '#fff0e0', intensity: 2.4, position: [8, 18, 10], castShadow: true }),
+        light.hemisphere({ color: '#9fb0ff', groundColor: '#3a2440', intensity: 0.9 }),
+        light.point({ color: '#ff4f9a', intensity: 60, position: [-9, 5, -6] }),
+        light.point({ color: '#3fd0ff', intensity: 60, position: [9, 5, -6] }),
+      );
+
+      // Three ways to stand the bars: a ring round the ball, a wall like a studio meter, a spiral.
+      const LAYOUTS = {
+        ring: (k) => [7 * Math.cos((k / BARS) * Math.PI * 2 - Math.PI / 2), 7 * Math.sin((k / BARS) * Math.PI * 2 - Math.PI / 2)],
+        wall: (k) => [(k - (BARS - 1) / 2) * 0.4, -4],
+        spiral: (k) => [(2.4 + k * 0.1) * Math.cos(k * 0.34), (2.4 + k * 0.1) * Math.sin(k * 0.34)],
+      };
+      let morph = 1;
+      function arrange(layout) {
+        for (const [k, bar] of bars.entries()) {
+          bar.from = [bar.mesh.position.x, bar.mesh.position.z];
+          bar.to = LAYOUTS[layout](k);
+        }
+        morph = 0;
+      }
+
+      // The sound: nothing plays before a gesture, as browsers ask. The melody is made here, note
+      // by note — an arpeggio on a minor pentatonic scale, a bass line, a kick and a hat — and
+      // runs through one analyser; the microphone, asked for on its button only, goes to the same
+      // analyser but not to the speakers.
+      let audio = null, analyser = null, music = null, noise = null, timer = 0, next = 0, beat = 0, microphone = null;
+      const SCALE = [0, 3, 5, 7, 10, 12, 15, 17], TUNE = [0, 2, 4, 7, 5, 4, 2, 1, 0, 2, 4, 6, 7, 6, 4, 2];
+      const CHORDS = [0, -4, -7, -2];
+      const note = (steps) => 220 * 2 ** (steps / 12);
+      function start() {
+        if (audio) return audio.resume();
+        audio = new AudioContext();
+        analyser = Object.assign(audio.createAnalyser(), { fftSize: 2048, smoothingTimeConstant: 0.78 });
+        music = audio.createGain();
+        music.connect(analyser);
+        // A twentieth of a second of white noise fading out, the hat's one sample.
+        noise = whiteNoise(audio, 0.05, (at) => 1 - at);
+      }
+      // The analyser feeds the speakers for the melody; for the microphone it only listens, or
+      // the room would ring.
+      function route(toSpeakers) {
+        analyser.disconnect();
+        if (toSpeakers) analyser.connect(audio.destination);
+      }
+      function voice(type, frequency, at, length, loudness, glide = frequency) {
+        const osc = Object.assign(audio.createOscillator(), { type }), gain = audio.createGain();
+        osc.frequency.setValueAtTime(frequency, at);
+        osc.frequency.exponentialRampToValueAtTime(glide, at + length);
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(loudness, at + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+        osc.connect(gain).connect(music);
+        osc.start(at);
+        osc.stop(at + length + 0.02);
+      }
+      function hat(at) {
+        const source = Object.assign(audio.createBufferSource(), { buffer: noise }), bright = Object.assign(audio.createBiquadFilter(), { type: 'highpass' });
+        const gain = audio.createGain();
+        bright.frequency.value = 7000;
+        gain.gain.value = 0.18;
+        source.connect(bright).connect(gain).connect(music);
+        source.start(at);
+      }
+      // A scheduler a little ahead of the clock: every 25 ms it books the eighth notes of the next
+      // 120 ms at their exact time on the audio clock, so the rhythm never drifts.
+      function schedule() {
+        const eighth = 60 / 112 / 2;
+        while (next < audio.currentTime + 0.12) {
+          const chord = CHORDS[Math.floor(beat / 16) % CHORDS.length], degree = TUNE[beat % 16];
+          voice('triangle', note(SCALE[degree % SCALE.length] + chord + 12), next, eighth * 1.6, 0.16);
+          if (beat % 4 === 0) voice('sawtooth', note(chord - 24), next, eighth * 3.5, 0.12);
+          if (beat % 4 === 0) voice('sine', 130, next, 0.28, 0.9, 40);
+          if (beat % 2 === 1) hat(next);
+          if (beat % 8 === 6) voice('square', note(SCALE[(degree + 4) % SCALE.length] + chord + 24), next, eighth, 0.05);
+          next += eighth;
+          beat++;
+        }
+      }
+      // Each button counts as a new request: a microphone granted after another button was
+      // pressed since is let go at once.
+      let request = 0;
+      function stopAll() {
+        request++;
+        clearInterval(timer);
+        timer = 0;
+        microphone?.mediaStream.getTracks().forEach((track) => track.stop());
+        microphone?.disconnect();
+        microphone = null;
+      }
+      function playMelody() {
+        stopAll();
+        start();
+        route(true);
+        music.gain.value = 0.55;
+        next = audio.currentTime + 0.05;
+        timer = setInterval(schedule, 25);
+        schedule();
+        announce('');
+      }
+      async function useMicrophone() {
+        stopAll();
+        start();
+        const asked = request;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if (asked !== request) return stream.getTracks().forEach((track) => track.stop());
+          microphone = audio.createMediaStreamSource(stream);
+          route(false);
+          microphone.connect(analyser);
+          announce('', say('listening'));
+        } catch {
+          if (asked !== request) return;
+          playMelody();
+          announce('', say('refused'));
+        }
+      }
+      function silence() {
+        stopAll();
+        announce('', say('silence'));
+      }
+
+      // The camera: the view settles from above onto the stage while turning slowly; a press or a
+      // wheel gives it to the viewer. The first press on the stage also starts the melody.
+      world.controls.target.set(0, 1.5, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.minDistance = 6;
+      world.controls.maxDistance = 50;
+      opening(world, (time) => {
+        const t = ease.inOut(time / 5), reach = math.lerp(24, 19, t), up = math.lerp(1.35, 0.42, t), around = 2.2 * t;
+        world.camera.position.set(reach * Math.cos(up) * Math.sin(around), 1.5 + reach * Math.sin(up), reach * Math.cos(up) * Math.cos(around));
+        return time < 5;
+      });
+      world.canvas.addEventListener('pointerdown', () => {
+        if (!timer && !microphone) playMelody();
+      });
+
+      const ui = controls({
+        layout: Object.keys(LAYOUTS),
+        height: [0.3, 3, 1.2],
+        playMelody,
+        useMicrophone,
+        silence,
+      }, (values, key) => {
+        if (key === undefined || key === 'layout') arrange(values.layout);
+      }, world);
+
+      // The bars read the spectrum on a scale of octaves, 40 Hz to 12 kHz as the ear hears it: each
+      // bar the loudest bin of its band. Before any sound, a slow swell stands in.
+      const spectrum = new Uint8Array(1024), wave = new Uint8Array(2048), sampleRate = () => audio?.sampleRate ?? 48000;
+      const band = (k) => Math.floor((40 * 300 ** (k / BARS) * 2048) / sampleRate());
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05), live = analyser && (timer || microphone);
+        time += step;
+        if (live) {
+          analyser.getByteFrequencyData(spectrum);
+          analyser.getByteTimeDomainData(wave);
+        }
+        if (morph < 1) morph = Math.min(1, morph + step / 1.2);
+        let loud = 0;
+        for (const [k, bar] of bars.entries()) {
+          let peak = 0;
+          if (live) for (let bin = band(k); bin <= Math.max(band(k), band(k + 1) - 1); bin++) peak = Math.max(peak, spectrum[bin] ?? 0);
+          const level = live ? (peak / 255) ** 1.6 : 0.12 + 0.1 * Math.sin(time * 1.4 - k * 0.25);
+          bar.level += (level - bar.level) * Math.min(1, step * 18);
+          loud += bar.level;
+          const t = ease.inOut(morph), x = math.lerp(bar.from[0], bar.to[0], t), z = math.lerp(bar.from[1], bar.to[1], t);
+          bar.mesh.position.set(x, 0, z);
+          bar.mesh.rotation.y = -Math.atan2(z, x);
+          bar.mesh.scale.y = 0.08 + bar.level * 7 * ui.height * Math.min(1, time / 2);
+        }
+        pearls.forEach((mesh, k) => (mesh.position.y = Math.max(0.15, 1.3 + (live ? (wave[k * 21] - 128) / 128 : 0.1 * Math.sin(time * 2 + k * 0.4)) * 1.6 * ui.height)));
+        heart.scale.setScalar(0.8 + (loud / BARS) * 1.6);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

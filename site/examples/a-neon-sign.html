@@ -25,18 +25,30 @@
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      const wall = object.mesh(geometry.box(9, 5, 0.2), material.meshStandard({ color: '#6b5a58', roughness: 0.85 }));
-      wall.position.set(0, 2.5, -0.2);
-      const floor = object.mesh(geometry.box(9, 0.2, 5), material.meshStandard({ color: '#4a4d57', roughness: 0.5 }));
-      floor.position.set(0, -0.1, 2.3);
-      world.scene.add(wall, floor);
+      // A closed room, 9 m wide, 4.6 m high and 7.6 m deep: the sign hangs on its back wall.
+      const plaster = material.meshStandard({ color: '#6b5a58', roughness: 0.85 });
+      const slab = (width, height, depth, x, y, z, paint = plaster) => {
+        const mesh = object.mesh(geometry.box(width, height, depth), paint);
+        mesh.position.set(x, y, z);
+        world.scene.add(mesh);
+      };
+      slab(9.4, 0.2, 7.8, 0, -0.1, 3.6, material.meshStandard({ color: '#4a4d57', roughness: 0.5 }));
+      slab(9.4, 0.2, 7.8, 0, 4.7, 3.6);
+      slab(9.4, 4.6, 0.2, 0, 2.3, -0.2);
+      slab(9.4, 4.6, 0.2, 0, 2.3, 7.5);
+      slab(0.2, 4.6, 7.8, -4.6, 2.3, 3.6);
+      slab(0.2, 4.6, 7.8, 4.6, 2.3, 3.6);
+      // A faint light from everywhere, so the corners the signs do not reach are dark, not void.
+      world.scene.add(light.ambient({ intensity: 0.15, color: '#8fa0c8' }));
 
       // A tube follows a curve. Its material emits: colour times strength is added to the image
-      // whatever lights it. What it throws on the wall is a point light of the same colour.
+      // whatever lights it. What it throws on the wall is a point light of the same colour, held
+      // just in front of the tube and casting no shadow: a tube glows, it does not stencil itself
+      // onto the wall behind it.
       function neon(points, closed, colour, centre) {
         const tube = material.meshStandard({ color: '#000000', emissive: colour, emissiveIntensity: 8 });
         world.scene.add(object.mesh(geometry.tube(math.curve(points, closed), 240, 0.045, 12, closed), tube));
-        const glow = light.point({ position: centre, color: colour, intensity: 3, distance: 9, radius: 0.05, castShadow: true });
+        const glow = light.point({ position: centre, color: colour, intensity: 3, distance: 9 });
         world.scene.add(glow);
         return { tube, glow };
       }
@@ -45,11 +57,20 @@
         return [-1.6 + Math.sin(angle) * reach, 3 + Math.cos(angle) * reach, 0];
       });
       const wave = Array.from({ length: 24 }, (_, index) => [0.2 + index * 0.15, 2.6 + Math.sin(index * 0.8) * 0.35, 0]);
-      const signs = [neon(star, true, '#ff3d9a', [-1.6, 3, 0.9]), neon(wave, false, '#2de2ff', [1.9, 2.6, 0.9])];
+      const signs = [neon(star, true, '#ff3d9a', [-1.6, 3, 0.35]), neon(wave, false, '#2de2ff', [1.9, 2.6, 0.35])];
 
-      world.camera.position.set(1.2, 2.2, 7);
-      world.camera.lookAt(0, 2, 0);
-      world.controls.target.set(0, 2, 0);
+      // The camera turns on an arc in front of the sign, never above the ceiling, below its own
+      // eye level or farther than the front wall: no drag takes it outside the room, so none shows
+      // the back of a wall. Panning, which would carry the arc along, is off.
+      world.controls.target.set(0, 2, 3.2);
+      world.controls.maxDistance = 3.6;
+      world.controls.minAzimuthAngle = -0.9;
+      world.controls.maxAzimuthAngle = 0.9;
+      world.controls.minPolarAngle = 1;
+      world.controls.maxPolarAngle = Math.PI / 2;
+      world.controls.enablePan = false;
+      world.camera.position.set(0.5, 2.4, 6.4);
+      world.camera.lookAt(0, 2, 3.2);
 
       const ui = controls({
         star: '#ff3d9a', wave: '#2de2ff', glow: [0, 20, 8], pulse: true,

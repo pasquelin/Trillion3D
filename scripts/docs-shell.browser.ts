@@ -3,10 +3,12 @@ import test from 'node:test';
 import type { Browser } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
-import { readyEntries } from '../site/app/examples/list.ts';
+import { exampleTitle, readyEntries } from '../site/app/examples/list.ts';
 import { layoutFaults, ROUTES } from './docs/layout-faults.ts';
+import { LANGUAGES, loadDictionary } from '../site/content/i18n/dictionary.ts';
 
 const [example] = readyEntries;
+await loadDictionary('fr');
 const { server, port } = await startDocsServer();
 const browser: Browser = await launchChrome({ headless: true });
 test.after(async () => {
@@ -38,7 +40,7 @@ test('the site search finds a page as the reader types and opens it', async () =
   await page.getByRole('heading', { level: 1 }).waitFor();
   await page.keyboard.press('/');
   const input = page.getByRole('combobox', { name: 'Rechercher' });
-  await input.fill(example.title.fr);
+  await input.fill(exampleTitle(example.id, 'fr'));
   await page.getByRole('option').first().waitFor();
   await page.keyboard.press('Enter');
   await page.waitForURL(`**/#/fr/examples/${example.id}`);
@@ -73,7 +75,7 @@ test('the demo page runs the example; its actions show its code, share it and dr
   await action('Controls');
   await inside!.waitForFunction(() => (window as { got?: unknown }).got);
   assert.deepEqual(await inside!.evaluate(() => (window as { got?: unknown }).got), {
-    type: 'wg:controls',
+    type: 'trillion3d:controls',
     visible: false,
   });
   await action('Share');
@@ -121,9 +123,9 @@ test('moving from one example to the next keeps the sidebar where it was, with n
   await page.context().close();
 });
 
-test('the layout holds on every page type, at every width, in both languages', async () => {
+test('the layout holds on every page type, at every width, in every language', async () => {
   const faults: string[] = [];
-  for (const locale of ['en', 'fr'])
+  for (const { code: locale } of LANGUAGES)
     for (const width of [390, 768, 1024, 1280, 1440, 1920]) {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       const page = await context.newPage();
@@ -146,7 +148,7 @@ test('the layout holds on every page type, at every width, in both languages', a
 });
 
 test('the header marks the current area, and a long sidebar label ends on an ellipsis', async () => {
-  const { page } = await open('#/fr/lessons/matrix-inverse', 1440);
+  const { page } = await open('#/fr/learn/create-a-world', 1440);
   const current = page.locator('header nav a[aria-current="page"]');
   assert.equal(await current.count(), 1);
   assert.equal(await current.getAttribute('data-nav'), 'learn');
@@ -158,7 +160,25 @@ test('the header marks the current area, and a long sidebar label ends on an ell
         whole: span.parentElement!.title === span.textContent,
       })),
   );
-  assert.ok(cut.length > 0, 'a French lesson title is longer than the sidebar');
+  assert.ok(cut.length > 0, 'a French guide title is longer than the sidebar');
   assert.ok(cut.every(({ overflow, whole }) => overflow === 'ellipsis' && whole));
+  await page.context().close();
+});
+
+test('the editor is current in the header, and its menus close outside them and on Escape', async () => {
+  const { page, errors } = await open('#/en/editor');
+  const current = page.locator('header nav a[aria-current="page"]');
+  assert.equal(await current.getAttribute('data-nav'), 'editor');
+  const file = page.locator('details.dropdown', { hasText: 'File' });
+  const isOpen = () => file.evaluate((menu) => (menu as HTMLDetailsElement).open);
+  await file.locator('summary').click();
+  assert.equal(await isOpen(), true);
+  await page.locator('canvas').click();
+  assert.equal(await isOpen(), false, 'a click on the view closes the menu');
+  await file.locator('summary').click();
+  await page.keyboard.press('Escape');
+  assert.equal(await isOpen(), false);
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'SUMMARY');
+  assert.deepEqual(errors, []);
   await page.context().close();
 });

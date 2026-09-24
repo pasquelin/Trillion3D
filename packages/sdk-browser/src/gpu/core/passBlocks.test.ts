@@ -15,28 +15,28 @@ const sample = (
 });
 
 test('each pass falls in the block its label names, and an unknown one stays outside', () => {
-  assert.equal(gpuPassBlockOf('WG DAG selection'), 'visibility');
-  assert.equal(gpuPassBlockOf('WG visibility primary'), 'visibility');
-  assert.equal(gpuPassBlockOf('WG HiZ pyramid'), 'visibility');
-  assert.equal(gpuPassBlockOf('WG material surfaces v1'), 'materials');
-  assert.equal(gpuPassBlockOf('WG material depth'), 'materials');
-  assert.equal(gpuPassBlockOf('WG empty surfaces'), 'materials');
-  assert.equal(gpuPassBlockOf('WG deferred lighting'), 'other');
-  assert.equal(gpuPassBlockOf('WG shadow atlas v1'), 'other');
-  assert.equal(gpuPassBlockOf('WG opaque fallback'), 'other');
-  assert.equal(gpuPassBlockOf('WG pass invented tomorrow'), 'other');
+  assert.equal(gpuPassBlockOf('Trillion3D DAG selection'), 'visibility');
+  assert.equal(gpuPassBlockOf('Trillion3D visibility primary'), 'visibility');
+  assert.equal(gpuPassBlockOf('Trillion3D HiZ pyramid'), 'visibility');
+  assert.equal(gpuPassBlockOf('Trillion3D material surfaces v1'), 'materials');
+  assert.equal(gpuPassBlockOf('Trillion3D material depth'), 'materials');
+  assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials');
+  assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other');
+  assert.equal(gpuPassBlockOf('Trillion3D shadow atlas v1'), 'other');
+  assert.equal(gpuPassBlockOf('Trillion3D opaque fallback'), 'other');
+  assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), 'other');
 });
 
 test("a block's durations add up, and the three sum to that of the passes", () => {
   const totals = gpuPassBlockTotals(
     sample([
-      ['WG clear', 0.066],
-      ['WG DAG selection', 0.406],
-      ['WG visibility primary', 1.148],
-      ['WG HiZ pyramid', 0.099],
-      ['WG empty surfaces', 0.217],
-      ['WG material surfaces v1', 2.084],
-      ['WG deferred lighting', 1.5],
+      ['Trillion3D clear', 0.066],
+      ['Trillion3D DAG selection', 0.406],
+      ['Trillion3D visibility primary', 1.148],
+      ['Trillion3D HiZ pyramid', 0.099],
+      ['Trillion3D empty surfaces', 0.217],
+      ['Trillion3D material surfaces v1', 2.084],
+      ['Trillion3D deferred lighting', 1.5],
     ]),
   );
   assert.equal(totals.visibilityMs?.toFixed(3), '1.719');
@@ -48,9 +48,9 @@ test("a block's durations add up, and the three sum to that of the passes", () =
 test('a pass without a duration voids ITS block, never the others', () => {
   const totals = gpuPassBlockTotals(
     sample([
-      ['WG DAG selection', null],
-      ['WG visibility primary', 1.148],
-      ['WG material surfaces v1', 2.084],
+      ['Trillion3D DAG selection', null],
+      ['Trillion3D visibility primary', 1.148],
+      ['Trillion3D material surfaces v1', 2.084],
     ]),
   );
   assert.equal(totals.visibilityMs, null, 'a partial sum would pass for a measurement');
@@ -61,8 +61,8 @@ test('a pass without a duration voids ITS block, never the others', () => {
 test('order changes nothing: a pass without a duration voids its block even when announced last', () => {
   const totals = gpuPassBlockTotals(
     sample([
-      ['WG visibility primary', 1.148],
-      ['WG DAG selection', null],
+      ['Trillion3D visibility primary', 1.148],
+      ['Trillion3D DAG selection', null],
     ]),
   );
   assert.equal(totals.visibilityMs, null);
@@ -70,7 +70,7 @@ test('order changes nothing: a pass without a duration voids its block even when
 
 test('a truncated or missing sample yields no block', () => {
   const truncated = gpuPassBlockTotals(
-    sample([['WG visibility primary', 1.148]], { truncated: true }),
+    sample([['Trillion3D visibility primary', 1.148]], { truncated: true }),
   );
   assert.deepEqual(truncated, { visibilityMs: null, materialsMs: null, otherMs: null });
   assert.deepEqual(gpuPassBlockTotals(null), {

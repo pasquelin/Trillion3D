@@ -132,7 +132,7 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
  */
 function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
-    device = rt.setup.gpuDevice;
+    device = rt.gpu.device;
   if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
     return;
   lights.staticLayerPending = true;

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Waves of points</title>
+    <meta name="thumbnail" content="4.5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0a0f1f;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout, language, seeded, opening, ease } from '../runtime/kit.js';
+
+      const next = seeded(7);
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0a0f1f');
+
+      // One geometry of a single vertex, drawn as a dot: every point of the field is a mesh of it,
+      // moved by its own position. Twelve rings of colour from the centre out, one points
+      // material each, warm in the middle and cold at the rim.
+      const SIDE = 64, GAP = 0.26, HALF = ((SIDE - 1) * GAP) / 2;
+      const dot = geometry.createBuffer({ position: buffer.float32(new Float32Array([0, 0, 0]), 3) });
+      const STOPS = [[255, 240, 200], [255, 179, 92], [255, 90, 138], [138, 91, 255], [58, 123, 255], [41, 212, 255]];
+      const hex = (rgb) => '#' + rgb.map((value) => Math.round(value).toString(16).padStart(2, '0')).join('');
+      const inks = Array.from({ length: 12 }, (_, band) => {
+        const at = (band / 11) * (STOPS.length - 1), low = Math.min(STOPS.length - 2, Math.floor(at)), share = at - low;
+        return material.points({ color: hex(STOPS[low].map((value, channel) => value + (STOPS[low + 1][channel] - value) * share)), size: 0.1 });
+      });
+      const points = [];
+      for (let row = 0; row < SIDE; row++)
+        for (let column = 0; column < SIDE; column++) {
+          const x = column * GAP - HALF, z = row * GAP - HALF;
+          const mesh = object.points(dot, inks[Math.min(11, Math.floor((Math.hypot(x, z) / (HALF * 1.42)) * 12))]);
+          mesh.position.set(x, 0, z);
+          world.scene.add(mesh);
+          points.push(mesh);
+        }
+
+      // The patterns, each a height over the field at a time. Rain drops a stone every second
+      // somewhere on the field; each stone sends out one ring that fades as it spreads.
+      const stones = Array.from({ length: 4 }, (_, k) => ({ x: 0, z: 0, born: -k }));
+      const PATTERNS = {
+        'ocean swell': (x, z, t) => 0.55 * Math.sin(0.6 * x + 0.9 * t) + 0.35 * Math.sin(0.9 * z - 1.3 * t + 0.15 * x) + 0.16 * Math.sin(1.7 * (x + z) - 2.1 * t),
+        'rain of stones': (x, z, t) => {
+          let sum = 0;
+          for (const stone of stones) {
+            const age = t - stone.born, front = Math.hypot(x - stone.x, z - stone.z) - age * 2.4;
+            sum += Math.sin(front * 2.6) * Math.exp(-front * front * 0.6) * Math.exp(-age * 0.45);
+          }
+          return sum * 1.3;
+        },
+        interference: (x, z, t) => {
+          const one = Math.hypot(x - 3, z), two = Math.hypot(x + 3, z);
+          return 0.5 * Math.sin(2.2 * one - 3 * t) / (1 + one * 0.12) + 0.5 * Math.sin(2.2 * two - 3 * t) / (1 + two * 0.12);
+        },
+        'standing wave': (x, z, t) => 0.9 * Math.sin(0.75 * x) * Math.sin(0.75 * z) * Math.cos(1.8 * t),
+        whirlpool: (x, z, t) => {
+          const d = Math.hypot(x, z);
+          return 0.75 * Math.sin(1.4 * d + 2 * Math.atan2(z, x) - 2.6 * t) * Math.min(1, d / 2.5) - 0.9 * Math.exp(-d * d * 0.18);
+        },
+      };
+
+      // Buoys ride the field, each tipped to the slope under it: they are lit, and cast shadows
+      // on the dark floor below; posts round the edge frame the pool.
+      const paint = (color, extra = {}) => material.meshStandard({ color, roughness: 0.35, metalness: 0.05, ...extra });
+      const hulls = [paint('#e8412c'), paint('#f4f1ea'), paint('#ffd23f')], mast = paint('#39404f', { roughness: 0.6 });
+      const lamp = paint('#ffe6a8', { emissive: '#ffcf6a', emissiveIntensity: 2.5 });
+      const body = geometry.sphere(0.24, 24, 16), pole = geometry.cylinder(0.025, 0.025, 0.5, 8), top = geometry.sphere(0.07, 16, 10);
+      const buoys = Array.from({ length: 7 }, (_, k) => {
+        const angle = (k / 7) * Math.PI * 2 + 0.3, reach = 2.6 + (k % 3) * 1.6, buoy = object.group();
+        const hull = object.mesh(body, hulls[k % 3]);
+        hull.scale.set(1, 0.7, 1);
+        const stick = object.mesh(pole, mast), glow = object.mesh(top, lamp);
+        stick.position.y = 0.35;
+        glow.position.y = 0.62;
+        buoy.add(hull, stick, glow);
+        world.scene.add(buoy);
+        return { buoy, x: Math.cos(angle) * reach, z: Math.sin(angle) * reach };
+      });
+      const floor = object.mesh(geometry.cylinder(14, 14, 0.3, 96), paint('#1a2238', { roughness: 0.8 }));
+      floor.position.y = -2.35;
+      world.scene.add(floor);
+      const post = geometry.cylinder(0.14, 0.18, 3, 12), stone = paint('#6a7288', { roughness: 0.75 });
+      for (let k = 0; k < 20; k++) {
+        const angle = (k / 20) * Math.PI * 2, column = object.mesh(post, stone);
+        column.position.set(Math.cos(angle) * 12.2, -0.85, Math.sin(angle) * 12.2);
+        world.scene.add(column);
+      }
+      world.scene.add(
+        light.hemisphere({ color: '#b8c8ff', groundColor: '#3a2c40', intensity: 0.9 }),
+        light.directional({ color: '#ffd2a0', intensity: 2.6, position: [8, 12, 6], castShadow: true }),
+        light.point({ color: '#5ad8ff', intensity: 30, distance: 22, position: [-7, 3, -7] }),
+      );
+
+      world.camera.position.set(9, 6.5, 12);
+      world.camera.lookAt(0, -0.3, 0);
+      world.controls.target.set(0, -0.3, 0);
+      world.controls.minDistance = 5;
+      world.controls.maxDistance = 34;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // A new pattern takes over from the last one in a second, the two mixed on the way.
+      let before = PATTERNS['ocean swell'], after = before, blend = 1;
+      const ui = controls({
+        pattern: Object.keys(PATTERNS),
+        height: [0, 1.6, 0.7],
+        speed: [0, 2, 1],
+      }, (values, key) => {
+        if (key === 'pattern') {
+          before = after;
+          after = PATTERNS[values.pattern];
+          blend = 0;
+        }
+        world.invalidate();
+      }, world);
+      readout('points')((SIDE * SIDE).toLocaleString(language()));
+
+      // The opening: the field lies flat under a camera high above, and rises as it comes down.
+      const from = [0, 24, 1], to = [9, 6.5, 12];
+      opening(world, (glide) => {
+        const e = ease.out(glide / 3.5);
+        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * e));
+        return glide < 3.5;
+      });
+      let rise = 0, time = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step * ui.speed;
+        rise = Math.min(1, rise + step / 3);
+        blend = Math.min(1, blend + step);
+        for (const stone of stones)
+          if (time - stone.born > 4) Object.assign(stone, { x: (next() - 0.5) * 12, z: (next() - 0.5) * 12, born: time });
+        const k = ease.smooth(blend), amplitude = ui.height * ease.smooth(rise);
+        const height = (x, z) => amplitude * (before(x, z, time) * (1 - k) + after(x, z, time) * k);
+        for (const mesh of points) mesh.position.y = height(mesh.position.x, mesh.position.z);
+        for (const { buoy, x, z } of buoys) {
+          const e = 0.15, slopeX = (height(x + e, z) - height(x - e, z)) / (2 * e), slopeZ = (height(x, z + e) - height(x, z - e)) / (2 * e);
+          buoy.position.set(x, height(x, z) + 0.08, z);
+          buoy.rotation.set(-Math.atan(slopeZ), 0, Math.atan(slopeX));
+        }
+        // At speed zero, once the field has risen and a new pattern has taken over, all stands still.
+        if (ui.speed || rise < 1 || blend < 1) world.invalidate();
+      });
+    </script>
+  </body>
+</html>

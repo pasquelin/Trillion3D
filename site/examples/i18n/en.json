@@ -1,0 +1,1895 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "Controls"
+    },
+    "menu": {
+      "play": "Play",
+      "resume": "Resume",
+      "restart": "Restart",
+      "controls": "Controls",
+      "back": "Back",
+      "paused": "Paused",
+      "again": "Click again to continue"
+    },
+    "keys": {
+      "Mouse": "Mouse",
+      "Right button": "Right button",
+      "Wheel": "Wheel",
+      "Shift": "Shift",
+      "Space": "Space",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "FPS",
+      "FPS (held)": "FPS (held)",
+      "triangles": "triangles",
+      "triangles (scene)": "triangles (scene)",
+      "draw calls": "draw calls",
+      "pages": "pages",
+      "geometry pool": "geometry pool",
+      "lights": "lights",
+      "GPU frame": "GPU frame",
+      "CPU frame": "CPU frame",
+      "page hooks": "page hooks",
+      "engine CPU": "engine CPU"
+    },
+    "failure": {
+      "title": "This example stopped on an error"
+    },
+    "banner": {
+      "close": "Close"
+    }
+  },
+  "a-city-from-rules": {
+    "banner": "Drag to fly around. Move a slider and the city builds itself again.",
+    "controls": {
+      "blocks": "Blocks",
+      "maxHeight": "Max height",
+      "density": "Density",
+      "parks": "Parks",
+      "seed": "Seed",
+      "hour": "Hour",
+      "traffic": "Traffic"
+    },
+    "readouts": {
+      "buildings": "Buildings",
+      "parks": "Parks"
+    }
+  },
+  "a-cloud-of-points": {
+    "banner": "Drag to turn around the cloud. Pick another shape and watch it change.",
+    "controls": {
+      "shape": "Shape",
+      "spin": "Spin"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "spiral galaxy",
+        "globular cluster": "globular cluster",
+        "ring nebula": "ring nebula",
+        "Lorenz attractor": "Lorenz attractor"
+      }
+    },
+    "readouts": {
+      "points": "Points",
+      "colourGroups": "Colour groups"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "banner": "Pick a colour and see how the light fades it from dark to bright.",
+    "controls": {
+      "colour": "Colour",
+      "glow": "Glow",
+      "exposure": "Exposure"
+    }
+  },
+  "a-field-of-pebbles": {
+    "banner": "Drag to look around. Move the sun and watch the pebbles' shadows.",
+    "controls": {
+      "sunTurn": "Sun turn",
+      "sunHeight": "Sun height",
+      "first": "First",
+      "last": "Last"
+    }
+  },
+  "a-first-world": {
+    "banner": "Drag to turn around the cube. Pick a new colour for it.",
+    "controls": {
+      "colour": "Colour"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "banner": "Drag to slide the board. Scroll or pinch to zoom. Use the arrow keys to pan.",
+    "controls": {
+      "play": "Play",
+      "speed": "Speed",
+      "follow": "Follow",
+      "replay": "Replay"
+    },
+    "readouts": {
+      "move": "Move"
+    },
+    "words": {
+      "takes": "takes"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "banner": "Drag to look around. Swing the lantern and watch the light move.",
+    "controls": {
+      "swing": "Swing",
+      "lamp": "Lamp",
+      "power": "Power",
+      "glass": "Glass"
+    }
+  },
+  "a-lighthouse-beam": {
+    "banner": "Drag to look around. Make the beam turn faster or wider.",
+    "controls": {
+      "turnsPerMinute": "Turns per minute",
+      "beamWidth": "Beam width",
+      "colour": "Colour"
+    }
+  },
+  "a-long-shadowed-street": {
+    "banner": "Drag to look down the street. Slide the hour to stretch the shadows. Scroll to move.",
+    "controls": {
+      "hour": "Hour",
+      "traffic": "Traffic",
+      "flyAgain": "Fly again"
+    },
+    "readouts": {
+      "sunHeight": "Sun height",
+      "shadow30MHouse": "Shadow of a 30 m house"
+    }
+  },
+  "a-matcap-sculpture": {
+    "banner": "Drag to walk around the sculpture. Its light turns with you.",
+    "controls": {
+      "matcap": "Matcap",
+      "sculpture": "Sculpture",
+      "gallery": "Gallery",
+      "turn": "Turn"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "red clay",
+        "chrome": "chrome",
+        "gold": "gold",
+        "jade": "jade",
+        "pearl": "pearl",
+        "obsidian": "obsidian"
+      },
+      "sculpture": {
+        "knot": "knot",
+        "rings": "rings",
+        "vase": "vase"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "banner": "Drag to turn around the gems. Each one is built point by point. Switch sharp facets off to share the corners.",
+    "controls": {
+      "points": "Points",
+      "waist": "Waist",
+      "height": "Height",
+      "sharpFacets": "Sharp facets",
+      "colour": "Colour",
+      "spin": "Spin"
+    },
+    "readouts": {
+      "verticesWritten": "Vertices written",
+      "triangles": "Triangles"
+    }
+  },
+  "a-model-from-obj": {
+    "banner": "Drag to turn around the board. Scroll to lean in close.",
+    "controls": {
+      "view": "View",
+      "sunAngle": "Sun angle",
+      "sunHeight": "Sun height",
+      "turn": "Turn"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "triangles": "triangles",
+        "clusters": "clusters",
+        "lod": "lod"
+      }
+    },
+    "words": {
+      "credit": "Chess set modelled for these examples, CC0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "banner": "Drag to walk around the chess set. Scroll down to the pieces.",
+    "controls": {
+      "view": "View",
+      "turn": "Turn"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "materials": "materials",
+        "clusters": "clusters",
+        "triangles": "triangles"
+      }
+    },
+    "readouts": {
+      "source": "Source",
+      "boardWidth": "Board width",
+      "partsPlaced": "Parts placed",
+      "triangles": "Triangles"
+    },
+    "words": {
+      "credit": "Chess set modelled in code for this example, CC0; the file is assets/examples/a-model-from-usdz/source/chess-set.usdz — see assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "banner": "Drag to turn around the molecule. Pick another one and watch the atoms fly.",
+    "controls": {
+      "molecule": "Molecule",
+      "style": "Style",
+      "spin": "Spin"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "C60 buckyball",
+        "carbon nanotube": "carbon nanotube",
+        "diamond crystal": "diamond crystal",
+        "DNA double helix": "DNA double helix"
+      },
+      "style": {
+        "ball and stick": "ball and stick",
+        "space filling": "space filling",
+        "sticks": "sticks"
+      }
+    },
+    "readouts": {
+      "atoms": "Atoms",
+      "bonds": "Bonds"
+    }
+  },
+  "a-neon-sign": {
+    "banner": "Drag to look around. Make the neon glow and blink.",
+    "controls": {
+      "star": "Star",
+      "wave": "Wave",
+      "glow": "Glow",
+      "pulse": "Pulse",
+      "exposure": "Exposure",
+      "toneMapping": "Tone mapping"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "neutral",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "linear"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "banner": "Drag to look around. Add lamps and make them spin.",
+    "controls": {
+      "lamps": "Lamps",
+      "speed": "Speed",
+      "power": "Power",
+      "shadows": "Shadows"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "banner": "Drag to look around. Mix walking, waving and dancing.",
+    "controls": {
+      "walk": "Walk",
+      "wave": "Wave",
+      "dance": "Dance",
+      "speed": "Speed",
+      "colour": "Colour",
+      "shadow": "Shadow"
+    }
+  },
+  "a-scene-of-your-own": {
+    "banner": "Drag to look around. Change the hour, the wind and the roof.",
+    "controls": {
+      "hour": "Hour",
+      "wind": "Wind",
+      "roof": "Roof"
+    }
+  },
+  "a-softbox-panel": {
+    "banner": "Drag to walk around. Make the light panel bigger to soften the shine.",
+    "controls": {
+      "panelWidth": "Panel width",
+      "power": "Power",
+      "colour": "Colour",
+      "swing": "Swing"
+    },
+    "readouts": {
+      "panel": "Panel",
+      "radiance": "Radiance"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "banner": "Drag to look around. Change the steps and the stairs rebuild.",
+    "controls": {
+      "climb": "Climb",
+      "turnPerStep": "Turn per step",
+      "lantern": "Lantern"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "banner": "Drag to fly over the mountains. Slide the hour of the day.",
+    "controls": {
+      "hour": "Hour",
+      "sunColour": "Sun colour",
+      "exposure": "Exposure"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "banner": "Drag to look around. Turn and repeat the picture on the walls. The panel at the back shows the picture as painted.",
+    "controls": {
+      "tile": "Tile",
+      "wrap": "Wrap",
+      "tilesAcross": "Tiles across",
+      "turn": "Turn",
+      "slideAcross": "Slide across",
+      "slideUp": "Slide up",
+      "flow": "Flow"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "repeat",
+        "mirror": "mirror",
+        "clamp": "clamp"
+      },
+      "tile": {
+        "terracotta": "terracotta",
+        "azulejo": "azulejo",
+        "jade": "jade"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "Tiles, turn"
+    },
+    "words": {
+      "up": "UP"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "banner": "Drag to look around. The beads ride along the tube.",
+    "controls": {
+      "path": "Path",
+      "radius": "Radius",
+      "sides": "Sides",
+      "slices": "Slices",
+      "speed": "Speed",
+      "beads": "Beads",
+      "paint": "Paint"
+    },
+    "choices": {
+      "path": {
+        "knot": "knot",
+        "coaster": "coaster",
+        "spiral": "spiral"
+      }
+    },
+    "readouts": {
+      "triangles": "Triangles"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "banner": "Drag to look around. Change a vase's width and height.",
+    "controls": {
+      "width": "Width",
+      "height": "Height",
+      "gloss": "Gloss",
+      "spin": "Spin"
+    }
+  },
+  "a-video-on-a-screen": {
+    "banner": "Drag to look around the room. The screen plays a real video.",
+    "controls": {
+      "playing": "Playing",
+      "openVideo": "Open video"
+    },
+    "readouts": {
+      "playing": "Playing",
+      "videoTime": "Video time"
+    },
+    "words": {
+      "yourFile": "your file",
+      "testCard": "test card"
+    }
+  },
+  "a-video-panorama": {
+    "banner": "Drag to look all around you. Open your own video if you like. The view turns on its own until you press.",
+    "controls": {
+      "playing": "Playing",
+      "fieldOfView": "Field of view",
+      "openVideo": "Open video"
+    },
+    "readouts": {
+      "playing": "Playing"
+    },
+    "words": {
+      "yourFile": "your file",
+      "duskOverSea": "dusk over the sea"
+    }
+  },
+  "a-wall-of-cameras": {
+    "banner": "Click a small screen to show it big. Choose what each camera watches.",
+    "controls": {
+      "watch": "Watch"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "patrol",
+        "car": "the car",
+        "balloon": "the balloon"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "Cameras seeing the car"
+    },
+    "words": {
+      "cam": "CAM",
+      "northGate": "NORTH GATE",
+      "fountain": "FOUNTAIN",
+      "eastRoad": "EAST ROAD",
+      "clockTower": "CLOCK TOWER",
+      "cafe": "CAFE",
+      "southCorner": "SOUTH CORNER",
+      "noSignal": "NO SIGNAL",
+      "patrol": "PATROL",
+      "car": "TRACKING THE CAR",
+      "balloon": "TRACKING THE BALLOON"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "banner": "Drag to look around. Make the wave of cubes higher or faster.",
+    "controls": {
+      "height": "Height",
+      "speed": "Speed",
+      "ripples": "Ripples",
+      "inner": "Inner",
+      "outer": "Outer"
+    }
+  },
+  "a-world-of-blocks": {
+    "banner": "Drag to fly around the island. Raise the sea to flood the valleys.",
+    "controls": {
+      "seed": "Seed",
+      "seaLevel": "Sea level",
+      "hour": "Hour",
+      "clouds": "Clouds"
+    },
+    "readouts": {
+      "facesDrawn": "Faces drawn"
+    }
+  },
+  "before-and-after-slider": {
+    "banner": "Drag the round knob to compare. Drag the picture to turn around.",
+    "controls": {
+      "before": "Before"
+    },
+    "choices": {
+      "before": {
+        "clay": "clay",
+        "no shadows": "no shadows",
+        "no sun": "no sun",
+        "noon sun": "noon sun"
+      }
+    },
+    "words": {
+      "clay": "clay",
+      "no shadows": "no shadows",
+      "no sun": "no sun",
+      "noon sun": "noon sun",
+      "finished": "finished"
+    }
+  },
+  "blobs-that-merge": {
+    "banner": "Drag to walk around the lamp. Heat it up and the blobs melt together.",
+    "controls": {
+      "stickiness": "Stickiness",
+      "heat": "Heat",
+      "wax": "Wax"
+    },
+    "readouts": {
+      "piecesWax": "Pieces of wax"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "banner": "Drag to look around. Move the lamp and watch the bricks' bumps.",
+    "controls": {
+      "sweep": "Sweep",
+      "lamp": "Lamp",
+      "colour": "Colour",
+      "bricks": "Bricks"
+    }
+  },
+  "click-to-pick": {
+    "banner": "Click a shape. It lights up and the panel says where you hit it.",
+    "readouts": {
+      "picked": "Picked",
+      "point": "Point",
+      "distance": "Distance"
+    },
+    "words": {
+      "nothing": "nothing",
+      "box": "box",
+      "sphere": "sphere",
+      "cone": "cone",
+      "torus": "torus",
+      "cylinder": "cylinder",
+      "knot": "knot"
+    }
+  },
+  "colours-on-the-vertices": {
+    "banner": "Drag to turn the planet. Every corner carries its own colour.",
+    "controls": {
+      "palette": "Palette",
+      "seaLevel": "Sea level",
+      "relief": "Relief",
+      "spin": "Spin"
+    },
+    "choices": {
+      "palette": {
+        "earth": "earth",
+        "lava": "lava",
+        "ice": "ice",
+        "candy": "candy"
+      }
+    }
+  },
+  "compressed-textures": {
+    "banner": "Drag to walk around the fountain. Scroll close to see the detail arrive.",
+    "controls": {
+      "sunTurn": "Sun turn",
+      "sunHeight": "Sun height"
+    },
+    "readouts": {
+      "texturesBlocks": "Textures in blocks",
+      "allFullDetail": "All at full detail",
+      "poolFormat": "Pool format",
+      "tilesHeld": "Tiles held",
+      "heldGpu": "Held on the GPU"
+    },
+    "words": {
+      "credit": "Courtyard and its textures drawn in code for this example, CC0 — see assets/examples/CREDITS.md",
+      "someOf": "{some} of {all}",
+      "notPlain": "{held} MiB, not {plain}",
+      "notMeasured": "not measured here"
+    }
+  },
+  "copies-along-a-path": {
+    "banner": "Drag to look around the park. Add copies until they make a tunnel.",
+    "controls": {
+      "copies": "Copies",
+      "twist": "Twist",
+      "speed": "Speed",
+      "ride": "Ride"
+    },
+    "readouts": {
+      "archesPlaced": "Arches placed"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "banner": "Drag to look around. Change the spotlight's angle and colour.",
+    "controls": {
+      "angle": "Angle",
+      "softness": "Softness",
+      "colour": "Colour",
+      "power": "Power"
+    },
+    "words": {
+      "credit": "Crate model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "banner": "Drag to walk around. Watch pieces appear and disappear all the time. Scroll to come closer.",
+    "controls": {
+      "perSecond": "Per second",
+      "copies": "Copies",
+      "burst": "Burst",
+      "clearAll": "Clear all"
+    },
+    "choices": {
+      "copies": {
+        "share": "share the shapes",
+        "fresh": "new shape each time"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "Pieces alive",
+      "created": "Created",
+      "disposed": "Disposed",
+      "gpuMemory": "GPU memory"
+    },
+    "words": {
+      "notMeasured": "not measured"
+    }
+  },
+  "curved-surfaces": {
+    "banner": "Drag to walk around. Lower the grid to see the triangles in each curve.",
+    "controls": {
+      "grid": "Grid",
+      "facets": "Facets",
+      "turntable": "Turntable"
+    },
+    "readouts": {
+      "triangles": "Triangles",
+      "facingYou": "Facing you"
+    },
+    "words": {
+      "Klein bottle": "Klein bottle",
+      "Möbius strip": "Möbius strip",
+      "Seashell": "Seashell",
+      "Dini's twist": "Dini's twist",
+      "Enneper saddle": "Enneper saddle"
+    }
+  },
+  "dashed-lines": {
+    "banner": "Drag to turn around the sun. Change the dashes and the gaps.",
+    "controls": {
+      "lines": "Lines",
+      "dash": "Dash",
+      "gap": "Gap",
+      "spin": "Spin"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "dashed",
+        "solid": "solid"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "Dashes on the blue planet's orbit"
+    }
+  },
+  "detail-by-pixel-error": {
+    "banner": "Drag to walk down the avenue. Scroll close to an urn, then far away.",
+    "controls": {
+      "pixelError": "Pixel error",
+      "view": "View"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "lod": "lod",
+        "screen-error": "screen-error",
+        "triangles": "triangles"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Triangles drawn",
+      "shareAvenue": "Share of the avenue",
+      "trianglesAvenue": "Triangles in the avenue"
+    },
+    "words": {
+      "credit": "Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md",
+      "notCounted": "not counted here"
+    }
+  },
+  "edges-and-wireframe": {
+    "banner": "Drag to look around. Raise the threshold to keep only sharp edges.",
+    "controls": {
+      "view": "View",
+      "threshold": "Threshold",
+      "lines": "Lines",
+      "spin": "Spin"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "surface and edges",
+        "edges": "edges",
+        "wireframe": "wireframe",
+        "surface and wireframe": "surface and wireframe",
+        "surface": "surface"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "Edge segments",
+      "wireframeSegments": "Wireframe segments"
+    }
+  },
+  "every-image-format": {
+    "banner": "Drag to walk along the easels. Lower the quality and look closely.",
+    "controls": {
+      "quality": "Quality",
+      "lookAt": "Look at"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "all eight",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "Raw pixels"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "Raw pixels"
+    },
+    "words": {
+      "samePicture": "512 × 512 · the same picture",
+      "lossless": "lossless",
+      "lossy": "lossy",
+      "colours256": "256 colours",
+      "uncompressed": "uncompressed",
+      "shapes": "shapes, drawn on load",
+      "painted": "painted in the page",
+      "bytes": "bytes in memory",
+      "inMemory": "{size} in memory · {note}",
+      "sentAs": "sent as {type}"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "banner": "Drag to walk around the sundial. Slide the hour to swing the shadows.",
+    "controls": {
+      "hour": "Hour",
+      "darkness": "Darkness",
+      "timeLapse": "Time lapse",
+      "motion": "Motion"
+    },
+    "readouts": {
+      "shadowLength": "Shadow length"
+    },
+    "words": {
+      "timesHeight": "{times} × height"
+    }
+  },
+  "fly-over-a-model-town": {
+    "banner": "Fly the jet through the rings. Push the throttle up to take off.",
+    "choices": {
+      "view": {
+        "cockpit": "Cockpit",
+        "exterior": "Exterior"
+      },
+      "mode": {
+        "arcade": "Arcade — the jet flies toward your aim; no stall, it pulls up by itself",
+        "expert": "Expert — the mouse is the stick; it stalls and spins"
+      },
+      "sensitivity": {
+        "Low": "Low",
+        "Medium": "Medium",
+        "High": "High"
+      },
+      "invert": {
+        "off": "Off",
+        "on": "On"
+      },
+      "sound": {
+        "on": "On",
+        "off": "Off"
+      }
+    },
+    "game": {
+      "title": "Fighter jet",
+      "goal": "Take off, then fly the canyon through the ten gold rings as fast as you can. Point with the mouse: the jet follows.",
+      "keys": {
+        "aim": "Aim (Arcade) or stick (Expert)",
+        "fineAim": "Fine aim (hold)",
+        "throttle": "Throttle up, down",
+        "afterburner": "Afterburner (hold)",
+        "roll": "Roll (overrides the aim in Arcade)",
+        "rudder": "Rudder",
+        "airBrake": "Air brake (hold)",
+        "lookAround": "Look around (hold)",
+        "view": "Cockpit or exterior view",
+        "zoom": "Zoom the exterior view",
+        "startOver": "Start over",
+        "pause": "Pause"
+      },
+      "options": {
+        "view": "View",
+        "mode": "Mode",
+        "sensitivity": "Mouse sensitivity",
+        "invert": "Invert Y",
+        "sound": "Sound"
+      }
+    },
+    "words": {
+      "testMode": "TEST MODE — mouse not locked",
+      "rings": "RINGS {passed}/{all}",
+      "complete": "COURSE COMPLETE",
+      "flyAgain": "{time} — R to fly again",
+      "stall": "STALL",
+      "pullUp": "PULL UP",
+      "turnBack": "TURN BACK",
+      "crashed": "CRASHED",
+      "backToRunway": "Back to the runway…",
+      "backToRing": "Back to the last ring…",
+      "throttleUp": "W — throttle up (Z on AZERTY)",
+      "rolling": "Rolling — {knots} kt",
+      "liftOff": "Mouse up — lift off"
+    }
+  },
+  "four-ways-to-blend": {
+    "banner": "Drag to look from the side. Each panel mixes colours its own way. Left to right: normal, additive, subtractive, multiply.",
+    "controls": {
+      "inks": "Inks",
+      "opacity": "Opacity",
+      "circle": "Circle"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "red, green, blue",
+        "cyan, magenta, yellow": "cyan, magenta, yellow",
+        "warm and cool": "warm and cool"
+      }
+    }
+  },
+  "frame-the-model": {
+    "banner": "Double-click an object to zoom onto it. Drag to turn. Scroll to zoom.",
+    "controls": {
+      "model": "Model",
+      "margin": "Margin",
+      "drift": "Drift"
+    },
+    "choices": {
+      "model": {
+        "everything": "everything",
+        "the gold ring": "the gold ring",
+        "the vase": "the vase",
+        "the king": "the king",
+        "the arch": "the arch",
+        "the obelisk": "the obelisk"
+      }
+    },
+    "readouts": {
+      "framing": "Framing",
+      "radius": "Radius",
+      "distance": "Distance"
+    },
+    "words": {
+      "the gold ring": "the gold ring",
+      "the vase": "the vase",
+      "the king": "the king",
+      "the arch": "the arch",
+      "the obelisk": "the obelisk"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "banner": "Scroll to zoom from a grain of sand to the whole planet. Drag to turn.",
+    "controls": {
+      "toTheGrain": "To the grain",
+      "toTheBeach": "To the beach",
+      "toTheIsland": "To the island",
+      "toThePlanet": "To the planet"
+    },
+    "readouts": {
+      "viewWidth": "View width",
+      "youSee": "You see"
+    },
+    "words": {
+      "grains of sand": "grains of sand",
+      "sand and shells": "sand and shells",
+      "pebbles": "pebbles",
+      "the beach": "the beach",
+      "the coast": "the coast",
+      "the island": "the island",
+      "the planet": "the planet"
+    }
+  },
+  "from-clay-to-chrome": {
+    "banner": "Drag to look around. See the same colour as clay, metal and chrome.",
+    "controls": {
+      "colour": "Colour",
+      "lamps": "Lamps",
+      "swing": "Swing"
+    }
+  },
+  "from-noon-to-dusk": {
+    "banner": "Drag to look around. Slide the hour from noon to night.",
+    "controls": {
+      "speed": "Speed",
+      "hour": "Hour",
+      "adaptEyes": "Adapt eyes"
+    }
+  },
+  "glass-on-the-table": {
+    "banner": "Drag to look around. Change how the glass bends the light.",
+    "controls": {
+      "refraction": "Refraction",
+      "thickness": "Thickness",
+      "tint": "Tint",
+      "spin": "Spin"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "banner": "Drag to walk around. Switch the helpers off to see the plain picture.",
+    "controls": {
+      "helpers": "Helpers",
+      "dolly": "Dolly",
+      "bulb": "Bulb"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "everything",
+        "lights and camera": "lights and camera",
+        "shapes and bounds": "shapes and bounds",
+        "nothing": "nothing"
+      }
+    },
+    "readouts": {
+      "helpersShown": "Helpers shown"
+    }
+  },
+  "inside-a-panorama": {
+    "banner": "Drag to turn around. Scroll to come closer. Pick another sky.",
+    "controls": {
+      "sky": "Sky",
+      "fieldOfView": "Field of view"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "dawn",
+        "noon": "noon",
+        "dusk": "dusk"
+      }
+    },
+    "words": {
+      "credit": "Panoramas painted by this page, in code, when it opens: nothing is downloaded."
+    }
+  },
+  "inside-the-g-buffer": {
+    "banner": "Drag to walk around. Pick a buffer to peek inside the picture.",
+    "controls": {
+      "buffer": "Buffer",
+      "turning": "Turning"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "beauty",
+        "albedo": "albedo",
+        "normals": "normals",
+        "depth": "depth",
+        "triangle ids": "triangle ids",
+        "material ids": "material ids"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "Each pixel holds"
+    },
+    "words": {
+      "beauty": "the lit image",
+      "albedo": "base colour, before any light",
+      "normals": "which way the surface faces, from the camera",
+      "depth": "distance: bright near, dark far",
+      "triangle ids": "which triangle covers the pixel",
+      "material ids": "which material shades the pixel",
+      "notOffered": "not offered by this renderer"
+    }
+  },
+  "instances-in-colour": {
+    "banner": "Drag to tilt the galaxy. Scroll to dive into it.",
+    "controls": {
+      "count": "Count",
+      "arms": "Arms",
+      "twist": "Twist",
+      "core": "Core",
+      "rim": "Rim",
+      "spin": "Spin"
+    },
+    "readouts": {
+      "placementsDrawn": "Placements drawn",
+      "materials": "Materials"
+    }
+  },
+  "keyframes-by-hand": {
+    "banner": "Drag to turn around the desk. Watch the lamp hop from key to key. Show the keys to see one hop as pale copies of the lamp.",
+    "controls": {
+      "timing": "Timing",
+      "onionSkin": "Onion skin",
+      "speed": "Speed"
+    },
+    "choices": {
+      "timing": {
+        "eased": "eased",
+        "linear": "linear"
+      }
+    },
+    "readouts": {
+      "lastKey": "Last key"
+    },
+    "words": {
+      "rest": "rest",
+      "crouch": "crouch",
+      "launch": "launch",
+      "apex": "apex",
+      "land": "land",
+      "absorb": "absorb",
+      "look up": "look up",
+      "turn": "turn",
+      "waking up": "waking up"
+    }
+  },
+  "labels-that-follow": {
+    "banner": "Drag to turn around the Sun. The labels ride on the planets. Scroll to come closer.",
+    "controls": {
+      "show": "Show",
+      "speed": "Speed",
+      "lineThemUp": "Line them up"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "distance to the Sun",
+        "year": "year",
+        "moons": "moons",
+        "names only": "names only"
+      }
+    },
+    "words": {
+      "Sun": "Sun",
+      "Mercury": "Mercury",
+      "Venus": "Venus",
+      "Earth": "Earth",
+      "Moon": "Moon",
+      "Mars": "Mars",
+      "Jupiter": "Jupiter",
+      "Saturn": "Saturn",
+      "Uranus": "Uranus",
+      "Neptune": "Neptune",
+      "fromEarth": "384 400 km from Earth",
+      "ourStar": "our star",
+      "au": "{au} AU",
+      "month": "a month of 27 days",
+      "year": "a year of {days} days",
+      "planets": "8 planets",
+      "earthsMoon": "Earth's moon",
+      "oneMoon": "1 moon",
+      "moons": "{moons} moons"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "banner": "Drag to look around. Slide the cutoff and watch the leaves' edges.",
+    "controls": {
+      "branches": "Branches",
+      "leaves": "Leaves",
+      "cutoff": "Cutoff",
+      "sun": "Sun"
+    }
+  },
+  "letters-carved-in-relief": {
+    "banner": "Drag to look around. Move the light across the carved letters.",
+    "controls": {
+      "rake": "Rake",
+      "warm": "Warm",
+      "cool": "Cool",
+      "letters": "Letters"
+    }
+  },
+  "light-from-a-probe": {
+    "banner": "Drag to turn around the garden. Pick a place and see its light.",
+    "controls": {
+      "place": "Place",
+      "turn": "Turn",
+      "strength": "Strength",
+      "keyLight": "Key light",
+      "spin": "Spin"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "desert at sunset",
+        "forest clearing": "forest clearing",
+        "neon alley": "neon alley",
+        "snowfield": "snowfield"
+      }
+    },
+    "readouts": {
+      "meanLight": "Mean light"
+    }
+  },
+  "light-in-real-units": {
+    "banner": "Drag to walk around the square. Pick a moment, from noon to moonlight.",
+    "controls": {
+      "moment": "Moment",
+      "lampLumens": "Lamp lumens",
+      "autoExposure": "Auto exposure",
+      "exposureValue": "Exposure value",
+      "turning": "Turning"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "clear noon",
+        "overcast": "overcast",
+        "golden hour": "golden hour",
+        "sunset": "sunset",
+        "blue hour": "blue hour",
+        "moonlit night": "moonlit night"
+      }
+    },
+    "readouts": {
+      "sun": "Sun",
+      "sky": "Sky",
+      "eachLamp": "Each lamp",
+      "exposureValue": "Exposure value"
+    },
+    "words": {
+      "off": "off"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "banner": "Drag to look around. These lamps came inside the model file.",
+    "controls": {
+      "lamp": "Lamp",
+      "power": "Power",
+      "colour": "Colour"
+    }
+  },
+  "lines-in-colour": {
+    "banner": "Drag to turn around. Pick another rule and watch the pen draw it.",
+    "controls": {
+      "figure": "Figure",
+      "palette": "Palette",
+      "pace": "Pace",
+      "redraw": "Redraw",
+      "spin": "Spin"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "Lorenz butterfly",
+        "Aizawa shell": "Aizawa shell",
+        "Thomas knot": "Thomas knot",
+        "Halvorsen propeller": "Halvorsen propeller"
+      },
+      "palette": {
+        "aurora": "aurora",
+        "sunset": "sunset",
+        "embers": "embers",
+        "ice": "ice"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "Coloured pieces"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "banner": "Drag to turn around the bust. Move the lamp around its head.",
+    "controls": {
+      "lampTurn": "Lamp turn",
+      "lampHeight": "Lamp height",
+      "colour": "Colour",
+      "exposure": "Exposure",
+      "circle": "Circle"
+    },
+    "words": {
+      "credit": "Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "banner": "Drag to look around. Give less memory and watch what stays sharp.",
+    "controls": {
+      "memory": "Memory",
+      "view": "View"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "lod": "lod",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01 by Rico Cilliers, Poly Haven, CC0; crate by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "banner": "Drag a handle to move, turn or grow the object. Drag beside it to look around.",
+    "controls": {
+      "mode": "Mode",
+      "axes": "Axes",
+      "snap": "Snap"
+    },
+    "choices": {
+      "mode": {
+        "translate": "translate",
+        "rotate": "rotate",
+        "scale": "scale"
+      },
+      "axes": {
+        "world": "world",
+        "local": "local"
+      }
+    },
+    "readouts": {
+      "position": "Position",
+      "drags": "Drags"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "banner": "Drag to look around. The graph shows the time between pictures.",
+    "controls": {
+      "turning": "Turning",
+      "revealAgain": "Reveal again"
+    },
+    "readouts": {
+      "worstFrameBefore": "Worst frame before",
+      "worstFrameAfter": "Worst frame after"
+    },
+    "words": {
+      "note": "Fourteen surfaces, each a different material or setting, all shown on the same frame. The graph plots the time between frames; the gold line is the moment they appear.",
+      "measuring": "measuring",
+      "hidden": "hidden"
+    }
+  },
+  "normals-and-depth-seen": {
+    "banner": "Drag to walk around. Switch the view to see what the renderer stores.",
+    "controls": {
+      "see": "See",
+      "spin": "Spin"
+    },
+    "choices": {
+      "see": {
+        "lit": "lit",
+        "normals": "normals",
+        "depth": "depth"
+      }
+    },
+    "readouts": {
+      "colourMeans": "Colour means"
+    },
+    "words": {
+      "lit": "light and material",
+      "normals": "facing: right red, up green, toward you blue",
+      "depth": "distance: near white, far dark"
+    }
+  },
+  "observatory-streamed": {
+    "banner": "Drag to look around. Switch the view to see how the model is cut up.",
+    "controls": {
+      "view": "View",
+      "pixelError": "Pixel error"
+    },
+    "choices": {
+      "view": {
+        "clusters": "clusters",
+        "beauty": "beauty",
+        "pages": "pages",
+        "lod": "lod",
+        "triangles": "triangles"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "banner": "Drag to turn around the stadium. Choose how the wave runs through the fans.",
+    "controls": {
+      "pattern": "Pattern",
+      "speed": "Speed"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "stadium wave",
+        "ripple outwards": "ripple outwards",
+        "all at once": "all at once"
+      }
+    },
+    "readouts": {
+      "clips": "Clips",
+      "fansPlayingIt": "Fans playing it"
+    }
+  },
+  "openworld": {
+    "banner": "Walk with W A S D. Press E near a car or a plane to get in.",
+    "controls": {
+      "keys": "WASD walk · Shift run · Space jump · C crouch · E get in or out of a car or a plane",
+      "teleport": "Teleport",
+      "timeOfDay": "Time of day",
+      "daySpeed": "Day speed",
+      "pause": "Pause",
+      "rain": "Rain",
+      "geometryMB": "Geometry MB",
+      "textureMB": "Texture MB",
+      "view": "View"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "Streaming"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "banner": "Drag to turn around. Right-drag to slide. Scroll to zoom on the gears.",
+    "controls": {
+      "view": "View",
+      "speed": "Speed",
+      "brass": "Brass"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "three-quarter",
+        "front": "front",
+        "side": "side",
+        "top": "top"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "banner": "Drag to look around. Change the paint and the checks on the shapes.",
+    "controls": {
+      "checks": "Checks",
+      "paint": "Paint",
+      "second": "Second",
+      "spin": "Spin"
+    }
+  },
+  "reading-pixels-back": {
+    "banner": "Drag to look around. The small picture is the view read back as numbers.",
+    "controls": {
+      "sunHeight": "Sun height",
+      "live": "Live",
+      "turning": "Turning",
+      "savePng": "Save PNG"
+    },
+    "readouts": {
+      "meanColour": "Mean colour",
+      "brightest": "Brightest",
+      "readBack": "Read back in"
+    },
+    "words": {
+      "hover": "Hover the picture to read one pixel",
+      "pixel": "pixel {x}, {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "banner": "Drag to turn your head on the ride. Switch the ride off to look around the park.",
+    "controls": {
+      "ride": "Ride",
+      "loops": "Loops"
+    },
+    "readouts": {
+      "speed": "Speed",
+      "gForce": "G-force"
+    }
+  },
+  "save-the-scene": {
+    "banner": "Knock the tower down, then open the saved scene again.",
+    "controls": {
+      "knockDown": "Knock down",
+      "save": "Save",
+      "open": "Open"
+    },
+    "readouts": {
+      "saved": "Saved"
+    },
+    "words": {
+      "bytes": "{bytes} bytes"
+    }
+  },
+  "scattered-on-a-surface": {
+    "banner": "Drag to turn the planet. Let the forest climb the mountains.",
+    "controls": {
+      "trees": "Trees",
+      "rocks": "Rocks",
+      "steepest": "Steepest",
+      "seaLevel": "Sea level",
+      "spin": "Spin"
+    },
+    "readouts": {
+      "treesPlanted": "Trees planted",
+      "spotsRefused": "Spots refused"
+    }
+  },
+  "see-the-triangles": {
+    "banner": "Scroll out and in. Far away, the bust needs fewer, bigger triangles.",
+    "controls": {
+      "view": "View",
+      "pixelError": "Pixel error",
+      "sideBySide": "Side by side"
+    },
+    "choices": {
+      "view": {
+        "triangles": "triangles",
+        "clusters": "clusters",
+        "lod": "lod",
+        "pages": "pages",
+        "beauty": "beauty"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "Triangles drawn",
+      "pagesMemory": "Pages in memory"
+    },
+    "words": {
+      "credit": "Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "banner": "Drag a box to select. Shift adds, Alt removes. Switch to turn to look around.",
+    "controls": {
+      "mouse": "Mouse",
+      "selectAll": "Select all",
+      "clear": "Clear"
+    },
+    "choices": {
+      "mouse": {
+        "select": "select",
+        "turn": "turn"
+      }
+    },
+    "readouts": {
+      "selected": "Selected"
+    }
+  },
+  "several-views-one-page": {
+    "banner": "Drag the big view to turn it. Scroll and drag the small ones. They zoom and slide; double-click one to reset it.",
+    "controls": {
+      "explode": "Explode",
+      "windFrom": "Wind from",
+      "windSpeed": "Wind speed"
+    },
+    "readouts": {
+      "sailTurnsMinute": "Sail turns a minute"
+    },
+    "words": {
+      "perspective": "Perspective",
+      "top": "Top",
+      "front": "Front",
+      "side": "Side, from the east"
+    }
+  },
+  "shadows-from-the-sun": {
+    "banner": "Drag to walk around the garden. Slide the hour to swing the shadows.",
+    "controls": {
+      "hour": "Hour",
+      "day": "Day",
+      "latitude": "Latitude",
+      "sails": "Sails"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "summer solstice",
+        "spring equinox": "spring equinox",
+        "winter solstice": "winter solstice"
+      }
+    },
+    "readouts": {
+      "sunHeight": "Sun height",
+      "sunBearing": "Sun bearing",
+      "obeliskShadow": "Obelisk shadow"
+    },
+    "words": {
+      "S": "S",
+      "SW": "SW",
+      "W": "W",
+      "NW": "NW",
+      "N": "N",
+      "NE": "NE",
+      "E": "E",
+      "SE": "SE",
+      "belowHorizon": "below the horizon",
+      "bearing": "{point} ({degrees}° from north)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "banner": "Drag to look around. Make the depth zero to see the flat shape.",
+    "controls": {
+      "depth": "Depth",
+      "bevel": "Bevel",
+      "bevelSize": "Bevel size",
+      "bevelSegments": "Bevel segments",
+      "curveSegments": "Curve segments",
+      "spin": "Spin"
+    },
+    "readouts": {
+      "triangles": "Triangles"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "banner": "Drag to look around. Change the colour and the spin.",
+    "controls": {
+      "colour": "Colour",
+      "speed": "Speed",
+      "spin": "Spin"
+    }
+  },
+  "side-by-side-stereo": {
+    "banner": "Drag the left picture to turn. Cross your eyes until the two dots meet.",
+    "controls": {
+      "viewing": "Viewing",
+      "separation": "Separation",
+      "speed": "Speed"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "cross-eyed",
+        "parallel": "parallel"
+      }
+    },
+    "words": {
+      "leftEye": "left eye",
+      "rightEye": "right eye"
+    }
+  },
+  "sky-and-ground-light": {
+    "banner": "Drag to look from below and above. Pick a place to change its sky.",
+    "controls": {
+      "place": "Place",
+      "skyStrength": "Sky strength",
+      "sun": "Sun",
+      "float": "Float"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "meadow at noon",
+        "snowfield": "snowfield",
+        "red desert": "red desert",
+        "sunset beach": "sunset beach",
+        "tropical lagoon": "tropical lagoon",
+        "overcast city": "overcast city"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "Sky from above",
+      "groundFromBelow": "Ground from below"
+    }
+  },
+  "smooth-edges-over-time": {
+    "banner": "Drag to look at the wires. Switch smoothing off and see the steps.",
+    "controls": {
+      "smoothing": "Smoothing",
+      "circle": "Circle"
+    },
+    "readouts": {
+      "temporalAntialiasing": "Temporal antialiasing"
+    },
+    "words": {
+      "on": "on",
+      "off": "off"
+    }
+  },
+  "snow-of-sprites": {
+    "banner": "Drag to walk around the cabin. Turn the snow into a blizzard.",
+    "controls": {
+      "weather": "Weather",
+      "wind": "Wind"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "steady snow",
+        "light flurry": "light flurry",
+        "blizzard": "blizzard"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "Flakes falling"
+    }
+  },
+  "sound-made-visible": {
+    "banner": "Click the stage to hear a melody. Drag to walk around the stage: the bars are the pitches, the pearls the wave itself.",
+    "controls": {
+      "layout": "Layout",
+      "height": "Height",
+      "playMelody": "Play melody",
+      "useMicrophone": "Use microphone",
+      "silence": "Silence"
+    },
+    "choices": {
+      "layout": {
+        "ring": "ring",
+        "wall": "wall",
+        "spiral": "spiral"
+      }
+    },
+    "words": {
+      "listening": "Listening to the microphone: sing, whistle, clap",
+      "refused": "The microphone was refused: the melody plays instead",
+      "silence": "Silence. Click the stage to hear the melody again"
+    }
+  },
+  "spin-an-astrolabe": {
+    "banner": "Drag to spin it any way, even upside down. Scroll to zoom.",
+    "controls": {
+      "turning": "Turning",
+      "sun": "Sun"
+    }
+  },
+  "street-lamp-at-night": {
+    "banner": "Drag to look around. Switch the night on and light the lamp.",
+    "controls": {
+      "night": "Night",
+      "bounce": "Bounce",
+      "sun": "Sun",
+      "lamp": "Lamp"
+    },
+    "words": {
+      "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "banner": "Drag to turn around the planet. Scroll into the ring of rocks.",
+    "controls": {
+      "view": "View",
+      "pixelError": "Pixel error",
+      "drift": "Drift"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "clusters": "clusters",
+        "lod": "lod"
+      }
+    },
+    "readouts": {
+      "objectsScene": "Objects in the scene",
+      "trianglesFile": "Triangles in the file",
+      "trianglesDrawn": "Triangles drawn"
+    },
+    "words": {
+      "credit": "Planet and moonlets modelled in code for this example, CC0 — see assets/examples/CREDITS.md",
+      "million": "{count} million",
+      "notCounted": "not counted here"
+    }
+  },
+  "texture-filters-compared": {
+    "banner": "Drag to look along the lanes. Each lane smooths the picture its own way. Left to right: nearest, linear, trilinear, anisotropic.",
+    "controls": {
+      "picture": "Picture",
+      "anisotropy": "Anisotropy"
+    },
+    "choices": {
+      "picture": {
+        "checker": "checker",
+        "lettering": "lettering"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "Fourth lane anisotropy"
+    }
+  },
+  "the-material-family": {
+    "banner": "Drag to walk around. Turn the light to night and see what still shines.",
+    "controls": {
+      "light": "Light",
+      "shape": "Shape",
+      "lookAt": "Look at",
+      "spin": "Spin"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "the whole family",
+        "all": "the whole family",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "golden hour",
+        "midday": "midday",
+        "night": "night"
+      },
+      "shape": {
+        "knot": "knot",
+        "sphere": "sphere",
+        "vase": "vase",
+        "ring": "ring"
+      }
+    },
+    "readouts": {
+      "looking": "Looking at",
+      "litByLamps": "Lit by the lamps"
+    },
+    "words": {
+      "meshBasic": "one flat colour, blind to every lamp",
+      "meshLambert": "matte like chalk: diffuse light, no shine",
+      "meshPhong": "plastic: a bright spot where the sun bounces",
+      "meshStandard": "metalness and roughness, the usual choice",
+      "meshPhysical": "standard plus glass: light passes through",
+      "meshToon": "a cartoon: the light in two flat bands",
+      "meshNormal": "the way each point faces, as a colour",
+      "meshMatcap": "lit by a picture of a lit ball, not by lamps",
+      "allKinds": "all eight kinds",
+      "yes": "yes",
+      "no": "no",
+      "fiveOfEight": "five of eight"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "banner": "Press the button to use your camera. Drag to look along the wall.",
+    "controls": {
+      "useMyCamera": "Use my camera",
+      "layout": "Layout",
+      "mirror": "Mirror"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "video wall",
+        "one per screen": "one per screen"
+      }
+    },
+    "readouts": {
+      "source": "Source"
+    },
+    "words": {
+      "noCamera": "no camera",
+      "yourCamera": "your camera",
+      "refused": "camera refused ({error})",
+      "paintedSignal": "painted signal"
+    }
+  },
+  "toon-shading": {
+    "banner": "Drag to turn around the island. Switch the shading to cartoon bands.",
+    "controls": {
+      "shading": "Shading",
+      "outlines": "Outlines",
+      "sun": "Sun",
+      "wind": "Wind"
+    },
+    "choices": {
+      "shading": {
+        "toon": "toon",
+        "matte": "matte",
+        "physical": "physical"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "banner": "Drag to look around. Switch on the pointer to steer the drone.",
+    "controls": {
+      "turn": "Turn",
+      "turnSpeed": "Turn speed",
+      "followPointer": "Follow pointer"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "steadily",
+        "at once": "at once",
+        "on a spring": "on a spring"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "Dishes locked on"
+    }
+  },
+  "two-lenses-one-scene": {
+    "banner": "Drag to turn around the town. Switch the lens and watch the streets.",
+    "controls": {
+      "lens": "Lens",
+      "fieldOfView": "Field of view",
+      "isometric": "Isometric",
+      "drift": "Drift"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "perspective",
+        "orthographic": "orthographic"
+      }
+    },
+    "readouts": {
+      "lens": "Lens"
+    },
+    "words": {
+      "orthographic": "orthographic, {height} m tall",
+      "perspective": "{degrees}° perspective"
+    }
+  },
+  "uvs-of-every-shape": {
+    "banner": "Drag to look around. A letter and a number name every square.",
+    "controls": {
+      "pattern": "Pattern",
+      "repeat": "Repeat",
+      "slide": "Slide",
+      "spin": "Spin"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "test card",
+        "checks": "checks",
+        "arrows": "arrows"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "banner": "Press Play, then run with W A S D and jump with Space.",
+    "controls": {
+      "keys": "The engine's character control: the menu's Play locks the mouse to look, W A S D to run (Z Q S D on AZERTY), Shift to sprint, Space to jump, Escape frees the mouse. The page adds R to run again, M to mute.",
+      "look": "Look",
+      "runAgain": "Run again"
+    },
+    "game": {
+      "title": "Temple parkour",
+      "goal": "Reach the golden idol, grabbing the five orbs on the way. The lava sends you back to the last glowing checkpoint.",
+      "keys": {
+        "run": "Run",
+        "look": "Look",
+        "sprint": "Sprint",
+        "jump": "Jump",
+        "runAgain": "Run again",
+        "sound": "Sound on or off",
+        "pause": "Pause"
+      }
+    },
+    "words": {
+      "checkpoint": "Checkpoint",
+      "finished": "{taken} / {orbs} orbs · R to run again",
+      "muted": "M muted",
+      "sound": "M sound"
+    }
+  },
+  "waves-of-points": {
+    "banner": "Drag to turn around the field. Pick a pattern to change the waves.",
+    "controls": {
+      "pattern": "Pattern",
+      "height": "Height",
+      "speed": "Speed"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "ocean swell",
+        "rain of stones": "rain of stones",
+        "interference": "interference",
+        "standing wave": "standing wave",
+        "whirlpool": "whirlpool"
+      }
+    },
+    "readouts": {
+      "points": "Points"
+    }
+  },
+  "what-hides-what": {
+    "banner": "Drag to look around. The hedges hide the golden knots.",
+    "controls": {
+      "hedgeHeight": "Hedge height",
+      "view": "View",
+      "aboveOrInside": "Above or inside"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "visibility": "visibility"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "Gilded knots",
+      "clustersTested": "Clusters tested",
+      "clustersHidden": "Clusters hidden",
+      "trianglesHidden": "Triangles hidden"
+    },
+    "words": {
+      "notCounted": "not counted here"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "banner": "Press Dolly zoom and watch the columns stretch.",
+    "controls": {
+      "fieldOfView": "Field of view",
+      "dollyZoom": "Dolly zoom"
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "Pick a case in the panel; in “free”, drag to look around.",
+    "controls": {
+      "case": "Case",
+      "caster": "Caster"
+    },
+    "readouts": {
+      "Look for": "Look for"
+    }
+  }
+}

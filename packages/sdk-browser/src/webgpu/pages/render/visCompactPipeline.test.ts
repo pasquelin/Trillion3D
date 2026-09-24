@@ -54,7 +54,9 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   // Occluders clear the target, the tested half reloads it; depth copy, reduce, then test, in
   // that order, between the two.
   const visPasses = passes.filter(
-    (pass) => pass.label === 'WG visibility primary' || pass.label === 'WG visibility secondary',
+    (pass) =>
+      pass.label === 'Trillion3D visibility primary' ||
+      pass.label === 'Trillion3D visibility secondary',
   );
   assert.ok(visPasses.length >= 2);
   assert.equal(visPasses[visPasses.length - 2]?.colorLoad, 'clear');

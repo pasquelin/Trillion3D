@@ -38,7 +38,7 @@ const reading = (): ReportRecord => ({
 });
 
 test('export preserves source numbers and original pixels without inventing provenance', () => {
-  const root = mkdtempSync(join(tmpdir(), 'wg-report-'));
+  const root = mkdtempSync(join(tmpdir(), 'trillion3d-report-'));
   try {
     const source = join(root, 'source'),
       out = join(root, 'out');

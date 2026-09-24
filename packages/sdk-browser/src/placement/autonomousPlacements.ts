@@ -45,12 +45,14 @@ type Placements = {
   gate: WebglFrameGate;
   /** Tells the instanced pages their rows were written (`webglPageBatches.ts`). */
   rowsWritten: () => void;
+  /** Notified when grown rows add records to the root cover. */
+  coverChanged: () => void;
 };
 
 /** The instance-buffer updates of the WebGL2 path. */
 export function autonomousPlacements(env: Placements) {
   const { roots, allPages, bootstrap, byUrl, baseMaterials, blendCopies, scene, gate } = env;
-  const { rowsWritten } = env;
+  const { rowsWritten, coverChanged } = env;
   return {
     /** The roots follow their rows, and a frame that moved something is not held. The instanced
      *  pages read the rows at the next frame's sync; the blended copies posed by rows read them in
@@ -74,6 +76,7 @@ export function autonomousPlacements(env: Placements) {
       }
       growBlendCopies(blendCopies, from, to, (copy) => scene.add(copy));
       rowsWritten();
+      coverChanged();
       gate.sceneChanged();
     },
   };

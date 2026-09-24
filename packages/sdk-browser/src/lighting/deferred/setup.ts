@@ -95,31 +95,31 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
  */
 export function createDeferredPlaceholders(device: GPUDevice) {
   const tiles = device.createBuffer({
-    label: 'WG empty light tiles',
+    label: 'Trillion3D empty light tiles',
     size: 256,
     usage: GPUBufferUsage.STORAGE,
   });
   const slices = device.createBuffer({
-    label: 'WG empty shadow records',
+    label: 'Trillion3D empty shadow records',
     // One table word, rounded up to the struct's 16-byte alignment: WGSL sizes `ShadowData` so,
     // and a binding four bytes short invalidates every pass that reads it.
     size: MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4 + 16,
     usage: GPUBufferUsage.STORAGE,
   });
   const requests = device.createBuffer({
-    label: 'WG unread shadow requests',
+    label: 'Trillion3D unread shadow requests',
     size: SHADOW_REQUEST_WORDS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
   const atlas = device.createTexture({
-    label: 'WG empty shadow atlas',
+    label: 'Trillion3D empty shadow atlas',
     size: [1, 1, 1],
     format: 'depth32float',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
   });
   // Shadow-atlas comparison is the engine's: reversed depth, hence `greater`.
   const sampler = device.createSampler({
-    label: 'WG shadow comparison',
+    label: 'Trillion3D shadow comparison',
     compare: DEPTH_COMPARE,
     magFilter: 'linear',
     minFilter: 'linear',
@@ -129,12 +129,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   // At zero, the probe count is too and `sampleBounce` returns without reading a coefficient;
   // the probe buffer holds a whole probe, so its size also follows the struct.
   const bounceGrid = device.createBuffer({
-    label: 'WG empty bounce grid',
+    label: 'Trillion3D empty bounce grid',
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM,
   });
   const probes = device.createBuffer({
-    label: 'WG empty bounce probes',
+    label: 'Trillion3D empty bounce probes',
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
@@ -142,7 +142,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   // an absent distant shadow. Both lighting passes bind the same one, so a session without
   // proxy renders exactly the same image on opaque and on blend.
   const proxy = device.createBuffer({
-    label: 'WG empty resident proxy',
+    label: 'Trillion3D empty resident proxy',
     size: PLACEHOLDER_PROXY_BYTES,
     usage: GPUBufferUsage.STORAGE,
   });

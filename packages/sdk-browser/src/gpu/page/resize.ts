@@ -1,11 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 import { evictResident } from './commit.ts';
-
-/** Bytes a page buffer may occupy on this device: the smaller of its limits. */
-export const pageBufferCap = (limits?: {
-  maxBufferSize?: number;
-  maxStorageBufferBindingSize?: number;
-}) => Math.min(limits?.maxBufferSize ?? Infinity, limits?.maxStorageBufferBindingSize ?? Infinity);
+import { pageBufferCap } from '../../residency/pools.ts';
 
 export const pageBufferBytes = (device: GPUDevice, pageBytes: number, slots: number) => {
   const size = pageBytes * slots;
@@ -16,7 +11,7 @@ export const pageBufferBytes = (device: GPUDevice, pageBytes: number, slots: num
 
 export const createPageBuffer = (device: GPUDevice, size: number) =>
   device.createBuffer({
-    label: 'WG geometry page cache',
+    label: 'Trillion3D geometry page cache',
     size,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   });
@@ -57,7 +52,7 @@ export function resizeGpuPages(
   const { device, pageBytes, resident, pins, free } = context;
   const size = pageBufferBytes(device, pageBytes, slots);
   const next = createPageBuffer(device, size);
-  const encoder = device.createCommandEncoder({ label: 'WG geometry page cache resize' });
+  const encoder = device.createCommandEncoder({ label: 'Trillion3D geometry page cache resize' });
   encoder.copyBufferToBuffer(
     context.buffer,
     0,

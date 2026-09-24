@@ -7,7 +7,7 @@ import type { createDagResources } from './resources.ts';
  *  draw flag and compacts no drawable list — each view's log goes to the light compaction. */
 /** Label of a light cut's passes: shadow work, profiled as a stage of its own and never in the
  *  visibility block the camera's cut belongs to (`../../stage/mapping.ts`). */
-export const LIGHT_CUT_PASS = 'WG light cut';
+export const LIGHT_CUT_PASS = 'Trillion3D light cut';
 
 export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>> & {
   light?: { views: number; queueCap: number };
@@ -77,7 +77,7 @@ function encodeOnce(
   // and never more than its queue holds.
   const views = light?.views ?? 1,
     queueCap = light?.queueCap ?? resources.nodeCount;
-  const label = light ? LIGHT_CUT_PASS : 'WG DAG selection';
+  const label = light ? LIGHT_CUT_PASS : 'Trillion3D DAG selection';
   const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
   // Head word of the dispatch argument, copied outside a pass: the other two have been one since
   // the buffer was created. That is the only reason for cuts between passes.

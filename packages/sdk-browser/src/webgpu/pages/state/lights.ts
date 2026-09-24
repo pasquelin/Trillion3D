@@ -151,7 +151,7 @@ export function createSceneLightContractBuffer(device: GPUDevice) {
   const table = ltcTable(),
     fixed = (SCENE_LIGHT_BUFFER_FLOATS + SCENE_ENVIRONMENT_FLOATS) * 4;
   const buffer = device.createBuffer({
-    label: 'WG direct lights v1',
+    label: 'Trillion3D direct lights v1',
     size: fixed + table.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A model from USDZ</title>
+    <meta name="thumbnail" content="7" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #2d2824;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #d8cfc4;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p data-words="credit"></p>
+    <script type="module">
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, readout, language, opening, ease, circling } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#2d2824');
+      // A warm lamp high on one side, a cool rim from behind, and the room's own soft light.
+      world.scene.add(
+        light.directional({ intensity: 3.4, color: '#ffe2c0', position: [3, 5, 2], castShadow: true }),
+        light.directional({ intensity: 1.2, color: '#9fb6ff', position: [-3, 2, -4] }),
+        light.hemisphere({ intensity: 0.6, color: '#fff1e0', groundColor: '#4a3a2e' }),
+      );
+      // The source is one USDZ package: a USD layer written in centimetres, its pieces six shapes
+      // instanced thirty-two times, each bound to an ivory or an ebony preview surface. The
+      // compiler unpacked it, turned centimetres into metres, kept one shape per instance and cut
+      // every shape into clusters; the page loads what it wrote, like any other model.
+      const chess = await world.scene.load('../assets/examples/a-model-from-usdz/cache/native/full/manifest.json');
+      world.camera.near = 0.005;
+      world.camera.far = 20;
+      world.controls.minDistance = 0.08;
+      world.controls.maxDistance = 2.5;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // `materials` gives each of the file's five surfaces its own colour; `clusters` and
+      // `triangles` show what the compiler cut the turned shapes into.
+      controls({
+        view: ['beauty', 'materials', 'clusters', 'triangles'],
+        turn: () => turn.restart(),
+      }, (values) => {
+        world.diagnostic.mode = values.view;
+        world.invalidate();
+      }, world);
+      // Read from the model: its size, now in metres, and what the file holds.
+      const { min, max } = chess.bounds;
+      readout('source')('chess-set.usdz');
+      readout('boardWidth')(`${((max.x - min.x) * 100).toFixed(0)} cm`);
+      readout('partsPlaced')(String(chess.metadata.totalNodes));
+      readout('triangles')(chess.metadata.sourceTriangles.toLocaleString(language()));
+
+      // The opening: the eye starts low behind the white pawns, then rises to look over the whole
+      // game, then circles the board slowly. A press or a wheel hands the camera back; the
+      // Turn button starts the turn again.
+      const START = { eye: [0.06, 0.03, 0.3], look: [0, 0.03, 0.02] };
+      const OVER = { eye: [0.36, 0.34, 0.48], look: [0, 0, 0] };
+      const turn = circling(world, 0.15);
+      turn.stop();
+      opening(world, (time) => {
+        const t = ease.smooth((time - 0.8) / 5);
+        const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
+        world.camera.position.set(...at(START.eye, OVER.eye));
+        world.controls.target.set(...at(START.look, OVER.look));
+        if (t < 1) return true;
+        turn.restart();
+        return false;
+      });
+    </script>
+  </body>
+</html>

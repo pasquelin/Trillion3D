@@ -634,6 +634,29 @@
     "description": ""
   },
   {
+    "id": "BeforeFrameInfo",
+    "module": "packages/sdk-browser/src/world/core/worldFrames.ts",
+    "exports": ["BeforeFrameInfo"],
+    "section": "world",
+    "kind": "Type",
+    "title": "BeforeFrameInfo",
+    "signature": "type BeforeFrameInfo = Pick<FrameInfo, 'delta' | 'time'>",
+    "summary": "What a before-frame hook receives: the seconds the controllers just integrated, and since the world began.",
+    "members": [
+      {
+        "name": "delta",
+        "type": "number",
+        "desc": "Seconds since the previous frame, at most two frame intervals after a pause; 0 on the first."
+      },
+      {
+        "name": "time",
+        "type": "number",
+        "desc": "Seconds since the world began."
+      }
+    ],
+    "description": "The world's one object, rewritten each frame: a hook that keeps a value copies it."
+  },
+  {
     "id": "Blending",
     "module": "packages/sdk-core/src/world/constants/index.ts",
     "exports": ["Blending"],
@@ -1526,6 +1549,11 @@
         "desc": "Kept for pages written against a renderer that needs it: every optic write already redraws."
       },
       {
+        "name": "rayThrough(x: number, y: number, aspect: number, out?: Ray)",
+        "type": "Ray",
+        "desc": "The world ray through a point of the picture, in the engine's own projection (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the view from the box for an orthographic one. Its direction is a unit vector."
+      },
+      {
         "name": "set(pose: CameraPose)",
         "type": "void",
         "desc": "Puts the eye at `pose.position`, looking at `pose.target`, at the field it names."
@@ -1729,6 +1757,29 @@
     "description": ""
   },
   {
+    "id": "CanvasPoint",
+    "module": "packages/sdk-browser/src/world/core/worldRaycast.ts",
+    "exports": ["CanvasPoint"],
+    "section": "world",
+    "kind": "Type",
+    "title": "CanvasPoint",
+    "signature": "type CanvasPoint = {\n  /** CSS pixels from the canvas's left edge. */\n  x: number;\n  /** CSS pixels from the canvas's top edge. */\n  y: number;\n}",
+    "summary": "A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`.",
+    "members": [
+      {
+        "name": "x",
+        "type": "number",
+        "desc": "CSS pixels from the canvas's left edge."
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "desc": "CSS pixels from the canvas's top edge."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "CapabilityTier",
     "module": "packages/sdk-core/src/runtime/safety.ts",
     "exports": ["CapabilityTier"],
@@ -1737,6 +1788,78 @@
     "title": "CapabilityTier",
     "signature": "type CapabilityTier = 'full' | 'degraded' | 'baseline'",
     "summary": "How much of the engine a machine may run: everything, a reduced set, or the basics.",
+    "description": ""
+  },
+  {
+    "id": "Capsule",
+    "module": "packages/sdk-core/src/collision/capsule.ts",
+    "exports": ["Capsule"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Capsule",
+    "signature": "interface Capsule",
+    "summary": "AN UPRIGHT CAPSULE against a triangle tree: the narrow phase of the character body.",
+    "members": [
+      {
+        "name": "feet",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "The lowest point, world space; `push` moves it."
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "desc": "Radius of the body, metres."
+      },
+      {
+        "name": "height",
+        "type": "number",
+        "desc": "Height from the feet to the top of the head, metres; at least two radii."
+      }
+    ],
+    "description": "The capsule stands on `feet` — the lowest point of its bottom sphere — and is every point within `radius` of the vertical segment from `feet + radius` to `feet + height - radius`. A pass finds every triangle nearer than `radius` to that segment and hands each overlap to `push` at once (`CapsuleContact`). The caller moves `feet`; the next triangle of the pass is measured from the moved capsule, so two walls meeting in a corner are both left in one pass."
+  },
+  {
+    "id": "CapsuleContact",
+    "module": "packages/sdk-core/src/collision/capsule.ts",
+    "exports": ["CapsuleContact"],
+    "section": "types",
+    "kind": "Type",
+    "title": "CapsuleContact",
+    "signature": "interface CapsuleContact",
+    "summary": "One overlap of a capsule and a surface.",
+    "members": [
+      {
+        "name": "normal",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "Unit direction out of the surface into the capsule: the way out."
+      },
+      {
+        "name": "surface",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "Unit normal of the surface itself, on the capsule's side. It differs from `normal` when the capsule touches an edge or a corner: it says which face that edge belongs to."
+      },
+      {
+        "name": "point",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "The touched point of the surface, world space."
+      },
+      {
+        "name": "depth",
+        "type": "number",
+        "desc": "How far the capsule is inside the surface along `normal`, > 0."
+      }
+    ],
+    "description": "The arrays are reused: a push reads them during the call only."
+  },
+  {
+    "id": "CapsulePush",
+    "module": "packages/sdk-core/src/collision/capsule.ts",
+    "exports": ["CapsulePush"],
+    "section": "types",
+    "kind": "Type",
+    "title": "CapsulePush",
+    "signature": "type CapsulePush = (contact: CapsuleContact) => void",
+    "summary": "Answers one contact, typically by moving the capsule's `feet` out of it.",
     "description": ""
   },
   {
@@ -1772,6 +1895,77 @@
     "signature": "type ChangeListener = () => void",
     "summary": "A function called when a controller moves the camera.",
     "description": ""
+  },
+  {
+    "id": "CharacterCameraControls",
+    "module": "packages/sdk-browser/src/camera/controls/characterControls.ts",
+    "exports": ["CharacterCameraControls"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "CharacterCameraControls",
+    "signature": "interface CharacterCameraControls extends CameraControlBase, PersonHead, CharacterSettings",
+    "summary": "A CHARACTER, seen through its eyes: a body with mass that walks, runs, jumps and falls, and collides with the world's triangles as an upright capsule.",
+    "members": [
+      {
+        "name": "velocity",
+        "type": "Readonly<Float64Array<ArrayBufferLike>>",
+        "desc": "The body's velocity in metres per second, live: `[x, y, z]`, y up."
+      },
+      {
+        "name": "onGround",
+        "type": "boolean",
+        "desc": "Whether the feet are on a floor."
+      },
+      {
+        "name": "stride",
+        "type": "number",
+        "desc": "The stride's phase in radians, in [0, 2π): one foot strikes at 0, the other at π."
+      },
+      {
+        "name": "onLand",
+        "type": "((impact: number) => void) | null",
+        "desc": "Called on landing with the downward speed, in metres per second: a sound, a shake."
+      },
+      {
+        "name": "onJump",
+        "type": "(() => void) | null",
+        "desc": "Called when the body leaves the ground on a jump."
+      },
+      {
+        "name": "collision",
+        "type": "CharacterCollision | null",
+        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls."
+      },
+      {
+        "name": "update(delta?: number)",
+        "type": "boolean",
+        "desc": "Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did."
+      }
+    ],
+    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
+  },
+  {
+    "id": "CharacterCollision",
+    "module": "packages/sdk-core/src/collision/characterCollision.ts",
+    "exports": ["CharacterCollision"],
+    "section": "types",
+    "kind": "Type",
+    "title": "CharacterCollision",
+    "signature": "interface CharacterCollision",
+    "summary": "THE SEAM BETWEEN A CHARACTER AND THE WORLD IT COLLIDES WITH.",
+    "members": [
+      {
+        "name": "resolveCapsule(capsule: Capsule, push: CapsulePush)",
+        "type": "boolean",
+        "desc": "Finds what `capsule` overlaps and calls `push(contact)` for each overlap, at once (`CapsuleContact`: the way out, the surface, the touched point, the depth). `push` moves `capsule.feet`; an implementation measures each next overlap from the moved capsule, so a corner is left in one call. Returns whether anything overlapped."
+      },
+      {
+        "name": "groundBelow(capsule: Capsule, depth: number, accepts: (contact: CapsuleContact) => boolean)",
+        "type": "number | null",
+        "desc": "Lowers the capsule's bottom sphere straight down, by at most `depth`, and returns how far it goes before it first rests on a surface `accepts` takes — the highest such support; negative when the capsule already sinks into it and must rise. `null` when there is none. `capsule.feet` is left where it was. `accepts` sees each candidate touch as a contact: `point`, `normal` from the point to the sphere's centre, `surface` the face turned up."
+      }
+    ],
+    "description": "The character body (`characterBody.ts`) never reads triangles: it moves its capsule in parts shorter than its radius and, after each, asks what the capsule overlaps and which way out; and a walker asks where the floor under its feet is. Everything else — speed, gravity, steps, slopes, jumps — is the body's own. A physics backend implements this interface to put a character in its world: it answers the overlap from its own shapes and broad phase, and the body walks on them unchanged. The default implementation is the static triangle tree of `triangleCollision`."
   },
   {
     "id": "Clip",
@@ -3343,7 +3537,7 @@
     "kind": "Constant",
     "title": "EXPLORER_OPTIONS_SCHEMA",
     "signature": "const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject",
-    "summary": "Comprehensive JSON Schema documenting all initialization options for the WebGeometry explorer (MeasuredWorldOptions).",
+    "summary": "Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).",
     "description": "Enables LLMs to understand, validate, and tune the 3D engine configuration."
   },
   {
@@ -3648,6 +3842,26 @@
       {
         "name": "BATCHED_WORLD_VIEW",
         "desc": "This drawing path cannot make that change to the scene."
+      },
+      {
+        "name": "RAYCAST_NO_VIEW",
+        "desc": "A picture point was asked of a canvas with no size: there is no picture to aim through."
+      },
+      {
+        "name": "WEBGPU_LOST",
+        "desc": "WebGPU lost its device, or an error on it left a state nothing can draw from: thrown by `render`, `flush` and the reads that need the device, named by the `gpu-device-lost` diagnostic, and on `world.diagnostic.error` when a session could not open for it."
+      },
+      {
+        "name": "SESSION_OPEN_FAILED",
+        "desc": "The world's session could not open, for a reason with no code of its own (`world.diagnostic.error`): the error thrown is in `details.cause`."
+      },
+      {
+        "name": "UNSUPPORTED_SCENE_FORMAT",
+        "desc": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      },
+      {
+        "name": "SCENE_NOT_SAVABLE",
+        "desc": "A saved scene is of another format or version, or holds what a saved scene cannot store."
       }
     ],
     "description": ""
@@ -3933,31 +4147,9 @@
     "section": "camera",
     "kind": "Type",
     "title": "FirstPersonCameraControls",
-    "signature": "interface FirstPersonCameraControls extends SteeredCameraControls",
+    "signature": "interface FirstPersonCameraControls extends SteeredCameraControls, PersonHead",
     "summary": "FIRST PERSON, pointer locked: the pointer turns the head, the keys walk.",
-    "members": [
-      {
-        "name": "lookSpeed",
-        "type": "number",
-        "desc": "Radians turned per pixel of pointer motion."
-      },
-      {
-        "name": "locked()",
-        "type": "boolean",
-        "desc": "Whether the pointer is locked to the view."
-      },
-      {
-        "name": "lock()",
-        "type": "void",
-        "desc": "Locks the pointer to the view."
-      },
-      {
-        "name": "unlock()",
-        "type": "void",
-        "desc": "Frees the pointer."
-      }
-    ],
-    "description": "The horizon stays level — yaw about world up, pitch clamped just short of the poles, never any roll — and the walk follows the yaw alone, so looking up does not lift the walker off the floor. THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so the controller asks on `pointerdown` and publishes `lock()`, `unlock()` and `locked()` for a host that would rather choose its own moment; a lock the viewer escapes simply stops the look. Keys, by `KeyboardEvent.code`: W/S forward and back, A/D strafe, Space and left shift up and down."
+    "description": "The horizon stays level — yaw about world up, pitch clamped to `[minPitch, maxPitch]`, never any roll — and the walk follows the yaw alone, so looking up does not lift the walker off the floor. THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so the controller asks on `pointerdown` and publishes `lock()`, `unlock()` and `locked()` for a host that would rather choose its own moment; a lock the viewer escapes simply stops the look. Keys, by `KeyboardEvent.code`: W/S forward and back, A/D strafe, Space and left shift up and down."
   },
   {
     "id": "FloatBatch",
@@ -3983,15 +4175,55 @@
       {
         "name": "rollSpeed",
         "type": "number",
-        "desc": "Radians per second at full deflection, for pitch, yaw and roll alike."
+        "desc": "Radians per second the roll turns at full deflection; pitch and yaw follow it by default."
+      },
+      {
+        "name": "pitchSpeed",
+        "type": "number | null",
+        "desc": "Radians per second the pitch turns at full deflection; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "yawSpeed",
+        "type": "number | null",
+        "desc": "Radians per second the yaw turns at full deflection; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "inputResponse",
+        "type": "number",
+        "desc": "Seconds a turn key takes to reach full deflection, and a released one to come back to none: the turn rate ramps like a stick moved by hand. 0, the default, is on or off at once. A stick still travelling moves the camera, so the frames go on until it is centred."
+      },
+      {
+        "name": "pitchInput",
+        "type": "number",
+        "desc": "STICK, for a program that flies the camera: the pitch deflection in [-1, 1], nose up positive as ArrowUp. Added to the keys and bounded to full deflection, it ramps over `inputResponse` like a key, so a page's autopilot or mouse-aim instructor steers through the same rates as the player. 0 by default."
+      },
+      {
+        "name": "yawInput",
+        "type": "number",
+        "desc": "The yaw deflection in [-1, 1], left positive as ArrowLeft; as `pitchInput`."
+      },
+      {
+        "name": "rollInput",
+        "type": "number",
+        "desc": "The roll deflection in [-1, 1], left positive as Q; as `pitchInput`."
       },
       {
         "name": "dragToLook",
         "type": "boolean",
         "desc": "Whether dragging turns the view."
+      },
+      {
+        "name": "pointerLook",
+        "type": "boolean",
+        "desc": "Whether the pointer turns the view at all, by drag or hover; true by default."
+      },
+      {
+        "name": "autoForward",
+        "type": "boolean",
+        "desc": "CRUISE, off by default: the camera flies forward at `movementSpeed` with no key held, as a plane does. W then adds `movementSpeed` (twice as fast) and S takes it away (the camera hangs in place); it never flies backwards. Nothing moves until the next `update`, so a host that redraws on `change` asks for one frame when it turns cruise on."
       }
     ],
-    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held or a drag is pending, so a released stick leaves the scene still. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface."
+    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held, a stick input set or a drag pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
   },
   {
     "id": "FrameInfo",
@@ -4006,7 +4238,7 @@
       {
         "name": "delta",
         "type": "number",
-        "desc": "Seconds since the previous frame."
+        "desc": "Seconds since the previous frame, at most two frame intervals after a pause; 0 on the first."
       },
       {
         "name": "time",
@@ -4418,6 +4650,11 @@
         "desc": "The ball around every vertex, once computed; `null` until then."
       },
       {
+        "name": "recipe",
+        "type": "{ type: string; args: unknown[]; } | null",
+        "desc": "The family member and arguments that built this shape, while it is still what they built: what a saved scene stores instead of the vertices. Any later change forgets it."
+      },
+      {
         "name": "version",
         "type": "number",
         "desc": "Bumped by every change of shape: what the world compares to cut the pages again."
@@ -4593,7 +4830,7 @@
   },
   {
     "id": "GeometryPool",
-    "module": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["GeometryPool"],
     "section": "types",
     "kind": "Type",
@@ -4885,6 +5122,34 @@
     "signature": "const HIZ_NOTHING: number",
     "summary": "Value returned when no texels are read: cannot occlude anything.",
     "description": "Engine depth is REVERSED — near is 1, far is 0 (`../math/primitives/camera.ts`). A bounding box is occluded only if its nearest depth bound is FARTHER (smaller value) than the occluder depth."
+  },
+  {
+    "id": "HeadSettings",
+    "module": "packages/sdk-browser/src/camera/controls/look.ts",
+    "exports": ["HeadSettings"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "HeadSettings",
+    "signature": "interface HeadSettings",
+    "summary": "THE HEAD OF A WALKER, pointer locked: the pointer turns it, the horizon stays level — yaw about world up, pitch clamped to `[minPitch, maxPitch]`, never any roll.",
+    "members": [
+      {
+        "name": "lookSpeed",
+        "type": "number",
+        "desc": "Radians turned per pixel of pointer motion."
+      },
+      {
+        "name": "minPitch",
+        "type": "number",
+        "desc": "Lowest the head looks, in radians below the horizon counted negative (0 is the horizon); by default just short of straight down. Raise it so a walker never looks into its own body."
+      },
+      {
+        "name": "maxPitch",
+        "type": "number",
+        "desc": "Highest the head looks, in radians above the horizon; by default just short of the zenith."
+      }
+    ],
+    "description": "Shared by every controller that looks through a person's eyes. THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so the head asks on `pointerdown` and publishes `lock()`, `unlock()` and `locked()` for a host that would rather choose its own moment; a lock the viewer escapes simply stops the look, and an unlocked drag still turns the head."
   },
   {
     "id": "HizFlat",
@@ -5910,6 +6175,31 @@
         "name": "updateMatrix()",
         "type": "void",
         "desc": "Rebuilds `matrix` from offset, repeat and rotation."
+      },
+      {
+        "name": "offset",
+        "type": "Readonly<{ x: number; y: number; }>",
+        "desc": "What `matrix` is composed from."
+      },
+      {
+        "name": "repeat",
+        "type": "Readonly<{ x: number; y: number; }>",
+        "desc": "How many times it fits."
+      },
+      {
+        "name": "center",
+        "type": "Readonly<{ x: number; y: number; }>",
+        "desc": "The pivot of the rotation."
+      },
+      {
+        "name": "rotation",
+        "type": "number",
+        "desc": "The rotation, in radians."
+      },
+      {
+        "name": "addEventListener?",
+        "type": "((type: 'dispose', listener: () => void) => void) | undefined",
+        "desc": "Tells the importer when the host lets go of the texture."
       }
     ],
     "description": "Its pixels stay `unknown`: only the boundary that uploads them knows their container."
@@ -6032,6 +6322,44 @@
         "name": "attribute(itemSize: number, offset: number)",
         "type": "BufferAttribute",
         "desc": "One attribute read out of the pack, as its own float attribute."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "Intersection",
+    "module": "packages/sdk-core/src/world/object/raycast.ts",
+    "exports": ["Intersection"],
+    "section": "object",
+    "kind": "Type",
+    "title": "Intersection",
+    "signature": "interface Intersection",
+    "summary": "Where a ray meets an object: the object itself, the world point and the surface's normal there, how far along the ray, and which triangle (`-1` when the object's box was hit).",
+    "members": [
+      {
+        "name": "object",
+        "type": "Object3D",
+        "desc": "The object hit: the very node the page added."
+      },
+      {
+        "name": "point",
+        "type": "Vector3",
+        "desc": "The world point hit."
+      },
+      {
+        "name": "normal",
+        "type": "Vector3",
+        "desc": "The world normal of the face hit, as its winding orients it."
+      },
+      {
+        "name": "distance",
+        "type": "number",
+        "desc": "Distance from the ray's origin to `point`, world units."
+      },
+      {
+        "name": "face",
+        "type": "number",
+        "desc": "The rank of the triangle hit, or `-1` for a box."
       }
     ],
     "description": ""
@@ -8008,7 +8336,7 @@
   },
   {
     "id": "MemoryBudgets",
-    "module": "packages/sdk-browser/src/webgpu/pages/io/memory.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["MemoryBudgets"],
     "section": "types",
     "kind": "Type",
@@ -8031,7 +8359,7 @@
   },
   {
     "id": "MemoryBudgetsReport",
-    "module": "packages/sdk-browser/src/webgpu/pages/io/memory.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["MemoryBudgetsReport"],
     "section": "types",
     "kind": "Type",
@@ -8062,7 +8390,7 @@
       {
         "name": "residentPages",
         "type": "{ before: number; after: number; }",
-        "desc": "What resided just before the setting and just after."
+        "desc": "Pages whose geometry resided just before the setting and just after, counted by page as the frame metrics count them."
       },
       {
         "name": "residentTiles",
@@ -8563,6 +8891,49 @@
       }
     ],
     "description": ""
+  },
+  {
+    "id": "OrbitCameraControls",
+    "module": "packages/sdk-browser/src/camera/controls/orbitControls.ts",
+    "exports": ["OrbitCameraControls"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "OrbitCameraControls",
+    "signature": "interface OrbitCameraControls extends PivotCameraControls",
+    "summary": "ORBIT, the turntable: the camera turns around `target` at a distance the host bounds, world up kept, so a horizontal drag is an azimuth and a vertical one an elevation.",
+    "members": [
+      {
+        "name": "minPolarAngle",
+        "type": "number",
+        "desc": "Smallest polar angle, in radians from straight up: `0` lets the camera look straight down. The pole itself stays out of reach, where the azimuth would stop being defined."
+      },
+      {
+        "name": "maxPolarAngle",
+        "type": "number",
+        "desc": "Largest polar angle, in radians from straight up: `Math.PI / 2` keeps it above the ground."
+      },
+      {
+        "name": "minAzimuthAngle",
+        "type": "number",
+        "desc": "Start of the arc of azimuth allowed, in radians from +Z towards +X; unlimited at `-Infinity`. Only a pair of finite bounds narrower than a full turn holds the camera."
+      },
+      {
+        "name": "maxAzimuthAngle",
+        "type": "number",
+        "desc": "End of that arc; unlimited at `Infinity`. It may be smaller than `minAzimuthAngle`."
+      },
+      {
+        "name": "autoRotate",
+        "type": "number",
+        "desc": "Radians per second the camera turns around `target` on its own, azimuth from +Z towards +X; 0, the default, holds it still. The turn is integrated by `update(delta)`, and it stops for good at the first press or wheel notch on the surface: the viewer has taken the camera."
+      },
+      {
+        "name": "update(delta?: number)",
+        "type": "boolean",
+        "desc": "As the pivot's `update()`, with the seconds `autoRotate` turns over; 0 by default."
+      }
+    ],
+    "description": "Primary drag rotates, secondary drag or two fingers pan, wheel and pinch zoom between `minDistance` and `maxDistance`. No damping: a pointer that stops, stops the camera, and the scene is still. THE POSE IS THE STATE. Every gesture starts by reading `object.position` and `target` back into spherical coordinates, and ends by writing them out again. A host that moves the camera itself — the portal's zoom buttons do — is therefore understood on the next `update()`, and the round trip is what `math.test.ts` pins down. THE ANGLES ARE BOUNDED like the distance, on every drag and every `update()`: the polar angle between `minPolarAngle` and `maxPolarAngle`, the azimuth on the arc from `minAzimuthAngle` to `maxAzimuthAngle`. Their names and meanings are the ones web 3D libraries commonly use, so a page that already sets them keeps its numbers."
   },
   {
     "id": "OrthographicBox",
@@ -9859,6 +10230,34 @@
     "description": ""
   },
   {
+    "id": "PersonHead",
+    "module": "packages/sdk-browser/src/camera/controls/look.ts",
+    "exports": ["PersonHead"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "PersonHead",
+    "signature": "interface PersonHead extends HeadSettings",
+    "summary": "What a controller that looks through a person's eyes publishes: the head and its lock.",
+    "members": [
+      {
+        "name": "locked()",
+        "type": "boolean",
+        "desc": "Whether the pointer is locked to the view."
+      },
+      {
+        "name": "lock()",
+        "type": "void",
+        "desc": "Locks the pointer to the view."
+      },
+      {
+        "name": "unlock()",
+        "type": "void",
+        "desc": "Frees the pointer."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "PivotCameraControls",
     "module": "packages/sdk-browser/src/camera/controls/types.ts",
     "exports": ["PivotCameraControls"],
@@ -10069,7 +10468,7 @@
   },
   {
     "id": "PoolClamp",
-    "module": "packages/sdk-browser/src/webgpu/residency/memoryBudgets.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["PoolClamp"],
     "section": "types",
     "kind": "Type",
@@ -10742,6 +11141,24 @@
     "description": ""
   },
   {
+    "id": "RaycastOptions",
+    "module": "packages/sdk-browser/src/world/core/worldRaycast.ts",
+    "exports": ["RaycastOptions"],
+    "section": "world",
+    "kind": "Type",
+    "title": "RaycastOptions",
+    "signature": "interface RaycastOptions",
+    "summary": "What `world.raycast` may be told; every field is optional.",
+    "members": [
+      {
+        "name": "objects?",
+        "type": "readonly Object3D[] | undefined",
+        "desc": "The objects tested, with their subtrees; unset, the whole scene."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "ResidentPage",
     "module": "packages/sdk-browser/src/gpu/page/types.ts",
     "exports": ["ResidentPage"],
@@ -11200,6 +11617,231 @@
     "description": ""
   },
   {
+    "id": "SavedCamera",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedCamera"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedCamera",
+    "signature": "interface SavedCamera",
+    "summary": "The camera a scene was saved with: its pose, projection and optics.",
+    "members": [
+      {
+        "name": "projection",
+        "type": "'perspective' | 'orthographic'",
+        "desc": "Perspective or orthographic."
+      },
+      {
+        "name": "position",
+        "type": "number[]",
+        "desc": "Where the eye stands."
+      },
+      {
+        "name": "quaternion",
+        "type": "number[]",
+        "desc": "How the eye is turned."
+      },
+      {
+        "name": "optics",
+        "type": "Record<string, number>",
+        "desc": "Field, near, far, zoom and box, by name."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedGeometry",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedGeometry"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedGeometry",
+    "signature": "interface SavedGeometry",
+    "summary": "A geometry: the family call that built it, or its vertices when no call can build it again.",
+    "members": [
+      {
+        "name": "recipe?",
+        "type": "{ type: string; args: (number | boolean)[]; } | undefined",
+        "desc": "The family member and every argument it was built with."
+      },
+      {
+        "name": "attributes?",
+        "type": "Record<string, { itemSize: number; array: number[]; type: string; normalized: boolean; }> | undefined",
+        "desc": "Each per-vertex list, when no call builds the shape again."
+      },
+      {
+        "name": "index?",
+        "type": "number[] | undefined",
+        "desc": "Which vertices make each triangle."
+      },
+      {
+        "name": "groups?",
+        "type": "{ start: number; count: number; materialIndex: number; }[] | undefined",
+        "desc": "Index ranges drawn with one material each."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedMaterial",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedMaterial"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedMaterial",
+    "signature": "interface SavedMaterial",
+    "summary": "A material: its kind and every parameter, colours as linear `[r, g, b]`.",
+    "members": [
+      {
+        "name": "kind",
+        "type": "string",
+        "desc": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…"
+      },
+      {
+        "name": "parameters",
+        "type": "Record<string, unknown>",
+        "desc": "Every parameter by name."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedNode",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedNode"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedNode",
+    "signature": "interface SavedNode",
+    "summary": "A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it.",
+    "members": [
+      {
+        "name": "kind",
+        "type": "'object' | 'mesh' | 'group' | 'light' | 'model'",
+        "desc": "What the node is."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
+        "name": "position",
+        "type": "number[]",
+        "desc": "Where it stands, from its parent."
+      },
+      {
+        "name": "quaternion",
+        "type": "number[]",
+        "desc": "How it is turned, as a quaternion."
+      },
+      {
+        "name": "scale",
+        "type": "number[]",
+        "desc": "How it is stretched on each axis."
+      },
+      {
+        "name": "visible",
+        "type": "boolean",
+        "desc": "Whether it is drawn."
+      },
+      {
+        "name": "castShadow",
+        "type": "boolean",
+        "desc": "Whether it casts shadows."
+      },
+      {
+        "name": "receiveShadow",
+        "type": "boolean",
+        "desc": "Whether shadows fall on it."
+      },
+      {
+        "name": "renderOrder",
+        "type": "number",
+        "desc": "Its drawing order among see-through things."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "The page's own data, as JSON."
+      },
+      {
+        "name": "children",
+        "type": "SavedNode[]",
+        "desc": "The nodes below it, in order."
+      },
+      {
+        "name": "mesh?",
+        "type": "{ geometry: number; material: number | number[]; primitive: string; } | undefined",
+        "desc": "Ranks in `geometries` and `materials`, and how the triangles are read."
+      },
+      {
+        "name": "light?",
+        "type": "{ kind: string; color: [number, number, number]; groundColor: [number, number, number]; values: Record<string, number>; target: [number, number, number]; sh:...",
+        "desc": "A light's kind, colours, numbers, aim and probe coefficients."
+      },
+      {
+        "name": "model?",
+        "type": "{ url: string; } | undefined",
+        "desc": "A compiled model, by the manifest address it was loaded from: never inlined."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedScene",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedScene"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedScene",
+    "signature": "interface SavedScene",
+    "summary": "A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON.",
+    "members": [
+      {
+        "name": "format",
+        "type": "'trillion3d-scene'",
+        "desc": "Always `'trillion3d-scene'`."
+      },
+      {
+        "name": "formatVersion",
+        "type": "number",
+        "desc": "The version of this layout; another one is refused."
+      },
+      {
+        "name": "background",
+        "type": "[number, number, number] | null",
+        "desc": "The background colour, or `null`."
+      },
+      {
+        "name": "fog",
+        "type": "{ color: [number, number, number]; near: number; far: number; } | null",
+        "desc": "The fog, or `null`."
+      },
+      {
+        "name": "camera",
+        "type": "SavedCamera | null",
+        "desc": "The camera saved with the scene, or `null`."
+      },
+      {
+        "name": "geometries",
+        "type": "SavedGeometry[]",
+        "desc": "Every shape, once, however many meshes wear it."
+      },
+      {
+        "name": "materials",
+        "type": "SavedMaterial[]",
+        "desc": "Every material, once, however many meshes wear it."
+      },
+      {
+        "name": "children",
+        "type": "SavedNode[]",
+        "desc": "The scene's top nodes, in order."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "Scene-common",
     "module": "packages/sdk-core/src/lighting/scene/types.ts",
     "exports": ["Scene"],
@@ -11268,6 +11910,16 @@
         "name": "load(manifestUrl: string, options?: LoadOptions)",
         "type": "Promise<LoadedModel>",
         "desc": "Loads a compiled model — its manifest URL — and adds it to this scene."
+      },
+      {
+        "name": "toJSON(camera?: Camera)",
+        "type": "SavedScene",
+        "desc": "The scene as plain JSON, versioned: its objects, shapes by the call that built them, materials, lights and loaded models by address; `camera`'s pose too when one is given."
+      },
+      {
+        "name": "fromJSON(json: unknown, camera?: Camera)",
+        "type": "Promise<void>",
+        "desc": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in order, each on what the one before left: two saved scenes never merge."
       }
     ],
     "description": ""
@@ -13352,6 +14004,28 @@
     "description": ""
   },
   {
+    "id": "TRILLION3D_RUNTIME_TOOLS",
+    "module": "packages/sdk-core/src/llm/runtimeToolsSchema.ts",
+    "exports": ["TRILLION3D_RUNTIME_TOOLS"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "TRILLION3D_RUNTIME_TOOLS",
+    "signature": "const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[]",
+    "summary": "Complete catalog of tools and runtime functions available to control Trillion3D from an LLM.",
+    "description": ""
+  },
+  {
+    "id": "TRILLION3D_SYSTEM_PROMPT",
+    "module": "packages/sdk-core/src/llm/systemPrompt.ts",
+    "exports": ["TRILLION3D_SYSTEM_PROMPT"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "TRILLION3D_SYSTEM_PROMPT",
+    "signature": "const TRILLION3D_SYSTEM_PROMPT: 'You are an expert on the Trillion3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the...",
+    "summary": "System prompt guiding an LLM on Trillion3D principles, budgets, and rendering options.",
+    "description": ""
+  },
+  {
     "id": "TableMaterial",
     "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
     "exports": ["TableMaterial"],
@@ -13788,6 +14462,16 @@
         "desc": "Bumped whenever the texels change: what an upload compares to skip a re-copy."
       },
       {
+        "name": "sampling",
+        "type": "number",
+        "desc": "Bumped when the addressing, the filters or the anisotropy move: the sampler set again."
+      },
+      {
+        "name": "placement",
+        "type": "number",
+        "desc": "Bumped when `transform` moves: the placement written again, nothing uploaded."
+      },
+      {
         "name": "image",
         "type": "unknown",
         "desc": "The decoded image. Its container stays `unknown`: only the boundary that uploads it knows."
@@ -13845,7 +14529,7 @@
       {
         "name": "transform",
         "type": "readonly number[]",
-        "desc": "UV transform of the sampler, `KHR_texture_transform` composed into three rows of three."
+        "desc": "UV transform of the sampler, `KHR_texture_transform` composed into a 3 × 3 matrix stored column-major: entries 0 to 2 the first column, 6 and 7 the translation."
       }
     ],
     "description": ""
@@ -13952,7 +14636,17 @@
       {
         "name": "version",
         "type": "number",
-        "desc": "Bumped by every write: what a material compares to resample."
+        "desc": "Bumped by a write of the picture or of how it is read: what a material compares to send the picture again."
+      },
+      {
+        "name": "sampling",
+        "type": "number",
+        "desc": "Bumped by a write of the addressing, the filters or the anisotropy: set again, nothing sent."
+      },
+      {
+        "name": "placement",
+        "type": "number",
+        "desc": "Bumped by a write of `repeat`, `offset` or `rotation`: placed again, nothing sent."
       },
       {
         "name": "image",
@@ -14452,6 +15146,222 @@
       }
     ],
     "description": "A drag spins it about the two axes of the SCREEN — the camera's own up and right — so the gesture never stalls at a pole and the horizon is free to tilt, which is the difference from the orbit controller, whose world up is fixed and whose elevation stops short of the poles. Secondary drag or two fingers pan, wheel and pinch dolly, both bounded. `turntable` swaps the horizontal axis for world up: the spin then stays level and no roll accumulates, the vertical drag keeping the free tilt. For a turntable that also clamps its elevation and rebuilds the orientation from its angles, use the orbit controller."
+  },
+  {
+    "id": "TransformControls",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformControls"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformControls",
+    "signature": "type TransformControls = ReturnType<typeof createTransformControls>",
+    "summary": "What `controls.transform` returns.",
+    "members": [
+      {
+        "name": "snap",
+        "type": "TransformSnap",
+        "desc": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional."
+      },
+      {
+        "name": "handles",
+        "type": "Group",
+        "desc": "The group of the handles — a `helper` mark — in the scene while attached."
+      },
+      {
+        "name": "object",
+        "type": "Object3D | null",
+        "desc": "The object the handles are on, or `null`."
+      },
+      {
+        "name": "dragging",
+        "type": "boolean",
+        "desc": "True while a handle is being dragged."
+      },
+      {
+        "name": "mode",
+        "type": "TransformMode",
+        "desc": "What a drag does: `'translate'`, `'rotate'` or `'scale'`."
+      },
+      {
+        "name": "space",
+        "type": "TransformSpace",
+        "desc": "`'world'` or `'local'` axes."
+      },
+      {
+        "name": "attach(target: Object3D)",
+        "type": "TransformControls",
+        "desc": "Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`)."
+      },
+      {
+        "name": "detach()",
+        "type": "TransformControls",
+        "desc": "Takes the handles off their object, and out of the scene; a drag under way ends first."
+      },
+      {
+        "name": "setMode(next: TransformMode)",
+        "type": "TransformControls",
+        "desc": "Moves, turns or scales from now on."
+      },
+      {
+        "name": "setSpace(next: TransformSpace)",
+        "type": "TransformControls",
+        "desc": "Handles along the world's axes or the object's own."
+      },
+      {
+        "name": "addEventListener(type: TransformEvent, listener: () => void)",
+        "type": "void",
+        "desc": "Calls `listener` on each event of `type`."
+      },
+      {
+        "name": "removeEventListener(type: TransformEvent, listener: () => void)",
+        "type": "void",
+        "desc": "Stops calling `listener` on events of `type`."
+      },
+      {
+        "name": "dispose()",
+        "type": "void",
+        "desc": "Takes the handles out of the scene and every listener off the canvas."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformControlsOptions",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformControlsOptions"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformControlsOptions",
+    "signature": "interface TransformControlsOptions",
+    "summary": "What `controls.transform` may be told; every field is optional.",
+    "members": [
+      {
+        "name": "mode?",
+        "type": "TransformMode | undefined",
+        "desc": "Move, turn or scale; `'translate'` by default."
+      },
+      {
+        "name": "space?",
+        "type": "TransformSpace | undefined",
+        "desc": "Handles along the world axes or the object's own; `'world'` by default."
+      },
+      {
+        "name": "snap?",
+        "type": "TransformSnap | undefined",
+        "desc": "Steps each drag is rounded to; none by default."
+      },
+      {
+        "name": "size?",
+        "type": "number | undefined",
+        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformEvent",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformEvent"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformEvent",
+    "signature": "type TransformEvent = 'change' | 'dragStart' | 'dragEnd'",
+    "summary": "The events a transform control emits: every pose it writes, and the start and end of a drag.",
+    "description": ""
+  },
+  {
+    "id": "TransformHandle",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformHandle"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformHandle",
+    "signature": "type TransformHandle = 'x' | 'y' | 'z' | 'xy' | 'yz' | 'xz' | 'xyz'",
+    "summary": "A handle: one axis, the plane of two, or `'xyz'` — the centre: free move, uniform scale.",
+    "description": ""
+  },
+  {
+    "id": "TransformHost",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformHost"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformHost",
+    "signature": "type TransformHost",
+    "summary": "What a transform control needs of a world: `createWorld` returns one.",
+    "members": [
+      {
+        "name": "canvas",
+        "type": "HTMLCanvasElement",
+        "desc": "The canvas the pointer presses on."
+      },
+      {
+        "name": "scene",
+        "type": "Object3D",
+        "desc": "The scene the handles are added to."
+      },
+      {
+        "name": "camera",
+        "type": "Camera",
+        "desc": "The camera the canvas is seen through."
+      },
+      {
+        "name": "onFrame(hook: () => void)",
+        "type": "() => void",
+        "desc": "Runs `hook` after each frame drawn; returns what stops it."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformMode",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformMode"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformMode",
+    "signature": "type TransformMode = 'translate' | 'rotate' | 'scale'",
+    "summary": "What a transform control does to its object.",
+    "description": ""
+  },
+  {
+    "id": "TransformSnap",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformSnap"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformSnap",
+    "signature": "type TransformSnap = {\n  /** World units a move is rounded to, along each axis. */\n  translate?: number;\n  /** Radians a turn is rounded to. */\n  rotate?: number;\n  /** The step a scale factor is rounded to. */\n  scale?: number;\n}",
+    "summary": "Steps a drag is rounded to, each optional: world units, radians, scale factor.",
+    "members": [
+      {
+        "name": "translate?",
+        "type": "number | undefined",
+        "desc": "World units a move is rounded to, along each axis."
+      },
+      {
+        "name": "rotate?",
+        "type": "number | undefined",
+        "desc": "Radians a turn is rounded to."
+      },
+      {
+        "name": "scale?",
+        "type": "number | undefined",
+        "desc": "The step a scale factor is rounded to."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformSpace",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformSpace"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformSpace",
+    "signature": "type TransformSpace = 'world' | 'local'",
+    "summary": "The frame the handles are aligned with; a scale is always along the object's own axes.",
+    "description": ""
   },
   {
     "id": "TransformTree",
@@ -14960,6 +15870,95 @@
     "description": ""
   },
   {
+    "id": "TriangleCollision",
+    "module": "packages/sdk-core/src/collision/characterCollision.ts",
+    "exports": ["TriangleCollision"],
+    "section": "types",
+    "kind": "Type",
+    "title": "TriangleCollision",
+    "signature": "interface TriangleCollision extends CharacterCollision",
+    "summary": "The default collision world: a static triangle tree.",
+    "members": [
+      {
+        "name": "tree",
+        "type": "TriangleTree",
+        "desc": "The tree answered from: its `triangleCount` and `bytes` are the world's cost."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TriangleTree",
+    "module": "packages/sdk-core/src/collision/triangleTree.ts",
+    "exports": ["TriangleTree"],
+    "section": "types",
+    "kind": "Type",
+    "title": "TriangleTree",
+    "signature": "interface TriangleTree",
+    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
+    "members": [
+      {
+        "name": "triangles",
+        "type": "Float32Array<ArrayBufferLike>",
+        "desc": "Nine numbers per triangle — three corners — in leaf order."
+      },
+      {
+        "name": "bounds",
+        "type": "Float32Array<ArrayBufferLike>",
+        "desc": "Per node: min xyz, max xyz."
+      },
+      {
+        "name": "links",
+        "type": "Int32Array<ArrayBufferLike>",
+        "desc": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent)."
+      },
+      {
+        "name": "counts",
+        "type": "Int32Array<ArrayBufferLike>",
+        "desc": "Per node: triangle count of a leaf, 0 for an inner node."
+      },
+      {
+        "name": "triangleCount",
+        "type": "number",
+        "desc": "Triangles the tree holds."
+      },
+      {
+        "name": "bytes",
+        "type": "number",
+        "desc": "Bytes the tree keeps."
+      }
+    ],
+    "description": "Built once by `buildTriangleTree`, read-only afterwards."
+  },
+  {
+    "id": "Trillion3dTool",
+    "module": "packages/sdk-core/src/llm/types.ts",
+    "exports": ["Trillion3dTool"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Trillion3dTool",
+    "signature": "interface Trillion3dTool",
+    "summary": "Generic Trillion3D tool definition for LLMs.",
+    "members": [
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "The tool's name."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "desc": "What it does."
+      },
+      {
+        "name": "parameters",
+        "type": "JsonSchemaObject",
+        "desc": "Its arguments."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "UNSPLIT_PASS",
     "module": "packages/sdk-core/src/contracts/geometry.ts",
     "exports": ["UNSPLIT_PASS"],
@@ -15415,56 +16414,6 @@
     "description": ""
   },
   {
-    "id": "WEB_GEOMETRY_RUNTIME_TOOLS",
-    "module": "packages/sdk-core/src/llm/runtimeToolsSchema.ts",
-    "exports": ["WEB_GEOMETRY_RUNTIME_TOOLS"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "WEB_GEOMETRY_RUNTIME_TOOLS",
-    "signature": "const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[]",
-    "summary": "Complete catalog of tools and runtime functions available to control WebGeometry from an LLM.",
-    "description": ""
-  },
-  {
-    "id": "WEB_GEOMETRY_SYSTEM_PROMPT",
-    "module": "packages/sdk-core/src/llm/systemPrompt.ts",
-    "exports": ["WEB_GEOMETRY_SYSTEM_PROMPT"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "WEB_GEOMETRY_SYSTEM_PROMPT",
-    "signature": "const WEB_GEOMETRY_SYSTEM_PROMPT: 'You are an expert on the WebGeometry 3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for...",
-    "summary": "System prompt guiding an LLM on WebGeometry principles, budgets, and rendering options.",
-    "description": ""
-  },
-  {
-    "id": "WebGeometryTool",
-    "module": "packages/sdk-core/src/llm/types.ts",
-    "exports": ["WebGeometryTool"],
-    "section": "types",
-    "kind": "Type",
-    "title": "WebGeometryTool",
-    "signature": "interface WebGeometryTool",
-    "summary": "Generic WebGeometry tool definition for LLMs.",
-    "members": [
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The tool's name."
-      },
-      {
-        "name": "description",
-        "type": "string",
-        "desc": "What it does."
-      },
-      {
-        "name": "parameters",
-        "type": "JsonSchemaObject",
-        "desc": "Its arguments."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "World",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["World"],
@@ -15473,6 +16422,77 @@
     "title": "World",
     "signature": "type World = ReturnType<typeof createWorld>",
     "summary": "What `createWorld` returns: one view.",
+    "description": ""
+  },
+  {
+    "id": "world.awaitPages",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.awaitPages()",
+    "signature": "world.awaitPages(): Promise<void>",
+    "summary": "Resolves once the pages the current view reads are resident (`awaitViewPages`).",
+    "returns": {
+      "type": "Promise<void>",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "world.dispose",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.dispose()",
+    "signature": "world.dispose(): void",
+    "summary": "Stops the world and gives back all it took: GPU memory, loop, controls.",
+    "description": ""
+  },
+  {
+    "id": "world.stageProfile",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.stageProfile()",
+    "signature": "world.stageProfile(): StageProfile | null",
+    "summary": "Per-step profile of the session's frames.",
+    "returns": {
+      "type": "StageProfile | null",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "world.cpuSteps",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.cpuSteps()",
+    "signature": "world.cpuSteps(): CpuStepSummary | null",
+    "summary": "CPU bounds of the frames since `resetCpuSteps()` (p50, p95, max per step); `null` unmeasured.",
+    "returns": {
+      "type": "CpuStepSummary | null",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "world.resetCpuSteps",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.resetCpuSteps()",
+    "signature": "world.resetCpuSteps(): void | undefined",
+    "summary": "Opens a new `cpuSteps()` window.",
+    "returns": {
+      "type": "void | undefined",
+      "desc": ""
+    },
     "description": ""
   },
   {
@@ -15515,7 +16535,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.controls",
-    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; update(delta?: number): void; follow: () => void; dispose(): void; }",
+    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; autoUpdate: boolean; colliders: Object3D | readonly Object3D[] | CharacterCollision | null...",
     "summary": "The mouse and keyboard controller that moves the camera.",
     "members": [
       {
@@ -15526,7 +16546,7 @@
       {
         "name": "enabled",
         "type": "boolean",
-        "desc": "Whether the controller listens to the mouse and keyboard."
+        "desc": "Whether the controller listens to the mouse and keyboard and moves the camera. `false` pauses it — no input, no `update` — without remaking it: velocity, footing, stride, orientation and turn are kept, and `true` resumes exactly where it stopped."
       },
       {
         "name": "target",
@@ -15534,9 +16554,39 @@
         "desc": "The point a pivot controller turns around."
       },
       {
+        "name": "autoUpdate",
+        "type": "boolean",
+        "desc": "Whether the world's loop calls `update` ahead of each frame, before `world.beforeFrame` hooks. `false` hands the step to the page, which calls `update` from such a hook, as often and over whatever sub-steps it integrates; the world then never steps it."
+      },
+      {
+        "name": "colliders",
+        "type": "Object3D | CharacterCollision | readonly Object3D[] | null",
+        "desc": "Character only: what the body collides with, or `null`. Meshes — one object or a list, their descendants included — build a static triangle tree from their world-space triangles as they stand now: one pass over the triangles and an `O(T log T)` build, about 52 bytes kept per triangle. Compiled models are not read yet: give a simple mesh stand-in for them. A `CharacterCollision` — a physics backend's world, anything that answers `resolveCapsule` and `groundBelow` — is used as it is."
+      },
+      {
+        "name": "rebuildColliders()",
+        "type": "void",
+        "desc": "Character only: builds the collision tree again, after the colliders moved or changed; a `CharacterCollision` is its own world and is handed on unchanged."
+      },
+      {
+        "name": "velocity",
+        "type": "Vector3",
+        "desc": "Character only: the body's velocity in metres per second, a copy; zero otherwise."
+      },
+      {
+        "name": "onGround",
+        "type": "boolean",
+        "desc": "Character only: whether the feet are on a floor; `false` for any other controller."
+      },
+      {
+        "name": "stride",
+        "type": "number",
+        "desc": "Character only: the stride's phase in radians, a foot striking at 0 and π; 0 otherwise."
+      },
+      {
         "name": "update(delta?: number)",
         "type": "void",
-        "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose."
+        "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose, and an orbit turns by `autoRotate`. A paused controller does nothing."
       },
       {
         "name": "follow",
@@ -15547,6 +16597,211 @@
         "name": "dispose()",
         "type": "void",
         "desc": "Stops the controller and removes its listeners from the canvas."
+      },
+      {
+        "name": "minDistance",
+        "type": "number",
+        "desc": "Closest a pivot controller brings the camera to `target`."
+      },
+      {
+        "name": "maxDistance",
+        "type": "number",
+        "desc": "Farthest a pivot controller takes the camera from `target`."
+      },
+      {
+        "name": "minPolarAngle",
+        "type": "number",
+        "desc": "Orbit only: smallest polar angle, in radians from straight up."
+      },
+      {
+        "name": "maxPolarAngle",
+        "type": "number",
+        "desc": "Orbit only: largest polar angle; `Math.PI / 2` keeps the camera above the ground."
+      },
+      {
+        "name": "minAzimuthAngle",
+        "type": "number",
+        "desc": "Orbit only: start of the arc of azimuth allowed, in radians from +Z towards +X."
+      },
+      {
+        "name": "maxAzimuthAngle",
+        "type": "number",
+        "desc": "Orbit only: end of that arc; it may be smaller than `minAzimuthAngle`."
+      },
+      {
+        "name": "autoRotate",
+        "type": "number",
+        "desc": "Orbit only: radians per second it turns around `target` on its own, until the first press or wheel notch; 0 by default."
+      },
+      {
+        "name": "movementSpeed",
+        "type": "number",
+        "desc": "Flight and first person: world units per second at full stick; 1 by default."
+      },
+      {
+        "name": "lookSpeed",
+        "type": "number",
+        "desc": "First person and character: radians the view turns per pixel the pointer moves."
+      },
+      {
+        "name": "minPitch",
+        "type": "number",
+        "desc": "First person and character: lowest the head looks, in radians (0 is the horizon, negative down)."
+      },
+      {
+        "name": "maxPitch",
+        "type": "number",
+        "desc": "First person and character: highest the head looks, in radians above the horizon."
+      },
+      {
+        "name": "pointerLook",
+        "type": "boolean",
+        "desc": "Flight only: whether the pointer turns the view; false and the keys alone steer."
+      },
+      {
+        "name": "rollSpeed",
+        "type": "number",
+        "desc": "Flight only: radians per second the keys roll, and pitch and yaw unless set apart."
+      },
+      {
+        "name": "pitchSpeed",
+        "type": "number | null",
+        "desc": "Flight only: radians per second the keys pitch; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "yawSpeed",
+        "type": "number | null",
+        "desc": "Flight only: radians per second the keys yaw; `null` (the default) is `rollSpeed`."
+      },
+      {
+        "name": "inputResponse",
+        "type": "number",
+        "desc": "Flight only: seconds a turn key takes to full deflection and back; 0 is instant."
+      },
+      {
+        "name": "pitchInput",
+        "type": "number",
+        "desc": "Flight only: pitch stick in [-1, 1] (nose up), added to the arrow keys; 0 by default."
+      },
+      {
+        "name": "yawInput",
+        "type": "number",
+        "desc": "Flight only: yaw stick in [-1, 1] (left), added to the arrow keys; 0 by default."
+      },
+      {
+        "name": "rollInput",
+        "type": "number",
+        "desc": "Flight only: roll stick in [-1, 1] (left), added to Q and E; 0 by default."
+      },
+      {
+        "name": "rotateSpeed",
+        "type": "number",
+        "desc": "Orbit and trackball: how fast dragging turns; 1 by default."
+      },
+      {
+        "name": "zoomSpeed",
+        "type": "number",
+        "desc": "Pivot controllers: how fast the wheel and the pinch zoom; 1 by default."
+      },
+      {
+        "name": "autoForward",
+        "type": "boolean",
+        "desc": "Flight only: flies forward at `movementSpeed` with no key, W faster, S to a halt."
+      },
+      {
+        "name": "walkSpeed",
+        "type": "number",
+        "desc": "Character only: metres per second on foot; 3.5 by default, a jog."
+      },
+      {
+        "name": "sprintSpeed",
+        "type": "number",
+        "desc": "Character only: metres per second with Shift held; 6.5 by default, an untrained adult's top speed."
+      },
+      {
+        "name": "jumpSpeed",
+        "type": "number",
+        "desc": "Character only: upward speed a jump starts with, m/s; `sqrt(2 g h)` reaches `h`, 0.5 m by default, a standing jump."
+      },
+      {
+        "name": "gravity",
+        "type": "number",
+        "desc": "Character only: downward acceleration while rising, m/s²; 9.80665 by default."
+      },
+      {
+        "name": "fallGravity",
+        "type": "number",
+        "desc": "Character only: downward acceleration while falling, m/s²; 1.6 g by default, so a jump does not float."
+      },
+      {
+        "name": "airControl",
+        "type": "number",
+        "desc": "Character only: how fast the keys steer in the air, as a fraction of the ground start; 0.05 by default, 0 is ballistic."
+      },
+      {
+        "name": "responseTime",
+        "type": "number",
+        "desc": "Character only: seconds to reach 95 % of the wished speed on the ground; 0.12 by default."
+      },
+      {
+        "name": "stopTime",
+        "type": "number",
+        "desc": "Character only: seconds to lose 95 % of the speed once no key is held, on the ground; 0.08 by default."
+      },
+      {
+        "name": "capsuleRadius",
+        "type": "number",
+        "desc": "Character only: radius of the body, metres; half a shoulder breadth (0.23 m) by default."
+      },
+      {
+        "name": "capsuleHeight",
+        "type": "number",
+        "desc": "Character only: height of the body, metres; 1.75 by default."
+      },
+      {
+        "name": "eyeHeight",
+        "type": "number",
+        "desc": "Character only: height of the camera above the feet, metres; 1.64 by default."
+      },
+      {
+        "name": "stepHeight",
+        "type": "number",
+        "desc": "Character only: highest ledge climbed without a jump, metres; the knee height (0.5 m) by default."
+      },
+      {
+        "name": "maxSlope",
+        "type": "number",
+        "desc": "Character only: steepest floor stood on, radians from level; 45° by default."
+      },
+      {
+        "name": "coyoteTime",
+        "type": "number",
+        "desc": "Character only: seconds after walking off an edge a jump is still granted; 0.1 by default."
+      },
+      {
+        "name": "jumpBuffer",
+        "type": "number",
+        "desc": "Character only: seconds a jump pressed before landing is kept for the landing; 0.1 by default."
+      },
+      {
+        "name": "headBob",
+        "type": "number",
+        "desc": "Character only: metres the eye rises and falls each step at a jog; 0.035 by default, 0 keeps it level."
+      },
+      {
+        "name": "landingDip",
+        "type": "number",
+        "desc": "Character only: seconds from touch-down to the lowest point of the eye's landing dip, as deep as the impact is fast; 0.06 by default, 0 turns it off."
+      },
+      {
+        "name": "onLand",
+        "type": "((impact: number) => void) | null",
+        "desc": "Character only: called on landing with the downward speed in m/s; `null` by default."
+      },
+      {
+        "name": "onJump",
+        "type": "(() => void) | null",
+        "desc": "Character only: called when the body leaves the ground on a jump; `null` by default."
       }
     ],
     "description": ""
@@ -15624,7 +16879,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.budget",
-    "signature": "world.budget: { readonly geometryPoolCeiling: number; readonly texturePoolCeiling: number; geometryPool: number; texturePool: number; }",
+    "signature": "world.budget: { readonly geometryPoolCeiling: number; readonly texturePoolCeiling: number; geometryPool: number; get texturePool(): number | null; set texturePool(bytes: n...",
     "summary": "The world's memory pools, read and set in bytes.",
     "members": [
       {
@@ -15644,8 +16899,8 @@
       },
       {
         "name": "texturePool",
-        "type": "number",
-        "desc": "Bytes of GPU memory kept for texture pages; set it to change the envelope."
+        "type": "number | null",
+        "desc": "Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool (WebGL2); set it to change the envelope."
       }
     ],
     "description": ""
@@ -15657,13 +16912,23 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.diagnostic",
-    "signature": "world.diagnostic: { mode: string; readonly modes: string[]; }",
-    "summary": "What the page holds: the mode, read and written.",
+    "signature": "world.diagnostic: { mode: string; readonly sessions: number; readonly error: EngineError | null; readonly modes: string[]; }",
+    "summary": "What the page holds: the view mode, read and written; the sessions opened and why the last one failed, read only.",
     "members": [
       {
         "name": "mode",
         "type": "string",
         "desc": "The view mode: `'beauty'` for the normal image, or a mode that shows how the engine works."
+      },
+      {
+        "name": "sessions",
+        "type": "number",
+        "desc": "Sessions the world has opened so far: a change that reopens one shows here."
+      },
+      {
+        "name": "error",
+        "type": "EngineError | null",
+        "desc": "Why the last session could not open, as a named engine error: its `code` is one of those documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device), or `SESSION_OPEN_FAILED` for a reason without one. An `EngineError` of a documented code is the one thrown; any other error is converted, and the error thrown is then in `details.cause`. `null` from the start of each opening, and when nothing is tried."
       },
       {
         "name": "modes",
@@ -15674,6 +16939,38 @@
     "description": ""
   },
   {
+    "id": "world.raycast",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.raycast()",
+    "signature": "world.raycast(at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null",
+    "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
+    "parameters": [
+      {
+        "name": "at",
+        "type": "CanvasPoint | Ray",
+        "desc": ""
+      },
+      {
+        "name": "options?",
+        "type": "RaycastOptions",
+        "desc": "What `world.raycast` may be told; every field is optional."
+      },
+      {
+        "name": "options.objects?",
+        "type": "readonly Object3D[]",
+        "desc": "The objects tested, with their subtrees; unset, the whole scene."
+      }
+    ],
+    "returns": {
+      "type": "Intersection | null",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
     "id": "world.onFrame",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["createWorld"],
@@ -15681,7 +16978,7 @@
     "kind": "Function",
     "title": "world.onFrame()",
     "signature": "world.onFrame(hook: (frame: FrameInfo) => void): () => void",
-    "summary": "Runs a function before every frame, with the frame's time.",
+    "summary": "Runs a function after every drawn frame, with its time and metrics; returns its remover.",
     "parameters": [
       {
         "name": "hook",
@@ -15694,6 +16991,28 @@
       "desc": "A function that stops the hook."
     },
     "description": ""
+  },
+  {
+    "id": "world.beforeFrame",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.beforeFrame()",
+    "signature": "world.beforeFrame(hook: (frame: BeforeFrameInfo) => void): () => void",
+    "summary": "Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.",
+    "parameters": [
+      {
+        "name": "hook",
+        "type": "(frame: BeforeFrameInfo) => void",
+        "desc": "The function to run; it gets the seconds just integrated and the world's time."
+      }
+    ],
+    "returns": {
+      "type": "() => void",
+      "desc": "A function that stops the hook."
+    },
+    "description": "A frame of the world's loop runs: the controller steps the camera (unless `controls.autoUpdate` is false), clips advance, these hooks in the order they were added, the scene is written and drawn, then the `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this very frame, never one late. A host-led `render()` runs them too but steps no controller. A hook calling `invalidate()` keeps frames coming."
   },
   {
     "id": "world.loop",
@@ -15769,56 +17088,15 @@
     "description": ""
   },
   {
-    "id": "world.stageProfile",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.stageProfile()",
-    "signature": "world.stageProfile(): StageProfile | null",
-    "summary": "Per-step profile of the session's frames.",
-    "returns": {
-      "type": "StageProfile | null",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
-    "id": "world.awaitPages",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.awaitPages()",
-    "signature": "world.awaitPages(): Promise<void>",
-    "summary": "Resolves once the pages the current view reads are resident (`awaitViewPages`).",
-    "returns": {
-      "type": "Promise<void>",
-      "desc": ""
-    },
-    "description": ""
-  },
-  {
-    "id": "world.dispose",
-    "module": "packages/sdk-browser/src/world/core/world.ts",
-    "exports": ["createWorld"],
-    "section": "world",
-    "kind": "Function",
-    "title": "world.dispose()",
-    "signature": "world.dispose(): void",
-    "summary": "Stops the world and gives back all it took: GPU memory, loop, controls.",
-    "description": ""
-  },
-  {
     "id": "WorldControls",
     "module": "packages/sdk-browser/src/world/core/worldCamera.ts",
     "exports": ["WorldControls"],
     "section": "world",
     "kind": "Type",
     "title": "WorldControls",
-    "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'trackball' | 'panZoom' | 'none'",
+    "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'character' | 'trackball' | 'panZoom' | 'none'",
     "summary": "The ways a page can steer the camera with the mouse and keyboard, or `'none'`.",
-    "description": ""
+    "description": "`'firstPerson'` moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with `world.controls.colliders` — and looks through its eyes."
   },
   {
     "id": "WorldFrameMetrics",
@@ -18099,7 +19377,7 @@
     "section": "budget",
     "kind": "Function",
     "title": "budget.memory()",
-    "signature": "budget.memory(__0: World): { geometryPool: number; texturePool: number; geometryPoolCeiling: number; texturePoolCeiling: number; }",
+    "signature": "budget.memory(__0: World): { geometryPool: number; texturePool: number | null; geometryPoolCeiling: number; texturePoolCeiling: number; }",
     "summary": "The memory budgets a world holds right now: both pools and the largest each may grow to.",
     "parameters": [
       {
@@ -18109,7 +19387,7 @@
       }
     ],
     "returns": {
-      "type": "{ geometryPool: number; texturePool: number; geometryPoolCeiling: number; texturePoolCeiling: number; }",
+      "type": "{ geometryPool: number; texturePool: number | null; geometryPoolCeiling: number; texturePoolCeiling: number; }",
       "desc": ""
     },
     "description": ""
@@ -19130,6 +20408,66 @@
       "type": "boolean",
       "desc": ""
     },
+    "description": ""
+  },
+  {
+    "id": "controls",
+    "module": "packages/sdk-browser/src/world/controls/index.ts",
+    "exports": ["controls"],
+    "section": "controls",
+    "kind": "Constant",
+    "title": "controls",
+    "signature": "const controls",
+    "summary": "The `controls` family: controllers a page attaches to a world, beside the camera controller `world.controls` already drives.",
+    "description": ""
+  },
+  {
+    "id": "controls.transform",
+    "module": "packages/sdk-browser/src/world/controls/index.ts",
+    "exports": ["controls"],
+    "section": "controls",
+    "kind": "Function",
+    "title": "controls.transform()",
+    "signature": "controls.transform(host: TransformHost, options?: TransformControlsOptions): TransformControls",
+    "summary": "Handles that move, turn and scale one object with the mouse (`transform.ts`).",
+    "parameters": [
+      {
+        "name": "host",
+        "type": "TransformHost",
+        "desc": "The world whose scene and camera the handles live in."
+      },
+      {
+        "name": "options",
+        "type": "TransformControlsOptions",
+        "default": "{}",
+        "desc": "Mode, axes, snapping and screen size; saying nothing is the usual case."
+      },
+      {
+        "name": "options.mode?",
+        "type": "TransformMode",
+        "desc": "Move, turn or scale; `'translate'` by default."
+      },
+      {
+        "name": "options.space?",
+        "type": "TransformSpace",
+        "desc": "Handles along the world axes or the object's own; `'world'` by default."
+      },
+      {
+        "name": "options.snap?",
+        "type": "TransformSnap",
+        "desc": "Steps each drag is rounded to; none by default."
+      },
+      {
+        "name": "options.size?",
+        "type": "number",
+        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      }
+    ],
+    "returns": {
+      "type": "TransformControls",
+      "desc": ""
+    },
+    "example": "const gizmo = controls.transform(world).attach(box);\ngizmo.addEventListener('dragEnd', () => history.push(box.position.clone()));",
     "description": ""
   },
   {
@@ -21814,13 +23152,13 @@
     "description": "Hashes only — full source is not loaded into the snapshot."
   },
   {
-    "id": "getWebGeometryLlmPrompt",
+    "id": "getTrillion3dLlmPrompt",
     "module": "packages/sdk-core/src/llm/systemPrompt.ts",
-    "exports": ["getWebGeometryLlmPrompt"],
+    "exports": ["getTrillion3dLlmPrompt"],
     "section": "types",
     "kind": "Function",
-    "title": "getWebGeometryLlmPrompt()",
-    "signature": "getWebGeometryLlmPrompt(): string",
+    "title": "getTrillion3dLlmPrompt()",
+    "signature": "getTrillion3dLlmPrompt(): string",
     "summary": "Generates the ready-to-use expert system prompt to prime an LLM.",
     "returns": {
       "type": "string",
@@ -21829,14 +23167,14 @@
     "description": ""
   },
   {
-    "id": "getWebGeometryTools",
+    "id": "getTrillion3dTools",
     "module": "packages/sdk-core/src/llm/toolDefinitions.ts",
-    "exports": ["getWebGeometryTools"],
+    "exports": ["getTrillion3dTools"],
     "section": "types",
     "kind": "Function",
-    "title": "getWebGeometryTools()",
-    "signature": "getWebGeometryTools(format: 'openai'): OpenAiToolDefinition[]\ngetWebGeometryTools(format: 'anthropic'): AnthropicToolDefinition[]\ngetWebGeometryTools(format: 'gemini'): GeminiFunctionDeclaration[]\ngetWebGeometryTools(format: 'mcp'): McpToolDefinition[]\ngetWebGeometryTools(format: 'json-schema'): WebGeometryTool[]\ngetWebGeometryTools(format?: LlmToolFormat): unknown[]",
-    "summary": "Returns the complete array of WebGeometry tool definitions formatted for the target LLM provider.",
+    "title": "getTrillion3dTools()",
+    "signature": "getTrillion3dTools(format: 'openai'): OpenAiToolDefinition[]\ngetTrillion3dTools(format: 'anthropic'): AnthropicToolDefinition[]\ngetTrillion3dTools(format: 'gemini'): GeminiFunctionDeclaration[]\ngetTrillion3dTools(format: 'mcp'): McpToolDefinition[]\ngetTrillion3dTools(format: 'json-schema'): Trillion3dTool[]\ngetTrillion3dTools(format?: LlmToolFormat): unknown[]",
+    "summary": "Returns the complete array of Trillion3D tool definitions formatted for the target LLM provider.",
     "parameters": [
       {
         "name": "format",
@@ -21925,7 +23263,7 @@
     "title": "helper",
     "signature": "const helper",
     "summary": "The `helper` family: the marks a scene is worked on with, built from lines and meshes.",
-    "description": ""
+    "description": "A world draws them like any object; a pick (`world.raycast`) and a saved scene skip them."
   },
   {
     "id": "helper.axes",
@@ -22039,13 +23377,13 @@
     "section": "helper",
     "kind": "Function",
     "title": "helper.box()",
-    "signature": "helper.box(target: Object3D, color?: ColorInput): Mesh",
-    "summary": "The outline of the box around an object.",
+    "signature": "helper.box(target: Object3D | Box3, color?: ColorInput): Mesh",
+    "summary": "The outline of the box around an object, or of a box itself — a shape's own `geometry.boundingBox`, to be posed with its mesh.",
     "parameters": [
       {
         "name": "target",
-        "type": "Object3D",
-        "desc": "The object to outline."
+        "type": "Object3D | Box3",
+        "desc": "The object or the box to outline."
       },
       {
         "name": "color",
@@ -28389,6 +29727,39 @@
     "description": "A forced path the machine lacks is refused by its name; left to the engine, WebGPU when an adapter is granted — and its device, requested once —, WebGL2 otherwise, and a machine with neither is refused. `chooseBackends` repeats the same decision on that device when a session opens."
   },
   {
+    "id": "raycast",
+    "module": "packages/sdk-core/src/world/object/raycast.ts",
+    "exports": ["raycast"],
+    "section": "object",
+    "kind": "Function",
+    "title": "raycast()",
+    "signature": "raycast(roots: Object3D | readonly Object3D[], ray: Ray, skip?: (node: Object3D) => boolean): Intersection[]",
+    "summary": "Every object under `roots` that `ray` meets, nearest first, one hit per object: the nearest of its own.",
+    "parameters": [
+      {
+        "name": "roots",
+        "type": "Object3D | readonly Object3D[]",
+        "desc": ""
+      },
+      {
+        "name": "ray",
+        "type": "Ray",
+        "desc": ""
+      },
+      {
+        "name": "skip",
+        "type": "(node: Object3D) => boolean",
+        "default": "() => false",
+        "desc": ""
+      }
+    ],
+    "returns": {
+      "type": "Intersection[]",
+      "desc": ""
+    },
+    "description": "The direction is made a unit vector at the door, so every `distance` is in world units whatever length the page gave it. Hidden subtrees are skipped — a root under a hidden ancestor too — and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
+  },
+  {
     "id": "readCameraWorld",
     "module": "packages/sdk-browser/src/camera/world.ts",
     "exports": ["readCameraWorld"],
@@ -29607,12 +30978,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toAnthropicTool()",
-    "signature": "toAnthropicTool(tool: WebGeometryTool): AnthropicToolDefinition",
-    "summary": "Converts a generic WebGeometry tool into Anthropic Tool Use format.",
+    "signature": "toAnthropicTool(tool: Trillion3dTool): AnthropicToolDefinition",
+    "summary": "Converts a generic Trillion3D tool into Anthropic Tool Use format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3dTool",
         "desc": ""
       }
     ],
@@ -29629,12 +31000,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toGeminiTool()",
-    "signature": "toGeminiTool(tool: WebGeometryTool): GeminiFunctionDeclaration",
-    "summary": "Converts a generic WebGeometry tool into Google Gemini Function Declaration format.",
+    "signature": "toGeminiTool(tool: Trillion3dTool): GeminiFunctionDeclaration",
+    "summary": "Converts a generic Trillion3D tool into Google Gemini Function Declaration format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3dTool",
         "desc": ""
       }
     ],
@@ -29651,12 +31022,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toMcpTool()",
-    "signature": "toMcpTool(tool: WebGeometryTool): McpToolDefinition",
-    "summary": "Converts a generic WebGeometry tool into Model Context Protocol (MCP) format.",
+    "signature": "toMcpTool(tool: Trillion3dTool): McpToolDefinition",
+    "summary": "Converts a generic Trillion3D tool into Model Context Protocol (MCP) format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3dTool",
         "desc": ""
       }
     ],
@@ -29673,12 +31044,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toOpenAiTool()",
-    "signature": "toOpenAiTool(tool: WebGeometryTool): OpenAiToolDefinition",
-    "summary": "Converts a generic WebGeometry tool into OpenAI Function Calling format.",
+    "signature": "toOpenAiTool(tool: Trillion3dTool): OpenAiToolDefinition",
+    "summary": "Converts a generic Trillion3D tool into OpenAI Function Calling format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3dTool",
         "desc": ""
       }
     ],

@@ -1,0 +1,1895 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "الإعدادات"
+    },
+    "menu": {
+      "play": "العب",
+      "resume": "تابع",
+      "restart": "ابدأ من جديد",
+      "controls": "الإعدادات",
+      "back": "رجوع",
+      "paused": "متوقف مؤقتًا",
+      "again": "انقر مرة أخرى لتتابع"
+    },
+    "keys": {
+      "Mouse": "الفأرة",
+      "Right button": "الزر الأيمن",
+      "Wheel": "العجلة",
+      "Shift": "Shift",
+      "Space": "مسافة",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "إطار/ث",
+      "FPS (held)": "إطار/ث (متوقف)",
+      "triangles": "مثلثات",
+      "triangles (scene)": "مثلثات (المشهد)",
+      "draw calls": "أوامر رسم",
+      "pages": "صفحات",
+      "geometry pool": "مخزن الأشكال",
+      "lights": "أضواء",
+      "GPU frame": "إطار GPU",
+      "CPU frame": "إطار CPU",
+      "page hooks": "شيفرة الصفحة",
+      "engine CPU": "CPU المحرك"
+    },
+    "failure": {
+      "title": "توقف هذا المثال بسبب خطأ"
+    },
+    "banner": {
+      "close": "إغلاق"
+    }
+  },
+  "a-city-from-rules": {
+    "banner": "اسحب لتطير حولها. حرّك منزلقًا فتُبنى المدينة من جديد.",
+    "controls": {
+      "blocks": "المربعات السكنية",
+      "maxHeight": "أقصى ارتفاع",
+      "density": "الكثافة",
+      "parks": "الحدائق",
+      "seed": "البذرة",
+      "hour": "الساعة",
+      "traffic": "حركة السير"
+    },
+    "readouts": {
+      "buildings": "المباني",
+      "parks": "الحدائق"
+    }
+  },
+  "a-cloud-of-points": {
+    "banner": "اسحب لتدور حول السحابة. اختر شكلًا آخر وشاهده يتغيّر.",
+    "controls": {
+      "shape": "الشكل",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "مجرة حلزونية",
+        "globular cluster": "عنقود كروي",
+        "ring nebula": "سديم حلقي",
+        "Lorenz attractor": "جاذب لورنز"
+      }
+    },
+    "readouts": {
+      "points": "النقاط",
+      "colourGroups": "مجموعات الألوان"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "banner": "اختر لونًا وشاهد الضوء ينقله من الداكن إلى الفاتح.",
+    "controls": {
+      "colour": "اللون",
+      "glow": "التوهج",
+      "exposure": "التعريض"
+    }
+  },
+  "a-field-of-pebbles": {
+    "banner": "اسحب لتنظر حولك. حرّك الشمس وشاهد ظلال الحصى.",
+    "controls": {
+      "sunTurn": "اتجاه الشمس",
+      "sunHeight": "ارتفاع الشمس",
+      "first": "الأول",
+      "last": "الأخير"
+    }
+  },
+  "a-first-world": {
+    "banner": "اسحب لتدور حول المكعّب. اختر له لونًا جديدًا.",
+    "controls": {
+      "colour": "اللون"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "banner": "اسحب لتحريك اللوحة. مرّر أو اقرص للتكبير. الأسهم للتنقل.",
+    "controls": {
+      "play": "العب",
+      "speed": "السرعة",
+      "follow": "تتبّع",
+      "replay": "أعد العرض"
+    },
+    "readouts": {
+      "move": "النقلة"
+    },
+    "words": {
+      "takes": "يأخذ"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "banner": "اسحب لتنظر حولك. أرجِح الفانوس وشاهد الضوء يتحرّك.",
+    "controls": {
+      "swing": "التأرجح",
+      "lamp": "المصباح",
+      "power": "القوة",
+      "glass": "الزجاج"
+    }
+  },
+  "a-lighthouse-beam": {
+    "banner": "اسحب لتنظر حولك. اجعل الشعاع يدور أسرع أو أعرض.",
+    "controls": {
+      "turnsPerMinute": "دورات في الدقيقة",
+      "beamWidth": "عرض الشعاع",
+      "colour": "اللون"
+    }
+  },
+  "a-long-shadowed-street": {
+    "banner": "اسحب لتنظر على طول الشارع. غيّر الساعة لتطول الظلال. العجلة للتقدم.",
+    "controls": {
+      "hour": "الساعة",
+      "traffic": "حركة السير",
+      "flyAgain": "طِر مرة أخرى"
+    },
+    "readouts": {
+      "sunHeight": "ارتفاع الشمس",
+      "shadow30MHouse": "ظل بيت ارتفاعه 30 م"
+    }
+  },
+  "a-matcap-sculpture": {
+    "banner": "اسحب لتمشي حول التمثال. ضوؤه يدور معك.",
+    "controls": {
+      "matcap": "Matcap",
+      "sculpture": "المنحوتة",
+      "gallery": "المعرض",
+      "turn": "دوران"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "طين أحمر",
+        "chrome": "كروم",
+        "gold": "ذهب",
+        "jade": "يشم",
+        "pearl": "لؤلؤ",
+        "obsidian": "سبج"
+      },
+      "sculpture": {
+        "knot": "عقدة",
+        "rings": "حلقات",
+        "vase": "مزهرية"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "banner": "اسحب لتدور حول الجواهر. كل واحدة مبنية نقطة نقطة. ألغِ الأوجه الحادة لتتشارك الزوايا.",
+    "controls": {
+      "points": "النقاط",
+      "waist": "الخصر",
+      "height": "الارتفاع",
+      "sharpFacets": "أوجه حادة",
+      "colour": "اللون",
+      "spin": "الدوران"
+    },
+    "readouts": {
+      "verticesWritten": "الرؤوس المكتوبة",
+      "triangles": "المثلثات"
+    }
+  },
+  "a-model-from-obj": {
+    "banner": "اسحب لتدور حول اللوحة. مرّر لتقترب.",
+    "controls": {
+      "view": "العرض",
+      "sunAngle": "زاوية الشمس",
+      "sunHeight": "ارتفاع الشمس",
+      "turn": "دوران"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "triangles": "مثلثات",
+        "clusters": "العناقيد",
+        "lod": "مستويات التفاصيل"
+      }
+    },
+    "words": {
+      "credit": "طقم شطرنج صُمّم لهذه الأمثلة، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "banner": "اسحب لتمشي حول الشطرنج. مرّر نزولًا إلى القطع.",
+    "controls": {
+      "view": "العرض",
+      "turn": "دوران"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "materials": "المواد",
+        "clusters": "العناقيد",
+        "triangles": "مثلثات"
+      }
+    },
+    "readouts": {
+      "source": "المصدر",
+      "boardWidth": "عرض الرقعة",
+      "partsPlaced": "القطع الموضوعة",
+      "triangles": "المثلثات"
+    },
+    "words": {
+      "credit": "طقم شطرنج صُمّم بالشيفرة لهذا المثال، CC0؛ الملف هو assets/examples/a-model-from-usdz/source/chess-set.usdz — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "banner": "اسحب لتدور حول الجزيء. اختر جزيئًا آخر وشاهد الذرّات تطير.",
+    "controls": {
+      "molecule": "الجزيء",
+      "style": "النمط",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "كرة باكي C60",
+        "carbon nanotube": "أنبوب كربون نانوي",
+        "diamond crystal": "بلورة ألماس",
+        "DNA double helix": "حلزون DNA المزدوج"
+      },
+      "style": {
+        "ball and stick": "كرات وعصي",
+        "space filling": "كرات ممتلئة",
+        "sticks": "عصي"
+      }
+    },
+    "readouts": {
+      "atoms": "الذرات",
+      "bonds": "الروابط"
+    }
+  },
+  "a-neon-sign": {
+    "banner": "اسحب لتنظر حولك. اجعل النيون يتوهّج ويومض.",
+    "controls": {
+      "star": "النجمة",
+      "wave": "الموجة",
+      "glow": "التوهج",
+      "pulse": "النبض",
+      "exposure": "التعريض",
+      "toneMapping": "تخطيط الألوان"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "محايد",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "خطي"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "banner": "اسحب لتنظر حولك. أضف مصابيح واجعلها تدور.",
+    "controls": {
+      "lamps": "المصابيح",
+      "speed": "السرعة",
+      "power": "القوة",
+      "shadows": "الظلال"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "banner": "اسحب لتنظر حولك. امزج المشي والتلويح والرقص.",
+    "controls": {
+      "walk": "المشي",
+      "wave": "الموجة",
+      "dance": "الرقص",
+      "speed": "السرعة",
+      "colour": "اللون",
+      "shadow": "الظل"
+    }
+  },
+  "a-scene-of-your-own": {
+    "banner": "اسحب لتنظر حولك. غيّر الساعة والريح والسقف.",
+    "controls": {
+      "hour": "الساعة",
+      "wind": "الريح",
+      "roof": "السقف"
+    }
+  },
+  "a-softbox-panel": {
+    "banner": "اسحب لتمشي حولها. كبّر لوح الضوء ليصير اللمعان أنعم.",
+    "controls": {
+      "panelWidth": "عرض اللوح",
+      "power": "القوة",
+      "colour": "اللون",
+      "swing": "التأرجح"
+    },
+    "readouts": {
+      "panel": "اللوح",
+      "radiance": "الإشعاع"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "banner": "اسحب لتنظر حولك. غيّر الدرجات فيُبنى الدرج من جديد.",
+    "controls": {
+      "climb": "الصعود",
+      "turnPerStep": "الدوران لكل درجة",
+      "lantern": "الفانوس"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "banner": "اسحب لتطير فوق الجبال. غيّر ساعة النهار.",
+    "controls": {
+      "hour": "الساعة",
+      "sunColour": "لون الشمس",
+      "exposure": "التعريض"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "banner": "اسحب لتنظر حولك. أدِر الصورة وكرّرها على الجدران. اللوح في الخلف هو البلاطة كما رُسمت.",
+    "controls": {
+      "tile": "البلاطة",
+      "wrap": "الحافة",
+      "tilesAcross": "عدد البلاطات عرضًا",
+      "turn": "دوران",
+      "slideAcross": "إزاحة عرضية",
+      "slideUp": "إزاحة لأعلى",
+      "flow": "الجريان"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "تكرار",
+        "mirror": "مرآة",
+        "clamp": "تثبيت"
+      },
+      "tile": {
+        "terracotta": "فخار",
+        "azulejo": "أزوليجو",
+        "jade": "يشم"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "البلاطات، الدوران"
+    },
+    "words": {
+      "up": "أعلى"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "banner": "اسحب لتنظر حولك. الخرزات تنزلق على طول الأنبوب.",
+    "controls": {
+      "path": "المسار",
+      "radius": "نصف القطر",
+      "sides": "الجوانب",
+      "slices": "الشرائح",
+      "speed": "السرعة",
+      "beads": "الخرز",
+      "paint": "الطلاء"
+    },
+    "choices": {
+      "path": {
+        "knot": "عقدة",
+        "coaster": "قطار الملاهي",
+        "spiral": "لولب"
+      }
+    },
+    "readouts": {
+      "triangles": "المثلثات"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "banner": "اسحب لتنظر حولك. غيّر عرض المزهرية وارتفاعها.",
+    "controls": {
+      "width": "العرض",
+      "height": "الارتفاع",
+      "gloss": "اللمعان",
+      "spin": "الدوران"
+    }
+  },
+  "a-video-on-a-screen": {
+    "banner": "اسحب لتنظر في الغرفة. الشاشة تعرض فيديو حقيقيًا.",
+    "controls": {
+      "playing": "يُعرض الآن",
+      "openVideo": "افتح فيديو"
+    },
+    "readouts": {
+      "playing": "يُعرض الآن",
+      "videoTime": "وقت الفيديو"
+    },
+    "words": {
+      "yourFile": "ملفك",
+      "testCard": "صورة اختبار"
+    }
+  },
+  "a-video-panorama": {
+    "banner": "اسحب لتنظر من حولك في كل اتجاه. افتح الفيديو الخاص بك إن أردت. المنظر يدور وحده حتى تضغط.",
+    "controls": {
+      "playing": "يُعرض الآن",
+      "fieldOfView": "مجال الرؤية",
+      "openVideo": "افتح فيديو"
+    },
+    "readouts": {
+      "playing": "يُعرض الآن"
+    },
+    "words": {
+      "yourFile": "ملفك",
+      "duskOverSea": "غروب فوق البحر"
+    }
+  },
+  "a-wall-of-cameras": {
+    "banner": "انقر على شاشة صغيرة لتظهر كبيرة. اختر ما تراقبه كل كاميرا.",
+    "controls": {
+      "watch": "المراقبة"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "دورية",
+        "car": "السيارة",
+        "balloon": "المنطاد"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "الكاميرات التي ترى السيارة"
+    },
+    "words": {
+      "cam": "كاميرا",
+      "northGate": "البوابة الشمالية",
+      "fountain": "النافورة",
+      "eastRoad": "الطريق الشرقي",
+      "clockTower": "برج الساعة",
+      "cafe": "المقهى",
+      "southCorner": "الزاوية الجنوبية",
+      "noSignal": "لا إشارة",
+      "patrol": "دورية",
+      "car": "تتبع السيارة",
+      "balloon": "تتبع المنطاد"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "banner": "اسحب لتنظر حولك. اجعل موجة المكعّبات أعلى أو أسرع.",
+    "controls": {
+      "height": "الارتفاع",
+      "speed": "السرعة",
+      "ripples": "التموجات",
+      "inner": "الداخل",
+      "outer": "الخارج"
+    }
+  },
+  "a-world-of-blocks": {
+    "banner": "اسحب لتطير حول الجزيرة. ارفع البحر ليغمر الوديان.",
+    "controls": {
+      "seed": "البذرة",
+      "seaLevel": "مستوى البحر",
+      "hour": "الساعة",
+      "clouds": "الغيوم"
+    },
+    "readouts": {
+      "facesDrawn": "الأوجه المرسومة"
+    }
+  },
+  "before-and-after-slider": {
+    "banner": "اسحب المقبض الدائري للمقارنة. اسحب الصورة لتدور.",
+    "controls": {
+      "before": "قبل"
+    },
+    "choices": {
+      "before": {
+        "clay": "طين",
+        "no shadows": "بلا ظلال",
+        "no sun": "بلا شمس",
+        "noon sun": "شمس الظهيرة"
+      }
+    },
+    "words": {
+      "clay": "طين",
+      "no shadows": "بلا ظلال",
+      "no sun": "بلا شمس",
+      "noon sun": "شمس الظهيرة",
+      "finished": "مكتمل"
+    }
+  },
+  "blobs-that-merge": {
+    "banner": "اسحب لتمشي حول المصباح. سخّنه فتذوب القطرات معًا.",
+    "controls": {
+      "stickiness": "اللزوجة",
+      "heat": "الحرارة",
+      "wax": "الشمع"
+    },
+    "readouts": {
+      "piecesWax": "قطع الشمع"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "banner": "اسحب لتنظر حولك. حرّك المصباح وشاهد نتوءات الطوب.",
+    "controls": {
+      "sweep": "المسح",
+      "lamp": "المصباح",
+      "colour": "اللون",
+      "bricks": "الطوب"
+    }
+  },
+  "click-to-pick": {
+    "banner": "انقر على شكل. يضيء، وتقول اللوحة أين أصبته.",
+    "readouts": {
+      "picked": "المختار",
+      "point": "النقطة",
+      "distance": "المسافة"
+    },
+    "words": {
+      "nothing": "لا شيء",
+      "box": "صندوق",
+      "sphere": "كرة",
+      "cone": "مخروط",
+      "torus": "طارة",
+      "cylinder": "أسطوانة",
+      "knot": "عقدة"
+    }
+  },
+  "colours-on-the-vertices": {
+    "banner": "اسحب لتدير الكوكب. لكل زاوية لونها الخاص.",
+    "controls": {
+      "palette": "لوحة الألوان",
+      "seaLevel": "مستوى البحر",
+      "relief": "التضاريس",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "palette": {
+        "earth": "أرض",
+        "lava": "حمم",
+        "ice": "جليد",
+        "candy": "حلوى"
+      }
+    }
+  },
+  "compressed-textures": {
+    "banner": "اسحب لتمشي حول النافورة. اقترب لترى التفاصيل تصل.",
+    "controls": {
+      "sunTurn": "اتجاه الشمس",
+      "sunHeight": "ارتفاع الشمس"
+    },
+    "readouts": {
+      "texturesBlocks": "الخامات في كتل",
+      "allFullDetail": "الكل بأعلى تفاصيل",
+      "poolFormat": "صيغة المخزن",
+      "tilesHeld": "البلاطات المحفوظة",
+      "heldGpu": "المحفوظ على GPU"
+    },
+    "words": {
+      "credit": "فناء وخامات رُسمت بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md",
+      "someOf": "{some} من {all}",
+      "notPlain": "{held} MiB بدل {plain}",
+      "notMeasured": "لم يُقس هنا"
+    }
+  },
+  "copies-along-a-path": {
+    "banner": "اسحب لتنظر في الحديقة. أضف نسخًا حتى تصنع نفقًا.",
+    "controls": {
+      "copies": "النسخ",
+      "twist": "الالتواء",
+      "speed": "السرعة",
+      "ride": "اركب"
+    },
+    "readouts": {
+      "archesPlaced": "الأقواس الموضوعة"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "banner": "اسحب لتنظر حولك. غيّر زاوية الكشّاف ولونه.",
+    "controls": {
+      "angle": "الزاوية",
+      "softness": "النعومة",
+      "colour": "اللون",
+      "power": "القوة"
+    },
+    "words": {
+      "credit": "نموذج صندوق من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "banner": "اسحب لتمشي حولها. شاهد القطع تظهر وتختفي طوال الوقت. العجلة لتقترب.",
+    "controls": {
+      "perSecond": "في الثانية",
+      "copies": "النسخ",
+      "burst": "دفعة",
+      "clearAll": "امسح الكل"
+    },
+    "choices": {
+      "copies": {
+        "share": "مشاركة الأشكال",
+        "fresh": "شكل جديد كل مرة"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "القطع الحية",
+      "created": "المصنوعة",
+      "disposed": "المحررة",
+      "gpuMemory": "ذاكرة GPU"
+    },
+    "words": {
+      "notMeasured": "لم يُقس"
+    }
+  },
+  "curved-surfaces": {
+    "banner": "اسحب لتمشي حولها. قلّل الشبكة لترى المثلثات في كل منحنى.",
+    "controls": {
+      "grid": "الشبكة",
+      "facets": "الأوجه",
+      "turntable": "القرص الدوار"
+    },
+    "readouts": {
+      "triangles": "المثلثات",
+      "facingYou": "المواجه لك"
+    },
+    "words": {
+      "Klein bottle": "قارورة كلاين",
+      "Möbius strip": "شريط موبيوس",
+      "Seashell": "صدفة",
+      "Dini's twist": "التواء ديني",
+      "Enneper saddle": "سرج إنبر"
+    }
+  },
+  "dashed-lines": {
+    "banner": "اسحب لتدور حول الشمس. غيّر الشَّرطات والفراغات.",
+    "controls": {
+      "lines": "الخطوط",
+      "dash": "الشرطة",
+      "gap": "الفراغ",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "متقطع",
+        "solid": "متصل"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "الشرطات على مدار الكوكب الأزرق"
+    }
+  },
+  "detail-by-pixel-error": {
+    "banner": "اسحب لتمشي في الشارع. اقترب من جرّة، ثم ابتعد.",
+    "controls": {
+      "pixelError": "خطأ البكسل",
+      "view": "العرض"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "lod": "مستويات التفاصيل",
+        "screen-error": "خطأ الشاشة",
+        "triangles": "مثلثات"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "المثلثات المرسومة",
+      "shareAvenue": "حصة الشارع",
+      "trianglesAvenue": "مثلثات الشارع"
+    },
+    "words": {
+      "credit": "شارع جرار صُمّم بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md",
+      "notCounted": "لم يُعد هنا"
+    }
+  },
+  "edges-and-wireframe": {
+    "banner": "اسحب لتنظر حولك. ارفع العتبة لتبقى الحواف الحادة فقط.",
+    "controls": {
+      "view": "العرض",
+      "threshold": "العتبة",
+      "lines": "الخطوط",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "السطح والحواف",
+        "edges": "الحواف",
+        "wireframe": "الإطار السلكي",
+        "surface and wireframe": "السطح والإطار السلكي",
+        "surface": "السطح"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "مقاطع الحواف",
+      "wireframeSegments": "مقاطع الإطار السلكي"
+    }
+  },
+  "every-image-format": {
+    "banner": "اسحب لتمشي بجانب حوامل الرسم. خفّض الجودة وانظر عن قرب.",
+    "controls": {
+      "quality": "الجودة",
+      "lookAt": "انظر إلى"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "الثمانية كلها",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "بكسلات خام"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "بكسلات خام"
+    },
+    "words": {
+      "samePicture": "512 × 512 · الصورة نفسها",
+      "lossless": "بلا فقد",
+      "lossy": "مع فقد",
+      "colours256": "256 لونًا",
+      "uncompressed": "غير مضغوط",
+      "shapes": "أشكال تُرسم عند التحميل",
+      "painted": "مرسوم في الصفحة",
+      "bytes": "بايتات في الذاكرة",
+      "inMemory": "{size} في الذاكرة · {note}",
+      "sentAs": "أُرسل بصيغة {type}"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "banner": "اسحب لتمشي حول المزولة. غيّر الساعة لتدور الظلال.",
+    "controls": {
+      "hour": "الساعة",
+      "darkness": "العتمة",
+      "timeLapse": "تسريع الزمن",
+      "motion": "الحركة"
+    },
+    "readouts": {
+      "shadowLength": "طول الظل"
+    },
+    "words": {
+      "timesHeight": "{times} × الارتفاع"
+    }
+  },
+  "fly-over-a-model-town": {
+    "banner": "طِر بالطائرة عبر الحلقات. ارفع الوقود لتقلع.",
+    "choices": {
+      "view": {
+        "cockpit": "قمرة القيادة",
+        "exterior": "من الخارج"
+      },
+      "mode": {
+        "arcade": "أركيد — تطير الطائرة نحو ما تصوّب عليه؛ لا انهيار، وتعتدل وحدها",
+        "expert": "خبير — الفأرة هي المقود؛ تنهار وتدخل في دوّامة"
+      },
+      "sensitivity": {
+        "Low": "منخفضة",
+        "Medium": "متوسطة",
+        "High": "عالية"
+      },
+      "invert": {
+        "off": "إيقاف",
+        "on": "تشغيل"
+      },
+      "sound": {
+        "on": "تشغيل",
+        "off": "إيقاف"
+      }
+    },
+    "game": {
+      "title": "طائرة مقاتلة",
+      "goal": "أقلع، ثم طِر في الوادي عبر الحلقات الذهبية العشر بأسرع ما يمكنك. صوّب بالفأرة: الطائرة تتبعها.",
+      "keys": {
+        "aim": "التصويب (أركيد) أو المقود (خبير)",
+        "fineAim": "تصويب دقيق (اضغط مطولًا)",
+        "throttle": "زيادة الدفع، تقليله",
+        "afterburner": "الحارق اللاحق (اضغط مطولًا)",
+        "roll": "الدحرجة (تتقدم على التصويب في أركيد)",
+        "rudder": "الدفة",
+        "airBrake": "مكبح هوائي (اضغط مطولًا)",
+        "lookAround": "انظر حولك (اضغط مطولًا)",
+        "view": "منظر القمرة أو من الخارج",
+        "zoom": "تكبير المنظر الخارجي",
+        "startOver": "ابدأ من الأول",
+        "pause": "إيقاف مؤقت"
+      },
+      "options": {
+        "view": "العرض",
+        "mode": "الوضع",
+        "sensitivity": "حساسية الفأرة",
+        "invert": "اعكس المحور Y",
+        "sound": "الصوت"
+      }
+    },
+    "words": {
+      "testMode": "وضع الاختبار — الفأرة غير مقفلة",
+      "rings": "الحلقات {passed}/{all}",
+      "complete": "اكتمل المسار",
+      "flyAgain": "{time} — R لتطير مرة أخرى",
+      "stall": "انهيار",
+      "pullUp": "ارتفع",
+      "turnBack": "عُد",
+      "crashed": "تحطمت",
+      "backToRunway": "العودة إلى المدرج…",
+      "backToRing": "العودة إلى آخر حلقة…",
+      "throttleUp": "W — زد الدفع (Z في AZERTY)",
+      "rolling": "الدرج على المدرج — {knots} عقدة",
+      "liftOff": "الفأرة لأعلى — أقلع"
+    }
+  },
+  "four-ways-to-blend": {
+    "banner": "اسحب لتنظر من الجانب. كل لوح يمزج الألوان بطريقته. من اليسار إلى اليمين: عادي، جمع، طرح، ضرب.",
+    "controls": {
+      "inks": "الأحبار",
+      "opacity": "العتامة",
+      "circle": "الدوران حولها"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "أحمر، أخضر، أزرق",
+        "cyan, magenta, yellow": "سماوي، أرجواني، أصفر",
+        "warm and cool": "دافئ وبارد"
+      }
+    }
+  },
+  "frame-the-model": {
+    "banner": "انقر مرتين على شيء لتقترب منه. اسحب لتدور. العجلة للتكبير.",
+    "controls": {
+      "model": "الشيء",
+      "margin": "الهامش",
+      "drift": "الانجراف"
+    },
+    "choices": {
+      "model": {
+        "everything": "كل شيء",
+        "the gold ring": "الخاتم الذهبي",
+        "the vase": "المزهرية",
+        "the king": "الملك",
+        "the arch": "القوس",
+        "the obelisk": "المسلة"
+      }
+    },
+    "readouts": {
+      "framing": "المؤطَّر",
+      "radius": "نصف القطر",
+      "distance": "المسافة"
+    },
+    "words": {
+      "the gold ring": "الخاتم الذهبي",
+      "the vase": "المزهرية",
+      "the king": "الملك",
+      "the arch": "القوس",
+      "the obelisk": "المسلة"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "banner": "مرّر لتكبّر من حبّة رمل إلى الكوكب كله. اسحب للدوران.",
+    "controls": {
+      "toTheGrain": "إلى حبة الرمل",
+      "toTheBeach": "إلى الشاطئ",
+      "toTheIsland": "إلى الجزيرة",
+      "toThePlanet": "إلى الكوكب"
+    },
+    "readouts": {
+      "viewWidth": "عرض المنظر",
+      "youSee": "ترى"
+    },
+    "words": {
+      "grains of sand": "حبات الرمل",
+      "sand and shells": "رمل وأصداف",
+      "pebbles": "حصى",
+      "the beach": "الشاطئ",
+      "the coast": "الساحل",
+      "the island": "الجزيرة",
+      "the planet": "الكوكب"
+    }
+  },
+  "from-clay-to-chrome": {
+    "banner": "اسحب لتنظر حولك. شاهد اللون نفسه طينًا ومعدنًا وكرومًا.",
+    "controls": {
+      "colour": "اللون",
+      "lamps": "المصابيح",
+      "swing": "التأرجح"
+    }
+  },
+  "from-noon-to-dusk": {
+    "banner": "اسحب لتنظر حولك. غيّر الساعة من الظهر إلى الليل.",
+    "controls": {
+      "speed": "السرعة",
+      "hour": "الساعة",
+      "adaptEyes": "تكيّف العينين"
+    }
+  },
+  "glass-on-the-table": {
+    "banner": "اسحب لتنظر حولك. غيّر طريقة انحناء الضوء في الزجاج.",
+    "controls": {
+      "refraction": "الانكسار",
+      "thickness": "السماكة",
+      "tint": "الصبغة",
+      "spin": "الدوران"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "banner": "اسحب لتمشي حولها. أطفئ المساعدات لترى الصورة وحدها.",
+    "controls": {
+      "helpers": "المساعدات",
+      "dolly": "حركة الكاميرا",
+      "bulb": "المصباح"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "كل شيء",
+        "lights and camera": "الأضواء والكاميرا",
+        "shapes and bounds": "الأشكال والحدود",
+        "nothing": "لا شيء"
+      }
+    },
+    "readouts": {
+      "helpersShown": "المساعدات الظاهرة"
+    }
+  },
+  "inside-a-panorama": {
+    "banner": "اسحب لتدور. مرّر لتقترب. اختر سماء أخرى.",
+    "controls": {
+      "sky": "السماء",
+      "fieldOfView": "مجال الرؤية"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "الفجر",
+        "noon": "الظهيرة",
+        "dusk": "الغسق"
+      }
+    },
+    "words": {
+      "credit": "بانورامات ترسمها هذه الصفحة بالشيفرة عند فتحها: لا يُنزَّل شيء."
+    }
+  },
+  "inside-the-g-buffer": {
+    "banner": "اسحب لتمشي حولها. اختر مخزنًا لتنظر داخل الصورة.",
+    "controls": {
+      "buffer": "المخزن المؤقت",
+      "turning": "الدوران"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "الصورة النهائية",
+        "albedo": "اللون الأساسي",
+        "normals": "الاتجاهات العمودية",
+        "depth": "العمق",
+        "triangle ids": "أرقام المثلثات",
+        "material ids": "أرقام المواد"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "كل بكسل يحمل"
+    },
+    "words": {
+      "beauty": "الصورة المضاءة",
+      "albedo": "اللون الأساسي قبل أي ضوء",
+      "normals": "اتجاه السطح كما تراه الكاميرا",
+      "depth": "المسافة: فاتح قريب، داكن بعيد",
+      "triangle ids": "أي مثلث يغطي البكسل",
+      "material ids": "أي مادة تلوّن البكسل",
+      "notOffered": "لا يقدمه هذا المُصيِّر"
+    }
+  },
+  "instances-in-colour": {
+    "banner": "اسحب لتميل المجرّة. مرّر لتغوص فيها.",
+    "controls": {
+      "count": "العدد",
+      "arms": "الأذرع",
+      "twist": "الالتواء",
+      "core": "اللب",
+      "rim": "الحافة",
+      "spin": "الدوران"
+    },
+    "readouts": {
+      "placementsDrawn": "النسخ المرسومة",
+      "materials": "المواد"
+    }
+  },
+  "keyframes-by-hand": {
+    "banner": "اسحب لتدور حول المكتب. شاهد المصباح يقفز من مفتاح إلى مفتاح. اعرض مفاتيح قفزة واحدة كنسخ باهتة من المصباح.",
+    "controls": {
+      "timing": "التوقيت",
+      "onionSkin": "قشرة البصل",
+      "speed": "السرعة"
+    },
+    "choices": {
+      "timing": {
+        "eased": "ناعم",
+        "linear": "خطي"
+      }
+    },
+    "readouts": {
+      "lastKey": "آخر مفتاح"
+    },
+    "words": {
+      "rest": "راحة",
+      "crouch": "انحناء",
+      "launch": "انطلاق",
+      "apex": "القمة",
+      "land": "هبوط",
+      "absorb": "امتصاص",
+      "look up": "انظر لأعلى",
+      "turn": "استدر",
+      "waking up": "يستيقظ"
+    }
+  },
+  "labels-that-follow": {
+    "banner": "اسحب لتدور حول الشمس. اللافتات تسير مع الكواكب. العجلة لتقترب.",
+    "controls": {
+      "show": "اعرض",
+      "speed": "السرعة",
+      "lineThemUp": "صُفّها"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "المسافة إلى الشمس",
+        "year": "السنة",
+        "moons": "الأقمار",
+        "names only": "الأسماء فقط"
+      }
+    },
+    "words": {
+      "Sun": "الشمس",
+      "Mercury": "عطارد",
+      "Venus": "الزهرة",
+      "Earth": "الأرض",
+      "Moon": "القمر",
+      "Mars": "المريخ",
+      "Jupiter": "المشتري",
+      "Saturn": "زحل",
+      "Uranus": "أورانوس",
+      "Neptune": "نبتون",
+      "fromEarth": "على بعد 384 400 كم من الأرض",
+      "ourStar": "نجمنا",
+      "au": "{au} و.ف",
+      "month": "شهر من 27 يومًا",
+      "year": "سنة من {days} يومًا",
+      "planets": "8 كواكب",
+      "earthsMoon": "قمر الأرض",
+      "oneMoon": "قمر واحد",
+      "moons": "{moons} أقمار"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "banner": "اسحب لتنظر حولك. حرّك العتبة وشاهد حواف الأوراق.",
+    "controls": {
+      "branches": "الأغصان",
+      "leaves": "الأوراق",
+      "cutoff": "عتبة القطع",
+      "sun": "الشمس"
+    }
+  },
+  "letters-carved-in-relief": {
+    "banner": "اسحب لتنظر حولك. مرّر الضوء فوق الحروف المنحوتة.",
+    "controls": {
+      "rake": "الميل",
+      "warm": "دافئ",
+      "cool": "بارد",
+      "letters": "الحروف"
+    }
+  },
+  "light-from-a-probe": {
+    "banner": "اسحب لتدور حول الحديقة. اختر مكانًا وشاهد ضوءه.",
+    "controls": {
+      "place": "المكان",
+      "turn": "دوران",
+      "strength": "الشدة",
+      "keyLight": "الضوء الرئيسي",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "صحراء عند الغروب",
+        "forest clearing": "فسحة في الغابة",
+        "neon alley": "زقاق النيون",
+        "snowfield": "حقل ثلج"
+      }
+    },
+    "readouts": {
+      "meanLight": "متوسط الضوء"
+    }
+  },
+  "light-in-real-units": {
+    "banner": "اسحب لتمشي في الساحة. اختر لحظة، من الظهر إلى ضوء القمر.",
+    "controls": {
+      "moment": "اللحظة",
+      "lampLumens": "لومن المصابيح",
+      "autoExposure": "تعريض تلقائي",
+      "exposureValue": "قيمة التعريض",
+      "turning": "الدوران"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "ظهيرة صافية",
+        "overcast": "غائم",
+        "golden hour": "الساعة الذهبية",
+        "sunset": "الغروب",
+        "blue hour": "الساعة الزرقاء",
+        "moonlit night": "ليلة مقمرة"
+      }
+    },
+    "readouts": {
+      "sun": "الشمس",
+      "sky": "السماء",
+      "eachLamp": "كل مصباح",
+      "exposureValue": "قيمة التعريض"
+    },
+    "words": {
+      "off": "مطفأ"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "banner": "اسحب لتنظر حولك. جاءت هذه المصابيح داخل ملف النموذج.",
+    "controls": {
+      "lamp": "المصباح",
+      "power": "القوة",
+      "colour": "اللون"
+    }
+  },
+  "lines-in-colour": {
+    "banner": "اسحب لتدور. اختر قاعدة أخرى وشاهد القلم يرسمها.",
+    "controls": {
+      "figure": "الشكل",
+      "palette": "لوحة الألوان",
+      "pace": "الإيقاع",
+      "redraw": "أعد الرسم",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "فراشة لورنز",
+        "Aizawa shell": "صدفة أيزاوا",
+        "Thomas knot": "عقدة توماس",
+        "Halvorsen propeller": "مروحة هالفورسن"
+      },
+      "palette": {
+        "aurora": "شفق قطبي",
+        "sunset": "الغروب",
+        "embers": "جمر",
+        "ice": "جليد"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "القطع الملونة"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "banner": "اسحب لتدور حول التمثال النصفي. حرّك المصباح حول رأسه.",
+    "controls": {
+      "lampTurn": "اتجاه المصباح",
+      "lampHeight": "ارتفاع المصباح",
+      "colour": "اللون",
+      "exposure": "التعريض",
+      "circle": "الدوران حولها"
+    },
+    "words": {
+      "credit": "Marble Bust 01 من Rico Cilliers، Poly Haven، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "banner": "اسحب لتنظر حولك. أعطِ ذاكرة أقل وشاهد ما يبقى واضحًا.",
+    "controls": {
+      "memory": "الذاكرة",
+      "view": "العرض"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "lod": "مستويات التفاصيل",
+        "clusters": "العناقيد"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01 من Rico Cilliers، Poly Haven، CC0؛ الصندوق من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "banner": "اسحب مقبضًا لتحريك الشيء أو تدويره أو تكبيره. اسحب بجانبه لتنظر حولك.",
+    "controls": {
+      "mode": "الوضع",
+      "axes": "المحاور",
+      "snap": "الالتقاط"
+    },
+    "choices": {
+      "mode": {
+        "translate": "تحريك",
+        "rotate": "تدوير",
+        "scale": "تحجيم"
+      },
+      "axes": {
+        "world": "العالم",
+        "local": "محلي"
+      }
+    },
+    "readouts": {
+      "position": "الموضع",
+      "drags": "مرات السحب"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "banner": "اسحب لتنظر حولك. يُظهر الرسم البياني الوقت بين صورة وأخرى.",
+    "controls": {
+      "turning": "الدوران",
+      "revealAgain": "اعرض مجددًا"
+    },
+    "readouts": {
+      "worstFrameBefore": "أسوأ إطار قبل",
+      "worstFrameAfter": "أسوأ إطار بعد"
+    },
+    "words": {
+      "note": "أربعة عشر سطحًا، لكل منها مادة أو إعداد مختلف، كلها في الإطار نفسه. يرسم البياني الوقت بين الإطارات؛ والخط الذهبي هو لحظة ظهورها.",
+      "measuring": "يقيس",
+      "hidden": "مخفية"
+    }
+  },
+  "normals-and-depth-seen": {
+    "banner": "اسحب لتمشي حولها. بدّل العرض لترى ما يحفظه المُصيِّر.",
+    "controls": {
+      "see": "انظر",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "see": {
+        "lit": "مضاء",
+        "normals": "الاتجاهات العمودية",
+        "depth": "العمق"
+      }
+    },
+    "readouts": {
+      "colourMeans": "معنى اللون"
+    },
+    "words": {
+      "lit": "الضوء والمادة",
+      "normals": "الاتجاه: يمين أحمر، أعلى أخضر، نحوك أزرق",
+      "depth": "المسافة: قريب أبيض، بعيد داكن"
+    }
+  },
+  "observatory-streamed": {
+    "banner": "اسحب لتنظر حولك. بدّل العرض لترى كيف قُطِّع النموذج.",
+    "controls": {
+      "view": "العرض",
+      "pixelError": "خطأ البكسل"
+    },
+    "choices": {
+      "view": {
+        "clusters": "العناقيد",
+        "beauty": "الصورة النهائية",
+        "pages": "صفحات",
+        "lod": "مستويات التفاصيل",
+        "triangles": "مثلثات"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "banner": "اسحب لتدور حول الملعب. اختر كيف تمرّ الموجة بين المشجعين.",
+    "controls": {
+      "pattern": "النقش",
+      "speed": "السرعة"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "موجة الملعب",
+        "ripple outwards": "موجة إلى الخارج",
+        "all at once": "الكل معًا"
+      }
+    },
+    "readouts": {
+      "clips": "المقاطع",
+      "fansPlayingIt": "المشجعون الذين يؤدونه"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "banner": "اسحب لتدور. اسحب بالزر الأيمن لتنقل. مرّر لتكبّر التروس.",
+    "controls": {
+      "view": "العرض",
+      "speed": "السرعة",
+      "brass": "النحاس الأصفر"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "ثلاثة أرباع",
+        "front": "أمامي",
+        "side": "جانبي",
+        "top": "علوي"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "banner": "اسحب لتنظر حولك. غيّر الطلاء والمربعات على الأشكال.",
+    "controls": {
+      "checks": "مربعات",
+      "paint": "الطلاء",
+      "second": "الثاني",
+      "spin": "الدوران"
+    }
+  },
+  "reading-pixels-back": {
+    "banner": "اسحب لتنظر حولك. الصورة الصغيرة هي المشهد مقروءًا أرقامًا.",
+    "controls": {
+      "sunHeight": "ارتفاع الشمس",
+      "live": "مباشر",
+      "turning": "الدوران",
+      "savePng": "احفظ PNG"
+    },
+    "readouts": {
+      "meanColour": "متوسط اللون",
+      "brightest": "الأسطع",
+      "readBack": "قُرئ في"
+    },
+    "words": {
+      "hover": "مرّر فوق الصورة لتقرأ بكسلًا",
+      "pixel": "البكسل {x}، {y}: {colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "banner": "اسحب لتدير رأسك في اللعبة. أوقفها لتنظر إلى المدينة الترفيهية.",
+    "controls": {
+      "ride": "اركب",
+      "loops": "الحلقات"
+    },
+    "readouts": {
+      "speed": "السرعة",
+      "gForce": "قوة G"
+    }
+  },
+  "save-the-scene": {
+    "banner": "أسقط البرج، ثم افتح المشهد المحفوظ من جديد.",
+    "controls": {
+      "knockDown": "أوقِع",
+      "save": "احفظ",
+      "open": "افتح"
+    },
+    "readouts": {
+      "saved": "المحفوظ"
+    },
+    "words": {
+      "bytes": "{bytes} بايت"
+    }
+  },
+  "scattered-on-a-surface": {
+    "banner": "اسحب لتدير الكوكب. دع الغابة تتسلّق الجبال.",
+    "controls": {
+      "trees": "الأشجار",
+      "rocks": "الصخور",
+      "steepest": "أشد انحدار",
+      "seaLevel": "مستوى البحر",
+      "spin": "الدوران"
+    },
+    "readouts": {
+      "treesPlanted": "الأشجار المزروعة",
+      "spotsRefused": "الأماكن المرفوضة"
+    }
+  },
+  "see-the-triangles": {
+    "banner": "مرّر للخارج وللداخل. من بعيد يحتاج التمثال مثلثات أقل وأكبر.",
+    "controls": {
+      "view": "العرض",
+      "pixelError": "خطأ البكسل",
+      "sideBySide": "جنبًا إلى جنب"
+    },
+    "choices": {
+      "view": {
+        "triangles": "مثلثات",
+        "clusters": "العناقيد",
+        "lod": "مستويات التفاصيل",
+        "pages": "صفحات",
+        "beauty": "الصورة النهائية"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "المثلثات المرسومة",
+      "pagesMemory": "الصفحات في الذاكرة"
+    },
+    "words": {
+      "credit": "Marble Bust 01 من Rico Cilliers، Poly Haven، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "banner": "اسحب مربعًا للتحديد. Shift يضيف وAlt يزيل. انتقل إلى استدر لتنظر حولك.",
+    "controls": {
+      "mouse": "الفأرة",
+      "selectAll": "حدد الكل",
+      "clear": "امسح"
+    },
+    "choices": {
+      "mouse": {
+        "select": "تحديد",
+        "turn": "استدر"
+      }
+    },
+    "readouts": {
+      "selected": "المحدد"
+    }
+  },
+  "several-views-one-page": {
+    "banner": "اسحب العرض الكبير لتدويره. مرّر واسحب العروض الصغيرة. هكذا تكبّر وتزيح؛ ونقرتان للإعادة.",
+    "controls": {
+      "explode": "التفكيك",
+      "windFrom": "الريح من",
+      "windSpeed": "سرعة الريح"
+    },
+    "readouts": {
+      "sailTurnsMinute": "دورات الأشرعة في الدقيقة"
+    },
+    "words": {
+      "perspective": "منظور",
+      "top": "علوي",
+      "front": "أمامي",
+      "side": "جانبي، من الشرق"
+    }
+  },
+  "shadows-from-the-sun": {
+    "banner": "اسحب لتمشي في الحديقة. غيّر الساعة لتدور الظلال.",
+    "controls": {
+      "hour": "الساعة",
+      "day": "اليوم",
+      "latitude": "خط العرض",
+      "sails": "الأشرعة"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "الانقلاب الصيفي",
+        "spring equinox": "الاعتدال الربيعي",
+        "winter solstice": "الانقلاب الشتوي"
+      }
+    },
+    "readouts": {
+      "sunHeight": "ارتفاع الشمس",
+      "sunBearing": "اتجاه الشمس",
+      "obeliskShadow": "ظل المسلة"
+    },
+    "words": {
+      "S": "ج",
+      "SW": "ج غ",
+      "W": "غ",
+      "NW": "ش غ",
+      "N": "ش",
+      "NE": "ش ق",
+      "E": "ق",
+      "SE": "ج ق",
+      "belowHorizon": "تحت الأفق",
+      "bearing": "{point} ({degrees}° من الشمال)"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "banner": "اسحب لتنظر حولك. اجعل العمق صفرًا لترى الشكل المسطّح.",
+    "controls": {
+      "depth": "العمق",
+      "bevel": "الشطف",
+      "bevelSize": "حجم الشطف",
+      "bevelSegments": "مقاطع الشطف",
+      "curveSegments": "مقاطع المنحنى",
+      "spin": "الدوران"
+    },
+    "readouts": {
+      "triangles": "المثلثات"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "banner": "اسحب لتنظر حولك. غيّر اللون والدوران.",
+    "controls": {
+      "colour": "اللون",
+      "speed": "السرعة",
+      "spin": "الدوران"
+    }
+  },
+  "side-by-side-stereo": {
+    "banner": "اسحب الصورة اليسرى لتدور. قرّب عينيك حتى تصير النقطتان واحدة.",
+    "controls": {
+      "viewing": "طريقة النظر",
+      "separation": "المسافة الفاصلة",
+      "speed": "السرعة"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "بعيون متقاطعة",
+        "parallel": "متوازية"
+      }
+    },
+    "words": {
+      "leftEye": "العين اليسرى",
+      "rightEye": "العين اليمنى"
+    }
+  },
+  "sky-and-ground-light": {
+    "banner": "اسحب لتنظر من الأسفل ومن الأعلى. اختر مكانًا لتغيّر سماءه.",
+    "controls": {
+      "place": "المكان",
+      "skyStrength": "شدة السماء",
+      "sun": "الشمس",
+      "float": "الطفو"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "مرج عند الظهيرة",
+        "snowfield": "حقل ثلج",
+        "red desert": "صحراء حمراء",
+        "sunset beach": "شاطئ عند الغروب",
+        "tropical lagoon": "بحيرة استوائية",
+        "overcast city": "مدينة غائمة"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "السماء من الأعلى",
+      "groundFromBelow": "الأرض من الأسفل"
+    }
+  },
+  "smooth-edges-over-time": {
+    "banner": "اسحب لتنظر إلى الأسلاك. أطفئ التنعيم وشاهد الدرجات.",
+    "controls": {
+      "smoothing": "التنعيم",
+      "circle": "الدوران حولها"
+    },
+    "readouts": {
+      "temporalAntialiasing": "تنعيم الحواف الزمني"
+    },
+    "words": {
+      "on": "مشغّل",
+      "off": "مطفأ"
+    }
+  },
+  "snow-of-sprites": {
+    "banner": "اسحب لتمشي حول الكوخ. حوّل الثلج إلى عاصفة ثلجية.",
+    "controls": {
+      "weather": "الطقس",
+      "wind": "الريح"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "ثلج منتظم",
+        "light flurry": "زخات خفيفة",
+        "blizzard": "عاصفة ثلجية"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "الندف المتساقطة"
+    }
+  },
+  "sound-made-visible": {
+    "banner": "انقر على المسرح لتسمع لحنًا. اسحب لتمشي حول المسرح: الأعمدة هي النغمات، واللآلئ هي الموجة نفسها.",
+    "controls": {
+      "layout": "الترتيب",
+      "height": "الارتفاع",
+      "playMelody": "شغّل اللحن",
+      "useMicrophone": "استعمل الميكروفون",
+      "silence": "صمت"
+    },
+    "choices": {
+      "layout": {
+        "ring": "حلقة",
+        "wall": "جدار",
+        "spiral": "لولب"
+      }
+    },
+    "words": {
+      "listening": "أستمع إلى الميكروفون: غنِّ، صفّر، صفّق",
+      "refused": "رُفض الميكروفون: يُعزف اللحن بدلًا منه",
+      "silence": "صمت. انقر على المسرح لتسمع اللحن مرة أخرى"
+    }
+  },
+  "spin-an-astrolabe": {
+    "banner": "اسحب لتدوّره في أي اتجاه، حتى مقلوبًا. مرّر للتكبير.",
+    "controls": {
+      "turning": "الدوران",
+      "sun": "الشمس"
+    }
+  },
+  "street-lamp-at-night": {
+    "banner": "اسحب لتنظر حولك. شغّل الليل وأضئ مصباح الشارع.",
+    "controls": {
+      "night": "الليل",
+      "bounce": "الارتداد",
+      "sun": "الشمس",
+      "lamp": "المصباح"
+    },
+    "words": {
+      "credit": "نموذج عمود إنارة من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "banner": "اسحب لتدور حول الكوكب. مرّر داخل حلقة الصخور.",
+    "controls": {
+      "view": "العرض",
+      "pixelError": "خطأ البكسل",
+      "drift": "الانجراف"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "clusters": "العناقيد",
+        "lod": "مستويات التفاصيل"
+      }
+    },
+    "readouts": {
+      "objectsScene": "الأشياء في المشهد",
+      "trianglesFile": "المثلثات في الملف",
+      "trianglesDrawn": "المثلثات المرسومة"
+    },
+    "words": {
+      "credit": "كوكب وأقمار صغيرة صُمّمت بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md",
+      "million": "{count} مليون",
+      "notCounted": "لم يُعد هنا"
+    }
+  },
+  "texture-filters-compared": {
+    "banner": "اسحب لتنظر على طول المسارات. كل مسار ينعّم الصورة بطريقته. من اليسار إلى اليمين: الأقرب، خطي، ثلاثي الخطية، متباين الاتجاه.",
+    "controls": {
+      "picture": "الصورة",
+      "anisotropy": "تباين الاتجاه"
+    },
+    "choices": {
+      "picture": {
+        "checker": "رقعة شطرنج",
+        "lettering": "كتابة"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "تباين اتجاه المسار الرابع"
+    }
+  },
+  "the-material-family": {
+    "banner": "اسحب لتمشي حولها. اجعل الضوء ليلًا وشاهد ما يزال يلمع.",
+    "controls": {
+      "light": "الضوء",
+      "shape": "الشكل",
+      "lookAt": "انظر إلى",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "العائلة كلها",
+        "all": "العائلة كلها",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "الساعة الذهبية",
+        "midday": "الظهيرة",
+        "night": "الليل"
+      },
+      "shape": {
+        "knot": "عقدة",
+        "sphere": "كرة",
+        "vase": "مزهرية",
+        "ring": "حلقة"
+      }
+    },
+    "readouts": {
+      "looking": "تنظر إلى",
+      "litByLamps": "مضاء بالمصابيح"
+    },
+    "words": {
+      "meshBasic": "لون مسطح واحد، أعمى عن كل مصباح",
+      "meshLambert": "مطفأ كالطباشير: ضوء منتشر بلا لمعان",
+      "meshPhong": "بلاستيك: بقعة لامعة حيث ترتد الشمس",
+      "meshStandard": "معدنية وخشونة، الخيار المعتاد",
+      "meshPhysical": "قياسي مع زجاج: الضوء يمر من خلاله",
+      "meshToon": "رسوم متحركة: الضوء في شريطين مسطحين",
+      "meshNormal": "اتجاه كل نقطة، كلون",
+      "meshMatcap": "مضاء بصورة كرة مضاءة، لا بمصابيح",
+      "allKinds": "الأنواع الثمانية كلها",
+      "yes": "نعم",
+      "no": "لا",
+      "fiveOfEight": "خمسة من ثمانية"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "banner": "اضغط الزر لتستخدم كاميرتك. اسحب لتنظر على طول الجدار.",
+    "controls": {
+      "useMyCamera": "استعمل كاميرتي",
+      "layout": "الترتيب",
+      "mirror": "مرآة"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "جدار فيديو",
+        "one per screen": "واحد لكل شاشة"
+      }
+    },
+    "readouts": {
+      "source": "المصدر"
+    },
+    "words": {
+      "noCamera": "لا كاميرا",
+      "yourCamera": "كاميرتك",
+      "refused": "رُفضت الكاميرا ({error})",
+      "paintedSignal": "إشارة مرسومة"
+    }
+  },
+  "toon-shading": {
+    "banner": "اسحب لتدور حول الجزيرة. بدّل التظليل إلى شرائط كرتونية.",
+    "controls": {
+      "shading": "التظليل",
+      "outlines": "الخطوط الخارجية",
+      "sun": "الشمس",
+      "wind": "الريح"
+    },
+    "choices": {
+      "shading": {
+        "toon": "كرتوني",
+        "matte": "مطفأ",
+        "physical": "فيزيائي"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "banner": "اسحب لتنظر حولك. شغّل المؤشر لتوجّه الطائرة المسيّرة.",
+    "controls": {
+      "turn": "دوران",
+      "turnSpeed": "سرعة الدوران",
+      "followPointer": "اتبع المؤشر"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "بثبات",
+        "at once": "دفعة واحدة",
+        "on a spring": "على نابض"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "الصحون المصوَّبة"
+    }
+  },
+  "two-lenses-one-scene": {
+    "banner": "اسحب لتدور حول البلدة. بدّل العدسة وشاهد الشوارع.",
+    "controls": {
+      "lens": "العدسة",
+      "fieldOfView": "مجال الرؤية",
+      "isometric": "متساوي القياس",
+      "drift": "الانجراف"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "منظوري",
+        "orthographic": "متعامد"
+      }
+    },
+    "readouts": {
+      "lens": "العدسة"
+    },
+    "words": {
+      "orthographic": "متعامد، بارتفاع {height} م",
+      "perspective": "منظوري {degrees}°"
+    }
+  },
+  "uvs-of-every-shape": {
+    "banner": "اسحب لتنظر حولك. حرف ورقم يسمّيان كل مربع.",
+    "controls": {
+      "pattern": "النقش",
+      "repeat": "التكرار",
+      "slide": "الإزاحة",
+      "spin": "الدوران"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "صورة اختبار",
+        "checks": "مربعات",
+        "arrows": "أسهم"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "banner": "اضغط العب، ثم اركض بالمفاتيح W A S D واقفز بالمسافة.",
+    "controls": {
+      "keys": "تحكم المحرك بالشخصية: زر العب في القائمة يقفل الفأرة للنظر، W A S D للجري (Z Q S D في AZERTY)، Shift للركض السريع، مسافة للقفز، Esc يحرر الفأرة. تضيف الصفحة R للجري من جديد، وM لكتم الصوت.",
+      "look": "النظر",
+      "runAgain": "اجرِ من جديد"
+    },
+    "game": {
+      "title": "باركور المعبد",
+      "goal": "اصل إلى الصنم الذهبي وأنت تجمع الكرات الخمس في الطريق. الحمم تعيدك إلى آخر نقطة تفتيش مضيئة.",
+      "keys": {
+        "run": "اجرِ",
+        "look": "النظر",
+        "sprint": "اركض بسرعة",
+        "jump": "اقفز",
+        "runAgain": "اجرِ من جديد",
+        "sound": "الصوت تشغيل أو إيقاف",
+        "pause": "إيقاف مؤقت"
+      }
+    },
+    "words": {
+      "checkpoint": "نقطة تفتيش",
+      "finished": "{taken} / {orbs} كرات · R للجري من جديد",
+      "muted": "M مكتوم",
+      "sound": "M صوت"
+    }
+  },
+  "waves-of-points": {
+    "banner": "اسحب لتدور حول الحقل. اختر نمطًا لتغيّر الأمواج.",
+    "controls": {
+      "pattern": "النقش",
+      "height": "الارتفاع",
+      "speed": "السرعة"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "أمواج المحيط",
+        "rain of stones": "مطر من الحجارة",
+        "interference": "تداخل",
+        "standing wave": "موجة واقفة",
+        "whirlpool": "دوامة"
+      }
+    },
+    "readouts": {
+      "points": "النقاط"
+    }
+  },
+  "what-hides-what": {
+    "banner": "اسحب لتنظر حولك. تخفي السياجات العقد الذهبية.",
+    "controls": {
+      "hedgeHeight": "ارتفاع السياج",
+      "view": "العرض",
+      "aboveOrInside": "فوق أو داخل"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "visibility": "الرؤية"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "العقد المذهبة",
+      "clustersTested": "العناقيد المختبرة",
+      "clustersHidden": "العناقيد المخفية",
+      "trianglesHidden": "المثلثات المخفية"
+    },
+    "words": {
+      "notCounted": "لم يُعد هنا"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "banner": "اضغط تكبير دولي وشاهد الأعمدة تتمدّد.",
+    "controls": {
+      "fieldOfView": "مجال الرؤية",
+      "dollyZoom": "تكبير دولي"
+    }
+  },
+  "openworld": {
+    "banner": "امشِ بالمفاتيح W A S D. اضغط E قرب سيارة أو طائرة لتركبها.",
+    "controls": {
+      "keys": "WASD للمشي · Shift للركض · مسافة للقفز · C للانحناء · E لركوب سيارة أو طائرة أو النزول منها",
+      "teleport": "انتقال",
+      "timeOfDay": "الوقت من اليوم",
+      "daySpeed": "سرعة اليوم",
+      "pause": "إيقاف مؤقت",
+      "rain": "مطر",
+      "geometryMB": "الهندسة ميغابايت",
+      "textureMB": "الخامات ميغابايت",
+      "view": "العرض"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "البث"
+    }
+  },
+  "shadows-case-by-case": {
+    "banner": "اختر حالة من اللوحة؛ في «free» اسحب لتنظر حولك.",
+    "controls": {
+      "case": "الحالة",
+      "caster": "مُلقي الظل"
+    },
+    "readouts": {
+      "Look for": "انتبه إلى"
+    }
+  }
+}

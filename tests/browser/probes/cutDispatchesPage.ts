@@ -31,7 +31,8 @@ import {
   ressourcesAvant,
 } from '../../../bench/oracles/browser/cut-dispatches.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
-import { commandes, mediane, scene } from './cutDispatchesScene.ts';
+import { commandes, scene } from './cutDispatchesScene.ts';
+import { median } from '../../kit/median.ts';
 import type { ExecuterParams, ExecuterResultat } from './cutDispatchesTypes.ts';
 
 // The frozen descent reads the camera's block under its old name: the shipped shader binds one
@@ -175,7 +176,7 @@ export async function executer({
     for (let ronde = 0; ronde < rondes; ronde++) releve.push(await lot(encode, tours));
     balayage.push({
       borneParNiveau: largeur,
-      ms: Number(mediane(releve.map((m) => m.total)).toFixed(4)),
+      ms: Number(median(releve.map((m) => m.total)).toFixed(4)),
       sortie: await relire(livre.output),
     });
   }

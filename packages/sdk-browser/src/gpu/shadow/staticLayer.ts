@@ -11,7 +11,7 @@ import { createCheckedShaderModule } from '../core/shaderModule.ts';
  * nothing moves pays neither its 64 MiB nor its pass.
  */
 /** Label of the pass that fills the static layer: timed with the Shadows stage. */
-export const SHADOW_LAYER_PASS = 'WG shadow static layer v1';
+export const SHADOW_LAYER_PASS = 'Trillion3D shadow static layer v1';
 
 const RESTORE_WGSL = `@group(0) @binding(0) var layer:texture_depth_2d;
 @vertex fn restore_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
@@ -26,7 +26,7 @@ const RESTORE_WGSL = `@group(0) @binding(0) var layer:texture_depth_2d;
 export async function createShadowStaticLayer(device: GPUDevice, poolSide: number) {
   const size = poolSide * SHADOW_PAGE;
   const texture = device.createTexture({
-    label: 'WG shadow static layer v1',
+    label: 'Trillion3D shadow static layer v1',
     size: [size, size, 1],
     format: 'depth32float',
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
@@ -40,7 +40,7 @@ export async function createShadowStaticLayer(device: GPUDevice, poolSide: numbe
     });
     const view = texture.createView();
     const restore = device.createRenderPipeline({
-      label: 'WG shadow page restore v1',
+      label: 'Trillion3D shadow page restore v1',
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       vertex: { module, entryPoint: 'restore_vs' },
       fragment: { module, entryPoint: 'restore_fs', targets: [] },

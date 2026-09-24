@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Edges and wireframe</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #12161f;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // Low-poly shapes, so their triangles are few enough to read one by one.
+      const t = 1.618;
+      const icosahedron = geometry.polyhedron(
+        [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1],
+        [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1],
+        0.75,
+      );
+      const vase = [[0, 0], [0.45, 0], [0.62, 0.4], [0.42, 0.95], [0.3, 1.2], [0.4, 1.45]];
+      const shapes = [
+        { shape: geometry.box(1.1, 1.1, 1.1, 2, 2, 2), colour: '#e0663c' },
+        { shape: icosahedron, colour: '#f2b134' },
+        { shape: geometry.torusKnot(0.5, 0.17, 72, 8), colour: '#2f8f83' },
+        { shape: geometry.cylinder(0.5, 0.6, 1.3, 12, 2), colour: '#3c6ee0' },
+        { shape: geometry.lathe(vase, 14), colour: '#a04ad0' },
+      ];
+
+      const world = createWorld('view', { controls: 'orbit' });
+      const stage = object.mesh(geometry.cylinder(5.4, 5.6, 0.3, 96), material.meshStandard({ color: '#232837', roughness: 0.6 }));
+      stage.position.y = -0.15;
+      world.scene.add(stage);
+
+      // Every shape three times over: its surface, its edges — the lines where two faces meet at
+      // more than the threshold angle — and its wireframe, every side of every triangle. The two
+      // line sets are geometry too, drawn two corners per segment.
+      const ink = material.line({ color: '#e8f1ff' });
+      const pieces = shapes.map(({ shape, colour }, index) => {
+        const holder = object.group();
+        const angle = (index / shapes.length) * Math.PI * 2;
+        shape.computeBoundingBox();
+        holder.position.set(Math.sin(angle) * 3.2, -shape.boundingBox.min.y + 0.02, Math.cos(angle) * 3.2);
+        const solid = object.mesh(shape, material.meshStandard({ color: colour, roughness: 0.45 }));
+        const edges = object.lineSegments(geometry.edges(shape, 20), ink);
+        const wire = object.lineSegments(geometry.wireframe(shape), ink);
+        // A hair larger than the surface, so the lines are never hidden inside it.
+        edges.scale.setScalar(1.004);
+        wire.scale.setScalar(1.004);
+        holder.add(solid, edges, wire);
+        world.scene.add(holder);
+        return { shape, holder, solid, edges, wire };
+      });
+
+      world.scene.add(light.directional({ intensity: 3, color: '#fff1dc', position: [5, 9, 6], castShadow: true }));
+      world.scene.add(light.point({ intensity: 30, color: '#6fa8ff', position: [-5, 3, -4], distance: 16 }));
+      world.scene.add(light.hemisphere({ color: '#9fb4e6', groundColor: '#2a221c', intensity: 0.5 }));
+      world.camera.position.set(0, 4.2, 8.4);
+      world.camera.lookAt(0, 0.4, 0);
+      world.controls.target.set(0, 0.4, 0);
+
+      let edgeCount = null;
+      const segments = (list) => list.reduce((sum, { geometry: lines }) => sum + lines.attributes.position.count / 2, 0);
+      const ui = controls({
+        view: ['surface and edges', 'edges', 'wireframe', 'surface and wireframe', 'surface'],
+        threshold: [1, 90, 20, 1],
+        lines: '#e8f1ff',
+        spin: true,
+      }, (values, key) => {
+        if (key === 'spin') return;
+        const view = values.view;
+        for (const piece of pieces) {
+          piece.solid.visible = view.startsWith('surface');
+          piece.edges.visible = view.endsWith('edges');
+          piece.wire.visible = view.endsWith('wireframe');
+          // The edges are rebuilt from the shape when the threshold moves.
+          if (key === 'threshold') piece.edges.geometry = geometry.edges(piece.shape, values.threshold);
+        }
+        ink.color.set(values.lines);
+        edgeCount?.(String(segments(pieces.map(({ edges }) => edges))));
+        world.invalidate();
+      }, world);
+      edgeCount = readout('edgeSegments');
+      edgeCount(String(segments(pieces.map(({ edges }) => edges))));
+      readout('wireframeSegments')(String(segments(pieces.map(({ wire }) => wire))));
+
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        time += delta;
+        pieces.forEach(({ holder }, index) => holder.rotation.set(0, time * 0.6 + index, 0));
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

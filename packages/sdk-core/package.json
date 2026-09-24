@@ -1,5 +1,5 @@
 {
-  "name": "@web-geometry/sdk-core",
+  "name": "@trillion3d/sdk-core",
   "version": "0.1.0",
   "type": "module",
   "private": true,

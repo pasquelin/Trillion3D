@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describe, printed } from '../site/examples/kit/controls.ts';
-import { labelOf, sceneTriangles, shadowLines, statLines } from '../site/examples/kit/stats.ts';
+import { labelOf } from '../site/examples/kit/words.ts';
+import {
+  sceneTriangles,
+  shadowLines,
+  statLines,
+  statsCorners,
+} from '../site/examples/kit/statsLines.ts';
+import { profileLines, profileWindow } from '../site/examples/kit/profile.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
   const press = () => {};
@@ -59,6 +66,7 @@ test('labels and printed values read as a person would write them', () => {
   assert.equal(printed(0.5, 0.01), '0.50');
   assert.equal(printed(400, 10), '400');
   assert.equal(printed(3, 1), '3');
+  assert.equal(printed(16.25, 0.25), '16.25');
 });
 
 test('the stats corner shows only what was measured, and never a dash or a zero', () => {
@@ -85,10 +93,12 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
   assert.deepEqual(
     statLines({ ...unmeasured, fps: 60, held: true, selectedTriangles: null, sceneTriangles: 12 }),
     [
-      ['FPS', '60 held'],
+      ['FPS (held)', '60'],
       ['triangles (scene)', '12'],
     ],
   );
+  // A frame that measured no triangle at all shows none: never the scene's count in its place.
+  assert.deepEqual(statLines({ ...unmeasured, selectedTriangles: 0, sceneTriangles: 12 }), []);
 });
 
 test('a shadow counter shows under the name the engine publishes, zero included, and only when measured', () => {
@@ -109,17 +119,47 @@ test('a shadow counter shows under the name the engine publishes, zero included,
       ['Shadows updated', '2'],
     ],
   );
-  assert.deepEqual(
-    statLines({ fps: null, held: false, sceneTriangles: null, shadowLightCuts: 0 }),
-    [['Shadow light cuts', '0']],
-  );
+  // The frame's other counters ride along in the sample, as the corner spreads the metrics.
+  const sample = { fps: null, held: false, sceneTriangles: null, shadowLightCuts: 0 };
+  assert.deepEqual(statLines(sample), [['Shadow light cuts', '0']]);
 });
 
-test('the scene count reads indexed and plain geometries of the visible nodes', () => {
+test('the stats corner sits at the bottom left or, moved, at the top left', () => {
+  assert.equal(statsCorners['bottom-left'], 'bottom-3 start-3');
+  assert.equal(statsCorners['top-left'], 'top-3 start-3');
+});
+
+test('the scene count reads indexed and plain geometries of the visible meshes, not points or lines', () => {
   const nodes = [
     { geometry: { index: { count: 36 } } },
     { geometry: { attributes: { position: { count: 9 } } } },
+    { primitive: 'points', geometry: { attributes: { position: { count: 300 } } } },
     {},
   ];
   assert.equal(sceneTriangles({ traverseVisible: (visit) => nodes.forEach(visit) }), 15);
+});
+
+test('the profile ranks the engine steps by p95, leaves the sums out, and shows only what was measured', () => {
+  const step = (p50: number, p95: number) => ({ p50, p95 });
+  const latest = profileWindow([4, 2, 3, 10], [], {
+    steps: {
+      totalMs: step(3, 5),
+      encodeSubmitMs: step(2, 4),
+      worldMs: step(0.5, 1),
+      lightsMs: step(0.2, 2),
+      tilesPumpMs: step(NaN, NaN),
+    },
+  });
+  assert.deepEqual(latest.frameMs, { p50: 4, p95: 10 });
+  assert.equal(latest.hooksMs, null);
+  assert.deepEqual(
+    latest.steps.map(({ name }) => name),
+    ['lightsMs', 'worldMs'],
+  );
+  assert.deepEqual(profileLines(latest), [
+    ['CPU frame', '4.00 / 10.00 ms'],
+    ['engine CPU', '3.00 / 5.00 ms'],
+    ['lights', '0.20 / 2.00 ms'],
+    ['world', '0.50 / 1.00 ms'],
+  ]);
 });

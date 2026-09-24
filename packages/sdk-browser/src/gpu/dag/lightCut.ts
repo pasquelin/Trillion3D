@@ -46,26 +46,26 @@ export function createDagLightCut(resources: DagResources) {
     return buffer;
   };
   const flags = own({
-    label: 'WG light cut flags',
+    label: 'Trillion3D light cut flags',
     size: (queueCap * LEVEL_QUEUES + pageCount * 4) * 4,
     usage: storage,
   });
   const work = own({
-    label: 'WG light cut work',
+    label: 'Trillion3D light cut work',
     size: layout.words * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
   // One row of per-primitive planes per view; the root and stretch words the kernel reads sit in
   // the first row, as the camera's frames hold them.
   const frames = own({
-    label: 'WG light cut frames',
+    label: 'Trillion3D light cut frames',
     size: capacity * worldCount * FRAME_VEC4 * 16,
     usage: storage,
   });
   device.queue.writeBuffer(frames, 0, resources.frameData);
   let frameWrites = resources.frameWrites.count;
   const output = own({
-    label: 'WG light cut output',
+    label: 'Trillion3D light cut output',
     size: readbackBytes,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A model from OBJ</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #231d24;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #e6d6c4;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p data-words="credit"></p>
+    <script type="module">
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls, opening, ease, circling } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#231d24');
+      // A late-afternoon sun through a window rakes the board and draws every piece's shadow; a cool
+      // rim from behind and the room's soft light keep the black pieces from going flat black. The
+      // lights are in the scene before the model arrives, the sun already in its place.
+      const sunAt = (degrees, height) => {
+        const turn = (degrees * Math.PI) / 180;
+        return [Math.cos(turn) * 3, height, Math.sin(turn) * 3];
+      };
+      const sun = light.directional({
+        color: '#ffc58a',
+        intensity: 3.4,
+        position: sunAt(30, 2.4),
+        castShadow: true,
+      });
+      world.scene.add(
+        sun,
+        light.directional({ intensity: 1.1, color: '#9fb6ff', position: [-3, 2, -4] }),
+        light.hemisphere({ color: '#fff1e0', groundColor: '#4a3426', intensity: 0.6 }),
+      );
+
+      // The model was written as a plain OBJ file — `v` positions, `vn` a smooth normal per vertex,
+      // `f` triangles, an `o` per piece and a `usemtl` per material from its `.mtl` — then compiled
+      // once by the repository's compiler: the OBJ became clusters, and the engine streams the ones
+      // the view needs. Everything in the picture comes from that one file; the page adds the light.
+      await world.scene.load('../assets/examples/a-model-from-obj/cache/native/full/manifest.json');
+      // The pieces stand five to ten centimetres tall: the near plane comes in to half a centimetre
+      // so the camera can lean down among them without clipping them.
+      world.camera.near = 0.005;
+      world.camera.far = 20;
+
+      // `clusters` and `triangles` show what the compiler cut the OBJ into, `lod` which level of
+      // detail each cluster is drawn at.
+      controls(
+        {
+          view: ['beauty', 'triangles', 'clusters', 'lod'],
+          sunAngle: [-180, 180, 30, 1],
+          sunHeight: [0.6, 5, 2.4],
+          turn: () => tour.gliding || turn.restart(),
+        },
+        (values) => {
+          world.diagnostic.mode = values.view;
+          sun.position.set(...sunAt(values.sunAngle, values.sunHeight));
+          world.invalidate();
+        },
+        world,
+      );
+
+      // The opening: the whole board first, from above white's side; then the eye comes down behind
+      // the white pawns to the height of the pieces, rises again over the game and circles the
+      // table slowly. A press or a wheel hands the camera back; the Turn button starts the turn again.
+      const OVER = { eye: [0.3, 0.4, 0.5], look: [0, 0, 0] };
+      const LOW = { eye: [0.07, 0.05, 0.3], look: [0, 0.035, 0.02] };
+      const PATH = [
+        [OVER, 1.2],
+        [LOW, 4],
+        [LOW, 1.5],
+        [OVER, 4],
+      ];
+      world.controls.minDistance = 0.08;
+      world.controls.maxDistance = 2.2;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      // Once the tour lands, the camera circles the table; the Turn button circles it again.
+      const turn = circling(world, 0.15);
+      turn.stop();
+      // Each leg eases from where the one before it stopped. While it glides, Turn waits for it:
+      // the circling starts where the tour lands.
+      const tour = opening(world, (time) => {
+        let from = OVER;
+        for (const [to, seconds] of PATH) {
+          if (time < seconds) {
+            const t = ease.smooth(time / seconds), at = (a, b) => a.map((value, axis) => value + (b[axis] - value) * t);
+            world.camera.position.set(...at(from.eye, to.eye));
+            world.controls.target.set(...at(from.look, to.look));
+            return true;
+          }
+          [from, time] = [to, time - seconds];
+        }
+        world.camera.position.set(...from.eye);
+        world.controls.target.set(...from.look);
+        turn.restart();
+        return false;
+      });
+    </script>
+  </body>
+</html>

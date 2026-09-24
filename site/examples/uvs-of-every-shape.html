@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>UVs of every shape</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, texture, math, side, wrap } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // A test card drawn on a canvas: u runs left to right, v bottom to top. Each of the 8 × 8
+      // cells is named by a letter (u) and a digit (v), so a shape shows where each part of the
+      // picture lands on it — and where it is stretched, squeezed or cut by a seam.
+      const card = document.createElement('canvas');
+      card.width = card.height = 512;
+      const pen = card.getContext('2d');
+      const patterns = {
+        'test card'() {
+          for (let y = 0; y < 8; y++)
+            for (let x = 0; x < 8; x++) {
+              pen.fillStyle = `hsl(${x * 45}, 70%, ${(x + y) % 2 ? 42 : 58}%)`;
+              pen.fillRect(x * 64, y * 64, 64, 64);
+              pen.fillStyle = '#ffffff';
+              pen.font = 'bold 26px system-ui';
+              pen.textAlign = 'center';
+              pen.textBaseline = 'middle';
+              pen.fillText(`${'ABCDEFGH'[x]}${8 - y}`, x * 64 + 32, y * 64 + 34);
+            }
+        },
+        checks() {
+          for (let y = 0; y < 8; y++)
+            for (let x = 0; x < 8; x++) {
+              pen.fillStyle = (x + y) % 2 ? '#1d2233' : '#f2efe6';
+              pen.fillRect(x * 64, y * 64, 64, 64);
+            }
+        },
+        arrows() {
+          // Arrows pointing up the v direction, tinted by u: the way the picture is turned shows.
+          pen.fillStyle = '#20263a';
+          pen.fillRect(0, 0, 512, 512);
+          for (let y = 0; y < 4; y++)
+            for (let x = 0; x < 4; x++) {
+              pen.fillStyle = `hsl(${x * 90 + 20}, 80%, 60%)`;
+              pen.beginPath();
+              const [cx, cy] = [x * 128 + 64, y * 128 + 64];
+              pen.moveTo(cx, cy - 48);
+              pen.lineTo(cx + 40, cy);
+              pen.lineTo(cx + 16, cy);
+              pen.lineTo(cx + 16, cy + 48);
+              pen.lineTo(cx - 16, cy + 48);
+              pen.lineTo(cx - 16, cy);
+              pen.lineTo(cx - 40, cy);
+              pen.fill();
+            }
+        },
+      };
+      const picture = texture.canvas(card);
+      picture.wrap = wrap.repeat;
+      picture.anisotropy = 8;
+      const matter = material.meshStandard({ map: picture, roughness: 0.55, side: side.double });
+
+      // Every built-in shape, with the UVs it is born with.
+      const star = math.shape();
+      for (let k = 0; k <= 10; k++) {
+        const angle = (k / 10) * Math.PI * 2 + Math.PI / 2, r = k % 2 ? 0.28 : 0.62;
+        star[k ? 'lineTo' : 'moveTo'](Math.cos(angle) * r, Math.sin(angle) * r);
+      }
+      const vase = [[0, 0], [0.35, 0], [0.5, 0.35], [0.3, 0.8], [0.22, 1], [0.3, 1.15]];
+      const icosahedron = [0, 1, 1.618, 0, -1, 1.618, 0, 1, -1.618, 0, -1, -1.618, 1, 1.618, 0, -1, 1.618, 0, 1, -1.618, 0, -1, -1.618, 0, 1.618, 0, 1, -1.618, 0, 1, 1.618, 0, -1, -1.618, 0, -1];
+      const faces = [0, 1, 8, 0, 8, 4, 0, 4, 5, 0, 5, 9, 0, 9, 1, 1, 9, 7, 1, 7, 6, 1, 6, 8, 8, 6, 10, 8, 10, 4, 4, 10, 2, 4, 2, 5, 5, 2, 11, 5, 11, 9, 9, 11, 7, 7, 11, 3, 7, 3, 6, 6, 3, 10, 10, 3, 2, 2, 3, 11];
+      const shapes = [
+        geometry.box(1, 1, 1),
+        geometry.sphere(0.6, 64, 32),
+        geometry.cylinder(0.45, 0.45, 1.1, 48),
+        geometry.cone(0.55, 1.1, 48),
+        geometry.torus(0.42, 0.18, 32, 96),
+        geometry.torusKnot(0.36, 0.12, 192, 24),
+        geometry.capsule(0.35, 0.5, 12, 32),
+        geometry.lathe(vase, 64),
+        geometry.polyhedron(icosahedron, faces, 0.6, 1),
+        geometry.extrude(star, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 3 }),
+        geometry.plane(1.1, 1.1),
+        geometry.ring(0.25, 0.6, 64, 4),
+      ];
+      const world = createWorld('view', { controls: 'orbit' });
+      const floor = object.mesh(geometry.box(12, 0.2, 9), material.meshStandard({ color: '#2a2f3a', roughness: 0.8 }));
+      floor.position.y = -0.1;
+      world.scene.add(floor);
+      const meshes = shapes.map((shape, index) => {
+        const mesh = object.mesh(shape, matter);
+        // Each shape stands on the floor: lifted by how far it reaches below its own centre.
+        shape.computeBoundingBox();
+        mesh.position.set(((index % 4) - 1.5) * 2.2, -shape.boundingBox.min.y, (Math.floor(index / 4) - 1) * 2.2);
+        world.scene.add(mesh);
+        return mesh;
+      });
+
+      world.scene.add(light.directional({ intensity: 3, color: '#fff2e0', position: [5, 9, 6], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#b7c8ff', groundColor: '#3a2d22', intensity: 0.9 }));
+      world.camera.position.set(0, 5.6, 7.4);
+      world.camera.lookAt(0, 0.4, 0.3);
+      world.controls.target.set(0, 0.4, 0.3);
+
+      // The picture changes on a control only: a new drawing, or how many times it repeats.
+      const ui = controls({
+        pattern: Object.keys(patterns),
+        repeat: [1, 4, 1, 1],
+        slide: [0, 1, 0],
+        spin: true,
+      }, (values, key) => {
+        // The picture is drawn again only when it changes; repeat and offset are read as they are.
+        if (key === undefined || key === 'pattern') {
+          patterns[values.pattern]();
+          picture.needsUpdate = true;
+        }
+        picture.repeat.set(values.repeat, values.repeat);
+        picture.offset.set(values.slide, 0);
+        world.invalidate();
+      }, world);
+
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        time += delta;
+        meshes.forEach((mesh, index) => mesh.rotation.y = time * 0.5 + index * 0.4);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

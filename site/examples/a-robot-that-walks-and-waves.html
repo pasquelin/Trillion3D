@@ -94,10 +94,11 @@
         world.scene.add(band);
       }
       const spot = light.spot({ color: '#fff4e0', intensity: 400, distance: 20, angle: 0.62, penumbra: 0.5, castShadow: true, position: [0, 10, 3] });
-      world.scene.add(spot, light.directional({ intensity: 0.8, color: '#8fb4ff', position: [-5, 6, -4] }), light.ambient({ intensity: 0.3, color: '#8fb4ff' }));
+      world.scene.add(spot, light.directional({ intensity: 0.8, color: '#8fb4ff', position: [-5, 6, -4] }), light.hemisphere({ intensity: 1.4, color: '#c8dcff', groundColor: '#6b5a48' }));
       world.camera.position.set(0, 2.9, 6.8);
       world.camera.lookAt(0, 1.3, 0);
       world.controls.target.set(0, 1.3, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       // `shadow`: the spot's shadow of the moving robot over the still stage — the corner counts
       // what it redraws each frame; `needsUpdate` tells the world the light changed.

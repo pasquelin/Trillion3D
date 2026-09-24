@@ -31,7 +31,7 @@
       }
       p {
         position: absolute;
-        bottom: 0;
+        top: 0;
         margin: 0.5rem;
         color: #cbd5e1;
         font: 12px system-ui;
@@ -41,10 +41,10 @@
   <body>
     <canvas id="view"></canvas>
     <canvas id="beauty"></canvas>
-    <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, language } from '../runtime/kit.js';
 
       const lit = (world) => {
         world.scene.add(light.directional({ intensity: 3.5, color: '#ffeedd', position: [12, 14, 8], castShadow: true }));
@@ -70,7 +70,6 @@
       // `world.pixelError` is how many pixels a coarser version may be off before a finer one
       // is drawn: 0 draws the exact triangles, more draws fewer and bigger ones.
       controls({
-        mouse: 'Scroll out and in: far away the bust needs fewer, bigger triangles',
         view: ['triangles', 'clusters', 'lod', 'pages', 'beauty'],
         pixelError: [0, 16, 0, 0.5],
         sideBySide: false,
@@ -82,9 +81,9 @@
         if (beauty) beauty.pixelError = values.pixelError;
         world.invalidate();
       }, world);
-      const triangles = readout('Triangles drawn'), pages = readout('Pages in memory');
+      const triangles = readout('trianglesDrawn'), pages = readout('pagesMemory');
       world.onFrame(({ metrics }) => {
-        triangles(metrics.selectedTriangles?.toLocaleString('en') ?? '?');
+        triangles(metrics.selectedTriangles?.toLocaleString(language()) ?? '?');
         pages(String(metrics.residentPages ?? '?'));
         if (!beauty) return;
         beauty.camera.position.copy(world.camera.position);

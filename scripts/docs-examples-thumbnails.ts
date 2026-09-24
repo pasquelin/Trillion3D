@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { openExample, RENDER_ONLY, thumbnailDelay } from './docs/examples/capture.ts';
-import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
+import { readyEntries } from '../site/app/examples/list.ts';
 
 /**
  * Captures every example at the moment it declares (`thumbnailDelay`), one size for all, into
@@ -13,7 +13,7 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 const site = resolve(import.meta.dirname, '../site'),
   out = resolve(site, 'assets/examples/thumbnails'),
   only = process.argv[2],
-  entries = roadmap.entries.filter(({ id, file }) => file && (!only || id === only));
+  entries = readyEntries.filter(({ id }) => !only || id === only);
 await mkdir(out, { recursive: true });
 const { server, port } = await startDocsServer();
 const browser = await launchChrome({ headless: true });

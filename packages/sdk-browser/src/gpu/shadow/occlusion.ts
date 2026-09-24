@@ -35,17 +35,17 @@ export interface ShadowOcclusionInputs {
 export async function createShadowOcclusion(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const visible = device.createBuffer({
-      label: 'WG shadow visible casters v1',
+      label: 'Trillion3D shadow visible casters v1',
       size: Math.max(4, MAX_SHADOW_REGIONS * capacity * 4),
       usage: GPUBufferUsage.STORAGE,
     }),
     visibleIndirect = device.createBuffer({
-      label: 'WG shadow visible indirect v1',
+      label: 'Trillion3D shadow visible indirect v1',
       size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
       usage: GPUBufferUsage.INDIRECT | storage,
     }),
     slots = device.createBuffer({
-      label: 'WG shadow page pyramid slots v1',
+      label: 'Trillion3D shadow page pyramid slots v1',
       size: MAX_SHADOW_REGIONS * 16,
       usage: storage | GPUBufferUsage.COPY_SRC,
     }),
@@ -114,7 +114,7 @@ export async function createShadowOcclusion(device: GPUDevice, capacity: number)
       uni[0] = regions;
       uni[1] = capacity;
       device.queue.writeBuffer(uniform, 0, uni);
-      const pass = encoder.beginComputePass({ label: 'WG shadow occlusion' });
+      const pass = encoder.beginComputePass({ label: 'Trillion3D shadow occlusion' });
       pass.setBindGroup(0, group);
       pass.setPipeline(pipeline);
       pass.dispatchWorkgroups(Math.max(1, Math.ceil(Math.min(rows, capacity) / 64)), regions);

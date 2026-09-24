@@ -1,4 +1,4 @@
-import type { CameraPose, World, WorldOptions } from 'web-geometry';
+import type { CameraPose, World, WorldOptions } from 'trillion3d';
 
 export type PublicBrowserTypes = {
   world: World;

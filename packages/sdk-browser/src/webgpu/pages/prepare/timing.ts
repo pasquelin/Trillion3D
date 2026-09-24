@@ -1,7 +1,6 @@
 import { createGpuTiming } from '../../../gpu/timing/timing.ts';
 import { addGpuPasses, bounceGpuMs, directLightTimings } from '../../../stage/mapping.ts';
 import { PAGES_RING } from '../state/lights.ts';
-import { markWebgpuLost } from '../io/lost.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
@@ -68,16 +67,4 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
     stats: timingStats,
   });
-}
-
-/** Marks the backend lost on an uncaptured error or a lost device; `markWebgpuLost` announces it once. */
-export function watchGpuDevice(
-  rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
-  onGpuError: (event: GPUUncapturedErrorEvent) => void,
-) {
-  gpuDevice.addEventListener?.('uncapturederror', onGpuError);
-  gpuDevice.lost
-    .then((info) => markWebgpuLost(rt, { reason: info.reason, message: info.message }))
-    .catch((error) => markWebgpuLost(rt, { reason: 'unknown', message: String(error) }));
 }

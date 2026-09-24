@@ -97,7 +97,7 @@ export async function createShadowLightCull(device: GPUDevice, targets: CullTarg
       argData[1] = regions;
       device.queue.writeBuffer(args, 0, argData);
       encoder.copyBufferToBuffer(log.work, log.groupsWord * 4, args, 0, 4);
-      const pass = encoder.beginComputePass({ label: 'WG shadow cull' });
+      const pass = encoder.beginComputePass({ label: 'Trillion3D shadow cull' });
       from.refreshRows(pass);
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, group);

@@ -33,13 +33,24 @@ const panels = new Set<HTMLElement>();
 // A page, not a test importing the kit in Node, has messages to hear.
 globalThis.addEventListener?.('message', (event) => {
   const data = event.data as { type?: unknown; visible?: unknown } | null;
-  if (event.source !== parent || data?.type !== 'wg:controls') return;
+  if (event.source !== parent || data?.type !== 'trillion3d:controls') return;
   visible = Boolean(data.visible);
   for (const panel of panels) panel.hidden = !visible;
 });
+
+/** Whether a game's menu owns the frame: its panels then start folded, one click away. */
+let folded = false;
 
 /** Puts `panel` under the page's show/hide message, in its current state. */
 export function hideable(panel: HTMLElement) {
   panels.add(panel);
   panel.hidden = !visible;
+  if (folded) panel.removeAttribute('open');
+}
+
+/** Folds every panel, and every panel still to come, down to its title: a game's menu and its
+ * play keep the frame to themselves, the settings one click away. */
+export function foldPanels() {
+  folded = true;
+  for (const panel of panels) panel.removeAttribute('open');
 }

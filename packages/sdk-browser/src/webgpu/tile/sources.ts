@@ -127,7 +127,7 @@ export function createTileSources(options: {
     tail(atlas: WebgpuTileAtlas, slot: number, place: TilePlace) {
       const { layout } = atlas.textures[slot];
       const scratch = scratchOf(atlas, slot)!;
-      const encoder = device.createCommandEncoder({ label: 'WG texture tail' });
+      const encoder = device.createCommandEncoder({ label: 'Trillion3D texture tail' });
       copyTailFromTexture(
         encoder,
         atlas.poolOf(slot).texture,

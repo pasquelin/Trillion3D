@@ -26,7 +26,7 @@ export function createShadowPageRequests(device: GPUDevice, requestBuffer: GPUBu
   for (let i = 0; i < SLOTS; i++)
     slots.push({
       buffer: device.createBuffer({
-        label: 'WG shadow request readback',
+        label: 'Trillion3D shadow request readback',
         size: LIST_BYTES,
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
       }),

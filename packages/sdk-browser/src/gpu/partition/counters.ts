@@ -71,7 +71,7 @@ export function createPartitionCounters(device: GPUDevice) {
     if (typeof device.createBuffer !== 'function') return false;
     try {
       const buffer = device.createBuffer({
-        label: 'WG partition counts readback',
+        label: 'Trillion3D partition counts readback',
         size: STATE_WORDS * 4,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
       });

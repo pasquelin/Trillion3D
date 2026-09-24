@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Turn toward a target</title>
+    <meta name="thumbnail" content="7" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #efc493;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, pointerOnPlane, readout, seeded, opening, ease } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#efc493');
+      const random = seeded(17);
+
+      // The valley: a meadow, a service road, hills round the horizon and trees along the edge.
+      const paint = (color, roughness = 0.8, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const meadow = object.mesh(geometry.box(420, 0.4, 420), paint('#6f8f3c', 0.95));
+      meadow.position.y = -0.2;
+      const road = object.mesh(geometry.box(4, 0.06, 90), paint('#4a4640', 0.9));
+      road.position.set(-30, 0.03, 0);
+      world.scene.add(meadow, road);
+      const hill = geometry.sphere(1, 48, 24), hillPaint = paint('#5b7a36', 1);
+      for (let k = 0; k < 16; k++) {
+        const angle = (k / 16) * Math.PI * 2 + random() * 0.3, reach = 150 + random() * 60, mound = object.mesh(hill, hillPaint);
+        mound.position.set(Math.cos(angle) * reach, -6, Math.sin(angle) * reach);
+        mound.scale.set(30 + random() * 30, 16 + random() * 22, 30 + random() * 30);
+        world.scene.add(mound);
+      }
+      const crown = geometry.cone(1.6, 5, 12).translate(0, 4.5, 0), trunk = geometry.cylinder(0.2, 0.28, 2, 8).translate(0, 1, 0);
+      const leaves = paint('#3d5e2a', 0.9), bark = paint('#5b4331', 0.9);
+      for (let k = 0; k < 90; k++) {
+        const angle = random() * Math.PI * 2, reach = 48 + random() * 55, size = 0.7 + random() * 0.8;
+        for (const part of [object.mesh(crown, leaves), object.mesh(trunk, bark)]) {
+          part.position.set(Math.cos(angle) * reach, 0, Math.sin(angle) * reach);
+          part.scale.setScalar(size);
+          world.scene.add(part);
+        }
+      }
+      // The control hut by the road.
+      const hut = object.mesh(geometry.box(6, 3, 4), paint('#d9d2c3', 0.7)), roof = object.mesh(geometry.box(6.6, 0.3, 4.6), paint('#8c3b2e', 0.6));
+      hut.position.set(-36, 1.5, -8);
+      roof.position.set(-36, 3.15, -8);
+      world.scene.add(hut, roof);
+
+      // The array: thirty-five radio dishes. Each turns in two joints, as a real mount does: the
+      // turret about the vertical (azimuth), the dish about its horizontal axle (elevation). Every
+      // turn is one angle on one axis, never a free rotation.
+      const white = paint('#eef0f2', 0.42, 0.1), steel = paint('#9aa1ab', 0.35, 0.7), concrete = paint('#b9b2a5', 0.9);
+      const bowl = material.meshStandard({ color: '#f4f5f7', roughness: 0.3, metalness: 0.15, side: 'double' });
+      const FOCUS = 1.15, RIM = 1.9;
+      const profile = Array.from({ length: 13 }, (_, k) => {
+        const r = RIM * (1 - k / 12);
+        return [r, (r * r) / (4 * FOCUS)];
+      });
+      const shapes = {
+        pedestal: geometry.cylinder(0.38, 0.55, 3, 20).translate(0, 1.5, 0),
+        turret: geometry.box(1.2, 0.8, 1.2).translate(0, 0.4, 0),
+        yoke: geometry.box(4.5, 0.25, 0.45).translate(0, 0.9, 0),
+        arm: geometry.box(0.2, 2.4, 0.45).translate(0, 2, 0),
+        axle: geometry.cylinder(0.09, 0.09, 0.35, 12).rotateZ(Math.PI / 2),
+        dish: geometry.lathe(profile, 48).translate(0, -0.35, 0).rotateX(Math.PI / 2),
+        rim: geometry.torus(RIM, 0.05, 8, 64).translate(0, 0, (RIM * RIM) / (4 * FOCUS) - 0.35),
+        boom: geometry.cylinder(0.04, 0.04, FOCUS, 8).rotateX(Math.PI / 2).translate(0, 0, FOCUS / 2 - 0.35),
+        feed: geometry.cylinder(0.12, 0.2, 0.34, 16).rotateX(Math.PI / 2).translate(0, 0, FOCUS - 0.35),
+        weight: geometry.box(0.7, 0.5, 0.5).translate(0, 0, -0.75),
+      };
+      const dishes = [];
+      for (let row = 0; row < 5; row++)
+        for (let column = 0; column < 7; column++) {
+          const base = object.group(), turret = object.group(), head = object.group();
+          base.position.set((column - 3) * 7.5 + (row % 2) * 1.8, 0, (row - 2) * 7.5);
+          turret.position.y = 3;
+          head.position.y = 3;
+          base.add(object.mesh(shapes.pedestal, concrete), turret);
+          // The fork stands wider than the dish, so the dish swings through it at any elevation.
+          turret.add(object.mesh(shapes.turret, white), object.mesh(shapes.yoke, white), head);
+          for (const side of [-1, 1]) {
+            const arm = object.mesh(shapes.arm, white), axle = object.mesh(shapes.axle, steel);
+            arm.position.x = side * 2.15;
+            axle.position.x = side * 1.98;
+            turret.add(arm);
+            head.add(axle);
+          }
+          head.add(object.mesh(shapes.dish, bowl), object.mesh(shapes.rim, steel), object.mesh(shapes.boom, steel), object.mesh(shapes.feed, white), object.mesh(shapes.weight, concrete));
+          world.scene.add(base);
+          const eye = [base.position.x, 6, base.position.z];
+          dishes.push({ turret, head, eye, yaw: 0, pitch: 1.45, spinYaw: 0, spinPitch: 0, wake: 0.8 + Math.hypot(eye[0], eye[2]) / 14 });
+        }
+
+      // The target: a small glowing drone, carrying its own light (no shadow, so it may move).
+      const drone = object.group();
+      drone.add(
+        object.mesh(geometry.sphere(0.45, 32, 16), material.meshStandard({ color: '#d8fbff', emissive: '#7fe9ff', emissiveIntensity: 3 })),
+        object.mesh(geometry.torus(0.9, 0.06, 8, 48).rotateX(Math.PI / 2), paint('#2a2f38', 0.4, 0.6)),
+        light.point({ color: '#8feaff', intensity: 45, distance: 26 }),
+      );
+      world.scene.add(drone);
+
+      // Golden hour: a low sun behind the array casts long shadows toward the viewer; the sky's
+      // blue fills the shade.
+      world.scene.add(
+        light.directional({ color: '#ffbf7a', intensity: 3.3, position: [-40, 16, -34], castShadow: true }),
+        light.hemisphere({ color: '#a9c1ff', groundColor: '#556236', intensity: 0.95 }),
+      );
+      const LOOK = [0, 5, 0], FROM = [46, 36, 58], TO = [26, 9, 34];
+      world.camera.position.set(...FROM);
+      world.controls.target.set(...LOOK);
+      world.controls.update();
+      world.controls.minDistance = 8;
+      world.controls.maxDistance = 120;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const ui = controls({
+        turn: ['steadily', 'at once', 'on a spring'],
+        turnSpeed: [0.2, 4, 1.2, 0.1],
+        followPointer: false,
+      }, () => world.invalidate(), world);
+      const locked = readout('dishesLocked');
+
+      // With the pointer on, the drone flies to the point under the cursor, at its cruising height.
+      const aim = [0, 11, 0];
+      world.canvas.addEventListener('pointermove', (event) => {
+        if (!ui.followPointer || event.buttons) return;
+        const met = pointerOnPlane(world, event, 11);
+        if (!met) return;
+        const [px, pz] = met, far = Math.hypot(px, pz), keep = Math.min(1, 34 / far);
+        aim[0] = px * keep;
+        aim[2] = pz * keep;
+      });
+
+      // The opening glides down to the array; the viewer's first press or wheel ends it.
+      opening(world, (time) => {
+        const k = ease.out(time / 5);
+        world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * k));
+        return time < 5;
+      });
+
+      // An angle's shortest way round, in (-π, π].
+      const wrap = (angle) => angle - Math.PI * 2 * Math.round(angle / (Math.PI * 2));
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        // The drone loops a figure of eight over the field, or chases the pointer.
+        if (!ui.followPointer) aim.splice(0, 3, Math.sin(time * 0.23) * 24, 11 + Math.sin(time * 0.61) * 3, Math.sin(time * 0.46 + 1) * 15);
+        const at = drone.position, follow = 1 - Math.exp(-step * 2.5);
+        at.set(at.x + (aim[0] - at.x) * follow, at.y + (aim[1] - at.y) * follow, at.z + (aim[2] - at.z) * follow);
+        drone.rotation.set(0, time * 2.2, 0);
+
+        // Each dish turns toward the drone once it has woken, the nearest to the centre first.
+        let onTarget = 0;
+        for (const dish of dishes) {
+          const dx = at.x - dish.eye[0], dy = at.y - dish.eye[1], dz = at.z - dish.eye[2];
+          const awake = time > dish.wake;
+          const wantYaw = awake ? Math.atan2(dx, dz) : dish.yaw, wantPitch = awake ? Math.max(0.05, Math.atan2(dy, Math.hypot(dx, dz))) : 1.45;
+          const errYaw = wrap(wantYaw - dish.yaw), errPitch = wantPitch - dish.pitch;
+          if (ui.turn === 'at once') {
+            dish.yaw += errYaw;
+            dish.pitch += errPitch;
+          } else if (ui.turn === 'steadily') {
+            // No faster than the motors allow: a fixed angle per second on each axis.
+            const most = ui.turnSpeed * step;
+            dish.yaw += Math.max(-most, Math.min(most, errYaw));
+            dish.pitch += Math.max(-most, Math.min(most, errPitch));
+          } else {
+            // A spring pulls each joint toward its angle and a light damper lets it overshoot.
+            const stiff = (ui.turnSpeed * 3) ** 2, damp = 2 * 0.3 * Math.sqrt(stiff);
+            dish.spinYaw += (stiff * errYaw - damp * dish.spinYaw) * step;
+            dish.spinPitch += (stiff * errPitch - damp * dish.spinPitch) * step;
+            dish.yaw += dish.spinYaw * step;
+            dish.pitch += dish.spinPitch * step;
+          }
+          dish.yaw = wrap(dish.yaw);
+          dish.turret.rotation.set(0, dish.yaw, 0);
+          dish.head.rotation.set(-dish.pitch, 0, 0);
+          if (awake && Math.abs(wrap(wantYaw - dish.yaw)) * Math.cos(dish.pitch) + Math.abs(wantPitch - dish.pitch) < 0.035) onTarget++;
+        }
+        locked(`${onTarget} / ${dishes.length}`);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

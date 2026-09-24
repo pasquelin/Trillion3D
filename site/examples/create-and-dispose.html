@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Create and dispose</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #26324a;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
+      import { controls, readout, seeded, words, language, circling } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#26324a');
+
+      // A stone fountain in a round court: a basin, a pillar in its middle, a nozzle on top.
+      const stone = material.meshStandard({ color: '#c9bfae', roughness: 0.85 });
+      const dark = material.meshStandard({ color: '#5d6675', roughness: 0.7 });
+      const basinFloor = material.meshStandard({ color: '#3f7d93', roughness: 0.4 });
+      const BASIN = 8.5, FLOOR = 0.3, PILLAR = 1.2, NOZZLE = 3.4;
+      const parts = [
+        [geometry.cylinder(16, 16.4, 0.4, 96), dark, [0, -0.2, 0]],
+        [geometry.cylinder(BASIN, BASIN, 0.2, 96), basinFloor, [0, FLOOR - 0.1, 0]],
+        [geometry.torus(BASIN + 0.35, 0.4, 24, 128), stone, [0, 0.45, 0], [Math.PI / 2, 0, 0]],
+        [geometry.cylinder(PILLAR * 0.8, PILLAR, NOZZLE - 0.6, 48), stone, [0, (NOZZLE - 0.6) / 2, 0]],
+        [geometry.cylinder(PILLAR * 1.3, PILLAR * 0.9, 0.35, 48), stone, [0, NOZZLE - 0.45, 0]],
+        [geometry.sphere(0.35, 32, 16), dark, [0, NOZZLE, 0]],
+      ];
+      for (const [shape, matter, [x, y, z], [rx, ry, rz] = [0, 0, 0]] of parts) {
+        const part = object.mesh(shape, matter);
+        part.position.set(x, y, z);
+        part.rotation.set(rx, ry, rz);
+        part.castShadow = part.receiveShadow = true;
+        world.scene.add(part);
+      }
+
+      // Three pictures painted on canvases, worn as textures: stripes, a checker and dots.
+      const painted = (draw) => {
+        const sheet = document.createElement('canvas');
+        sheet.width = sheet.height = 128;
+        draw(sheet.getContext('2d'));
+        return texture.canvas(sheet);
+      };
+      const PICTURES = [
+        painted((c) => {
+          for (let k = 0; k < 8; k++) (c.fillStyle = k % 2 ? '#1d6fb8' : '#f5f0e6'), c.fillRect(k * 16, 0, 16, 128);
+        }),
+        painted((c) => {
+          for (let k = 0; k < 64; k++) (c.fillStyle = (k + (k >> 3)) % 2 ? '#222831' : '#f2b134'), c.fillRect((k % 8) * 16, (k >> 3) * 16, 16, 16);
+        }),
+        painted((c) => {
+          c.fillStyle = '#e8553d';
+          c.fillRect(0, 0, 128, 128);
+          c.fillStyle = '#fff4dc';
+          for (let k = 0; k < 16; k++) c.beginPath(), c.arc((k % 4) * 32 + 16, (k >> 2) * 32 + 16, 9, 0, Math.PI * 2), c.fill();
+        }),
+      ];
+
+      // What the fountain throws: kinds of pieces, each a recipe of shapes and materials. A kind
+      // is a mesh, or a group of meshes that fly as one.
+      const SHAPES = [
+        geometry.sphere(0.34, 32, 16),
+        geometry.box(0.55, 0.55, 0.55),
+        geometry.torus(0.28, 0.12, 16, 48),
+        geometry.cone(0.34, 0.7, 32),
+        geometry.torusKnot(0.24, 0.08, 96, 12),
+      ];
+      const [ball, cube, ring, cone, knot] = SHAPES;
+      const PAINTS = ['#e8553d', '#f2b134', '#5cb85c', '#3a8fd8', '#9b59d0', '#f06292'].map((color) =>
+        material.meshStandard({ color, roughness: 0.35, metalness: 0.1 }),
+      );
+      const rod = geometry.cylinder(0.06, 0.06, 0.7, 12), bead = geometry.sphere(0.18, 24, 12), band = geometry.torus(0.5, 0.05, 8, 64);
+      const KINDS = [
+        ...SHAPES.flatMap((shape) => PAINTS.map((paint) => [[shape, paint]])),
+        ...PICTURES.flatMap((map) => [cube, ball].map((shape) => [[shape, material.meshStandard({ map, roughness: 0.5 })]])),
+        [[knot, material.meshStandard({ color: '#e0b04a', roughness: 0.2, metalness: 1 })]],
+        [[ball, material.meshStandard({ color: '#f2f2f4', roughness: 0.05, metalness: 1 })]],
+        [[cube, material.meshLambert({ color: '#e9e4d4' })]],
+        [[ring, material.meshPhong({ color: '#2f9e8f', shininess: 90 })]],
+        [[cone, material.meshToon({ color: '#ff8a3d' })]],
+        // A little planet with its ring, and a dumbbell: two groups of three meshes.
+        [[ball, PAINTS[3]], [band, PAINTS[1], [0.35, 0, 0]]],
+        [[rod, PAINTS[4], [0, 0, Math.PI / 2]], [bead, PAINTS[0], null, [-0.38, 0, 0]], [bead, PAINTS[0], null, [0.38, 0, 0]]],
+      ];
+
+      // One piece of a kind. Shared, it wears the kind's own shapes and materials; made new, it
+      // gets copies of both, which the fountain disposes when the piece leaves. The world folds
+      // a copy onto the resource of the same content: new objects, the same GPU memory.
+      function make(kind, fresh) {
+        const meshes = kind.map(([shape, matter, turn, at]) => {
+          const mesh = object.mesh(fresh ? shape.clone() : shape, fresh ? matter.clone() : matter);
+          if (turn) mesh.rotation.set(...turn);
+          if (at) mesh.position.set(...at);
+          mesh.castShadow = true;
+          return mesh;
+        });
+        if (meshes.length === 1) return { node: meshes[0], meshes };
+        const node = object.group();
+        node.add(...meshes);
+        return { node, meshes };
+      }
+
+      // Every kind stands on the rim, a catalogue of what the fountain throws.
+      KINDS.forEach((kind, index) => {
+        const angle = (index / KINDS.length) * Math.PI * 2, { node } = make(kind, false);
+        node.position.set(Math.cos(angle) * (BASIN + 0.35), 1.2, Math.sin(angle) * (BASIN + 0.35));
+        node.rotation.set(0.3, -angle, 0);
+        world.scene.add(node);
+      });
+
+      world.scene.add(
+        light.directional({ color: '#ffe2bc', intensity: 3, position: [10, 16, 7], castShadow: true }),
+        light.directional({ color: '#9db8ff', intensity: 0.7, position: [-12, 6, -9] }),
+        light.hemisphere({ color: '#c4d8ff', groundColor: '#6b5a48', intensity: 0.8 }),
+      );
+      world.camera.far = 200;
+      world.camera.position.set(15, 10, 15);
+      world.controls.target.set(0, 2, 0);
+      world.controls.minDistance = 8;
+      world.controls.maxDistance = 45;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.camera.lookAt(0, 2, 0);
+
+      // A thrown piece lives a few seconds, shrinks away and is disposed. The kinds take turns,
+      // each with at most PER_KIND pieces in the air: the world sizes what it draws each kind with
+      // when it opens, so the fountain opens full — every kind's pieces already in flight on the
+      // first frame — and each later piece takes the place a disposed one left.
+      const PER_KIND = 6, live = [], flying = KINDS.map(() => 0);
+      let created = 0, disposed = 0, rota = 0;
+      const random = seeded(1);
+      const GRAVITY = 9.8;
+      // One step of a piece's flight: gravity, a bounce on the basin floor and off its rim.
+      function fly(item, step) {
+        const { node, velocity, spin } = item, at = node.position;
+        item.age += step;
+        velocity[1] -= GRAVITY * step;
+        let x = at.x + velocity[0] * step, y = at.y + velocity[1] * step, z = at.z + velocity[2] * step;
+        if (y < FLOOR + 0.35 && velocity[1] < 0) {
+          y = FLOOR + 0.35;
+          velocity[1] *= -0.45;
+          velocity[0] *= 0.8;
+          velocity[2] *= 0.8;
+        }
+        const reach = Math.hypot(x, z);
+        if (reach > BASIN - 0.4) {
+          const nx = x / reach, nz = z / reach, along = velocity[0] * nx + velocity[2] * nz;
+          if (along > 0) (velocity[0] -= 1.6 * along * nx), (velocity[2] -= 1.6 * along * nz);
+        }
+        at.set(x, y, z);
+        node.rotation.set(node.rotation.x + spin[0] * step, node.rotation.y + spin[1] * step, node.rotation.z + spin[2] * step);
+        const fade = Math.min(1, Math.max(0, (item.life + 0.6 - item.age) / 0.6), item.age / 0.15);
+        node.scale.setScalar(Math.max(0.001, fade));
+      }
+      function launch(fresh, age = 0) {
+        let kind = -1;
+        for (let tries = 0; tries < KINDS.length && kind < 0; tries++, rota = (rota + 1) % KINDS.length)
+          if (flying[rota] < PER_KIND) kind = rota;
+        if (kind < 0) return;
+        const { node, meshes } = make(KINDS[kind], fresh);
+        const heading = random() * Math.PI * 2, out = 2.4 + random() * 2.2;
+        node.position.set(0, NOZZLE + 0.3, 0);
+        const item = { node, meshes, kind, fresh, age: 0, life: 3.5 + random() * 2, velocity: [Math.cos(heading) * out, 7 + random() * 2.5, Math.sin(heading) * out], spin: [random() * 4 - 2, random() * 4 - 2, random() * 4 - 2] };
+        // A piece of the opening crowd is flown ahead to its age, so the first frame is mid-show.
+        for (let t = 0; t < Math.min(age, item.life); t += 1 / 60) fly(item, 1 / 60);
+        world.scene.add(node);
+        live.push(item);
+        flying[kind]++;
+        created++;
+      }
+      function retire(index) {
+        const [{ node, meshes, kind, fresh }] = live.splice(index, 1);
+        world.scene.remove(node);
+        if (fresh) for (const mesh of meshes) mesh.geometry.dispose(), mesh.material.dispose();
+        flying[kind]--;
+        disposed++;
+      }
+      for (let k = 0; k < KINDS.length * PER_KIND; k++) launch(false, random() * 5);
+
+      const ui = controls({
+        perSecond: [0, 60, 30, 1],
+        copies: ['share', 'fresh'],
+        burst: () => {
+          for (let k = 0; k < 60; k++) launch(ui.copies === 'fresh');
+          world.invalidate();
+        },
+        clearAll: () => {
+          while (live.length) retire(live.length - 1);
+          world.invalidate();
+        },
+      }, world);
+      const alive = readout('piecesAlive'), made = readout('created'), gone = readout('disposed');
+      const memory = readout('gpuMemory');
+
+      // The camera circles slowly until the first press or wheel on the canvas.
+      circling(world, 0.12);
+
+      // A steady stream at the chosen rate, for as long as the page is open.
+      let owed = 0, clock = 0, shown = 0;
+      world.onFrame(({ delta, metrics }) => {
+        const step = Math.min(delta, 0.05);
+        const fresh = ui.copies === 'fresh';
+        owed += step * ui.perSecond;
+        for (; owed >= 1; owed--) launch(fresh);
+        for (let i = live.length - 1; i >= 0; i--) {
+          fly(live[i], step);
+          if (live[i].age > live[i].life + 0.6) retire(i);
+        }
+        // The counters, four times a second; a value the engine did not measure says so.
+        clock += delta;
+        if (clock - shown > 0.25) {
+          shown = clock;
+          alive(String(live.length));
+          made(created.toLocaleString(language()));
+          gone(disposed.toLocaleString(language()));
+          memory(metrics.vramBytes == null ? say('notMeasured') : `${(metrics.vramBytes / 2 ** 20).toFixed(1)} MiB`);
+        }
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

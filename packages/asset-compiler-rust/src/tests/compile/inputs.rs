@@ -117,7 +117,7 @@ fn compile_writes_pages_and_namespaced_pointer() {
     assert!(result["primitives"][0]["quantization"]["positionExponent"].is_number());
     let page = fs::read(directory.join(geometry["url"].as_str().expect("page URL")))
         .expect("autonomous geometry page");
-    let decoded = web_geometry_page_codec::decode(&page, 1 << 20).expect("decode");
+    let decoded = trillion3d_page_codec::decode(&page, 1 << 20).expect("decode");
     assert_eq!(decoded.indices(), [0, 1, 2]);
     fs::remove_dir_all(root).expect("cleanup");
 }

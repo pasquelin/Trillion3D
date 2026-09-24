@@ -4,9 +4,7 @@ import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { openExample, RENDER_ONLY } from './docs/examples/capture.ts';
-import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
-
-const ready = roadmap.entries.filter(({ file }) => file);
+import { readyEntries as ready } from '../site/app/examples/list.ts';
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -28,9 +26,9 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
   await panel.locator('input[type=color]').fill('#2fd4ff');
   await page.waitForTimeout(1000);
   assert.notDeepEqual(await centre(page), before, 'the picked colour reaches the render');
-  await page.evaluate(() => postMessage({ type: 'wg:controls', visible: false }, '*'));
+  await page.evaluate(() => postMessage({ type: 'trillion3d:controls', visible: false }, '*'));
   await panel.waitFor({ state: 'hidden' });
-  await page.evaluate(() => postMessage({ type: 'wg:controls', visible: true }, '*'));
+  await page.evaluate(() => postMessage({ type: 'trillion3d:controls', visible: true }, '*'));
   await panel.waitFor({ state: 'visible' });
   assert.deepEqual(errors, []);
   await page.close();

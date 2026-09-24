@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Colours on the vertices</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0f1a;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #347: WebGPU multiplies the base colour by the `color` vertex attribute when the
+      // material asks for `vertexColors`; until then the planet draws white there.
+      import { createWorld, geometry, material, object, light, buffer, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // A rolling landscape on the sphere: a few waves of growing frequency, summed. Deterministic,
+      // so the planet is the same on every run.
+      function relief(x, y, z) {
+        let sum = 0, amplitude = 1, frequency = 1.6;
+        for (let octave = 0; octave < 5; octave++) {
+          sum += amplitude * Math.sin(x * frequency + octave * 1.7) * Math.sin(y * frequency * 1.3 + octave) * Math.sin(z * frequency * 0.9 + octave * 2.3);
+          amplitude *= 0.5;
+          frequency *= 2.1;
+        }
+        return sum;
+      }
+
+      // Colour ramps: a height in [0, 1] to a colour. The ground and the sea take different stops.
+      const ramps = {
+        earth: [[0, '#0b2e6b'], [0.46, '#2f86c9'], [0.5, '#e8d9a0'], [0.56, '#5fa84a'], [0.72, '#2f6b3a'], [0.85, '#7a6a5c'], [0.93, '#f4f6fa']],
+        lava: [[0, '#120404'], [0.5, '#5a0d06'], [0.6, '#d13a0f'], [0.8, '#ff9d1f'], [1, '#fff4c2']],
+        ice: [[0, '#081a3a'], [0.5, '#1f6fae'], [0.55, '#bfe7ff'], [0.8, '#eaf6ff'], [1, '#ffffff']],
+        candy: [[0, '#3a0ca3'], [0.3, '#7209b7'], [0.5, '#f72585'], [0.7, '#ffbe0b'], [1, '#4cc9f0']],
+      };
+      const stops = Object.fromEntries(Object.entries(ramps).map(([name, ramp]) => [name, ramp.map(([at, hex]) => [at, math.color(hex)])]));
+      const mix = math.color();
+      function colourAt(ramp, t) {
+        const list = stops[ramp];
+        let k = 1;
+        while (k < list.length - 1 && list[k][0] < t) k++;
+        const [a, from] = list[k - 1], [b, to] = list[k];
+        return mix.copy(from).lerp(to, math.clamp((t - a) / (b - a), 0, 1));
+      }
+
+      // One sphere of 64 000 triangles. Each vertex is pushed out by the relief, the sea flattens
+      // what falls below its level, and the vertex gets the ramp's colour for its height: the
+      // triangle between three vertices blends their three colours.
+      const planet = geometry.sphere(1, 256, 128);
+      const unit = Float32Array.from(planet.attributes.position.array);
+      const heights = new Float32Array(unit.length / 3);
+      for (let v = 0; v < heights.length; v++) heights[v] = relief(unit[v * 3], unit[v * 3 + 1], unit[v * 3 + 2]);
+      const colours = buffer.float32(new Float32Array(unit.length), 3);
+      planet.setAttribute('color', colours);
+
+      function shape(amount, sea) {
+        const position = planet.attributes.position;
+        for (let v = 0; v < heights.length; v++) {
+          const radius = 1 + Math.max(heights[v], sea) * amount;
+          position.setXYZ(v, unit[v * 3] * radius, unit[v * 3 + 1] * radius, unit[v * 3 + 2] * radius);
+        }
+        position.needsUpdate = true;
+        planet.computeVertexNormals();
+        weldNormals();
+        planet.attributes.normal.needsUpdate = true;
+      }
+      // The sphere repeats its seam's vertices for the texture wrap: their normals are averaged so
+      // no line shows where the sphere closes.
+      const twin = new Int32Array(heights.length), seen = new Map();
+      for (let v = 0; v < heights.length; v++) {
+        const key = `${unit[v * 3].toFixed(4)},${unit[v * 3 + 1].toFixed(4)},${unit[v * 3 + 2].toFixed(4)}`;
+        if (!seen.has(key)) seen.set(key, v);
+        twin[v] = seen.get(key);
+      }
+      function weldNormals() {
+        const normal = planet.attributes.normal.array;
+        for (let v = 0; v < heights.length; v++)
+          if (twin[v] !== v) for (let axis = 0; axis < 3; axis++) normal[twin[v] * 3 + axis] += normal[v * 3 + axis];
+        for (let v = 0; v < heights.length; v++)
+          for (let axis = 0; axis < 3; axis++) normal[v * 3 + axis] = normal[twin[v] * 3 + axis];
+      }
+      function paint(ramp, sea) {
+        for (let v = 0; v < heights.length; v++) {
+          // Below the sea the depth runs 0 to 0.5, above it the land runs 0.5 to 1.
+          const h = heights[v], t = h < sea ? 0.5 * (1 - (sea - h) / (sea + 1.2)) : 0.5 + (0.5 * (h - sea)) / (1.2 - sea);
+          const { r, g, b } = colourAt(ramp, t);
+          colours.setXYZ(v, r, g, b);
+        }
+        colours.needsUpdate = true;
+      }
+
+      const world = createWorld('view', { controls: 'orbit' });
+      const globe = object.mesh(planet, material.meshStandard({ vertexColors: true, roughness: 0.75 }));
+      globe.rotation.set(0.35, 0, 0);
+      world.scene.add(globe);
+      // A small moon in one plain colour, to compare with the painted planet.
+      const moon = object.mesh(geometry.sphere(0.18, 48, 24), material.meshStandard({ color: '#c9c3b8', roughness: 0.9 }));
+      moon.position.set(1.9, 0, 0);
+      world.scene.add(moon);
+
+      world.scene.add(light.directional({ intensity: 3.4, color: '#fff3e0', position: [6, 3, 5] }));
+      world.scene.add(light.point({ intensity: 30, color: '#4f7dff', position: [-4, -1, -3], distance: 14 }));
+      world.scene.add(light.ambient({ intensity: 0.25, color: '#6f86c6' }));
+      world.camera.position.set(0, 0.6, 3.6);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+      world.controls.minDistance = 1.6;
+      world.controls.maxDistance = 8;
+
+      const ui = controls({
+        palette: Object.keys(ramps),
+        seaLevel: [-1, 1, 0],
+        relief: [0, 0.3, 0.12],
+        spin: true,
+      }, (values, key) => {
+        if (key !== 'palette' && key !== 'spin') shape(values.relief, values.seaLevel);
+        if (key !== 'relief' && key !== 'spin') paint(values.palette, values.seaLevel);
+        world.invalidate();
+      }, world);
+
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        time += delta;
+        globe.rotation.set(0.35, time * 0.15, 0);
+        moon.position.set(Math.cos(time * 0.4) * 1.9, Math.sin(time * 0.4) * 0.5, Math.sin(time * 0.4) * 1.9);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

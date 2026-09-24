@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>One clip, many objects</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #34405e;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, animation } from '../runtime/engine.js';
+      import { controls, readout, opening } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#34405e');
+      const paint = (color, roughness = 0.7, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+
+      // One clip, written once: a fan jumps, throws both arms up, nods and settles. Its tracks
+      // name the parts ('body', 'armL'…), not a fan: a mixer resolves them under its own root.
+      const BEAT = 3.6;
+      const track = (path, keys) => animation.numberTrack(path, keys.map(([t]) => t), keys.map(([, v]) => v));
+      const cheer = animation.clip('cheer', BEAT, [
+        track('body.position.y', [[0, 0], [0.2, 0], [0.5, 0.55], [0.8, 0.05], [0.95, 0], [BEAT, 0]]),
+        track('body.scale.y', [[0, 1], [0.2, 0.82], [0.45, 1.12], [0.8, 1], [0.95, 0.9], [1.15, 1], [BEAT, 1]]),
+        track('armL.rotation.z', [[0, -0.2], [0.25, -0.5], [0.55, -2.9], [0.9, -2.6], [1.3, -0.2], [BEAT, -0.2]]),
+        track('armR.rotation.z', [[0, 0.2], [0.25, 0.5], [0.55, 2.9], [0.9, 2.6], [1.3, 0.2], [BEAT, 0.2]]),
+        track('head.rotation.x', [[0, 0], [0.4, -0.35], [0.8, 0.2], [1.2, 0], [BEAT, 0]]),
+      ]);
+
+      // The fans: every one its own small tree of named parts, in its team's colours.
+      const skin = [paint('#f0d2b0'), paint('#c68e62'), paint('#8a5a3c')], eye = paint('#1a1a1f', 0.3);
+      const TEAMS = [paint('#e0483a', 0.6), paint('#f2c23a', 0.6), paint('#2f7fd6', 0.6), paint('#3fae6a', 0.6)];
+      const torso = geometry.capsule(0.28, 0.5, 6, 16), skull = geometry.sphere(0.24, 20, 14), limb = geometry.capsule(0.08, 0.5, 4, 10), pupil = geometry.sphere(0.04, 8, 6);
+      function fan(team, tone) {
+        const root = object.group();
+        const node = (name, parent, at) => {
+          const joint = object.group();
+          joint.name = name;
+          joint.position.set(...at);
+          parent.add(joint);
+          return joint;
+        };
+        const add = (shape, paintOf, parent, at) => {
+          const mesh = object.mesh(shape, paintOf);
+          mesh.position.set(...at);
+          parent.add(mesh);
+        };
+        const body = node('body', root, [0, 0, 0]);
+        add(torso, team, body, [0, 0.53, 0]);
+        const head = node('head', body, [0, 1.05, 0]);
+        add(skull, tone, head, [0, 0.2, 0]);
+        for (const side of [-1, 1]) add(pupil, eye, head, [side * 0.09, 0.24, 0.21]);
+        for (const [name, side] of [['armL', -1], ['armR', 1]]) {
+          const arm = node(name, body, [side * 0.33, 0.85, 0]);
+          add(limb, team, arm, [0, -0.3, 0]);
+        }
+        return root;
+      }
+
+      // An arena of four stepped tiers, each a ring of stone blocks, a fan on every seat.
+      const stone = [paint('#cbb9a0', 0.9), paint('#b9a58b', 0.9)];
+      const TIERS = [[7, 0.5, 12], [8.5, 1.1, 16], [10, 1.7, 20], [11.5, 2.3, 24]];
+      const fans = [];
+      TIERS.forEach(([radius, top, seats], tier) => {
+        const blocks = 36;
+        for (let b = 0; b < blocks; b++) {
+          const a = (b / blocks) * Math.PI * 2, block = object.mesh(geometry.box((radius + 0.75) * 2 * Math.sin(Math.PI / blocks) * 1.01, top, 1.5), stone[(b + tier) % 2]);
+          block.position.set(Math.sin(a) * (radius + 0.75), top / 2, Math.cos(a) * (radius + 0.75));
+          block.rotation.set(0, a, 0);
+          world.scene.add(block);
+        }
+        for (let s = 0; s < seats; s++) {
+          const a = ((s + (tier % 2) * 0.5) / seats) * Math.PI * 2, one = fan(TEAMS[Math.floor((a / (Math.PI * 2)) * 4) % 4], skin[(s * 7 + tier) % 3]);
+          one.position.set(Math.sin(a) * (radius + 0.75), top, Math.cos(a) * (radius + 0.75));
+          // Every fan faces the pitch: its +z turned toward the centre.
+          one.rotation.set(0, a + Math.PI, 0);
+          world.scene.add(one);
+          fans.push({ mixer: animation.createMixer(one), angle: a, tier, seed: ((s * 2654435761 + tier * 40503) >>> 0) / 4294967296 });
+        }
+      });
+      // The pitch: grass, a chalk ring and a centre spot, the ball waiting on it.
+      const pitch = object.mesh(geometry.cylinder(7, 7, 0.1, 96), paint('#3f7d3a', 0.9));
+      pitch.position.y = 0.05;
+      const chalk = object.mesh(geometry.ring(2.2, 2.35, 96), paint('#f2f2ea', 0.9));
+      chalk.rotation.set(-Math.PI / 2, 0, 0);
+      chalk.position.y = 0.105;
+      const ball = object.mesh(geometry.sphere(0.3, 32, 20), paint('#f7f7f2', 0.4));
+      ball.position.y = 0.4;
+      const ground = object.mesh(geometry.box(80, 0.2, 80), paint('#6d5b47', 0.95));
+      ground.position.y = -0.1;
+      // A low golden sun rakes the stands and stretches every shadow; a cool sky fills the rest.
+      world.scene.add(pitch, chalk, ball, ground,
+        light.directional({ color: '#ffb36b', intensity: 3.2, position: [-18, 7, 10], castShadow: true }),
+        light.hemisphere({ color: '#8fb0ff', groundColor: '#5a4636', intensity: 0.9 }),
+      );
+
+      // Every fan plays the same clip on its own mixer; only where each one starts differs.
+      const actions = fans.map(({ mixer }) => mixer.play(cheer));
+      const PATTERNS = {
+        'stadium wave': ({ angle }) => (angle / (Math.PI * 2)) * BEAT,
+        'ripple outwards': ({ tier }) => tier * 0.3,
+        'all at once': () => 0,
+        'scattered': ({ seed }) => seed * BEAT,
+      };
+      let offsets = fans.map(() => 0);
+      const ui = controls({
+        pattern: Object.keys(PATTERNS),
+        speed: [0.2, 2, 1],
+      }, (values, key) => {
+        // Keep the shared beat where it stands, and move each fan to its new place in the clip.
+        const base = actions[0].time + offsets[0];
+        offsets = fans.map(PATTERNS[values.pattern]);
+        actions.forEach((action, k) => {
+          if (key === undefined || key === 'pattern') action.time = base - offsets[k];
+          action.timeScale = values.speed;
+        });
+        world.invalidate();
+      });
+      readout('clips')('1');
+      readout('fansPlayingIt')(String(fans.length));
+
+      world.camera.position.set(0, 26, 44);
+      world.camera.lookAt(0, 1.5, 0);
+      world.controls.target.set(0, 1.5, 0);
+      world.controls.minDistance = 6;
+      world.controls.maxDistance = 50;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      // The opening: the camera sweeps down from high above onto the stands as the wave sets off,
+      // and keeps circling until the first press or wheel on the picture.
+      let last = 0;
+      opening(world, (time) => {
+        const step = time - last, { position } = world.camera, { target } = world.controls;
+        last = time;
+        const x = position.x - target.x, y = position.y - target.y, z = position.z - target.z, reach = Math.hypot(x, y, z);
+        const closer = Math.max(20, reach - step * Math.max(0.8, (reach - 20) * 0.8)) / reach, turn = step * 0.12;
+        const lower = Math.max(0.35, y / reach - step * 0.12) / (y / reach);
+        position.set(target.x + (x * Math.cos(turn) - z * Math.sin(turn)) * closer, target.y + y * closer * lower, target.z + (z * Math.cos(turn) + x * Math.sin(turn)) * closer);
+      });
+      world.onFrame(() => world.invalidate());
+    </script>
+  </body>
+</html>

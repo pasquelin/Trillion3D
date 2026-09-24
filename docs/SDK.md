@@ -1,11 +1,11 @@
-# Web Geometry SDK
+# Trillion3D SDK
 
 The public guide: what a page and a Node host write against. How the engine draws underneath —
 the internal session, the passes, the budgets' mechanics and the diagnostics — is
 [ENGINE.md](ENGINE.md); the compiler is [COMPILER.md](COMPILER.md); the cache is
 [FORMAT.md](FORMAT.md).
 
-Every public import uses `web-geometry`; conditional exports select the common, browser or Node
+Every public import uses `trillion3d`; conditional exports select the common, browser or Node
 API ([Entry points](#entry-points)). Do not import `packages/` internals. `SDK_VERSION` and
 `FORMAT_VERSION` are independent.
 
@@ -28,15 +28,15 @@ The rules the architecture and the product are held to. They are targets to vali
 
 1. **Portable Core.** Engine algorithms, formats, oracles, and contracts remain independent of React and Electron. The interface controls and observes campaigns; it contains no core engine logic.
 2. **Compiled and Versioned Preparation.** Expensive assets are built outside the interactive loop, versioned alongside their schemas, and loaded following manifest validation. No hidden preparation overhead is charged to current frame rendering.
-3. **Standalone Generators.** Any Rust asset preparation or compilation core resides in a standalone package in the Web Geometry repository under `packages/`. A benchmark contains only its manifests, contracts, scenarios, adapters, and tests, consuming the public package API. Engine and generator packages import neither React, Vite, Electron, nor benchmark internals.
+3. **Standalone Generators.** Any Rust asset preparation or compilation core resides in a standalone package in the Trillion3D repository under `packages/`. A benchmark contains only its manifests, contracts, scenarios, adapters, and tests, consuming the public package API. Engine and generator packages import neither React, Vite, Electron, nor benchmark internals.
 4. **Never Degrade the Host Application.** The SDK negotiates capabilities and maintains a standard baseline. It disables an optimization when measured overhead exceeds benefit and recovers from error, device loss, memory exhaustion, or thrashing on the renderer already in use. A world's `renderer` option (absent = best path the machine grants) is chosen once, from what the machine offers; forced and missing, it is refused by name, never silently swapped for the other. The UI exposes the active renderer, active level, fallback, and reason without inventing metrics.
 5. **Seamless Fallback.** For the end user, fallback is automatic and silent: no technical warning appears during normal startup. Full diagnostic telemetry remains reserved for developer mode. A concise notification appears only when no compatible renderer is available. Recovering on the chosen renderer preserves scene state without flashing, blank screens, or visible restarts; it never switches to the other renderer under a host that did not ask for one.
 
-Web Geometry owns every package it builds under `packages/` ([package architecture](../packages/README.md)). The SDK exposes public entry points producing JavaScript and type declarations. React and Electron adapters remain optional and are not shipped as dedicated packages. Hosts consume public exports only.
+Trillion3D owns every package it builds under `packages/` ([package architecture](../packages/README.md)). The SDK exposes public entry points producing JavaScript and type declarations. React and Electron adapters remain optional and are not shipped as dedicated packages. Hosts consume public exports only.
 
 ## Entry points
 
-Version 0.2.0 exposes one consumer specifier, `web-geometry`. The source facade has three
+Version 0.2.0 exposes one consumer specifier, `trillion3d`. The source facade has three
 environment branches:
 
 | Resolver context                        | Source facade             | Public surface                | Declaration constraints                                                               |
@@ -50,13 +50,13 @@ SSR resolves the Node branch. It therefore exposes native and common APIs, and d
 browser rendering APIs. Importing any branch has no startup action: it does not create a renderer,
 worker, DOM object, GPU object or compiler process.
 
-A fourth branch exists beside these three, and it is not a `web-geometry` resolver condition: the
+A fourth branch exists beside these three, and it is not a `trillion3d` resolver condition: the
 measurement entry point, `packages/sdk-browser/src/measurement/measurement.ts`. It re-exports everything the
 browser branch does, plus `openMeasuredWorld`/`createMeasuredWorldJob` (the internal session a
 world opens on itself), the witness backend factories, `chooseBackends`/`autonomousCacheReady` and
 `replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the proofs
 and the comparison views import it by its source path inside this repository, never through the
-published `web-geometry` specifier, so none of it reaches a consumer of the package.
+published `trillion3d` specifier, so none of it reaches a consumer of the package.
 
 The package maps these built files with conditional JavaScript and matching conditional
 declarations. The `browser` condition precedes the Node and generic import/default paths; the Node
@@ -81,7 +81,7 @@ const world = createWorld('viewer'); // …or the id of one
 ```
 
 ```js
-import { createWorld, object, geometry, material, light } from 'web-geometry';
+import { createWorld, object, geometry, material, light } from 'trillion3d';
 
 const world = createWorld('viewer');
 
@@ -131,7 +131,7 @@ the thing (`geometry.box`); a member that sets up machinery is `create` + its na
 
 ## Families
 
-Twelve families describe the scene; one example each:
+Thirteen families describe the scene; one example each:
 
 ```js
 // geometry — the shape alone, with no matter
@@ -198,6 +198,12 @@ world.scene.add(helper.axes(2));
 ```
 
 ```js
+// controls — handles that move an object with the mouse
+const gizmo = controls.transform(world).attach(ball);
+gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()));
+```
+
+```js
 // animation
 const mixer = animation.createMixer(set);
 const bob = animation.clip('bob', 2, [
@@ -221,9 +227,9 @@ glass.blending = blending.normal;
 world.toneMapping = toneMapping.aces;
 ```
 
-| Family                                                                                                                                                                                                    | Members                                                                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
+| Family                                                                                                                                                                                                                | Members                                                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `controls`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
 
 Eight families exist because geometry here is **cut into pages** the engine moves in and out of
 memory according to what the frame reads:
@@ -350,7 +356,7 @@ path — an exact A/A image gate, then timed blocks, not a general performance v
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
 the engine, without removing the canvas. A page that wants job semantics around a load — progress,
-cancellation — wraps `scene.load(url, { signal })` with `createJob` from `web-geometry`.
+cancellation — wraps `scene.load(url, { signal })` with `createJob` from `trillion3d`.
 
 ### Camera controllers
 
@@ -368,7 +374,7 @@ world.controls.target.set(0, 1, 0); // orbit pivot
 Controls live on the world because they read input on the canvas it owns — a second listener would
 double the gestures — and they follow `world.camera` when it is replaced. Setting `kind` releases the
 previous controller and builds the next; `.enabled` turns the current one off without losing it.
-Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [firstPerson](../site/examples/walk-through-a-temple.html).
+Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html); `firstPerson` is the same head without a body.
 
 | `world.controls.kind` | Motion                                         | Gestures                                                            |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
@@ -384,6 +390,69 @@ All five publish `object.position`, `addEventListener('change')`, `removeEventLi
 `enablePan` and `update()`, which reads back a pose the host wrote and clamps it. A controller emits
 `change` only when the pose moved, so a still scene schedules nothing.
 
+### Picking, moving and saving
+
+`world.raycast(at)` returns the nearest object under a canvas point — CSS pixels from its top-left
+corner, `event.offsetX`/`offsetY` — or along a world `Ray`, or `null`: the very node the page added,
+the world `point` and `normal` hit, the `distance` and the triangle rank `face`. It runs on the CPU
+over the scene's own geometry: triangle meshes are tested triangle by triangle, lines, points and
+sprites have no area and are never hit, a loaded model — its triangles live in GPU pages — is hit on
+its box where the ray enters it, or at the ray's origin (`distance` 0, `normal` facing back along
+the ray) when the ray starts inside it; hidden subtrees and `helper` marks are skipped, a root under
+a hidden ancestor too. A ray's direction is made a unit vector at the door, so `distance` is in
+world units whatever its length. A canvas point is read on the CSS box and aimed at the shape the
+frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
+subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
+the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
+ray through a point of the picture. Live example: [click to pick](../site/examples/click-to-pick.html).
+
+```js
+world.canvas.addEventListener('click', (event) => {
+  const hit = world.raycast({ x: event.offsetX, y: event.offsetY });
+  hit?.object.material.color.set('#ffb347');
+});
+```
+
+`controls.transform(world, options)` puts handles on one object that move, turn and scale it with
+the mouse: `attach(object)`, `detach()`, `setMode('translate' | 'rotate' | 'scale')`,
+`setSpace('world' | 'local')`, `snap = { translate, rotate, scale }`, events `change`, `dragStart`,
+`dragEnd` — one drag, one undo step. The handles are meshes of the `geometry` family in unlit
+materials, depth-tested like any object, kept at one share of the canvas height (`size`, a quarter by
+default) and marked as `helper`s. A press is picked on them before the camera controller hears it,
+so an orbit rests while a handle is dragged and resumes after, with no page code. A drag writes the
+object's local pose from the world pose it asks for, through its parents; a scale always follows the
+object's own axes. The centre cube scales uniformly by the drag up the screen, wherever it was
+pressed, in the handles' own length: up by that length multiplies the size by e, down divides it by
+e. `attach` or `detach` during a drag ends it first, with its `dragEnd`. The handles follow the view after each frame the world draws; a still scene
+draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
+
+`scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'trillion3d-scene'`,
+`formatVersion: 1`): its hierarchy and poses, each shape by the family call that built it
+(`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
+hand, stores its vertices), each material by its parameters, lights, background, fog and the
+camera's pose; shapes and materials worn by several meshes are stored once; a loaded model is
+stored by its manifest address, never inlined; `helper` marks are left out. A texture, a picture
+background or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
+`await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
+models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
+anything. Calls made while one is reading wait for it and run in order, each replacing what the one
+before left: two saved scenes never merge. A shape family builds at least the pieces it closes with
+(a box one slice per side, a sphere three around and two down) and its stored call says the count
+it built. Live example: [save the scene](../site/examples/save-the-scene.html).
+
+The portal's scene editor (`site/app/editor/`) is these three doors and nothing else: pick,
+move, recolour, save and open a scene, the frame's cost read live.
+
+### Live material values
+
+A material already placed, written on its values — `color`, `emissive`, `emissiveIntensity`,
+`metalness`, `roughness` — is repainted in place: the session rewrites the rows that read it and
+opens nothing (#335). A colour picker dragged for ten seconds keeps one session. A change the
+session cannot hold in place — a texture, a kind, a side, transparency, a material object whose
+values another material shares — is copied on write and opens the session again, once per burst.
+`world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
+reopen.
+
 ## Installation and environment API
 
 The package is private and installed from this repository or a local tarball; it is not published
@@ -391,11 +460,11 @@ to npm. Browser bundlers must honour the standard `browser` export condition. No
 select the Node branch. A resolver with no platform condition receives the safe common branch, which
 contains no DOM, WebGPU, filesystem or process API.
 
-| Task               | Examples                                                                                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Common API         | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy   |
-| Native preparation | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, the `web-geometry-compile` CLI |
-| Browser rendering  | `createWorld` and the families it hands a page, plus `detectCapabilities`                                                                                              |
+| Task               | Examples                                                                                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common API         | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy |
+| Native preparation | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, the `trillion3d-compile` CLI |
+| Browser rendering  | `createWorld` and the families it hands a page, plus `detectCapabilities`                                                                                            |
 
 For a strict browser TypeScript project, enable the `browser` condition explicitly; without it,
 Bundler resolution selects the platform-neutral common declarations, which do not contain
@@ -419,7 +488,7 @@ A Node TypeScript host uses `"module": "NodeNext"`, `"moduleResolution": "NodeNe
 `"types": ["node"]`; NodeNext then selects the Node declarations from the same specifier.
 
 The browser runtime is not a zero-configuration single-file bundle. Configure the bundler with
-`web-geometry` as the application entry, the installed decode and integration worker files as
+`trillion3d` as the application entry, the installed decode and integration worker files as
 separate module-worker entries, and code splitting enabled. Copy the installed `pageCodec.wasm`
 beside every emitted chunk that keeps its relative URL, and serve that output directory together
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
@@ -434,15 +503,15 @@ public API takes or returns a Three.js object, and none of the batch maths needs
 ## Compiling from Node
 
 `prepare(source, cache, scope, triangles, options)` and `prepareMany(jobs, options)` relay to the
-native executable; the `web-geometry-compile` CLI is the same relay on the command line. Arguments,
+native executable; the `trillion3d-compile` CLI is the same relay on the command line. Arguments,
 events, the pointer, batch mode, cancellation, exit codes and the executable's selection
-(`options.executable`, then `WEB_GEOMETRY_COMPILER_BIN`, then the development build) are in
+(`options.executable`, then `TRILLION3D_COMPILER_BIN`, then the development build) are in
 [COMPILER.md](COMPILER.md#using-it-from-node). An installed tarball ships neither the executable nor
 the Rust sources, so it needs one of the first two selections.
 
 ## Scene hierarchy foundation
 
-`world.scene` is the graph a page writes into. Below it, `web-geometry` publishes the DOM-free
+`world.scene` is the graph a page writes into. Below it, `trillion3d` publishes the DOM-free
 transform foundation, scene-model version `SCENE_MODEL_VERSION` 1: `SceneRoot` and
 `createSceneRoot`, exported by the common facade, for a page that manages a transform tree of its
 own outside a world.
@@ -455,7 +524,7 @@ reproduce the local pose and optionally the descendants. Recursive copying from 
 descendant is rejected with `SCENE_COPY_OVERLAP` before either node changes.
 
 ```javascript
-import { createSceneRoot } from 'web-geometry';
+import { createSceneRoot } from 'trillion3d';
 
 const scene = createSceneRoot({ id: 'warehouse' });
 const shelf = scene.createNode({ id: 'shelf' }).setPosition(2, 0, -4);
@@ -503,7 +572,7 @@ import {
   frustumKeepsBoxBatch,
   sphereFromBoundsBatch,
   transformPointsBatch,
-} from 'web-geometry';
+} from 'trillion3d';
 
 const N = 10_000;
 // Allocated once, at scene load.
@@ -546,7 +615,7 @@ share of the engine's own frame is measured above 0.1 ms, and none of their loop
 
 ## Maths reference
 
-The maths the engine computes with, exported by `web-geometry`, `packages/sdk-core` and
+The maths the engine computes with, exported by `trillion3d`, `packages/sdk-core` and
 `packages/sdk-browser` alike. The public families a page writes against — `createWorld` and
 everything it hands out — are the sections above; this section lists the functions underneath them.
 Conventions shared by every entry:
@@ -740,7 +809,13 @@ changed with `light.visible = false`, `model.remove(light)` or `light.intensity 
 second — another application, another tab —, so a budget measured at start-up would be wrong five
 minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both 512 MiB by
 default: the geometry pool (cluster page slots, the root cover always resident) and the texture pool
-(virtual-texture tiles, every texture's tail always resident).
+(virtual-texture tiles, every texture's tail always resident). The WebGL2 engine holds the same
+geometry budget, drawn by the same rule: its cut draws coarser beyond it, and the pages no frame
+keeps leave oldest first. While a view refines, the pool can go past its budget by at most the
+ancestors still drawn in place of the pages replacing them, and is back under it at the next cut
+once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
+`geometryPoolAllocatedBytes` is `null`). It has no texture pool:
+`texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
 ```js
 world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
@@ -783,9 +858,9 @@ reopened.
   scheduling (`world.render()`). See [Create a world](#create-a-world).
 - **Electron**: `prepare` in the main process, `createWorld` in the renderer process. No Electron
   import in the SDK ([hosts](../packages/README.md#hosts)).
-- **Node**: `prepare`, `prepareMany`, `createCompilationJob`, or the `web-geometry-compile` CLI
+- **Node**: `prepare`, `prepareMany`, `createCompilationJob`, or the `trillion3d-compile` CLI
   ([COMPILER.md](COMPILER.md#using-it-from-node)).
-- **Other languages**: spawn `web-geometry-compiler` and read the cache — JSON pointer,
+- **Other languages**: spawn `trillion3d-compiler` and read the cache — JSON pointer,
   `clusters.json` and its sidecar, SHA-256 objects, `source.gltf` ([FORMAT.md](FORMAT.md)). The
   interface is the versioned manifest.
 
@@ -793,7 +868,7 @@ reopened.
 
 No Three.js adapter ships or is planned: a host that already writes Three.js code writes the same
 shapes with this engine's [families](#families) instead. The portal's
-[migration page](https://pasquelin.github.io/WebGeometry/#/en/learn/three-migration) sets one
+[migration page](https://www.trillion3d.com/#/en/learn/three-migration) sets one
 complete Three.js program beside the engine program that draws the same scene
 ([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); the
 maths map through the "Witness call" column of the [maths reference](#measured-against-the-witness-library).

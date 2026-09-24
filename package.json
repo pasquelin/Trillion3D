@@ -1,5 +1,5 @@
 {
-  "name": "web-geometry",
+  "name": "trillion3d",
   "version": "0.2.0",
   "packageManager": "pnpm@11.16.0",
   "type": "module",
@@ -23,7 +23,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "web-geometry-compile": "./dist/sdk-node/src/cli/cli.mjs"
+    "trillion3d-compile": "./dist/sdk-node/src/cli/cli.mjs"
   },
   "files": [
     "dist",
@@ -61,6 +61,7 @@
     "check:docs-three": "node scripts/check-docs-three.ts",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
     "check:api-reference": "node scripts/generate-api-reference.ts --check",
+    "check:i18n": "node scripts/check-i18n.ts",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
     "check:docs-bundles": "node scripts/docs-build.ts --untracked",
@@ -97,7 +98,7 @@
     "meshoptimizer": "~0.18.1"
   },
   "devDependencies": {
-    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-html": "^6.4.12",
     "@codemirror/language": "^6.12.4",
     "@eslint/js": "^10.0.1",
     "@lezer/highlight": "^1.2.3",
@@ -112,14 +113,19 @@
     "eslint": "^10.10.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "flag-icons": "^7.5.0",
     "globals": "^17.12.0",
     "highlight.js": "^11.12.0",
+    "i18next": "^26.4.2",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "jolt-physics": "1.1.0",
     "jscpd": "^5.2.0",
     "knip": "^6.35.1",
     "playwright": "^1.63.0",
     "prettier": "^3.9.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-i18next": "^17.0.15",
     "tailwindcss": "^4.3.3",
     "three": "^0.174.0",
     "typescript": "^5.8.0",

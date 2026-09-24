@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A tube along a spline</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #11151f;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, language } from '../runtime/kit.js';
+
+      // Each path is a few points in space; `math.curve` passes a smooth spline through them.
+      const sample = (count, at) => Array.from({ length: count }, (_, k) => at((k / count) * Math.PI * 2));
+      const paths = {
+        knot: () => math.curve(sample(24, (a) => [
+          (Math.sin(a) + 2 * Math.sin(2 * a)) * 0.9,
+          1.9 + Math.sin(3 * a) * 0.9,
+          (Math.cos(a) - 2 * Math.cos(2 * a)) * 0.9,
+        ]), true),
+        coaster: () => math.curve(sample(16, (a) => [
+          Math.cos(a) * (3 + Math.sin(a * 3) * 0.6),
+          1.4 + Math.sin(a * 2) * 1 + Math.cos(a * 5) * 0.3,
+          Math.sin(a) * (2.2 + Math.cos(a * 2) * 0.5),
+        ]), true),
+        spiral: () => math.curve(Array.from({ length: 40 }, (_, k) => {
+          const a = k * 0.5, r = 0.6 + k * 0.06;
+          return [Math.cos(a) * r, 0.3 + k * 0.09, Math.sin(a) * r];
+        }), false),
+      };
+
+      const world = createWorld('view', { controls: 'orbit' });
+      const floor = object.mesh(geometry.cylinder(6, 6.2, 0.2, 96), material.meshStandard({ color: '#262b38', roughness: 0.55, metalness: 0.2 }));
+      floor.position.y = -0.1;
+      world.scene.add(floor);
+      const paint = material.meshStandard({ color: '#e0663c', roughness: 0.25, metalness: 0.3 });
+      const tube = object.mesh(geometry.tube(paths.knot(), 300, 0.15, 16, true), paint);
+      world.scene.add(tube);
+
+      // Three glowing beads threaded on the curve, a little wider than the tube, each with its own
+      // small lamp — no shadow: a moving lamp that casts one redraws its shadow map every frame.
+      const beads = ['#5ad1ff', '#ffd05a', '#ff5ab4'].map((colour, index) => {
+        const lamp = light.point({ color: colour, intensity: 8, distance: 3.5 });
+        const bead = object.mesh(geometry.sphere(1, 24, 16), material.meshStandard({ color: '#000000', emissive: colour, emissiveIntensity: 5 }));
+        world.scene.add(lamp, bead);
+        return { lamp, bead, offset: index / 3 };
+      });
+
+      world.scene.add(light.directional({ intensity: 2.6, color: '#fff1dc', position: [5, 10, 6], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#8fa8d8', groundColor: '#2a1f1a', intensity: 0.5 }));
+      world.camera.position.set(0, 4.6, 8.2);
+      world.camera.lookAt(0, 1.5, 0);
+      world.controls.target.set(0, 1.5, 0);
+
+      // A change of path, thickness or slicing builds a new tube; the paint alone is recoloured.
+      let curve = paths.knot(), triangles = null, travel = 0;
+      const at = math.vector3();
+      // The beads where the travel has taken them on the curve.
+      const placeBeads = (path) => {
+        for (const { lamp, bead, offset } of beads) {
+          // An open path is ridden to its end and back; a closed one goes round.
+          const t = (travel + offset) % 1, along = path === 'spiral' ? 1 - Math.abs(1 - 2 * t) : t;
+          curve.getPoint(along, at);
+          bead.position.copy(at);
+          lamp.position.copy(at);
+        }
+      };
+      const ui = controls({
+        path: Object.keys(paths),
+        radius: [0.03, 0.4, 0.15],
+        sides: [3, 32, 16, 1],
+        slices: [8, 600, 300, 1],
+        speed: [0, 0.3, 0.06],
+        beads: true,
+        paint: '#e0663c',
+      }, (values, key) => {
+        if (key === 'paint' || key === undefined) paint.color.set(values.paint);
+        if (key === 'beads') for (const { lamp, bead } of beads) lamp.visible = bead.visible = values.beads;
+        if (key === 'paint' || key === 'beads' || key === 'speed') return world.invalidate();
+        for (const { bead } of beads) bead.scale.setScalar(values.radius * 1.5 + 0.05);
+        curve = paths[values.path]();
+        tube.geometry = geometry.tube(curve, values.slices, values.radius, values.sides, values.path !== 'spiral');
+        placeBeads(values.path);
+        triangles?.((values.slices * values.sides * 2).toLocaleString(language()));
+        world.invalidate();
+      }, world);
+      triangles = readout('triangles');
+      triangles((ui.slices * ui.sides * 2).toLocaleString(language()));
+
+      // Still beads, or hidden ones, ask for no new frame.
+      world.onFrame(({ delta }) => {
+        if (!ui.speed || !ui.beads) return;
+        travel += delta * ui.speed;
+        placeBeads(ui.path);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

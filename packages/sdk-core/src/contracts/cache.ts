@@ -8,21 +8,7 @@ import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geome
 
 /**
  * The error the engine throws: a stable `code` a page can test, words for a person, and details.
- * @errorCode CANVAS_NOT_FOUND, CANVAS_DOCUMENT_UNAVAILABLE, CANVAS_WINDOW_UNAVAILABLE, INVALID_CANVAS - The world has no canvas to draw into: none found, or no page around it.
- * @errorCode INVALID_CANVAS_LAYOUT, INVALID_VIEWPORT, INVALID_PIXEL_RATIO - The canvas has no usable size or pixel ratio.
- * @errorCode WEBGPU_UNAVAILABLE, WEBGL2_UNAVAILABLE, NO_WEBGL2, NO_ENGINE_BACKEND - The machine cannot draw the way asked, or cannot draw at all.
- * @errorCode RESOURCE_HTTP_ERROR, INVALID_JSON_RESPONSE - A file could not be fetched, or was not what it should be.
- * @errorCode INVALID_POINTER, CACHE_NOT_READY, SCOPE_MISMATCH - The compiled model's pointer is broken, unfinished, or of another scope.
- * @errorCode INVALID_CACHE, UNSUPPORTED_FORMAT, STALE_CACHE, UNSUPPORTED_MODEL_FORMAT - The compiled model is damaged, too old, too new or of a format not read yet: compile it again.
- * @errorCode INVALID_SCENE_TABLES, UNSUPPORTED_SCENE_TABLES, PREPARED_SCENE_MISMATCH - The model's node and material tables are missing, of another version, or disagree with its scene.
- * @errorCode AUTONOMOUS_SCENE_UNAVAILABLE, AUTONOMOUS_ASSOCIATION_MISSING, AUTONOMOUS_COVERAGE_MISSING, CLUSTER_MATERIAL_UNSUPPORTED - The engine's own WebGL2 path cannot draw this model.
- * @errorCode PAGE_BUDGET, UNSUPPORTED_MEMORY_BUDGETS - The pages the view needs do not fit the memory budget, or this path has no budgets.
- * @errorCode INVALID_SCENE_LIGHT, DUPLICATE_SCENE_LIGHT, UNKNOWN_SCENE_LIGHT, SCENE_LIGHT_BUDGET, SCENE_LIGHTS_UNAVAILABLE - A light is malformed, doubled, unknown, one too many, or has nowhere to go.
- * @errorCode INVALID_SCENE_ENVIRONMENT - The scene's exposure or surroundings are not valid numbers.
- * @errorCode INVALID_TRANSFORM, NON_FINITE_TRANSFORM, SINGULAR_PARENT_TRANSFORM, TRANSFORM_CYCLE - A node's placement is not a usable matrix, or a node would be its own ancestor.
- * @errorCode UNKNOWN_SCENE_NODE, UNKNOWN_TRANSFORM_NODE, STALE_SCENE_NODE, INVALID_SCENE_NODE_ID, DUPLICATE_SCENE_NODE_ID, INVALID_SCENE_NODE_VISIBILITY - A scene node is unknown, gone, badly named, or given a visibility that is not yes or no.
- * @errorCode SCENE_ROOT_PARENT, SCENE_ROOT_DESTROY, SCENE_ROOT_MISMATCH, SCENE_COPY_OVERLAP - Something the scene root forbids: a parent for it, destroying it, mixing two roots, copying a node into itself.
- * @errorCode UNSUPPORTED_SCENE_UPDATE, BATCHED_WORLD_VIEW - This drawing path cannot make that change to the scene.
+ * @errorCodes Every code it may carry is in `ENGINE_ERROR_CODES` (`errorCodes.ts`).
  */
 export class EngineError extends Error {
   /** Which error it is, in capitals: the word a page tests. */
@@ -106,7 +92,7 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
       formatVersion,
     });
   if (value.status !== 'ready')
-    throw new EngineError('INVALID_CACHE', 'Unsupported Web Geometry cache', {
+    throw new EngineError('INVALID_CACHE', 'Unsupported Trillion3D cache', {
       status: value.status ?? null,
     });
   if (value.scope !== scope)

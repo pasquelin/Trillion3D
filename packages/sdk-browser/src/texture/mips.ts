@@ -1,3 +1,5 @@
+import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
+
 /** Full mip chain length for a texture of the given size. */
 export function mipLevelCountFor(width: number, height: number) {
   return 1 + Math.floor(Math.log2(Math.max(width, height)));
@@ -9,7 +11,8 @@ export function mipLevelCountFor(width: number, height: number) {
  * The mip chain is generated at every working texture: recompiling the same program and the same
  * layout at each made one pay a pipeline compilation per texture, on the very path that must
  * serve its tiles as fast as possible. The cache is held per device, so a lost device takes its
- * pipelines with it.
+ * pipelines with it; it is built on the device itself (`sharedGpuDevice`), never on a session's
+ * handle: it serves every session, and names none.
  */
 type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
 const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
@@ -78,7 +81,8 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
  *
  * Creating then destroying it at every texture forced waiting for the end of the device's work
  * before releasing it — a full round trip of the GPU queue per texture. A buffer that lives as
- * long as the device rewrites itself in queue order, waiting for nothing.
+ * long as the device rewrites itself in queue order, waiting for nothing. Like the program, it
+ * is the device's own.
  */
 const uniformBuffers = new WeakMap<GPUDevice, { buffer: GPUBuffer; size: number }>();
 
@@ -86,7 +90,7 @@ function mipUniforms(device: GPUDevice, size: number) {
   const held = uniformBuffers.get(device);
   if (held && held.size >= size) return held.buffer;
   const buffer = device.createBuffer({
-    label: 'WG texture mips uniforms',
+    label: 'Trillion3D texture mips uniforms',
     size,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -108,7 +112,8 @@ export function generateMaterialMips(
 ) {
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
-  const { layout, pipeline } = mipPipeline(device, format);
+  const shared = sharedGpuDevice(device);
+  const { layout, pipeline } = mipPipeline(shared, format);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   // One uniform per reduced level: the extent of the source level, so as not to read off the image.
   const packed = new Uint32Array(((levels - 1) * stride) / 4);
@@ -117,7 +122,7 @@ export function generateMaterialMips(
     packed[at] = Math.max(1, width >> (level - 1));
     packed[at + 1] = Math.max(1, height >> (level - 1));
   }
-  const uniforms = mipUniforms(device, packed.byteLength);
+  const uniforms = mipUniforms(shared, packed.byteLength);
   device.queue.writeBuffer(uniforms, 0, packed);
   const encoder = device.createCommandEncoder();
   const viewOf = (level: number) => texture.createView({ baseMipLevel: level, mipLevelCount: 1 });

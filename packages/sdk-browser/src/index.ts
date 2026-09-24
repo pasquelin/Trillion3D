@@ -12,6 +12,7 @@ export * from '../../sdk-core/src/world/constants/index.ts';
 export * from './world/texture/index.ts';
 export * from './world/loader/index.ts';
 export * from './world/helper/index.ts';
+export * from './world/controls/index.ts';
 export * from './world/page/index.ts';
 export * from './world/budget/index.ts';
 export * from './world/metric/index.ts';
@@ -69,8 +70,13 @@ export type {
 export type { SurfaceBuffer, SurfaceCapture } from './scene/surfaceBuffer.ts';
 export type { HostDrawCamera } from './camera/world.ts';
 export type { HostDrawOutput } from './webgl/core/renderTarget.ts';
-export type { MemoryBudgets, MemoryBudgetsReport } from './webgpu/pages/io/memory.ts';
-export type { GeometryPool, PoolClamp, TexturePool } from './webgpu/residency/memoryBudgets.ts';
+export type {
+  GeometryPool,
+  MemoryBudgets,
+  MemoryBudgetsReport,
+  PoolClamp,
+} from './residency/pools.ts';
+export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
 export type { ShadowAtlasDigest } from './gpu/shadow/digest.ts';
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts';
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts';
@@ -126,7 +132,16 @@ export type {
   ControlVector,
   PivotCameraControls,
 } from './camera/controls/types.ts';
+export type { OrbitCameraControls } from './camera/controls/orbitControls.ts';
 export type { FlyCameraControls } from './camera/controls/flyControls.ts';
 export type { FirstPersonCameraControls } from './camera/controls/firstPersonControls.ts';
+export type { HeadSettings, PersonHead } from './camera/controls/look.ts';
+export type { CharacterCameraControls } from './camera/controls/characterControls.ts';
+export type {
+  CharacterCollision,
+  TriangleCollision,
+} from '../../sdk-core/src/collision/characterCollision.ts';
+export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
+export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts';
 export type { PanZoomCameraControls } from './camera/controls/panZoomControls.ts';

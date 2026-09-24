@@ -23,7 +23,7 @@ export function encodeEmptySurfaces(
   if (!gpu.surfaces) throw new Error('SURFACE_UNAVAILABLE');
   const encoder = createRenderEncoder(rt, device);
   const pass = encoder.beginRenderPass({
-    label: 'WG empty surfaces',
+    label: 'Trillion3D empty surfaces',
     colorAttachments: surfaceColorAttachments(gpu.surfaces),
     depthStencilAttachment: {
       view: depthTarget,

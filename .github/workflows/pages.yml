@@ -1,40 +1,120 @@
-name: Pages
+name: Site
 
-# The repository's Pages source is "GitHub Actions" (set once through the API): no branch tracks
-# a build product, this workflow builds the site from main into dist/site and deploys that tree.
+# The documentation portal, built from the sources into dist/site and deployed to the site's own
+# server (docs/LEARNING_PORTAL.md, "Deploy"). A pull request that touches the site only builds it;
+# a push to main, or a manual run asked to deploy, also publishes it.
 on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'scripts/docs/**'
+      - 'scripts/docs-build.ts'
+      - 'packages/sdk-browser/**'
+      - '.github/workflows/pages.yml'
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Publish the built site (from main only)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-24.04
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    # The open world's generation and cook take about twenty minutes of the build.
+    timeout-minutes: 60
+    outputs:
+      deploy: ${{ steps.plan.outputs.deploy }}
+      floor: ${{ steps.plan.outputs.floor }}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22.18.0'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/node
+      # The open world (#332) is generated from its seed and compiled at build time: its cache is
+      # never committed. The native compiler builds first, then the generator writes the world.
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm run build:native
+      - run: node scripts/docs-openworld.ts
       # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone.
       - run: pnpm run build:docs
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      # Whether this run publishes, decided once: only main is ever published.
+      # The file-count floor of a sound output: the build copies every tracked served static of
+      # site/ (sources .ts/.tsx excluded) and writes index.html and robots.txt beside them, so a
+      # tree holding fewer files than that lost part of the copy on the way.
+      - id: plan
+        env:
+          DEPLOY: >-
+            ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' ||
+            (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
+        run: |
+          statics=$(git ls-files -- site/examples site/assets site/data site/reports | grep -cEv '\.tsx?$')
+          echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
+          echo "floor=$((statics + 2))" >> "$GITHUB_OUTPUT"
+      - if: steps.plan.outputs.deploy == 'true'
+        uses: actions/upload-artifact@v7
         with:
+          name: site
           path: dist/site
-      - uses: actions/deploy-pages@v5
-        id: deployment
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.deploy == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # One deployment at a time, and never one cut off halfway through its transfer.
+    concurrency:
+      group: site
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: dist/site
+      - name: Refuse an empty or partial output
+        env:
+          FLOOR: ${{ needs.build.outputs.floor }}
+        run: |
+          for file in index.html runtime/portal.js; do
+            test -s "dist/site/$file" || { echo "::error::dist/site/$file is missing"; exit 1; }
+          done
+          count=$(find dist/site -type f | wc -l)
+          echo "$count files, floor $FLOOR"
+          test "$count" -ge "$FLOOR" || { echo "::error::$count files, fewer than $FLOOR"; exit 1; }
+      # Served as is by the web server beside each original; binary pages and caches do not shrink.
+      - name: Pre-compress the text files
+        run: >-
+          find dist/site -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' -o -name '*.mjs'
+          -o -name '*.svg' -o -name '*.json' -o -name '*.xml' -o -name '*.txt' -o -name '*.gltf'
+          -o -name '*.obj' -o -name '*.wasm' \) -exec gzip -9 -k -f {} +
+      - name: Install the deploy key
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
+      # The key is restricted to the web root on the server, so the target path is that root.
+      - name: Transfer
+        env:
+          TARGET: ${{ secrets.DEPLOY_TARGET }}
+          PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+        run: >-
+          rsync -rltz --delete-delay --delay-updates --stats --exclude '.well-known/'
+          -e "ssh -p $PORT -i $HOME/.ssh/deploy -o StrictHostKeyChecking=yes"
+          dist/site/ "$TARGET:/"
+      # The address checked is the one the built page declares canonical (scripts/docs/site.ts).
+      - name: Check the published site
+        run: |
+          url=$(grep -o 'rel="canonical" href="[^"]*"' dist/site/index.html | sed 's/.*href="//; s/"$//')
+          test -n "$url" || { echo "::error::no canonical address in index.html"; exit 1; }
+          for page in "$url" "${url}runtime/portal.js"; do
+            curl -fsS -o /dev/null --retry 2 --retry-all-errors --retry-delay 10 -w "%{http_code} $page\n" "$page"
+          done

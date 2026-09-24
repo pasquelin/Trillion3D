@@ -5,11 +5,8 @@ package-lock.json
 
 # Scene assets: compiled caches and generated sources.
 site/assets/kinetic-garden/cache/
-site/assets/gallery/shadow-theatre/cache/
 
 site/assets/gallery/offline/
 site/assets/gallery/signature-architecture/cache/
-
-site/assets/gallery/fossil-excavation/cache/
 
 site/assets/examples/*/cache/

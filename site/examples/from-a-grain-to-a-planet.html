@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>From grain to planet</title>
+    <meta name="thumbnail" content="12" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b1024;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout, seeded, words, opening, ease } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0b1024');
+      const random = seeded(41);
+
+      // One small planet, 8 km in radius, and one point on its beach: the focus, at the origin.
+      // Everything is placed relative to it, so a grain beside it keeps every digit it needs.
+      const R = 8000;
+      // Smooth noise in 3D, from a grid of hashed values.
+      const lattice = (i, j, k, seed) => {
+        let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(k, 1274126177) ^ Math.imul(seed, 1597334677);
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        return ((h ^ (h >>> 16)) >>> 0) / 2147483648 - 1;
+      };
+      const { lerp } = math;
+      function noise(x, y, z, seed) {
+        const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z), u = ease.smooth(x - i), v = ease.smooth(y - j), w = ease.smooth(z - k);
+        const plane = (dk) => lerp(lerp(lattice(i, j, k + dk, seed), lattice(i + 1, j, k + dk, seed), u), lerp(lattice(i, j + 1, k + dk, seed), lattice(i + 1, j + 1, k + dk, seed), u), v);
+        return lerp(plane(0), plane(1), w);
+      }
+      // The ground's height above the sea at a direction from the planet's centre. Every scale
+      // has its octave — continents, hills, dunes, ripples, down to the roughness of a grain —
+      // each as tall as its wavelength allows; the octaves finer than the mesh can hold (`finest`)
+      // are left out, so no wave is ever drawn by fewer points than it needs.
+      const ISLAND = [Math.sin(1500 / R), Math.cos(1500 / R), 0];
+      function rawHeight(d, finest) {
+        const [x, y, z] = [d[0] * R, d[1] * R, d[2] * R];
+        const off = Math.hypot(d[0] - ISLAND[0], d[1] - ISLAND[1], d[2] - ISLAND[2]) * R, mask = Math.exp(-((off / 3200) ** 2));
+        let h = 1000 * mask - 420;
+        h += 1600 * noise(x / 12000, y / 12000, z / 12000, 1) + 700 * noise(x / 5200, y / 5200, z / 5200, 2);
+        const ridge = 1 - Math.abs(noise(x / 1300, y / 1300, z / 1300, 3));
+        h += mask * (700 * ridge ** 3 + 160 * (1 - Math.abs(noise(x / 480, y / 480, z / 480, 4))) ** 2);
+        for (let wave = 1400, octave = 5; wave >= finest; wave /= 2, octave++) h += 0.06 * wave ** 0.9 * noise(x / wave, y / wave, z / wave, octave);
+        return h;
+      }
+      const FOCUS_RAW = rawHeight([0, 1, 0], 0.0002);
+      // Near the sea the land is pressed flat into beaches; beyond fifteen metres it is left as it is.
+      const height = (d, finest) => {
+        const h = rawHeight(d, finest) - FOCUS_RAW + 0.1;
+        return Math.abs(h) >= 15 ? h : h * (0.25 + 0.75 * (h / 15) ** 2);
+      };
+      // A direction at arc distance `r` from the focus, `angle` round it, and a point `h` above
+      // the sea there, relative to the focus: (cos θ − 1) is written without a cancellation.
+      const direction = (r, angle) => [Math.sin(r / R) * Math.cos(angle), Math.cos(r / R), Math.sin(r / R) * Math.sin(angle)];
+      const point = (d, r, h) => [d[0] * (R + h), -2 * Math.sin(r / (2 * R)) ** 2 * R + d[1] * h, d[2] * (R + h)];
+
+      // The ground as one mesh of rings round the focus, each ring 9 % wider than the last: from
+      // a tenth of a millimetre to the far side of the planet in 200 rings. Wherever the camera
+      // looks from, the rings under it are as fine on screen as they are anywhere else.
+      function rings(first, growth, sides, lift) {
+        const radii = [];
+        for (let r = first; r < Math.PI * R; r *= growth) radii.push(r);
+        radii.push(Math.PI * R * 0.9999);
+        const heights = [lift([0, 1, 0], 0, first)], position = [0, heights[0], 0], directions = [[0, 1, 0]];
+        radii.forEach((r, k) => {
+          for (let j = 0; j < sides; j++) {
+            const d = direction(r, ((j + 0.5 * (k % 2)) / sides) * Math.PI * 2), h = lift(d, r, r * (growth - 1));
+            position.push(...point(d, r, h));
+            heights.push(h);
+            directions.push(d);
+          }
+        });
+        const index = [];
+        for (let j = 0; j < sides; j++) index.push(0, 1 + ((j + 1) % sides), 1 + j);
+        for (let k = 0; k + 1 < radii.length; k++)
+          for (let j = 0; j < sides; j++) {
+            const a = 1 + k * sides + j, b = 1 + k * sides + ((j + 1) % sides), c = a + sides, d = b + sides;
+            if (k % 2) index.push(a, b, d, a, d, c);
+            else index.push(a, b, c, b, d, c);
+          }
+        // The height of the mesh itself anywhere on it: along the two rings around the point,
+        // then between them, so what stands on the ground stands on what is drawn.
+        const at = (r, angle) => {
+          const k = Math.max(0, Math.min(radii.length - 2, Math.floor(Math.log(r / first) / Math.log(growth))));
+          const along = (ring) => {
+            const x = ((((angle / (Math.PI * 2)) * sides - 0.5 * (ring % 2)) % sides) + sides) % sides, j = Math.floor(x), f = x - j;
+            return heights[1 + ring * sides + j] * (1 - f) + heights[1 + ring * sides + ((j + 1) % sides)] * f;
+          };
+          const f = Math.max(0, Math.min(1, (r - radii[k]) / (radii[k + 1] - radii[k])));
+          return along(k) * (1 - f) + along(k + 1) * f;
+        };
+        return { position, directions, heights, index, at };
+      }
+      // Smooth normals: each vertex the sum of the faces round it.
+      function normals(position, index) {
+        const n = new Float64Array(position.length);
+        for (let f = 0; f < index.length; f += 3) {
+          const [a, b, c] = [index[f] * 3, index[f + 1] * 3, index[f + 2] * 3];
+          const e = [0, 1, 2].map((i) => position[b + i] - position[a + i]), g = [0, 1, 2].map((i) => position[c + i] - position[a + i]);
+          const face = [e[1] * g[2] - e[2] * g[1], e[2] * g[0] - e[0] * g[2], e[0] * g[1] - e[1] * g[0]];
+          for (const v of [a, b, c]) for (let i = 0; i < 3; i++) n[v + i] += face[i];
+        }
+        for (let v = 0; v < n.length; v += 3) {
+          const length = Math.hypot(n[v], n[v + 1], n[v + 2]) || 1;
+          for (let i = 0; i < 3; i++) n[v + i] /= length;
+        }
+        return n;
+      }
+      // One mesh per kind of ground, each holding the faces whose middle is that kind.
+      const KINDS = { seabed: '#9c8661', sand: '#dcc596', grass: '#5e8a38', rock: '#7c7266', snow: '#f1f1ec' };
+      const kindOf = (h, steep) => (h < -1.5 ? 'seabed' : h < 4 ? 'sand' : h > 640 ? 'snow' : h > 400 || steep > 0.3 ? 'rock' : 'grass');
+      const ground = rings(0.0001, 1.09, 96, (d, r, cell) => height(d, 2 * cell));
+      const groundNormals = normals(ground.position, ground.index);
+      const buckets = Object.fromEntries(Object.keys(KINDS).map((kind) => [kind, { position: [], normal: [], index: [], seen: new Map() }]));
+      for (let f = 0; f < ground.index.length; f += 3) {
+        const corners = ground.index.slice(f, f + 3), d = ground.directions[corners[0]];
+        const h = corners.reduce((sum, v) => sum + ground.heights[v], 0) / 3;
+        const up = corners.reduce((sum, v) => sum + (groundNormals[v * 3] * d[0] + groundNormals[v * 3 + 1] * d[1] + groundNormals[v * 3 + 2] * d[2]), 0) / 3;
+        const bucket = buckets[kindOf(h, 1 - up)];
+        for (const v of corners) {
+          if (!bucket.seen.has(v)) {
+            bucket.seen.set(v, bucket.position.length / 3);
+            bucket.position.push(ground.position[v * 3], ground.position[v * 3 + 1], ground.position[v * 3 + 2]);
+            bucket.normal.push(groundNormals[v * 3], groundNormals[v * 3 + 1], groundNormals[v * 3 + 2]);
+          }
+          bucket.index.push(bucket.seen.get(v));
+        }
+      }
+      const built = ({ position, normal, index }) => geometry.createBuffer({ position: buffer.float32(new Float32Array(position), 3), normal: buffer.float32(new Float32Array(normal), 3), index: buffer.uint32(index) });
+      for (const [kind, bucket] of Object.entries(buckets))
+        if (bucket.index.length) world.scene.add(object.mesh(built(bucket), material.meshStandard({ color: KINDS[kind], roughness: kind === 'snow' ? 0.6 : 0.95 })));
+      // The sea: the same rings, coarser, at height zero, clear enough to show the sand below.
+      const sea = rings(0.0003, 1.14, 64, () => 0);
+      world.scene.add(object.mesh(built({ ...sea, normal: sea.directions.flat() }), material.meshStandard({ color: '#1d5f8e', roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.84, depthWrite: false })));
+      // The air: six shells seen from inside, their blue adding up to the sky overhead and to a
+      // halo round the planet's rim from space, the clouds within it.
+      const centre = [0, -R, 0], air = material.meshBasic({ color: '#7fb0ff', transparent: true, opacity: 0.18, side: 'back', depthWrite: false });
+      const dome = geometry.sphere(1, 128, 64);
+      for (let k = 1; k <= 6; k++) {
+        const shell = object.mesh(dome, air);
+        shell.position.set(...centre);
+        shell.scale.setScalar(R * (1 + k * 0.028));
+        world.scene.add(shell);
+      }
+
+      // Things on the ground, each at its own scale and each placed at a distance drawn evenly on
+      // a log scale: as many sand grains in the first millimetre as trees in the first kilometre,
+      // so every zoom finds the screen as full as the last.
+      const paint = (color, roughness = 0.8, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      function place(mesh, r, angle, lift = 0, spin = random() * Math.PI * 2, h = ground.at(r, angle)) {
+        const d = direction(r, angle);
+        const v = [d[0] * Math.cos(spin) - d[2] * Math.sin(spin), d[1], d[0] * Math.sin(spin) + d[2] * Math.cos(spin)];
+        mesh.rotation.order = 'YXZ';
+        mesh.rotation.set(Math.atan2(v[2], d[1]), spin, Math.asin(-v[0]));
+        mesh.position.set(...point(d, r, h + lift));
+        world.scene.add(mesh);
+      }
+      const logScale = (low, high) => low * (high / low) ** random();
+      function scatter(count, low, high, make, accept = () => true) {
+        for (let k = 0, tries = 0; k < count && tries < count * 6; tries++) {
+          const r = logScale(low, high), angle = random() * Math.PI * 2, h = ground.at(r, angle);
+          if (!accept(h, r, angle)) continue;
+          make(r, angle);
+          k++;
+        }
+      }
+      // Grains of sand: facetted crystals a millimetre across, quartz, feldspar, basalt and shell.
+      const crystal = geometry.polyhedron([1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1], [2, 1, 0, 0, 3, 2, 1, 3, 0, 2, 3, 1], 1, 1);
+      const grains = ['#f3ead8', '#e8b98a', '#d98f7a', '#3b3a3c', '#fbf7f0', '#c9a36b'].map((color) => material.meshStandard({ color, roughness: 0.35, metalness: 0.05, flatShading: true }));
+      scatter(500, 0.0005, 0.03, (r, angle) => {
+        const grain = object.mesh(crystal, grains[Math.floor(random() * grains.length)]), size = 0.00035 + random() * 0.00045;
+        place(grain, r, angle, size * 0.2);
+        grain.scale.set(size * (0.8 + random() * 0.5), size * (0.6 + random() * 0.4), size * (0.8 + random() * 0.5));
+      }, (h) => h > -0.004);
+      // Pebbles and shells, a few millimetres to a few centimetres.
+      const pebble = geometry.sphere(1, 20, 14), shell = geometry.lathe(Array.from({ length: 10 }, (_, k) => [Math.sin((k / 9) * Math.PI) * (1 - k / 14), (k / 9) * 0.9]), 20);
+      const pebbles = ['#8a857d', '#b9b1a3', '#5d5a57', '#a38c6d', '#d8d2c6'].map((c) => paint(c, 0.55)), pink = paint('#f0c2b0', 0.4);
+      scatter(700, 0.006, 2.5, (r, angle) => {
+        const size = 0.003 + random() ** 2 * 0.03, isShell = random() < 0.15;
+        const stone = object.mesh(isShell ? shell : pebble, isShell ? pink : pebbles[Math.floor(random() * pebbles.length)]);
+        place(stone, r, angle, isShell ? -size * 0.1 : size * 0.1);
+        stone.scale.set(size * (1 + random() * 0.6), size * (0.45 + random() * 0.3), size);
+      }, (h) => h > -0.05);
+      // Stones and driftwood on the beach, boulders along the shore.
+      const wood = paint('#a58c6f', 0.9), log = geometry.cylinder(0.5, 0.42, 1, 12).rotateZ(Math.PI / 2);
+      scatter(360, 0.4, 60, (r, angle) => {
+        const size = 0.06 + random() ** 2 * 0.5, stone = object.mesh(pebble, pebbles[Math.floor(random() * pebbles.length)]);
+        place(stone, r, angle, 0);
+        stone.scale.set(size * 1.3, size * 0.7, size);
+      }, (h) => h > -0.3 && h < 8);
+      scatter(40, 3, 80, (r, angle) => {
+        const drift = object.mesh(log, wood), length = 1.5 + random() * 3;
+        place(drift, r, angle, 0.12);
+        drift.scale.set(length, 0.28, 0.28);
+      }, (h) => h > 0.1 && h < 3);
+      const granite = paint('#8d857a', 0.85), lump = geometry.sphere(1, 12, 8);
+      scatter(220, 8, 400, (r, angle) => {
+        const size = 0.8 + random() * 3.2, boulder = object.mesh(lump, granite);
+        place(boulder, r, angle, 0);
+        boulder.scale.set(size * 1.2, size * 0.8, size);
+      }, (h) => h > -2 && h < 40);
+      // Trees on the gentle land, houses in the valleys, a lighthouse above the beach.
+      const needle = paint('#2e5a2c'), leaf = paint('#4f7f34'), bark = paint('#5a4230');
+      const pine = geometry.cone(1, 2.4, 10).translate(0, 2.4, 0), round = geometry.sphere(1, 14, 10).translate(0, 2.1, 0), stem = geometry.cylinder(0.12, 0.18, 1.4, 8).translate(0, 0.7, 0);
+      scatter(1300, 15, 4000, (r, angle) => {
+        const size = 2 + random() * 2, spin = random() * Math.PI * 2, crown = object.mesh(random() < 0.6 ? pine : round, random() < 0.6 ? needle : leaf), trunk = object.mesh(stem, bark);
+        for (const part of [crown, trunk]) {
+          place(part, r, angle, -0.3, spin);
+          part.scale.setScalar(size);
+        }
+      }, (h, r, angle) => h > 4 && h < 420 && Math.abs(ground.at(r + 6, angle) - h) < 3);
+      const walls = paint('#efe6d6', 0.7), tiles = paint('#b0463a', 0.6);
+      const block = geometry.box(1, 1, 1).translate(0, 0.5, 0), roof = geometry.cone(0.8, 0.6, 4).rotateY(Math.PI / 4).translate(0, 1.3, 0);
+      scatter(140, 120, 3000, (r, angle) => {
+        const spin = random() * Math.PI * 2, size = 6 + random() * 5;
+        for (const part of [object.mesh(block, walls), object.mesh(roof, tiles)]) {
+          place(part, r, angle, -0.4, spin);
+          part.scale.set(size, size * 0.8, size * 1.3);
+        }
+      }, (h, r, angle) => h > 6 && h < 250 && Math.abs(ground.at(r + 10, angle) - h) < 3);
+      const lighthouse = [[geometry.cylinder(1.4, 2.2, 16, 24).translate(0, 8, 0), walls], [geometry.cylinder(1.62, 1.75, 2.4, 24).translate(0, 11, 0), tiles], [geometry.cylinder(1.2, 1.2, 2, 16).translate(0, 17, 0), material.meshStandard({ color: '#fff2b0', emissive: '#ffd36a', emissiveIntensity: 2 })], [geometry.cone(1.6, 1.8, 16).translate(0, 18.9, 0), tiles]];
+      // It stands seventy metres from the focus, round the circle where the land first rises.
+      const beacon = Array.from({ length: 64 }, (_, k) => (k / 64) * Math.PI * 2).find((angle) => ground.at(70, angle) > 5) ?? 0;
+      for (const [shape, look] of lighthouse) place(object.mesh(shape, look), 70, beacon, -0.5, 0);
+      // Sailing boats on the sea, clouds over everything, a moon far off.
+      const hull = geometry.capsule(1, 4, 4, 12).rotateX(Math.PI / 2).scale(0.9, 0.5, 1), sail = geometry.box(0.08, 6, 3.4).translate(0, 3.5, 0);
+      const navy = paint('#2b3a55', 0.5), canvas = paint('#fbf8f1', 0.7);
+      scatter(6, 60, 1200, (r, angle) => {
+        const spin = random() * Math.PI * 2;
+        place(object.mesh(hull, navy), r, angle, 0.2, spin, 0);
+        place(object.mesh(sail, canvas), r, angle, 0.2, spin, 0);
+      }, (h) => h < -6);
+      const cloud = paint('#ffffff', 1), puff = geometry.sphere(1, 16, 10);
+      for (let k = 0; k < 90; k++) {
+        const r = logScale(700, 24000), angle = random() * Math.PI * 2, d = direction(r, angle), size = 90 + random() * 380;
+        for (let p = 0; p < 4; p++) {
+          const blob = object.mesh(puff, cloud), side = (p - 1.5) * size * 0.7;
+          blob.position.set(...point(d, r, 650 + random() * 300).map((value, i) => value + (i === 0 ? side * Math.cos(angle + 1.6) : i === 2 ? side * Math.sin(angle + 1.6) : 0)));
+          blob.scale.set(size * (0.8 + random() * 0.4), size * 0.35, size * (0.7 + random() * 0.4));
+          world.scene.add(blob);
+        }
+      }
+      const moon = object.mesh(geometry.sphere(2400, 96, 48), paint('#c9c6c0', 0.95));
+      moon.position.set(-30000, -2000, -34000);
+      world.scene.add(moon);
+
+      // Late afternoon at the focus: the sun twenty degrees up, the sky's blue in the shade.
+      world.scene.add(
+        light.directional({ color: '#ffcf91', intensity: 3.4, position: [-72, 36, -60], castShadow: true }),
+        light.hemisphere({ color: '#9fbfff', groundColor: '#5a4c3a', intensity: 0.85 }),
+      );
+
+      // The camera orbits the focus; its distance runs from 4 mm to 60 km. The near plane follows
+      // the distance, a hundredth of it, so the grain and the planet are both drawn sharp.
+      const focus = height([0, 1, 0], 0.0002);
+      world.controls.target.set(0, focus, 0);
+      world.controls.minDistance = 0.004;
+      world.controls.maxDistance = 60000;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.zoomSpeed = 2;
+      world.camera.far = 1e6;
+      const NEAR = 0.004, FAR = 52000;
+      const view = [Math.sin(0.75) * Math.cos(0.6), Math.cos(0.75), Math.sin(0.75) * Math.sin(0.6)];
+      const setDistance = (distance) => {
+        const offset = world.camera.position.clone().sub(world.controls.target), length = offset.length() || 1;
+        world.camera.position.copy(world.controls.target).add(offset.multiplyScalar(distance / length));
+        world.controls.update();
+      };
+      world.camera.position.set(view[0] * NEAR, focus + view[1] * NEAR, view[2] * NEAR);
+      world.controls.update();
+
+      // A journey is a run of the distance on a log scale, eased at both ends; the opening goes
+      // out from the grain to the planet, and the viewer's first press or wheel ends any journey.
+      let legs = [{ from: NEAR, to: FAR, wait: 1.5, length: 26 }, { from: FAR, to: NEAR * 2, wait: 3, length: 26 }], turned = 0;
+      const journey = opening(world, (time) => {
+        // The leg under way: `left` ends as the time still to run of it, negative.
+        let left = time;
+        if (time === 0) turned = 0;
+        const leg = legs.find((one) => (left -= one.wait + one.length) < 0) ?? legs.at(-1), t = (left + leg.length) / leg.length;
+        setDistance(leg.from * (leg.to / leg.from) ** ease.smooth(t));
+        // A slow turn round the focus while travelling keeps the ground alive under the eye.
+        const offset = world.camera.position.clone().sub(world.controls.target), turn = (time - turned) * 0.05;
+        turned = time;
+        world.camera.position.set(world.controls.target.x + offset.x * Math.cos(turn) - offset.z * Math.sin(turn), world.camera.position.y, world.controls.target.z + offset.x * Math.sin(turn) + offset.z * Math.cos(turn));
+        return t < 1;
+      });
+      const fly = (to) => {
+        const from = world.camera.position.distanceTo(world.controls.target);
+        legs = [{ from, to, wait: 0, length: 4 + 2.2 * Math.abs(Math.log10(to / from)) }];
+        journey.restart();
+      };
+      controls({
+        toTheGrain: () => fly(NEAR * 1.5),
+        toTheBeach: () => fly(12),
+        toTheIsland: () => fly(5000),
+        toThePlanet: () => fly(FAR),
+      }, world);
+      const shown = readout('viewWidth'), seen = readout('youSee');
+      const width = (metres) => (metres < 0.01 ? `${(metres * 1000).toFixed(1)} mm` : metres < 1 ? `${(metres * 100).toFixed(1)} cm` : metres < 1000 ? `${metres.toFixed(metres < 10 ? 1 : 0)} m` : `${(metres / 1000).toFixed(1)} km`);
+      const SCALES = [[0.012, 'grains of sand'], [0.15, 'sand and shells'], [3, 'pebbles'], [60, 'the beach'], [900, 'the coast'], [9000, 'the island'], [Infinity, 'the planet']];
+
+      let near = 0;
+      world.onFrame(() => {
+        const distance = world.camera.position.distanceTo(world.controls.target);
+        if (Math.abs(distance / 100 - near) > near * 0.05) {
+          near = distance / 100;
+          world.camera.near = near;
+        }
+        const across = 2 * distance * Math.tan((world.camera.fov * Math.PI) / 360);
+        shown(width(across));
+        seen(say(SCALES.find(([limit]) => across < limit)[1]));
+      });
+    </script>
+  </body>
+</html>

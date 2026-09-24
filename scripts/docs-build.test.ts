@@ -1,18 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { buildBundles, copyStatics } from './docs/site.ts';
+import { buildBundles, copyStatics, SITE_URL } from './docs/site.ts';
+import { MEASUREMENT_TAG } from './docs/measurement.ts';
+import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 const root = resolve(import.meta.dirname, '..');
 
 test('the site build writes every bundle of the published tree', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-site-build-'));
+  const temporary = await mkdtemp(join(tmpdir(), 'trillion3d-site-build-'));
   try {
     await buildBundles(root, temporary);
     for (const file of [
       'css/site.css',
-      'js/engine.js',
       'runtime/portal.js',
       'runtime/engine.js',
       'runtime/kit.js',
@@ -21,13 +22,19 @@ test('the site build writes every bundle of the published tree', async () => {
       'runtime/pageCodec.wasm',
     ])
       assert.ok((await stat(join(temporary, file))).size > 0, `${file} is built`);
+    // The flags the languages name, and no other, with the licence of the package they come from.
+    const flags = [...new Set(LANGUAGES.map(({ flag }) => `${flag}.svg`))];
+    assert.deepEqual(
+      (await readdir(join(temporary, 'flags'))).sort(),
+      [...flags, 'LICENSE'].sort(),
+    );
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
 });
 
-test('the statics are copied as served, sources excluded, up-to-date copies left alone, removed ones removed', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-site-statics-'));
+test('the statics are copied as served, sources excluded, up-to-date copies left alone, removed ones removed, the root pages written from the site address', async () => {
+  const temporary = await mkdtemp(join(tmpdir(), 'trillion3d-site-statics-'));
   const source = join(temporary, 'site');
   const out = join(temporary, 'out');
   try {
@@ -35,9 +42,8 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await mkdir(join(source, 'assets'), { recursive: true });
     await mkdir(join(source, 'data'), { recursive: true });
     await mkdir(join(source, 'examples'), { recursive: true });
-    await writeFile(join(source, '.nojekyll'), '');
     await writeFile(join(source, 'examples/cube.html'), '<!doctype html>');
-    await writeFile(join(source, 'index.html'), '<!doctype html>');
+    await writeFile(join(source, 'index.html'), '<!doctype html>\n<head>\n  </head>\n');
     await writeFile(join(source, 'reports/index.json'), '[]');
     await writeFile(join(source, 'reports/contract.ts'), 'export {};');
     await writeFile(join(source, 'reports/campaign/report.json'), '{}');
@@ -49,8 +55,14 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await copyStatics(source, out);
     await assert.rejects(stat(join(out, 'examples/removed.html')));
     await assert.rejects(stat(join(out, 'report.html')));
-    assert.equal(await readFile(join(out, 'index.html'), 'utf8'), '<!doctype html>');
-    assert.equal((await stat(join(out, '.nojekyll'))).size, 0);
+    /* The root page is written from its source after the copy, so it is the one page that could
+       lose the measurement without any other test noticing. */
+    assert.equal(
+      await readFile(join(out, 'index.html'), 'utf8'),
+      `<!doctype html>\n<head>\n    <link rel="canonical" href="${SITE_URL}" />\n` +
+        `    ${MEASUREMENT_TAG}\n  </head>\n`,
+    );
+    assert.equal(await readFile(join(out, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n');
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'assets/manifest.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), '<!doctype html>');

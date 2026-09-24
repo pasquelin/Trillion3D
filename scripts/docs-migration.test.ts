@@ -20,7 +20,7 @@ const threeProgram = await readFile(
 const sections = (program: string) =>
   [...program.matchAll(/^\s*\/\/ --- (.+)$/gm)].map(([, name]) => name);
 
-test('every symbol the engine program uses is a public export of web-geometry', () => {
+test('every symbol the engine program uses is a public export of trillion3d', () => {
   const imported = engineProgram.match(/import \{([^}]+)\} from '\.\.\/runtime\/engine\.js'/)?.[1];
   assert.ok(imported, 'the program imports the built engine');
   const names = imported.split(',').map((name) => name.trim());

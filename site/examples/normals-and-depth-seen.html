@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Normals and depth</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1118;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, words, opening, ease } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0e1118');
+
+      // A sculpture court: a knot on a plinth in the middle, eight pieces on pedestals around it,
+      // an arcade of columns behind. Each piece keeps its own lit material; two more materials,
+      // shared by every piece, show what the renderer knows of a surface besides its colour.
+      const matte = (color, roughness = 0.55, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const NORMALS = material.meshNormal(), DEPTH = material.meshDepth();
+      const pieces = [];
+      const place = (shape, matter, x, y, z) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(x, y, z);
+        world.scene.add(mesh);
+        pieces.push({ mesh, lit: matter });
+        return mesh;
+      };
+
+      place(geometry.cylinder(11, 11, 0.4, 128), matte('#3a3530', 0.85), 0, -0.2, 0);
+      place(geometry.cylinder(1.1, 1.3, 1.2, 64), matte('#e8e0d2', 0.6), 0, 0.6, 0);
+      const knot = place(geometry.torusKnot(1.05, 0.34, 320, 40, 2, 3), matte('#e2733f', 0.3, 0.1), 0, 2.9, 0);
+
+      // The ring of pedestals: each shape turns on its own, a different speed and a different tilt.
+      const vase = [[0.001, 0], [0.5, 0], [0.75, 0.5], [0.5, 1.3], [0.34, 1.7], [0.46, 1.95]];
+      const SHAPES = [
+        [geometry.sphere(0.75, 64, 32), '#3f8fd8'],
+        [geometry.torus(0.6, 0.24, 48, 96), '#f2b134'],
+        [geometry.box(1.1, 1.1, 1.1, 4, 4, 4), '#6fbf73'],
+        [geometry.cone(0.7, 1.5, 64), '#d95d8c'],
+        [geometry.capsule(0.45, 0.8, 12, 32), '#8e6cff'],
+        [geometry.lathe(vase, 64), '#2ec4b6'],
+        [geometry.cylinder(0.55, 0.55, 1.3, 64), '#f07b3f'],
+        [geometry.torusKnot(0.5, 0.15, 200, 24, 3, 4), '#c9d2e0'],
+      ];
+      const turners = SHAPES.map(([shape, colour], k) => {
+        const angle = (k / SHAPES.length) * Math.PI * 2 + Math.PI / 8;
+        const [x, z] = [Math.sin(angle) * 6, Math.cos(angle) * 6];
+        place(geometry.cylinder(0.8, 0.9, 0.9, 48), matte('#d9d1c3', 0.7), x, 0.45, z);
+        const lift = shape === SHAPES[5][0] ? 0.9 : 1.75;
+        return { mesh: place(shape, matte(colour, 0.35), x, lift, z), speed: 0.3 + (k % 3) * 0.2, tilt: 0.25 * ((k % 4) - 1.5) };
+      });
+
+      // The arcade: columns on an arc behind the court, a lintel across every pair.
+      const stone = matte('#cfc4b2', 0.75);
+      for (let k = 0; k <= 12; k++) {
+        const angle = Math.PI * 0.62 + (k / 12) * Math.PI * 0.76, [x, z] = [Math.cos(angle) * 9.6, -Math.sin(angle) * 9.6];
+        place(geometry.cylinder(0.32, 0.38, 4.6, 32), stone, x, 2.3, z);
+        place(geometry.box(0.95, 0.3, 0.95), stone, x, 4.75, z);
+        if (k === 12) continue;
+        const next = angle + (Math.PI * 0.76) / 12, mid = (angle + next) / 2;
+        const lintel = place(geometry.box(0.7, 0.5, Math.hypot(Math.cos(next) - Math.cos(angle), Math.sin(next) - Math.sin(angle)) * 9.6 + 0.9), stone, Math.cos(mid) * 9.6, 5.1, -Math.sin(mid) * 9.6);
+        lintel.rotation.set(0, mid, 0);
+      }
+
+      // A warm low key for long shadows, a cool sky fill so no face goes black, and a rim.
+      world.scene.add(
+        light.directional({ color: '#ffc98f', intensity: 3.4, position: [-7, 6, 8], castShadow: true }),
+        light.hemisphere({ color: '#9db8ff', groundColor: '#3a2c24', intensity: 0.9 }),
+        light.point({ color: '#5fb4ff', intensity: 60, distance: 24, position: [7, 5, -7] }),
+      );
+      world.camera.near = 0.5;
+      world.camera.position.set(4, 16, 30);
+      world.controls.target.set(0, 1.8, 0);
+      world.controls.update();
+      world.controls.minDistance = 6;
+      world.controls.maxDistance = 30;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      let meaning = null, view = 'lit', shownExposure = 1;
+      const ui = controls({
+        see: ['lit', 'normals', 'depth'],
+        spin: true,
+      }, (values, key) => {
+        if (key !== undefined && key !== 'see') return;
+        view = values.see;
+        // Only here, on a change, do the pieces trade their material: never every frame.
+        for (const { mesh, lit } of pieces) mesh.material = view === 'lit' ? lit : view === 'normals' ? NORMALS : DEPTH;
+        // The two views of data are shown as they are stored: no film curve bending them.
+        world.toneMapping = view === 'lit' ? 'aces' : 'none';
+        world.exposure = shownExposure = 1;
+        meaning?.(say(view));
+        world.invalidate();
+      }, world);
+      meaning = readout('colourMeans');
+      meaning(say(view));
+
+      // The opening: the camera glides down from high above to the court. A press or a wheel on
+      // the canvas hands the camera to the viewer at once.
+      const FROM = [4, 16, 30], TO = [9, 4.8, 12];
+      opening(world, (time) => {
+        const t = ease.out(time / 3.2);
+        world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * t));
+        return t < 1;
+      });
+      let turn = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        if (ui.spin) turn += step;
+        knot.rotation.set(0, turn * 0.5, 0);
+        for (const { mesh, speed, tilt } of turners) mesh.rotation.set(tilt, turn * speed, 0);
+        // The depth view stores the reversed depth, about near ÷ distance: tiny numbers. The
+        // exposure scales them so the court's centre reads mid-grey wherever the camera stands.
+        if (view === 'depth') {
+          const reach = world.camera.position.distanceTo(world.controls.target);
+          const wanted = (0.55 * reach) / world.camera.near;
+          if (Math.abs(wanted - shownExposure) > shownExposure * 0.01) world.exposure = shownExposure = wanted;
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

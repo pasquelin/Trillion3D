@@ -39,7 +39,26 @@ body {
   min-height: 0;
   border: 0;
 }
+/* A demo that reads the keyboard: its border says whether it holds it. */
+.render-frame[data-keyboard] {
+  border: 2px solid transparent;
+  transition: border-color 120ms ease;
+}
+.render-frame[data-keyboard='held'] {
+  border-color: var(--color-primary);
+}
+/* A drag that started in a demo selects nothing of the portal around it. */
+:root[data-demo-drag] {
+  user-select: none;
+}
+/* The hint to click the demo speaks to a keyboard and a mouse; a touch screen has neither. */
+.frame-hint {
+  display: none;
+}
 @media (hover: hover) and (pointer: fine) {
+  .frame-hint {
+    display: block;
+  }
   .canvas-overlay {
     opacity: 0;
     transition: opacity 120ms ease;
@@ -53,43 +72,43 @@ body {
 
 /* Prose: repository-authored documentation HTML, the width of the content area; the type scale,
    not a narrow column, keeps it readable. */
-.wg-prose {
+.trillion3d-prose {
   font-size: 1.0625rem;
   line-height: 1.7;
 }
-.wg-prose > * + * {
+.trillion3d-prose > * + * {
   margin-top: 1em;
 }
-.wg-prose :is(h2, h3) {
+.trillion3d-prose :is(h2, h3) {
   margin-top: 2em;
   font-weight: 700;
   line-height: 1.3;
 }
-.wg-prose h2 {
+.trillion3d-prose h2 {
   font-size: 1.375rem;
 }
-.wg-prose h3 {
+.trillion3d-prose h3 {
   font-size: 1.125rem;
 }
-.wg-prose :is(ul, ol) {
-  padding-left: 1.5em;
+.trillion3d-prose :is(ul, ol) {
+  padding-inline-start: 1.5em;
   list-style: revert;
 }
-.wg-prose li + li {
+.trillion3d-prose li + li {
   margin-top: 0.35em;
 }
-.wg-prose :not(pre) > code {
+.trillion3d-prose :not(pre) > code {
   padding: 0.1em 0.3em;
   border-radius: 0.3rem;
   background: var(--color-base-200);
   font-size: 0.9em;
   overflow-wrap: anywhere;
 }
-.wg-prose a {
+.trillion3d-prose a {
   color: var(--color-primary);
   text-decoration: underline;
 }
-.wg-prose pre {
+.trillion3d-prose pre {
   max-width: 100%;
   overflow: auto;
 }
@@ -106,63 +125,6 @@ body {
   min-width: 0;
 }
 
-/* The lessons' WebGPU views (WebGPUCanvas, RendererViewport, EnginePreview): a screen-bound
-   height, their counters under them. */
-.geometry-3d {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-.geometry-3d-canvas,
-[data-engine-scene] [data-scene-canvas] {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  height: clamp(240px, 46dvh, 520px);
-}
-.geometry-3d-preview .geometry-3d-canvas {
-  height: 100%;
-}
-.geometry-3d-related .geometry-3d-canvas {
-  height: auto;
-  min-height: 16rem;
-  aspect-ratio: 16 / 9;
-}
-.geometry-3d [data-geometry-stats] {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: 100%;
-  overflow: visible;
-}
-.geometry-3d [data-geometry-stats] .stat,
-.scene-stats .stat {
-  min-width: 0;
-}
-.scene-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  width: 100%;
-}
-.scene-stat-times {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.scene-stat-pair {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.scene-stats :is(.stat-title, .stat-desc) {
-  min-width: 0;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-[data-scene-status]:empty {
-  display: none;
-}
 .api-demo {
   container-type: inline-size;
 }
@@ -170,121 +132,6 @@ body {
   .api-demo-results {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-@media (max-width: 900px) {
-  .scene-stats {
-    grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 640px) {
-  .scene-stats .stats,
-  .geometry-3d [data-geometry-stats] {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* LessonControls: the control panel of a lesson. */
-.control-panel-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  min-width: 0;
-}
-/* Row one: the experiment picker takes the width it needs, the buttons close the row. */
-.control-panel-pick {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 0.6rem 1.25rem;
-}
-.control-panel-pick > .control-panel-wide {
-  flex: 1 1 18rem;
-  min-width: 0;
-}
-/* Row two: the lesson's parameters, one share of the row each. */
-.control-panel-parameters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
-  gap: 0.6rem 1.25rem;
-  align-items: start;
-}
-.control-panel-field.fieldset {
-  gap: 0.5rem;
-  padding: 0;
-  min-width: 0;
-}
-.control-panel-grid .fieldset-legend {
-  width: 100%;
-  margin: 0;
-  padding: 0 0 0.4rem;
-  line-height: 1.35;
-  overflow: visible;
-}
-.control-panel-grid .select,
-.control-panel-grid .range {
-  width: 100%;
-  min-width: 0;
-}
-/* A slimmer slider: the thumb sets the track's height, so one variable thins both. */
-.control-panel-grid .range {
-  --range-thumb-size: 1rem;
-  --range-p: 0.15rem;
-}
-.control-panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-.control-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  min-width: 0;
-}
-.control-value,
-.control-label output {
-  font:
-    400 0.8rem/1.4 ui-monospace,
-    monospace;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-.control-legend {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.75rem;
-}
-/* A switch that explains its colours needs the whole row to read on one line. */
-.control-panel-parameters > .control-panel-span {
-  grid-column: 1 / -1;
-}
-/* A switch reads on one line: its name, then the switch, then what its colours mean. */
-.control-toggle-field {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.6rem;
-  min-width: 0;
-}
-.control-toggle-field > .control-label {
-  width: auto;
-  flex: none;
-}
-.control-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 2rem;
-}
-.control-legend li {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

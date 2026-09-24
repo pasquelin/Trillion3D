@@ -17,10 +17,7 @@ const rust = fileURLToPath(
   new URL('../../packages/asset-compiler-rust/src/compiler_format.rs', import.meta.url),
 );
 const compiler = fileURLToPath(
-  new URL(
-    '../../packages/asset-compiler-rust/target/release/web-geometry-compiler',
-    import.meta.url,
-  ),
+  new URL('../../packages/asset-compiler-rust/target/release/trillion3d-compiler', import.meta.url),
 );
 
 /** Value of a `pub const NAME: u32 = N;` of the compiler's format module. */

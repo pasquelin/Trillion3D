@@ -16,7 +16,9 @@ export function startInteractiveExplorer(
   const { canvas, options, hostedControls, state } = runtime;
   const view = canvas.ownerDocument.defaultView!;
   const controls = original.ownControls === false ? undefined : explorer.controls();
+  // The loop stops for good: said on the console too, or the canvas would freeze without a word.
   const reportFailure = (error: unknown) => {
+    console.error('[trillion3d] Automatic rendering stopped', error);
     events.emit({
       eventVersion: 1,
       type: 'fatal',
@@ -118,7 +120,9 @@ export function startInteractiveExplorer(
   options.signal?.throwIfAborted();
   resize();
   original.beforeFrame?.();
-  original.onFrame?.(explorer.render());
+  // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
+  const first = explorer.render();
+  original.onFrame?.(first);
   invalidate();
   return invalidate;
 }

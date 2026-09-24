@@ -1,4 +1,4 @@
-# Contributing to Web Geometry
+# Contributing to Trillion3D
 
 ## The mission
 
@@ -159,7 +159,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line,
 name the already reviewed implementation pull requests in the local-review section, and wait
-for validation and maintainer approval. Nothing built is committed on any branch: the Pages
+for validation and maintainer approval. Nothing built is committed on any branch: the site
 workflow (`.github/workflows/pages.yml`) builds the site from `main` (`site/` sources,
 `dist/site/` output) and deploys that tree, so a change is published only after that release
 merges.

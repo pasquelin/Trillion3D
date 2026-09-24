@@ -8,22 +8,31 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       73 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    341 *.test.ts
+  sdk-core/src/       78 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    373 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
-  integration/        21 *.test.ts — architecture, boundaries, public contracts
+  integration/        20 *.test.ts — architecture, boundaries, public contracts
   browser/renders/    43 *.browser.ts — rendering in real Chromium
   browser/probes/     20 GPU probes + 32 support modules
-  browser/support/    70 pages and cases served to the render proofs
-  kit/                28 shared test tools: fake GPU devices, servers, assertions
+  browser/support/    71 pages and cases served to the render proofs
+  kit/                31 shared test tools: fake GPU devices, servers, assertions
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
   core/               14 modules: measure, report, diff, ulp, baseline
   perf/core/          14 *.perf.ts
-  perf/browser/       38 *.perf.ts + 32 support modules
+  perf/browser/       38 *.perf.ts + 33 support modules
   oracles/            45 reference implementations, copied verbatim
-  runner/             82 modules: the measurement harness (README)
+  runner/             84 modules: the measurement harness (README)
+scripts/docs/examples/openworld/
+  plan/               4 *.test.ts — relief, roads, tunnels, tiles, places
+  build/              3 *.test.ts — the placed world: collision meshes, where markers stand, which way props face
+  props/              4 *.test.ts — shared meshes and their soundness
+  regions/            6 *.test.ts — one per region, its helpers in testing.ts
+  play/               6 *.test.ts — flight, simulation, solids, streaming, view, world
+  gltf/               1 *.test.ts — the glTF writer
+site/examples/kit/openworld/
+  sky/                4 *.test.ts — sun, atmosphere, clouds, particles
 ```
 <!-- tests-inventory:end -->
 
@@ -44,12 +53,12 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 
 ## 2. The Four Commands
 
-| Command             | What it runs                                                         |
-| ------------------- | -------------------------------------------------------------------- |
-| `pnpm test`         | every unit, integration, kit, bench-runner and script test           |
-| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially |
-| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report         |
-| `pnpm run validate` | full pre-merge validation gate                                       |
+| Command             | What it runs                                                                  |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `pnpm test`         | every unit, integration, kit, bench-runner and script test                    |
+| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially          |
+| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report                  |
+| `pnpm run validate` | full pre-merge validation gate                                                |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
@@ -84,11 +93,11 @@ category and reason, and the command prints it before starting — never in sile
 
 ### Site proofs
 
-The learning portal under `site/` has its own proofs, run on demand in system Chrome. The four
+The learning portal under `site/` has its own proofs, run on demand in system Chrome. The three
 `scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
-(entries and examples in both locales, gallery, API index, reports, engine scene, not found),
+(entries and examples in every language, examples index, API index, reports, not found),
 served from two built trees, settled, its DOM compared after normalising what is dynamic by
 nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame metrics).
 `node scripts/site-first-load.ts <siteDir> [route ...]` measures a route's first load
@@ -96,7 +105,7 @@ nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame
 
 `BROWSER_ECARTES` is empty: every render proof runs. The reference-scene proof
 (`scene-webgpu`) reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`) under
-`.mesure/assets/`, off git, and a sibling worktree has none of its own: point `WG_ASSETS` at the
+`.mesure/assets/`, off git, and a sibling worktree has none of its own: point `TRILLION3D_ASSETS` at the
 shared folder. Without it the proof stops by name on the cache it could not find, and
 `pnpm run test:gpu` fails with it — loudly, never in silence. `node bench/runner/assets.ts`
 fetches and compiles every scene the proofs read (`bench/runner/README.md` § Assets). The material proof (`witness-materials`) needs no asset:
@@ -125,16 +134,24 @@ node tests/browser/test-gpu.ts tests/browser/probes/reflection-cone.ts   # run s
 `test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
-`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of the second #281 batch:
-**0 fail** of 64. The last two failures were engine defects, fixed there: the geometry-garden
-lesson never opened its session (`explorer-startup`), because a world whose first change had
-nothing to draw kept a finished reopen as if it were still running; and a settled frame leaked
-light at the street stop (`shadow-camera-stop`), because the cut the shadow maps drew from — the
-camera's — dropped every caster out of view; casters are now selected from the light (#10, #26).
+`TRILLION3D_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of #281: **2 fail** of
+64, always these two —
+- `explorer-startup`: the portal checks pass, then the geometry-garden lesson opens its world
+  (`scene.load` resolves, the controls enable, a manual `world.render()` returns metrics), yet
+  the world never schedules a frame: the canvas keeps its default 300 × 150 buffer under a CSS box
+  of 488 × 20 px, `invalidate()` requests no animation frame in 1.5 s, `onFrame` never fires and
+  no console error is logged, so the selected-triangle counter stays empty;
+- `shadow-camera-stop`: at the stop, with 198 shadow pages pending under the 0.01 ms budget,
+  57 705 of 876 096 pixels (6.6 %, bound 5 %) shade otherwise than at rest — lit arches far from
+  the camera read as shadowed. Publishing the current extent's matrix with the wrap origin of an
+  undrawn slid cascade moved this by under 0.2 % and was not kept; the cause is not isolated.
+
+The geometry-garden lesson has since left the portal with the other lessons (#327), and with it
+the part of `explorer-startup` that failed; that proof has not been re-read since.
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
-54 pass / 10 fail each), then 2 after its first batch. A batch that leaves this at zero has
-changed nothing here; one that adds a failure owns it. The pass count
+54 pass / 10 fail each). A batch that leaves exactly these two failing has changed nothing
+here; one that adds a third owns it. The pass count
 moves with the number of proof files and means nothing on its own. Re-read the baseline on your
 own machine before leaning on it — the failures are not portable, only the method is.
 
@@ -202,15 +219,15 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command                       | Role                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
-| `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
-| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                       |
-| `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
-| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
+| Command                       | Role                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
+| `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
+| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                   |
+| `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
+| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |
 | `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections |
-| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
-| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
-| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |
+| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git            |
+| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links      |

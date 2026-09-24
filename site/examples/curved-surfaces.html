@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Curved surfaces</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1a1512;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#1a1512');
+
+      // Five surfaces written as formulas: two numbers (u, v), each from 0 to 1, give one point.
+      // Walking a grid of (u, v) and joining neighbours into triangles gives the shape; the
+      // finer the grid, the smoother the curve. `turn` says how the formula's axes stand.
+      const TAU = Math.PI * 2, { cos, sin } = Math;
+      const SURFACES = [
+        {
+          name: 'Klein bottle', colour: '#2fa39a', turn: ([x, y, z]) => [x, y, z],
+          at: (a, b) => {
+            const u = a * Math.PI, v = b * TAU, cu = cos(u), su = sin(u), cv = cos(v);
+            return [
+              (-2 / 15) * cu * (3 * cv - 30 * su + 90 * cu ** 4 * su - 60 * cu ** 6 * su + 5 * cu * cv * su),
+              (-1 / 15) * su * (3 * cv - 3 * cu ** 2 * cv - 48 * cu ** 4 * cv + 48 * cu ** 6 * cv - 60 * su + 5 * cu * cv * su - 5 * cu ** 3 * cv * su - 80 * cu ** 5 * cv * su + 80 * cu ** 7 * cv * su),
+              (2 / 15) * (3 + 5 * cu * su) * sin(v),
+            ];
+          },
+        },
+        {
+          name: 'Möbius strip', colour: '#e8b04a', metal: 0.7, turn: ([x, y, z]) => [x, y, z],
+          at: (a, b) => {
+            const u = a * TAU, v = (b - 0.5) * 0.9, r = 1 + (v / 2) * cos(u / 2);
+            return [r * cos(u), r * sin(u), (v / 2) * sin(u / 2)];
+          },
+        },
+        {
+          name: 'Seashell', colour: '#f3d6c8', turn: ([x, y, z]) => [x, z, y],
+          at: (a, b) => {
+            const u = a * 6 * Math.PI, v = b * TAU, grow = Math.exp(u / (6 * Math.PI)), round = cos(v / 2) ** 2;
+            return [2 * (1 - grow) * cos(u) * round, 2 * (grow - 1) * sin(u) * round, 1 - grow * grow - sin(v) + grow * sin(v)];
+          },
+        },
+        {
+          name: "Dini's twist", colour: '#c8643c', metal: 0.5, turn: ([x, y, z]) => [x, z, y],
+          at: (a, b) => {
+            const u = a * 4 * Math.PI, v = 0.12 + b * 1.9;
+            return [cos(u) * sin(v), sin(u) * sin(v), cos(v) + Math.log(Math.tan(v / 2)) + 0.2 * u];
+          },
+        },
+        {
+          name: 'Enneper saddle', colour: '#4f7fe0', turn: ([x, y, z]) => [x, z, y],
+          at: (a, b) => {
+            const r = b * 1.25, t = a * TAU, u = r * cos(t), v = r * sin(t);
+            return [u - u ** 3 / 3 + u * v * v, v - v ** 3 / 3 + v * u * u, u * u - v * v];
+          },
+        },
+      ];
+
+      // The grid of (u, v), its points centred and scaled so every surface stands 1.7 m at most.
+      function build({ at, turn }, steps) {
+        const row = steps + 1, points = [];
+        for (let j = 0; j <= steps; j++) for (let i = 0; i <= steps; i++) points.push(turn(at(i / steps, j / steps)));
+        const low = [0, 1, 2].map((axis) => Math.min(...points.map((p) => p[axis])));
+        const high = [0, 1, 2].map((axis) => Math.max(...points.map((p) => p[axis])));
+        const scale = 1.7 / Math.max(...high.map((value, axis) => value - low[axis]));
+        const position = points.flatMap((p) => p.map((value, axis) => (value - (low[axis] + high[axis]) / 2) * scale));
+        const index = [];
+        for (let j = 0; j < steps; j++)
+          for (let i = 0; i < steps; i++) {
+            const a = j * row + i, b = a + 1, c = a + row, d = c + 1;
+            index.push(a, b, d, a, d, c);
+          }
+        const shape = geometry.createBuffer({ position: buffer.float32(new Float32Array(position), 3), index: buffer.uint32(index) });
+        shape.computeVertexNormals();
+        return shape;
+      }
+
+      // A gallery: five plinths in a ring on a turntable, each surface floating above its own.
+      const hall = object.mesh(geometry.box(60, 0.2, 60), material.meshStandard({ color: '#2b2420', roughness: 0.75 }));
+      hall.position.y = -0.1;
+      const turntable = object.group();
+      const disc = object.mesh(geometry.cylinder(4.8, 4.9, 0.18, 96), material.meshStandard({ color: '#3a302a', roughness: 0.4 }));
+      disc.position.y = 0.09;
+      turntable.add(disc);
+      const stone = material.meshStandard({ color: '#e9e3d8', roughness: 0.5 });
+      const pieces = SURFACES.map((surface, index) => {
+        const angle = (index / SURFACES.length) * TAU, x = Math.sin(angle) * 3.5, z = Math.cos(angle) * 3.5;
+        const plinth = object.mesh(geometry.box(0.9, 0.9, 0.9), stone);
+        plinth.position.set(x, 0.63, z);
+        const matter = material.meshStandard({ color: surface.colour, roughness: 0.32, metalness: surface.metal ?? 0.05, side: 'double' });
+        const sculpture = object.mesh(build(surface, 64), matter);
+        sculpture.position.set(x, 2.08 + 0.1, z);
+        sculpture.scale.setScalar(0.001);
+        turntable.add(plinth, sculpture);
+        return { surface, sculpture, matter };
+      });
+      world.scene.add(hall, turntable);
+
+      // Golden hour through a high window: a low warm key with long shadows, a cool fill from the
+      // opposite side and the sky's light on everything.
+      world.scene.add(
+        light.directional({ color: '#ffb46a', intensity: 3.2, position: [-8, 5, 4], castShadow: true }),
+        light.directional({ color: '#7fa2ff', intensity: 0.7, position: [7, 4, -5] }),
+        light.hemisphere({ color: '#b8c8ff', groundColor: '#4a3426', intensity: 0.55 }),
+      );
+
+      world.camera.position.set(0, 3.2, 7.8);
+      world.camera.lookAt(0, 1.5, 0);
+      world.controls.target.set(0, 1.5, 0);
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 18;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      let triangles = null, facing = null, waiting = 0;
+      const count = (steps) => triangles(String(SURFACES.length * steps * steps * 2));
+      const ui = controls({
+        grid: [3, 160, 64, 1],
+        facets: false,
+        turntable: true,
+      }, (values, key) => {
+        if (key === 'grid') {
+          // Every surface is built again from its formula, once the slider rests.
+          clearTimeout(waiting);
+          waiting = setTimeout(() => {
+            for (const piece of pieces) piece.sculpture.geometry = build(piece.surface, values.grid);
+            count(values.grid);
+            world.invalidate();
+          }, 120);
+        }
+        if (key === 'facets') for (const { matter } of pieces) matter.flatShading = values.facets;
+        world.invalidate();
+      }, world);
+      triangles = readout('triangles');
+      facing = readout('facingYou');
+      count(ui.grid);
+
+      // The opening: each surface grows out of its plinth in turn, with a little overshoot.
+      let time = 0, turn = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        if (ui.turntable) turn += step * 0.12;
+        turntable.rotation.set(0, turn, 0);
+        // The surface facing the camera: the one whose place on the ring is nearest its bearing.
+        const { x, z } = world.camera.position, bearing = Math.atan2(x, z);
+        const gap = (index) => {
+          const off = (index / SURFACES.length) * TAU + turn - bearing;
+          return Math.abs(Math.atan2(Math.sin(off), Math.cos(off)));
+        };
+        facing(say(SURFACES[SURFACES.reduce((best, _, index) => (gap(index) < gap(best) ? index : best), 0)].name));
+        pieces.forEach(({ sculpture }, index) => {
+          const grow = Math.min(1, Math.max(0, (time - 0.6 - index * 0.35) / 0.9));
+          const pop = grow < 1 ? 1 - (1 - grow) ** 3 + Math.sin(grow * Math.PI) * 0.18 : 1;
+          sculpture.scale.setScalar(Math.max(0.001, pop));
+          sculpture.rotation.set(0, time * 0.5 + index, 0);
+        });
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

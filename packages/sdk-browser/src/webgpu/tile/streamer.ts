@@ -6,6 +6,7 @@ import { createTileSources } from './sources.ts';
 import { createWebgpuTileReduce } from './reduce.ts';
 import { createTileCounters } from './counters.ts';
 import { createTileRequests } from './requests.ts';
+import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts';
 
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
@@ -39,8 +40,9 @@ export function createWebgpuTileStreamer(options: {
   now?: () => number;
   readLevel?: TextureLevelReader;
   onFailure: (phase: string, error: unknown) => void;
-  /** Colour textures a tile of which arrived or was evicted in this pump — what a
-   *  cutout-foliage shadow must follow —, or `-1` when the pool was resized. */
+  /** Colour textures a tile of which arrived or was evicted in this pump, or whose sampling moved
+   *  — what a cutout-foliage shadow must follow; empty when only a data texture's did —, or `-1`
+   *  when the pool was resized. */
   onColorChanged: (slots: ReadonlySet<number> | -1) => void;
 }) {
   const { device, encoding } = options,
@@ -77,6 +79,7 @@ export function createWebgpuTileStreamer(options: {
     color.flush(device);
     data.flush(device);
   };
+  const followHeaders = samplingHeaders(color, data);
   return {
     color,
     data,
@@ -86,6 +89,7 @@ export function createWebgpuTileStreamer(options: {
     prepare() {
       for (const atlas of [color, data])
         atlas.pinTails(device.queue, (slot, place) => sources.tail(atlas, slot, place));
+      followHeaders(true);
       flushAll();
     },
     /**
@@ -105,7 +109,8 @@ export function createWebgpuTileStreamer(options: {
         stop = false,
         encoder: GPUCommandEncoder | undefined;
       colorChanged.clear();
-      const open = () => (encoder ??= device.createCommandEncoder({ label: 'WG texture tiles' }));
+      const open = () =>
+        (encoder ??= device.createCommandEncoder({ label: 'Trillion3D texture tiles' }));
       const wanted = requests.take(frame),
         at = requests.frame;
       counters.worked = wanted.length > 0;
@@ -138,6 +143,17 @@ export function createWebgpuTileStreamer(options: {
       if (colorChanged.size) options.onColorChanged(colorChanged);
       counters.pass(now() - started, unbounded);
       return { served, pending: counters.pending };
+    },
+    /** Follows the atlases' records and writes the headers that moved, signalled as a landed tile
+     *  is: a held image released, the cutout shadows of a colour texture redrawn (#360, #361).
+     *  True when a filter rule switched on or off: the rows that wear it change resolve class. */
+    followSampling() {
+      colorChanged.clear();
+      const found = followHeaders(false, colorChanged);
+      if (!(found & HEADERS_WRITTEN)) return false;
+      flushAll();
+      options.onColorChanged(colorChanged);
+      return (found & HEADERS_SWITCHED) !== 0;
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
      *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */

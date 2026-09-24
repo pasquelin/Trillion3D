@@ -1,4 +1,5 @@
 import type { BackendDiagnostic } from '../../../backend/types.ts';
+import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts';
 
 export function createWebgpuDiagnostics(
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
@@ -71,13 +72,8 @@ export function createWebgpuDiagnostics(
     });
     flushTraceQueue();
   };
-  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) => {
-    try {
-      onDiagnostic?.({ phase, message, context: { pipelineVersion: 1, ...details } });
-    } catch {
-      /* Observers do not control rendering. */
-    }
-  };
+  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) =>
+    sendEngineDiagnostic(onDiagnostic, phase, message, details);
   const loggedFailures = new Set<string>(),
     failureOccurrences = new Map<string, number>();
   const diagnosticFailure = (phase: string, error: unknown) => {
@@ -91,6 +87,9 @@ export function createWebgpuDiagnostics(
     };
     const occurrence = (failureOccurrences.get(phase) ?? 0) + 1;
     failureOccurrences.set(phase, occurrence);
+    // A failed path is said on the console too, once per kind: with no diagnostic channel open —
+    // the default — it would otherwise leave a blank or degraded image and nothing to read.
+    if (occurrence === 1) console.warn(`[trillion3d] WebGPU ${phase}: ${details.error}`);
     if (traceEnabled) {
       traceDiagnostic(phase, 'WebGPU path failed', () => ({
         ...details,

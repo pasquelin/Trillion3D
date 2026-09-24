@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A video on a screen</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0c0d12;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <input id="file" type="file" accept="video/*" hidden />
+    <script type="module">
+      // Waits for #362: a texture made from a video shows each new frame of the video by itself,
+      // without a change to its material; until then the screen keeps its first frame.
+      import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
+      import { controls, playPickedVideo, readout, words } from '../runtime/kit.js';
+      const say = words();
+
+      // The broadcast: a test card this page draws, filmed as a video stream — a real video
+      // element, playing, and nothing downloaded. "Open video" swaps in a file of your own.
+      const W = 640, H = 360;
+      const studio = document.createElement('canvas');
+      studio.width = W;
+      studio.height = H;
+      const pen = studio.getContext('2d');
+      const BARS = ['#c0c0c0', '#c0c000', '#00c0c0', '#00c000', '#c000c0', '#c00000', '#0000c0'];
+      function film(seconds) {
+        BARS.forEach((colour, k) => {
+          pen.fillStyle = colour;
+          pen.fillRect((k * W) / 7, 0, W / 7 + 1, H * 0.66);
+        });
+        pen.fillStyle = '#10121a';
+        pen.fillRect(0, H * 0.66, W, H * 0.34);
+        // A ball that bounces across the lower band, and the clock of the broadcast.
+        const x = 40 + Math.abs(((seconds * 180) % (2 * (W - 80))) - (W - 80));
+        const y = H * 0.83 - Math.abs(Math.sin(seconds * 3)) * 40;
+        pen.fillStyle = '#ffd23f';
+        pen.beginPath();
+        pen.arc(x, y, 16, 0, Math.PI * 2);
+        pen.fill();
+        pen.fillStyle = '#f4f1ea';
+        pen.font = 'bold 44px ui-monospace, monospace';
+        pen.textAlign = 'center';
+        pen.fillText(new Date(seconds * 1000).toISOString().slice(14, 22), W / 2, H * 0.4);
+      }
+      film(0);
+      const video = document.createElement('video');
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.srcObject = studio.captureStream(30);
+      video.play();
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0c0d12');
+
+      // The room: a floor, a wall, a low cabinet and the set on it. The picture is the screen's
+      // own light: an unlit surface wearing the video.
+      const wood = material.meshStandard({ color: '#5a3d2b', roughness: 0.55 });
+      const floor = object.mesh(geometry.box(12, 0.1, 9), material.meshStandard({ color: '#2b2522', roughness: 0.9 }));
+      floor.position.y = -0.05;
+      const wall = object.mesh(geometry.box(12, 5, 0.1), material.meshStandard({ color: '#3a3f4f', roughness: 0.95 }));
+      wall.position.set(0, 2.5, -2.5);
+      const cabinet = object.mesh(geometry.box(3.2, 0.6, 0.7), wood);
+      cabinet.position.set(0, 0.3, -1.9);
+      const set = object.mesh(geometry.box(2.5, 1.46, 0.08), material.meshStandard({ color: '#0a0a0c', roughness: 0.3, metalness: 0.4 }));
+      set.position.set(0, 1.45, -1.9);
+      const screen = object.mesh(geometry.plane(2.4, 1.35), material.meshBasic({ map: texture.video(video) }));
+      screen.position.set(0, 1.45, -1.855);
+      // A sofa to watch from: a seat, a back and two arms.
+      const cloth = material.meshStandard({ color: '#7a2f3a', roughness: 0.95 });
+      const sofa = object.group();
+      for (const [w, h, d, x, y, z] of [[3, 0.45, 1, 0, 0.225, 0], [3, 0.8, 0.25, 0, 0.6, 0.4], [0.25, 0.65, 1, -1.5, 0.33, 0], [0.25, 0.65, 1, 1.5, 0.33, 0]]) {
+        const part = object.mesh(geometry.box(w, h, d), cloth);
+        part.position.set(x, y, z);
+        sofa.add(part);
+      }
+      sofa.position.set(0, 0, 2.6);
+      world.scene.add(floor, wall, cabinet, set, screen, sofa);
+      // The screen's glow on the room, a lamp in the corner, and the night outside.
+      const glow = light.rectArea({ color: '#bcd4ff', intensity: 4, width: 2.4, height: 1.35, position: [0, 1.45, -1.8] });
+      glow.lookAt(0, 1.45, 5);
+      world.scene.add(
+        glow,
+        light.point({ color: '#ffb66b', intensity: 14, distance: 9, position: [-4.5, 2.2, -1], castShadow: true }),
+        light.hemisphere({ color: '#3b4a7a', groundColor: '#1a1310', intensity: 0.35 }),
+      );
+
+      world.camera.position.set(2.4, 1.9, 5.6);
+      world.camera.lookAt(0, 1.2, -1.5);
+      world.controls.target.set(0, 1.2, -1.5);
+      world.controls.minDistance = 2;
+      world.controls.maxDistance = 10;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const picker = document.getElementById('file');
+      playPickedVideo(picker, video, () => source(say('yourFile')));
+      const ui = controls({
+        playing: true,
+        openVideo: () => picker.click(),
+      }, (values, key) => {
+        if (key === 'playing') values.playing ? video.play() : video.pause();
+        world.invalidate();
+      }, world);
+      const source = readout('playing');
+      const clock = readout('videoTime');
+      source(say('testCard'));
+
+      // The page films its test card and redraws while the video plays: the texture follows the
+      // video by itself.
+      let seconds = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.playing) return;
+        seconds += Math.min(delta, 0.1);
+        if (video.srcObject) film(seconds);
+        clock(video.srcObject ? `${seconds.toFixed(1)} s` : `${video.currentTime.toFixed(1)} s`);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

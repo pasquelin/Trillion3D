@@ -1,4 +1,5 @@
-import { mediane, scene } from './cutDispatchesScene.ts';
+import { scene } from './cutDispatchesScene.ts';
+import { median } from '../../kit/median.ts';
 /**
  * Page side of the READOUT measurement: what a frame pays to bring the cut back, on the engine's
  * real cut (`createDagResources`, `encodeDagKernels`) and a real device.
@@ -166,7 +167,7 @@ async function mesure(
       return {
         nom: v.nom,
         octets: v.octets,
-        ms: Number(mediane(lots).toFixed(4)),
+        ms: Number(median(lots).toFixed(4)),
         // Spread of the rounds: the band in which this card returns the SAME measurement. A
         // gap that does not leave it is not a gap, and the bench refuses to claim it.
         etendue: Number((Math.max(...lots) - Math.min(...lots)).toFixed(4)),
