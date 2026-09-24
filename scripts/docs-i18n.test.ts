@@ -104,10 +104,10 @@ test('every language describes the world: its options row by row, and each of it
   }
 });
 
-test('the course is ten chapters in every language, each linking the next', () => {
+test('the course is eleven chapters in every language, each linking the next', () => {
   for (const locale of CODES) {
     const chapters = entriesIn(locale).filter(({ section }) => section === 'course');
-    assert.equal(chapters.length, 10);
+    assert.equal(chapters.length, 11);
     chapters.forEach((chapter, index) => {
       assert.match(chapter.title ?? '', new RegExp(`^${index + 1}\\. `));
       const next = chapters[index + 1];
