@@ -546,7 +546,8 @@ The browser runtime is not a zero-configuration single-file bundle. Configure th
 separate module-worker entries, and code splitting enabled. Copy the installed `pageCodec.wasm`
 beside every emitted chunk that keeps its relative URL, and serve that output directory together
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
-esbuild configuration and verifies both worker tasks and WASM selection.
+esbuild configuration and verifies both worker tasks and WASM selection; `-- --bundle` emits and
+checks the same output, each module beside the chunk that fetches it, without a browser.
 
 ### Install requirements: the package alone, the witnesses beside the bench
 

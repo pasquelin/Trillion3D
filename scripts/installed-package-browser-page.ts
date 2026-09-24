@@ -74,6 +74,13 @@ export async function evaluateInstalledPage({
     world.camera.set(view);
     world.pixelError = 0;
     await world.awaitPages();
+    // A session that failed to open is named with its cause, never met later as a world that
+    // "draws nothing yet" (#568); `page.evaluate` carries only the message out.
+    const failure = world.diagnostic.error;
+    if (failure)
+      throw new Error(
+        `installed world ${target} did not open: ${failure.message} (${String(failure.details?.cause)})`,
+      );
     world.render();
     return { world, view, metrics: sdk.metric.frame(world) };
   };
