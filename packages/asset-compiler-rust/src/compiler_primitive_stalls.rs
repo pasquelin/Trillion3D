@@ -67,6 +67,7 @@ pub(super) fn dag_report(
     dag: &[DagCluster],
     tallies: &[GroupTally],
     stalls: &[DagStall],
+    quality: &[crate::dag::quality::LevelQuality],
 ) -> (Value, Vec<Value>) {
     let shape = compiler_primitive_warn::DagShape::of(dag);
     let summary = StallSummary::of(dag, stalls);
@@ -79,13 +80,20 @@ pub(super) fn dag_report(
             level
         })
         .collect();
+    let mut levels = compiler_primitive_warn::level_report(dag, shape.depth);
+    for row in &mut levels {
+        let level = row["level"].as_u64().unwrap_or(0) as usize;
+        if let Some(q) = quality.iter().find(|q| q.level == level) {
+            row["normalDeviationMax"] = json!(q.normal_deviation);
+        }
+    }
     let warnings = compiler_primitive_warn::dag_warnings(strategy, &shape, tallies, &summary);
     let mut report = json!({
         "depth": shape.depth,
         "clusterTriangles": crate::dag::DAG_CLUSTER_TRIANGLES,
         "groupMin": crate::dag::DAG_GROUP_MIN,
         "groupMax": crate::dag::DAG_GROUP_MAX,
-        "levels": compiler_primitive_warn::level_report(dag, shape.depth),
+        "levels": levels,
         "groups": groups,
         "warnings": warnings,
         "stalls": stalls.iter().map(DagStall::json).collect::<Vec<_>>(),
