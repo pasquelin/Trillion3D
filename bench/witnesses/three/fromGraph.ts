@@ -5,13 +5,10 @@
  * object crosses as it is. Every number is the engine's.
  */
 import * as THREE from 'three';
-import { isGraphTexture } from '../../../packages/sdk-browser/src/host/graph/texture.ts';
 import type { GraphElements } from '../../../packages/sdk-browser/src/host/graph/attributes.ts';
 import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
-import type {
-  GraphSurface,
-  GraphSurfaceFamily,
-} from '../../../packages/sdk-browser/src/host/graph/surface.ts';
+import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
+import { isGraphTexture } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
 import type { GraphTexture } from '../../../packages/sdk-browser/src/host/graph/texture.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 
@@ -45,9 +42,10 @@ export function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Textu
     const pixels = texture.image as { data: THREE.TypedArray; width: number; height: number };
     const format = texture.format as THREE.PixelFormat;
     held = {
-      made: texture.kind === 'texels'
-        ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
-        : new THREE.Texture(),
+      made:
+        texture.kind === 'texels'
+          ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
+          : new THREE.Texture(),
       version: -1,
     };
     if (texture.kind !== 'texels') held.made.source = sourceOf(texture.image);
@@ -79,7 +77,7 @@ export function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Textu
 }
 
 /** The family each engine surface is drawn as. */
-const FAMILIES: Record<GraphSurfaceFamily, new () => THREE.Material> = {
+const FAMILIES: Record<GraphSurface['family'], new () => THREE.Material> = {
   basic: THREE.MeshBasicMaterial,
   standard: THREE.MeshStandardMaterial,
   physical: THREE.MeshPhysicalMaterial,

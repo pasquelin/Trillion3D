@@ -11,7 +11,6 @@ import { assertBits } from '../../../../tests/kit/assert/bits.ts';
 import * as G from '../host/graph/graph.fixture.ts';
 import { threeGraph } from '../../../../bench/witnesses/three/fromGraphNodes.ts';
 
-
 /** Two meshes under negative scale root and non-uniform scale child. */
 function hostileSource() {
   const racine = new G.GraphGroup();
