@@ -33,3 +33,4 @@ graphify-out
 
 # Local test assets (see docs/COMPILER.md, "Input formats")
 test/assets/
+site/assets/examples/openworld/

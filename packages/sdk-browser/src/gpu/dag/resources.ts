@@ -1,4 +1,3 @@
-import { dropValidation } from '../core/errorScope.ts';
 import {
   SELECTION_UNIFORM_BYTES as UNIFORM_BYTES,
   SELECTION_WORKGROUP,
@@ -185,7 +184,6 @@ export async function createDagResources(
       ...pipeline,
     };
   } catch {
-    await dropValidation(device);
     for (const buffer of buffers)
       try {
         buffer.destroy();

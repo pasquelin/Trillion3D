@@ -3,7 +3,7 @@
 // so the table carries exactly the same floats as the pre-lot-C formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import { importHostTexture } from '../host/surfaceImport.ts';
+import { followHostTexture, importHostTexture } from '../host/textureImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -142,6 +142,7 @@ test('an image replaced by a new buffer yields new bytes, identical to the refer
   const premier = textureRgba(importHostTexture(host));
   host.image = { data: new Uint8Array(16).fill(7), width: 2, height: 2 };
   const imported = importHostTexture(host);
+  followHostTexture(imported);
   const second = textureRgba(imported);
   assert.notEqual(second, premier, 'a new source buffer invalidates the cache');
   assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(imported)!.data));
@@ -154,6 +155,7 @@ test('a subview of the same buffer (different offset or length) is never confuse
   const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer.subarray(4, 20), width: 2, height: 2 }; // same buffer, other offset
   const imported = importHostTexture(map);
+  followHostTexture(imported);
   const second = textureRgba(imported);
   assert.notEqual(second, premier, 'a different offset on the same buffer invalidates the cache');
   assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(imported)!.data));
@@ -166,7 +168,25 @@ test('the same width/height but an image resized without changing buffer also in
   const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer, width: 8, height: 2 }; // same buffer, different dimensions
   const imported = importHostTexture(map);
+  followHostTexture(imported);
   const second = textureRgba(imported);
   assert.notEqual(second, premier);
   assert.deepEqual(second, referenceTextureRgba(imported));
+});
+
+// #360: the CPU twins read a map through its UV transform, as the GPU reads it: a map repeated
+// twice across reads, at u = 0.3, the texel the raw coordinate 0.6 names.
+test('a map is read through its UV transform, the raw coordinate when it is the identity', () => {
+  const host = new THREE.Texture();
+  host.image = { data: Uint8Array.from({ length: 16 }, (_, i) => i * 16), width: 4, height: 1 };
+  host.wrapS = host.wrapT = THREE.RepeatWrapping;
+  const plain = importHostTexture(host);
+  const at = (u: number) => sampleLinear(plain, u, 0.5);
+  const before = at(0.6);
+  host.repeat.set(2, 1);
+  host.needsUpdate = true;
+  const repeated = importHostTexture(host);
+  followHostTexture(repeated);
+  assert.deepEqual(sampleLinear(repeated, 0.3, 0.5), before);
+  assert.deepEqual(sampleLinear(repeated, 0.8, 0.5), before, 'the second period');
 });

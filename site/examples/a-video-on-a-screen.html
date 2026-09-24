@@ -108,7 +108,6 @@
       const picker = document.getElementById('file');
       playPickedVideo(picker, video, () => source(say('yourFile')));
       const ui = controls({
-        mouse: 'Drag to look around the room; the screen plays a real video element',
         playing: true,
         openVideo: () => picker.click(),
       }, (values, key) => {

@@ -32,19 +32,23 @@ test('a model loaded after the lights still opens a session', async () => {
   const ready = Promise.resolve();
   const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
   let attempted = false;
+  const said: string[] = [];
   const runtime = createWorldRuntime({
     canvas: { width: 1, height: 1 } as HTMLCanvasElement,
     scene,
     ready,
     camera: () => new Camera('perspective'),
     options: () => ({ manifestUrl: '' }),
-    // A canvas stand-in makes the opening fail: that it was attempted is what is asserted.
-    failed: () => (attempted = true),
     opened: () => {},
     frame: () => {},
     drawn: () => false,
     display: () => ({ exposure: 1, toneMapping: 'aces' }),
-    notices: createWorldNotices(),
+    diagnostic: {
+      notices: createWorldNotices(),
+      // A canvas stand-in makes the opening fail: that it was attempted is what is asserted.
+      failed: () => ((attempted = true), said.push('failed')),
+      opening: () => said.push('opening'),
+    },
   });
   // The lights alone open nothing; the model that follows must open the session.
   scene.add(light.directional({ intensity: 3 }), light.hemisphere({ intensity: 1 }));
@@ -53,4 +57,7 @@ test('a model loaded after the lights still opens a session', async () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
   runtime.dispose();
   assert.equal(attempted, true);
+  // Every opening, the lights' included, first clears the failure a previous one left.
+  assert.equal(said.at(-1), 'failed');
+  assert.equal(said.at(-2), 'opening');
 });

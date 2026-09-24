@@ -21,9 +21,6 @@ export const ROW_ID_BASE_WORD = 27,
  *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
 export const ROW_MAP_LAYER_WORD = 22,
   ROW_FLAGS_WORD = 23;
-/** Word that holds wrap addressing for the page's maps, one nibble each (`../../visibility/wrapModes.ts`).
- *  It occupies one of the row's padding words: the row does not grow by a byte. */
-export const ROW_WRAP_MODES_WORD = 61;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */
@@ -105,9 +102,6 @@ export function createPageRowWriter(resources: PageRowResources) {
     // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
     // layer 0, one calculation source for the hardware path and the software raster alike.
     ints[base + 60] = depthLayerUnits(rec.depthLayer);
-    // Each map addresses its texture in its own wrap mode: colour may repeat where normals clamp,
-    // and the shader reads the nibble of the map it samples.
-    ints[base + ROW_WRAP_MODES_WORD] = material.wrap;
     // Row placement: the temporal pass reads the pixel motion matrix there. A page without a
     // placement does not exist in a WebGPU layout: that is an invariant, not zero.
     if (rec.placementIndex === undefined) throw new Error('PAGE_PLACEMENT_MISSING');

@@ -1574,6 +1574,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "BATCHED_WORLD_VIEW": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "RAYCAST_NO_VIEW": "Ein Bildpunkt wurde von einem Canvas ohne Größe verlangt: Es gibt kein Bild, durch das man zielen kann.",
+      "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden, aus einem Grund ohne eigenen Code (`world.diagnostic.error`): Der geworfene Fehler steht in `details.cause`.",
+      "WEBGPU_LOST": "WebGPU hat sein Gerät verloren, oder ein Fehler darauf hat einen Zustand hinterlassen, aus dem nichts zeichnen kann: geworfen von `render`, `flush` und den Lesevorgängen, die das Gerät brauchen, benannt durch die Diagnose `gpu-device-lost`, und in `world.diagnostic.error`, wenn sich deshalb eine Sitzung nicht öffnen ließ.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann."
     }
@@ -2545,7 +2547,12 @@
       "colorSpace": "Wie ihre Zahlen gelesen werden.",
       "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
       "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
-      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf."
+      "updateMatrix": "Baut `matrix` aus Versatz, Wiederholung und Rotation neu auf.",
+      "offset": "Woraus `matrix` zusammengesetzt wird.",
+      "repeat": "Wie oft sie hineinpasst.",
+      "center": "Der Drehpunkt der Rotation.",
+      "rotation": "Die Rotation, in Radiant.",
+      "addEventListener": "Sagt dem Importer, wann der Host die Textur loslässt."
     }
   },
   "HostTraversable": {
@@ -5768,6 +5775,8 @@
       "id": "Identität der Textur in der importierten Szene: der Name, unter dem ein Cache-Schlüssel und eine Nachricht sie bezeichnen.",
       "name": "Vom Quelldatei gegebener Name, leer, wenn keiner gegeben wurde; nur von Nachrichten gelesen.",
       "version": "Erhöht, sobald sich die Texel ändern: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",
+      "sampling": "Erhöht, wenn Adressierung, Filter oder Anisotropie sich ändern: der Sampler wird neu gesetzt.",
+      "placement": "Erhöht, wenn sich `transform` ändert: die Platzierung wird neu geschrieben, nichts hochgeladen.",
       "image": "Das dekodierte Bild. Sein Container bleibt `unknown`: nur die Grenze, die es sendet, kennt ihn.",
       "channel": "UV-Satz, den der Sampler liest, das `texCoord` von `KHR_texture_transform`; die Engine tastet 0 und 1 ab.",
       "wrapS": "Wiederholung in der Breite.",
@@ -5800,7 +5809,9 @@
       "flipY": "Ob das Bild beim Lesen umgedreht wird.",
       "anisotropy": "Wie scharf das Bild schräg gesehen bleibt.",
       "channel": "Welchem UV-Satz der Geometrie die Textur folgt.",
-      "version": "Bei jedem Schreibvorgang erhöht: das, was ein Material vergleicht, um neu abzutasten.",
+      "version": "Erhöht durch einen Schreibvorgang am Bild oder an seiner Lesart: was ein Material vergleicht, um das Bild erneut zu senden.",
+      "sampling": "Erhöht durch einen Schreibvorgang an Adressierung, Filtern oder Anisotropie: neu gesetzt, nichts gesendet.",
+      "placement": "Erhöht durch einen Schreibvorgang an `repeat`, `offset` oder `rotation`: neu platziert, nichts gesendet.",
       "image": "Das Bild selbst: ein Bild, ein Canvas, ein Video oder rohe Pixel.",
       "layout": "Was das Bild zusätzlich zu seinen Pixeln enthält: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Wie jedes Pixel angeordnet ist: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -6357,10 +6368,11 @@
     }
   },
   "world.diagnostic": {
-    "summary": "Was die Seite hält: der Modus, lesbar und schreibbar.",
+    "summary": "Was die Seite hält: der Ansichtsmodus, lesbar und schreibbar; die geöffneten Sitzungen und warum die letzte scheiterte, nur lesbar.",
     "members": {
       "mode": "Der Ansichtsmodus: `'beauty'` für das normale Bild, oder ein Modus, der zeigt, wie die Engine arbeitet.",
       "sessions": "Sitzungen, die die Welt bisher geöffnet hat: Eine Änderung, die eine wieder öffnet, zeigt sich hier.",
+      "error": "Warum sich die letzte Sitzung nicht öffnen ließ, als benannter Engine-Fehler: Sein `code` ist einer der auf `EngineError` dokumentierten (`WEBGPU_LOST`, wenn WebGPU sein Gerät verloren hat), oder `SESSION_OPEN_FAILED` für einen Grund ohne eigenen. Ein `EngineError` mit dokumentiertem Code ist der geworfene selbst; jeder andere Fehler wird umgewandelt, und der geworfene Fehler steht dann in `details.cause`. `null` ab dem Beginn jeder Öffnung, und wenn nichts versucht wird.",
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },

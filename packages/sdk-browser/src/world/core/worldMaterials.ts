@@ -3,18 +3,20 @@ import {
   type Material,
 } from '../../../../sdk-core/src/world/material/material.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 
 /** The parameters a session reads as values — a page-table row's colour and numbers, a host
  *  surface's uniforms — and so the only ones written in place: none of them changes a shader, a
  *  resolve class or which pass draws the surface. */
 const VALUES = new Set(['color', 'emissive', 'emissiveIntensity', 'metalness', 'roughness']);
 
-/** One parameter value as a key: a texture by identity and version, a colour or a vector by its
- *  numbers, anything else by its own value. */
+/** One parameter value as a key: a texture by identity and its three counters, a colour or a
+ *  vector by its numbers, anything else by its own value. */
 function valueKey(value: unknown): string {
   if (value === null || typeof value !== 'object') return String(value);
-  const shaped = value as { isTexture?: boolean; id?: string; version?: number };
-  if (shaped.isTexture) return `texture:${shaped.id}@${shaped.version}`;
+  const shaped = value as Partial<Texture> & { isTexture?: boolean };
+  if (shaped.isTexture)
+    return `texture:${shaped.id}@${shaped.version}.${shaped.sampling}.${shaped.placement}`;
   if (Array.isArray(value)) return `[${value.map(valueKey).join(',')}]`;
   const numbers = Object.entries(value).filter(([, field]) => typeof field === 'number');
   return `{${numbers.map(([name, field]) => `${name}:${field}`).join(',')}}`;

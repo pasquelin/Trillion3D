@@ -1,11 +1,12 @@
-// Batch F, F12: `deplaceInstance` (instances.ts) reads the page/base-page pair set
+// Batch F, F12: `deplaceInstance` (instancePose.ts) reads the page/base-page pair set
 // once at creation (`instance.pages[i]` / `instance.bases[i]`) instead of rebuilding a
 // page → base-page hash table on every move. The oracle is the reconstruction from before
 // batch F, copied as-is into `oracles/cadre-vue.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createAutonomousInstances, deplaceInstance } from './instances.ts';
+import { createAutonomousInstances } from './instances.ts';
+import { deplaceInstance } from './instancePose.ts';
 import { asHostLibrary, type HostMaterial } from '../../host/resources.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { Material } from '../../../../sdk-core/src/index.ts';
@@ -135,6 +136,7 @@ function primitivePeinte() {
     } as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
     cap: 0,
     sceneChanged: () => {},
+    coverChanged: () => {},
   });
   return { plain, coloured, colorMaterials, instances };
 }

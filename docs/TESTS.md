@@ -8,23 +8,32 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       73 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    347 *.test.ts
+  sdk-core/src/       74 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    362 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
   browser/renders/    42 *.browser.ts — rendering in real Chromium
   browser/probes/     20 GPU probes + 32 support modules
-  browser/support/    67 pages and cases served to the render proofs
-  kit/                28 shared test tools: fake GPU devices, servers, assertions
+  browser/support/    69 pages and cases served to the render proofs
+  kit/                31 shared test tools: fake GPU devices, servers, assertions
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
   core/               14 modules: measure, report, diff, ulp, baseline
   perf/core/          15 *.perf.ts
-  perf/browser/       38 *.perf.ts + 32 support modules
+  perf/browser/       38 *.perf.ts + 33 support modules
   oracles/            46 reference implementations, copied verbatim
-  runner/             81 modules: the measurement harness (README)
+  runner/             83 modules: the measurement harness (README)
   witnesses/          18 modules: the host-library witnesses, never published
+scripts/docs/examples/openworld/
+  plan/               4 *.test.ts — relief, roads, tunnels, tiles, places
+  build/              3 *.test.ts — the placed world: collision meshes, where markers stand, which way props face
+  props/              4 *.test.ts — shared meshes and their soundness
+  regions/            6 *.test.ts — one per region, its helpers in testing.ts
+  play/               6 *.test.ts — flight, simulation, solids, streaming, view, world
+  gltf/               1 *.test.ts — the glTF writer
+site/examples/kit/openworld/
+  sky/                4 *.test.ts — sun, atmosphere, clouds, particles
 ```
 <!-- tests-inventory:end -->
 

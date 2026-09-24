@@ -5,8 +5,7 @@ import {
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
-
-const p50 = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+import { median } from '../../kit/median.ts';
 
 /** A batch draw is always indexed (`submitClusterMesh` calls `drawElements`): the identity
  *  index keeps the same triangle order as the flat position layout below. */
@@ -50,7 +49,7 @@ async function sample(draw: () => void, warmup = 20, count = 120) {
         resolve();
       }),
     );
-  return { cpuP50: p50(cpu), rafP50: p50(raf), samples: cpu.length };
+  return { cpuP50: median(cpu), rafP50: median(raf), samples: cpu.length };
 }
 
 export async function measureBlend() {

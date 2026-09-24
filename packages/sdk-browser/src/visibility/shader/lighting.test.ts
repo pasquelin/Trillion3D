@@ -23,6 +23,7 @@ function fakeTexture(pixel: [number, number, number, number]): Texture {
     image: { data: Uint8Array.from(pixel), width: 1, height: 1 },
     wrapS: 'clamp',
     wrapT: 'clamp',
+    transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
   } as unknown as Texture;
 }
 

@@ -250,8 +250,22 @@ is created. A mixed session (measurement only) composes on a WebGL2 surface: the
 into a canvas of its own, publishes it as `presentedSurface`, and the host copies it with the
 engine's own full-screen program (`createBackendPresenter`). `presentedSurface` is withdrawn, and the
 canvas blanked, as soon as the device is lost; the loss is announced once by `gpu-device-lost`
-(`reason`: the device's own, `uncaptured-error` or `residency`). Neither path reads the image back
-for presentation.
+(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Neither path reads
+the image back for presentation.
+
+A world keeps its device across sessions, and each session creates through its own handle on it
+(`gpu/core/sessionHandle.ts`, `gpu/core/deviceOwners.ts`), which tags every label. `dispose` releases
+the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
+so a preparation still running stops there (cancelled, torn down once after it stopped), and its
+queue writes and submits nothing. From `dispose` on, the backend reads as lost: its audits and
+digests answer `null`. The device's error scopes are one stack every session shares: each creation
+path closes the scope it opened in every case, an abort included (`gpu/core/errorScope.ts`), so no
+scope is left to swallow the next session's errors. What a closed session submitted before may still raise an error:
+one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
+diagnostic (`kind: 'warning'`, `message`) for the live session, or for the next one to claim the
+device when none is live. An uncaptured error is otherwise a loss for the live session whose objects
+it names, or, naming none, for every live session; running out of memory is reported under
+`reason: 'out-of-memory'`.
 
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before anything
 else: attributes, drawing-buffer size from logical size and DPR, loss and restoration, one release.
@@ -271,8 +285,46 @@ so a still camera settles instead of alternating between two cuts.
 A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
 rebuilds every bind group that named the old pool on the next image. The geometry pool can grow up to
-`geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. Backends
-without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+`geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
+engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
+page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
+(`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
+while the records rows place share one. Its cut is drawn on the CPU in the image that shows it, so
+it fits the slots in that image: every page it asks for charges its copies once (`slotsOf`), the
+root cover held beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s
+`search`, `poolSearch.ts`). A resident ancestor drawn in place of a missing page charges nothing
+more: each place on screen counts once, for the page that will be resident. The threshold is
+searched from one image to the next, and an image mostly costs one pass: an image the budget did
+not limit, or a host threshold lowered, passes at the host's `pixelError`; otherwise each image
+passes one step of √2 finer than the threshold the last one kept, unless that step overflowed since
+and the kept cut charges no less than it did then (the kept threshold again, the one image that
+costs two passes), and climbs by √2 in the same image when the cut no longer fits (a camera move).
+The climb stops as soon as the cut fits, or where no coarser threshold changes the cut: a pass whose
+overflow comes from root pages, and from pages whose parent reaches the near plane (an infinite
+screen error, refined at every threshold), overflows at every coarser threshold too. It never climbs
+past a ceiling either: the largest error the DAG roots carry as parents, seen at the near plane on
+the view axis. A budget not even that coarsest cut fits holds the threshold there, draws that cut
+without the budget in one pass, probes it again only when the slots, the copies, the view or the
+host's threshold change, and publishes the pool's `geometryPoolClamp` as `root-cover`, as on WebGPU.
+A smaller budget holds in the image that follows it, and the detail converges on the finest
+threshold that fits, to √2, in a number of images logarithmic in the ratio of the kept threshold to
+the host's; only while a finer step is left to try does `pendingFrame` ask for another image, and an
+image whose view moved forces none. `flush` runs those images itself, at most 32, so `awaitPages`
+loads the pages of the fixed cut. A threshold kept coarser than the host's is `budgetPixelError`,
+`0` otherwise. A verdict change is queued and published as `coverage-budget` by `flush`, as on
+WebGPU, in the image whose pass tried the host's threshold, whether the search has settled or not.
+Its `requiredSlots` is the slots the cut at the host's threshold charges, known only when that cut
+fit, and `null` when the cut is drawn coarser, since a pass past the budget stops at its first
+overflowing page. When its pages hold more than the slots, those the image no longer keeps leave
+oldest first (`evictOldest`, the page streamer's order). A refinement may hold more for a while: a
+resident ancestor drawn in place of a missing page is kept while the pages that replace it arrive,
+so the pool goes past its slots by at most the ancestors standing in, and comes back under them in
+the cut that follows the last arrival, which no longer keeps them (`poolSearch.test.ts` measures 11
+slots over 150 for 60 ancestors replaced by 100 pages, and `geometryAllocationBytes` shows it). Only
+the root cover and the pages the host replaced (`replaceGeometryPage`) stay above it; they are
+counted as the pages' bytes are, every geometry copy included. No pool is reserved:
+`geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
+Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
@@ -341,7 +393,8 @@ modules in its configuration event; a direct source import has `hash: null`.
 Phases carry `pipelineVersion: 1`: `gpu-presentation`, `frame-allocation`, `material-textures`,
 `material-textures-ready`, `material-classes-ready`, `material-surfaces-ready`, `scene-lighting`,
 `render-capabilities`, `render-progress` (selected and resident pages, triangles, pending pages,
-transparent counters), surface-capture phases, `gpu-device-lost`. Observer exceptions cannot
+transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-session-error`
+(`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
 
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).
