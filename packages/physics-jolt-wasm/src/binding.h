@@ -115,6 +115,10 @@ constexpr uint32_t EVENT_WORDS = 7;
 bool runCommands(const uint32_t *words, uint32_t count);
 /// The page's leave for every pair a body being removed was in; its later removal is ignored.
 void leaveAll(uint32_t engine);
+/// The shape an ADD command (`w`, from its opcode) describes, or null when refused.
+JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
+/// Writes the leaves a full event buffer held back at the last step, before anything else.
+void sendOwedLeaves();
 /// Writes the poses of the dynamic bodies that moved during the step; returns their count.
 uint32_t writePoses();
 

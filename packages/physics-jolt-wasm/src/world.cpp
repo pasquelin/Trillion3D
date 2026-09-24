@@ -1,4 +1,4 @@
-// World creation, collision layers, contact and sleep listeners, and the exported entry points.
+// World creation, collision layers, and the exported entry points.
 #include "binding.h"
 
 #include <Jolt/Core/Factory.h>
@@ -52,95 +52,9 @@ ObjectVsBroadPhase objectVsBroadPhase;
 ObjectPairs objectPairs;
 World instance;
 
-uint64_t pairKey(uint32_t a, uint32_t b) {
-  return a < b ? (uint64_t(a) << 32) | b : (uint64_t(b) << 32) | a;
-}
-
-/// Set on a pair's count once its enter reached the event buffer: only then is a leave owed.
-constexpr uint32_t ENTERED = 0x80000000u;
-
-bool pushEvent(uint32_t type, uint32_t a, uint32_t b, float impulse, Vec3 point) {
-  World &w = instance;
-  if (w.eventWords + EVENT_WORDS > w.capacity[2]) return false;
-  uint32_t *e = w.buffers[2] + w.eventWords;
-  float *f = reinterpret_cast<float *>(e);
-  e[0] = type;
-  e[1] = a;
-  e[2] = b;
-  f[3] = impulse;
-  f[4] = point.GetX();
-  f[5] = point.GetY();
-  f[6] = point.GetZ();
-  w.eventWords += EVENT_WORDS;
-  return true;
-}
-
-/// A leave the buffer cannot take waits for the next step: an enter the page saw always ends.
-void pushLeave(uint64_t key) {
-  if (!pushEvent(2, uint32_t(key >> 32), uint32_t(key), 0.0f, Vec3::sZero()))
-    instance.leaving.push_back(key);
-}
-
-bool wantsEvents(uint32_t engine) {
-  return (instance.slots[engine & INDEX_MASK].flags & EVENTS) != 0;
-}
-
-/// The engine id of a body a contact names, or `~0u` when that body was removed since.
-uint32_t live(const BodyID &id) {
-  uint32_t engine = instance.engineOf[id.GetIndex()];
-  const Slot &slot = instance.slots[engine & INDEX_MASK];
-  return slot.used && slot.id == id ? engine : ~0u;
-}
-
 }  // namespace
 
 World &world() { return instance; }
-
-void leaveAll(uint32_t engine) {
-  for (auto at = instance.pairs.begin(); at != instance.pairs.end();) {
-    if (uint32_t(at->first >> 32) != engine && uint32_t(at->first) != engine) {
-      ++at;
-      continue;
-    }
-    if (at->second & ENTERED) pushLeave(at->first);
-    at = instance.pairs.erase(at);
-  }
-}
-
-void Listener::OnContactAdded(const Body &a, const Body &b, const ContactManifold &manifold,
-                              ContactSettings &) {
-  uint32_t ia = uint32_t(a.GetUserData()), ib = uint32_t(b.GetUserData());
-  if (!wantsEvents(ia) && !wantsEvents(ib)) return;
-  std::lock_guard guard(lock);
-  uint32_t &pair = instance.pairs[pairKey(ia, ib)];
-  if (pair++ != 0) return;
-  Vec3 point = Vec3(manifold.GetWorldSpaceContactPointOn1(0));
-  // Approach speed along the normal times the pair's reduced mass: the impulse needed to stop the
-  // approach, an estimate made before the solver runs.
-  Vec3 relative = a.GetPointVelocity(RVec3(point)) - b.GetPointVelocity(RVec3(point));
-  float approach = std::max(0.0f, relative.Dot(manifold.mWorldSpaceNormal));
-  float inverse = (a.IsDynamic() ? a.GetMotionProperties()->GetInverseMass() : 0.0f) +
-                  (b.IsDynamic() ? b.GetMotionProperties()->GetInverseMass() : 0.0f);
-  // An enter the buffer cannot take is counted, and its leave is never sent.
-  if (pushEvent(1, ia, ib, inverse > 0 ? approach / inverse : 0.0f, point)) pair |= ENTERED;
-  else ++instance.dropped;
-}
-
-void Listener::OnContactRemoved(const SubShapeIDPair &pair) {
-  std::lock_guard guard(lock);
-  // A removed body's pairs were closed when it left (`leaveAll`).
-  uint32_t ia = live(pair.GetBody1ID()), ib = live(pair.GetBody2ID());
-  if (ia == ~0u || ib == ~0u) return;
-  auto found = instance.pairs.find(pairKey(ia, ib));
-  if (found == instance.pairs.end() || (--found->second & ~ENTERED) != 0) return;
-  if (found->second & ENTERED) pushLeave(found->first);
-  instance.pairs.erase(found);
-}
-
-void Listener::OnBodyDeactivated(const BodyID &, uint64 user) {
-  std::lock_guard guard(lock);
-  instance.deactivated.push_back(uint32_t(user));
-}
 
 }  // namespace trillion
 
@@ -196,9 +110,7 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   w.refused.clear();
   w.dt = dt;
   ++w.step;
-  std::vector<uint64_t> owed;
-  owed.swap(w.leaving);
-  for (uint64_t key : owed) trillion::pushLeave(key);
+  trillion::sendOwedLeaves();
   if (!trillion::runCommands(w.buffers[0], commandWords)) return 0xFFFFFFFFu;
   // A body removed awake was put to sleep by its removal: not a body of this step.
   w.deactivated.clear();
@@ -216,6 +128,8 @@ uint32_t jolt_update_error() { return world().updateError; }
 uint32_t jolt_refused_count() { return uint32_t(world().refused.size()); }
 uint32_t jolt_refused(uint32_t i) { return world().refused[i]; }
 uint32_t jolt_error() { return world().error; }
+/// Leaves still owed from a step whose event buffer was full: the next step writes them first.
+uint32_t jolt_owed_leaves() { return uint32_t(world().leaving.size()); }
 uint32_t jolt_active_count() { return world().system->GetNumActiveBodies(EBodyType::RigidBody); }
 
 }  // extern "C"

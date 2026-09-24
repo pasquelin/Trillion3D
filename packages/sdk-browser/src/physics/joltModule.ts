@@ -27,6 +27,7 @@ interface JoltExports {
   jolt_refused(i: number): number;
   jolt_error(): number;
   jolt_active_count(): number;
+  jolt_owed_leaves(): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -121,6 +122,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     refused: () =>
       Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
     active: () => jolt.jolt_active_count(),
+    /** Leaves a full event buffer held back: the next step sends them first. */
+    owedLeaves: () => jolt.jolt_owed_leaves(),
     /** Whether the memory has grown to its budget: a trap then is the budget, not a fault. */
     full: () => memory.buffer.byteLength + 4 * PAGE > maximum,
   };
