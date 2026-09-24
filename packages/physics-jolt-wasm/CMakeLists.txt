@@ -59,14 +59,14 @@ if (COOK)
 endif ()
 if (NOT EMSCRIPTEN)
   # The native bench (`bench/native.cpp`), for comparison with the web module; never shipped.
-  add_executable(joltBench bench/native.cpp src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp
+  add_executable(joltBench bench/native.cpp src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp
     ${PROFILE_SOURCES})
   target_link_libraries(joltBench PRIVATE Jolt)
   target_compile_options(joltBench PRIVATE -O3)
   return()
 endif ()
 
-add_executable(${NAME} src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp ${SOURCES} ${PROFILE_SOURCES})
+add_executable(${NAME} src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp ${SOURCES} ${PROFILE_SOURCES})
 target_link_libraries(${NAME} PRIVATE Jolt)
 set_target_properties(${NAME} PROPERTIES SUFFIX ".wasm")
 target_compile_options(${NAME} PRIVATE -O3 -msimd128)
@@ -75,4 +75,4 @@ target_link_options(${NAME} PRIVATE
   -sSTANDALONE_WASM=1 -sIMPORTED_MEMORY=1 -sALLOW_MEMORY_GROWTH=1
   -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=4294967296 -sSTACK_SIZE=1048576
   -sFILESYSTEM=0 -sASSERTIONS=0 -sERROR_ON_UNDEFINED_SYMBOLS=1
-  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_dropped_events','_jolt_update_error','_jolt_refused_count','_jolt_refused','_jolt_error','_jolt_active_count','_jolt_owed_leaves','_jolt_cast_buffer','_jolt_cast'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")
+  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_dropped_events','_jolt_update_error','_jolt_refused_count','_jolt_refused','_jolt_error','_jolt_active_count','_jolt_owed_leaves','_jolt_cast_buffer','_jolt_cast','_jolt_character'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")

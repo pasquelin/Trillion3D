@@ -15,6 +15,7 @@ import { startPhysicsWorker } from './sessionWorker.ts';
 import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
+import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -22,7 +23,7 @@ import { resolveCameraWorld } from '../camera/world.ts';
  */
 export function createPhysicsSession(
   root: Object3D,
-  budget: PhysicsBudget,
+  budget: Readonly<PhysicsBudget>,
   invalidate: () => void,
   failed: (error: EngineError, fatal?: boolean) => void,
 ) {
@@ -71,6 +72,8 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
+  /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
+  const touched: { id: number; eye: Object3D | null } = { id: budget.bodies, eye: null };
   const worker = startPhysicsWorker(budget);
   const tiles = createTileStreamer(writer, budget, bodies, invalidate, (error) => failed(error));
   const casts = new Map<number, (hits: Uint32Array) => void>();
@@ -90,9 +93,10 @@ export function createPhysicsSession(
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
     const moved = poses.receive(words, m.poses, bodies, ms);
-    emitContacts(words, eventsAt(budget), m.events, bodies.meshOf);
+    emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
+    if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
-    const changed = moved > 0 || m.active !== stats.active;
+    const changed = moved > 0 || m.active !== stats.active || m.character !== null;
     Object.assign(stats, { active: m.active, poses: m.poses, events: m.events });
     stats.droppedEvents += m.dropped;
     stats.bodies = bodies.count.bodies;
@@ -122,9 +126,12 @@ export function createPhysicsSession(
   worker.onerror = (event) =>
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
+  const character = createCharacterPort((message) => worker.postMessage(message));
   return {
     stats,
     writer,
+    /** The character's body in this session's worker, for `world.controls`. */
+    characterBody: createPhysicsCharacter.bind(null, character),
     /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
       Object.assign(clock, { paused, timeScale });
@@ -139,8 +146,7 @@ export function createPhysicsSession(
       if (hasBody(node)) stale.add(node);
       dirty = true;
     },
-    /** The page moved or hid a node: a body under it is placed where the page put it, and a
-     *  hidden one sends no pose. */
+    /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
       node.traverse((child) => {
         if (!hasBody(child) || child.physics._host !== host) return;
@@ -153,6 +159,7 @@ export function createPhysicsSession(
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
     frame(camera: Camera) {
+      touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
         tiles.scan(root);
@@ -166,10 +173,10 @@ export function createPhysicsSession(
       view(camera, writer);
       tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), camera.far);
       flush();
+      if (ready) character.flush();
       return moving;
     },
-    /** Answers scene queries (`CAST_WORDS` each) against the simulation, the frame's commands
-     *  first: the hits (`HIT_WORDS` each), in order. */
+    /** Scene queries (`CAST_WORDS` each), answered after the frame's commands: hits in order. */
     async cast(queries: Uint32Array) {
       await started;
       flush();

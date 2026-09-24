@@ -927,7 +927,8 @@
       "PHYSICS_NESTED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_FAILED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_FORMAT": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
-      "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。"
+      "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
+      "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。"
     }
   },
   "EngineProfiler": {
@@ -3938,7 +3939,10 @@
       "headBob": "キャラクターのみ: ジョギング時に、1歩ごとに目が上下するメートル数; デフォルトは0.035、0なら水平を保つ。",
       "landingDip": "キャラクターのみ: 着地から、目の着地沈みの最低点までの秒数。衝撃が速いほど深くなる; デフォルトは0.06、0ならオフになる。",
       "onLand": "キャラクターのみ: 着地時に、m/s単位の下向きの速度とともに呼ばれる; デフォルトは`null`。",
-      "onJump": "キャラクターのみ: ジャンプでボディが地面を離れるときに呼ばれる; デフォルトは`null`。"
+      "onJump": "キャラクターのみ: ジャンプでボディが地面を離れるときに呼ばれる; デフォルトは`null`。",
+      "mass": "キャラクターのみ、物理あり：身体が足場にかける質量（kg）。既定は 80。",
+      "pushStrength": "キャラクターのみ、物理あり：身体が物体を押す力（N）。既定は 250、大人が持続して押せる力。",
+      "vehicle": "乗り物のみ：`'vehicle'` コントロールが操るもの — `drive(input)` を持つ任意のオブジェクトで、キーが変わるたびにアクセル、ブレーキ、ハンドル、サイドブレーキを受け取る。既定は `null`。その間 `kind = 'vehicle'` は `NO_VEHICLE` を投げる。"
     }
   },
   "world.renderer": {
@@ -7166,6 +7170,22 @@
     "members": {
       "budget": "固定の上限。物理の開始時に一度読まれる。",
       "gravity": "ワールドの重力：プリセットかベクトル。"
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle` が運転できるもの：入力が変わるたびにそれを受け取る。",
+    "members": {
+      "drive": "キーが変えるたびにペダルとハンドルを受け取る。"
+    }
+  },
+  "VehicleInput": {
+    "summary": "運転者が乗り物に求めるもの：`world.controls` `'vehicle'` のキーが設定するペダルとハンドル。",
+    "description": "乗り物自身の物理（エンジン、車輪、サスペンション）がそれに応える。コントロールが知るのはこの約束だけ。",
+    "members": {
+      "throttle": "アクセル、0 から 1。",
+      "brake": "ブレーキペダル、0 から 1。",
+      "steer": "ハンドル、−1 で左いっぱい、1 で右いっぱい。",
+      "handbrake": "サイドブレーキが引かれているか。"
     }
   }
 }
