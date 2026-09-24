@@ -1466,8 +1466,7 @@
       "hands-in-vr": "الأيدي في الواقع الافتراضي",
       "teleport-in-vr": "الانتقال الآني في الواقع الافتراضي",
       "controllers-in-vr": "وحدات التحكم في الواقع الافتراضي",
-      "ar-on-the-table": "الواقع المعزز على الطاولة",
-      "openworld": "عالم مفتوح"
+      "ar-on-the-table": "الواقع المعزز على الطاولة"
     },
     "missing": {
       "colours-on-the-vertices": "ألوان لكل رأس على WebGPU",
