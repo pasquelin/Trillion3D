@@ -8,21 +8,9 @@ import assert from 'node:assert/strict';
 import { ensureSunFarShadow } from '../pages/prepare/sunFar.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { createWebgpuSunFarState } from '../pages/state/sunFar.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { SceneProxy } from '../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-
-installGpuGlobals();
-
-/** A dummy device that returns what it is asked to create, mapping included. */
-const fakeDevice = () =>
-  ({
-    createBuffer: ({ size }: { size: number }) => {
-      const bytes = new ArrayBuffer(size);
-      return { size, getMappedRange: () => bytes, unmap() {}, destroy() {} };
-    },
-    queue: { writeBuffer() {} },
-  }) as unknown as GPUDevice;
 
 /** Resident proxy as the cache returns it: empty columns are enough for adoption. */
 const sceneProxy = () =>
@@ -78,7 +66,7 @@ test('GEO-02: the proxy loaded for the far shadow announces its adoption', async
   const rt = sunFarRt(async () => sceneProxy());
   assert.equal(rt.run.gate.hold.stable, true, 'the hold is armed before adoption');
   const before = rt.run.gate.revisions.resources;
-  ensureSunFarShadow(rt, fakeDevice());
+  ensureSunFarShadow(rt, fakeDevice().device);
   await rt.sunFar.pending;
   assertAdoption(rt, before);
 });
@@ -88,7 +76,7 @@ test('GEO-02: the proxy borrowed from bounce also announces its adoption', () =>
   const emprunte = { bounds: [0, 0, 0, 1, 1, 1], cellMetres: 0.5, nodeCount: 1 };
   rt.bounce.probes = { proxy: emprunte } as unknown as WebgpuPagesRuntime['bounce']['probes'];
   const before = rt.run.gate.revisions.resources;
-  ensureSunFarShadow(rt, fakeDevice());
+  ensureSunFarShadow(rt, fakeDevice().device);
   assert.equal(rt.sunFar.borrowed, true, 'the bounce proxy is borrowed, never reloaded');
   assertAdoption(rt, before);
 });
