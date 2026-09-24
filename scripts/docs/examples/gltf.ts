@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { Mesh } from '../shadow-theatre/geometry.ts';
+import type { Mesh } from './mesh.ts';
 import type {
   Accessor,
   BufferView,
