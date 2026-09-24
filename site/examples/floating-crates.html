@@ -55,46 +55,75 @@
         { direction: [1, -0.8], wavelength: 2.3, amplitude: 0.04, steepness: 0.1 },
       ];
 
-      // The surface: a grid of small flat tiles, one shape and one matter shared, each placed every
-      // frame where the waves carry its four corners. A written shape is cut again and opens the
+      // The surface: a grid of flat tiles, one shape and one matter shared, each posed every frame
+      // on the four corners where the waves carry it. A written shape is cut again and opens the
       // world's session again, so vertices rewritten every frame would never be drawn; a tile
       // moved, turned and stretched is a pose, written in place.
-      const ACROSS = 70, ALONG = 50, CELL = WIDE / ACROSS; // 0.4 m, square: DEEP / ALONG too
-      const tile = geometry.plane(CELL, CELL).rotateX(-Math.PI / 2);
+      //
+      // A tile is the parallelogram of its corners: a holder turned and stretched, around the tile
+      // turned about its normal (turn, stretch, turn reach any flat parallelogram). Its corners are
+      // then off their points only by the cell's twist |p - q - r + s| / 4, at most
+      // cell² / 4 · Σ k² · |dx · dz| · max(A, Q·A) over the loudest waves the panel allows. Cells sized
+      // from that bound keep every corner within TWIST of its point, so neighbours meet within 2 · TWIST.
+      const TWIST = 0.03, LOUDEST = 2;
+      const bend = SWELL.reduce((sum, { direction: [dx, dz], wavelength, amplitude, steepness }) => {
+        const k = (2 * Math.PI) / wavelength;
+        return sum + k * k * (Math.abs(dx * dz) / (dx * dx + dz * dz)) * Math.max(amplitude * LOUDEST, steepness / k);
+      }, 0);
+      const side = Math.sqrt((4 * TWIST) / bend);
+      const ACROSS = Math.ceil(WIDE / side), ALONG = Math.ceil(DEEP / side), CX = WIDE / ACROSS, CZ = DEEP / ALONG;
+      const tile = geometry.plane(CX, CZ).rotateX(-Math.PI / 2);
       const water = material.meshStandard({ color: '#1d6d8c', roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8, depthWrite: false, side: 'double' });
-      const tiles = [];
+      const holders = [];
       for (let i = 0; i < ACROSS * ALONG; i++) {
-        const mesh = object.mesh(tile, water);
-        world.scene.add(mesh);
-        tiles.push(mesh);
+        const holder = object.group();
+        holder.add(object.mesh(tile, water));
+        world.scene.add(holder);
+        holders.push(holder);
       }
       // The corners, (ACROSS + 1) × (ALONG + 1) points, x then z, where the waves put them.
       const corners = new Float64Array((ACROSS + 1) * (ALONG + 1) * 3), point = new Float64Array(3);
-      const basis = new Float64Array(16), ex = [0, 0, 0], ez = [0, 0, 0], mid = [0, 0, 0];
-      const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-      const unit = (v) => v.map((component) => component / Math.hypot(...v));
+      const frame = { elements: new Float64Array(16) }, ex = [0, 0, 0], ez = [0, 0, 0];
       const drawSurface = (surface) => {
         for (let k = 0, at = 0; k <= ALONG; k++)
           for (let i = 0; i <= ACROSS; i++, at += 3)
-            corners.set(surface.point(-WIDE / 2 + i * CELL, -DEEP / 2 + k * CELL, point), at);
+            corners.set(surface.point(-WIDE / 2 + i * CX, -DEEP / 2 + k * CZ, point), at);
+        const m = frame.elements;
         for (let k = 0; k < ALONG; k++)
           for (let i = 0; i < ACROSS; i++) {
             const a = (k * (ACROSS + 1) + i) * 3, b = a + 3, c = a + (ACROSS + 1) * 3, d = c + 3;
+            const holder = holders[k * ACROSS + i];
             // The tile's two edges, each the mean of its two sides, and its centre.
             for (let axis = 0; axis < 3; axis++) {
               const p = corners[a + axis], q = corners[b + axis], r = corners[c + axis], s = corners[d + axis];
               ex[axis] = (q - p + s - r) / 2;
               ez[axis] = (r - p + s - q) / 2;
-              mid[axis] = (p + q + r + s) / 4;
             }
-            // Its axes: x along the first edge, y the normal, z the third; stretched to its edges.
-            const width = Math.hypot(...ex), x = unit(ex);
-            const y = unit(cross(ez, ex)), z = cross(x, y);
-            basis.set([...x, 0, ...y, 0, ...z, 0]);
-            const mesh = tiles[k * ACROSS + i];
-            mesh.position.set(...mid);
-            mesh.quaternion.setFromRotationMatrix({ elements: basis });
-            mesh.scale.set(width / CELL, 1, (ez[0] * z[0] + ez[1] * z[1] + ez[2] * z[2]) / CELL);
+            holder.position.set(
+              (corners[a] + corners[b] + corners[c] + corners[d]) / 4,
+              (corners[a + 1] + corners[b + 1] + corners[c + 1] + corners[d + 1]) / 4,
+              (corners[a + 2] + corners[b + 2] + corners[c + 2] + corners[d + 2]) / 4,
+            );
+            // Its plane: u along the first edge, n the normal, w = u × n.
+            const length = Math.hypot(ex[0], ex[1], ex[2]);
+            const ux = ex[0] / length, uy = ex[1] / length, uz = ex[2] / length;
+            let nx = ez[1] * ex[2] - ez[2] * ex[1], ny = ez[2] * ex[0] - ez[0] * ex[2], nz = ez[0] * ex[1] - ez[1] * ex[0];
+            const n = Math.hypot(nx, ny, nz);
+            nx /= n; ny /= n; nz /= n;
+            const wx = uy * nz - uz * ny, wy = uz * nx - ux * nz, wz = ux * ny - uy * nx;
+            // The rest cell to its edges in (u, w), [[m00, m01], [0, m11]], split into turn φ,
+            // stretch (σ1, σ2) and turn θ (the closed-form 2 × 2 singular value decomposition).
+            const m00 = length / CX, m01 = (ez[0] * ux + ez[1] * uy + ez[2] * uz) / CZ, m11 = (ez[0] * wx + ez[1] * wy + ez[2] * wz) / CZ;
+            const E = (m00 + m11) / 2, F = (m00 - m11) / 2, G = m01 / 2, H = -m01 / 2;
+            const Q = Math.hypot(E, H), R = Math.hypot(F, G), a1 = Math.atan2(G, F), a2 = Math.atan2(H, E);
+            const cos = Math.cos((a2 + a1) / 2), sin = Math.sin((a2 + a1) / 2);
+            m[0] = cos * ux + sin * wx; m[1] = cos * uy + sin * wy; m[2] = cos * uz + sin * wz;
+            m[4] = nx; m[5] = ny; m[6] = nz;
+            m[8] = cos * wx - sin * ux; m[9] = cos * wy - sin * uy; m[10] = cos * wz - sin * uz;
+            holder.quaternion.setFromRotationMatrix(frame);
+            holder.scale.set(Q + R, 1, Q - R);
+            // Rot(θ) on the rest (x, z) is a turn of −θ about y.
+            holder.children[0].rotation.y = -(a2 - a1) / 2;
           }
       };
 
@@ -196,7 +225,7 @@
       const settings = controls(
         {
           level: [0.2, 3.8, 2.4, 0.1],
-          waves: [0, 2, 1, 0.05],
+          waves: [0, LOUDEST, 1, 0.05],
           density: [200, 1400, 1000, 10],
           current: [-2, 2, 0.4, 0.1],
           drop: () => drop(12),
