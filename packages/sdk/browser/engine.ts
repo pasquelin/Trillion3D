@@ -122,6 +122,7 @@ export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryB
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts';
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
+export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
 export {
   createEngineCamera,
   defaultEngineCamera,

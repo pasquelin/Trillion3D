@@ -6792,8 +6792,7 @@
       "onJump": "Wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt.",
       "collision": "Womit der Körper kollidiert — den Kollidierern der Welt, oder der Welt eines Physik-Backends über dieselbe Schnittstelle (`CharacterCollision`). `null` geht eben dort, wo der Körper steht, und fällt nie.",
       "update": "Lebt `delta` Sekunden; gibt zurück, ob sich die Kamera bewegt hat, und sendet `change`, wenn das der Fall war.",
-      "stride": "Die Phase des Schritts in Radiant, in [0, 2π): ein Fuß trifft bei 0 auf den Boden, der andere bei π.",
-      "physics": "Die Physik der Welt, wenn sie läuft: Der Körper ist dann Jolts virtueller Charakter im Physik-Worker und trifft jeden Körper der Simulation; `null` kehrt zu `collision` zurück. Der Körper behält beim Wechsel seinen Platz."
+      "stride": "Die Phase des Schritts in Radiant, in [0, 2π): ein Fuß trifft bei 0 auf den Boden, der andere bei π."
     }
   },
   "CharacterCollision": {
@@ -7169,6 +7168,22 @@
     "members": {
       "budget": "Feste Grenzen, einmal beim Start der Physik gelesen.",
       "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Alles, was `world.controls.vehicle` fahren kann: Es erhält die Eingabe bei jeder Änderung.",
+    "members": {
+      "drive": "Erhält Pedale und Lenkrad, jedes Mal wenn eine Taste sie ändert."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Was ein Fahrer von einem Fahrzeug verlangt: Pedale und Lenkrad, wie die Tasten von `world.controls` `'vehicle'` sie setzen.",
+    "description": "Die Physik des Fahrzeugs – Motor, Räder, Federung – beantwortet sie; dieser Vertrag ist alles, was die Steuerung kennt.",
+    "members": {
+      "throttle": "Gaspedal, 0 bis 1.",
+      "brake": "Bremspedal, 0 bis 1.",
+      "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
+      "handbrake": "Ob die Handbremse gezogen ist."
     }
   }
 }

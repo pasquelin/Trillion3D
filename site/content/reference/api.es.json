@@ -6792,8 +6792,7 @@
       "onJump": "Se llama cuando el cuerpo deja el suelo en un salto.",
       "collision": "Con qué choca el cuerpo — los colisionadores del mundo, o el mundo de un motor de física por la misma costura (`CharacterCollision`). `null` camina a nivel donde se encuentra el cuerpo, sin caer nunca.",
       "update": "Vive `delta` segundos; devuelve si la cámara se movió, y emite `change` cuando lo hizo.",
-      "stride": "La fase de la zancada en radianes, en [0, 2π): un pie golpea en 0, el otro en π.",
-      "physics": "La física del mundo, cuando funciona: el cuerpo es entonces el personaje virtual de Jolt en el worker de física y se encuentra con cada cuerpo de la simulación; `null` vuelve a `collision`. El cuerpo conserva su sitio al cambiar."
+      "stride": "La fase de la zancada en radianes, en [0, 2π): un pie golpea en 0, el otro en π."
     }
   },
   "CharacterCollision": {
@@ -7169,6 +7168,22 @@
     "members": {
       "budget": "Límites fijos, leídos una vez al arrancar la física.",
       "gravity": "La gravedad del mundo: un preajuste o un vector."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Cualquier cosa que `world.controls.vehicle` pueda conducir: recibe la entrada cada vez que cambia.",
+    "members": {
+      "drive": "Recibe los pedales y el volante cada vez que una tecla los cambia."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Lo que un conductor pide a un vehículo: los pedales y el volante, tal como los fijan las teclas de `world.controls` `'vehicle'`.",
+    "description": "La física del vehículo — motor, ruedas, suspensión — les responde; este contrato es todo lo que saben los controles.",
+    "members": {
+      "throttle": "Acelerador, de 0 a 1.",
+      "brake": "Pedal de freno, de 0 a 1.",
+      "steer": "Volante, de −1 todo a la izquierda a 1 todo a la derecha.",
+      "handbrake": "Si el freno de mano está echado."
     }
   }
 }

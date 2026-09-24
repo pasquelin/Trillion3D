@@ -8939,6 +8939,34 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector2\".Vector4"
     },
     {
+      "name": "VehicleDriver",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/camera/controls/vehicleControls.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleDriver"
+    },
+    {
+      "name": "VehicleInput",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/camera/controls/vehicleControls.ts",
+        "packages/sdk-browser/src/world/core/worldControlTargets.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleInput"
+    },
+    {
       "name": "viewToRenderOrigin",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/primitives/renderOrigin.ts",

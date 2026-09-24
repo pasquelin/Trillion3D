@@ -1934,12 +1934,7 @@
       {
         "name": "collision",
         "type": "CharacterCollision | null",
-        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls. Unused while `physics` is set."
-      },
-      {
-        "name": "physics",
-        "type": "CharacterPort | null",
-        "desc": "The world's physics, when it runs: the body is then Jolt's virtual character in the physics worker (`physicsCharacter.ts`) and meets every body of the simulation; `null` goes back to `collision`. The body keeps its place across the switch."
+        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls. Unused while the world's physics runs: the body is then the physics' own."
       },
       {
         "name": "update(delta?: number)",
@@ -17016,6 +17011,57 @@
       }
     ],
     "description": ""
+  },
+  {
+    "id": "VehicleDriver",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleDriver"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleDriver",
+    "signature": "interface VehicleDriver",
+    "summary": "Anything `world.controls.vehicle` can drive: it hears the input each time it changes.",
+    "members": [
+      {
+        "name": "drive(input: Readonly<VehicleInput>)",
+        "type": "void",
+        "desc": "Hears the pedals and the wheel, each time a key changes them."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "VehicleInput",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleInput"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleInput",
+    "signature": "interface VehicleInput",
+    "summary": "What a driver asks of a vehicle: the pedals and the wheel, as the keys of `world.controls` `'vehicle'` set them (`sdk-browser/src/camera/controls/vehicleControls.ts`).",
+    "members": [
+      {
+        "name": "throttle",
+        "type": "number",
+        "desc": "Accelerator, 0 to 1."
+      },
+      {
+        "name": "brake",
+        "type": "number",
+        "desc": "Brake pedal, 0 to 1."
+      },
+      {
+        "name": "steer",
+        "type": "number",
+        "desc": "Wheel, −1 full left to 1 full right."
+      },
+      {
+        "name": "handbrake",
+        "type": "boolean",
+        "desc": "Whether the handbrake is pulled."
+      }
+    ],
+    "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
   },
   {
     "id": "World",
