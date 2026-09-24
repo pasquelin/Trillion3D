@@ -32,7 +32,7 @@ scripts/docs/examples/openworld/
   play/               6 *.test.ts — flight, simulation, solids, streaming, view, world
   gltf/               1 *.test.ts — the glTF writer
 site/examples/kit/openworld/
-  sky/                4 *.test.ts — sun, atmosphere, clouds, particles
+  sky/                5 *.test.ts — sun, atmosphere, clouds, particles
 ```
 <!-- tests-inventory:end -->
 
