@@ -44,9 +44,11 @@ const CAP: number = LIGHT_SETTINGS.shadowRequestCap;
  *
  * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`):
  * what a reader falls back to last when that page is withdrawn. So the floor is mapped first, never
- * evicted while anything above it is read, and drawn in the frame it goes stale (`admit.ts`). A new
- * light asks for its floor itself (`floors`), before any report names it: the floor covers all the
- * light reaches, so it needs no report to know what the view will read.
+ * evicted while anything above it is read, and drawn in the frame it goes stale (`admit.ts`). The
+ * floor covers all the light reaches, so it needs no report to know what the view will read: a
+ * sun asks every frame for the floor pages its view reaches (`floors`), and a new, moved or
+ * reshaped lamp for each face's until a report written at its pose is read — a report from a past
+ * pose names only the pages that pose's receivers read.
  *
  * A report read against another table layout is dropped: its words name ranges that moved. A
  * sun entry is read with the extents of the frame that wrote it, and dropped when its page has
@@ -157,28 +159,34 @@ export function createShadowRequests(
       }
       needs.allocate(reportFrame, nowMs, frame, counts);
     },
-    /** Asks for every floor page of the light in `slice` the view can read — each lamp face's, the
-     *  sun's within the view's far distance (`sun.floorReach`) — as if the latest report named it:
-     *  evicts only what that report did not name, and the next report may evict it in turn. */
-    floors(slice: number, view: ShadowViewpoint, nowMs: number, frame: number) {
+    /** Asks, as if the latest report named them, for the floor pages a reader may need that no
+     *  report names yet: every sun's within the view's far distance (`sun.floorReach`), whatever
+     *  moved — the camera brings new ones in without a pose —, and each face's of a lamp posed
+     *  after that report — new, moved or reshaped: what the report named was read at a past pose.
+     *  Evicts only what that report did not name, and the next report may evict it in turn. */
+    floors(posed: ArrayLike<number>, view: ShadowViewpoint, nowMs: number, frame: number) {
       reportFrame = counts.latest;
-      needs.clear();
-      if (isSun(slice)) {
-        const level = sunFloorLevel(sun.finest[slice]);
-        sun.floorReach(slice, view, scratch);
-        for (let y = scratch[1]; y <= scratch[3]; y++)
-          for (let x = scratch[0]; x <= scratch[2]; x++) {
-            at[0] = level;
-            at[1] = x;
-            at[2] = y;
-            ask(table.baseOf(slice) + sunEntry(level, x, y), slice);
+      for (let slice = 0; slice < posed.length; slice++) {
+        if (records.kind[slice] < 0) continue;
+        if (!isSun(slice) && posed[slice] <= counts.latest) continue;
+        needs.clear();
+        if (isSun(slice)) {
+          const level = sunFloorLevel(sun.finest[slice]);
+          sun.floorReach(slice, view, scratch);
+          for (let y = scratch[1]; y <= scratch[3]; y++)
+            for (let x = scratch[0]; x <= scratch[2]; x++) {
+              at[0] = level;
+              at[1] = x;
+              at[2] = y;
+              ask(table.baseOf(slice) + sunEntry(level, x, y), slice);
+            }
+        } else
+          for (let face = 0; face < lampFacesOf(records.kind[slice]); face++) {
+            at[0] = face * 16;
+            askFloor(slice);
           }
-      } else
-        for (let face = 0; face < lampFacesOf(records.kind[slice]); face++) {
-          at[0] = face * 16;
-          askFloor(slice);
-        }
-      needs.allocate(reportFrame, nowMs, frame, counts);
+        needs.allocate(reportFrame, nowMs, frame, counts);
+      }
     },
     reset() {
       counts.requested = counts.allocated = counts.refused = counts.unlisted = 0;

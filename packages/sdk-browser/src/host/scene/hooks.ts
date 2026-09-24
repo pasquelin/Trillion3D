@@ -1,36 +1,33 @@
-import { bump, hookVector, type Hook, type WriteRevision } from './hookCore.ts';
+import {
+  listen,
+  type Observed,
+  type ObservedComponents,
+} from '../../../../sdk-core/src/world/math/observed.ts';
+import { bump, type Hook, type WriteRevision } from './hookCore.ts';
 import type { HostGraphNode } from './graphNodes.ts';
 
 const hooks = new WeakMap<object, Hook>();
 
 /**
- * The rotation, whichever of its two faces the host writes. The reference's quaternion and
- * Euler each announce their writes through a callback the object already chains for the other
- * face; the hook is added after it. An Euler write copies itself into the quaternion without
- * announcing there, so both faces are listened to, and both compare the quaternion: a write
- * that leaves the four numbers as they were bumps nothing.
+ * Bumps `hook` when a write on `value` or on one of its `faces` leaves `value`'s numbers other
+ * than they were: a write of the value already held bumps nothing. The node's values are the
+ * core's, which announce their writes (`listen`), so no field of the node or of its values is
+ * redefined. The rotation passes its angles as a face and compares the quaternion: an angle
+ * write sets the quaternion quietly, in the node's own listener, chained first.
  */
-function hookRotation(node: HostGraphNode, hook: Hook) {
-  const q = node.quaternion;
-  let x = q.x,
-    y = q.y,
-    z = q.z,
-    w = q.w;
+function hookValue(hook: Hook, value: ObservedComponents, ...faces: Observed[]) {
+  const seen = Float64Array.from(value.elements);
   const note = () => {
-    if (q.x === x && q.y === y && q.z === z && q.w === w) return;
-    x = q.x;
-    y = q.y;
-    z = q.z;
-    w = q.w;
-    bump(hook);
+    const now = value.elements;
+    let moved = false;
+    for (let i = 0; i < seen.length; i++)
+      if (now[i] !== seen[i]) {
+        seen[i] = now[i];
+        moved = true;
+      }
+    if (moved) bump(hook);
   };
-  for (const face of [q, node.rotation]) {
-    const previous = face._onChangeCallback;
-    face._onChange(() => {
-      previous.call(face);
-      note();
-    });
-  }
+  for (const face of [value, ...faces]) listen(face, note);
 }
 
 /**
@@ -48,13 +45,13 @@ export function hookHostNode(node: HostGraphNode, revision: WriteRevision) {
   }
   const hook: Hook = { revisions: [revision] };
   hooks.set(node, hook);
-  hookVector(node, 'position', hook);
-  hookVector(node, 'scale', hook);
-  hookRotation(node, hook);
+  hookValue(hook, node.position);
+  hookValue(hook, node.scale);
+  hookValue(hook, node.quaternion, node.rotation);
 }
 
-/** Forgets `revision` on `node`: its writes no longer bump it. The hooks stay, bumping nothing
- *  once the last watch has left: an object the host keeps a reference to is never swapped back. */
+/** Forgets `revision` on `node`: its writes no longer bump it. The listeners stay, bumping
+ *  nothing once the last watch has left. */
 export function unhookHostNode(node: HostGraphNode, revision: WriteRevision) {
   const hook = hooks.get(node);
   const at = hook ? hook.revisions.indexOf(revision) : -1;
