@@ -87,6 +87,30 @@ export function cycle(
   return drawn;
 }
 
+/** `cycle`, returning the physical pages the frame drew. */
+export function cycleDrawn(
+  plan: ShadowPlan,
+  store: SceneLightStore,
+  frame: number,
+  read: () => number[],
+  view: ShadowViewpoint = VIEW,
+) {
+  planFrame(plan, store, frame, view);
+  const drawn = new Set(plan.admission.list.subarray(0, plan.admission.count));
+  plan.commit();
+  report(plan, store, frame, read());
+  return drawn;
+}
+
+/** The physical pages of the light in `slice` the shading reads now. */
+export function readPages(plan: ShadowPlan, slice: number) {
+  const { pool } = plan,
+    pages: number[] = [];
+  for (let page = 0; page < pool.pages; page++)
+    if (pool.owner[page] >= 0 && pool.slice[page] === slice && pool.valid[page]) pages.push(page);
+  return pages;
+}
+
 /** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
 export function lampScene() {
   const store = createSceneLightStore();
