@@ -1,5 +1,7 @@
 import { SHADER } from './shaders.ts';
 import { DEPTH_COMPARE } from '../../../camera/depthConvention.ts';
+import { BLEND_EQUATIONS } from '../../../scene/materialBlending.ts';
+import { pipelinesByMode } from '../../blend/stagePipelines.ts';
 
 export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: number) {
   const bindGroupLayout = device.createBindGroupLayout({
@@ -47,24 +49,20 @@ export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: num
     primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
     depthStencil,
   });
-  const pipelineBlend = device.createRenderPipeline({
-    layout,
-    vertex,
-    fragment: {
-      module,
-      entryPoint: 'fs',
-      targets: [
-        {
-          format: 'rgba8unorm',
-          blend: {
-            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-          },
-        },
-      ],
-    },
-    primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
-    depthStencil: { format: 'depth32float', depthWriteEnabled: false, depthCompare: DEPTH_COMPARE },
-  });
+  // One pipeline per blending mode, its equation read from the one table, in the blend pass's lazy
+  // set: normal up front, as always; any other mode by the first draw that asks for it.
+  const pipelineBlend = pipelinesByMode((mode) =>
+    device.createRenderPipeline({
+      layout,
+      vertex,
+      fragment: {
+        ...fragment,
+        targets: [{ ...fragment.targets[0], blend: BLEND_EQUATIONS[mode] }],
+      },
+      primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
+      depthStencil: { ...depthStencil, depthWriteEnabled: false },
+    }),
+  );
+  pipelineBlend.at('normal');
   return { bindGroupLayout, pipelineBack, pipelineBackCw, pipelineNone, pipelineBlend };
 }
