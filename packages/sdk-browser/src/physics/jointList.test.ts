@@ -84,3 +84,31 @@ test('a decorative body retired asleep takes its joints out on the page, as a re
     restore();
   }
 });
+
+test('a distance joint given only limits.min keeps a maximum no shorter than it', async () => {
+  const { workers, restore } = fakeWorkers();
+  try {
+    const scene = new Group();
+    const runtime = { invalidate() {}, explorer: null };
+    const physics = createWorldPhysics(runtime, scene, () => new Camera('perspective'), true);
+    const bob = new Mesh(box(), new Material('meshStandard'));
+    bob.physics = 'dynamic';
+    scene.add(bob);
+    // Two metres from its anchor, held at three at least.
+    physics.handle.add(joint.distance(bob, null, { anchorB: [0, 2, 0], limits: { min: 3 } }));
+    await loaded();
+    const [worker] = workers;
+    worker.onmessage({ data: { type: 'ready' } });
+    physics.frame();
+    const sent = worker.words.at(-1)!;
+    const at = sent.indexOf(OP.joint),
+      floats = new Float32Array(sent.buffer, sent.byteOffset, sent.length);
+    // After the op, the id, the kind and ends, and the two frames: minimum, then maximum.
+    const [min, max] = [floats[at + 23], floats[at + 24]];
+    assert.equal(min, 3);
+    assert.ok(max >= min, `max ${max} below min ${min}`);
+    physics.dispose();
+  } finally {
+    restore();
+  }
+});
