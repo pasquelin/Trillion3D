@@ -1684,6 +1684,7 @@
       "pitchInput": "MANCHE, pour un programme qui pilote la caméra : la déviation en tangage dans [-1, 1], nez en haut positif comme ArrowUp. Ajoutée aux touches et bornée à la pleine déviation, elle monte sur `inputResponse` comme une touche : le pilote automatique ou l’instructeur de visée à la souris d’une page pilote aux mêmes vitesses que le joueur. 0 par défaut.",
       "yawInput": "La déviation en lacet dans [-1, 1], à gauche positif comme ArrowLeft ; comme `pitchInput`.",
       "rollInput": "La déviation en roulis dans [-1, 1], à gauche positif comme Q ; comme `pitchInput`.",
+      "lookSpeed": "Radians dont la vue tourne par pixel de mouvement du pointeur ; `null` (par défaut) vaut un demi-tour par hauteur de surface, quelle que soit sa taille.",
       "dragToLook": "Si glisser tourne la vue.",
       "pointerLook": "Si le pointeur tourne la vue, par glissé ou survol ; true par défaut.",
       "autoForward": "CROISIÈRE, désactivée par défaut : la caméra vole vers l’avant à `movementSpeed` sans aucune touche, comme un avion. W ajoute alors `movementSpeed` (deux fois plus vite) et S le retire (la caméra reste sur place) ; elle ne recule jamais. Rien ne bouge avant le prochain `update`, donc un hôte qui redessine sur `change` demande une image quand il active la croisière."
@@ -6263,7 +6264,7 @@
       "maxAzimuthAngle": "Orbite seulement : fin de cet arc ; elle peut être plus petite que `minAzimuthAngle`.",
       "autoRotate": "Orbite seulement : radians par seconde dont elle tourne seule autour de `target`, jusqu’au premier appui ou cran de molette ; 0 par défaut.",
       "movementSpeed": "Vol et première personne : unités du monde par seconde à pleine touche ; 1 par défaut.",
-      "lookSpeed": "Première personne et personnage : radians dont la vue tourne par pixel de mouvement du pointeur.",
+      "lookSpeed": "Vol, première personne et personnage : radians dont la vue tourne par pixel de mouvement du pointeur ; `null` (par défaut) garde la valeur propre de chacun — 0.002 pour une tête, un demi-tour par hauteur du canvas pour le vol.",
       "minPitch": "Première personne et personnage : le plus bas que regarde la tête, en radians (0 est l’horizon, négatif vers le bas).",
       "maxPitch": "Première personne et personnage : le plus haut que regarde la tête, en radians au-dessus de l’horizon.",
       "pointerLook": "Vol seulement : si le pointeur tourne la vue ; à false, les touches seules pilotent.",
@@ -6404,7 +6405,7 @@
   },
   "WorldControls": {
     "summary": "Les façons dont une page peut diriger la caméra à la souris et au clavier, ou `'none'`.",
-    "description": "`'firstPerson'` déplace une caméra ; `'character'` déplace un corps — masse, gravité, sauts, collisions avec `world.controls.colliders` — et regarde par ses yeux."
+    "description": "`'firstPerson'` déplace une caméra ; `'character'` déplace un corps — masse, gravité, sauts, collisions avec `world.controls.colliders` — et regarde par ses yeux. `'fly'` et `'firstPerson'` avancent à `world.controls.movementSpeed` et tournent à `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Les mesures d’une image telles que l’hôte les a copiées du moteur, et deux qu’une page lit composées à partir d’elles ; `null` là où le chemin ne compte pas.",
@@ -6659,7 +6660,7 @@
     "summary": "LA TÊTE D’UN MARCHEUR, pointeur bloqué : le pointeur la tourne, l’horizon reste droit — lacet autour du haut du monde, tangage borné à `[minPitch, maxPitch]`, jamais de roulis.",
     "description": "Partagée par chaque contrôleur qui regarde par les yeux d’une personne. C’EST À L’HÔTE DE DEMANDER LE BLOCAGE. Un navigateur n’accorde le blocage du pointeur que pendant un geste, donc la tête le demande sur `pointerdown` et publie `lock()`, `unlock()` et `locked()` pour un hôte qui préfère choisir son moment ; un blocage dont l’utilisateur s’échappe arrête simplement le regard, et un glisser sans blocage tourne toujours la tête.",
     "members": {
-      "lookSpeed": "Radians tournés par pixel de mouvement du pointeur.",
+      "lookSpeed": "Radians tournés par pixel de mouvement du pointeur ; `null` (par défaut) vaut 0.002.",
       "minPitch": "Le plus bas que regarde la tête, en radians sous l’horizon comptés négatifs (0 est l’horizon) ; par défaut juste avant la verticale vers le bas. Remonte-le pour qu’un marcheur ne regarde jamais dans son propre corps.",
       "maxPitch": "Le plus haut que regarde la tête, en radians au-dessus de l’horizon ; par défaut juste avant le zénith."
     }
@@ -6858,6 +6859,7 @@
       "gravity": "Gravité en m/s², un vecteur vivant ; mets un préréglage (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou un vecteur.",
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
+      "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
       "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`."
     }
@@ -6989,6 +6991,33 @@
     "summary": "Une forme de collision, quand celle déduite de la géométrie ne convient pas.",
     "description": "Les tailles sont dans le repère propre de l’objet, avant son échelle."
   },
+  "PhysicsPart": {
+    "summary": "Une partie d’une forme composée : une primitive, placée et tournée dans le repère de l’objet."
+  },
+  "PhysicsPrimitive": {
+    "summary": "Une primitive exacte : ses tailles dans le repère propre de l’objet."
+  },
+  "WaterSpec": {
+    "summary": "Une étendue d’eau où flottent les corps, telle que `world.physics.water` la reçoit.",
+    "members": {
+      "waves": "Les vagues de Gerstner de la surface ; aucune pour une eau calme.",
+      "level": "Hauteur de la surface au repos, en mètres.",
+      "density": "kg/m³ ; 1000, l’eau douce, par défaut.",
+      "linearDrag": "Coefficient de traînée quadratique : la vitesse à laquelle un corps se pose, jamais où ; 0.5 par défaut.",
+      "angularDrag": "Combien l’eau freine la rotation d’un corps ; 0.05 par défaut.",
+      "current": "Vitesse de l’eau (le courant d’une rivière), en m/s."
+    }
+  },
+  "WaveSpec": {
+    "summary": "Une vague telle qu’une scène la déclare.",
+    "members": {
+      "direction": "Direction horizontale de déplacement `[x, z]` ; normalisée ici.",
+      "wavelength": "Mètres d’une crête à l’autre.",
+      "amplitude": "Mètres du repos à la crête.",
+      "steepness": "De 0 (une sinusoïde) à 1 (la crête la plus aiguë qui ne se replie pas) ; normalisée sur la somme.",
+      "phase": "Phase à `t = 0`, en radians."
+    }
+  },
   "PhysicsStats": {
     "summary": "Ce que rapporte la physique du monde : comptes du dernier tick, et les deux horloges à part.",
     "members": {
@@ -7011,6 +7040,7 @@
       "gravity": "Gravité en m/s², un vecteur vivant ; mets un préréglage (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou un vecteur.",
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
+      "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
       "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`."
     }
