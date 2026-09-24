@@ -1,6 +1,6 @@
 export type { HizPage, HizBounds, HizPyramid } from './types.ts';
 export { buildHizPyramid, visibilityDepth } from './depth.ts';
-export { HIZ_BOUNDS_VALUES, createBoxCorners } from './corners.ts';
+export { HIZ_BOUNDS_VALUES, BOX_CORNER_VALUES, pageCornersInto } from './corners.ts';
 export { projectBoxesFlat } from './projection.ts';
 export { hizRejects } from './occlusion.ts';
 export { filterUnoccluded, countUnoccluded } from './unoccluded.ts';

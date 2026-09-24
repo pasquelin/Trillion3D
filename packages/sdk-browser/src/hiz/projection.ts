@@ -1,9 +1,4 @@
-import {
-  HIZ_BOUNDS_VALUES,
-  projectCornersInto,
-  projectBoxInto,
-  type BoxCorners,
-} from './corners.ts';
+import { HIZ_BOUNDS_VALUES, projectBoxInto } from './corners.ts';
 import type { HizPage } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
 
@@ -14,7 +9,6 @@ export function projectBoxesFlat(
   viewport: [number, number],
   into: Float64Array,
   only?: Uint8Array,
-  world?: { corners: BoxCorners; pageIndex: Int32Array; epoch: number },
 ) {
   const [width, height] = viewport;
   // View, view-projection and near plane come from the engine camera: a frame sets them once.
@@ -26,31 +20,18 @@ export function projectBoxesFlat(
     const page = pages[i];
     if (!page) continue;
     const base = i * HIZ_BOUNDS_VALUES;
-    if (world)
-      projectCornersInto(
-        world.corners.corners,
-        world.corners.at(world.pageIndex[i], page, world.epoch),
-        view,
-        elements,
-        near,
-        width,
-        height,
-        into,
-        base,
-      );
-    else
-      projectBoxInto(
-        page.min,
-        page.max,
-        page.matrix,
-        view,
-        elements,
-        near,
-        width,
-        height,
-        into,
-        base,
-      );
+    projectBoxInto(
+      page.min,
+      page.max,
+      page.matrix,
+      view,
+      elements,
+      near,
+      width,
+      height,
+      into,
+      base,
+    );
   }
 }
 
