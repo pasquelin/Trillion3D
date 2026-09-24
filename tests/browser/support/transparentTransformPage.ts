@@ -1,24 +1,19 @@
 // Page side of the proof: the real WebGPU engine (`webgpuPagesBackend`), a real device, a real
 // reread image. No internal state is inspected — the public `setTransform` call on one side,
 // pixels and public counters on the other.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { VIEWPORT, libere, versApi } from './sharedSceneProof.ts';
 import { estRouge, image } from './sceneImageProof.ts';
 import { executerPasses } from './deviceProof.ts';
 import { ouvrePasse } from './transparentTransformScene.ts';
+import { project } from '../probes/cameraRig.ts';
 
-const point = new THREE.Vector3();
+const point = new G.Vector3();
 
 /** Colour read where world point `(x, y, z)` projects. Bottom-left origin, like `capture`. */
-function couleurEn(
-  pixels: Uint8Array,
-  camera: THREE.PerspectiveCamera,
-  x: number,
-  y: number,
-  z = 0,
-) {
-  point.set(x, y, z).project(camera);
+function couleurEn(pixels: Uint8Array, camera: G.GraphCamera, x: number, y: number, z = 0) {
+  project(point.set(x, y, z), camera);
   const [w, h] = VIEWPORT;
   const px = Math.min(w - 1, Math.max(0, Math.round(((point.x + 1) / 2) * (w - 1)))),
     py = Math.min(h - 1, Math.max(0, Math.round(((point.y + 1) / 2) * (h - 1)))),
@@ -31,13 +26,13 @@ const rouge = (c: number[]) => estRouge(c, 0);
 
 /** Pure translation on `x`. */
 function translation(x: number) {
-  return versApi(new THREE.Matrix4().makeTranslation(x, 0, 0));
+  return versApi(new G.Matrix4().makeTranslation(x, 0, 0));
 }
 
 /** A sheared matrix: `y` pushes `x`. No translation-rotation-scale decomposition yields it, and
  *  the leaning tile covers a corner a straight tile does not. */
 function cisaillement(x: number, facteur: number) {
-  const m = new THREE.Matrix4().set(1, facteur, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  const m = new G.Matrix4().set(1, facteur, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
   return versApi(m);
 }
 
@@ -45,7 +40,7 @@ function cisaillement(x: number, facteur: number) {
 function releve(
   name: string,
   backend: RenderBackend,
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
   pixels: Uint8Array,
   metriques: ReturnType<RenderBackend['metrics']>,
   sondes: [number, number][],

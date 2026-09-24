@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { awaitBackendPages } from './awaitBackendPages.ts';
 
 test('awaiting GPU pages resolves wanted readback, uploads pages and renders the resident cut', async () => {
@@ -23,7 +23,7 @@ test('awaiting GPU pages resolves wanted readback, uploads pages and renders the
     },
   };
   const loads: string[][] = [];
-  await awaitBackendPages(backend, new THREE.PerspectiveCamera(), async (urls) => {
+  await awaitBackendPages(backend, G.perspectiveCamera(), async (urls) => {
     loads.push(urls);
     bytes = true;
   });
@@ -50,7 +50,7 @@ test('awaiting already cached GPU bytes still settles GPU upload before the fina
       return [];
     },
   };
-  await awaitBackendPages(backend, new THREE.PerspectiveCamera(), async () => {
+  await awaitBackendPages(backend, G.perspectiveCamera(), async () => {
     assert.fail('cached bytes must not be fetched again');
   });
   assert.equal(drawn, true);
@@ -67,7 +67,7 @@ test('synchronous backends keep one selection when their pages are already avail
         return [];
       },
     },
-    new THREE.PerspectiveCamera(),
+    G.perspectiveCamera(),
     async () => assert.fail('unexpected request'),
   );
   assert.equal(renders, 1);
@@ -87,7 +87,7 @@ test('synchronous backends accept missing pages before syncing residency', async
         synced = true;
       },
     },
-    new THREE.PerspectiveCamera(),
+    G.perspectiveCamera(),
     async () => {
       loaded = true;
     },
@@ -110,7 +110,7 @@ test('awaitPages returns on a fixed search, its pages resident', async () => {
         return resident.has(rung) ? [] : [`rung-${rung}`];
       },
     },
-    new THREE.PerspectiveCamera(),
+    G.perspectiveCamera(),
     async (urls) => {
       for (const url of urls) resident.add(Number(url.slice(5)));
     },

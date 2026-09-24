@@ -14,6 +14,7 @@
 import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { wrapNibble } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import {
   MODES_GPU,
@@ -53,7 +54,7 @@ const lots = [UV, COUTURES].flatMap((uv) =>
   MODES_GPU.map(({ wrap, adresse }) => {
     assert.ok(adresse, `no WebGPU address mode for wrap ${wrap}`);
     // A real host texture, imported: `wrapNibble` reads the engine's own record.
-    const host = new THREE.Texture();
+    const host = new G.GraphTexture();
     host.wrapS = wrap;
     host.wrapT = wrap;
     const map = importHostTexture(host);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { HostGeometry } from '../../host/resources.ts';
 import { pageCopies } from './poolApi.ts';
@@ -9,9 +9,9 @@ import { createHeldFloor } from './heldFloor.ts';
 
 /** A page geometry of `floats` position floats and three indices: `floats * 4 + 12` bytes. */
 function pageGeometry(floats: number) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(floats), 3));
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(3), 1));
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(floats), 3));
+  geometry.setIndex(new G.GraphAttribute(new Uint32Array(3), 1));
   return geometry as unknown as HostGeometry;
 }
 
@@ -65,10 +65,10 @@ test('the floor counts every geometry the store counts: copies sharing their arr
   // Two records of one page, as the store builds them from one decoded page: two geometries on
   // the same arrays, each uploaded on its own; and an instance's clone of the first.
   const first = pageGeometry(9);
-  const second = new THREE.BufferGeometry();
-  const source = first as unknown as THREE.BufferGeometry;
-  second.setIndex(new THREE.BufferAttribute(source.index!.array, 1));
-  second.setAttribute('position', new THREE.BufferAttribute(source.attributes.position.array, 3));
+  const second = new G.GraphGeometry();
+  const source = first as unknown as G.GraphGeometry;
+  second.setIndex(new G.GraphAttribute(source.index!.array, 1));
+  second.setAttribute('position', new G.GraphAttribute(source.attributes.position.array, 3));
   const clone = source.clone() as unknown as HostGeometry;
   const bootstrap = [first, second as unknown as HostGeometry, clone].map((geometry) =>
     rec('root', { geometry }),

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { createHostFrameCostAudit, gpuFrameCostSnapshot } from './costAudit.ts';
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts';
@@ -26,7 +26,7 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     setSearch('?trillion3dFrameAudit=1');
     const item = {
       bounds: [10, 0, 0, 11, 1, 1],
-      surface: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
+      surface: surfaceOf(G.basicSurface({ side: G.DOUBLE_SIDE })),
     };
     const items = [item];
     const rt = {
@@ -70,9 +70,9 @@ test('gpuFrameCostSnapshot: the published pose is the engine camera’s (run.gat
     // Two-level rig nobody else walks: the local host camera stays trivial, only the rig carries
     // the translation. `run.lastCamera` is only a truth marker here — its shape must never be read
     // for the pose, only `run.gate.cam` (already resolved) counts.
-    const rig = new THREE.Object3D();
+    const rig = new G.GraphNode();
     rig.position.set(3, -6, 9);
-    const hostCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    const hostCamera = G.perspectiveCamera(50, 1, 0.1, 100);
     rig.add(hostCamera);
     rig.updateWorldMatrix(true, false);
     const cam = readCameraWorld(createEngineCamera(), hostCamera);
@@ -86,7 +86,7 @@ test('gpuFrameCostSnapshot: the published pose is the engine camera’s (run.gat
     assert.deepEqual(snapshot.camera!.position, [...cam.eye]);
     assert.notDeepEqual(
       snapshot.camera!.position,
-      hostCamera.position.toArray(),
+      G.xyz(hostCamera.position),
       'the host camera’s local pose (the origin under this rig) is not the published pose',
     );
     assert.equal(snapshot.camera!.fov, cam.fov);

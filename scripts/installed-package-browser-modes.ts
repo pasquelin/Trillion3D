@@ -20,9 +20,6 @@ export function proveInstalledBrowser({
 } & CacheUrls): Promise<InstalledBrowserProof> {
   const imports = {
     [packageName]: `/node_modules/${packageName}/${browserEntry}`,
-    three: '/node_modules/three/build/three.module.js',
-    'three/addons/': '/node_modules/three/examples/jsm/',
-    'three/': '/node_modules/three/',
     meshoptimizer: '/node_modules/meshoptimizer/index.module.js',
   };
   return runInstalledBrowser({

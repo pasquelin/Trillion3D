@@ -22,7 +22,7 @@ rerun benchmarks.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
 - `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
 - `--rebond on|off` (default `off`): enables bounce lighting.
-- `--textures cache|host` (default `host`): whether the glTF loader opens the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the loader fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
+- `--textures cache|host` (default `host`): whether the prepared scene reads the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the scene fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
 - `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--chauffe 0 --camera-mobile --textures cache`) is where it is read: on a still pose the barrier lifts it.
 - `--compression auto|bc7|astc|none` (default `auto`), or per side `--compression-avant` / `--compression-apres`: block family of the WebGPU texture pools, under `--textures cache`. `auto` takes the first family the device samples — the BC family before ASTC 4×4 — that the cache holds kept chains in, `none` keeps every pool RGBA8 (the lossless "before" of a texture comparison), `bc7` or `astc` insist on one and fall back to RGBA8, by name, when the device lacks it. A chain the cook's quality gate left lossless stays in the RGBA8 lane whatever the choice. Two sides on one `dist/` and one cache with `--compression-avant none --compression-apres bc7` measure the family alone; the summary's texture line names the family actually held (`texturePoolFormat`).
 - `--antialiasing on|off` (default `on`): toggles TAA jitter and accumulation.
@@ -44,9 +44,9 @@ rerun benchmarks.
 
 A witness is a comparison backend the harness pits against the engine on one side
 (`--moteur-avant three-nu|three-lod|webgl`). The SDK never mounts one on its own: they are reached
-through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) as
-`referenceBackend`, `threeLodBackend` and `exactPagesBackend`, opt-in through the session's
-`backends` option.
+through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `pnpm run build` into
+`dist/witnesses/measurement.js`, which the package leaves out) as `referenceBackend`,
+`threeLodBackend` and `exactPagesBackend`, opt-in through the session's `backends` option.
 
 - `three-nu` (`reference`): Three.js alone, every mesh drawn every frame.
 - `three-lod` (`three-lod`): Three.js with a three-level `THREE.LOD` per mesh, simplified by
@@ -67,7 +67,7 @@ scene graph. The harness is an ordinary host — it creates in Three the lights 
 via the `sceneLighting` option of `openMeasuredWorld` (`witnessPage.ts`, served under `/runner/` and
 imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus
 from the compiled cache and the contract, and no scene is named. `exact-cluster-pages` translates
-the store itself on every store revision (`packages/sdk-browser/src/backend/exact/contractLights.ts`).
+the store itself on every store revision (`packages/sdk-browser/src/lighting/contractLights.ts`).
 
 The mapping is exact in Three units: linear colour, unscaled radiometric intensity (W/sr for a point
 or a spot, irradiance for a directional), `distance` = range and `decay` = 2 — term for term the

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { AUTORISES, DECLARATION } from './engine-without-three-lists.ts';
+import { AUTORISES, DECLARATION, NAMES_THREE } from './engine-without-three-lists.ts';
 
 const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 const root = new URL('../../', import.meta.url);
 /** The benches of the browser package, keyed by their path from the repository root. */
-const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/'];
+const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witnesses/'];
 
 /**
  * How `declaration` is looked for, and what the search cannot see.
@@ -35,7 +35,6 @@ const LIT_LA_CLE = /\[\s*(['"`])declaration\1\s*\]/;
 const litLaDeclaration = (texte: string) =>
   LIT_LA_DECLARATION.test(sansCommentaires(texte)) || LIT_LA_CLE.test(texte);
 
-const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three(?:\/[^'"]*)?['"]/m;
 /** A call of the crossing back, `asHostLibrary<T>(x)` or `asHostLibrary(x)`, never its import. */
 const TRAVERSE = /\basHostLibrary\s*[<(]/;
 
@@ -81,9 +80,24 @@ async function horsListe(motif: RegExp, exclu = ''): Promise<string[]> {
   return fuites;
 }
 
+test('the host-library pattern catches every import form', () => {
+  const formes = {
+    'one line': "import { Mesh } from 'three';",
+    'multi-line': "import {\n  Mesh,\n  Scene,\n} from 'three';",
+    bare: "import 'three';",
+    dynamic: "const t = await import('three');",
+    're-export': "export { Mesh } from 'three';",
+    addons: "import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';",
+  };
+  for (const [forme, texte] of Object.entries(formes))
+    assert.ok(NAMES_THREE.test(texte), `${forme} must be caught`);
+  for (const texte of ["import { x } from 'threejs';", "import { x } from './three';"])
+    assert.ok(!NAMES_THREE.test(texte), `${texte} is not the host library`);
+});
+
 test('only declared files import the host library', async () => {
   assert.ok((await sources()).length > 100, 'the browser package must be found');
-  const fuites = await horsListe(IMPORTE_HOTE);
+  const fuites = await horsListe(NAMES_THREE);
   assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`);
 });
 
@@ -94,6 +108,25 @@ test('only the declared boundary files cross back through `asHostLibrary`', asyn
   assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
 });
 
+// Since #275 the witnesses live beside the bench: the list holds test mounts alone, which the
+// package's `files` never ship, and no other package names the host library at all.
+test('the closed list holds test mounts only', () => {
+  const autres = Object.keys(AUTORISES).filter((nom) => !nom.endsWith('.fixture'));
+  assert.deepEqual(autres, [], 'a witness belongs in `bench/witnesses/`, not in the package');
+});
+
+test('no source of any other package imports the host library', async () => {
+  const packages = new URL('../../packages/', import.meta.url);
+  const fuites: string[] = [];
+  for (const name of await readdir(packages, { recursive: true })) {
+    if (/(?:^|\/)(?:node_modules|target|dist)\//.test(name) || name.startsWith('sdk-browser/src/'))
+      continue;
+    if (!/\.m?ts$/.test(name) || /\.(?:test|fixture)\.m?ts$/.test(name)) continue;
+    if (NAMES_THREE.test(await readFile(new URL(name, packages), 'utf8'))) fuites.push(name);
+  }
+  assert.deepEqual(fuites, [], 'the published packages name no host library');
+});
+
 test('no dead lines: each declared file exists and still imports', async () => {
   const fichiers = new Set(await sources());
   const morts = [];
@@ -101,7 +134,7 @@ test('no dead lines: each declared file exists and still imports', async () => {
     const file = `${nom}.ts`;
     assert.ok(raison.length > 10, `${file} must say why`);
     if (!fichiers.has(file)) morts.push(`${file} no longer exists`);
-    else if (!IMPORTE_HOTE.test(await readFile(new URL(file, browser), 'utf8')))
+    else if (!NAMES_THREE.test(await readFile(new URL(file, browser), 'utf8')))
       morts.push(`${file} no longer imports the host library: remove its line`);
   }
   assert.deepEqual(morts, [], 'an unused authorisation is removed from the list');

@@ -2,7 +2,7 @@
 // compact that moves it).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { packedRowBase } from './pageRow.ts';
 import { emptyGeometryBlock, rowGeometry, rowMaterial } from './pageRowMaterial.ts';
 import { FLAG_UV } from '../../cluster/format.ts';
@@ -60,7 +60,7 @@ test('a row over a quantized page takes its attributes from the page, never a ta
 // The bit only says where the geometry is read; it never splits a resolve class in two.
 test('the cluster-page flag rides the row without moving its material class', () => {
   const layers = { mapLayer: new Map(), dataLayer: new Map() };
-  const material = visMaterial(new THREE.MeshStandardMaterial());
+  const material = visMaterial(G.standardSurface());
   const source = { vertexBase: 0, count: 3, hasUv: true, hasNormal: true, hasTangent: false };
   const plain = rowMaterial(material, source, layers);
   const paged = rowMaterial(material, { ...source, quantized: true }, layers);
@@ -74,7 +74,7 @@ test('the cluster-page flag rides the row without moving its material class', ()
 test('a page takes the filter rule, and its class, only when one of its maps has a filter word', () => {
   const map = {} as Texture,
     normal = {} as Texture;
-  const material = { ...visMaterial(new THREE.MeshStandardMaterial()), map, normalMap: normal };
+  const material = { ...visMaterial(G.standardSurface()), map, normalMap: normal };
   const source = { vertexBase: 0, count: 3, hasUv: true, hasNormal: true, hasTangent: false };
   // Two page tables, four slots each; slot 3 of the data table is the normal map's.
   const tables = { color: new Uint32Array(64), data: new Uint32Array(64) };

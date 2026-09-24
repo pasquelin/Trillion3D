@@ -1,138 +1,91 @@
 /**
- * The node and material tables the compiler writes beside the pages (`scene-tables.json`,
- * `packages/asset-compiler-rust/src/compiler_tables.rs`): what the prepared scene is made of,
- * said by the cache instead of being read back out of the source file.
+ * The tables the compiler writes beside the pages (`scene-tables.json`,
+ * `packages/asset-compiler-rust/src/compiler_tables.rs`): the node graph, the lights, the
+ * surfaces and the geometry layout of the prepared scene — everything the runtime builds that
+ * scene from, said by the cache instead of being read back out of the source file.
  *
  * A texture slot names a glTF rank, never a host object: the tables are read by a runtime that
  * has no rendering library, and the rank is what ties a slot to the previews the sidecar bakes.
  */
 import { EngineError } from '../../contracts/cache.ts';
-import type { TextureFilter, WrapMode } from '../../texture/contract.ts';
+import type { TableDocument } from './tableDocuments.ts';
+import type { TableMaterial, TableTexture } from './tableSurfaces.ts';
 
-/** The name of the file that holds the node and material tables. */
+/** The name of the file that holds the scene tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json';
 /** Version of the product as a whole; each table it carries is versioned in turn. */
-export const SCENE_TABLES_VERSION = 1;
-/** The version of the node table this runtime reads. */
-export const NODE_TABLE_VERSION = 1;
+const SCENE_TABLES_VERSION = 2;
+/** The version of the node table this runtime reads: every node, with its local pose. */
+const NODE_TABLE_VERSION = 2;
 /** The version of the material table this runtime reads. */
-export const MATERIAL_TABLE_VERSION = 1;
+const MATERIAL_TABLE_VERSION = 4;
+/** The version of the geometry layout this runtime reads. */
+const GEOMETRY_TABLE_VERSION = 1;
 
-/** The six map slots the engine reads of a surface, in the engine's own field names. */
-export const TABLE_SLOTS = [
-  'map',
-  'metalnessMap',
-  'roughnessMap',
-  'normalMap',
-  'aoMap',
-  'emissiveMap',
-] as const;
-/** The number fields of a material in the tables. */
-export const TABLE_NUMBERS = [
-  'metalness',
-  'roughness',
-  'alphaTest',
-  'normalScale',
-  'normalScaleY',
-  'aoIntensity',
-  'transmission',
-  'ior',
-  'thickness',
-  'attenuationDistance',
-] as const;
-/** The colour fields of a material in the tables, three numbers each. */
-export const TABLE_TRIPLETS = ['baseColor', 'emissive', 'attenuationColor'] as const;
-/** The yes-or-no fields of a material in the tables. */
-export const TABLE_FLAGS = ['lit', 'doubleSided', 'backSide'] as const;
-type TableSlotName = (typeof TABLE_SLOTS)[number];
-
-/** One filled map slot: which texture, which coordinate set, and the 3×3 composed for it. */
-export interface TableTextureSlot {
-  /** Which texture. */
-  texture: number;
-  /** Which UV set. */
-  texCoord: number;
-  /** The UV transform, 3×3. */
-  transform: readonly number[];
-}
-/** Sampler state of one glTF texture, in the engine's words. */
-export interface TableTexture {
-  /** Which image. */
-  image: number | null;
-  /** Repeat across. */
-  wrapS: WrapMode;
-  /** Repeat up. */
-  wrapT: WrapMode;
-  /** Filter when bigger. */
-  magFilter: TextureFilter;
-  /** Filter when smaller. */
-  minFilter: TextureFilter;
-}
 /**
- * A surface as the engine reads it. One glTF material is one entry per tangent variant: a host
- * that has to rebuild the tangent frame from screen derivatives flips `normalScaleY`, so the
- * table names a rank a node points at rather than the glTF material rank. `derivativeTangents`
- * says which variant the entry was written for — the autonomous scene publishes its primitives
- * without tangents, so a reader flips the sign back when the geometry it holds disagrees.
- * @property lit - Whether lights shade it.
- * @property doubleSided - Whether both faces are drawn.
- * @property backSide - Whether only the back face is drawn.
- * @property metalness - How metallic, 0 to 1.
- * @property roughness - How rough, 0 to 1.
- * @property alphaTest - Alpha below which pixels drop.
- * @property normalScale - Strength of the normal map.
- * @property normalScaleY - Strength of the normal map's second axis.
- * @property aoIntensity - Strength of the ambient-occlusion map.
- * @property transmission - How much light passes through.
- * @property ior - How much light bends going in.
- * @property thickness - How thick a see-through surface is.
- * @property attenuationDistance - How far light goes inside before it tints.
- * @property baseColor - The base colour, linear RGB.
- * @property emissive - The colour it gives off.
- * @property attenuationColor - The tint light takes inside.
- * @property map - The colour picture.
- * @property metalnessMap - The metalness picture.
- * @property roughnessMap - The roughness picture.
- * @property normalMap - The normal picture.
- * @property aoMap - The ambient-occlusion picture.
- * @property emissiveMap - The glow picture.
- */
-export type TableMaterial = {
-  /** The material's name. */
-  name: string;
-  /** Whether it was written for tangents rebuilt on screen. */
-  derivativeTangents: boolean;
-} & Record<(typeof TABLE_FLAGS)[number], boolean> &
-  Record<(typeof TABLE_NUMBERS)[number], number> &
-  Record<(typeof TABLE_TRIPLETS)[number], readonly [number, number, number]> &
-  Record<TableSlotName, TableTextureSlot | null>;
-/**
- * One drawn primitive: the node that carries it, its world pose, the surface it wears and its
- * rank among the copies of that same primitive — which is what instancing is here, one geometry
- * named by several nodes. `bounds` is the world box of the source geometry; the autonomous scene
- * publishes degenerate triangles in its place, so it is the cache's answer, not the loader's.
+ * One node of the scene graph, at its glTF rank: its children, the mesh, the punctual light and
+ * the camera it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation
+ * and scale, each `null` when silent. Several nodes naming one mesh is what instancing is here.
  */
 export interface TableNode {
   /** The node's name. */
   name: string;
-  /** The node's number. */
-  node: number;
-  /** Its parent's number. */
-  parent: number | null;
-  /** Its mesh's number. */
-  mesh: number;
-  /** Its primitive's number. */
-  primitive: number;
-  /** Its material's rank. */
-  material: number;
-  /** Which copy it is. */
-  instance: number;
-  /** Its world matrix. */
-  matrix: readonly number[];
-  /** Its world box. */
-  bounds: { min: readonly [number, number, number]; max: readonly [number, number, number] } | null;
+  /** Its children, in order. */
+  children: readonly number[];
+  /** The mesh it draws. */
+  mesh: number | null;
+  /** The light it hangs. */
+  light: number | null;
+  /** The camera it carries. */
+  camera: number | null;
+  /** Morph weights that override its mesh's; `null` when silent. */
+  weights: readonly number[] | null;
+  /** Its local matrix, column-major. */
+  matrix: readonly number[] | null;
+  /** Where it stands. */
+  translation: readonly number[] | null;
+  /** How it is turned, as a quaternion. */
+  rotation: readonly number[] | null;
+  /** How it is stretched. */
+  scale: readonly number[] | null;
 }
-/** The node and material tables a compiled model carries. */
+/** A punctual light as `KHR_lights_punctual` declares it, each silent field `null`. */
+export interface TableLight {
+  /** Its name. */
+  name: string;
+  /** Its kind. */
+  type: 'directional' | 'point' | 'spot';
+  /** Its colour, linear. */
+  color: readonly [number, number, number] | null;
+  /** Its intensity, photometric. */
+  intensity: number | null;
+  /** Its reach. */
+  range: number | null;
+  /** Inner cone of a spot. */
+  innerConeAngle: number | null;
+  /** Outer cone of a spot. */
+  outerConeAngle: number | null;
+}
+/** A camera as the glTF file declares it, each silent field `null`. */
+export interface TableCamera {
+  /** Its name. */
+  name: string;
+  /** Its projection. */
+  type: 'perspective' | 'orthographic';
+  /** Vertical field of view of a perspective camera, in radians. */
+  yfov: number | null;
+  /** Width over height of a perspective camera. */
+  aspectRatio: number | null;
+  /** Half width of an orthographic camera. */
+  xmag: number | null;
+  /** Half height of an orthographic camera. */
+  ymag: number | null;
+  /** Nearest distance drawn. */
+  znear: number | null;
+  /** Farthest distance drawn. */
+  zfar: number | null;
+}
+/** The tables a compiled model carries. */
 export interface PreparedSceneTables {
   /** Product version. */
   version: number;
@@ -140,18 +93,28 @@ export interface PreparedSceneTables {
   nodeTableVersion: number;
   /** Material table version. */
   materialTableVersion: number;
-  /** The nodes. */
+  /** Geometry layout version. */
+  geometryTableVersion: number;
+  /** The scene the host opens, and the nodes at its top. */
+  scene: { name: string; nodes: readonly number[] };
+  /** Every node. */
   nodes: TableNode[];
-  /** The materials. */
+  /** The lights the nodes hang. */
+  lights: TableLight[];
+  /** The cameras the nodes carry. */
+  cameras: TableCamera[];
+  /** The surfaces. */
   materials: TableMaterial[];
   /** The textures. */
   textures: TableTexture[];
+  /** The geometry layout of each published scene file, by its name. */
+  documents: Readonly<Record<string, TableDocument>>;
 }
 
 /**
  * The tables, or a named refusal. An unknown version is never guessed at: a product written by
- * another compiler, or before a table changed shape, says nothing this reader can check a scene
- * against, and reading it half way would turn a format change into a wrong comparison.
+ * another compiler, or before a table changed shape, cannot be built into a scene, and reading it
+ * half way would turn a format change into a wrong image.
  */
 export function assertSceneTables(value: unknown): PreparedSceneTables {
   const tables = value as PreparedSceneTables | null;
@@ -161,16 +124,26 @@ export function assertSceneTables(value: unknown): PreparedSceneTables {
     ['version', SCENE_TABLES_VERSION],
     ['nodeTableVersion', NODE_TABLE_VERSION],
     ['materialTableVersion', MATERIAL_TABLE_VERSION],
+    ['geometryTableVersion', GEOMETRY_TABLE_VERSION],
   ] as const)
     if (tables[field] !== expected)
       throw new EngineError(
         'UNSUPPORTED_SCENE_TABLES',
-        `scene tables ${field} ${String(tables[field])} is not the ${expected} this runtime reads`,
+        `scene tables ${field} ${String(tables[field])} is not the ${expected} this runtime reads: ` +
+          `the cache was written by another compiler — recompile it with this one ` +
+          `(pnpm run build:native, then trillion3d-compiler <source> <cache> …)`,
         { [field]: tables[field] ?? null },
       );
-  if (!Array.isArray(tables.nodes) || !Array.isArray(tables.materials))
-    throw new EngineError('INVALID_SCENE_TABLES', 'scene tables carry no node or material table', {
-      nodes: Array.isArray(tables.nodes) ? tables.nodes.length : null,
+  const missing = (['nodes', 'lights', 'cameras', 'materials', 'textures'] as const).filter(
+    (field) => !Array.isArray(tables[field]),
+  );
+  if (missing.length || !tables.scene || !tables.documents || typeof tables.documents !== 'object')
+    throw new EngineError('INVALID_SCENE_TABLES', 'scene tables miss a table', {
+      missing: [
+        ...missing,
+        ...(tables.scene ? [] : ['scene']),
+        ...(tables.documents ? [] : ['documents']),
+      ],
     });
-  return { ...tables, textures: Array.isArray(tables.textures) ? tables.textures : [] };
+  return tables;
 }

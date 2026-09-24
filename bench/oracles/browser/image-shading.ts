@@ -1,6 +1,8 @@
 // Pure A2 oracles, no side effects: `ombrage.bench.ts` measures them; unit tests import
 // them as reference.
 import * as THREE from 'three';
+import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
+import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts';
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts';
 import {
   attr2,
@@ -84,16 +86,17 @@ function referenceShadePixel(
 export function referenceShadeVisibility(
   ids: Uint32Array,
   pages: readonly (VisPage | undefined)[],
-  cam: THREE.PerspectiveCamera,
+  cam: GraphCamera,
   viewport: [number, number],
   background = RASTER_BACKGROUND,
 ) {
+  const eye = threeCamera(cam) as THREE.PerspectiveCamera;
   const [width, height] = viewport,
     pixels = new Uint8Array(width * height * 4);
   const engine = readCameraWorld(engineScratch, cam);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
-    cam.projectionMatrix,
-    cam.matrixWorldInverse,
+    eye.projectionMatrix,
+    eye.matrixWorldInverse,
   );
   // The oracle keeps its view-projection from the host library; the depth convention
   // comes from the engine camera, which read it on the host camera. `DepthCamera` reads a

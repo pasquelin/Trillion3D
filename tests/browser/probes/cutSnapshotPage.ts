@@ -14,7 +14,7 @@ import { median } from '../../kit/median.ts';
  * buffers it: this figure is the total work of a frame, not the stall it suffers.
  * `encodage` splits it from what the CPU spends writing commands.
  */
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts';
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
@@ -48,7 +48,7 @@ export async function executer({
   const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
-  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+  const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
   camera.position.set(0, 0, 16);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();
@@ -71,7 +71,7 @@ export async function executer({
 async function mesure(
   device: GPUDevice,
   { packed, roots }: ReturnType<typeof scene>,
-  camera: THREE.PerspectiveCamera,
+  camera: G.GraphCamera,
   { tours, rondes, seuils }: { tours: number; rondes: number; seuils: number[] },
 ) {
   const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]);

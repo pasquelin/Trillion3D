@@ -1,9 +1,9 @@
+import type { GraphScene } from '../../host/graph/scene.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { createAutonomousGeometry } from './geometry.ts';
-import type { HostDrawScene } from '../../host/scene/graphNodes.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 
@@ -12,16 +12,16 @@ import type { PageRec } from '../../page/selection/selection.ts';
 // other instances as they are.
 test('an instance changed or removed leaves the model and the other instances as they are', () => {
   const geometryOf = () => {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
-    geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(3), 1));
+    const geometry = new G.GraphGeometry();
+    geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(9), 3));
+    geometry.setIndex(new G.GraphAttribute(new Uint32Array(3), 1));
     return geometry;
   };
   const record = (clusterId: string, placement?: object) =>
     ({
       url: 'p.bin',
       clusterId,
-      matrix: { elements: new Float64Array(new THREE.Matrix4().toArray()) },
+      matrix: { elements: new Float64Array(new G.Matrix4().toArray()) },
       geometry: geometryOf(),
       array: new Uint32Array(3),
       mesh: undefined,
@@ -31,8 +31,8 @@ test('an instance changed or removed leaves the model and the other instances as
   const own = record('prim/0'),
     rowed = record('prim/1', {});
   const bytes = (geometry: unknown) =>
-    (geometry as THREE.BufferGeometry).index!.array.byteLength +
-    (geometry as THREE.BufferGeometry).attributes.position.array.byteLength;
+    (geometry as G.GraphGeometry).index!.array.byteLength +
+    (geometry as G.GraphGeometry).attributes.position.array.byteLength;
   const allPages = [own, rowed],
     byUrl = new Map([['p.bin', [own, rowed]]]),
     baseMaterials = new Map<PageRec, HostMaterial>([
@@ -40,7 +40,7 @@ test('an instance changed or removed leaves the model and the other instances as
       [rowed, {} as HostMaterial],
     ]);
   const geometryStore = createAutonomousGeometry({
-    scene: { add: () => {}, remove: () => {} } as unknown as HostDrawScene,
+    scene: { add: () => {}, remove: () => {} } as unknown as GraphScene,
     allPages,
     bootstrap: [],
     shown: [],
@@ -68,8 +68,8 @@ test('an instance changed or removed leaves the model and the other instances as
     coverChanged: () => {},
   });
   const before = state.allocationBytes;
-  instances.addInstance('a', new THREE.Matrix4().toArray(new Float64Array(16)));
-  instances.addInstance('b', new THREE.Matrix4().toArray(new Float64Array(16)));
+  instances.addInstance('a', new G.Matrix4().elements.slice());
+  instances.addInstance('b', new G.Matrix4().elements.slice());
   const [, , aOwn, aRowed, bOwn, bRowed] = byUrl.get('p.bin')!;
   assert.notEqual(aOwn.geometry, own.geometry, 'an owned geometry is copied');
   assert.notEqual(aOwn.geometry, bOwn.geometry);
@@ -78,10 +78,7 @@ test('an instance changed or removed leaves the model and the other instances as
   assert.equal(state.allocationBytes, before + 2 * bytes(own.geometry), 'one copy an instance');
   // Moving `a` moves its own records only.
   const still = [own, rowed, bOwn, bRowed].map((rec) => Array.from(rec.matrix.elements));
-  instances.updateInstance(
-    'a',
-    new THREE.Matrix4().makeTranslation(4, 0, 0).toArray(new Float64Array(16)),
-  );
+  instances.updateInstance('a', new G.Matrix4().makeTranslation(4, 0, 0).elements.slice());
   assert.equal(aOwn.matrix.elements[12], 4);
   assert.equal(aRowed.matrix.elements[12], 4);
   assert.deepEqual(
@@ -92,7 +89,7 @@ test('an instance changed or removed leaves the model and the other instances as
   // Removing `a` gives back its copy and nothing the model or `b` draws.
   let disposed = 0;
   for (const geometry of [own.geometry, rowed.geometry, bOwn.geometry])
-    (geometry as unknown as THREE.BufferGeometry).addEventListener('dispose', () => disposed++);
+    (geometry as unknown as G.GraphGeometry).released.add(() => disposed++);
   instances.removeInstance('a');
   assert.deepEqual(byUrl.get('p.bin'), [own, rowed, bOwn, bRowed]);
   assert.equal(disposed, 0, 'no geometry of the model or of `b` is freed');
