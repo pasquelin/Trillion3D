@@ -147,3 +147,34 @@ fn the_core_read_before_the_first_frame_does_not_grow_with_the_world() {
         "{small_cells} → {large_cells} cells"
     );
 }
+
+#[test]
+fn a_placement_under_an_animated_node_stays_in_the_core() {
+    // Its cell's box is written from the declared poses: a parent an animation moves would carry
+    // it out of that box, so it is read with the core.
+    let side = 48;
+    let mut nodes = grid(side, 4.0, 1.0);
+    nodes.push(json!({"name": "carrier", "children": (0..side * side).collect::<Vec<_>>()}));
+    let (root, mut options) = fixture();
+    let mut gltf = read_gltf(&options);
+    gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
+    gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
+    gltf["nodes"] = json!(nodes);
+    gltf["scenes"] = json!([{"nodes": [side * side]}]);
+    gltf["animations"] = json!([{"channels": [{"sampler": 0, "target": {"node": side * side, "path": "translation"}}],
+        "samplers": [{"input": 0, "output": 0}]}]);
+    write_gltf(&options, &gltf, None);
+    options.scope = "full".into();
+    let result = compile(&options, |_| {}).expect("compile");
+    let tables = read_json(
+        &options
+            .key_directory(result["key"].as_str().expect("key"))
+            .join("scene-tables.json"),
+    );
+    drop(root);
+    assert_eq!(tables["partition"], Value::Null, "nothing leaves the core");
+    assert_eq!(
+        tables["nodes"].as_array().expect("nodes").len(),
+        side * side + 1
+    );
+}
