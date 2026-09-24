@@ -309,7 +309,9 @@
       "texturePreviewSha": "Her doku önizlemesinin parmak izi.",
       "texturePreviewPixels": "Önizlemelerin pikselleri.",
       "texturePreviewBc7": "Önizlemelerin BC7 blokları.",
-      "texturePreviewAstc": "Önizlemelerin ASTC blokları."
+      "texturePreviewAstc": "Önizlemelerin ASTC blokları.",
+      "bundleDependencyCount": "Her paketin kaç pakete ihtiyaç duyduğu.",
+      "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -652,7 +654,8 @@
       "bundles": "Paketler.",
       "previews": "Doku önizlemeleri.",
       "previewBytes": "Piksel sütununun baytları, her girdinin her seviyesi birleştirilmiş.",
-      "previewBlockBytes": "Her blok sütununun baytları: tutulan zincirlerin sıkıştırılmış kuyrukları, bütün bloklar, bitişik girdiler, ailenin kayıpsız bıraktığı bir zincir için hiçbir şey."
+      "previewBlockBytes": "Her blok sütununun baytları: tutulan zincirlerin sıkıştırılmış kuyrukları, bütün bloklar, bitişik girdiler, ailenin kayıpsız bıraktığı bir zincir için hiçbir şey.",
+      "bundleDependencies": "Paket bağımlılıkları, tüm paketlerin listeleri art arda."
     }
   },
   "CpuStepSummary": {
@@ -3088,7 +3091,8 @@
       "version": "Format sürümü.",
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
-      "pages": "Kaç paket."
+      "pages": "Kaç paket.",
+      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı: derleyicinin yayımladığı sınır."
     }
   },
   "SlimStructure": {
@@ -3181,7 +3185,8 @@
       "url": "Nereden okunduğu.",
       "sha256": "Baytlarının parmak izi.",
       "bytes": "Boyutu.",
-      "count": "Tuttuğu cluster'lar."
+      "count": "Tuttuğu cluster'lar.",
+      "dependencies": "Kümelerinin ebeveynlerini tutan paketler, her zaman yüklü köklere kadar, artan sırada: her birinden sonra kurulur."
     }
   },
   "StreamCatalogue": {
@@ -3191,7 +3196,8 @@
       "version": "Format sürümü.",
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
-      "pages": "Her paket."
+      "pages": "Her paket.",
+      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı, derleyicinin yayımladığı gibi."
     }
   },
   "StreamPage": {
