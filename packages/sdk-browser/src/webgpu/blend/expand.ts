@@ -1,8 +1,8 @@
 import {
   BLEND_EXPAND_ENTRIES,
   BLEND_EXPAND_SHADER,
+  blendExpandBindEntries,
   blendExpandDispatch,
-  STORAGE_TYPES,
 } from './expandWgsl.ts';
 import { shaderFailed } from '../../gpu/core/shaderModule.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
@@ -134,20 +134,7 @@ export async function createBlendExpand(
     const built = await validated(device, async () => {
       const module = device.createShaderModule({ code: BLEND_EXPAND_SHADER });
       if (await shaderFailed(module)) return undefined;
-      const layout = device.createBindGroupLayout({
-        entries: [
-          {
-            binding: 0,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNI_WORDS * 4 },
-          },
-          ...STORAGE_TYPES.map((type, index) => ({
-            binding: index + 1,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type },
-          })),
-        ],
-      });
+      const layout = device.createBindGroupLayout({ entries: blendExpandBindEntries() });
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
       const pipelines = BLEND_EXPAND_ENTRIES.map((entryPoint) =>
         device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } }),
