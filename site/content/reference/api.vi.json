@@ -7112,17 +7112,6 @@
       "handbrake": "Phanh tay có đang kéo không."
     }
   },
-  "GraphAngles": {
-    "summary": "Cùng một hướng dưới dạng ba góc và thứ tự của chúng, thông báo các lần ghi theo cùng cách.",
-    "members": {
-      "x": "Góc thứ nhất, tính bằng radian.",
-      "set": "Ghi ba góc, và thứ tự nếu có; thông báo một lần.",
-      "setFromRotation": "Các góc của `q` theo thứ tự này (`Euler` của lõi); thông báo trừ khi `quiet`.",
-      "y": "Góc thứ hai, tính bằng radian.",
-      "z": "Góc thứ ba, tính bằng radian.",
-      "order": "Thứ tự quay của ba góc, `'XYZ'` nếu chưa đặt."
-    }
-  },
   "GraphArray": {
     "summary": "Các mảng có kiểu mà một thuộc tính giữ."
   },
@@ -7243,22 +7232,6 @@
   "GraphNodeKind": {
     "summary": "Một nút của đồ thị là gì: một nút trần, gốc, một nhóm, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
   },
-  "GraphRotation": {
-    "summary": "Một hướng `(x, y, z, w)` mà các lần ghi gọi `_onChangeCallback`.",
-    "members": {
-      "x": "Con số đầu tiên.",
-      "set": "Ghi bốn số, thông báo một lần.",
-      "copy": "Lấy các số của một phép quay khác.",
-      "fromArray": "Đọc bốn số từ một danh sách.",
-      "setFromAngles": "Phép quay của `angles`, theo thứ tự của chúng (`localTurnQuaternion`); thông báo trừ khi `quiet`.",
-      "setFromRotationMatrix": "Phép quay của phần 3×3 phía trên của một ma trận theo cột có các cột độ dài đơn vị.",
-      "premultiply": "Trở thành `q` rồi đến phép quay này, `q · this`.",
-      "invert": "Trở thành phép quay ngược lại.",
-      "y": "Con số thứ hai.",
-      "z": "Con số thứ ba.",
-      "w": "Con số thứ tư."
-    }
-  },
   "GraphSurface": {
     "summary": "Một bề mặt: các tham số của một họ, theo giá trị của bản tham chiếu trừ khi cảnh nói khác.",
     "description": "Phiên bản của nó được tăng bởi `needsUpdate`, mà mọi bên đọc đều so sánh.",
@@ -7319,24 +7292,6 @@
       "repeat": "Số lần nó vừa khít.",
       "center": "Tâm xoay.",
       "rotation": "Góc xoay, tính bằng radian."
-    }
-  },
-  "GraphVector": {
-    "summary": "Ba số của một tư thế hoặc một điểm: các trường dữ liệu đơn giản, và các phép toán mà bộ điều khiển dùng.",
-    "members": {
-      "set": "Ghi ba số.",
-      "copy": "Lấy các số của một điểm khác.",
-      "clone": "Một bản sao.",
-      "add": "Cộng thêm một vectơ khác.",
-      "sub": "Trừ đi một vectơ khác.",
-      "multiplyScalar": "Nhân tỉ lệ ba số.",
-      "length": "Độ dài của nó.",
-      "setLength": "Giữ hướng, đặt độ dài.",
-      "distanceTo": "Khoảng cách tới một điểm.",
-      "fromArray": "Đọc ba số từ một danh sách.",
-      "x": "Trái sang phải.",
-      "y": "Dưới lên trên.",
-      "z": "Sau ra trước."
     }
   },
   "Joint": {
