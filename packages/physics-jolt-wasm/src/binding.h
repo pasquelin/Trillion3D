@@ -122,4 +122,14 @@ void sendOwedLeaves();
 /// Writes the poses of the dynamic bodies that moved during the step; returns their count.
 uint32_t writePoses();
 
+/// The character's commands and state (`character.cpp`, layout.ts).
+constexpr uint32_t CHARACTER = 13, CHARACTER_MOVE = 14;
+constexpr uint32_t CHARACTER_WORDS = 10, CHARACTER_MOVE_WORDS = 5, CHARACTER_STATE_WORDS = 8;
+/// Runs one character command; returns its word count.
+uint32_t characterCommand(const uint32_t *w);
+/// Moves the character by the velocity this step's CHARACTER_MOVE asked for, before the bodies.
+void moveCharacter(float dt);
+/// Writes the character's state once the bodies have stepped.
+void writeCharacter();
+
 }  // namespace trillion

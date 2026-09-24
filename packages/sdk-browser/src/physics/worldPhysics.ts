@@ -136,6 +136,8 @@ export function createWorldPhysics(
       (runtime.explorer as HostCpuProfile | null)?.cpuStep?.('physicsMs', session.stats.mainMs);
       return moving;
     },
+    /** The running session's end of the character, for `world.controls`; `null` when off. */
+    character: () => session?.character ?? null,
     dispose: () => (handle.enabled = false),
   };
 }

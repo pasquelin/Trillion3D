@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { box } from '../world/geometry/basic.ts';
 import { Mesh } from '../world/object/mesh.ts';
 import { meshCollision } from './meshTriangles.ts';
-import { createCharacterBody } from './characterBody.ts';
+import { createCharacterBody, MAX_CHARACTER_TICKS } from './characterBody.ts';
 import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts';
 
 /** An axis-aligned block from its two corners, as a mesh the collision world reads. */
@@ -47,6 +47,15 @@ test('a body falls, lands on the floor and reports the impact once', () => {
   assert.equal(impacts.length, 1);
   // Free fall from 2 m under the falling gravity: sqrt(2 g h), within one tick of gravity.
   assert.ok(Math.abs(impacts[0] - Math.sqrt(2 * HUMAN_BODY.fallGravity * 2)) < 0.15);
+});
+
+test('a stalled page resumes where it stopped: one call lives a ceiling of ticks', () => {
+  const made = body([FLOOR()]);
+  live(made, 1, EAST);
+  const before = made.feet[0];
+  made.advance(10, EAST);
+  const most = (MAX_CHARACTER_TICKS / 120) * HUMAN_BODY.walkSpeed;
+  assert.ok(made.feet[0] - before <= most + 1e-9, `moved ${made.feet[0] - before} in one call`);
 });
 
 test('a wall stops the body, which slides along it', () => {
