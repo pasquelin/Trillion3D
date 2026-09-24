@@ -13,9 +13,16 @@ const atRest = (node: Object3D) => {
     s = node.scale.elements;
   return (
     !node.parent &&
-    p[0] === 0 && p[1] === 0 && p[2] === 0 &&
-    q[0] === 0 && q[1] === 0 && q[2] === 0 && q[3] === 1 &&
-    s[0] === 1 && s[1] === 1 && s[2] === 1
+    p[0] === 0 &&
+    p[1] === 0 &&
+    p[2] === 0 &&
+    q[0] === 0 &&
+    q[1] === 0 &&
+    q[2] === 0 &&
+    q[3] === 1 &&
+    s[0] === 1 &&
+    s[1] === 1 &&
+    s[2] === 1
   );
 };
 
@@ -86,7 +93,8 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       }
       epoch = now;
       direct = rest;
-      for (let b = 0; b < batches.length; b++) (from[b] = Infinity), (to[b] = -1);
+      from.fill(Infinity);
+      to.fill(-1);
     },
     /** Writes slot `index` at `pose` (7 numbers from `at`): node, tree, and row. */
     place(index: number, pose: ArrayLike<number>, at: number) {

@@ -148,7 +148,10 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         pose[4] += h * (wy * w + wz * x - wx * z);
         pose[5] += h * (wz * w + wx * y - wy * x);
         pose[6] -= h * (wx * x + wy * y + wz * z);
-        const n = Math.sqrt(pose[3] * pose[3] + pose[4] * pose[4] + pose[5] * pose[5] + pose[6] * pose[6]) || 1;
+        const n =
+          Math.sqrt(
+            pose[3] * pose[3] + pose[4] * pose[4] + pose[5] * pose[5] + pose[6] * pose[6],
+          ) || 1;
         for (let k = 3; k < 7; k++) pose[k] /= n;
         place(index, pose, 0);
       }
