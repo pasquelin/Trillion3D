@@ -22,7 +22,7 @@ merge.
 5. **Verdict**, in one issue comment: the table before/after, the captures a claim rests on, then
    - no regression, image and numbers held: `--remove-label measuring --add-label "measure ok"`;
    - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
-     `--remove-label measuring`, then **a new issue** on `.github/ISSUE_TEMPLATE/task.md` —
+     `--remove-label measuring`, then **a new issue** written as `docs/roles/writer.md` shows —
      title `Regression after #<n>: <what>`, the numbers, the captures, `Links: #<n>` — labelled
      `measure ko` plus the domain label of #<n>. Its chef fixes it; #<n> stays closed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,

@@ -17,7 +17,8 @@ disagreement is reported to the maintainer.
 4. **One branch, one worktree, one session.** Never commit on `develop` or `main`, never write in
    the shared checkout, never touch another session's worktree.
 5. **Never open an issue** unless the maintainer asks. A defect found on the way is one line in
-   your report. Sole exception: the measurer and the auditor open one per regression or finding.
+   your report. Sole exceptions: the measurer and the auditor open one per regression or finding,
+   and a chef splits an issue too large for one pull request; all of them write it as the writer.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **Three.js is a witness only**: bench, measurement and migration sections, never beside the
@@ -31,8 +32,9 @@ disagreement is reported to the maintainer.
 
 ## Roles
 
-Three kinds of session, started by the maintainer — chef, measurer, auditor — and two roles a
-chef launches as subagents — coder, reviewer. Each role is `docs/roles/<role>.md`.
+Three kinds of session, started by the maintainer — chef, measurer, auditor — two roles a chef
+launches as subagents — coder, reviewer — and the writer, which anyone uses to write an issue.
+Each role is `docs/roles/<role>.md`.
 
 | Role     | Started by | Does                                                              | Never                        |
 | -------- | ---------- | ----------------------------------------------------------------- | ---------------------------- |
@@ -41,6 +43,7 @@ chef launches as subagents — coder, reviewer. Each role is `docs/roles/<role>.
 | reviewer | chef       | simplification then correctness pass on one pull request, verdict | merges, measures             |
 | measurer | maintainer | the one queue of browser proofs and benchmarks, on merged batches | edits code, merges           |
 | auditor  | maintainer | re-reads every merge on `develop` against CONTRIBUTING.md         | edits code, merges, measures |
+| writer   | anyone     | writes one issue on the template, from its patterns               | codes, measures              |
 
 Several chefs may run at once, one domain each (a label or an issue list given at launch). There
 is one measurer and one auditor.
