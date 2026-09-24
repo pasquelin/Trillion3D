@@ -21,8 +21,9 @@ export type SceneLightStore = ReturnType<typeof createSceneLightStore>;
 /**
  * Scene lights, at fixed capacity. The buffer is allocated once for `maxLights` lights and
  * is never reallocated; adding, setting or removing a light only writes its sixteen floats and
- * increments its revision. Per-light `revision` is what the shadow scheduler reads to know
- * that a light has changed: no structure is rebuilt per frame.
+ * increments its revision. Per-light `revision` tells a reader that a light has changed: no
+ * structure is rebuilt per frame. The shadow scheduler reads the light's shape itself, so a
+ * change of intensity or colour stales no shadow page.
  */
 export function createSceneLightStore() {
   const packed = new Float32Array(SCENE_LIGHT_BUFFER_FLOATS);

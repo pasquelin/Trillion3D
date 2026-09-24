@@ -86,9 +86,32 @@ fn placed(mut entry: Value, m: &Mat4) -> Option<Value> {
     Some(entry)
 }
 
+/// Colliders, each cooked primitive's slot among them, and the refused primitives.
+pub(crate) type Gathered = (Vec<Value>, BTreeMap<usize, usize>, Vec<Value>);
+
+/// The colliders of the cooked primitives, each primitive's slot among them, and the report's
+/// entry of each primitive Jolt refused: its index, its mesh and primitive, and Jolt's reason.
+pub(crate) fn gathered(primitives: &[Value], collisions: &[Value]) -> Gathered {
+    let (mut colliders, mut slot, mut refused) = (Vec::new(), BTreeMap::new(), Vec::new());
+    for (index, collision) in collisions.iter().enumerate().filter(|(_, c)| !c.is_null()) {
+        let p = &primitives[index];
+        if let Some(reason) = collision.get("refused") {
+            refused.push(json!({"primitive":index,"mesh":p["mesh"],"meshPrimitive":p["primitive"],"reason":reason}));
+            continue;
+        }
+        slot.insert(index, colliders.len());
+        let mut entry = collision.clone();
+        entry["primitive"] = json!(index);
+        entry["material"] = p.get("material").cloned().unwrap_or(Value::Null);
+        colliders.push(entry);
+    }
+    (colliders, slot, refused)
+}
+
 /// Writes `physics.json` from each primitive's collision (`cook_primitive`, `null` for one without
-/// a DAG); returns the product and the manifest's `physics` descriptor, which names every object
-/// the file cites so a prune keeps them, and carries the stage's report.
+/// a DAG, `{"refused": reason}` for one Jolt refused); returns the product and the manifest's
+/// `physics` descriptor, which names every object the file cites so a prune keeps them, and
+/// carries the stage's report.
 pub(crate) fn stage_physics(
     scene: &DepthLayerScene<'_>,
     primitives: &[Value],
@@ -103,17 +126,7 @@ pub(crate) fn stage_physics(
     } = scene;
     let world = world_matrices(g)?;
     let nodes = values(g, "nodes")?;
-    let (mut colliders, mut slot) = (Vec::new(), BTreeMap::new());
-    for (index, collision) in collisions.iter().enumerate().filter(|(_, c)| !c.is_null()) {
-        slot.insert(index, colliders.len());
-        let mut entry = collision.clone();
-        entry["primitive"] = json!(index);
-        entry["material"] = primitives[index]
-            .get("material")
-            .cloned()
-            .unwrap_or(Value::Null);
-        colliders.push(entry);
-    }
+    let (colliders, slot, refused) = gathered(primitives, collisions);
     let by_mesh = crate::proxy::primitives_by_mesh(primitives);
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
     // Every drawn node is static ground, as drawn: a node the source declares moving is placed
@@ -146,7 +159,7 @@ pub(crate) fn stage_physics(
         .iter()
         .filter_map(|c| c["triangles"].as_u64())
         .sum();
-    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance")});
+    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance"),"refused":refused});
     let document = json!({
         "formatVersion":PHYSICS_FORMAT_VERSION,"compilerVersion":COMPILER_VERSION,"jolt":JOLT_COMMIT,
         "stage":{"name":PHYSICS_COOK_STAGE,"version":PHYSICS_COOK_VERSION},

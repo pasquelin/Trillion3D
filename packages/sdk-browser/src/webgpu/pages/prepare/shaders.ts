@@ -2,7 +2,9 @@ import { ACES_WGSL } from '../../../lighting/toneMappingWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../../diagnostic/trianglePalette.ts';
 import { clusterDecodeWgsl } from '../../../cluster/decodeWgsl.ts';
 
-/** `mode`: bit 0 draws the triangle diagnostic, bit 1 says the slot holds a quantized cluster
+/** The surface colour carries its alpha: the opaque draw writes 1 there, a transparent one its
+ *  opacity, which the blend pipeline of its mode reads (`BLEND_EQUATIONS`).
+ *  `mode`: bit 0 draws the triangle diagnostic, bit 1 says the slot holds a quantized cluster
  *  page and the draw decodes its corners from it instead of reading the float positions. */
 export const FALLBACK_WIREFRAME = 1,
   FALLBACK_CLUSTER_PAGE = 2;
@@ -39,6 +41,6 @@ ${TRIANGLE_PALETTE_WGSL}
   let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
   return vec4f(mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge),1.0);
  }
- return vec4f(linearToSrgb(aces(in.color.xyz)),1.0);
+ return vec4f(linearToSrgb(aces(in.color.xyz)),in.color.w);
 }
 `;
