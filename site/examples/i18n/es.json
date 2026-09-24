@@ -1980,5 +1980,20 @@
       "awake": "Despiertos",
       "step": "Paso"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "Abre la puerta y el cajón, balancea la cadena y luego deja caer la piedra sobre el puente y mira cómo se rompe.",
+    "controls": {
+      "openDoor": "Abrir la puerta",
+      "openDrawer": "Abrir el cajón",
+      "strength": "Resistencia del puente (N)",
+      "swingChain": "Balancear la cadena",
+      "dropStone": "Soltar la piedra",
+      "rebuild": "Reconstruir el puente"
+    },
+    "readouts": {
+      "joints": "Uniones",
+      "broken": "Rotas"
+    }
   }
 }

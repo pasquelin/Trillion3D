@@ -1332,12 +1332,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "엔진이 넘겨주는, 호스트가 한 프레임을 그리는 데 쓰는 행렬들.",
+    "summary": "엔진이 넘겨주는, 호스트가 한 프레임을 그리는 데 쓰는 행렬들과 깊이 범위.",
     "members": {
       "projection": "투영.",
       "world": "카메라의 월드 행렬.",
       "view": "뷰 행렬.",
-      "eye": "눈이 있는 위치."
+      "eye": "눈이 있는 위치.",
+      "near": "가장 가까운 거리.",
+      "far": "가장 먼 거리."
     }
   },
   "HostDrawOutput": {
@@ -1656,7 +1658,8 @@
       "signal": "그 신호가 중단되면 로드를 멈춘다.",
       "scope": "`'full'`은 캐시 전체를 요구하고, `'progressive'`는 그 스트리밍된 조각을 요구한다; 다른 범위의 모델은 이름으로 거부된다. 설정되지 않으면 모델은 그 포인터가 선언하는 범위로 읽힌다.",
       "stream": "페이지가 구성한 스트리머; 월드의 세션은 자신만의 것으로 스트리밍한다.",
-      "position": "모델의 원점이 씬 안 어디에 놓이는가."
+      "position": "모델의 원점이 씬 안 어디에 놓이는가.",
+      "onProgress": "로딩이 얼마나 진행됐는지 듣는다: 매니페스트를 읽으면 `manifest`, 이어서 씬이 읽는 각 파일이 도착할 때마다 `resources`(그때까지 알려진 `total` 중 `completed`). 이벤트는 `JobProgress`이며, 로딩을 감싼 `createJob`은 자신의 `progress`를 여기에 넘긴다."
     }
   },
   "LoadedModel": {
@@ -2955,6 +2958,7 @@
       "counts": "마지막 계획이 한 일, 페이지 단위.",
       "worldChanged": "노드가 움직였습니다: 그 박스는 다음 계획에서 덮는 페이지를 낡게 만듭니다.",
       "representationChanged": "다른 정밀도의 같은 월드: 그 박스는 카메라가 멈출 때까지 기다립니다.",
+      "resting": "마지막 계획에서 카메라가 정지해 있었음: 그 뷰가 이전 계획의 뷰와 같았습니다.",
       "deferredChanges": "표현 변경이 카메라가 멈추기를 기다리는 동안 참.",
       "releaseDeferred": "프레임이 그림자를 계획하지 않습니다: 보류된 합집합이 즉시 목록에 들어갑니다.",
       "observeCost": "프레임 Shadows 패스의 타이머, 그린 페이지에 나눠 배분.",
@@ -5811,7 +5815,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "카메라로부터의 거리에 따라 각 점에 음영을 준다.",
+    "summary": "카메라로부터의 거리에 따라 각 점에 음영을 준다: `camera.near`에서 흰색, `camera.far`에서 검은색, 그 사이는 직선 램프이며 WebGPU와 WebGL2에서 같다.",
     "parameters": {
       "parameters": "페이지가 재질 멤버에 넘길 수 있는 것; 모든 필드는 선택 사항.",
       "parameters.color": "기본 색상.",
@@ -6862,7 +6866,9 @@
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
       "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다."
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
+      "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }
   },
   "ContactEvent": {
@@ -7057,7 +7063,9 @@
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
       "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다."
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
+      "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }
   },
   "WorldPhysicsOptions": {
@@ -7321,6 +7329,77 @@
       "x": "왼쪽에서 오른쪽으로.",
       "y": "아래에서 위로.",
       "z": "뒤에서 앞으로."
+    }
+  },
+  "Joint": {
+    "summary": "두 물체, 또는 물체와 세계(`b`가 null) 사이의 관절. `joint.*`로 만들고 `world.physics.add`로 시뮬레이션에 추가합니다.",
+    "description": "두 물체가 시뮬레이션되는 동안, 끊어질 때까지 유지됩니다.",
+    "parameters": {
+      "options": "`joint.*`가 받는 것. 점과 축은 세계 좌표이며 관절이 처음 만들어질 때 읽힙니다.",
+      "options.anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리의 끝.",
+      "options.anchorB": "`b` 쪽 거리의 끝.",
+      "options.axis": "경첩의 핀, 슬라이더의 레일, 원뿔의 가운데.",
+      "options.limits": "경첩, 슬라이더, 거리, 원뿔: 얼마나 움직이는지. 거리의 기본값은 그 길이입니다.",
+      "options.spring": "경첩, 슬라이더, 거리: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
+      "options.motor": "경첩과 슬라이더: `joint.motor`로 언제든 바꿀 수 있는 모터.",
+      "options.breakForce": "관절이 끊어지는 당김의 크기(뉴턴). 생략하면 끊어지지 않습니다."
+    },
+    "members": {
+      "kind": "관절의 종류.",
+      "a": "첫 번째 물체.",
+      "b": "두 번째 물체, 또는 세계를 뜻하는 `null`.",
+      "options": "만들 때 쓴 설정.",
+      "motor": "경첩이나 슬라이더의 모터. `null`이면 자유롭게 돌거나 미끄러집니다.",
+      "broken": "끊어졌는지: `breakForce`를 넘어 당겨졌습니다. 끊어진 관절은 더 이상 아무것도 붙잡지 않습니다.",
+      "on": "관절이 끊어지면 `handler`를 호출합니다."
+    }
+  },
+  "JointKind": {
+    "summary": "물체 사이의 관절. 각각 Jolt 자체의 제약 조건입니다."
+  },
+  "JointLimits": {
+    "summary": "관절이 움직일 수 있는 범위: 경첩은 라디안, 슬라이더나 거리는 미터, 원뿔은 원뿔의 반각(`max`).",
+    "members": {
+      "min": "경첩은 −π부터 0까지, 슬라이더는 0 이하.",
+      "max": "경첩은 0부터 π까지, 슬라이더는 0 이상."
+    }
+  },
+  "JointMotor": {
+    "summary": "경첩이나 슬라이더의 모터: 관절을 속도나 위치로 움직입니다.",
+    "members": {
+      "mode": "`'velocity'`: rad/s 또는 m/s. `'position'`: 관절을 만든 자리에서부터의 라디안 또는 미터.",
+      "target": "도달할 속도나 위치.",
+      "maxForce": "경첩은 N·m, 슬라이더는 N. 생략하면 제한 없음."
+    }
+  },
+  "JointOptions": {
+    "summary": "`joint.*`가 받는 것.",
+    "description": "점과 축은 세계 좌표이며 관절이 처음 만들어질 때 읽힙니다.",
+    "members": {
+      "anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리의 끝.",
+      "anchorB": "`b` 쪽 거리의 끝.",
+      "axis": "경첩의 핀, 슬라이더의 레일, 원뿔의 가운데.",
+      "limits": "경첩, 슬라이더, 거리, 원뿔: 얼마나 움직이는지. 거리의 기본값은 그 길이입니다.",
+      "spring": "경첩, 슬라이더, 거리: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
+      "motor": "경첩과 슬라이더: `joint.motor`로 언제든 바꿀 수 있는 모터.",
+      "breakForce": "관절이 끊어지는 당김의 크기(뉴턴). 생략하면 끊어지지 않습니다."
+    }
+  },
+  "joint": {
+    "summary": "`joint` 패밀리: 이어진 두 물체, 또는 물체와 세계(`b`가 null).",
+    "members": {
+      "fixed": "용접합니다: 하나처럼 움직입니다.",
+      "point": "`anchor`의 볼 관절: 그 주위로 자유롭게 돕니다.",
+      "hinge": "`anchor`에서 `axis`를 따르는 핀: 문, 바퀴. `limits`는 라디안.",
+      "slider": "`axis`를 따르는 레일: 서랍, 피스톤. `limits`는 미터.",
+      "distance": "`a`의 `anchor`와 `b`의 `anchorB`를 그 길이, 또는 `limits` 안으로 유지합니다.",
+      "cone": "`axis`가 반각 `limits.max`인 원뿔 안에서 흔들리는 볼 관절."
+    }
+  },
+  "JointHost": {
+    "summary": "관절의 세계 쪽: 관절에 쓰기가 시뮬레이션에 요청하는 것.",
+    "members": {
+      "motor": "모터가 바뀌었습니다."
     }
   }
 }

@@ -1980,5 +1980,20 @@
       "awake": "활성",
       "step": "스텝"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "문과 서랍을 열고, 사슬을 흔든 다음, 다리 위에 돌을 떨어뜨려 부서지는 모습을 보세요.",
+    "controls": {
+      "openDoor": "문 열기",
+      "openDrawer": "서랍 열기",
+      "strength": "다리 강도 (N)",
+      "swingChain": "사슬 흔들기",
+      "dropStone": "돌 떨어뜨리기",
+      "rebuild": "다리 다시 짓기"
+    },
+    "readouts": {
+      "joints": "관절",
+      "broken": "끊어짐"
+    }
   }
 }

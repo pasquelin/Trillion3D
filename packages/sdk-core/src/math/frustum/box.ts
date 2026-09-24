@@ -5,6 +5,7 @@
  * rejects when that corner is behind it: `a*x + b*y + c*z + d < 0`. This is the box test of
  * the Three.js frustum, same products and same sum; a comparison with NaN never rejects.
  * The result does not depend on the order of planes, only which plane concludes.
+ * Rust mirror (CPU cut walk): `frustum_clip_box` of `packages/page-codec-wasm/src/cut_error.rs`.
  */
 
 /** The six box coordinates, arranged so that the plane sign serves as an index. */

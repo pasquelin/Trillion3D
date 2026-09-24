@@ -1472,8 +1472,7 @@
     {
       "id": "hinges-and-joints",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/hinges-and-joints.html"
     },
     {
       "id": "walk-with-collisions",

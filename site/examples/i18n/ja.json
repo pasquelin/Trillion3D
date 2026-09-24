@@ -1980,5 +1980,20 @@
       "awake": "動作中",
       "step": "ステップ"
     }
+  },
+  "hinges-and-joints": {
+    "banner": "ドアと引き出しを開け、鎖を揺らし、石を橋に落として壊れるのを見てみよう。",
+    "controls": {
+      "openDoor": "ドアを開ける",
+      "openDrawer": "引き出しを開ける",
+      "strength": "橋の強さ (N)",
+      "swingChain": "鎖を揺らす",
+      "dropStone": "石を落とす",
+      "rebuild": "橋を作り直す"
+    },
+    "readouts": {
+      "joints": "ジョイント",
+      "broken": "壊れた数"
+    }
   }
 }

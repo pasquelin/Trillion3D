@@ -110,6 +110,12 @@ resolves is queued and drawn once it does. The SDK has no asset URL default: a h
 `manifestUrl` to `scene.load`. The default scope is `slice` (`scene.load(url, { scope: 'full' })`
 for a full cache); a pointer or manifest of another scope is rejected with `SCOPE_MISMATCH`.
 
+`scene.load(url, { onProgress })` reports how far a load has got, with the `JobProgress` shape
+`createJob` uses: `{ phase: 'manifest' }` once the manifest is read, then
+`{ phase: 'resources', completed, total, message }` as each file the scene reads lands — `total`
+grows as the scene finds files to read, and the last event has `completed === total`. The first
+pages follow the load: `await world.awaitPages()` settles once they are resident.
+
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
 calls `assertCachePointer(pointer, scope)` and `assertCacheReady(metadata, scope)` on the two JSON
 documents it fetched: the first returns the cache URL the pointer names, the second the selected
@@ -364,8 +370,9 @@ on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsu
 
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
-the engine, without removing the canvas. A page that wants job semantics around a load — progress,
-cancellation — wraps `scene.load(url, { signal })` with `createJob` from `trillion3d`.
+the engine, without removing the canvas. A page that wants job semantics around a load —
+cancellation, a status it can observe — wraps `scene.load(url, { signal, onProgress: progress })` with
+`createJob`, exported by `trillion3d` and by the portal's runtime: the job's progress is the load's.
 
 ### Camera controllers
 
@@ -865,7 +872,8 @@ plain pixels taken aside from the view. For a deterministic image, a page calls
 `world.camera.set(pose)`, `await world.awaitPages()`, `world.render()`, then
 `await capture.buffer(world, { width, height })`. `awaitPages()` rejects a requested URL that failed
 to load; a failed background load is retried at most three times, then left until the world is
-reopened.
+reopened. It waits for pages, not for an image: it settles on a world whose loop redraws every
+frame, and the capture reads its own image.
 
 ## Integration: web, Electron and Node
 
@@ -941,6 +949,20 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
   point.
+- **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
+  bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
+  puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
+  taken out with either, and made again when the body returns. `anchor` (where they connect; the
+  end on `a` for a distance, `anchorB` the end on `b`) and `axis` (the hinge's pin, the slider's
+  rail, the cone's middle) are world points read when the joint is first made, then kept in each
+  body's frame. `limits: { min, max }` stop it — radians for a hinge (−π to π), metres for a slider
+  or a distance (whose default is its length), the half angle `max` for a cone —; `spring:
+{ frequency, damping }` makes the stop of a hinge, slider or distance soft. `motor: { mode:
+'velocity' | 'position', target, maxForce }` drives a hinge or a slider, the position measured
+  from where the joint was made; `j.motor` changes it at any time. `breakForce` is the pull in
+  newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is
+  called, and the bodies part. A tuning a kind lacks (a motor on a fixed joint) throws
+  `RangeError`. Live example: [hinges and joints](../site/examples/hinges-and-joints.html).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its

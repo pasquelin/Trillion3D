@@ -13,6 +13,8 @@ export interface VisBindings {
   color: AtlasBindings;
   uniform: number;
   sampler: number;
+  /** Size of the uniform `Uniforms`: `VIS_UNIFORM_BYTES`, from the same source. */
+  uniformBytes: number;
 }
 
 export interface VisibilitySetup {
@@ -113,7 +115,11 @@ export function setupVisibility(
       lecture(b.instances),
       lecture(b.slotOffsets),
       lecture(b.color.pages),
-      { binding: b.uniform, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+      {
+        binding: b.uniform,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform' },
+      },
       ...b.color.lanes.map(lanePool),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     ],
@@ -129,13 +135,13 @@ export function setupVisibility(
   );
   const visGroups: GPUBindGroup[] = [];
   for (let slot = 0; slot < 7; slot++) {
-    const bytes = new ArrayBuffer(96),
+    const bytes = new ArrayBuffer(b.uniformBytes),
       f32 = new Float32Array(bytes),
       u32 = new Uint32Array(bytes);
     f32.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
     u32[20] = slot % 6;
     u32[21] = slot < 6 ? 1 : 0;
-    const visUniform = makeBuffer(96, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+    const visUniform = makeBuffer(b.uniformBytes, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
     device.queue.writeBuffer(visUniform, 0, bytes);
     visGroups.push(
       device.createBindGroup({

@@ -140,9 +140,12 @@ export type ClusterRoot<T> = {
    *  builds a page without a box declares nothing: that is the only contract that makes the
    *  omission visible. */
   boxes?: boolean;
-  /** True while the row this root was collected from is parked: every cut skips the root, and
-   *  its tables stay as they are, ready for the row to be taken back (`placement/rows.ts`). */
+  /** True while the row this root was collected from is parked, or its source node hidden: every
+   *  cut skips the root, and its tables stay as they are, ready to be taken back
+   *  (`placement/rows.ts`, `placement/hidden.ts`). */
   parked?: boolean;
+  /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
+  hidden?: boolean;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };
