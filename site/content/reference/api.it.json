@@ -5218,6 +5218,7 @@
       "counts": "Ciò che ha fatto l’ultimo piano, in pagine.",
       "worldChanged": "Un nodo si è mosso: il suo box invalida le pagine che copre al piano successivo.",
       "representationChanged": "Lo stesso mondo a un’altra precisione: il suo box attende che la camera si fermi.",
+      "resting": "La camera era ferma all'ultimo piano: la sua vista era quella del piano precedente.",
       "deferredChanges": "Vero finché un cambio di rappresentazione attende che la camera si fermi.",
       "releaseDeferred": "Il fotogramma non pianifica alcuna ombra: l’unione trattenuta entra subito nella lista.",
       "observeCost": "Timer del passaggio Ombre di un fotogramma, ripartito sulle pagine che ha disegnato.",

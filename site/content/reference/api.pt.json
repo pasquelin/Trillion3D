@@ -2954,6 +2954,7 @@
       "counts": "O que o último plano fez, em páginas.",
       "worldChanged": "Um nó moveu-se: a sua caixa invalida as páginas que cobre no plano seguinte.",
       "representationChanged": "O mesmo mundo com outra precisão: a sua caixa espera que a câmera pare.",
+      "resting": "A câmera estava em repouso no último plano: sua vista era a do plano anterior.",
       "deferredChanges": "Verdadeiro enquanto uma mudança de representação espera que a câmera pare.",
       "releaseDeferred": "O quadro não planeja nenhuma sombra: a união retida entra na lista de imediato.",
       "observeCost": "Temporizador do passe Sombras de um quadro, repartido pelas páginas que desenhou.",
