@@ -109,7 +109,8 @@ test('a representation change under an unlit frame stales its pages once the vie
   assert.equal(plan.deferredChanges, false, 'the unlit frame holds no change');
   store.setView('auto');
   planAt(2);
-  assert.equal(plan.counts.invalidatedPages, 2, 'the first lit plan stales the changed pages');
+  // The page, and the four floor pages the view reaches: the sun asks for them every frame.
+  assert.equal(plan.counts.invalidatedPages, 1 + 4, 'the first lit plan stales the changed pages');
 });
 
 test('pages a plan left pending hold nothing once the view is unlit or the light is gone', () => {
