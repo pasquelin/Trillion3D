@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { worldBudget } from './worldBudget.ts';
+import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import {
@@ -15,7 +15,8 @@ import type { WorldRenderer } from '../capability/worldReady.ts';
 const budget = (
   renderer: WorldRenderer | null,
   frame: Partial<FrameMetrics> | null,
-  pools: { texturePool?: number; geometryPool?: number; gpu?: number; cpu?: number } = {},
+  asked: Omit<Pools, 'pageCache'> = {},
+  pools: Pools = Object.assign(worldPools(), asked),
 ) =>
   worldBudget(pools, { explorer: null }, { last: frame as FrameMetrics | null }, () => renderer, {
     ...DEFAULT_PHYSICS_BUDGET,
@@ -70,12 +71,15 @@ test("the default totals split into each pool's own default", () => {
 
 test('a GPU total redraws every pool by the split, and the pools never sum past it', () => {
   for (const total of [SHADOW_POOL_BYTES + 2 * MiB, SHADOW_POOL_BYTES + 300 * MiB, 8192 * MiB]) {
-    const pools: { geometryPool?: number; texturePool?: number } = {};
-    const handle = budget('webgpu', null, pools);
+    const pools = worldPools();
+    const handle = budget('webgpu', null, {}, pools);
     handle.gpu = total;
     const { shadowPool, geometryPool, texturePool } = handle.split;
     assert.ok(shadowPool + geometryPool + texturePool <= total, `${total}`);
-    assert.deepEqual(pools, { gpu: total, geometryPool, texturePool });
+    assert.deepEqual(
+      { ...pools, pageCache: undefined },
+      { gpu: total, geometryPool, texturePool, pageCache: undefined },
+    );
     // A pool set alone stays within what the total leaves it.
     handle.geometryPool = DEFAULT_GEOMETRY_POOL_BUDGET;
     handle.texturePool = DEFAULT_TEXTURE_POOL_BUDGET;
@@ -84,11 +88,26 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
 });
 
 test('a total the rule cannot take is refused by name and changes nothing', () => {
-  const pools: { gpu?: number; cpu?: number } = {};
-  const handle = budget('webgpu', null, pools);
+  const pools = worldPools();
+  const handle = budget('webgpu', null, {}, pools);
   assert.throws(() => (handle.gpu = 0), /INVALID_GPU_BUDGET/);
   assert.throws(() => (handle.cpu = 1.5), /INVALID_CPU_BUDGET/);
-  assert.deepEqual(pools, {});
+  assert.deepEqual({ ...pools, pageCache: undefined }, { pageCache: undefined });
+  assert.equal(pools.pageCache.cpuBytes, DEFAULT_CPU_BUDGET);
   handle.cpu = 64 * MiB;
   assert.equal(handle.split.pageCache, 64 * MiB);
+});
+
+test("a CPU total applies live to the world's page cache, the one every session reads through", () => {
+  const pools = worldPools();
+  const handle = budget('webgpu', null, {}, pools);
+  const page = new Uint8Array(MiB);
+  for (let i = 0; i < 8; i++) pools.pageCache.touch(`p${i}`, page);
+  handle.cpu = 3 * MiB;
+  assert.equal(pools.pageCache.cpuBytes, 3 * MiB);
+  // No session reads: pages leave oldest first, at once, not at the next scene load.
+  assert.deepEqual([...pools.pageCache.pages.keys()], ['p5', 'p6', 'p7']);
+  // Every session the world opens — a reopen after a device loss among them — reads this cache.
+  assert.equal(sessionPools(pools).pageCache, pools.pageCache);
+  assert.equal(sessionPools(pools).pageCache, sessionPools(pools).pageCache);
 });
