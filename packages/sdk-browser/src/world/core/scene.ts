@@ -21,9 +21,11 @@ export interface LoadOptions {
   stream?: unknown;
   /** Where the model's origin goes in the scene. */
   position?: readonly [number, number, number] | { x: number; y: number; z: number };
-  /** Hears how far the load has got: `manifest` once the manifest is read, then `resources`
-   *  as each file the scene reads lands (`completed` of `total` known so far). The event is a
-   *  `JobProgress`: a `createJob` wrapping the load passes its `progress` here. */
+  /** Hears how far the load has got: `bytes` at each chunk of every file read, up to
+   *  `completed === total`; `manifest` once the manifest is read, `tables` once the scene tables
+   *  are, then `resources` as each file the scene reads lands (`completed` of `total` known so
+   *  far). The event is a `JobProgress`: a `createJob` wrapping the load passes its `progress`
+   *  here, and `world.awaitPages` hears the first pages on the same shape. */
   onProgress?: (event: JobProgress) => void;
 }
 

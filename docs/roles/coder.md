@@ -17,7 +17,7 @@ run by the measurer after the merge.
    `--group native` (Rust and the unit suite).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
 6. Push, then `gh pr create --base develop` with the body on `.github/PULL_REQUEST_TEMPLATE.md`:
-   `Closes #<n>`, what changed, the proof run, and under "Local review before push" what you
+   `Closes #<n>` (or `Part of #<n>` when the brief leaves part of the issue out), what changed, the proof run, and under "Local review before push" what you
    checked of your own diff. The reviewer completes that section.
 7. Return the pull request URL and what remains unproven. Stop there.
 

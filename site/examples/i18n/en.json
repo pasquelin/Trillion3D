@@ -1811,6 +1811,26 @@
       "sound": "M sound"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Watch the bar fill as the world arrives. Press Load again to see it from the first byte.",
+    "controls": {
+      "loadAgain": "Load again"
+    },
+    "readouts": {
+      "phase": "Step",
+      "bytes": "Bytes",
+      "pages": "First pages"
+    },
+    "words": {
+      "credit": "Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md",
+      "bytes": "reading bytes",
+      "manifest": "manifest read",
+      "tables": "scene tables read",
+      "resources": "scene files",
+      "pages": "first pages",
+      "ready": "ready"
+    }
+  },
   "waves-of-points": {
     "banner": "Drag to turn around the field. Pick a pattern to change the waves.",
     "controls": {
