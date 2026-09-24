@@ -166,6 +166,7 @@ export function createPlay(options: PlayOptions) {
       sim.dispose();
       keys.dispose();
       hud.dispose();
+      scene.dispose();
     },
   };
 }

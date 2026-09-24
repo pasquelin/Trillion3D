@@ -18,6 +18,8 @@ export type View = {
   night(on: boolean): void;
   /** Model names asked for by a mover that no model answers; those movers are not drawn. */
   missing: string[];
+  /** Takes everything it added back out of the scene. */
+  dispose(): void;
 };
 
 const HEADLIGHT = 400;
@@ -82,9 +84,10 @@ export function view(
     }
     return { root: build(spec).root, spec };
   });
-  for (const built of [car, plane, ...parkedCars, ...parkedPlanes, ...traffic, ...people])
-    scene.add(built.root);
-  for (const mover of movers) if (mover) scene.add(mover.root);
+  const roots = [car, plane, ...parkedCars, ...parkedPlanes, ...traffic, ...people, ...movers]
+    .filter((built) => built !== null)
+    .map((built) => built.root);
+  scene.add(...roots);
   car.root.visible = plane.root.visible = false;
   let spin = 0;
   const wheelsOf = (built: Built, c: Client, at: number, t: number) =>
@@ -97,6 +100,7 @@ export function view(
     );
   return {
     missing,
+    dispose: () => scene.remove(...roots),
     night(on) {
       for (const lamp of car.lamps) lamp.intensity = on ? HEADLIGHT : 0;
       for (const beam of beams) beam.intensity = on ? HEADLIGHT * 20 : 0;
