@@ -35,7 +35,7 @@ const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
  */
 export function createPhysicsPoses(maxBodies: number, root: Object3D) {
   const to = new Float32Array(maxBodies * 7);
-  /** The bodies' last step (`PhysicsState`): what `physics.velocity` and `asleep` read. */
+  /** The bodies' last step (`ObjectPhysics._state`): what `physics.velocity` and `asleep` read. */
   const state = {
     asleep: new Uint8Array(maxBodies),
     velocity: new Float32Array(maxBodies * 6),

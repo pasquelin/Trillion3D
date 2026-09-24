@@ -411,7 +411,7 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
   angular velocities of its records, one interval at most: a slow worker shows slow motion, never
   a held frame. Receive and draw are typed-array loops: a body's node keeps its position,
   quaternion and scale in the placer's flat arrays (`ObservedComponents._share`), its velocity and
-  sleep are read from the session's arrays when asked (`PhysicsState`), each frame lerps from the
+  sleep are read from the session's arrays when asked (`ObjectPhysics._state`), each frame lerps from the
   pose drawn toward the tick's, and the pose is written into the transform tree, the angles
   derived when read (`placer.ts`); each body's world matrix is composed straight into the row of
   the instance buffer the renderer draws it from (`SceneLink.seat`), and the world hears the
