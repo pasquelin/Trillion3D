@@ -3102,6 +3102,7 @@
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts",
         "scripts/docs/examples/chess-pieces.ts",
         "scripts/docs/examples/mesh.ts",
         "scripts/docs/examples/models.ts",
@@ -4368,7 +4369,8 @@
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntimeLights.test.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/light/light\".light"
@@ -4711,6 +4713,7 @@
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts",
         "tests/browser/support/materialFixtures.ts"
       ],
       "disposition": "retained",
@@ -4804,7 +4807,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["scripts/docs-examples-water.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/index\".math"
     },
@@ -5365,6 +5368,7 @@
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "scripts/docs-examples-water.test.ts",
         "scripts/docs-scene-editor.test.ts"
       ],
       "disposition": "retained",
@@ -5415,6 +5419,7 @@
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
+        "scripts/docs-examples-water.test.ts",
         "site/app/editor/GeometryFields.tsx",
         "site/app/editor/Inspector.tsx",
         "site/app/editor/Outliner.tsx",
@@ -6570,6 +6575,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/page/selection/bundleDependencies.test.ts",
+        "packages/sdk-browser/src/page/selection/bundleDependencies.ts",
         "packages/sdk-browser/src/page/selection/helpers.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/scene/primitiveLookup.test.ts",
@@ -6594,6 +6601,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/page/selection/bundleDependencies.test.ts",
+        "packages/sdk-browser/src/page/selection/bundleDependencies.ts",
         "packages/sdk-browser/src/page/selection/helpers.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/scene/primitiveLookup.test.ts",
@@ -9314,7 +9323,8 @@
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/physics/water.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
-        "scripts/bench-fluids.ts"
+        "scripts/bench-fluids.ts",
+        "scripts/docs-examples-water.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/fluids/buoyancy\".WaterSpec"
@@ -9326,7 +9336,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/worldPhysics.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/worldPhysics.ts",
+        "scripts/docs-examples-water.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/fluids/waterSurface\".WaterSurface"
     },

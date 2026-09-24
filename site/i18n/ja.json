@@ -328,6 +328,7 @@
     "missing": {
       "colours-on-the-vertices": "WebGPUでの頂点カラー",
       "dashed-lines": "破線",
+      "floating-crates": "毎フレーム書き換えるジオメトリ",
       "thick-lines": "太い線",
       "a-line-that-draws-itself": "ジオメトリの描画範囲",
       "shapes-from-an-svg": "SVGパスの読み込み",
