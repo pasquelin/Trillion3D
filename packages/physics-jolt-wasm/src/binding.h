@@ -119,6 +119,8 @@ void leaveAll(uint32_t engine);
 JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
 /// Writes the leaves a full event buffer held back at the last step, before anything else.
 void sendOwedLeaves();
+/// Runs the BUOYANCY command at `w` (`buoyancy.cpp`); returns its word count.
+uint32_t runBuoyancy(const uint32_t *w);
 /// Writes the poses of the dynamic bodies that moved during the step; returns their count.
 uint32_t writePoses();
 
