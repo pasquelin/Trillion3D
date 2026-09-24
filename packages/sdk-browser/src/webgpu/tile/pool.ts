@@ -64,20 +64,16 @@ export type TilePoolOptions = {
   layers: number;
 };
 
-export function createWebgpuTilePool(
-  device: TilePoolDevice,
-  options: TilePoolOptions,
-): WebgpuTilePool {
+/** The texture a pool of this shape holds: what the pool creates, and what a probe asks the device
+ *  for before the pool is drawn (`../residency/poolGrants.ts`). */
+export function tilePoolTexture(options: TilePoolOptions) {
   const { layers, format, texelBytes } = options;
   if (!Number.isSafeInteger(layers) || layers < 1) throw new Error('TEXTURE_POOL_LAYERS');
-  const tiles = layers * TILES_PER_LAYER;
-  const perTile = tileBytes(texelBytes);
   // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination; a block
   // format cannot be one, and no browser image is ever copied into it.
   const attachment = texelBytes === 1 ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
-  const label = `Trillion3D texture pool ${options.kind} ${options.lane}`;
-  const texture = device.createTexture({
-    label,
+  return {
+    label: `Trillion3D texture pool ${options.kind} ${options.lane}`,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
     format,
     usage:
@@ -85,7 +81,19 @@ export function createWebgpuTilePool(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC |
       attachment,
-  });
+  };
+}
+
+export function createWebgpuTilePool(
+  device: TilePoolDevice,
+  options: TilePoolOptions,
+): WebgpuTilePool {
+  const descriptor = tilePoolTexture(options);
+  const { layers, texelBytes } = options;
+  const tiles = layers * TILES_PER_LAYER;
+  const perTile = tileBytes(texelBytes);
+  const label = descriptor.label;
+  const texture = device.createTexture(descriptor);
   const owner = new Int32Array(tiles).fill(-1),
     lastUse = new Uint32Array(tiles),
     pinned = new Uint8Array(tiles);
