@@ -9,13 +9,13 @@ import type { Scene } from './scene.ts';
 export function createWorldBackground(scene: Scene) {
   let written: number | undefined;
   return {
-    /** Writes the colour when it differs from the last one written; false when the session
-     *  cannot take it in place, and only a new one will show it. */
-    write(session: MeasuredWorld) {
+    /** Writes the colour when it differs from the last one written; when the session cannot
+     *  take it in place, asks `reopen` for a new one, after the frame this one draws. */
+    write(session: MeasuredWorld, reopen: () => void) {
       const hex = scene.background?.getHex();
-      if (hex === written) return true;
+      if (hex === written) return;
       written = hex;
-      return session.setClearColor(hex);
+      if (!session.setClearColor(hex)) queueMicrotask(reopen);
     },
   };
 }

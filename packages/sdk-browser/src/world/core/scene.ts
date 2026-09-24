@@ -55,13 +55,13 @@ export class Scene extends Object3D {
     return this._background;
   }
   set background(value: Color | null) {
-    if (value !== null && typeof (value as { getHex?: unknown }).getHex !== 'function')
+    if (value != null && typeof (value as { getHex?: unknown }).getHex !== 'function')
       throw new EngineError(
         'UNSUPPORTED_SCENE_UPDATE',
         'scene.background takes a colour or null: a picture background is not drawn',
       );
     if (this._background) unlisten(this._background, this.recoloured);
-    this._background = value;
+    this._background = value ?? null;
     if (value) listen(value, this.recoloured);
     this.recoloured();
   }
