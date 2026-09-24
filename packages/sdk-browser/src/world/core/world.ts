@@ -1,5 +1,5 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { cameraSceneLink } from './worldLink.ts';
+import { cameraAdopter } from './worldLink.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
@@ -76,11 +76,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   });
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   /** The camera outside the scene still redraws when it moves. */
-  const cameraLink = cameraSceneLink(invalidate);
-  const adopt = (next: Camera) => {
-    if (!next._link) next._link = cameraLink;
-    return next;
-  };
+  const adopt = cameraAdopter(invalidate);
   adopt(camera);
   const controls = worldControlsHandle(
     options.controls ?? 'none',
@@ -134,13 +130,19 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       live()?.setPixelError(value);
       invalidate();
     },
-    /** Light bounced off the surfaces; off by default (`worldSwitches`). */ get bounce() {
+    /** Light bounced off the surfaces, traced against the resident proxy; off by default. A
+     *  change is applied in place on a path that carries it, and taken by the next opening on
+     *  one that does not. */
+    get bounce() {
       return switches.bounce;
     },
     set bounce(on: boolean) {
       switches.bounce = on;
     },
-    /** Temporal antialiasing; on by default (`worldSwitches`). */ get temporalAntialiasing() {
+    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it
+     *  takes effect at the next frame, history dropped, no session reopened. Read, it is what the
+     *  image carries: false on WebGL2, and while the program compiles after it was turned on. */
+    get temporalAntialiasing() {
       return switches.temporalAntialiasing;
     },
     set temporalAntialiasing(on: boolean) {

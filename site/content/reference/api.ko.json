@@ -3828,6 +3828,10 @@
     "summary": "표면에서 반사된 빛. 상주 프록시에 대해 추적됨; 기본값은 꺼짐.",
     "description": "이를 지원하는 경로에서는 변경이 즉시 적용되고, 지원하지 않는 경로에서는 다음에 열릴 때 적용된다."
   },
+  "world.temporalAntialiasing": {
+    "summary": "시간적 안티앨리어싱: 프레임에 걸쳐 누적되는 서브픽셀 흔들림; 기본값은 켜짐.",
+    "description": "쓰면 다음 프레임부터 적용되고, 기록은 버려지며, 세션을 다시 열지 않는다. 읽으면 이미지가 실제로 지닌 값: WebGL2에서는 false, 켠 뒤 프로그램이 컴파일되는 동안에도 false."
+  },
   "world.budget": {
     "summary": "월드의 메모리 풀, 바이트 단위로 읽고 쓴다.",
     "members": {
@@ -4006,7 +4010,8 @@
       "pixelRatio": "화면 픽셀 하나당 이미지 픽셀 수.",
       "controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
       "signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
-      "physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다."
+      "physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
+      "temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다."
     }
   },
   "WorldPageSource": {
@@ -4626,7 +4631,8 @@
       "options.pixelRatio": "화면 픽셀 하나당 이미지 픽셀 수.",
       "options.controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
       "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
-      "options.physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다."
+      "options.physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
+      "options.temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다."
     }
   },
   "crossVector3": {

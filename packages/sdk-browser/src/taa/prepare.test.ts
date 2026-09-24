@@ -1,36 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { inertTaaDevice } from './device.fixture.ts';
 import { prepareTemporalAntialiasing, setWebgpuTemporalAntialiasing } from './prepare.ts';
 import { TAA_CAPABILITY } from './capability.ts';
 import { beginTaaFrame, taaSettled } from './frame.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
 
-/** A device whose every creation answers an inert object. */
-function device() {
-  Object.assign(globalThis, {
-    GPUBufferUsage: { UNIFORM: 64, COPY_DST: 8, STORAGE: 128 },
-    GPUShaderStage: { FRAGMENT: 2 },
-    GPUTextureUsage: { RENDER_ATTACHMENT: 16, TEXTURE_BINDING: 4 },
-  });
-  const inert = () => ({ destroy() {}, createView: () => ({}) }) as never;
-  return {
-    createBuffer: inert,
-    createTexture: inert,
-    createBindGroupLayout: inert,
-    createPipelineLayout: inert,
-    createSampler: inert,
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
-    createRenderPipelineAsync: async () => ({}),
-    queue: { writeBuffer() {} },
-  } as unknown as GPUDevice;
-}
-
 function runtime(temporalAntialiasing: boolean) {
   let changed = 0;
   const rt = {
     context: { temporalAntialiasing },
-    gpu: { temporal: undefined, temporalWanted: true, device: device(), targetBytes: 0 },
+    gpu: { temporal: undefined, temporalWanted: true, device: inertTaaDevice(), targetBytes: 0 },
     capabilities: { unsupported: [TAA_CAPABILITY] },
     layout: { selectionRoots: [] },
     signal: new AbortController().signal,

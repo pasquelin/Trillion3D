@@ -932,6 +932,7 @@
         "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
         "packages/sdk-browser/src/world/core/worldControlsPause.test.ts",
+        "packages/sdk-browser/src/world/core/worldLink.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.test.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
