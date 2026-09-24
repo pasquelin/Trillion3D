@@ -42,7 +42,7 @@ test('a mesh diagnostic swaps in the triangle colouring and hands the source bac
   assert.equal(copy, triangleGeometry(geometry, hostDiagnostics));
   assert.equal(overlays.length, 2, 'the copy’s release and the triangle surface');
   assert.equal(mesh.material, overlays[1]);
-  assert.equal((mesh.material as THREE.Material).side, THREE.DoubleSide);
+  assert.equal((overlays[1] as THREE.Material).side, THREE.DoubleSide);
   applyMeshDiagnostic(mesh, 'beauty', overlays, hostDiagnostics);
   assert.equal(mesh.geometry, geometry);
   assert.equal(mesh.material, material);

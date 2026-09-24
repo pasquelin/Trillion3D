@@ -10,7 +10,7 @@ import {
   quadIndices,
   frontCamera,
 } from './pagesBackendScenes.fixture.ts';
-import { submittedDraws } from '../cluster/batchMesh.ts';
+import { drawWorld, submittedDraws } from '../cluster/batchMesh.ts';
 
 test('exact pages keep replica meshes in separate batches despite shared glTF ids', () => {
   const { geometry, material, mesh: m1, source } = quadScene();
@@ -49,7 +49,7 @@ test('exact pages keep replica meshes in separate batches despite shared glTF id
   assert.equal(backend.metrics().clusters, 4);
   assert.equal(meshes().length, 2);
   const xs = meshes()
-    .map((mesh) => mesh.matrix.elements[12])
+    .map((mesh) => drawWorld(mesh)[12])
     .sort((a, b) => a - b);
   assert.deepEqual(xs, [0, 2]);
   backend.dispose();
