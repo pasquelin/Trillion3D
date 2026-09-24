@@ -44,7 +44,7 @@ Each role is `docs/roles/<role>.md`.
 | lead     | maintainer | owns one domain, delegates, merges, labels                        | writes code, measures        |
 | coder    | lead       | implements one issue, opens the pull request                      | merges, measures             |
 | reviewer | lead       | simplification then correctness pass on one pull request, verdict | merges, measures             |
-| measurer | maintainer | the one queue of browser proofs and benchmarks, on merged batches | edits code, merges           |
+| measurer | maintainer | browser proofs, benchmarks and example thumbnails, after merge    | edits code, merges           |
 | auditor  | maintainer | re-reads every merge on `develop` against CONTRIBUTING.md         | edits code, merges, measures |
 | writer   | anyone     | writes one issue on the template, from its patterns               | codes, measures              |
 

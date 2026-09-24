@@ -16,6 +16,9 @@ rule 2).
    - no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured and never
      estimated;
    - reuse: nothing that duplicates an existing mechanism, even under another name;
+   - examples: an example added or taken out of parking has its thumbnail
+     (`site/assets/examples/thumbnails/<id>.png`), or its issue carries `to measure` for the
+     measurer's capture; an example whose issue is closed is out of parking;
    - CONTRIBUTING.md §Quality and evidence and §Engine and package boundaries;
    - the path: issue, reviewer's passes filled in, `validate` green, the right lifecycle label.
 4. **Verdict.**
