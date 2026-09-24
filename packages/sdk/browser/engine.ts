@@ -123,6 +123,7 @@ export type {
   JointLimits,
   JointMotor,
   JointOptions,
+  SixDofAxis,
 } from '../../sdk-core/src/physics/joint.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
