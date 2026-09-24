@@ -26,3 +26,14 @@ test('an engine error of a code no page can test is the fallback, the original i
   const worded = new EngineError('PAGE_HTTP_404', 'WEBGPU_LOST');
   assert.equal(engineErrorOf(worded, 'FALLBACK', 'x').code, 'FALLBACK');
 });
+
+test('an object that is no error says its message, its code or its JSON, never [object Object]', () => {
+  const said = (cause: unknown) => engineErrorOf(cause, 'FALLBACK', 'Opening failed').message;
+  assert.equal(said({ message: 'adapter refused' }), 'Opening failed: adapter refused');
+  assert.equal(engineErrorOf({ code: 'WEBGPU_LOST' }, 'FALLBACK', 'x').code, 'WEBGPU_LOST');
+  assert.equal(said({ reason: 'gone', at: 3 }), 'Opening failed: {"reason":"gone","at":3}');
+  const cycle: Record<string, unknown> = {};
+  cycle.self = cycle;
+  assert.equal(said(cycle), 'Opening failed: Object (cannot be written out)');
+  assert.doesNotMatch(said(Object.create(null)), /\[object Object\]/);
+});

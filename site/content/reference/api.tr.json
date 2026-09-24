@@ -3944,7 +3944,7 @@
     "members": {
       "mode": "Görünüm modu: normal görsel için `'beauty'`, ya da motorun nasıl çalıştığını gösteren bir mod.",
       "sessions": "Dünyanın şimdiye kadar açtığı oturumlar: birini yeniden açan bir değişiklik burada görünür.",
-      "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU cihazını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`; fırlatılan hata `details.cause` içindedir. Bir oturum açılır açılmaz ya da çizilecek bir şey olmadığında ve hiçbir oturum denenmediğinde `null`.",
+      "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
   },

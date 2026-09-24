@@ -122,8 +122,9 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     },
     /** Why the last session could not open, as a named engine error: its `code` is one of those
      *  documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device), or
-     *  `SESSION_OPEN_FAILED` for a reason without one; the error thrown is in `details.cause`.
-     *  `null` once a session opens, or when there is nothing to draw and no session is tried. */
+     *  `SESSION_OPEN_FAILED` for a reason without one. An `EngineError` of a documented code is
+     *  the one thrown; any other error is converted, and the error thrown is then in
+     *  `details.cause`. `null` from the start of each opening, and when nothing is tried. */
     get error() {
       return error;
     },
@@ -154,8 +155,9 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
       error = engineErrorOf(cause, 'SESSION_OPEN_FAILED', "The world's session failed to open");
       console.error('World session failed to open', cause);
     },
-    /** No session is tried any more: a failure that no longer holds is no longer shown. */
-    idle() {
+    /** A session is about to open, or none is tried: a failure that may no longer hold is no
+     *  longer shown. */
+    opening() {
       error = null;
     },
   };
