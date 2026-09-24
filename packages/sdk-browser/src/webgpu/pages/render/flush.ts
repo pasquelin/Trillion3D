@@ -103,8 +103,9 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 }
 
 /** Settles everything the last render left in flight: texture tiles, residency, timing, the GPU
- *  selection readback and the explicit image readback. */
-export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
+ *  selection readback and the explicit image readback — skipped under `image: false`: a wait for
+ *  pages takes no picture, and a view the world's loop keeps redrawing never holds one still. */
+export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?: boolean } = {}) {
   const { run, gpu, capture, timing, diag, services } = rt,
     gpuDevice = gpu.device;
   // The held-image witness is NOT removed by default: a host that drains every image would then
@@ -146,6 +147,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
     }
   }
   if (
+    options.image !== false &&
     gpuDevice &&
     gpu.colorTexture &&
     !capture.capturing &&

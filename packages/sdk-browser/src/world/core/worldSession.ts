@@ -20,33 +20,16 @@ export function sessionOf(world: object): MeasuredWorld {
 /** The metrics of the last frame `world` drew, null before its first. */
 export const lastFrameOf = (world: object) => worlds.get(world)?.last() ?? null;
 
-/** The one refusal of a session's page wait that says only that the view moved under it. */
-const VIEW_MOVED = 'CAPTURE_CHANGED_DURING_FLUSH';
-const nextFrame = () =>
-  new Promise<void>((resolve) =>
-    typeof requestAnimationFrame === 'function'
-      ? requestAnimationFrame(() => resolve())
-      : resolve(),
-  );
-
 /**
- * `world.awaitPages`: resolves once the pages the CURRENT view reads are resident. The view may
- * move while it waits — an orbit, a resize, the world's own loop —: the wait then follows it to
- * the next frame's view instead of failing. The strict page-and-capture flush, which refuses a
- * view that changed, stays the measurement entry's (`world/session/lifecycle.ts`).
+ * `world.awaitPages`: resolves once the pages the current view reads are resident. It takes no
+ * picture (`image: false`): a world whose loop redraws every frame — a large world streaming, an
+ * animated scene — never holds an image still long enough to read one back, and a wait that asked
+ * for it never settled (#408). A capture reads its own image (`capture.buffer`).
  */
 export async function awaitViewPages(
   runtime: { settled(): Promise<void> },
   session: () => MeasuredWorld | null,
 ) {
-  for (;;) {
-    await runtime.settled();
-    try {
-      await session()?.awaitPages();
-      return;
-    } catch (error) {
-      if ((error as Error)?.message !== VIEW_MOVED) throw error;
-      await nextFrame();
-    }
-  }
+  await runtime.settled();
+  await session()?.awaitPages({ image: false });
 }
