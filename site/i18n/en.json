@@ -305,6 +305,7 @@
       "a-software-rasteriser": "A software rasteriser",
       "sound-from-the-gpu": "Sound from the GPU",
       "falling-boxes": "Falling boxes",
+      "ten-thousand-bodies": "Ten thousand bodies",
       "breaking-things": "Breaking things",
       "cloth-and-rope": "Cloth and rope",
       "soft-bodies": "Soft bodies",
@@ -1053,6 +1054,17 @@
           "See the pieces with <code>world.diagnostic.mode = 'clusters'</code>: each cluster gets its own colour."
         ],
         "tryIt": "Slide the memory down: the pieces grow bigger, the building stays whole. Switch the view to <code>clusters</code> to see them."
+      },
+      "make-things-fall": {
+        "title": "Make things fall",
+        "description": "Turn the physics on and your shapes gain weight: they fall, bump and come to rest.",
+        "steps": [
+          "Give the world <code>physics: true</code>. The simulation runs apart from the drawing, in a <em>worker</em>, so it never slows the picture down.",
+          "Mark the floor <code>'static'</code>: it holds the others and never moves. Mark a box <code>'dynamic'</code>: gravity pulls it.",
+          "The shape comes from the geometry, the weight from the material: <code>physics: 'wood'</code> is light, <code>'metal'</code> is heavy, <code>'rubber'</code> bounces.",
+          "Push a body with <code>applyImpulse</code>, or listen to its <code>contact</code>. Once every body sleeps, nothing is computed and nothing is drawn."
+        ],
+        "tryIt": "Drop more boxes, switch the gravity to the Moon, and turn on slow motion."
       },
       "your-own-scene": {
         "title": "Your own scene",

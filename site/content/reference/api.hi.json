@@ -929,7 +929,10 @@
       "SESSION_OPEN_FAILED": "दुनिया का सत्र नहीं खुल सका, ऐसे कारण से जिसका अपना कोई कोड नहीं है (`world.diagnostic.error`): फेंकी गई त्रुटि `details.cause` में है।",
       "WEBGPU_LOST": "WebGPU ने अपना डिवाइस खो दिया, या उस पर हुई किसी त्रुटि ने ऐसी स्थिति छोड़ी जिससे कुछ भी नहीं खींचा जा सकता: `render`, `flush` और डिवाइस की ज़रूरत वाली रीडिंग इसे फेंकती हैं, डायग्नॉस्टिक `gpu-device-lost` इसे इसी नाम से बताता है, और जब इस कारण कोई सत्र नहीं खुल सका तो यह `world.diagnostic.error` पर दिखता है।",
       "UNSUPPORTED_SCENE_FORMAT": "सहेजा गया दृश्य किसी दूसरे फ़ॉर्मैट या वर्ज़न का है, या उसमें ऐसा कुछ है जो सहेजा गया दृश्य रख नहीं सकता।",
-      "SCENE_NOT_SAVABLE": "सहेजा गया दृश्य किसी दूसरे फ़ॉर्मैट या वर्ज़न का है, या उसमें ऐसा कुछ है जो सहेजा गया दृश्य रख नहीं सकता।"
+      "SCENE_NOT_SAVABLE": "सहेजा गया दृश्य किसी दूसरे फ़ॉर्मैट या वर्ज़न का है, या उसमें ऐसा कुछ है जो सहेजा गया दृश्य रख नहीं सकता।",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1864,7 +1867,11 @@
       "parameters.gapSize": "दो डैश के बीच की खाली जगह की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, बाद में बनी चीज़ छिपाते हुए।",
-      "parameters.depthTest": "क्या सतह पहले से नज़दीक चीज़ों के पीछे छिपती है।"
+      "parameters.depthTest": "क्या सतह पहले से नज़दीक चीज़ों के पीछे छिपती है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     },
     "members": {
       "isMaterial": "हमेशा `true`: एक सामग्री को बाक़ी सब से अलग बताता है।",
@@ -1886,7 +1893,11 @@
       "needsUpdate": "`material.needsUpdate = true`: इसे पहनने वाले मेश दोबारा रंगे जाते हैं।",
       "surface": "इस सामग्री का इंजन का भौतिक सतह रिकॉर्ड (`contracts/material.ts`)। भौतिक परिवार के बाहर एक तरह होस्ट के उसी नाम वाले परिवार से बनाई जाती है, जिसे इंजन अपने एक रोशनी मॉडल पर मैप करता है (`surfaceModel.ts`)।",
       "clone": "उसी तरह की एक नई सामग्री, वही मान लिए।",
-      "dispose": "पहनने वालों को भूल जाता है: फेंकी सामग्री किसी को नहीं रंगती।"
+      "dispose": "पहनने वालों को भूल जाता है: फेंकी सामग्री किसी को नहीं रंगती।",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "Material-common": {
@@ -1932,7 +1943,11 @@
       "gapSize": "दो डैश के बीच की खाली जगह की लंबाई।",
       "vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "depthWrite": "क्या सतह अपनी गहराई लिखती है, बाद में बनी चीज़ छिपाते हुए।",
-      "depthTest": "क्या सतह पहले से नज़दीक चीज़ों के पीछे छिपती है।"
+      "depthTest": "क्या सतह पहले से नज़दीक चीज़ों के पीछे छिपती है।",
+      "physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "MathPath": {
@@ -2066,7 +2081,8 @@
       "primitive": "ज्यामिति के वर्टेक्स कैसे पढ़े जाते हैं: त्रिभुज, बिंदु या रेखाएँ।",
       "geometry": "मेश का आकार; बदलने के लिए दूसरी ज्यामिति सेट करें।",
       "material": "मेश की सामग्री, या हर समूह के लिए एक; बदलने के लिए दूसरी सेट करें।",
-      "localBounds": "इस नोड की अपनी सामग्री का बॉक्स, लोकल फ़्रेम; एक सादा नोड कुछ नहीं रखता।"
+      "localBounds": "इस नोड की अपनी सामग्री का बॉक्स, लोकल फ़्रेम; एक सादा नोड कुछ नहीं रखता।",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -4106,7 +4122,8 @@
       "interactive": "क्या दुनिया अपना लूप चलाती है: यह तब बनाती है जब कुछ बदलता है और कुछ नया न होने पर 120 फ़्रेम के बाद आराम करती है। `false` पेज को ख़ुद `world.render()` बुलाने देता है।",
       "pixelRatio": "प्रति स्क्रीन पिक्सेल कितने इमेज पिक्सेल।",
       "controls": "वह कंट्रोलर जो canvas से कैमरा हिलाता है; `world.controls.kind` इसे बाद में बदलता है।",
-      "signal": "सिग्नल रद्द होने पर दुनिया के लोड रोकता है।"
+      "signal": "सिग्नल रद्द होने पर दुनिया के लोड रोकता है।",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4752,7 +4769,8 @@
       "options.interactive": "क्या world अपना खुद का लूप चलाता है: यह तब चित्रांकित करता है जब कुछ बदलता है और नए के बिना 120 फ़्रेम के बाद रुकता है। `false` पृष्ठ को खुद `world.render()` बुलाने देता है।",
       "options.pixelRatio": "प्रति स्क्रीन पिक्सेल कितने छवि पिक्सेल।",
       "options.controls": "वह नियंत्रक जो कैनवस से कैमरे को हिलाता है; `world.controls.kind` इसे बाद में बदलता है।",
-      "options.signal": "सिग्नल रद्द होने पर world के लोड रोकता है।"
+      "options.signal": "सिग्नल रद्द होने पर world के लोड रोकता है।",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5502,7 +5520,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.lineDashed": {
@@ -5536,7 +5558,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshBasic": {
@@ -5570,7 +5596,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshDepth": {
@@ -5604,7 +5634,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshLambert": {
@@ -5638,7 +5672,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshMatcap": {
@@ -5672,7 +5710,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshNormal": {
@@ -5706,7 +5748,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshPhong": {
@@ -5740,7 +5786,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshPhysical": {
@@ -5774,7 +5824,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshStandard": {
@@ -5808,7 +5862,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.meshToon": {
@@ -5842,7 +5900,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.points": {
@@ -5876,7 +5938,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.shadow": {
@@ -5910,7 +5976,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "material.sprite": {
@@ -5944,7 +6014,11 @@
       "parameters.gapSize": "दो डैश के बीच अंतराल की लंबाई।",
       "parameters.vertexColors": "क्या ज्यामिति का प्रति-वर्टेक्स `color` सतह को रंगता है।",
       "parameters.depthWrite": "क्या सतह अपनी गहराई लिखती है, उसके बाद खींची गई चीज़ को छुपाते हुए।",
-      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।"
+      "parameters.depthTest": "क्या सतह उससे पीछे छुपती है जो पहले से करीब है।",
+      "parameters.physics": "इसे पहनने वाले पिंड का पदार्थ: घनत्व, घर्षण, उछाल।",
+      "parameters.density": "kg/m³, आयतन से गुणा करने पर द्रव्यमान।",
+      "parameters.friction": "पिंड कितना पकड़ता है, 0 और ऊपर।",
+      "parameters.restitution": "पिंड कितना उछलता है, 0 से 1।"
     }
   },
   "materialSide": {
@@ -6656,7 +6730,8 @@
       "geometryPoolCeiling": "सबसे बड़े पूल जो एक world माँग सकता है: इंजन के शुरुआती बजट।",
       "texturePoolCeiling": "सबसे बड़ा texture पूल जो एक world माँग सकता है, बाइट्स में।",
       "geometryPool": "ज्यामिति पृष्ठों के लिए रखी गई GPU मेमोरी के बाइट्स; लिफ़ाफ़ा बदलने के लिए इसे सेट करें।",
-      "texturePool": "texture पृष्ठों के लिए रखी गई GPU मेमोरी के बाइट्स; लिफ़ाफ़ा बदलने के लिए इसे सेट करें।"
+      "texturePool": "texture पृष्ठों के लिए रखी गई GPU मेमोरी के बाइट्स; लिफ़ाफ़ा बदलने के लिए इसे सेट करें।",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6910,6 +6985,18 @@
       "counts": "प्रति नोड: पत्ते की त्रिभुज संख्या, आंतरिक नोड के लिए 0।",
       "bytes": "पेड़ जितने बाइट रखता है।",
       "triangleCount": "पेड़ जितने त्रिभुज रखता है।"
+    }
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
     }
   }
 }

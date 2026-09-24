@@ -52,3 +52,15 @@ export const MAX_EVENTS = 4096;
  */
 export const resultBytes = (budget: PhysicsBudget) =>
   (budget.bodies * POSE_WORDS + MAX_EVENTS * EVENT_WORDS) * 4;
+
+/** What the world's physics reports: counts from the last tick, and both clocks apart. */
+export interface PhysicsStats {
+  /** Bodies the simulation holds. */ bodies: number;
+  /** Bodies awake after the last tick. */ active: number;
+  /** Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's. */
+  stepMs: number;
+  /** Page milliseconds the physics took in the last frame (the `physics` CPU stage). */
+  mainMs: number;
+  /** Poses the last tick sent back. */ poses: number;
+  /** Contact events the last tick sent back. */ events: number;
+}

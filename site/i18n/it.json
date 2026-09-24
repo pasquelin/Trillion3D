@@ -305,6 +305,7 @@
       "a-software-rasteriser": "Un rasterizzatore software",
       "sound-from-the-gpu": "Suono dalla GPU",
       "falling-boxes": "Scatole che cadono",
+      "ten-thousand-bodies": "Diecimila corpi",
       "breaking-things": "Rompere oggetti",
       "cloth-and-rope": "Stoffa e corda",
       "soft-bodies": "Corpi morbidi",
@@ -1053,6 +1054,17 @@
           "Vedi i pezzi con <code>world.diagnostic.mode = 'clusters'</code>: ogni cluster riceve il proprio colore."
         ],
         "tryIt": "Abbassa la memoria con il controllo: i pezzi diventano più grandi, l'edificio resta intero. Cambia la vista su <code>clusters</code> per vederli."
+      },
+      "make-things-fall": {
+        "title": "Far cadere le cose",
+        "description": "Accendi la fisica e le tue forme prendono peso: cadono, urtano e si fermano.",
+        "steps": [
+          "Dai al mondo <code>physics: true</code>. La simulazione gira a parte dal disegno, in un <em>worker</em>, e non rallenta mai l’immagine.",
+          "Segna il pavimento <code>'static'</code>: regge gli altri e non si muove mai. Segna una scatola <code>'dynamic'</code>: la gravità la attira.",
+          "La forma viene dalla geometria, il peso dal materiale: <code>physics: 'wood'</code> è leggera, <code>'metal'</code> pesante, <code>'rubber'</code> rimbalza.",
+          "Spingi un corpo con <code>applyImpulse</code> o ascolta il suo <code>contact</code>. Quando tutti dormono, nulla è calcolato né disegnato."
+        ],
+        "tryIt": "Lascia cadere altre scatole, porta la gravità sulla Luna e accendi il rallentatore."
       },
       "your-own-scene": {
         "title": "La tua scena",

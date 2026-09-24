@@ -305,6 +305,7 @@
       "a-software-rasteriser": "ソフトウェアラスタライザー",
       "sound-from-the-gpu": "GPUから鳴る音",
       "falling-boxes": "落ちてくる箱",
+      "ten-thousand-bodies": "一万の物体",
       "breaking-things": "物を壊す",
       "cloth-and-rope": "布とロープ",
       "soft-bodies": "やわらかい物体",
@@ -1053,6 +1054,17 @@
           "<code>world.diagnostic.mode = 'clusters'</code>で断片を見てみよう。クラスターごとに色がつく。"
         ],
         "tryIt": "メモリを減らしてみよう。断片は大きくなるが、建物全体は残る。<code>clusters</code>表示に切りかえると、それが見える。"
+      },
+      "make-things-fall": {
+        "title": "物を落とす",
+        "description": "物理をオンにすると形に重さが生まれる。落ちて、ぶつかり、止まる。",
+        "steps": [
+          "ワールドに <code>physics: true</code> を渡す。シミュレーションは描画とは別の <em>worker</em> で動くので、画面を遅くしない。",
+          "床を <code>'static'</code> にすると他を支えて動かない。箱を <code>'dynamic'</code> にすると重力で落ちる。",
+          "形はジオメトリから、重さはマテリアルから。<code>physics: 'wood'</code> は軽く、<code>'metal'</code> は重く、<code>'rubber'</code> は弾む。",
+          "<code>applyImpulse</code> で押したり、<code>contact</code> を聞いたりできる。すべてが眠ると、計算も描画も止まる。"
+        ],
+        "tryIt": "箱をもっと落とし、重力を月にして、スローをオンにしよう。"
       },
       "your-own-scene": {
         "title": "自分だけのシーン",

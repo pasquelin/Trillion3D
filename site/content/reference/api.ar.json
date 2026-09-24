@@ -929,7 +929,10 @@
       "SESSION_OPEN_FAILED": "تعذّر فتح جلسة العالم لسبب ليس له رمز خاص به (`world.diagnostic.error`): الخطأ المُطلق موجود في `details.cause`.",
       "WEBGPU_LOST": "فقد WebGPU جهازه، أو ترك خطأ عليه حالة لا يمكن الرسم منها: تطلقه `render` و`flush` والقراءات التي تحتاج إلى الجهاز، ويسمّيه التشخيص `gpu-device-lost`، ويظهر في `world.diagnostic.error` عندما تعذّر فتح جلسة بسببه.",
       "UNSUPPORTED_SCENE_FORMAT": "مشهد محفوظ من صيغة أو إصدار آخر، أو يحتوي على ما لا يستطيع المشهد المحفوظ تخزينه.",
-      "SCENE_NOT_SAVABLE": "مشهد محفوظ من صيغة أو إصدار آخر، أو يحتوي على ما لا يستطيع المشهد المحفوظ تخزينه."
+      "SCENE_NOT_SAVABLE": "مشهد محفوظ من صيغة أو إصدار آخر، أو يحتوي على ما لا يستطيع المشهد المحفوظ تخزينه.",
+      "PHYSICS_BUDGET": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_NESTED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`.",
+      "PHYSICS_FAILED": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed (`PHYSICS_FAILED`): on `world.physics.error`."
     }
   },
   "EngineProfiler": {
@@ -1864,7 +1867,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان لون `color` لكل رأس في الهندسة يصبغ السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، مخفيًا ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     },
     "members": {
       "isMaterial": "دائمًا `true`: يميّز مادة عن أي شيء آخر.",
@@ -1886,7 +1893,11 @@
       "needsUpdate": "`material.needsUpdate = true`: تُعاد رسم الشبكات التي ترتديها.",
       "surface": "سجلّ السطح الفيزيائي للمحرك لهذه المادة (`contracts/material.ts`). يُرسم نوع خارج العائلة الفيزيائية عبر عائلة المضيف بنفس اسمه، التي يخطّطها المحرك على نموذج إضاءته الواحد (`surfaceModel.ts`).",
       "clone": "مادة جديدة من النوع نفسه، بالقيم نفسها.",
-      "dispose": "ينسى مرتديها: مادة مُتلَفة لا تُعيد رسم أحد."
+      "dispose": "ينسى مرتديها: مادة مُتلَفة لا تُعيد رسم أحد.",
+      "physics": "Physics matter preset of the bodies wearing it.",
+      "density": "kg/m³, for a body's mass.",
+      "friction": "Physics friction.",
+      "restitution": "Physics restitution."
     }
   },
   "Material-common": {
@@ -1932,7 +1943,11 @@
       "gapSize": "طول الفجوة بين شرطتين.",
       "vertexColors": "ما إذا كان لون `color` لكل رأس في الهندسة يصبغ السطح.",
       "depthWrite": "ما إذا كان السطح يكتب عمقه، مخفيًا ما يُرسم بعده.",
-      "depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "MathPath": {
@@ -2066,7 +2081,8 @@
       "primitive": "كيف تُقرأ رؤوس الهندسة: مثلثات، نقاط أو خطوط.",
       "geometry": "شكل الشبكة؛ اضبط هندسة أخرى لتغييرها.",
       "material": "مادة الشبكة، أو واحدة لكل مجموعة؛ اضبط أخرى لتغييرها.",
-      "localBounds": "صندوق محتوى هذه العقدة الخاص، إطار محلي؛ عقدة عادية لا تحمل شيئًا."
+      "localBounds": "صندوق محتوى هذه العقدة الخاص، إطار محلي؛ عقدة عادية لا تحمل شيئًا.",
+      "physics": "The mesh as a body of the world's physics, `null` when it is none. Set `'static'`, `'dynamic'`, `'kinematic'` or options; the shape is inferred from the geometry."
     }
   },
   "Mixer": {
@@ -4106,7 +4122,8 @@
       "interactive": "ما إذا كان العالم يشغّل حلقته الخاصة: يرسم عندما يتغيّر شيء ويرتاح بعد 120 إطارًا دون جديد. `false` تدع الصفحة تستدعي `world.render()` بنفسها.",
       "pixelRatio": "كم بكسل صورة لكل بكسل شاشة.",
       "controls": "أداة التحكّم التي تحرّك الكاميرا من الـ canvas؛ `world.controls.kind` تغيّرها لاحقًا.",
-      "signal": "يوقف تحميلات العالم عند إلغاء الإشارة."
+      "signal": "يوقف تحميلات العالم عند إلغاء الإشارة.",
+      "physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "WorldPageSource": {
@@ -4752,7 +4769,8 @@
       "options.interactive": "ما إذا كان العالم يُشغِّل حلقته الخاصة: يرسم عندما يتغيّر شيء ما ويرتاح بعد 120 إطارًا دون جديد. `false` تدع الصفحة تستدعي `world.render()` بنفسها.",
       "options.pixelRatio": "كم بكسل صورة لكل بكسل شاشة.",
       "options.controls": "المتحكِّم الذي يحرّك الكاميرا من اللوحة؛ `world.controls.kind` يغيّره لاحقًا.",
-      "options.signal": "يوقف تحميلات العالم عند إلغاء الإشارة."
+      "options.signal": "يوقف تحميلات العالم عند إلغاء الإشارة.",
+      "options.physics": "Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only then."
     }
   },
   "crossVector3": {
@@ -5502,7 +5520,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.lineDashed": {
@@ -5536,7 +5558,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshBasic": {
@@ -5570,7 +5596,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshDepth": {
@@ -5604,7 +5634,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshLambert": {
@@ -5638,7 +5672,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshMatcap": {
@@ -5672,7 +5710,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshNormal": {
@@ -5706,7 +5748,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshPhong": {
@@ -5740,7 +5786,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshPhysical": {
@@ -5774,7 +5824,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshStandard": {
@@ -5808,7 +5862,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.meshToon": {
@@ -5842,7 +5900,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.points": {
@@ -5876,7 +5938,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.shadow": {
@@ -5910,7 +5976,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "material.sprite": {
@@ -5944,7 +6014,11 @@
       "parameters.gapSize": "طول الفجوة بين شرطتين.",
       "parameters.vertexColors": "ما إذا كان `color` لكل رأس في الهندسة يلوّن السطح.",
       "parameters.depthWrite": "ما إذا كان السطح يكتب عمقه، ويخفي ما يُرسم بعده.",
-      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل."
+      "parameters.depthTest": "ما إذا كان السطح يختبئ خلف ما هو أقرب بالفعل.",
+      "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
+      "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
+      "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
     }
   },
   "materialSide": {
@@ -6656,7 +6730,8 @@
       "geometryPoolCeiling": "أكبر التجمّعات التي يمكن لعالم طلبها: الميزانيات الأولية للمحرك.",
       "texturePoolCeiling": "أكبر تجمّع نسيج يمكن لعالم طلبه، بالبايت.",
       "geometryPool": "بايتات ذاكرة GPU المحتفَظ بها لصفحات الهندسة؛ اضبطها لتغيير الظرف.",
-      "texturePool": "بايتات ذاكرة GPU المحتفَظ بها لصفحات النسيج؛ اضبطها لتغيير الظرف."
+      "texturePool": "بايتات ذاكرة GPU المحتفَظ بها لصفحات النسيج؛ اضبطها لتغيير الظرف.",
+      "physics": "The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the physics starts; exceeding one raises `PHYSICS_BUDGET`."
     }
   },
   "world.camera": {
@@ -6910,6 +6985,18 @@
       "counts": "لكل عقدة: عدد مثلثات الورقة، 0 للعقدة الداخلية.",
       "bytes": "البايتات التي تحتفظ بها الشجرة.",
       "triangleCount": "المثلثات التي تحتفظ بها الشجرة."
+    }
+  },
+  "world.physics": {
+    "summary": "Bodies, gravity and time of the physics (Jolt, in a worker).",
+    "members": {
+      "enabled": "Whether bodies are simulated. Turning it on fetches the physics the first time.",
+      "gravity": "Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) or a vector.",
+      "paused": "Whether time stands still; writes still reach the bodies.",
+      "timeScale": "Simulated seconds per real second: 0.25 is slow motion.",
+      "budget": "The fixed envelopes (`budget.physics`), read once when the physics starts.",
+      "stats": "Counts and both clocks: worker milliseconds per step, page milliseconds per frame.",
+      "error": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`."
     }
   }
 }

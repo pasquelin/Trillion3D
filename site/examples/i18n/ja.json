@@ -1880,5 +1880,33 @@
     "readouts": {
       "streaming": "ストリーミング"
     }
+  },
+  "falling-boxes": {
+    "banner": "「落とす」で箱をあと50個。重力を変えて落ちる様子を見よう。",
+    "controls": {
+      "matter": "素材",
+      "gravity": "重力",
+      "drop": "落とす",
+      "jump": "跳ねる",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ"
+    }
+  },
+  "ten-thousand-bodies": {
+    "banner": "一万個の箱が一斉に落ちる。パネルに物理の負荷がリアルタイムで出る。",
+    "controls": {
+      "count": "個数",
+      "again": "もう一度"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ",
+      "page": "ページ"
+    }
   }
 }
