@@ -10,6 +10,20 @@ import { cameraAt, quad } from '../../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { asHostLibrary } from '../../host/resources.ts';
 
+/** The oracle reads the camera by shape: the engine graph's own camera is handed to it as is. */
+const oracleShade = (
+  ids: Uint32Array,
+  pages: Parameters<typeof referenceShadeVisibility>[1],
+  cam: G.GraphCamera,
+  size: [number, number],
+) =>
+  referenceShadeVisibility(
+    ids,
+    pages,
+    asHostLibrary<Parameters<typeof referenceShadeVisibility>[2]>(cam),
+    size,
+  );
+
 function bitExactPixels(a: Uint8Array, b: Uint8Array) {
   assert.equal(a.length, b.length);
   for (let i = 0; i < a.length; i++)
@@ -28,12 +42,7 @@ function assertQuadLikeReference(
   const cam = cameraAt();
   const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
   const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
-  const reference = referenceShadeVisibility(
-    ids,
-    [page],
-    asHostLibrary<Parameters<typeof referenceShadeVisibility>[2]>(cam),
-    size,
-  );
+  const reference = oracleShade(ids, [page], cam, size);
   bitExactPixels(optimisee, reference);
   geometry.dispose();
   material.dispose();
@@ -43,12 +52,7 @@ test('an empty scene is pure background, bit for bit', () => {
   const cam = cameraAt();
   const ids = new Uint32Array(4);
   const optimisee = shadeVisibility(ids, [], cameraMoteur(cam), [2, 2]);
-  const reference = referenceShadeVisibility(
-    ids,
-    [],
-    asHostLibrary<Parameters<typeof referenceShadeVisibility>[2]>(cam),
-    [2, 2],
-  );
+  const reference = oracleShade(ids, [], cam, [2, 2]);
   bitExactPixels(optimisee, reference);
 });
 
@@ -62,12 +66,7 @@ test('a MeshBasicMaterial quad shades identically, one pixel and many', () => {
   ] as [number, number][]) {
     const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
     const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
-    const reference = referenceShadeVisibility(
-      ids,
-      [page],
-      asHostLibrary<Parameters<typeof referenceShadeVisibility>[2]>(cam),
-      size,
-    );
+    const reference = oracleShade(ids, [page], cam, size);
     bitExactPixels(optimisee, reference);
   }
   geometry.dispose();
