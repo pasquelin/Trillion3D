@@ -3,6 +3,7 @@ import {
   type SceneLight,
   type SceneLightStore,
 } from '../../../sdk-core/src/index.ts';
+import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 /** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json';
@@ -24,11 +25,12 @@ type ImportedLightsFile = {
 export async function loadImportedLights(
   base: string,
   signal?: AbortSignal,
+  meter: ByteMeter = unmetered,
 ): Promise<{ lights: SceneLight[]; rejected: Record<string, number> }> {
   const none = { lights: [], rejected: {} };
   let file: ImportedLightsFile;
   try {
-    const response = await fetch(new URL(IMPORTED_LIGHTS_FILE, base).href, { signal });
+    const response = meter(await fetch(new URL(IMPORTED_LIGHTS_FILE, base).href, { signal }));
     if (!response.ok) return none;
     file = (await response.json()) as ImportedLightsFile;
   } catch {

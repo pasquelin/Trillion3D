@@ -10,6 +10,7 @@
  */
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts';
+import type { ByteMeter } from '../../cluster/byteMeter.ts';
 
 /** Decode options of the host loader: pixels as the file stores them. */
 const BITMAP: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
@@ -23,9 +24,9 @@ async function element(url: string) {
   return image;
 }
 
-async function decodeAddress(url: string, signal: AbortSignal | undefined) {
+async function decodeAddress(url: string, signal: AbortSignal | undefined, meter: ByteMeter) {
   if (typeof createImageBitmap !== 'function') return element(url);
-  const response = await fetch(url, { signal, credentials: 'same-origin' });
+  const response = meter(await fetch(url, { signal, credentials: 'same-origin' }));
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   return createImageBitmap(await response.blob(), BITMAP);
 }
@@ -52,6 +53,8 @@ type Inputs = {
   signal: AbortSignal | undefined;
   /** Wraps each read the way the session counts resources for its progress. */
   track: <T>(resource: string, read: Promise<T>) => Promise<T>;
+  /** Counts the bytes of each image read as they arrive. */
+  meter: ByteMeter;
 };
 
 /** The resolved address of an image's `uri`, as the skip set and the fetch both write it. */
@@ -61,13 +64,14 @@ export const imageAddress = (uri: string, documentUrl: string) => new URL(uri, d
  * The decoded image of each rank of the document, read on first request — only the images a worn
  * surface samples cross the network — or `null` when it could not be read.
  */
-export function preparedImages({ document, documentUrl, binary, skipped, signal, track }: Inputs) {
+export function preparedImages(inputs: Inputs) {
+  const { document, documentUrl, binary, skipped, signal, track, meter } = inputs;
   const read = async (rank: number): Promise<unknown> => {
     const image = document.images[rank];
     if (image.uri !== null) {
       const url = imageAddress(image.uri, documentUrl);
       const address = skipped.has(url) ? PLACEHOLDER_IMAGE : url;
-      return track(address, decodeAddress(address, signal));
+      return track(address, decodeAddress(address, signal, meter));
     }
     if (image.view === null || !binary) throw new Error(`image ${rank} names no source`);
     const view = document.views[image.view];
