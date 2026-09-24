@@ -1,5 +1,4 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
 import { createGeometryBudget, type PageCopies } from './pool.ts';
 import type { BackendDiagnostic } from '../types.ts';
 
@@ -24,7 +23,7 @@ export function fixture(
   for (let i = 0; i < (options.rootPages ?? 0); i++) rootUrls.add(`r${i}`);
   const state = { allocationBytes: 0 },
     resident = new Set<string>(),
-    kept: string[] = [],
+    kept = new Set<string>(),
     dropped: string[] = [];
   let keptCalls = 0,
     rootBytes = 0,
@@ -38,7 +37,6 @@ export function fixture(
     of: () => each,
     root: () => rootUrls.size * each,
     scene: () => count * each,
-    most: () => each,
   };
   const diagnostics: BackendDiagnostic[] = [];
   const pool = createGeometryBudget({
@@ -48,6 +46,7 @@ export function fixture(
     descriptors,
     rootUrls,
     copies,
+    shares: new Map(),
     state,
     floorBytes: () => {
       rootReads++;
@@ -94,7 +93,3 @@ export function fixture(
     rootReads: () => rootReads,
   };
 }
-
-/** Records of a cut: `count` records drawn from `pages` distinct pages. */
-export const records = (count: number, pages = count) =>
-  Array.from({ length: count }, (_, i) => ({ url: `p${i % pages}` }) as PageRec);

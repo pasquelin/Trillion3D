@@ -25,6 +25,7 @@ export type DagPage = Pick<
   | 'group'
   | 'source'
   | 'array'
+  | 'budgetShare'
 >;
 
 /**

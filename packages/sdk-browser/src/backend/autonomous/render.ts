@@ -48,9 +48,11 @@ export function createAutonomousRender(options: {
   bootstrap: PageRec[];
   cap: number;
   sync: () => void;
-  /** The geometry pool: the threshold its budget draws the cut at, the weighing of the cut, and
-   *  the shedding of what it left (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'threshold' | 'admit' | 'trim'>;
+  /** Gathers what the image keeps, once, for the pool and the streamer (`residency.ts`). */
+  collectKept: () => void;
+  /** The geometry pool: the budget the cut fits, the verdict read on it, and the shedding of what
+   *  it left (`pool.ts`). */
+  pool: Pick<ReturnType<typeof createGeometryBudget>, 'bound' | 'settle' | 'trim'>;
 }) {
   const {
     state,
@@ -64,6 +66,7 @@ export function createAutonomousRender(options: {
     bootstrap,
     cap,
     sync,
+    collectKept,
     pool,
   } = options;
   const motion: CameraMotion = {};
@@ -73,6 +76,8 @@ export function createAutonomousRender(options: {
     pixelError: 0,
     viewport: context.viewport,
     holdResident: true,
+    pageBudget: 0,
+    pageBudgetHeld: 0,
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
@@ -89,9 +94,10 @@ export function createAutonomousRender(options: {
       sourcesDessinees,
     );
     if (state.frameHeld) return;
-    // The previous images' verdict: the pool's floor bounds the cut asked for, not only the one
-    // drawn, as the WebGPU cut admission does.
-    selectOptions.pixelError = pool.threshold(gate.pixelError);
+    // The cut fits the pool in this image: it draws coarser until the copies it asks for and draws
+    // fit the slots.
+    selectOptions.pixelError = gate.pixelError;
+    pool.bound(selectOptions);
     // Copied world matrices and lights are a function of the scene only.
     if (gate.updateWorlds(worlds)) lighting.update();
     const selected = selectVisiblePages(roots, gate.cam, selectOptions, shown);
@@ -99,15 +105,14 @@ export function createAutonomousRender(options: {
     state.selectedTriangles = selected.selectedTriangles;
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
-    // A floor that moved is a cut to redo: the next image is not held on this one.
-    if (pool.admit(gate.pixelError, selectOptions.pixelError, gate.revisions.view, desired, shown))
-      gate.resourcesChanged();
+    pool.settle(gate.pixelError, selected);
     state.overBudget = attachedPages(shown) > cap;
     if (state.overBudget) {
       shown.length = 0;
       for (let i = 0; i < bootstrap.length; i++) shown.push(bootstrap[i]);
     }
     sync();
+    collectKept();
     // The pages this cut left can go, once the pool holds more than its budget.
     pool.trim();
     gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
