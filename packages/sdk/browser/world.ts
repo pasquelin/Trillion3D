@@ -122,6 +122,7 @@ export type {
   TransformSnap,
   TransformSpace,
 } from '../../sdk-browser/src/world/controls/transformMath.ts';
+export { TransformNode } from '../../sdk-core/src/world/object/transformNode.ts';
 export { Vector3 } from '../../sdk-core/src/world/math/vector3.ts';
 export type { Vec3Input } from '../../sdk-core/src/world/math/vector3.ts';
 export type { WorldControls } from '../../sdk-browser/src/world/core/worldCamera.ts';

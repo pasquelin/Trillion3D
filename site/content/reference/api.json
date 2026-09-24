@@ -1317,6 +1317,16 @@
         "name": "texturePreviewAstc",
         "type": "ColumnKind",
         "desc": "The previews' ASTC blocks."
+      },
+      {
+        "name": "bundleDependencyCount",
+        "type": "ColumnKind",
+        "desc": "How many bundles each bundle depends on."
+      },
+      {
+        "name": "bundleDependency",
+        "type": "ColumnKind",
+        "desc": "The bundles each bundle depends on, closed to the root cover."
       }
     ],
     "description": ""
@@ -2876,6 +2886,11 @@
         "name": "bundles",
         "type": "number",
         "desc": "Bundles."
+      },
+      {
+        "name": "bundleDependencies",
+        "type": "number",
+        "desc": "Bundle dependencies, every bundle's list concatenated."
       },
       {
         "name": "previews",
@@ -4689,7 +4704,7 @@
     "kind": "Constant",
     "title": "GEOMETRY_PAGE_FORMAT_VERSION",
     "signature": "const GEOMETRY_PAGE_FORMAT_VERSION: 3",
-    "summary": "The geometry-page format a version-7 sidecar names, as the manifest's `geometryPages` declares it once and every page header opens with.",
+    "summary": "The geometry-page format a version-8 sidecar names, as the manifest's `geometryPages` declares it once and every page header opens with.",
     "description": ""
   },
   {
@@ -5604,11 +5619,11 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNode",
-    "signature": "class GraphNode\nnew GraphNode(): HostGraphNode",
-    "summary": "A node of the graph: its name, its pose, its world matrix, its parent and its children.",
+    "signature": "class GraphNode extends Object3D\nnew GraphNode(): HostGraphNode",
+    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied as the reference copies.",
     "members": [
       {
-        "name": "id",
+        "name": "serial",
         "type": "number",
         "desc": "The node's number, unique in the session."
       },
@@ -5618,149 +5633,19 @@
         "desc": "What the node is: what every reader of the graph narrows on."
       },
       {
-        "name": "name",
-        "type": "string",
-        "desc": "A name to find the node by."
-      },
-      {
         "name": "parent",
         "type": "GraphNode | null",
         "desc": "The node holding this one."
       },
       {
         "name": "children",
-        "type": "GraphNode[]",
+        "type": "readonly GraphNode[]",
         "desc": "The nodes this one holds, in order."
-      },
-      {
-        "name": "up",
-        "type": "Vector3",
-        "desc": "Which way is up for `lookAt`."
-      },
-      {
-        "name": "position",
-        "type": "Vector3",
-        "desc": "Where the node stands, from its parent."
-      },
-      {
-        "name": "rotation",
-        "type": "Euler",
-        "desc": "How the node is turned, as three angles."
-      },
-      {
-        "name": "quaternion",
-        "type": "Quaternion",
-        "desc": "How the node is turned, as a quaternion."
-      },
-      {
-        "name": "scale",
-        "type": "Vector3",
-        "desc": "How the node is stretched on each axis."
-      },
-      {
-        "name": "matrix",
-        "type": "Matrix4",
-        "desc": "The local matrix: composed from the pose while `matrixAutoUpdate` holds."
-      },
-      {
-        "name": "matrixWorld",
-        "type": "Matrix4",
-        "desc": "The world matrix, as last resolved."
-      },
-      {
-        "name": "matrixAutoUpdate",
-        "type": "boolean",
-        "desc": "False when `matrix` IS the pose and nothing recomposes it."
-      },
-      {
-        "name": "matrixWorldAutoUpdate",
-        "type": "boolean",
-        "desc": "False when nothing writes `matrixWorld`."
-      },
-      {
-        "name": "matrixWorldNeedsUpdate",
-        "type": "boolean",
-        "desc": "Set when the local matrix changed and the world matrix has not followed."
-      },
-      {
-        "name": "visible",
-        "type": "boolean",
-        "desc": "Whether the node and its children are drawn."
-      },
-      {
-        "name": "castShadow",
-        "type": "boolean",
-        "desc": "Whether it casts shadows."
-      },
-      {
-        "name": "receiveShadow",
-        "type": "boolean",
-        "desc": "Whether shadows fall on it."
-      },
-      {
-        "name": "frustumCulled",
-        "type": "boolean",
-        "desc": "Whether a renderer may skip it outside the view."
-      },
-      {
-        "name": "renderOrder",
-        "type": "number",
-        "desc": "Drawing order among see-through things."
-      },
-      {
-        "name": "userData",
-        "type": "Record<string, unknown>",
-        "desc": "Free room for the data of whoever built the node."
-      },
-      {
-        "name": "add(...nodes: GraphNode[])",
-        "type": "HostGraphNode",
-        "desc": "Makes `nodes` children of this one, each taken off its previous parent first."
-      },
-      {
-        "name": "remove(...nodes: GraphNode[])",
-        "type": "HostGraphNode",
-        "desc": "Takes `nodes` off this one."
-      },
-      {
-        "name": "removeFromParent()",
-        "type": "HostGraphNode",
-        "desc": "Takes this node off its parent."
-      },
-      {
-        "name": "clear()",
-        "type": "HostGraphNode",
-        "desc": "Takes every child off this node."
       },
       {
         "name": "traverse(visit: (node: GraphNode) => void)",
         "type": "void",
         "desc": "Calls `visit` on this node, then on every node below it, in order."
-      },
-      {
-        "name": "updateMatrix()",
-        "type": "void",
-        "desc": "Composes the local matrix from the pose."
-      },
-      {
-        "name": "updateMatrixWorld(force?: boolean)",
-        "type": "void",
-        "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
-      },
-      {
-        "name": "updateWorldMatrix(ancestors: boolean, descendants: boolean)",
-        "type": "void",
-        "desc": "Resolves this node's world matrix, its ancestors' first when asked, its subtree after."
-      },
-      {
-        "name": "applyMatrix4(m: { elements: ArrayLike<number>; })",
-        "type": "void",
-        "desc": "Applies `m` on top of the node's pose, then reads the pose back out of the product."
-      },
-      {
-        "name": "lookAt(x: number | { x: number; y: number; z: number; }, y?: number, z?: number)",
-        "type": "void",
-        "desc": "Turns the node toward a world point, given as a point or as its three numbers."
       },
       {
         "name": "clone(recursive?: boolean)",
@@ -8153,9 +8038,9 @@
     "section": "types",
     "kind": "Constant",
     "title": "MANIFEST_BINARY_VERSION",
-    "signature": "const MANIFEST_BINARY_VERSION: 7",
+    "signature": "const MANIFEST_BINARY_VERSION: 8",
     "summary": "Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel column has no stride any more, each entry naming its own byte range.",
-    "description": "A file of another version is refused whole: a reader that sliced the wrong range would show one texture's levels on another. Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule; a version-4 reader would stride through the entries wrongly, so it refuses this file. Version 6 keeps every column and names another geometry page in the geometry descriptor: the quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a version-6 reader would refuse one by one at decode; refusing the file says it once. Version 7 widens a preview entry to fourteen words — the layout each block family holds the chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC, each kept entry's range following from its dimensions; a version-6 reader would not know them, so it refuses."
+    "description": "A file of another version is refused whole: a reader that sliced the wrong range would show one texture's levels on another. Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule; a version-4 reader would stride through the entries wrongly, so it refuses this file. Version 6 keeps every column and names another geometry page in the geometry descriptor: the quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a version-6 reader would refuse one by one at decode; refusing the file says it once. Version 7 widens a preview entry to fourteen words — the layout each block family holds the chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC, each kept entry's range following from its dimensions; a version-6 reader would not know them, so it refuses. Version 8 adds the page dependencies of the streaming bundles: a count per bundle, then the flat lists, closed up to the root cover (`docs/FORMAT.md` §Cluster DAG), that WebGPU requests and retains with a bundle. A version-7 reader cannot read the lists, so it refuses."
   },
   {
     "id": "MATH_PATH_CONTRACT",
@@ -9518,7 +9403,7 @@
     "section": "object",
     "kind": "Type",
     "title": "Object3D",
-    "signature": "class Object3D extends SceneNode\nnew Object3D(): Object3D",
+    "signature": "class Object3D extends TransformNode\nnew Object3D(): Object3D",
     "summary": "A node of the scene, as a page writes it: `position`, `rotation`, `quaternion` and `scale` are live values whose writes land in the engine's transform tree, and reach the world it is in.",
     "members": [
       {
@@ -9577,6 +9462,11 @@
         "desc": "Drawing order among see-through things."
       },
       {
+        "name": "frustumCulled",
+        "type": "boolean",
+        "desc": "Whether a renderer may skip it outside the view."
+      },
+      {
         "name": "userData",
         "type": "Record<string, unknown>",
         "desc": "Free room for the page's own data."
@@ -9597,16 +9487,6 @@
         "desc": "Attached children in insertion order. The returned list cannot be mutated."
       },
       {
-        "name": "matrix",
-        "type": "Matrix4",
-        "desc": "Local matrix, a view of this node's slot of the transform tree."
-      },
-      {
-        "name": "matrixWorld",
-        "type": "Matrix4",
-        "desc": "World matrix as last composed (`updateMatrixWorld`), a view of the tree."
-      },
-      {
         "name": "add(...objects: Object3D[])",
         "type": "Object3D",
         "desc": "Makes objects children of this node."
@@ -9615,6 +9495,11 @@
         "name": "remove(...objects: Object3D[])",
         "type": "Object3D",
         "desc": "Takes children off this node."
+      },
+      {
+        "name": "destroy()",
+        "type": "void",
+        "desc": "Frees the node and all below it now, rather than when they are collected."
       },
       {
         "name": "removeFromParent()",
@@ -9642,9 +9527,14 @@
         "desc": "The first node below with this name."
       },
       {
-        "name": "updateMatrixWorld(_force?: boolean)",
+        "name": "updateMatrix()",
         "type": "void",
-        "desc": "Composes this node's world matrix and its descendants', the parent's taken as it stands."
+        "desc": "Composes the local matrix from the pose."
+      },
+      {
+        "name": "applyMatrix4(m: { elements: ArrayLike<number>; })",
+        "type": "void",
+        "desc": "Applies `m` on top of the node's pose, then reads the pose back out of the product."
       },
       {
         "name": "lookAt(x: number | { x: number; y: number; z: number; }, y?: number, z?: number)",
@@ -13525,12 +13415,12 @@
       {
         "name": "localMatrix",
         "type": "Readonly<Float64Array<ArrayBufferLike>>",
-        "desc": "Read-only by contract; use setLocalMatrix to mark the transform dirty."
+        "desc": "Read-only by contract, valid while the node lives; setLocalMatrix marks the transform dirty."
       },
       {
         "name": "worldMatrix",
         "type": "Readonly<Float64Array<ArrayBufferLike>>",
-        "desc": "Current world matrix; call updateWorldMatrix after changing a pose."
+        "desc": "Current world matrix, valid while the node lives; updateWorldMatrix after a pose change."
       },
       {
         "name": "add(child: SceneNode)",
@@ -13793,7 +13683,7 @@
       {
         "name": "register(node: T)",
         "type": "T",
-        "desc": "Makes a node built on `reserve` reachable by its index and its identifier."
+        "desc": "Makes a node built on `reserve` reachable by its identifier."
       },
       {
         "name": "node(id: string)",
@@ -13810,18 +13700,13 @@
     "section": "types",
     "kind": "Type",
     "title": "SceneState",
-    "signature": "type SceneState",
+    "signature": "type SceneState = {\n  /** The transform tree. */\n  tree: TransformTree;\n  /** Nodes by name. */\n  ids: Map<string, SceneNode>;\n  /** The next free name number. */\n  nextId: number;\n  /** The scene root. */\n  root?: SceneRoot;\n}",
     "summary": "What every node of one scene shares: its transform tree and its indexes.",
     "members": [
       {
         "name": "tree",
         "type": "TransformTree",
         "desc": "The transform tree."
-      },
-      {
-        "name": "nodes",
-        "type": "Map<number, SceneNode>",
-        "desc": "Nodes by slot."
       },
       {
         "name": "ids",
@@ -14568,6 +14453,11 @@
         "desc": "Target bundle size."
       },
       {
+        "name": "maxDependencies",
+        "type": "number",
+        "desc": "Largest dependency count of a bundle: the bound the compiler publishes."
+      },
+      {
         "name": "pages",
         "type": "number",
         "desc": "How many bundles."
@@ -14973,6 +14863,11 @@
         "name": "count",
         "type": "number",
         "desc": "Clusters it holds."
+      },
+      {
+        "name": "dependencies",
+        "type": "number[]",
+        "desc": "The bundles holding the parents of its clusters, closed up to the pinned root cover and ascending: it is installed after every one of them."
       }
     ],
     "description": ""
@@ -15001,6 +14896,11 @@
         "name": "bundleBytes",
         "type": "number",
         "desc": "Target bundle size."
+      },
+      {
+        "name": "maxDependencies",
+        "type": "number",
+        "desc": "Largest dependency count of a bundle, as the compiler published it."
       },
       {
         "name": "pages",
@@ -16604,6 +16504,67 @@
     "description": ""
   },
   {
+    "id": "TransformNode",
+    "module": "packages/sdk-core/src/world/object/transformNode.ts",
+    "exports": ["TransformNode"],
+    "section": "object",
+    "kind": "Type",
+    "title": "TransformNode",
+    "signature": "class TransformNode extends SceneNode\nnew TransformNode(state: SceneState, id: string, index: number, visible?: boolean): TransformNode",
+    "summary": "A scene node read through the reference's matrices, kept in the engine's transform tree.",
+    "parameters": [
+      {
+        "name": "state",
+        "type": "SceneState",
+        "desc": ""
+      },
+      {
+        "name": "id",
+        "type": "string",
+        "desc": ""
+      },
+      {
+        "name": "index",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "visible",
+        "type": "boolean",
+        "default": "true",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "matrix",
+        "type": "Matrix4",
+        "desc": "Local matrix, a view of this node's slot of the transform tree."
+      },
+      {
+        "name": "matrixWorld",
+        "type": "Matrix4",
+        "desc": "World matrix as last composed (`updateMatrixWorld`), a view of the tree."
+      },
+      {
+        "name": "matrixAutoUpdate",
+        "type": "boolean",
+        "desc": "False when `matrix` IS the pose and nothing recomposes it."
+      },
+      {
+        "name": "matrixWorldNeedsUpdate",
+        "type": "boolean",
+        "desc": "Set when the local matrix changed and the world matrix has not followed."
+      },
+      {
+        "name": "updateMatrixWorld(force?: boolean)",
+        "type": "void",
+        "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "TransformSnap",
     "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
     "exports": ["TransformSnap"],
@@ -16728,29 +16689,24 @@
         "desc": "How many freed indices wait."
       },
       {
-        "name": "order",
+        "name": "firstChild",
         "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Update order, parents before children, and each node's rank in that order."
+        "desc": "Each node's children as a linked list, −1 for none: a subtree walk costs the subtree."
       },
       {
-        "name": "orderAt",
+        "name": "lastChild",
         "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Each node's rank in `order`."
+        "desc": "Last child, where an attach links."
       },
       {
-        "name": "orderCount",
-        "type": "number",
-        "desc": "Nodes in `order`."
-      },
-      {
-        "name": "orderDirty",
-        "type": "boolean",
-        "desc": "Whether `order` must be rebuilt."
-      },
-      {
-        "name": "depth",
+        "name": "nextSibling",
         "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Traversal work buffers: depth, ancestor chain, buckets, stamps."
+        "desc": "Next child of the same parent."
+      },
+      {
+        "name": "previousSibling",
+        "type": "Int32Array<ArrayBufferLike>",
+        "desc": "Previous child of the same parent."
       },
       {
         "name": "chain",
@@ -16758,14 +16714,9 @@
         "desc": "Ancestor chain buffer."
       },
       {
-        "name": "buckets",
-        "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Bucket buffer."
-      },
-      {
         "name": "stamp",
         "type": "Uint32Array<ArrayBufferLike>",
-        "desc": "Stamp buffer."
+        "desc": "Stamp buffer: what a traversal passes from a parent to its children."
       },
       {
         "name": "call",
@@ -16773,7 +16724,7 @@
         "desc": "Current traversal number."
       }
     ],
-    "description": "`localViews[i]` and `worldViews[i]` are sixteen-number views on `local` and `world`, created at growth and never during an update: the GPU reads the whole buffer, the kernel formulas read a node's view. Writes go through the setters, which mark what they change. A growth replaces every array: a caller rereads `tree.world` or `tree.worldViews` after an add."
+    "description": "`localViews[i]` and `worldViews[i]` are sixteen-number views on `local` and `world`, created at growth and never during an update: the GPU reads the whole buffer, the kernel formulas read a node's view. Writes go through the setters, which mark what they change. Each node lists its children, so a subtree walk never reads outside the subtree (`links.ts`). A growth replaces every array: a caller rereads `tree.world` or `tree.worldViews` after an add."
   },
   {
     "id": "TransparentOcclusionAudit",
@@ -33515,8 +33466,8 @@
     "section": "math-utilities",
     "kind": "Function",
     "title": "updateNodeMatrixWorld()",
-    "signature": "updateNodeMatrixWorld(tree: TransformTree, node: number, force?: boolean): void",
-    "summary": "`node.updateMatrixWorld(force)`: the node and its whole subtree, parents first.",
+    "signature": "updateNodeMatrixWorld(tree: TransformTree, node: number, force?: boolean): number",
+    "summary": "`node.updateMatrixWorld(force)`: the node and its whole subtree, parents first, and how many nodes it walked — the subtree, whatever else shares the tree.",
     "parameters": [
       {
         "name": "tree",
@@ -33535,7 +33486,11 @@
         "desc": ""
       }
     ],
-    "description": "A node is reached if it updates automatically, if it is marked, or if `force` — that of the call for `node`, otherwise \"the parent was reached\". Ancestors of `node` are not reread. The stamp of a visited node is `2 · traversal + reached`: one read tells the child whether it is in the subtree and what its parent passes it."
+    "returns": {
+      "type": "number",
+      "desc": ""
+    },
+    "description": "A node is reached if it updates automatically, if it is marked, or if `force` — that of the call for `node`, otherwise \"the parent was reached\". Ancestors of `node` are not reread. The stamp of a walked node is `2 · traversal + reached`: what its children read of it."
   },
   {
     "id": "updateNodeWorldMatrix",
