@@ -93,12 +93,11 @@ export function createPhysicsBodies(
       size.z *= node.scale.z;
     }
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
-    check('triangles', shape.triangles);
     const matter = physicsMatterOf(mesh.material);
-    const index = free.pop() ?? meshes.length;
-    const next = (generation[index] = (generation[index] + 1) % GENERATIONS);
+    const id = claim(shape.triangles);
+    const index = id & BODY_INDEX;
     writer.add({
-      id: index | (next << GENERATION_SHIFT),
+      id,
       motion: MOTION[p.type],
       layer: p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving,
       shape: shape.shape,
@@ -116,24 +115,36 @@ export function createPhysicsBodies(
     });
     meshes[index] = mesh;
     held[index] = p;
-    count.bodies++;
     if (p.decorative) count.decorative++;
-    if (shape.triangles) triangles.set(index, shape.triangles);
-    count.triangles += shape.triangles;
     p._attach(host, index, state);
   };
-  const removeAt = (index: number) => {
-    const mesh = meshes[index],
-      p = held[index];
-    if (!mesh || !p) return;
+  /** A slot and its engine id, counted against the budget with `tris` triangles; no mesh yet. */
+  const claim = (tris: number) => {
+    check('bodies', 1);
+    check('triangles', tris);
+    const index = free.pop() ?? meshes.push(null) - 1;
+    const next = (generation[index] = (generation[index] + 1) % GENERATIONS);
+    count.bodies++;
+    if (tris) triangles.set(index, tris);
+    count.triangles += tris;
+    return index | (next << GENERATION_SHIFT);
+  };
+  /** A slot's body removed, and the slot freed for the next. */
+  const release = (index: number) => {
     writer.remove(index);
     meshes[index] = held[index] = null;
     generation[index] = (generation[index] + 1) % GENERATIONS;
     free.push(index);
     count.bodies--;
-    if (p.decorative) count.decorative--;
     count.triangles -= triangles.get(index) ?? 0;
     triangles.delete(index);
+  };
+  const removeAt = (index: number) => {
+    const mesh = meshes[index],
+      p = held[index];
+    if (!mesh || !p) return;
+    release(index);
+    if (p.decorative) count.decorative--;
     p._detach();
   };
   /** The mesh an engine id names, or `null` once that body left its slot. */
@@ -148,6 +159,9 @@ export function createPhysicsBodies(
     add,
     removeAt,
     meshOf,
+    /** A body no mesh holds — a cooked tile (`tiles.ts`) —: its slot, then its removal. */
+    claim,
+    release,
     /** A decorative body fell asleep, or the module refused its shape: out of the simulation and
      *  of the budget, until its `physics` is set again. */
     retire(index: number) {

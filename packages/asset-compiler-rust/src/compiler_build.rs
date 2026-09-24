@@ -164,8 +164,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_sha = hash(&proxy_bytes);
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
-    // Cache products of the published scene, each under its own name: the lights the source
-    // declares, in the engine contract, then its node and material tables (`compiler_tables.rs`).
+    // Cache products, each under its own name: lights, node and material tables, physics.
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let tables = stage_scene_tables(&source, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, mut products) =
