@@ -137,10 +137,7 @@ test('texture pools are copy destinations, allocated once at the size the scene 
   const { device, textures } = mockGpu();
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();
-  // The pools held, not the probes prepare asked the device for and released (`poolGrants.ts`).
-  const pools = textures.filter(
-    (texture) => texture.width === 4080 && texture.height === 4080 && !texture.destroyed,
-  );
+  const pools = textures.filter((texture) => texture.width === 4080 && texture.height === 4080);
   assert.equal(pools.length, 2, 'one colour pool, one data pool');
   const need =
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
