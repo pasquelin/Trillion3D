@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Oyna'ya bas, sonra W A S D ile koş ve Boşluk ile zıpla.",
+    "banner": "Oyna'ya bas, sonra W A S D ile koş ve Boşluk ile zıpla. Erken bırak: taşta durmadan önce biraz kayarsın.",
     "controls": {
       "keys": "Motorun karakter kontrolü: menüdeki Oyna bakmak için fareyi kilitler, koşmak için W A S D (AZERTY'de Z Q S D), hızlı koşmak için Shift, zıplamak için Boşluk, Esc fareyi bırakır. Sayfa yeniden koşmak için R, sesi kapatmak için M ekler.",
       "look": "Bakış",
@@ -1937,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin.",
+    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin ve kaymak için buzun üstünde tuşları bırakın.",
     "controls": {
       "pushStrength": "İtme kuvveti (N)",
       "platformSpeed": "Platform hızı",

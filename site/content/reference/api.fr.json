@@ -6298,8 +6298,8 @@
       "gravity": "Personnage seulement : accélération vers le bas pendant la montée, en m/s² ; 9,80665 par défaut.",
       "fallGravity": "Personnage seulement : accélération vers le bas pendant la chute, en m/s² ; 1,6 g par défaut, pour qu’un saut ne flotte pas.",
       "airControl": "Personnage seulement : à quelle vitesse les touches dirigent en l’air, en fraction du démarrage au sol ; 0,05 par défaut, 0 est balistique.",
-      "responseTime": "Personnage seulement : secondes pour atteindre 95 % de la vitesse voulue, au sol ; 0,12 par défaut.",
-      "stopTime": "Personnage seulement : secondes pour perdre 95 % de la vitesse une fois toutes les touches relâchées, au sol ; 0,08 par défaut.",
+      "responseTime": "Personnage seulement : secondes que mettent les jambes pour atteindre 95 % de la vitesse voulue, au sol ; 0,12 par défaut. Le frottement du sol borne d’abord le départ : une semelle pousse au plus `μ g`, `μ` l’adhérence d’une semelle de caoutchouc sur le `material.physics` du sol (pierre sans physique), si bien qu’un footing est atteint en 0,45 s sur la pierre et 2,2 s sur la glace.",
+      "stopTime": "Personnage seulement : secondes que mettent les jambes pour perdre 95 % de la vitesse une fois toutes les touches relâchées, au sol ; 0,12 par défaut. Le frottement du sol borne d’abord l’arrêt : un footing glisse `v² / (2 μ g)`, 0,8 m sur la pierre et 3,8 m sur la glace ; un temps plus long freine plus doucement.",
       "capsuleRadius": "Personnage seulement : rayon du corps, en mètres ; une demi-largeur d’épaules (0,23 m) par défaut.",
       "capsuleHeight": "Personnage seulement : hauteur du corps, en mètres ; 1,75 par défaut.",
       "eyeHeight": "Personnage seulement : hauteur de la caméra au-dessus des pieds, en mètres ; 1,64 par défaut.",
@@ -6648,7 +6648,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UN PERSONNAGE, vu par ses yeux : un corps avec une masse qui marche, court, saute et tombe, et heurte les triangles du monde comme une capsule debout.",
-    "description": "Le pointeur tourne la tête comme en première personne (`look.ts`). Les touches, par `KeyboardEvent.code` pour que chaque disposition de clavier joue les mêmes touches : W/S ou les flèches haut et bas pour avancer et reculer, A/D ou les flèches de côté pour se décaler, Maj pour sprinter, Espace pour sauter. Le corps ne démarre ni ne s’arrête d’un coup : il prend de la vitesse en `responseTime` et freine en `stopTime`, garde son élan en l’air, monte sous `gravity` et retombe sous `fallGravity`, monte les rebords jusqu’à `stepHeight`, glisse le long des murs et tient sur les pentes jusqu’à `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La caméra est l’œil, à `eyeHeight` au-dessus des pieds, qui oscille avec la foulée de `headBob` et s’affaisse à l’atterrissage selon `landingDip` (`sdk-core/src/collision/characterEye.ts`) ; les deux s’appliquent à l’œil après le pas du corps et ne déplacent jamais le corps. Un hôte qui déplace lui-même la caméra y téléporte le corps, au repos. Un personnage immobile — au sol, sans vitesse, sans touche, sans affaissement restant — n’émet rien, donc la scène reste immobile.",
+    "description": "Le pointeur tourne la tête comme en première personne (`look.ts`). Les touches, par `KeyboardEvent.code` pour que chaque disposition de clavier joue les mêmes touches : W/S ou les flèches haut et bas pour avancer et reculer, A/D ou les flèches de côté pour se décaler, Maj pour sprinter, Espace pour sauter. Le corps ne démarre ni ne s’arrête d’un coup : il prend de la vitesse en `responseTime` et freine en `stopTime`, jamais plus vite que le frottement de son sol ne laisse pousser une semelle, si bien qu’un arrêt glisse un peu sur la pierre et loin sur la glace, garde son élan en l’air, monte sous `gravity` et retombe sous `fallGravity`, monte les rebords jusqu’à `stepHeight`, glisse le long des murs et tient sur les pentes jusqu’à `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La caméra est l’œil, à `eyeHeight` au-dessus des pieds, qui oscille avec la foulée de `headBob` et s’affaisse à l’atterrissage selon `landingDip` (`sdk-core/src/collision/characterEye.ts`) ; les deux s’appliquent à l’œil après le pas du corps et ne déplacent jamais le corps. Un hôte qui déplace lui-même la caméra y téléporte le corps, au repos. Un personnage immobile — au sol, sans vitesse, sans touche, sans affaissement restant — n’émet rien, donc la scène reste immobile.",
     "members": {
       "velocity": "La vitesse du corps en mètres par seconde, en direct : `[x, y, z]`, y vers le haut.",
       "onGround": "Si les pieds sont sur un sol.",
@@ -7250,17 +7250,6 @@
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
   },
-  "GraphAngles": {
-    "summary": "La même orientation en trois angles et leur ordre, qui annonce ses écritures de la même façon.",
-    "members": {
-      "x": "Le premier angle, en radians.",
-      "set": "Écrit les trois angles, et l’ordre s’il est donné ; annoncé une fois.",
-      "setFromRotation": "Les angles de `q` dans cet ordre (l’`Euler` du cœur) ; annoncé sauf si `quiet`.",
-      "y": "Le deuxième angle, en radians.",
-      "z": "Le troisième angle, en radians.",
-      "order": "L’ordre dans lequel tournent les trois angles, `'XYZ'` sauf réglage."
-    }
-  },
   "GraphArray": {
     "summary": "Les tableaux typés que tient un attribut."
   },
@@ -7303,40 +7292,6 @@
   },
   "GraphNodeKind": {
     "summary": "Ce qu’est un nœud du graphe : un nœud nu, la racine, un groupe, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
-  },
-  "GraphRotation": {
-    "summary": "Une orientation `(x, y, z, w)` dont les écritures appellent `_onChangeCallback`.",
-    "members": {
-      "x": "Le premier nombre.",
-      "set": "Écrit les quatre nombres, annoncé une fois.",
-      "copy": "Prend les nombres d’une autre rotation.",
-      "fromArray": "Lit quatre nombres dans une liste.",
-      "setFromAngles": "La rotation de `angles`, dans leur ordre (`localTurnQuaternion`) ; annoncé sauf si `quiet`.",
-      "setFromRotationMatrix": "La rotation du 3×3 supérieur d’une matrice rangée par colonnes dont les colonnes sont unitaires.",
-      "premultiply": "Devient `q` suivi de cette rotation, `q · this`.",
-      "invert": "Devient la rotation inverse.",
-      "y": "Le deuxième nombre.",
-      "z": "Le troisième nombre.",
-      "w": "Le quatrième nombre."
-    }
-  },
-  "GraphVector": {
-    "summary": "Trois nombres d’une pose ou d’un point : des champs de données simples, et les opérations qu’utilise un contrôleur.",
-    "members": {
-      "set": "Écrit les trois nombres.",
-      "copy": "Prend les nombres d’un autre point.",
-      "clone": "Une copie.",
-      "add": "Ajoute un autre vecteur.",
-      "sub": "Retranche un autre vecteur.",
-      "multiplyScalar": "Multiplie les trois nombres.",
-      "length": "Sa longueur.",
-      "setLength": "Garde la direction, fixe la longueur.",
-      "distanceTo": "Distance à un point.",
-      "fromArray": "Lit trois nombres dans une liste.",
-      "x": "De gauche à droite.",
-      "y": "De bas en haut.",
-      "z": "D’arrière en avant."
-    }
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",
