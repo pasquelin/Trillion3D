@@ -2,13 +2,22 @@ import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/
 import { textureRgba } from '../../visibility/types.ts';
 import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
+import { pictureSize } from '../../texture/pictureSize.ts';
 
 /**
- * A texture as uploaded, at its counters (#360, #361): a new version uploads the picture again, a
- * new `sampling` sets the sampler alone. The placement is not uploaded here — the material
- * binding uploads the UV matrix at every draw (`materialBinding.ts`).
+ * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
+ * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
+ * alone. The placement is not uploaded here — the material binding uploads the UV matrix at every
+ * draw (`materialBinding.ts`).
  */
-type TextureRecord = { texture: WebGLTexture; version: number; sampling: number };
+type TextureRecord = {
+  texture: WebGLTexture;
+  version: number;
+  sampling: number;
+  width: number;
+  height: number;
+  format: number;
+};
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
 const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
@@ -75,34 +84,7 @@ export class WebglClusterTextures {
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
-      if (record) gl.deleteTexture(record.texture);
-      const target = gl.createTexture()!;
-      gl.activeTexture(gl.TEXTURE0 + unit);
-      gl.bindTexture(gl.TEXTURE_2D, target);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, texture.flipY);
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultiplyAlpha);
-      // Texels held in memory (`texture.data`) upload through the byte overload, read as the
-      // WebGPU path reads them (`textureRgba`); anything else is an image the browser decodes.
-      const format = color ? gl.SRGB8_ALPHA8 : gl.RGBA8,
-        rgba = textureRgba(texture),
-        image = texture.image as TexImageSource | undefined;
-      if (rgba)
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          format,
-          rgba.width,
-          rgba.height,
-          0,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          rgba.data,
-        );
-      else if (image) gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image);
-      else throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
-      if (texture.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);
-      this.setSampler(texture);
-      record = { texture: target, version: texture.version, sampling: texture.sampling };
+      record = this.upload(unit, texture, color, record);
       this.records.set(key, record);
     } else {
       if (this.bound[unit] !== record.texture) {
@@ -118,6 +100,54 @@ export class WebglClusterTextures {
       }
     }
     this.bound[unit] = record.texture;
+  }
+  /**
+   * Sends a texture's picture into its GL texture (#362): a picture of the size already held is
+   * copied IN PLACE (`texSubImage2D`) — a video frame, a canvas redrawn —, one of a new size
+   * reallocates the level; the GL texture itself is made once. Texels held in memory
+   * (`texture.data`) upload through the byte overload, read as the WebGPU path reads them
+   * (`textureRgba`); anything else is an image the browser decodes.
+   */
+  private upload(unit: number, texture: Texture, color: boolean, held?: TextureRecord) {
+    const gl = this.gl;
+    const target = held?.texture ?? gl.createTexture()!;
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, target);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, texture.flipY);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultiplyAlpha);
+    const format = color ? gl.SRGB8_ALPHA8 : gl.RGBA8,
+      rgba = textureRgba(texture),
+      image = texture.image as TexImageSource | undefined;
+    if (!rgba && !image)
+      throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
+    const [width, height] = rgba ? [rgba.width, rgba.height] : pictureSize(image);
+    const inPlace = held?.width === width && held.height === height && held.format === format;
+    if (inPlace && rgba)
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, rgba.data);
+    else if (inPlace) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, image!);
+    else if (rgba)
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        format,
+        width,
+        height,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        rgba.data,
+      );
+    else gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image!);
+    if (texture.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);
+    if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
+    return {
+      texture: target,
+      version: texture.version,
+      sampling: texture.sampling,
+      width,
+      height,
+      format,
+    };
   }
   /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
    *  the rule the WebGPU path shares (`grantedAnisotropy`). */
