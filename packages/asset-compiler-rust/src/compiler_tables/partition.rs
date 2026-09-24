@@ -1,0 +1,182 @@
+//! The world partition of the node table (#404): a node that only places a mesh — a leaf of the
+//! scene, carrying no light, no camera, no skin, no morph weights, and that no animation moves —
+//! leaves the table the runtime reads before its first frame and is written in a spatial cell
+//! instead, which the runtime reads by distance to its camera. What stays is the core: every other
+//! node, the ranks renumbered without the placed ones.
+//!
+//! A cell holds the nodes of one size class — objects whose world box diagonal rounds up to the
+//! same power of two —, so its reach (the distance past which its largest object covers less than
+//! the error target) is that of objects of its own size, and it is split in two along its widest
+//! axis until its bytes fit one stream unit (`STREAM_BUNDLE_BYTES`), the budget a geometry bundle
+//! has. A scene whose placed nodes fit one unit is not partitioned: its table is the one it was.
+use super::*;
+use crate::compiler_world::{world_matrices, Mat4};
+
+mod boxes;
+mod split;
+use boxes::{grow, mesh_boxes, world_box, EMPTY};
+use split::{split_cells, Placed};
+
+/// Version of a cell file and of the partition descriptor the core carries.
+const PARTITION_VERSION: u32 = 1;
+
+/// The core the runtime reads first, and the cells it reads by distance.
+pub(super) struct Partitioned {
+    pub nodes: Vec<Value>,
+    pub roots: Vec<usize>,
+    pub partition: Value,
+    pub products: Vec<Product>,
+}
+
+/// The nodes an animation moves: their pose is not the one the table declares.
+fn animated(g: &Value) -> BTreeSet<usize> {
+    let animations = g
+        .get("animations")
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice);
+    animations
+        .iter()
+        .flat_map(|a| {
+            a.get("channels")
+                .and_then(Value::as_array)
+                .map_or(&[][..], Vec::as_slice)
+        })
+        .filter_map(|c| {
+            c.pointer("/target/node")
+                .and_then(Value::as_u64)
+                .map(|n| n as usize)
+        })
+        .collect()
+}
+
+/// Each node's parent, and whether the scene reaches it from `roots`.
+fn hierarchy(table: &[Value], roots: &[usize]) -> (Vec<Option<usize>>, Vec<bool>) {
+    let children = |id: usize| -> Vec<usize> {
+        table[id]["children"].as_array().map_or(Vec::new(), |c| {
+            c.iter()
+                .filter_map(|v| v.as_u64().map(|v| v as usize))
+                .collect()
+        })
+    };
+    let mut parent = vec![None; table.len()];
+    for id in 0..table.len() {
+        for child in children(id) {
+            parent[child] = Some(id);
+        }
+    }
+    let mut reached = vec![false; table.len()];
+    let mut stack = roots.to_vec();
+    while let Some(id) = stack.pop() {
+        if !std::mem::replace(&mut reached[id], true) {
+            stack.extend(children(id));
+        }
+    }
+    (parent, reached)
+}
+
+/// The core and the cells of `table`, or `None` when its placed nodes fit one cell.
+pub(super) fn partition(
+    g: &Value,
+    table: &[Value],
+    roots: &[usize],
+    directory: &Path,
+) -> Result<Option<Partitioned>> {
+    let gltf_nodes = values(g, "nodes")?;
+    let boxes = mesh_boxes(g);
+    let moved = animated(g);
+    let (parent, reached) = hierarchy(table, roots);
+    let placeable = |id: usize| -> Option<usize> {
+        let node = &table[id];
+        let mesh = node["mesh"].as_u64()? as usize;
+        let leaf = node["children"].as_array().is_some_and(Vec::is_empty);
+        let bare = ["light", "camera", "weights"]
+            .iter()
+            .all(|field| node[*field].is_null());
+        let still = gltf_nodes[id].get("skin").is_none() && !moved.contains(&id);
+        (reached[id] && leaf && bare && still && boxes.get(mesh)?.is_some()).then_some(mesh)
+    };
+    let placed_ids: Vec<(usize, usize)> = (0..table.len())
+        .filter_map(|id| placeable(id).map(|mesh| (id, mesh)))
+        .collect();
+    // The core keeps every other node, renumbered in order.
+    let mut rank = vec![None; table.len()];
+    let placed_set: BTreeSet<usize> = placed_ids.iter().map(|(id, _)| *id).collect();
+    let mut kept = 0usize;
+    for (id, slot) in rank.iter_mut().enumerate() {
+        if !placed_set.contains(&id) {
+            *slot = Some(kept);
+            kept += 1;
+        }
+    }
+    let worlds = world_matrices(g)?;
+    let mut placed = Vec::with_capacity(placed_ids.len());
+    for (id, mesh) in placed_ids {
+        let node = &table[id];
+        let entry = json!({
+            "parent": parent[id].map(|p| rank[p]),
+            "mesh": mesh,
+            "matrix": node["matrix"], "translation": node["translation"],
+            "rotation": node["rotation"], "scale": node["scale"],
+        });
+        let bounds = world_box(&worlds[id], boxes[mesh].as_ref().expect("placeable"));
+        let bytes = serde_json::to_vec(&entry)?.len() + 1;
+        placed.push(Placed {
+            bounds,
+            entry,
+            bytes,
+        });
+    }
+    if placed.iter().map(|p| p.bytes).sum::<usize>() <= crate::STREAM_BUNDLE_BYTES {
+        return Ok(None);
+    }
+    let renumber = |ids: &[Value]| -> Vec<usize> {
+        ids.iter()
+            .filter_map(|v| rank[v.as_u64()? as usize])
+            .collect()
+    };
+    let nodes = table
+        .iter()
+        .enumerate()
+        .filter(|(id, _)| rank[*id].is_some())
+        .map(|(_, node)| {
+            let mut node = node.clone();
+            node["children"] = json!(renumber(
+                node["children"].as_array().map_or(&[][..], Vec::as_slice)
+            ));
+            node
+        })
+        .collect();
+    let roots = roots.iter().filter_map(|id| rank[*id]).collect();
+    let (partition, products) = write_cells(split_cells(placed), directory)?;
+    Ok(Some(Partitioned {
+        nodes,
+        roots,
+        partition,
+        products,
+    }))
+}
+
+/// Writes one file per cell and returns the descriptor the core carries: every cell's address,
+/// fingerprint, size, box and largest object, the union box, and the meshes the cells place.
+fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<Product>)> {
+    let mut products = Vec::with_capacity(cells.len());
+    let mut descriptors = Vec::with_capacity(cells.len());
+    let mut meshes = BTreeSet::new();
+    let mut union = EMPTY;
+    for (at, cell) in cells.iter().enumerate() {
+        let bounds = split::union_of(cell);
+        let size = cell.iter().map(Placed::size).fold(0.0, f64::max);
+        meshes.extend(cell.iter().filter_map(|p| p.entry["mesh"].as_u64()));
+        grow(&mut union, &bounds);
+        let body = json!({"version": PARTITION_VERSION, "nodes": cell.iter().map(|p| &p.entry).collect::<Vec<_>>()});
+        let written = product(
+            directory,
+            &format!("scene-cell-{at}.json"),
+            &serde_json::to_vec(&body)?,
+        )?;
+        descriptors.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "bounds": bounds, "size": size, "nodes": cell.len()}));
+        products.push(written);
+    }
+    let partition = json!({"version": PARTITION_VERSION, "bounds": union, "meshes": meshes, "cells": descriptors});
+    Ok((partition, products))
+}
