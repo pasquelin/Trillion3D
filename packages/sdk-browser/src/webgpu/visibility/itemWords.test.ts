@@ -3,7 +3,7 @@
 // received.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts';
 import type { GpuDraw } from '../../gpu/draw/draw.ts';
 import { clearDrawItemWords, createDrawItemWordsHold, refreshDrawItemWords } from './itemWords.ts';
@@ -14,14 +14,14 @@ import { surfaceOf } from '../../page/surface.ts';
 
 /** A minimal runtime of `n` rows: each carries a coplanar layer and a page index. */
 function runtime(n: number, drawLayerSlots: number) {
-  const material = new THREE.MeshBasicMaterial();
+  const material = G.basicSurface();
   const packedRecs: PageRec[] = [];
   for (let i = 0; i < n; i++)
     packedRecs.push(
       pageRecFixture({
         depthLayer: i % 3,
         material: surfaceOf(material),
-        matrix: new THREE.Matrix4(),
+        matrix: new G.Matrix4(),
       }),
     );
   const layout = {

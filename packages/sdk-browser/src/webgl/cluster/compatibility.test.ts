@@ -1,23 +1,24 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterMaterialReason } from './compatibility.ts';
 import { validateClusterMeshes } from './validation.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
 
-const position = new THREE.BufferAttribute(new Float32Array(9), 3);
+const position = new G.GraphAttribute(new Float32Array(9), 3);
 const NO_COPIES = { plain: [], blended: [], transmissive: [] };
 // A stand-in image: these tests never rasterize a texture, only its presence is read
 // (`!texture.image`), so a placeholder typed as the DOM's texture-source union is enough.
 const FAKE_IMAGE = {} as TexImageSource;
-const fakeTexture = () => new THREE.Texture(FAKE_IMAGE);
+const fakeTexture = () => new G.GraphTexture(FAKE_IMAGE);
 
 test('an untextured Basic material needs no unused UV or normal attribute', () => {
-  assert.equal(clusterMaterialReason(new THREE.MeshBasicMaterial(), { position }), undefined);
+  assert.equal(clusterMaterialReason(G.basicSurface(), { position }), undefined);
 });
 
 test('unsupported mutations refuse the autonomous draw before it becomes partial', () => {
-  const material = new THREE.MeshStandardMaterial();
+  const material = G.standardSurface();
   assert.equal(
     clusterMaterialReason(material, { position }),
     'lit material has no normal attribute',
@@ -26,7 +27,7 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
   assert.equal(
     clusterMaterialReason(material, {
       position,
-      normal: new THREE.BufferAttribute(new Float32Array(9), 3),
+      normal: new G.GraphAttribute(new Float32Array(9), 3),
     }),
     undefined,
   );
@@ -42,33 +43,33 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
 });
 
 test('a normal-mapped material needs no tangent attribute: the shader rebuilds the frame', () => {
-  const material = new THREE.MeshStandardMaterial({ normalMap: fakeTexture() });
+  const material = G.standardSurface({ normalMap: fakeTexture() });
   assert.equal(
     clusterMaterialReason(material, {
       position,
-      normal: new THREE.BufferAttribute(new Float32Array(9), 3),
-      uv: new THREE.BufferAttribute(new Float32Array(6), 2),
+      normal: new G.GraphAttribute(new Float32Array(9), 3),
+      uv: new G.GraphAttribute(new Float32Array(6), 2),
     }),
     undefined,
   );
 });
 
 test('a texture selecting UV1 is refused when geometry has only UV0', () => {
-  const material = new THREE.MeshBasicMaterial({ map: fakeTexture() });
-  material.map!.channel = 1;
+  const material = G.basicSurface({ map: fakeTexture() });
+  (material.map as G.GraphTexture).channel = 1;
   assert.match(
     clusterMaterialReason(material, {
       position,
-      uv: new THREE.BufferAttribute(new Float32Array(6), 2),
+      uv: new G.GraphAttribute(new Float32Array(6), 2),
     })!,
     /no UV1 attribute/,
   );
 });
 
 test('one material is validated against every distinct geometry attribute set', () => {
-  const material = new THREE.MeshBasicMaterial({ map: fakeTexture() });
-  material.map!.channel = 1;
-  const uv = new THREE.BufferAttribute(new Float32Array(6), 2);
+  const material = G.basicSurface({ map: fakeTexture() });
+  (material.map as G.GraphTexture).channel = 1;
+  const uv = new G.GraphAttribute(new Float32Array(6), 2);
   assert.throws(
     () =>
       validateClusterMeshes(
@@ -85,7 +86,7 @@ test('one material is validated against every distinct geometry attribute set', 
 });
 
 test('a runtime mutation to a material array is rejected instead of disappearing', () => {
-  const material = new THREE.MeshBasicMaterial();
+  const material = G.basicSurface();
   assert.throws(
     () =>
       validateClusterMeshes(
@@ -99,7 +100,7 @@ test('a runtime mutation to a material array is rejected instead of disappearing
 });
 
 test('a mutation of a two-sided transparent material is read at the draw, never frozen', () => {
-  const source = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide });
+  const source = G.basicSurface({ transparent: true, side: G.DOUBLE_SIDE });
   const mesh = { material: source, geometry: { attributes: { position } } } as never;
   assert.deepEqual(drawPasses(source), ['back', 'front']);
   validateClusterMeshes([mesh], [], NO_COPIES, new Map());
@@ -113,11 +114,11 @@ test('a mutation of a two-sided transparent material is read at the draw, never 
 });
 
 test('a transmissive physical material is a scene copy of the transmission pass, never a cluster', () => {
-  const normal = new THREE.BufferAttribute(new Float32Array(9), 3);
-  const glass = new THREE.MeshPhysicalMaterial({ transmission: 1, ior: 1.5, thickness: 0.1 });
+  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const glass = G.physicalSurface({ transmission: 1, ior: 1.5, thickness: 0.1 });
   assert.match(clusterMaterialReason(glass, { position, normal })!, /drawn as a scene copy/);
   assert.equal(clusterMaterialReason(glass, { position, normal }, true), undefined);
-  const plain = new THREE.MeshPhysicalMaterial();
+  const plain = G.physicalSurface();
   assert.equal(clusterMaterialReason(plain, { position, normal }), undefined);
   assert.equal(clusterMaterialReason(plain, { position, normal }, true), undefined);
   plain.ior = 1.3;
@@ -132,8 +133,8 @@ test('a transmissive physical material is a scene copy of the transmission pass,
 });
 
 test('a transmissive copy mutated into another physical extension is refused before drawing', () => {
-  const normal = new THREE.BufferAttribute(new Float32Array(9), 3);
-  const glass = new THREE.MeshPhysicalMaterial({ transmission: 1 });
+  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const glass = G.physicalSurface({ transmission: 1 });
   const copy = { material: glass, geometry: { attributes: { position, normal } } } as never;
   const copies = { ...NO_COPIES, transmissive: [copy] };
   validateClusterMeshes([], [], copies, new Map());

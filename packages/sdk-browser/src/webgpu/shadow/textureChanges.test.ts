@@ -3,7 +3,7 @@
 // The textures a pump changed are declared together: one scan of the page table, one box.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts';
 import { shadowsFollowTextures } from '../pages/prepare/lightResources.ts';
@@ -13,7 +13,7 @@ const WORDS = PAGE_INFO_STRIDE / 4;
 
 function record(x: number) {
   return {
-    matrix: new THREE.Matrix4().makeTranslation(x, 0, 0),
+    matrix: new G.Matrix4().makeTranslation(x, 0, 0),
     min: [-1, -1, -1],
     max: [1, 1, 1],
   } as unknown as PageRec;

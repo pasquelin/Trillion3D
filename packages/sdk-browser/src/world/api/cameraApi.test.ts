@@ -4,19 +4,19 @@
 // exactly where it found it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createExplorerCameraApi } from './cameraApi.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 
 /** The explorer's camera API on `camera`, one WebGPU backend behind it, nothing else live. */
-function cameraApiOn(camera: THREE.PerspectiveCamera, center: THREE.Vector3) {
+function cameraApiOn(camera: G.GraphCamera, center: G.Vector3) {
   return createExplorerCameraApi({
     check: () => {},
     options: {} as MeasuredWorldOptions,
     camera,
     center,
-    homeOffset: new THREE.Vector3(0, 0, 1),
-    lookAtTarget: new THREE.Vector3(),
+    homeOffset: new G.Vector3(0, 0, 1),
+    lookAtTarget: new G.Vector3(),
     radius: 1,
     canvas: { width: 8, height: 8 } as HTMLCanvasElement,
     backends: [{ id: 'webgpu-page-raster' } as RenderBackend],
@@ -28,9 +28,9 @@ function cameraApiOn(camera: THREE.PerspectiveCamera, center: THREE.Vector3) {
 }
 
 test('restoreAfterCampaign puts the saved pose and optics back on the live camera', () => {
-  const camera = new THREE.PerspectiveCamera(50, 1.5, 0.1, 100);
+  const camera = G.perspectiveCamera(50, 1.5, 0.1, 100);
   camera.position.set(1, 2, 3);
-  camera.lookAt(new THREE.Vector3(-4, 0, 6));
+  camera.lookAt(new G.Vector3(-4, 0, 6));
   camera.updateMatrixWorld();
   const saved = camera.clone();
   // The campaign moves the camera and changes its optics, then hands the saved view back.
@@ -39,10 +39,10 @@ test('restoreAfterCampaign puts the saved pose and optics back on the live camer
   Object.assign(camera, { fov: 22, aspect: 2, near: 5, far: 50, zoom: 3 });
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
-  const api = cameraApiOn(camera, new THREE.Vector3(-4, 0, 6));
+  const api = cameraApiOn(camera, new G.Vector3(-4, 0, 6));
   api.restoreAfterCampaign('webgpu-page-raster', saved);
-  assert.deepEqual(camera.position.toArray(), saved.position.toArray());
-  assert.deepEqual(camera.quaternion.toArray(), saved.quaternion.toArray());
+  assert.deepEqual(G.xyz(camera.position), G.xyz(saved.position));
+  assert.deepEqual(G.xyzw(camera.quaternion), G.xyzw(saved.quaternion));
   assert.deepEqual(
     [camera.fov, camera.aspect, camera.near, camera.far, camera.zoom],
     [50, 1.5, 0.1, 100, 1],
@@ -55,14 +55,14 @@ test('restoreAfterCampaign restores a camera the host posed by matrix', () => {
   // A host that writes `matrix` itself keeps `matrixAutoUpdate` false, and `updateMatrixWorld`
   // then recomposes nothing from the local fields: restoring those alone would leave the camera
   // wherever the campaign parked it.
-  const camera = new THREE.PerspectiveCamera(50, 1.5, 0.1, 100);
+  const camera = G.perspectiveCamera(50, 1.5, 0.1, 100);
   camera.matrixAutoUpdate = false;
   camera.matrix.makeTranslation(3, -1, 7);
   camera.updateMatrixWorld();
   const saved = camera.clone();
   camera.matrix.makeTranslation(-20, 40, 0);
   camera.updateMatrixWorld();
-  const api = cameraApiOn(camera, new THREE.Vector3());
+  const api = cameraApiOn(camera, new G.Vector3());
   api.restoreAfterCampaign('webgpu-page-raster', saved);
   assert.equal(camera.matrixAutoUpdate, false);
   assert.deepEqual([...camera.matrix.elements], [...saved.matrix.elements]);

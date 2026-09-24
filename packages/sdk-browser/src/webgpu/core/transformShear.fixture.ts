@@ -3,7 +3,7 @@
 // two small comparison helpers. Extracted from `transformShear.test.ts` so
 // `transformFiniteTransform.test.ts` reuses them without copying.
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { BOX_VALUES, boxTransform } from '../../../../sdk-core/src/index.ts';
 import { createWebgpuRunState } from '../pages/state/run.ts';
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts';
@@ -12,10 +12,10 @@ import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 
 /** Two non-orthogonal axes: `y` pushes `x`. No TRS decomposition yields this matrix. */
 export function cisaillee(facteur = 3, tx = 0) {
-  return new THREE.Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  return new G.Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 }
 
-export const versGpu = (m: THREE.Matrix4) => new Float32Array(m.elements);
+export const versGpu = (m: G.Matrix4) => new Float32Array(m.elements);
 
 export function proche(
   obtenu: ArrayLike<number>,
@@ -32,8 +32,8 @@ export function proche(
 
 /** Host scene AND the engine's world-matrix index, the one a move recomputes. */
 export function scene(nom = 'cible') {
-  const source = new THREE.Object3D(),
-    mesh = new THREE.Mesh();
+  const source = new G.GraphNode(),
+    mesh = G.mesh();
   mesh.name = nom;
   source.add(mesh);
   return { source, mesh, worlds: hostWorldPlacements(source) };
@@ -41,7 +41,7 @@ export function scene(nom = 'cible') {
 
 /** A minimal selection root: what the transform reprojects and what it sends. The matrix it carries
  *  is the engine's, like every collected root. */
-export function racine(mesh: THREE.Object3D, local: number[], worlds: HostWorldPlacements) {
+export function racine(mesh: G.GraphNode, local: number[], worlds: HostWorldPlacements) {
   const localBox = Float64Array.from(local),
     worldBox = new Float64Array(BOX_VALUES),
     world = worlds.of(mesh);
@@ -55,7 +55,7 @@ export function racine(mesh: THREE.Object3D, local: number[], worlds: HostWorldP
 }
 
 export function runtime(
-  source: THREE.Object3D,
+  source: G.GraphNode,
   roots: Array<ClusterRoot<PageRec>> = [],
   worlds: HostWorldPlacements = hostWorldPlacements(source),
 ) {

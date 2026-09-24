@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from '../../gpu/dag/selection.ts';
 import { kernelUniforms } from '../../gpu/dag/selectionHelpers.fixture.ts';
@@ -90,7 +90,7 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
 });
 
 test('clustered blend classification remains explicit if material transparency was disabled', () => {
-  const fixture = blendFixture(new THREE.MeshBasicMaterial());
+  const fixture = blendFixture(G.basicSurface());
   const collected = collectClusterPages(
     fixture.source,
     fixture.metadata,
@@ -120,8 +120,8 @@ test('shared blend and runtime transmission keep their full source fallback', ()
   for (const pass of ['shared-blend', 'clustered-blend']) {
     const material =
       pass === 'clustered-blend'
-        ? new THREE.MeshPhysicalMaterial({ transmission: 1 })
-        : new THREE.MeshBasicMaterial({ transparent: true });
+        ? G.physicalSurface({ transmission: 1 })
+        : G.basicSurface({ transparent: true });
     const fixture = blendFixture(material);
     fixture.metadata.primitives[0].pass = pass;
     const collected = collectClusterPages(

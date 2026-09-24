@@ -4,7 +4,7 @@
 // test's counter is that of a simulated device — `queue.submit`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createExplorerLightApi } from '../api/lightApi.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts';
@@ -44,14 +44,14 @@ function api(backend: RenderBackend) {
 }
 
 const pose = (x: number, y: number) =>
-  new Float32Array(new THREE.Matrix4().makeTranslation(x, y, 0).elements);
+  new Float32Array(new G.Matrix4().makeTranslation(x, y, 0).elements);
 
 test('ten transforms then one frame: one render submit, not eleven', () => {
   const m = engine();
   const explorer = api(m.backend);
   for (let i = 0; i < 10; i++) explorer.setTransform(`n${i}`, pose(i, 0));
   assert.equal(m.submissions, 0, 'no frame submitted during the poses');
-  m.backend.render!(new THREE.PerspectiveCamera());
+  m.backend.render!(G.perspectiveCamera());
   assert.equal(m.submissions, 1, 'the host’s explicit render submits once, and only once');
 });
 
@@ -65,8 +65,8 @@ test('an engine that cannot move a node refuses with a named error', () => {
 
 /** The strict minimum `setWebgpuTransform` reads: a scene, a frame gate, a scheduler. */
 function banc() {
-  const source = new THREE.Object3D();
-  const node = new THREE.Object3D();
+  const source = new G.GraphNode();
+  const node = new G.GraphNode();
   node.name = 'volet';
   source.add(node);
   const worlds = hostWorldPlacements(source);
@@ -78,7 +78,7 @@ function banc() {
     run: { gate, temporalHizState: {}, noOccluderHistory: false },
     lights: { plan: { worldChanged: () => {} } },
   } as unknown as WebgpuPagesRuntime;
-  const camera = new THREE.PerspectiveCamera();
+  const camera = G.perspectiveCamera();
   const drawn = [{ sourceMesh: node }];
   /** One loop frame: the gate decides to hold, then stores what it just produced. */
   const frame = () => {
@@ -90,7 +90,7 @@ function banc() {
 }
 
 /** What the frame would draw of this node: the world matrix THE ENGINE holds for it. */
-const image = (b: { node: THREE.Object3D; worlds: HostWorldPlacements }) =>
+const image = (b: { node: G.GraphNode; worlds: HostWorldPlacements }) =>
   Array.from(b.worlds.of(b.node).elements).join(',');
 
 test('a pose changes the held frame: the gate refuses to serve the previous one again', () => {

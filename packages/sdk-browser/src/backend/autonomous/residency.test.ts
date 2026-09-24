@@ -3,7 +3,7 @@
 // `../../../../../bench/oracles/browser/selection.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { collectPendingUrls } from '../../page/selection/requests.ts';
 import { createAutonomousResidency } from './residency.ts';
 import {
@@ -43,7 +43,7 @@ function fakePageRec(url = '', array?: Uint32Array): PageRec {
     attributes: {},
     material: surfaceOf([]),
     declaration: [],
-    matrix: new THREE.Matrix4(),
+    matrix: new G.Matrix4(),
     renderOrder: 0,
     attached: false,
   };

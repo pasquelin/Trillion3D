@@ -4,7 +4,7 @@
 // page would be filed for the whole primitive and `sync()` would refuse the cut it cannot cover.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
 import { autonomousPagesBackend } from './pages.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
@@ -76,11 +76,11 @@ function fixture() {
 
 test('two pages packed in one bundle each receive their own decoded geometry', async () => {
   const { metadata, bytes } = fixture();
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
-  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
-  const mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(18), 3));
+  const material = G.basicSurface({ side: G.DOUBLE_SIDE });
+  const mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const backend = autonomousPagesBackend({
     source,
@@ -89,7 +89,7 @@ test('two pages packed in one bundle each receive their own decoded geometry', a
     associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
     readGeometryPage: async (url: string) => bytes.get(url)!,
   });
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   try {
@@ -98,7 +98,7 @@ test('two pages packed in one bundle each receive their own decoded geometry', a
     await backend.prepare();
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 2);
-    const drawn = backend.scene.children.filter((child) => (child as THREE.Mesh).isMesh);
+    const drawn = backend.scene.children.filter((child) => (child as G.GraphMesh).isMesh);
     assert.equal(drawn.length, 2);
   } finally {
     backend.dispose();

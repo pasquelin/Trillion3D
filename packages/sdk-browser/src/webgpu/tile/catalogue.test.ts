@@ -1,7 +1,7 @@
 import { importHostTexture } from '../../host/surfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import type { TexturePreview } from '../../../../sdk-core/src/index.ts';
 import { previewLevels } from '../../../../../tests/fixtures/manifestBinary.ts';
 import { tileCatalogue } from './catalogue.ts';
@@ -21,7 +21,7 @@ const preview = (width: number, height: number, bakedLevels: number): TexturePre
   ...previewLevels(width, height, 3),
 });
 const map = () => {
-  const texture = new THREE.Texture();
+  const texture = new G.GraphTexture();
   texture.image = { data: new Uint8Array(4 * 4 * 4), width: 4, height: 4 };
   return importHostTexture(texture);
 };

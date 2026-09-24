@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/measurement.ts';
 import {
   drawnIndices,
@@ -84,15 +84,12 @@ test('exact pages report measured residency and submit only the visible set', ()
 });
 
 test('cpuSelectMs measures selection time, finite and non-negative', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
+  const geometry = new G.GraphGeometry();
+  geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
+  const material = G.basicSurface(),
+    mesh = G.mesh(geometry, material),
+    source = new G.GraphGroup();
   source.add(mesh);
   const cluster = (id: number, start: number) => ({
     id,
@@ -116,7 +113,7 @@ test('cpuSelectMs measures selection time, finite and non-negative', () => {
     maxResidentPages: 1,
   };
   const backend = exactPagesBackend(context);
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   backend.render(camera);

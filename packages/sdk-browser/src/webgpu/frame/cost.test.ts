@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../pages/pages.ts';
 import { exactPagesBackend } from '../../../../../bench/witnesses/exact/backend.ts';
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts';
@@ -15,12 +15,9 @@ test('paged transparent commands disappear outside the view and return with both
   for (const gpuCut of [false, true]) {
     const fixture = quadScene();
     fixture.material.transparent = true;
-    fixture.material.side = THREE.DoubleSide;
+    fixture.material.side = G.DOUBLE_SIDE;
     fixture.metadata.primitives[0].pass = 'clustered-blend';
-    const twin = fixture.source.children[0].clone() as THREE.Mesh<
-      THREE.BufferGeometry,
-      THREE.Material
-    >;
+    const twin = fixture.source.children[0].clone() as G.GraphMesh;
     fixture.source.add(twin);
     fixture.associations.set(twin, { meshes: 0, primitives: 0 });
     const roots = collectClusterPages(
