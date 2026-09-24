@@ -62,7 +62,7 @@ export function torusKnot(
 
 /**
  * A tube of `radius` along a curve: rings carried by frames that turn with the curve without
- * twisting about it, closed on request.
+ * twisting about it; closed on request, its rings share the frame's turn round the loop.
  * @param path - The curve the tube follows.
  * @param tubularSegments - Slices along the curve.
  * @param radius - Radius of the tube.
