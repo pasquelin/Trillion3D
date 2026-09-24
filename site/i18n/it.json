@@ -481,7 +481,6 @@
       "breaking-things": "integrazione di un motore fisico",
       "cloth-and-rope": "integrazione di un motore fisico",
       "soft-bodies": "integrazione di un motore fisico",
-      "hinges-and-joints": "integrazione di un motore fisico",
       "drive-a-car": "integrazione di un motore fisico",
       "a-room-in-vr": "sessione WebXR",
       "a-360-photo-in-vr": "sessione WebXR",
@@ -1072,6 +1071,18 @@
           "Rendi le casse <code>'dynamic'</code> e leggere: il personaggio le spinge con <code>pushStrength</code> newton, e loro cadono, rotolano e lo spingono."
         ],
         "tryIt": "Clicca sull’immagine, cammina con W A S D, salta con Spazio. Sali le scale, viaggia sulla piattaforma, spingi la pila di casse."
+      },
+      "connect-drive-and-break": {
+        "title": "Collegare, azionare e spezzare",
+        "description": "I giunti tengono insieme due corpi, o un corpo al mondo: una porta ruota sul cardine, un cassetto scorre sulla guida, una catena pende dai suoi anelli e un ponte si spezza se lo si tira troppo.",
+        "steps": [
+          "Crea un giunto con <code>joint.hinge(a, b, options)</code> o i suoi simili — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — e passalo a <code>world.physics.add</code>. Metti <code>null</code> al posto di <code>b</code> per tenere un corpo al mondo.",
+          "<code>anchor</code> è dove i corpi si collegano e <code>axis</code> la direzione del perno o della guida, entrambi nel mondo, letti quando il giunto viene creato.",
+          "<code>limits</code> ferma il giunto: radianti per un cardine, metri per una guida. Uno <code>spring</code> rende morbido il fermo.",
+          "Un <code>motor</code> porta un cardine o una guida a una velocità o a una posizione. Cambia <code>joint.motor</code> quando vuoi.",
+          "<code>breakForce</code> è la trazione, in newton, oltre la quale il giunto si spezza: <code>joint.broken</code> diventa vero e viene chiamato <code>joint.on('break', …)</code>."
+        ],
+        "tryIt": "Apri la porta e il cassetto, poi lascia cadere la pietra sul ponte. Abbassa la resistenza del ponte e ricostruiscilo: si spezza sotto il suo stesso peso."
       },
       "your-own-scene": {
         "title": "La tua scena",

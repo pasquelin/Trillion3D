@@ -41,8 +41,11 @@ export function createTickResults(
       : (staging ??= new Uint32Array(resultWords(budget)));
     return out;
   };
-  /** A step's refused shapes and exhausted budgets reach the page as they happen; the world runs. */
+  /** A step's refused shapes, broken joints and exhausted budgets reach the page as they happen;
+   *  the world runs. */
   const report = () => {
+    const joints = jolt.broken();
+    if (joints.length) send({ type: 'broken', joints });
     const bodies = jolt.refused();
     if (bodies.length) {
       const message = `Physics: ${bodies.length} body shape(s) refused by the module.`;
