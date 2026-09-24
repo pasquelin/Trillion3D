@@ -1,8 +1,7 @@
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
 import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { packBoxCorners } from '../visibility/corners.ts';
-import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
+import { packPageCorners } from '../visibility/corners.ts';
 
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
@@ -27,8 +26,6 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
   blendState.occlusionCorners = new Float32Array(table.capacity * CORNER_VALUES);
   blendState.occlusionEpoch = -1;
 }
-
-const entryCorners = new Float64Array(BOX_CORNER_VALUES);
 
 /**
  * The eight world corners of every transparent-table entry, in the buffer the test reads.
@@ -57,8 +54,7 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       packed.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    pageCornersInto(entryCorners, 0, packedPages[page]);
-    packBoxCorners(packed, base, entryCorners, 0);
+    packPageCorners(packed, base, packedPages[page]);
   }
   occlusion.uploadCorners(packed, 0, table.capacity - 1);
 }
