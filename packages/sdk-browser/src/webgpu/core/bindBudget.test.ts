@@ -1,22 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
 import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import { createTemporalAntialiasing } from '../../taa/temporalAntialiasing.ts';
-import { layoutCreators } from './layoutDevice.fixture.ts';
-
-/** Fake device for layouts: it keeps only what it is asked to create. */
-function recordingDevice() {
-  return {
-    ...layoutCreators(),
-    createBindGroup: (desc: unknown) => desc,
-    createSampler: () => ({}),
-    queue: { writeBuffer() {} },
-  } as unknown as GPUDevice;
-}
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
 // minimum, and the device refuses to create it — “The number of storage buffers (9) in the
@@ -25,8 +14,7 @@ function recordingDevice() {
 const GUARANTEED_STORAGE_BUFFERS_PER_STAGE = 8;
 
 test('no layout exceeds the eight storage buffers guaranteed per stage', async () => {
-  installGpuGlobals();
-  const device = recordingDevice();
+  const { device } = fakeDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const { shadeBindGroupLayout } = await createWebgpuShadePipelines(
     device,
@@ -38,8 +26,8 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
     ['visibility', visBindGroupLayout],
     ['hardware resolve', shadeBindGroupLayout],
     ['transparents', blendBindGroupLayout],
-    ['small triangles', await firstLayout(device, (d) => createGpuRaster(d, 4, 4, 8))],
-    ['temporal antialiasing', await firstLayout(device, (d) => createTemporalAntialiasing(d, []))],
+    ['small triangles', await firstLayout((d) => createGpuRaster(d, 4, 4, 8))],
+    ['temporal antialiasing', await firstLayout((d) => createTemporalAntialiasing(d, []))],
   ];
   const stages = {
     VERTEX: GPUShaderStage.VERTEX,
@@ -64,16 +52,9 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
   }
 });
 
-/** First layout a constructor creates on the fake device. */
-async function firstLayout(device: GPUDevice, build: (recording: GPUDevice) => unknown) {
-  const layouts: unknown[] = [];
-  const recording = {
-    ...device,
-    createBindGroupLayout: (descriptor: unknown) => {
-      layouts.push(descriptor);
-      return descriptor;
-    },
-  } as unknown as GPUDevice;
-  await build(recording);
-  return layouts[0];
+/** First layout a constructor creates on a fake device of its own. */
+async function firstLayout(build: (device: GPUDevice) => unknown) {
+  const { device, bindGroupLayouts } = fakeDevice();
+  await build(device);
+  return bindGroupLayouts[0];
 }
