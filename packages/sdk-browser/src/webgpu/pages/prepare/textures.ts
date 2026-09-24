@@ -10,7 +10,7 @@ import {
   POOL_LANES,
   poolEncoding,
 } from '../../../texture/blockFormats.ts';
-import { texturePoolFor } from '../../residency/memoryBudgets.ts';
+import { texturePoolFor, type TexturePool } from '../../residency/memoryBudgets.ts';
 import { grantedTexturePool } from '../../residency/poolGrants.ts';
 import { shadowsFollowTextures } from './lightResources.ts';
 import {
@@ -107,33 +107,37 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const poolFor = (budgetBytes: number) =>
     texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes);
   const budget = rt.setup.texturePoolBudget;
-  // Out of memory absorbed: the lane pools are those the device grants (`poolGrants.ts`).
+  const streamer = (layers: TexturePool['layers']) =>
+    createWebgpuTileStreamer({
+      device: gpuDevice,
+      color,
+      data,
+      layers,
+      encoding,
+      budgetBytes: rt.setup.textureBudget,
+      budgetMs: rt.setup.textureUploadMs,
+      readLevel,
+      onFailure: diag.diagnosticFailure,
+      onColorChanged: (slots) => {
+        // Origin of the resource change: colour tiles have just reached the pool or left it, or a
+        // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —
+        // once per pump.
+        run.gate.resourcesChanged();
+        shadowsFollowTextures(rt.lights, rt.layout.rows, slots);
+      },
+    });
+  // Out of memory absorbed: the lane pools are those the device grants, allocated once, under the
+  // out-of-memory scope (`poolGrants.ts`).
   const granted = await grantedTexturePool(
     gpuDevice,
     budget,
-    { encoding, poolFor },
+    { poolFor },
     diag.engineDiagnostic,
+    (pool) => streamer(pool.layers),
   );
-  const pools = { choice, encoding, pool: granted ?? poolFor(budget), poolFor };
+  const pools = { choice, encoding, pool: granted?.pool ?? poolFor(budget), poolFor };
   rt.setup.texturePools = pools;
-  const textures = createWebgpuTileStreamer({
-    device: gpuDevice,
-    color,
-    data,
-    layers: pools.pool.layers,
-    encoding,
-    budgetBytes: rt.setup.textureBudget,
-    budgetMs: rt.setup.textureUploadMs,
-    readLevel,
-    onFailure: diag.diagnosticFailure,
-    onColorChanged: (slots) => {
-      // Origin of the resource change: colour tiles have just reached the pool or left it, or a
-      // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —
-      // once per pump.
-      run.gate.resourcesChanged();
-      shadowsFollowTextures(rt.lights, rt.layout.rows, slots);
-    },
-  });
+  const textures = granted?.made ?? streamer(pools.pool.layers);
   textures.prepare();
   vis.textures = textures;
   diag.engineDiagnostic('material-textures-ready', 'Textures and filtering ready', {
