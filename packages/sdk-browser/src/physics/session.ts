@@ -78,6 +78,8 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
+  /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
+  const touched: { id: number; eye: Object3D | null } = { id: budget.bodies, eye: null };
   const worker = new Worker(besideModule('physicsWorker', import.meta.url), { type: 'module' });
   const threads = stepThreads(budget.threads);
   const bytes = resultWords(budget) * 4;
@@ -104,7 +106,7 @@ export function createPhysicsSession(
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
     const moved = poses.receive(words, m.poses, bodies, ms);
-    emitContacts(words, eventsAt(budget), m.events, bodies.meshOf);
+    emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
     if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active || m.character !== null;
@@ -165,6 +167,7 @@ export function createPhysicsSession(
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
     frame(camera: Camera) {
+      touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
         stale.clear();
