@@ -47,6 +47,19 @@ test('dragging an arrow moves the object and keeps the orbit still; beside it, t
   assert.equal(box.children.length + scene.children.length, 1, 'the handles left the scene');
 });
 
+test('a handle hidden behind a wall is not picked: the press turns the orbit', () => {
+  const { surface, camera, scene, gizmo } = rig({ x: 0, y: 0, z: 0 });
+  const box = object.mesh(geometry.box(1, 1, 1)),
+    wall = object.mesh(geometry.box(4, 4, 0.1));
+  wall.position.set(0, 0, 3);
+  scene.add(box, wall);
+  gizmo.attach(box);
+  const x = box.position.x;
+  fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 });
+  assert.equal(box.position.x, x, 'the arrow behind the wall stayed where it was');
+  assert.notDeepEqual(camera.position.toArray(), [0, 0, 10], 'the orbit heard the press');
+});
+
 test('a child under a moved, turned and scaled parent moves in the world as the handle shows', () => {
   const { surface, scene, gizmo } = rig({ x: 5, y: 0, z: 0 });
   const parent = new Object3D(),
@@ -57,7 +70,8 @@ test('a child under a moved, turned and scaled parent moves in the world as the 
   parent.add(child);
   scene.add(parent);
   gizmo.attach(child);
-  fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 });
+  // Pressed on the shaft 1.5 units out, past the box of side 2 that hides its inner part.
+  fixtureDrag(surface, 40, 0, { clientX: 264, clientY: 200 });
   const at = child.getWorldPosition(new Vector3());
   assert.ok(
     Math.abs(at.x - 5 - 40 * unit) < 1e-9 && Math.abs(at.y) < 1e-9 && Math.abs(at.z) < 1e-9,
