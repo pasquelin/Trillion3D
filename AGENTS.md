@@ -18,10 +18,11 @@ disagreement is reported to the maintainer.
    the shared checkout, never touch another session's worktree. Every worktree lives in
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
-5. **Never open an issue** unless the maintainer asks. A defect found on the way is one line in
-   your report. Sole exceptions: the measurer opens one per regression, and a lead splits an
-   issue too large for one pull request; both write it as the writer. The auditor never opens
-   one: a finding reopens the audited issue.
+5. **Only the maintainer opens issues** (the maintainer's own session, with the writer role). No
+   other session opens one, not even to split an issue. What a pull request does not deliver
+   stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
+   open. A regression reopens the measured issue with `measure ko`; a finding reopens the audited
+   issue with `audit ko`. A defect found on the way is one line in your report to the maintainer.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **The witness library stays a witness**: named only in bench, measurement and migration
@@ -36,7 +37,7 @@ disagreement is reported to the maintainer.
 ## Roles
 
 Three kinds of session, started by the maintainer — lead, measurer, auditor — two roles a lead
-launches as subagents — coder, reviewer — and the writer, which anyone uses to write an issue.
+launches as subagents — coder, reviewer — and the writer, which only the maintainer's session uses.
 Each role is `docs/roles/<role>.md`.
 
 | Role     | Started by | Does                                                              | Never                        |
@@ -44,29 +45,40 @@ Each role is `docs/roles/<role>.md`.
 | lead     | maintainer | owns one domain, delegates, merges, labels                        | writes code, measures        |
 | coder    | lead       | implements one issue, opens the pull request                      | merges, measures             |
 | reviewer | lead       | simplification then correctness pass on one pull request, verdict | merges, measures             |
-| measurer | maintainer | the one queue of browser proofs and benchmarks, on merged batches | edits code, merges           |
+| measurer | maintainer | browser proofs, benchmarks and example thumbnails, after merge    | edits code, merges           |
 | auditor  | maintainer | re-reads every merge on `develop` against CONTRIBUTING.md         | edits code, merges, measures |
-| writer   | anyone     | writes one issue on the template, from its patterns               | codes, measures              |
+| writer   | maintainer | writes one issue on the template, from its patterns               | codes, measures              |
 
 Several leads may run at once, one domain each (a label or an issue list given at launch). There
 is one measurer and one auditor.
 
+## Leads: limits that hold at every moment
+
+- **Never idle.** A lead with work in its domain (an open issue, a pull request to unblock) is
+  always working on it; `measure ko` and `audit ko` first, then 🔴 critical, then the oldest.
+- **One agent at a time.** A lead runs one coder or one reviewer subagent at a time, never two.
+- **At most 3 pull requests waiting per lead.** At 3, the lead starts no coder: it unblocks its own
+  pull requests (red CI, conflict with `develop`, unanswered review) and resumes only once it is
+  back at 2.
+- **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
+  working on its children: the order is kept, and each merge passes its checklist.
+
 ## Labels: the only channel between sessions
 
-| Label         | Set by   | Means                                                      |
-| ------------- | -------- | ---------------------------------------------------------- |
-| `in progress` | lead     | taken: no other lead touches it                            |
-| `in review`   | lead     | pull request open, reviewer at work                        |
-| `to measure`  | lead     | closed engine issue waiting in the measurer's queue        |
-| `measuring`   | measurer | being measured now                                         |
-| `measure ok`  | measurer | measured, no regression; numbers in a comment              |
-| `measure ko`  | measurer | on a new issue: the regression, linked to the measured one |
-| `audited`     | auditor  | on the pull request: the merge was re-read                 |
-| `audit ko`    | auditor  | on the audited issue, reopened: the findings in a comment  |
+| Label         | Set by   | Means                                                     |
+| ------------- | -------- | --------------------------------------------------------- |
+| `in progress` | lead     | taken: no other lead touches it                           |
+| `in review`   | lead     | pull request open, reviewer at work                       |
+| `to measure`  | lead     | closed engine issue waiting in the measurer's queue       |
+| `measuring`   | measurer | being measured now                                        |
+| `measure ok`  | measurer | measured, no regression; numbers in a comment             |
+| `measure ko`  | measurer | on the measured issue, reopened: the regression's numbers |
+| `audited`     | auditor  | on the pull request: the merge was re-read                |
+| `audit ko`    | auditor  | on the audited issue, reopened: the findings in a comment |
 
 Measuring and auditing never block a pull request: the issue closes at merge, the measurer and the
-auditor only comment on it. A regression becomes a new issue carrying the original's domain
-label; an audit finding reopens the original. A lead always takes the `measure ko` and
+auditor only comment on it. A regression or an audit finding **reopens** the original issue with
+`measure ko` or `audit ko`; neither opens a new one. A lead always takes the `measure ko` and
 `audit ko` issues of its domain before a new one.
 
 ## Interaction

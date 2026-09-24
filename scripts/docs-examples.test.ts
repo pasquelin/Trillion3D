@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { access, readFile } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
-import { thumbnailDelay } from './docs/examples/capture.ts';
+import { exampleModules, thumbnailDelay } from './docs/examples/capture.ts';
 import exampleWords from '../site/examples/i18n/en.json' with { type: 'json' };
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
 import type { ExampleList as ExampleListComponent } from '../site/app/layout/ExampleList.tsx';
@@ -75,6 +75,19 @@ test('every example is one standalone HTML file that imports the built engine', 
       assert.match(credit?.words?.credit ?? '', /\b(CC0|CC BY 3\.0)\b.*CREDITS\.md$/, entry.id);
     }
   }
+});
+
+test('every example page parses, so a slip that stops it before its first frame fails here', async () => {
+  // #534: a name declared twice left the flight page blank, and no test read that part of it.
+  const pages = (await readdir(new URL('examples/', site))).filter((file) =>
+    file.endsWith('.html'),
+  );
+  assert.ok(pages.length >= written.length);
+  for (const page of pages)
+    await exampleModules(await readFile(new URL(`examples/${page}`, site), 'utf8')).catch(
+      (error: Error) => assert.fail(`${page}: ${error.message}`),
+    );
+  await assert.rejects(exampleModules('<script type="module">const a = 1, a = 2;</script>'));
 });
 
 test('an example declares the moment its thumbnail is taken, or gets the settled default', () => {

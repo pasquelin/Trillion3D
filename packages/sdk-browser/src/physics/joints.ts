@@ -9,8 +9,8 @@ import {
   type Joint,
   type JointMotor,
 } from '../../../sdk-core/src/physics/index.ts';
-import type { JointHost } from '../../../sdk-core/src/physics/joint.ts';
 import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
+import { normalizeVector3 } from '../../../sdk-core/src/math/primitives/vector.ts';
 import { readVec3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { hasBody, worldPoseOf, type createPhysicsBodies } from './bodies.ts';
@@ -22,9 +22,10 @@ const turn = (q: ArrayLike<number>, v: Vec): Vec => {
   rotateByQuaternion(turned, q, v[0], v[1], v[2]);
   return [turned[0], turned[1], turned[2]];
 };
+/** `v` made unit length, in place. */
 const unit = (v: Vec): Vec => {
-  const length = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0] / length, v[1] / length, v[2] / length];
+  normalizeVector3(v);
+  return v;
 };
 /** A unit vector square to `axis`: the direction a joint's angle 0 is read from. */
 const normalTo = ([x, y, z]: Vec): Vec => unit(Math.abs(x) < 0.9 ? [0, z, -y] : [-z, 0, x]);
@@ -72,7 +73,7 @@ export function createPhysicsJoints(
   const slots: (Joint | null)[] = [];
   const generation: number[] = [];
   const free: number[] = [];
-  const host: JointHost = {
+  const host: NonNullable<Joint['_host']> = {
     motor(joint) {
       const { mode, target, maxForce } = motorOf(joint.motor);
       writer.motor(joint._id, mode, target, maxForce);
@@ -105,10 +106,11 @@ export function createPhysicsJoints(
     generation[index] = ((generation[index] ?? 0) + 1) % GENERATIONS;
     const id = index | (generation[index] << GENERATION_SHIFT);
     const { limits, spring } = joint.options;
-    // A distance keeps its length, or stays within the limits from 0; the others have none.
+    // A distance keeps its length, or stays within the limits from 0 up to its length, or up to
+    // the minimum when that is further; the others have none.
     const distance = joint.kind === 'distance';
     const min = limits?.min ?? (!distance ? -Infinity : limits ? 0 : frames.length);
-    const max = limits?.max ?? (distance ? frames.length : Infinity);
+    const max = limits?.max ?? (distance ? Math.max(min, frames.length) : Infinity);
     writer.joint({
       id,
       kind: JOINT[joint.kind],

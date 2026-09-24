@@ -3,14 +3,17 @@ import { join } from 'node:path';
 
 /**
  * What the release build of the compiler is made from, relative to its crate: the inputs
- * `build.rs` hashes and watches. The Jolt submodule itself is left out — a change there is a new
- * commit, already in the key — and so is anything a cook could write.
+ * `build.rs` hashes and watches, the page codec it links included. The Jolt submodule itself is
+ * left out — a change there is a new commit, already in the key — and so is anything a cook could
+ * write.
  */
 const BUILD_INPUTS = [
   'Cargo.toml',
   'Cargo.lock',
   'build.rs',
   'src',
+  '../page-codec-wasm/Cargo.toml',
+  '../page-codec-wasm/src',
   '../physics-jolt-wasm/cook',
   '../physics-jolt-wasm/src/blob.h',
   '../physics-jolt-wasm/CMakeLists.txt',

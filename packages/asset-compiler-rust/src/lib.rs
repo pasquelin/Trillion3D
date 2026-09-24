@@ -135,6 +135,7 @@ mod compiler_page_object;
 mod compiler_plan;
 mod compiler_primitive;
 mod compiler_primitive_bundle;
+mod compiler_primitive_checks;
 mod compiler_primitive_dag;
 mod compiler_primitive_stalls;
 mod compiler_primitive_warn;

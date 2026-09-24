@@ -2941,6 +2941,8 @@
       "shadowWaitMs": "Ne kadar süre bekledikleri.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
+      "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
+      "gpuShadowRasterMs": "Bu gölge düşürenleri sayfalara çizmenin GPU süresi: statik katman, ardından havuz.",
       "gpuLightingMs": "Aydınlatmanın GPU süresi.",
       "shadowLightCuts": "Işıklardan yürütülen küme kesitleri: çizilen ışık görünümü başına bir, durağan bir karede sıfır.",
       "shadowPagesRequested": "Görüntünün okuduğu sanal gölge sayfaları, son istek raporunun adlandırdığı biçimde: kameranın alıcılarının işaretledikleri.",
@@ -2960,7 +2962,7 @@
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
-      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
+      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan kutular hemen listeye girer.",
       "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",
       "setBudgetMs": "Ana makinenin yayımladığı bütçe, kare başına GPU milisaniyesi.",
       "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: hareket eden bir nesne dokunduğu ışıkların her sayfasını eskitir. Varsayılan olarak açık.",
@@ -3796,8 +3798,8 @@
       "gravity": "Yalnızca karakter: yükselirken aşağı ivme, m/s²; varsayılan olarak 9,80665.",
       "fallGravity": "Yalnızca karakter: düşerken aşağı ivme, m/s²; varsayılan olarak 1,6 g, böylece bir zıplama havada süzülmez.",
       "airControl": "Yalnızca karakter: tuşların havada ne kadar hızlı yönettiği, zemin başlangıcının bir payı olarak; varsayılan olarak 0,05, 0 balistiktir.",
-      "responseTime": "Yalnızca karakter: zeminde istenen hızın %95'ine ulaşmak için saniye; varsayılan olarak 0,12.",
-      "stopTime": "Yalnızca karakter: zeminde hiçbir tuş basılı tutulmadığında hızın %95'ini kaybetmek için saniye; varsayılan olarak 0,08.",
+      "responseTime": "Yalnızca karakter: bacakların zeminde istenen hızın %95'ine ulaşması için geçen saniye; varsayılan 0,12. Zeminin sürtünmesi kalkışı önce sınırlar: bir taban en fazla `μ g` iter, `μ` bir kauçuk tabanın zeminin `material.physics` değeri üzerindeki tutuşudur (fizik yokken taş), bu yüzden hafif koşuya taşta 0,45 s'de, buzda 2,2 s'de ulaşılır.",
+      "stopTime": "Yalnızca karakter: zeminde hiçbir tuş basılı tutulmadığında bacakların hızın %95'ini kaybetmesi için geçen saniye; varsayılan 0,12. Zeminin sürtünmesi duruşu önce sınırlar: hafif koşu `v² / (2 μ g)` kayar, taşta 0,8 m ve buzda 3,8 m; daha uzun bir süre daha yumuşak frenler.",
       "capsuleRadius": "Yalnızca karakter: gövdenin yarıçapı, metre cinsinden; varsayılan olarak bir omuz genişliğinin yarısı (0,23 m).",
       "capsuleHeight": "Yalnızca karakter: gövdenin yüksekliği, metre cinsinden; varsayılan olarak 1,75.",
       "eyeHeight": "Yalnızca karakter: kameranın ayakların üzerindeki yüksekliği, metre cinsinden; varsayılan olarak 1,64.",
@@ -3842,10 +3844,13 @@
     "members": {
       "geometryPoolCeiling": "Bir dünyanın isteyebileceği en büyük havuzlar: motorun başlangıç bütçeleri.",
       "texturePoolCeiling": "Bir dünyanın isteyebileceği en büyük doku havuzu, bayt cinsinden.",
-      "geometryPool": "Geometri sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
-      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
+      "geometryPool": "Geometri sayfaları için ayrılan GPU belleği baytı; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve doku havuzunun yanında bıraktığı kadarıyla.",
+      "texturePool": "Doku sayfaları için ayrılan GPU belleği baytı, doku havuzu olmayan bir motorda (WebGL2) `null`; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve geometri havuzunun yanında bıraktığı kadarıyla.",
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
-      "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın."
+      "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
+      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Asla makineden okunmaz.",
+      "cpu": "Dünyanın çözülmüş sayfalarının tutabileceği CPU belleği baytı; bir sonraki sahne yüklemesinde uygulanır.",
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -3959,6 +3964,8 @@
       "shadowWaitMs": "Ne kadar süre bekledikleri.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
+      "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
+      "gpuShadowRasterMs": "Bu gölge düşürenleri sayfalara çizmenin GPU süresi: statik katman, ardından havuz.",
       "gpuLightingMs": "Aydınlatmanın GPU süresi.",
       "hizTestedClusters": "Gizlenme testinin bir karede yaptığı şey: ona verilen cluster'lar, elediği olanlar, ve seviye-0 ekran ayak izi on altı tekselli çekirdeği aşan ve bu yüzden daha kaba bir mipten yanıt verenler. `hiz*Triangles`, aynı cluster'ların üçgenleridir. GPU yolunda, onları render edenden ÖNCEKİ bir kareyi betimlerler — `hizCountedFrame` hangisini adlandırır — `gpuPassMs` gibi, ve komşu iki kare genellikle aynı örneği taşır. Hiçbiri tahmin edilmez: gizlenmeyi test etmeyen bir motorda, verdileri yeniden okunamayan bir cihazda, ve hiçbir kare sayılmadığı sürece `null`.",
       "hizRejectedClusters": "Gizlenen cluster'lar.",
@@ -4297,7 +4304,7 @@
     "description": "`memory(world)`, dünyanın şu anda tuttuğu şeydir (`world.budget`); iki havuz, bir dünyanın aldığı ayarı oluşturur."
   },
   "budget.memory": {
-    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: her iki havuz ve her birinin büyüyebileceği en büyük boyut."
+    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü."
   },
   "budget.geometryPool": {
     "summary": "Bir dünyaya vermeye hazır, `bytes`'lık bir geometri havuzu ayarı.",
@@ -6627,7 +6634,7 @@
   },
   "CharacterCameraControls": {
     "summary": "Gözlerinden görülen bir KARAKTER: yürüyen, koşan, zıplayan ve düşen, kütlesi olan ve dünyanın üçgenleriyle dik bir kapsül olarak çarpışan bir gövde.",
-    "description": "İşaretçi, birinci şahıstaki gibi başı çevirir (`look.ts`). Tuşlar, her klavye düzeninin aynı tuşları çalması için `KeyboardEvent.code`'a göre: W/S ya da yukarı ve aşağı oklar ileri ve geri yürür, A/D ya da yan oklar yana kayar, Shift koşar, Boşluk zıplar. Gövde bir anda başlamaz ya da durmaz: `responseTime` üzerinden hız kazanır ve `stopTime` üzerinden frenler, havada momentumunu korur, `gravity` altında yükselir ve `fallGravity` altında düşer, `stepHeight`'a kadar çıkıntılara tırmanır, duvarlar boyunca kayar ve `maxSlope`'a kadar eğimlerde durur (`sdk-core/src/collision/characterBody.ts`). Kamera gözdür, ayakların `eyeHeight` üzerinde, `headBob` ile adımla sallanır ve bir inişte `landingDip` ile dalar (`sdk-core/src/collision/characterEye.ts`); ikisi de gövdenin adımından sonra gözün üzerine biner ve gövdeyi asla hareket ettirmez. Kamerayı kendisi hareket ettiren bir host, gövdeyi oraya, dinlenme halinde ışınlar. Sabit bir karakter — yerde, hızsız, tuşsuz, kalan dalışı olmayan — hiçbir şey yaymaz, bu yüzden sahne sabit kalır.",
+    "description": "İşaretçi, birinci şahıstaki gibi başı çevirir (`look.ts`). Tuşlar, her klavye düzeninin aynı tuşları çalması için `KeyboardEvent.code`'a göre: W/S ya da yukarı ve aşağı oklar ileri ve geri yürür, A/D ya da yan oklar yana kayar, Shift koşar, Boşluk zıplar. Gövde bir anda başlamaz ya da durmaz: `responseTime` üzerinden hız kazanır ve `stopTime` üzerinden frenler, ama zemininin sürtünmesinin bir tabanın itmesine izin verdiğinden asla daha hızlı değil; bu yüzden bir duruş taşta biraz, buzda çok kayar, havada momentumunu korur, `gravity` altında yükselir ve `fallGravity` altında düşer, `stepHeight`'a kadar çıkıntılara tırmanır, duvarlar boyunca kayar ve `maxSlope`'a kadar eğimlerde durur (`sdk-core/src/collision/characterBody.ts`). Kamera gözdür, ayakların `eyeHeight` üzerinde, `headBob` ile adımla sallanır ve bir inişte `landingDip` ile dalar (`sdk-core/src/collision/characterEye.ts`); ikisi de gövdenin adımından sonra gözün üzerine biner ve gövdeyi asla hareket ettirmez. Kamerayı kendisi hareket ettiren bir host, gövdeyi oraya, dinlenme halinde ışınlar. Sabit bir karakter — yerde, hızsız, tuşsuz, kalan dalışı olmayan — hiçbir şey yaymaz, bu yüzden sahne sabit kalır.",
     "members": {
       "velocity": "Gövdenin saniyede metre cinsinden hızı, canlı: `[x, y, z]`, y yukarı.",
       "onGround": "Ayakların bir zeminde olup olmadığı.",
@@ -6864,6 +6871,7 @@
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
+      "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
@@ -7014,6 +7022,19 @@
       "current": "Suyun hızı (bir nehrin akıntısı), m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Sayfanın çizmek için okuduğu su yüzeyi (`world.physics.waterSurface`): fizik worker’ında kaldırma kuvvetinin okuduğu dalga modeli, aynı sayılar, simülasyonun zamanında.",
+    "members": {
+      "level": "Yüzeyin durgunken yüksekliği, metre.",
+      "crest": "Bir tepenin `level` üzerinde ulaştığı en yüksek nokta, metre.",
+      "time": "Su ayarlandığından beri geçen simüle saniyeler: dalgaların saati.",
+      "setTime": "Dalgaları `t` simüle saniyeye ayarlar.",
+      "height": "Dünya noktası `(x, z)` üzerindeki yüzeyin yüksekliği, metre.",
+      "point": "Durgun nokta `(x, level, z)`’nin taşındığı dünya noktası `[x, y, z]`, `out` içine: nokta nokta taşınan bir ızgara yüzeyin kendisidir, tepeler dalgalar kadar keskin.",
+      "wavesNow": "Bildirilen dalgalar, her faz bu âna taşınmış: `world.physics.water`’a yeniden verildiğinde (dalgaları 0 sn’den yeniden başlar), yüzey sıçramadan olduğu yerden sürer.",
+      "normal": "Durgun nokta `(x, z)`’de yüzeyin birim normali `[x, y, z]`, `out` içine."
+    }
+  },
   "WaveSpec": {
     "summary": "Bir sahnenin bildirdiği şekliyle bir dalga.",
     "members": {
@@ -7047,6 +7068,7 @@
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
+      "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
@@ -7087,17 +7109,6 @@
       "brake": "Fren pedalı, 0 ile 1 arası.",
       "steer": "Direksiyon, −1 tam sol ile 1 tam sağ arası.",
       "handbrake": "El freninin çekili olup olmadığı."
-    }
-  },
-  "GraphAngles": {
-    "summary": "Aynı yönelim üç açı ve sıraları olarak; yazımlarını aynı şekilde duyurur.",
-    "members": {
-      "x": "Birinci açı, radyan cinsinden.",
-      "set": "Üç açıyı ve verildiyse sırayı yazar; bir kez duyurulur.",
-      "setFromRotation": "`q`'nun bu sıradaki açıları (çekirdeğin `Euler`'i); `quiet` değilse duyurulur.",
-      "y": "İkinci açı, radyan cinsinden.",
-      "z": "Üçüncü açı, radyan cinsinden.",
-      "order": "Üç açının döndüğü sıra; ayarlanmadıkça `'XYZ'`."
     }
   },
   "GraphArray": {
@@ -7220,22 +7231,6 @@
   "GraphNodeKind": {
     "summary": "Grafın bir düğümünün ne olduğu: yalın bir düğüm, kök, bir grup, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
   },
-  "GraphRotation": {
-    "summary": "Yazımları `_onChangeCallback`'i çağıran bir `(x, y, z, w)` yönelimi.",
-    "members": {
-      "x": "İlk sayı.",
-      "set": "Dört sayıyı yazar; bir kez duyurulur.",
-      "copy": "Başka bir dönüşün sayılarını alır.",
-      "fromArray": "Bir listeden dört sayı okur.",
-      "setFromAngles": "`angles`'ın kendi sırasındaki dönüşü (`localTurnQuaternion`); `quiet` değilse duyurulur.",
-      "setFromRotationMatrix": "Sütunları birim uzunlukta olan sütun öncelikli bir matrisin üst 3×3'ünün dönüşü.",
-      "premultiply": "`q` ardından bu dönüş olur, `q · this`.",
-      "invert": "Ters dönüş olur.",
-      "y": "İkinci sayı.",
-      "z": "Üçüncü sayı.",
-      "w": "Dördüncü sayı."
-    }
-  },
   "GraphSurface": {
     "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",
     "description": "Sürümü, her okuyucunun karşılaştırdığı `needsUpdate` ile artırılır.",
@@ -7296,24 +7291,6 @@
       "repeat": "Kaç kez sığdığı.",
       "center": "Dönmenin ekseni.",
       "rotation": "Dönme, radyan cinsinden."
-    }
-  },
-  "GraphVector": {
-    "summary": "Bir pozun ya da noktanın üç sayısı: düz veri alanları ve bir denetleyicinin kullandığı işlemler.",
-    "members": {
-      "set": "Üç sayıyı yazar.",
-      "copy": "Başka bir noktanın sayılarını alır.",
-      "clone": "Bir kopya.",
-      "add": "Başka bir vektör ekler.",
-      "sub": "Başka bir vektörü çıkarır.",
-      "multiplyScalar": "Üç sayıyı ölçekler.",
-      "length": "Uzunluğu.",
-      "setLength": "Yönü korur, uzunluğu ayarlar.",
-      "distanceTo": "Bir noktaya uzaklık.",
-      "fromArray": "Bir listeden üç sayı okur.",
-      "x": "Soldan sağa.",
-      "y": "Alttan üste.",
-      "z": "Arkadan öne."
     }
   },
   "Joint": {
@@ -7379,12 +7356,6 @@
       "slider": "`axis` boyunca bir ray: bir çekmece, bir piston. `limits` metre cinsinden.",
       "distance": "`a` üzerindeki `anchor` ile `b` üzerindeki `anchorB`'yi aralarındaki mesafede ya da `limits` içinde tutar.",
       "cone": "`axis`'i yarım açısı `limits.max` olan bir koni içinde salınan bilyeli eklem."
-    }
-  },
-  "JointHost": {
-    "summary": "Bir eklemin dünya tarafı: ona yapılan bir yazmanın simülasyondan istediği.",
-    "members": {
-      "motor": "Motor değişti."
     }
   }
 }

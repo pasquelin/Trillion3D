@@ -35,14 +35,13 @@ export {
   type PhysicsHost,
   Joint,
   joint,
-  type JointHost,
   type JointKind,
   type JointLimits,
   type JointMotor,
   type JointOptions,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
-export type { WaterSpec, WaveSpec } from '../../sdk-core/src/fluids/index.ts';
+export type { WaterSpec, WaveSpec, WaterSurface } from '../../sdk-core/src/fluids/index.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
 export * from './world/diagnostic/index.ts';
@@ -100,10 +99,8 @@ export type { GraphGeometry } from './host/graph/geometry.ts';
 export type { GraphMesh } from './host/graph/mesh.ts';
 export type { GraphNode } from './host/graph/node.ts';
 export type { GraphNodeKind } from './host/graph/nodeKind.ts';
-export type { GraphAngles, GraphRotation } from './host/graph/rotation.ts';
 export type { GraphSurface } from './host/graph/surface.ts';
 export type { GraphTexture } from './host/graph/texture.ts';
-export type { GraphVector } from './host/graph/vector.ts';
 export type { HostNodeMatrix, MatrixElements } from './math/matrixElements.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpu/core/passBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts';
