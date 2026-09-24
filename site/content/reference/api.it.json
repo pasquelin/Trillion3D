@@ -2380,10 +2380,6 @@
   "HostGeometry": {
     "summary": "Una geometria dell'host: i suoi attributi, e la scatola locale che l'host ha calcolato su di essa."
   },
-  "HostGraphNode": {
-    "summary": "Un nodo del grafo dell'host così come lo vede un percorso: la sua identità, la sua posa locale, la matrice del mondo che l'host ha risolto per esso, e la sua catena.",
-    "description": "Il motore calcola le PROPRIE matrici del mondo a partire dalle pose locali (`../world/tree.ts`); `matrixWorld` viene letta dove è la risoluzione propria dell'HOST che un confine gli restituisce. PERCHÉ `HostPlaced` (`../resources.ts`) DESCRIVE ANCHE UN NODO POSIZIONATO. I due non sono una copia: si appoggiano sulle due risoluzioni diverse offerte da un host. `HostPlaced` richiede `updateWorldMatrix(ancestors, descendants)` — la catena di UN nodo, ciò che restituiscono un posizionamento e un percorso di visibilità; questo richiede `updateMatrixWorld(force)` — il SOTTOALBERO sotto un nodo, ciò che risolvono in una chiamata un percorso, un'unione di limiti e una replica. Un host che offre solo una delle due soddisfa solo il contratto a cui risponde, quindi nessuno dei due può sostituire l'altro."
-  },
   "HostMaterial": {
     "summary": "Un materiale dell'host così come lo legge il motore: i parametri di superficie condivisi da ogni materiale dell'host, letti una volta al confine nel `VisMaterial` del motore; solo `sideOf` legge `side`."
   },
@@ -2392,9 +2388,6 @@
   },
   "HostMesh": {
     "summary": "Una mesh dell'host, mantenuta dalla sua identità: il record di disegno, la tabella trasparente e gli insiemi di selezione nominano la superficie posizionata dall'host."
-  },
-  "HostNode": {
-    "summary": "Un nodo del grafo di scena dell'host, mantenuto dalla sua identità e dai due campi di cui un percorso ha bisogno."
   },
   "HostNodeMatrix": {
     "summary": "Gli stessi sedici float, MODIFICABILI termine per termine: la posa che un confine rimette su un nodo dell'host o su una camera dell'host che ripristina.",
@@ -2446,9 +2439,6 @@
   },
   "HostTexture": {
     "summary": "Una texture dell'host: l'immagine decodificata dall'host e lo stato di campionamento dichiarato, mantenuta anch'essa dalla sua identità."
-  },
-  "HostTraversable": {
-    "summary": "Un nodo dell'host percorso dal motore: il sottoalbero sottostante, esso per primo, nell'ordine proprio dell'host."
   },
   "HostVector": {
     "summary": "Tre numeri di una posa, così come li tiene l'host e li restituisce un confine.",
@@ -7169,9 +7159,6 @@
     "members": {
       "serial": "Il numero del nodo, unico nella sessione.",
       "kind": "Che cosa è il nodo: ciò su cui ogni lettore del grafo si restringe.",
-      "parent": "Il suo genitore.",
-      "children": "I nodi che questo contiene, in ordine.",
-      "traverse": "Il sottoalbero sotto il nodo, esso per primo, nell'ordine proprio dell'host.",
       "clone": "Un nodo dello stesso tipo con gli stessi valori; anche i figli copiati salvo indicazione contraria.",
       "copy": "Prende i valori di `source`, e copie dei suoi figli salvo indicazione contraria."
     },
@@ -7280,7 +7267,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Che cosa è un nodo del grafo: un nodo semplice, la radice, un gruppo, una mesh disegnata (in una collocazione o in più), un occhio, o una delle luci che una scena dichiara."
+    "summary": "Che cosa è un nodo del grafo: la radice, una mesh disegnata (in una collocazione o in più), un occhio, o una delle luci che una scena dichiara."
   },
   "Joint": {
     "summary": "Un giunto tra due corpi, o tra un corpo e il mondo (`b` null), creato con `joint.*` e aggiunto alla simulazione con `world.physics.add`.",
