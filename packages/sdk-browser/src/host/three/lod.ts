@@ -3,8 +3,9 @@ import { asHostLibrary } from '../resources.ts';
 import { copyElements } from '../../math/matrixElements.ts';
 import { hostMeshCopy } from '../scene/graphObjects.ts';
 import { collectCover, buildIndex } from './lodHelpers.ts';
-import { installSceneLighting, sceneLightingApi } from '../../lighting/sceneLighting.ts';
-import { hostAimNode } from '../scene/objects.ts';
+import { sceneLightingApi } from '../../lighting/sceneLighting.ts';
+import { hostBackground, lighting } from '../scene/objects.ts';
+import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from '../../backend/types.ts';
 import {
@@ -28,9 +29,11 @@ const HORS_PORTEE = [
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend: BackendFactory = (context) => {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
-  const lightSource = context.sceneLighting ?? context.source;
-  const sceneLights = installSceneLighting(scene, lightSource, hostAimNode);
+  const sceneLights = lighting(
+    scene,
+    context.clearColor ?? DEFAULT_CLEAR_COLOR,
+    context.sceneLighting ?? context.source,
+  );
   const hostDraw = createThreeSceneDraw(context.webglContext, scene);
   const lods: THREE.LOD[] = [];
   let levels = 1,
@@ -131,6 +134,7 @@ export const threeLodBackend: BackendFactory = (context) => {
     async prepare() {},
     // This engine rewalks the scene every frame: no revision has to teach it.
     ...sceneLightingApi(sceneLights, () => {}),
+    setClearColor: hostBackground(scene, () => {}),
     render(camera) {
       hostDraw.render(camera);
       asHostLibrary<THREE.Object3D>(context.source).updateMatrixWorld(true);

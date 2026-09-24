@@ -143,6 +143,16 @@ test('a parameter cleared to null is read back null, not an empty object', async
   assert.equal((again.children[0] as typeof box).material.map, null);
 });
 
+test('a saved file with no background key is read back with no background, not refused', async () => {
+  const scene = sceneWithLoads([]);
+  scene.add(object.group());
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()));
+  delete saved.background;
+  scene.background = new Color(0xff0000);
+  await scene.fromJSON(saved);
+  assert.equal(scene.background, null);
+});
+
 test('two scenes read at once are read one after the other, never merged', async () => {
   const scene = sceneWithLoads([]);
   const saved = (url: string) => {

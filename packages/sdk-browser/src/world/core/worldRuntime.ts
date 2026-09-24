@@ -9,6 +9,7 @@ import { createWorldContents } from './worldContents.ts';
 import { releaseWorldMirror } from './worldMirror.ts';
 import { createWorldLights } from './worldLights.ts';
 import { createWorldLink } from './worldLink.ts';
+import { createWorldBackground } from './worldBackground.ts';
 import { watchFirstFrame } from '../session/openWatch.ts';
 import { copyWorldCamera, createCanvasFit, drawnAspect } from './worldCamera.ts';
 import type { Cut } from './worldCuts.ts';
@@ -39,16 +40,15 @@ type Inputs = {
 
 /**
  * The session drawing a world, fed by a per-frame change list. What the scene asks is resolved off
- * the frame into tables — resources, material entries, batches and their rows (`worldContents.ts`)
- * — and applied once before each frame: a mesh added or removed takes or parks a row, a full buffer
- * grows in place (`placement/growth.ts`), a pose writes its row, the session reads the rows in place.
- * It is opened again, on the world's same device and once for a burst of changes, only for what it
- * does not hold: a resource or material entry it never had, rows it cannot grow, a model.
+ * the frame (`worldContents.ts`) and applied once before each frame: rows taken, parked or grown in
+ * place (`placement/growth.ts`), poses, the background (`worldBackground.ts`). It is opened again,
+ * on the world's device, once per burst, only for what it lacks: resource, material, rows, model.
  */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
-    lights = createWorldLights();
+    lights = createWorldLights(),
+    background = createWorldBackground(scene);
   const { poses, cuts } = contents;
   let explorer: MeasuredWorld | null = null,
     mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
@@ -110,8 +110,7 @@ export function createWorldRuntime(inputs: Inputs) {
     inputs.opened(explorer);
   };
   const reopens = createRequestLoop(reopen);
-  // Every change made before the renderer is granted, and while a resolution runs, is folded into
-  // the next one. One that throws is reported and ends the burst; the next change starts another.
+  // Changes before the grant or during a resolution fold into the next; a throw ends the burst.
   const resolve = async () => {
     try {
       while ((structureChanged || contents.staleCount) && !disposed) {
@@ -154,6 +153,7 @@ export function createWorldRuntime(inputs: Inputs) {
     if (lightsChanged)
       session.setEnvironment({ ...inputs.display(), irradiance: lights.sync(scene, session) });
     lightsChanged = false;
+    background.write(session, reopens.request);
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {

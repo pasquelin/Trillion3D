@@ -93,7 +93,7 @@ export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
   if (run.renderPathLogged) return;
   run.renderPathLogged = true;
   const details = {
-    clearColor: `#${rt.setup.clearColor.toString(16).padStart(6, '0')}`,
+    clearColor: `#${rt.run.clearColor.toString(16).padStart(6, '0')}`,
     targetSize: gpu.targetSize,
     visibilityBuffer: vis.visEnabled,
     visibilityReady: !!(vis.visPipelineBack && vis.materialDepthPipeline && vis.visView),

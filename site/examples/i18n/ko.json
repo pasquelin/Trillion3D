@@ -30,6 +30,7 @@
       "geometry pool": "지오메트리 저장소",
       "lights": "조명",
       "GPU frame": "GPU 프레임",
+      "GPU frame (last)": "GPU 프레임 (마지막)",
       "CPU frame": "CPU 프레임",
       "page hooks": "페이지 코드",
       "engine CPU": "엔진 CPU"

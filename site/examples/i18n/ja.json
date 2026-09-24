@@ -30,6 +30,7 @@
       "geometry pool": "ジオメトリ置き場",
       "lights": "ライト",
       "GPU frame": "GPUフレーム",
+      "GPU frame (last)": "GPUフレーム（直近）",
       "CPU frame": "CPUフレーム",
       "page hooks": "ページのコード",
       "engine CPU": "エンジンCPU"
