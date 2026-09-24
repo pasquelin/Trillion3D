@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import test from 'node:test';
 import { exampleModules } from './docs/examples/capture.ts';
 import { geometry, light, material, math, object } from '../packages/sdk-browser/src/index.ts';
@@ -13,16 +11,13 @@ type Hook = () => void;
 type Spec = unknown[] | boolean | (() => void);
 
 /**
- * Runs `site/examples/floating-crates.html` in Node on the engine's own scene objects, with a
- * world that records what its scene tells the runtime. A written shape (`content`) is cut again
- * and opens the session again (docs/SDK.md, "Live material values"): a page that writes one every
- * frame never keeps a session long enough to draw, the blank thumbnail of #522.
+ * Runs an example page's module in Node on the engine's own scene objects, with a world that
+ * counts the shapes its scene writes to the runtime (`content`). A written shape is cut again and
+ * opens the session again (docs/SDK.md, "Live material values"): a page that writes one every
+ * frame never keeps a session long enough to draw, the blank render of #522. #573's acceptance
+ * check runs `site/examples/floating-crates.html` here and asserts 0 writes per frame.
  */
-async function floatingCrates() {
-  const html = await readFile(
-    resolve(import.meta.dirname, '../site/examples/floating-crates.html'),
-    'utf8',
-  );
+async function countShapeWrites(html: string) {
   const [source] = await exampleModules(html);
   const told = { content: 0 };
   const scene = object.group();
@@ -71,22 +66,31 @@ async function floatingCrates() {
     'const {$1} = modules.$2;',
   );
   new Function('modules', `'use strict';${body}`)(modules);
-  return {
-    told,
-    frame(seconds: number) {
-      time = seconds;
-      for (const hook of frames) hook();
-    },
+  /** Runs one frame at `seconds` and returns the shape writes it told the runtime. */
+  return (seconds: number) => {
+    const before = told.content;
+    time = seconds;
+    for (const hook of frames) hook();
+    return told.content - before;
   };
 }
 
-// The acceptance check of #573: today every frame of the page rewrites its sheet, and every write
-// cuts the shape again (the blank render of #522, parked until then). When #573 uploads a shape
-// written each frame in place, the runtime is told no `content` per frame: this test then asserts 0.
-test('floating crates writes its water sheet every frame until #573 uploads it in place', async () => {
-  const page = await floatingCrates();
-  page.frame(0);
-  page.told.content = 0;
-  for (const seconds of [0.1, 0.2, 0.3]) page.frame(seconds);
-  assert.ok(page.told.content >= 3, `${page.told.content} writes in 3 frames: at least one each`);
+test('the shape-write counter counts a rewritten shape and not a moved object', async () => {
+  const frame = await countShapeWrites(`<script type="module">
+    import { createWorld, geometry, material, object } from '../runtime/engine.js';
+    const world = createWorld('view');
+    const sheet = geometry.plane(1, 1, 2, 2);
+    const mesh = object.mesh(sheet, material.meshStandard({}));
+    world.scene.add(mesh);
+    let n = 0;
+    world.onFrame(() => {
+      n++;
+      mesh.position.set(n, 0, 0);
+      if (n % 2) {
+        sheet.attributes.position.setXYZ(0, 0, n, 0);
+        sheet.attributes.position.needsUpdate = true;
+      }
+    });
+  </script>`);
+  assert.deepEqual([0.1, 0.2, 0.3, 0.4].map(frame), [1, 0, 1, 0]);
 });
