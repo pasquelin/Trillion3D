@@ -13,13 +13,14 @@ impl Built {
     }
 }
 
-/// The DAG of one primitive of the case, built as the compiler builds it: `qem-endpoints`, every
-/// texture set the pages carry as the seam weld.
+/// The DAG of one primitive of the case, built as the compiler builds it: `qem-endpoints`, the
+/// normals and every texture set the pages carry.
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
-    let uv_sets: Vec<&[f32]> = case.uv_sets().into_iter().map(|(_, uvs)| uvs).collect();
+    let attributes = case.attributes();
+    let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
     let (dag, _, _, stalls) = build_dag_tallied(
         &case.positions,
-        &uv_sets,
+        crate::dag::DagAttributes { carried: &carried },
         indices,
         DagStrategy::QemEndpoints,
         &|| Ok(()),
@@ -29,7 +30,7 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
 }
 
 /// Level 0 partitions the source triangles; every coarse index names a vertex the source uses;
-/// errors are finite and climb up the DAG.
+/// errors are finite and climb up the DAG; the cook's own check passes (`dag::quality`).
 pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label: &str) {
     let level0: Vec<&DagCluster> = built.dag.iter().filter(|c| c.level == 0).collect();
     assert_eq!(
@@ -47,6 +48,11 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         source, partition,
         "{label}: level 0 is the source partition"
     );
+    let quality =
+        crate::dag::quality::level_quality(&built.dag, &case.positions, case.normals.as_deref());
+    if let Err(refusal) = crate::dag::quality::check(&built.dag, &quality) {
+        panic!("{label}: the cook refuses the DAG: {refusal}");
+    }
     let used: HashSet<u32> = indices.iter().copied().collect();
     let vertices = case.vertex_count() as u32;
     for cluster in &built.dag {

@@ -27,18 +27,18 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
     // jscpd:ignore-end
-    let weld = weld_positions(positions, indices);
-    let weld_seam = uvs.map_or_else(
-        || weld.clone(),
-        |uvs| weld_positions_and_uv(positions, &[uvs], indices),
-    );
+    let carried: Vec<crate::geometry_page::Attribute> = uvs
+        .map(|uvs| crate::geometry_page::Attribute {
+            flag: crate::geometry_page::FLAG_UV,
+            width: 2,
+            values: uvs.to_vec(),
+        })
+        .into_iter()
+        .collect();
+    let carried: Vec<&crate::geometry_page::Attribute> = carried.iter().collect();
+    let welds = attributes::Welds::of(positions, DagAttributes { carried: &carried }, indices);
     let locks = vec![locked; positions.len() / 3];
-    let input = GroupReductionInput {
-        positions,
-        locks: &locks,
-        weld: &weld,
-        weld_seam: &weld_seam,
-    };
+    let input = welds.input(positions, &locks);
     match reduce_group(&input, &group).expect("reduce") {
         Ok(_) => panic!("the group reduced"),
         Err(outcome) => outcome.cause,
