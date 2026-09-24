@@ -1995,5 +1995,19 @@
       "joints": "관절",
       "broken": "끊어짐"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "장치의 속도를 바꾸고, 리프트를 올리고, 양동이에 추를 떨어뜨려 평형추를 들어 올려 보세요.",
+    "controls": {
+      "speed": "장치 속도 (rad/s)",
+      "raiseLift": "리프트 올리기",
+      "addWeight": "추 떨어뜨리기",
+      "emptyBucket": "양동이 비우기"
+    },
+    "readouts": {
+      "lift": "리프트",
+      "load": "추",
+      "rope": "줄 이동"
+    }
   }
 }

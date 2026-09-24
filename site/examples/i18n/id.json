@@ -1995,5 +1995,19 @@
       "joints": "Sambungan",
       "broken": "Patah"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "Ubah kecepatan mekanisme, naikkan lift, dan jatuhkan beban ke ember untuk mengangkat pemberat.",
+    "controls": {
+      "speed": "Kecepatan mekanisme (rad/s)",
+      "raiseLift": "Naikkan lift",
+      "addWeight": "Jatuhkan beban",
+      "emptyBucket": "Kosongkan ember"
+    },
+    "readouts": {
+      "lift": "Lift",
+      "load": "Beban",
+      "rope": "Tali berjalan"
+    }
   }
 }
