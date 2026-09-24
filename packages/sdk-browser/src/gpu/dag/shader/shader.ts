@@ -116,6 +116,7 @@ fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStr
  *  same f32 to the last bit. An exact equality there left the missing cluster kept by \`dagMask\`
  *  — a non-resident page drawn, hence coverage declared incomplete. */
 fn escalate(slot:u32,parentPixels:f32){
+ noteEscalation();
  let raised=parentPixels*${ESCALATION_SLACK};
  if(parentPixels>0.0&&raised<INF){atomicMax(&work[slot],bitcast<u32>(raised));}
  else{atomicOr(&work[slots()+slot],1u);}

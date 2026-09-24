@@ -63,8 +63,8 @@ export function encodeShadowCasters(
     const settle = light.reports.encodeReadback(encoder);
     if (settle) timing.shadowRequests = settle;
     const { list, count } = lights.plan.admission;
-    const drop = runs.count ? light.drops.encode(encoder, list, count) : undefined;
-    if (drop) timing.shadowDrops = drop;
+    const redraw = runs.count ? light.redraws.encode(encoder, list, count) : undefined;
+    if (redraw) timing.shadowRedraws = redraw;
     return true;
   }
   cull.begin(regions, setup.maxCorners);
@@ -86,21 +86,28 @@ export function encodeShadowCasters(
 }
 
 /**
- * Before a plan: the pages a frame drew while its light cut dropped work go stale again, whole,
- * and the pages a frame may draw follow the cut's limit (`../../gpu/dag/lightCutDrops.ts`).
+ * Before a plan: the pages a light cut drew short go stale again, whole — residency having moved
+ * (`residencyMoved`) when that is what they waited for —, and the pages a frame may draw follow
+ * the cut's limit (`../../gpu/dag/lightCutRedraws.ts`).
  */
-export function redrawDroppedPages(rt: WebgpuPagesRuntime, frame: number, nowMs: number) {
+export function redrawShortPages(
+  rt: WebgpuPagesRuntime,
+  frame: number,
+  nowMs: number,
+  residencyMoved: boolean,
+) {
   const { plan } = rt.lights,
-    drops = rt.lights.lightCut?.drops;
-  if (!drops) return;
+    redraws = rt.lights.lightCut?.redraws;
+  if (!redraws) return;
+  if (residencyMoved) redraws.residencyChanged();
   const { pool } = plan;
-  const pages = drops.takeRedraw((page) => {
+  const pages = redraws.takeRedraw((page) => {
     if (pool.owner[page] >= 0) pool.stale(page, nowMs, frame, STALE_FULL);
   });
-  plan.admission.setLimit(drops.pageLimit);
+  plan.admission.setLimit(redraws.pageLimit);
   if (pages)
-    rt.diag.engineDiagnostic('light-cut-work-dropped', 'The light cut dropped casters', {
+    rt.diag.engineDiagnostic('light-cut-redraw', 'Pages the light cut drew short, drawn again', {
       pages,
-      pageLimit: drops.pageLimit,
+      pageLimit: redraws.pageLimit,
     });
 }

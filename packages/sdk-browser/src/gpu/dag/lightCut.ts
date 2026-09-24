@@ -1,7 +1,7 @@
 import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
 import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
 import { createLightCutReports } from './lightCutReports.ts';
-import { createLightCutDrops } from './lightCutDrops.ts';
+import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
@@ -109,7 +109,7 @@ export function createDagLightCut(resources: DagResources) {
   const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
   const reports = createLightCutReports(own, output, outputBytes);
-  const drops = createLightCutDrops(own, output, capacity);
+  const redraws = createLightCutRedraws(own, output, capacity);
   return {
     /** Catalogue pages the logs index. */
     pageCount,
@@ -137,13 +137,14 @@ export function createDagLightCut(resources: DagResources) {
     },
     /** Its requests, read back after submission (`lightCutReports.ts`). */
     reports,
-    /** The pages drawn by a frame that dropped work, to draw again (`lightCutDrops.ts`). */
-    drops,
+    /** The pages a frame drew short — work dropped, or a placement drawn coarser than wanted —
+     *  to draw again (`lightCutRedraws.ts`). */
+    redraws,
     /** A report or a drop flag on its way, or read and not yet taken. */
     get unsettled() {
-      return reports.unsettled || drops.unsettled;
+      return reports.unsettled || redraws.unsettled;
     },
     /** Resolves once every report and drop flag copied so far is read. */
-    settled: () => Promise.all([reports.settled(), drops.settled()]),
+    settled: () => Promise.all([reports.settled(), redraws.settled()]),
   };
 }

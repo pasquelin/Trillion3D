@@ -8,7 +8,7 @@ import { createShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
-import { redrawDroppedPages } from '../../shadow/casters.ts';
+import { redrawShortPages } from '../../shadow/casters.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -67,9 +67,11 @@ export function planShadowRegions(
     { rows, packedPages } = rt.layout;
   runs.reset();
   // Residency the light cuts see changed since the last plan: those pages alone restale.
-  lights.residence.flush(rows.residentFlags, (page) =>
-    noteResidenceChange(lights, packedPages[page]),
-  );
+  let residencyMoved = false;
+  lights.residence.flush(rows.residentFlags, (page) => {
+    residencyMoved = true;
+    noteResidenceChange(lights, packedPages[page]);
+  });
   lights.shadowPages = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
@@ -83,7 +85,7 @@ export function planShadowRegions(
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
   const box = lights.sceneBox(rt.layout);
   ensureStaticLayer(rt);
-  redrawDroppedPages(rt, frame, nowMs);
+  redrawShortPages(rt, frame, nowMs, residencyMoved);
   plan.plan(store, view, box.min, box.max, frame, nowMs);
   const slots = writeShadowRecords(lights);
   const count = writeShadowPages(lights, slots, cam.eye, pixelError);

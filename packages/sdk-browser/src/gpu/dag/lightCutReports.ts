@@ -3,7 +3,7 @@ import { createDagOutputScratch, parseDagOutput } from './uniforms.ts';
 /**
  * What a light cut reports to the host: the pages its views asked for — the lower residency tier
  * (`../../webgpu/residency/shadowTier.ts`) —, copied once a frame and read back after submission
- * (its drops: `lightCutDrops.ts`). One copy is read at a time; a frame that finds it still being read
+ * (its short draws: `lightCutRedraws.ts`). One copy is read at a time; a frame that finds it still being read
  * copies nothing, and the next one reports.
  *
  * A report changes the world only once taken: its casters load, a page enters residency, and the

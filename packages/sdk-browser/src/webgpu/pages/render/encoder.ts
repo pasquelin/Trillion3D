@@ -22,11 +22,11 @@ export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
 function settleShadowRequests(rt: WebgpuPagesCore, submitted: boolean) {
   const { timing } = rt;
   const cuts = timing.shadowRequests,
-    drops = timing.shadowDrops,
+    redraws = timing.shadowRedraws,
     pages = timing.shadowPageRequests;
-  timing.shadowRequests = timing.shadowDrops = timing.shadowPageRequests = undefined;
+  timing.shadowRequests = timing.shadowRedraws = timing.shadowPageRequests = undefined;
   cuts?.(submitted);
-  drops?.(submitted);
+  redraws?.(submitted);
   pages?.(submitted);
 }
 
