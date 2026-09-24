@@ -3837,10 +3837,13 @@
     "members": {
       "geometryPoolCeiling": "Bir dünyanın isteyebileceği en büyük havuzlar: motorun başlangıç bütçeleri.",
       "texturePoolCeiling": "Bir dünyanın isteyebileceği en büyük doku havuzu, bayt cinsinden.",
-      "geometryPool": "Geometri sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
-      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
+      "geometryPool": "Geometri sayfaları için ayrılan GPU belleği baytı; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve doku havuzunun yanında bıraktığı kadarıyla.",
+      "texturePool": "Doku sayfaları için ayrılan GPU belleği baytı, doku havuzu olmayan bir motorda (WebGL2) `null`; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve geometri havuzunun yanında bıraktığı kadarıyla.",
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
-      "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın."
+      "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
+      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Asla makineden okunmaz.",
+      "cpu": "Dünyanın çözülmüş sayfalarının tutabileceği CPU belleği baytı; bir sonraki sahne yüklemesinde uygulanır.",
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -4292,7 +4295,7 @@
     "description": "`memory(world)`, dünyanın şu anda tuttuğu şeydir (`world.budget`); iki havuz, bir dünyanın aldığı ayarı oluşturur."
   },
   "budget.memory": {
-    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: her iki havuz ve her birinin büyüyebileceği en büyük boyut."
+    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü."
   },
   "budget.geometryPool": {
     "summary": "Bir dünyaya vermeye hazır, `bytes`'lık bir geometri havuzu ayarı.",

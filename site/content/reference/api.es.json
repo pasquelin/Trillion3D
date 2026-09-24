@@ -460,7 +460,7 @@
     "description": "`memory(world)` es lo que el mundo mantiene ahora (`world.budget`); las dos reservas construyen el ajuste que toma un mundo."
   },
   "budget.memory": {
-    "summary": "Los presupuestos de memoria que mantiene un mundo en este momento: las dos reservas y el máximo de cada una."
+    "summary": "Los presupuestos de memoria que tiene un mundo ahora: los totales de GPU y CPU, su reparto según la regla, ambos depósitos y el máximo de cada uno."
   },
   "budget.geometryPool": {
     "summary": "Un ajuste de reserva de geometría de `bytes`, listo para dar a un mundo.",
@@ -6329,10 +6329,13 @@
     "members": {
       "geometryPoolCeiling": "Las reservas más grandes que un mundo puede pedir: los presupuestos de partida del motor.",
       "texturePoolCeiling": "La reserva de texturas más grande que un mundo puede pedir, en bytes.",
-      "geometryPool": "Bytes de memoria de GPU reservados para las páginas de geometría; ajústalo para cambiar el límite.",
-      "texturePool": "Bytes de memoria de GPU reservados para las páginas de textura; ajústalo para cambiar el límite.",
+      "geometryPool": "Bytes de memoria GPU reservados para páginas de geometría; ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras y el depósito de texturas.",
+      "texturePool": "Bytes de memoria GPU reservados para páginas de textura, `null` en un motor sin depósito de texturas (WebGL2); ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras y el depósito de geometría.",
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
-      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente."
+      "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
+      "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Nunca se lee de la máquina.",
+      "cpu": "Bytes de memoria CPU que pueden ocupar las páginas decodificadas del mundo; se aplica en la próxima carga de escena.",
+      "split": "Cómo se reparten los dos totales: el depósito de sombras a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; la caché de páginas decodificadas toma el total de CPU. Lo que da la regla, antes de ajustar un depósito por separado."
     }
   },
   "world.diagnostic": {

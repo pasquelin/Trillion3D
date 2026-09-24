@@ -3837,10 +3837,13 @@
     "members": {
       "geometryPoolCeiling": "Os maiores pools que um mundo pode pedir: os orçamentos iniciais do motor.",
       "texturePoolCeiling": "O maior pool de textura que um mundo pode pedir, em bytes.",
-      "geometryPool": "Bytes de memória de GPU mantidos para páginas de geometria; defina para mudar o envelope.",
-      "texturePool": "Bytes de memória de GPU mantidos para páginas de textura; defina para mudar o envelope.",
+      "geometryPool": "Bytes de memória GPU reservados para páginas de geometria; defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras e do reservatório de texturas.",
+      "texturePool": "Bytes de memória GPU reservados para páginas de textura, `null` num motor sem reservatório de texturas (WebGL2); defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras e do reservatório de geometria.",
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
-      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope."
+      "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
+      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Nunca lido da máquina.",
+      "cpu": "Bytes de memória CPU que as páginas decodificadas do mundo podem ocupar; aplicado no próximo carregamento de cena.",
+      "split": "Como os dois totais são divididos: o reservatório de sombras no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o cache de páginas decodificadas fica com o total de CPU. O que a regra dá, antes de um reservatório definido sozinho."
     }
   },
   "world.diagnostic": {
@@ -4292,7 +4295,7 @@
     "description": "`memory(world)` é o que o mundo guarda agora (`world.budget`); os dois pools constroem a configuração que um mundo recebe."
   },
   "budget.memory": {
-    "summary": "Os orçamentos de memória que um mundo guarda agora: ambos os pools e o maior a que cada um pode crescer."
+    "summary": "Os orçamentos de memória que um mundo tem agora: os totais de GPU e CPU, a sua divisão pela regra, os dois reservatórios e o máximo de cada um."
   },
   "budget.geometryPool": {
     "summary": "Uma configuração de pool de geometria de `bytes`, pronta para entregar a um mundo.",
