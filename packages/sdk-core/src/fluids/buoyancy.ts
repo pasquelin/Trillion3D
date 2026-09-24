@@ -11,7 +11,7 @@ import { wavePatch, waveRest } from './surface.ts';
 import { Waves, type WaveSpec } from './waves.ts';
 
 /** Fresh water, kg/m³. */
-export const WATER_DENSITY = 1000;
+const WATER_DENSITY = 1000;
 /** Smallest half side of a piece's sample square, metres: a thin piece still reads a slope. */
 const MIN_HALF = 0.05;
 

@@ -2320,6 +2320,7 @@
         "packages/sdk-browser/src/physics/tickResults.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "scripts/bench-fluids.ts",
         "scripts/bench-physics.ts"
       ],
       "disposition": "retained",

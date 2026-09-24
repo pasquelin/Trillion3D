@@ -5,7 +5,7 @@
 import type { Waves } from './waves.ts';
 
 /** Newton iterations of `waveRest`: two leave 1.3 cm at the steepest crests, three 0.3 mm. */
-export const HEIGHT_ITERATIONS = 3;
+const HEIGHT_ITERATIONS = 3;
 const scratch = new Float64Array(3);
 
 /**
