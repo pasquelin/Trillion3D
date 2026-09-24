@@ -35,8 +35,8 @@ fn coarse_page() -> Value {
     page["streamOffset"] = json!(48);
     page
 }
-fn sample() -> Value {
-    let mut bundle = json!({"bytes":96,"count":2});
+pub(super) fn sample() -> Value {
+    let mut bundle = json!({"bytes":96,"count":2,"dependencies":[]});
     bundle["url"] = json!(format!("../../objects/{}.bin", sha('c')));
     bundle["sha256"] = json!(sha('c'));
     let mut primitive =
@@ -44,7 +44,8 @@ fn sample() -> Value {
     primitive["culling"] =
         json!({"stride":crate::CULLING_STRIDE,"count":1,"nodes":vec![0.5;crate::CULLING_STRIDE]});
     primitive["structure"] = json!({"version":1,"roots":[1],"groups":[{"level":1,"error":0.25,"sphere":[1.,2.,3.,4.],"children":[0],"outputs":[1]}]});
-    primitive["streams"] = json!({"version":1,"pinned":1,"bundleBytes":131072,"pages":[bundle]});
+    primitive["streams"] =
+        json!({"version":1,"pinned":1,"bundleBytes":131072,"maxDependencies":0,"pages":[bundle]});
     primitive["pages"] = json!([exact_page(), coarse_page()]);
     json!({"schema":2,"formatVersion":2,"status":"ready","primitives":[primitive]})
 }

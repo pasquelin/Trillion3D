@@ -166,7 +166,11 @@ export function manifest(): ClusterManifest {
           version: 1,
           pinned: 1,
           bundleBytes: 131072,
-          pages: [{ url: url('e'), sha256: sha('e'), bytes: 96, count: 2 }],
+          maxDependencies: 1,
+          pages: [
+            { url: url('e'), sha256: sha('e'), bytes: 96, count: 2, dependencies: [] },
+            { url: url('f'), sha256: sha('f'), bytes: 48, count: 1, dependencies: [0] },
+          ],
         },
         topology: {
           triangles: 8,
