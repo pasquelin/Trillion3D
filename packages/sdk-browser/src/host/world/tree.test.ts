@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import * as THREE from 'three';
+import * as G from '../graph/graph.fixture.ts';
 import { EngineError, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
 import { prepareMathBatch } from '../../math/batchState.ts';
@@ -41,10 +41,10 @@ const POSITIONS = [
  * A host scene: one root, three levels, five children per first-level node. Each node draws its
  * pose from the lists above; a non-uniform scale under a parent rotation shears the world matrix.
  */
-function scene(pose?: (node: THREE.Object3D, rang: number) => void) {
-  const nodes: THREE.Object3D[] = [];
-  const ajoute = (parent: THREE.Object3D | null) => {
-    const node = new THREE.Group();
+function scene(pose?: (node: G.GraphNode, rang: number) => void) {
+  const nodes: G.GraphNode[] = [];
+  const ajoute = (parent: G.GraphNode | null) => {
+    const node = new G.GraphGroup();
     const rang = nodes.length;
     node.name = `n${rang}`;
     node.position.fromArray(POSITIONS[rang % POSITIONS.length]);
@@ -64,10 +64,7 @@ function scene(pose?: (node: THREE.Object3D, rang: number) => void) {
 }
 
 /** Each node compared to what the reference composed for it. */
-function compare(
-  nodes: readonly THREE.Object3D[],
-  mondes: { world(n: THREE.Object3D): Float64Array },
-) {
+function compare(nodes: readonly G.GraphNode[], mondes: { world(n: G.GraphNode): Float64Array }) {
   for (const node of nodes) assertBits(mondes.world(node), node.matrixWorld.elements);
 }
 
@@ -125,7 +122,7 @@ test('without the batch, the core tree yields the same bits as the reference', (
 test('the engine never writes `matrixWorld` on the host', () => {
   const { racine, nodes } = scene();
   const mondes = hostWorldTree(racine);
-  const identite = new THREE.Matrix4().elements;
+  const identite = new G.Matrix4().elements;
   for (const node of nodes) assertBits(node.matrixWorld.elements, identite);
   // And what the engine holds is not identity: the comparison is not empty.
   assert.notEqual(mondes.world(nodes[3])[12], 0);
@@ -133,10 +130,10 @@ test('the engine never writes `matrixWorld` on the host', () => {
 
 test('the index covers ancestors of the subtree root: the engine does not start from a stale parent', () => {
   const { racine, nodes } = scene();
-  const grandParent = new THREE.Group();
+  const grandParent = new G.GraphGroup();
   grandParent.position.set(9, -9, 9);
   grandParent.scale.set(-2, 1, 1);
-  const parent = new THREE.Group();
+  const parent = new G.GraphGroup();
   parent.quaternion.set(0, 1, 0, 0);
   grandParent.add(parent);
   parent.add(racine);
@@ -179,7 +176,7 @@ test('batch views survive a growth of the module memory', async () => {
 
 test('a node outside the index is refused, it does not yield a neutral pose', () => {
   const { racine } = scene();
-  const etranger = new THREE.Group();
+  const etranger = new G.GraphGroup();
   etranger.name = 'etranger';
   assert.throws(
     () => hostWorldTree(racine).world(etranger),

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterErrorPixels, maxStretch } from '../../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import {
@@ -29,8 +29,8 @@ test('the kernel projects a cluster error exactly like clusterErrorPixels', () =
   const cam = wideCamera();
   const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, VIEWPORT);
   const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]);
-  const world = new THREE.Matrix4().makeRotationY(0.7).setPosition(1, -2, 3);
-  const view = new THREE.Matrix4().multiplyMatrices(cam.matrixWorldInverse, world),
+  const world = new G.Matrix4().makeRotationY(0.7).setPosition(1, -2, 3);
+  const view = new G.Matrix4().multiplyMatrices(cam.matrixWorldInverse, world),
     e = view.elements;
   const stretch = maxStretch(world.elements) * (uniforms.cameraStretch as number);
   assert.ok(Number.isFinite(stretch) && stretch > 0);

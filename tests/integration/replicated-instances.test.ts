@@ -1,23 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { replicateInstances } from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { replicateInstances } from '../../bench/witnesses/measurement.ts';
 import { asHostLibrary } from '../../packages/sdk-browser/src/host/resources.ts';
 test('1/4/9/12 replicas share assets, preserve associations and extend real bounds', () => {
   const counts: readonly (1 | 4 | 9 | 12)[] = [1, 4, 9, 12];
   for (const count of counts) {
-    const source = new THREE.Group(),
-      geometry = new THREE.BoxGeometry(2, 1, 3),
-      material = new THREE.MeshBasicMaterial(),
-      mesh = new THREE.Mesh(geometry, material);
+    const source = new G.GraphGroup(),
+      geometry = G.boxGeometry(2, 1, 3),
+      material = G.basicSurface(),
+      mesh = G.mesh(geometry, material);
     source.add(mesh);
-    const associations: Map<THREE.Object3D, { meshes: number; primitives: number }> = new Map([
+    const associations: Map<G.GraphNode, { meshes: number; primitives: number }> = new Map([
         [mesh, { meshes: 7, primitives: 0 }],
       ]),
       grid = replicateInstances(source, associations, count),
-      meshes: THREE.Mesh[] = [];
+      meshes: G.GraphMesh[] = [];
     grid.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+      if (o.kind === 'mesh') meshes.push(o as G.GraphMesh);
     });
     assert.equal(meshes.length, count);
     for (const copy of meshes) {

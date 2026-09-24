@@ -156,7 +156,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
 
 /** True when `mesh` is the moved node or one of its descendants. */
 function isUnder(mesh: HostMesh | undefined, node: HostGraphNode) {
-  let walk: HostMesh | null | undefined = mesh;
+  let walk: HostGraphNode | null | undefined = mesh;
   while (walk) {
     if (walk === node) return true;
     walk = walk.parent;

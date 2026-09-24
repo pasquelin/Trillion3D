@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createExplorerViewportApi } from './viewportApi.ts';
 import { createWebglSurface } from '../../webgl/core/surface.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
@@ -94,7 +94,7 @@ test('public direct-WebGPU resize sizes the page canvas, having no WebGL surface
 // call the backend directly and never go through this boundary, so the view is checked here,
 // where it is built: its sixteen floats are finite and it looks at the target it was given.
 test('captureSurfaceView hands the backend a finite view aimed at the pose target', async () => {
-  const camera = new THREE.PerspectiveCamera(50, 1.5, 0.1, 100);
+  const camera = G.perspectiveCamera(50, 1.5, 0.1, 100);
   camera.position.set(1, 2, 3);
   camera.updateMatrixWorld();
   let view: HostCamera | undefined;

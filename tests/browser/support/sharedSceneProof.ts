@@ -1,7 +1,7 @@
 // What the browser-proof scenes share: an indexed square, the smallest legal DAG
 // that describes it, and the face-on camera. Nothing names a bench scene — the engine
 // only sees passes and materials, as for any imported scene.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type {
   BackendContext,
   BackendDiagnostic,
@@ -19,16 +19,13 @@ import type {
 export const VIEWPORT: [number, number] = [96, 96];
 
 /** An indexed square of half-side `demi` in the plane `z = 0`, its two triangles already bounded. */
-export function carre(demi: number): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry();
+export function carre(demi: number): G.GraphGeometry {
+  const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(
-      [-demi, -demi, 0, demi, -demi, 0, demi, demi, 0, -demi, demi, 0],
-      3,
-    ),
+    G.floatAttribute([-demi, -demi, 0, demi, -demi, 0, demi, demi, 0, -demi, demi, 0], 3),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   geometry.computeBoundingBox();
   return geometry;
 }
@@ -38,15 +35,15 @@ export function carre(demi: number): THREE.BufferGeometry {
  * clusters that nothing replaces — the smallest legal DAG — one triangle each.
  */
 export function batisseur() {
-  const source = new THREE.Group(),
+  const source = new G.GraphGroup(),
     indices = new Map<string, Uint32Array>(),
-    associations = new Map<THREE.Object3D, { meshes?: number; primitives?: number }>(),
+    associations = new Map<G.GraphNode, { meshes?: number; primitives?: number }>(),
     primitives: Primitive[] = [],
-    geometries: THREE.BufferGeometry[] = [],
-    materials: THREE.Material[] = [];
+    geometries: G.GraphGeometry[] = [],
+    materials: G.GraphSurface[] = [];
   return {
     source,
-    ajoute(mesh: THREE.Mesh, pass: string, demi: number) {
+    ajoute(mesh: G.GraphMesh, pass: string, demi: number) {
       const rang = primitives.length,
         rayon = demi * Math.SQRT2;
       const pages: Page[] = [0, 1].map((id) => ({
@@ -81,7 +78,7 @@ export function batisseur() {
         indices.set(page.url, new Uint32Array(triangles.slice(page.start, page.start! + 3)));
       associations.set(mesh, { meshes: rang, primitives: 0 });
       geometries.push(mesh.geometry);
-      materials.push(mesh.material as THREE.Material);
+      materials.push(mesh.material as G.GraphSurface);
     },
     fini() {
       source.updateMatrixWorld(true);
@@ -116,12 +113,12 @@ export function batisseur() {
 export type ScenePreparee = ReturnType<ReturnType<typeof batisseur>['fini']>;
 
 /** A host-library matrix, column-major, ready for `setTransform`. */
-export const versApi = (matrice: THREE.Matrix4): Float32Array => new Float32Array(matrice.elements);
+export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(matrice.elements);
 
 /** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
  *  slide, where parallax alone separates near from far. */
-export function cameraFace(x = 0): THREE.PerspectiveCamera {
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+export function cameraFace(x = 0): G.GraphCamera {
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.set(x, 0, 3);
   camera.lookAt(x, 0, 0);
   camera.updateMatrixWorld(true);

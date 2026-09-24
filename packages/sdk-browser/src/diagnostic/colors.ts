@@ -1,3 +1,6 @@
+import { hslToLinearRgb } from '../../../sdk-core/src/index.ts';
+import { Color } from '../../../sdk-core/src/world/math/color.ts';
+
 /**
  * The numbers a diagnostic view paints with, computed here and nowhere else: the seed of an
  * identifier, the hue it maps to, and the error ramp. Pure arithmetic, so a view can read it
@@ -16,6 +19,15 @@ export function hashId(id: string) {
 /** Golden-ratio hue of an id, so neighbouring ids get distant colours. */
 export function clusterHue(id: string) {
   return (hashId(id) * 0.61803398875) % 1;
+}
+
+/** Three linear components reread immediately: a cluster colour allocates nothing more. */
+const tint = new Float64Array(3);
+
+/** The colour a diagnostic paints a cluster with: its hue, in linear components. */
+export function clusterColor(id: string, saturation = 0.75) {
+  hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
+  return new Color().setRGB(tint[0], tint[1], tint[2]);
 }
 
 /** Error is measured in screen pixels; green is exact, yellow approaches the cut threshold, red exceeds it. */

@@ -7,7 +7,7 @@ import { importHostTexture } from '../host/textureImport.ts';
 import { followWritten as follow } from '../host/textureImport.fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../host/graph/graph.fixture.ts';
 import { sampleLinear, sampleMap, wrapTexel } from './math.ts';
 import { textureRgba } from './types.ts';
 import { referenceTextureRgba } from '../../../../bench/oracles/browser/sampled-texture.ts';
@@ -36,10 +36,10 @@ function referenceSampleMap(map: Texture, u: number, v: number): [number, number
   ];
 }
 
-function texture(width: number, height: number, fill: (i: number) => number, wrap: THREE.Wrapping) {
+function texture(width: number, height: number, fill: (i: number) => number, wrap: number) {
   const data = new Uint8Array(width * height * 4);
   for (let i = 0; i < data.length; i++) data[i] = fill(i);
-  const map = new THREE.Texture();
+  const map = new G.GraphTexture();
   map.image = { data, width, height };
   map.wrapS = wrap;
   map.wrapT = wrap;
@@ -54,21 +54,21 @@ function bitExact(a: readonly number[], b: readonly number[], message: string) {
 
 test('the 256 possible sRGB bytes yield the same linear value as the explicit formula', () => {
   for (let octet = 0; octet <= 255; octet++) {
-    const map = texture(1, 1, () => octet, THREE.ClampToEdgeWrapping);
+    const map = texture(1, 1, () => octet, G.HOST_WRAP_CLAMP_TO_EDGE);
     bitExact(sampleMap(map, 0, 0), referenceSampleMap(map, 0, 0), `octet ${octet}`);
   }
 });
 
 test('the 0 and 255 bounds land exactly on the table bounds', () => {
-  const noir = texture(1, 1, () => 0, THREE.ClampToEdgeWrapping);
-  const blanc = texture(1, 1, () => 255, THREE.ClampToEdgeWrapping);
+  const noir = texture(1, 1, () => 0, G.HOST_WRAP_CLAMP_TO_EDGE);
+  const blanc = texture(1, 1, () => 255, G.HOST_WRAP_CLAMP_TO_EDGE);
   assert.deepEqual(sampleMap(noir, 0, 0), [0, 0, 0]);
   bitExact(sampleMap(blanc, 0, 0), [1, 1, 1], 'white');
   bitExact(sampleMap(blanc, 0, 0), referenceSampleMap(blanc, 0, 0), 'white vs reference');
 });
 
 test('a texture without an image yields white on both sides, even with non-finite uvs', () => {
-  const sansImage = importHostTexture(new THREE.Texture());
+  const sansImage = importHostTexture(new G.GraphTexture());
   for (const [u, v] of [
     [NaN, 0.5],
     [Infinity, -Infinity],
@@ -80,8 +80,8 @@ test('a texture without an image yields white on both sides, even with non-finit
 });
 
 test('extreme or signed uvs on a real image stay identical to the explicit formula', () => {
-  const map = texture(4, 4, (i) => (i * 17) & 255, THREE.RepeatWrapping);
-  const bordee = texture(4, 4, (i) => (i * 53) & 255, THREE.ClampToEdgeWrapping);
+  const map = texture(4, 4, (i) => (i * 17) & 255, G.HOST_WRAP_REPEAT);
+  const bordee = texture(4, 4, (i) => (i * 53) & 255, G.HOST_WRAP_CLAMP_TO_EDGE);
   // -0 wraps onto itself (Repeat) and Infinity clamps to the edge (ClampToEdge): two ways of
   // keeping a finite texel index.
   for (const [texture_, u, v] of [
@@ -94,8 +94,8 @@ test('extreme or signed uvs on a real image stay identical to the explicit formu
 });
 
 test('a non-finite uv that yields a NaN texel index yields NaN on both sides, never undefined', () => {
-  const map = texture(4, 4, (i) => (i * 17) & 255, THREE.RepeatWrapping);
-  const bordee = texture(4, 4, (i) => (i * 53) & 255, THREE.ClampToEdgeWrapping);
+  const map = texture(4, 4, (i) => (i * 17) & 255, G.HOST_WRAP_REPEAT);
+  const bordee = texture(4, 4, (i) => (i * 53) & 255, G.HOST_WRAP_CLAMP_TO_EDGE);
   // NaN breaks the index under any wrap; Infinity/-Infinity only break it under Repeat
   // (`t - Math.floor(t)` on an infinity is NaN), not under ClampToEdge (Math.max/Math.min absorb
   // them). Both sides must yield NaN, never `undefined`.
@@ -118,16 +118,16 @@ test('a non-finite uv that yields a NaN texel index yields NaN on both sides, ne
 // object at every sampled texel. The oracle is the unconditional allocation from before lot F,
 // copied as-is into `oracles/texture-echantillonnee.ts`.
 test('a texture without an image or without data yields null on both sides', () => {
-  const sansImage = importHostTexture(new THREE.Texture());
+  const sansImage = importHostTexture(new G.GraphTexture());
   assert.equal(textureRgba(sansImage), referenceTextureRgba(sansImage));
-  const largeurNulle = new THREE.Texture();
+  const largeurNulle = new G.GraphTexture();
   largeurNulle.image = { data: new Uint8Array(4), width: 0, height: 1 };
   const vide = importHostTexture(largeurNulle);
   assert.equal(textureRgba(vide), referenceTextureRgba(vide));
 });
 
 test('two calls on the same image yield the same bytes as the reference, and the same memoised object', () => {
-  const map = texture(2, 2, (i) => i & 255, THREE.ClampToEdgeWrapping);
+  const map = texture(2, 2, (i) => i & 255, G.HOST_WRAP_CLAMP_TO_EDGE);
   const premier = textureRgba(map);
   const second = textureRgba(map);
   assert.equal(second, premier, 'the same object is reused as long as the source does not change');
@@ -138,7 +138,7 @@ test('two calls on the same image yield the same bytes as the reference, and the
 });
 
 test('an image replaced by a new buffer yields new bytes, identical to the reference', () => {
-  const host = new THREE.Texture();
+  const host = new G.GraphTexture();
   host.image = { data: new Uint8Array(16).map((_, i) => i & 255), width: 2, height: 2 };
   const premier = textureRgba(importHostTexture(host));
   host.image = { data: new Uint8Array(16).fill(7), width: 2, height: 2 };
@@ -151,7 +151,7 @@ test('an image replaced by a new buffer yields new bytes, identical to the refer
 
 test('a subview of the same buffer (different offset or length) is never confused with the original view', () => {
   const buffer = new Uint8Array(32).map((_, i) => i);
-  const map = new THREE.Texture();
+  const map = new G.GraphTexture();
   map.image = { data: buffer.subarray(0, 16), width: 2, height: 2 };
   const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer.subarray(4, 20), width: 2, height: 2 }; // same buffer, other offset
@@ -164,7 +164,7 @@ test('a subview of the same buffer (different offset or length) is never confuse
 
 test('the same width/height but an image resized without changing buffer also invalidates the cache', () => {
   const buffer = new Uint8Array(64).fill(9);
-  const map = new THREE.Texture();
+  const map = new G.GraphTexture();
   map.image = { data: buffer, width: 4, height: 4 };
   const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer, width: 8, height: 2 }; // same buffer, different dimensions
@@ -178,9 +178,9 @@ test('the same width/height but an image resized without changing buffer also in
 // #360: the CPU twins read a map through its UV transform, as the GPU reads it: a map repeated
 // twice across reads, at u = 0.3, the texel the raw coordinate 0.6 names.
 test('a map is read through its UV transform, the raw coordinate when it is the identity', () => {
-  const host = new THREE.Texture();
+  const host = new G.GraphTexture();
   host.image = { data: Uint8Array.from({ length: 16 }, (_, i) => i * 16), width: 4, height: 1 };
-  host.wrapS = host.wrapT = THREE.RepeatWrapping;
+  host.wrapS = host.wrapT = G.HOST_WRAP_REPEAT;
   const plain = importHostTexture(host);
   const at = (u: number) => sampleLinear(plain, u, 0.5);
   const before = at(0.6);

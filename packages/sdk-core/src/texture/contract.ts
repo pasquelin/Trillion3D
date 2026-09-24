@@ -61,7 +61,7 @@ export interface Texture {
   readonly colorSpace: TextureColorSpace;
   /** UV transform of the sampler, `KHR_texture_transform` composed into a 3 × 3 matrix stored
    *  column-major: entries 0 to 2 the first column, 6 and 7 the translation. */
-  readonly transform: readonly number[];
+  readonly transform: ArrayLike<number>;
 }
 
 /** Entries of `Texture.transform` (three columns of three) its affine 2 × 3 part is made of: the
@@ -70,7 +70,7 @@ export const AFFINE = [0, 1, 3, 4, 6, 7] as const;
 
 /** True when a UV transform (`Texture.transform`) moves the coordinate: the only case it is
  *  applied, on the CPU twins and on both GPU paths. */
-export function uvTransformed(m: readonly number[]) {
+export function uvTransformed(m: ArrayLike<number>) {
   return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0;
 }
 
