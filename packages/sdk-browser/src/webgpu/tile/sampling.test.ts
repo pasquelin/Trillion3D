@@ -14,6 +14,7 @@ import {
   samplingWords,
 } from './sampling.ts';
 import { SAMPLING_WGSL, atlasReadWgsl } from './samplingWgsl.ts';
+import { maskAlphaWgsl } from './wgsl.ts';
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
@@ -107,15 +108,19 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
   assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear' })), 1);
 });
 
-// #360, #361: the alpha cutout of the visibility and shadow passes reads one tap at the isotropic
-// level; the colour it shades takes the taps its footprint's elongation asks.
-test('a cutout read takes one tap, a shaded read the taps of its footprint', () => {
+// #360, #361: the shadow cutout reads one tap at the isotropic level; the camera cutout reads the
+// alpha of the colour's own read, the taps its footprint's elongation asks, as the witness does.
+test('the shadow cutout takes one tap, the camera cutout the colour read and its taps', () => {
   const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true),
-    cutout = atlasReadWgsl('maskAlpha', 'color', 'f32', false);
+    shadow = maskAlphaWgsl(true);
   assert.match(shaded, /colorFootprint\(slot,s,uv,ddx,ddy,true\)/);
   assert.match(shaded, /if\(r\.taps>1u\)\{return colorSampleTaps\(s,r\);\}/);
-  assert.match(cutout, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/);
-  assert.doesNotMatch(cutout, /taps/i);
+  assert.match(shadow, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/);
+  assert.doesNotMatch(shadow, /taps/i);
+  assert.equal(
+    maskAlphaWgsl(false),
+    'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample(slot,uv,ddx,ddy,sampled).w;}',
+  );
   // Face-on, up to rounding, the footprint is not elongated: one tap at the isotropic level.
   assert.match(
     SAMPLING_WGSL,
