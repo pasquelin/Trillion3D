@@ -7,6 +7,7 @@ import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
 import {
   blendStagePipelines,
   blendStagePipelinesNow,
+  pipelinesByMode,
   type BlendModePipelines,
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
@@ -102,27 +103,21 @@ export async function createWebgpuBlendPipelines(
       { format: FEEDBACK_FORMAT },
     ],
   });
-  const built: (GPURenderPipeline | undefined)[] = [];
-  const seat = (mode: Blending, three: readonly GPURenderPipeline[]) =>
-    three.forEach((pipeline, cull) => (built[BLEND_MODES.indexOf(mode) * 3 + cull] = pipeline));
-  const perMode = await Promise.all(
+  const perMode = pipelinesByMode((mode) =>
+    blendStagePipelinesNow(device, blendModule, blendBindGroupLayout, fragment(mode), false),
+  );
+  const compiled = await Promise.all(
     modes.map((mode) =>
       blendStagePipelines(device, blendModule, blendBindGroupLayout, fragment(mode), false),
     ),
   );
-  modes.forEach((mode, at) => seat(mode, perMode[at]));
+  modes.forEach((mode, at) => (perMode.byMode[BLEND_MODES.indexOf(mode)] = compiled[at]));
   const blendPipelines: BlendModePipelines = {
-    built,
+    byMode: perMode.byMode,
     at(rank) {
       const mode = BLEND_MODES[Math.floor(rank / 3)];
-      if (!built[rank] && mode)
-        seat(
-          mode,
-          blendStagePipelinesNow(device, blendModule, blendBindGroupLayout, fragment(mode), false),
-        );
-      const pipeline = built[rank];
-      if (!pipeline) throw new Error(`blend pipeline rank ${rank} names no blending mode`);
-      return pipeline;
+      if (!mode) throw new Error(`blend pipeline rank ${rank} names no blending mode`);
+      return perMode.at(mode)[rank % 3];
     },
   };
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.

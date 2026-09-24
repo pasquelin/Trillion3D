@@ -18025,6 +18025,66 @@
     "description": ""
   },
   {
+    "id": "WaterSurface",
+    "module": "packages/sdk-core/src/fluids/waterSurface.ts",
+    "exports": ["WaterSurface"],
+    "section": "types",
+    "kind": "Type",
+    "title": "WaterSurface",
+    "signature": "class WaterSurface\nnew WaterSurface(spec: WaterSpec): WaterSurface",
+    "summary": "The water's surface as the page reads it to draw it (`world.physics.waterSurface`): the wave model buoyancy reads in the physics worker, the same numbers, clocked at the simulation's time.",
+    "parameters": [
+      {
+        "name": "spec",
+        "type": "WaterSpec",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "level",
+        "type": "number",
+        "desc": "Height of the surface at rest, metres."
+      },
+      {
+        "name": "crest",
+        "type": "number",
+        "desc": "Highest point a crest reaches above `level`, metres."
+      },
+      {
+        "name": "time",
+        "type": "number",
+        "desc": "Simulated seconds since the water was set: the waves' clock."
+      },
+      {
+        "name": "setTime(t: number)",
+        "type": "WaterSurface",
+        "desc": "Clocks the waves at `t` simulated seconds."
+      },
+      {
+        "name": "height(x: number, z: number)",
+        "type": "number",
+        "desc": "Height of the surface above the world point `(x, z)`, metres."
+      },
+      {
+        "name": "point(x: number, z: number, out: Float64Array<ArrayBufferLike>)",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "The world point `[x, y, z]` the rest point `(x, level, z)` is carried to, into `out`: a grid moved point by point is the surface, crests drawn as sharp as the waves are."
+      },
+      {
+        "name": "wavesNow()",
+        "type": "WaveSpec[]",
+        "desc": "The declared waves, each phase carried to this time: set again in `world.physics.water` (whose waves start again at 0 s), the surface goes on from where it is instead of jumping."
+      },
+      {
+        "name": "normal(x: number, z: number, out: Float64Array<ArrayBufferLike>)",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "Unit normal `[x, y, z]` of the surface at the rest point `(x, z)`, into `out`."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "WaveSpec",
     "module": "packages/sdk-core/src/fluids/waves.ts",
     "exports": ["WaveSpec"],
@@ -18581,6 +18641,11 @@
         "name": "water",
         "type": "WaterSpec | null",
         "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
+      },
+      {
+        "name": "waterSurface",
+        "type": "WaterSurface | null",
+        "desc": "The water's surface at the simulation's time, to draw it: the waves buoyancy reads, the same numbers (`height`, `point`, `normal`)."
       },
       {
         "name": "stats",
@@ -19499,6 +19564,11 @@
         "name": "water",
         "type": "WaterSpec | null",
         "desc": "The water the bodies float in: its level, its waves, its density and drags. A body lighter than the water floats, pushed by the weight of the water it displaces."
+      },
+      {
+        "name": "waterSurface",
+        "type": "WaterSurface | null",
+        "desc": "The water's surface at the simulation's time, to draw it: the waves buoyancy reads, the same numbers (`height`, `point`, `normal`)."
       },
       {
         "name": "stats",

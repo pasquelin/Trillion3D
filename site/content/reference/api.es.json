@@ -6867,6 +6867,7 @@
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
+      "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
@@ -7017,6 +7018,19 @@
       "current": "Velocidad del agua (la corriente de un río), en m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "La superficie del agua tal como la página la lee para dibujarla (`world.physics.waterSurface`): el modelo de olas que la flotación lee en el worker de física, los mismos números, a la hora de la simulación.",
+    "members": {
+      "level": "Altura de la superficie en reposo, en metros.",
+      "crest": "Punto más alto que alcanza una cresta sobre `level`, en metros.",
+      "time": "Segundos simulados desde que se puso el agua: el reloj de las olas.",
+      "setTime": "Ajusta las olas a `t` segundos simulados.",
+      "height": "Altura de la superficie sobre el punto del mundo `(x, z)`, en metros.",
+      "point": "El punto del mundo `[x, y, z]` al que se lleva el punto en reposo `(x, level, z)`, en `out`: una malla movida punto a punto es la superficie, con crestas tan agudas como las olas.",
+      "wavesNow": "Las olas declaradas, cada fase llevada a este instante: puestas de nuevo en `world.physics.water` (cuyas olas vuelven a empezar en 0 s), la superficie sigue desde donde está en vez de saltar.",
+      "normal": "Normal unitaria `[x, y, z]` de la superficie en el punto en reposo `(x, z)`, en `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Una ola tal como la declara una escena.",
     "members": {
@@ -7050,6 +7064,7 @@
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
+      "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
       "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
