@@ -3,7 +3,6 @@ import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/li
 import { GraphGroup } from '../host/graph/mesh.ts';
 import type { GraphScene } from '../host/graph/scene.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
-import { baseCapabilities } from '../backend/common.ts';
 import { createUnlitAlbedo } from './unlitAlbedo.ts';
 import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
 
@@ -11,16 +10,12 @@ import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
 const aimOf = (light: ContractLight) => (light instanceof GraphLight ? light.target : undefined);
 
 /** A WebGL2 engine applies the contract lights; only their shadows are missing — one map per
- *  light, six faces for a point light, would be outside the frame budget. Both constants say
- *  that in the engine's published capabilities. */
+ *  light, six faces for a point light, would be outside the frame budget. The engine's published
+ *  capabilities say so. */
 export const CONTRACT_LIGHTS_LIGHTING = {
   shadows: false,
   reason: "contract lights with no cast shadow; the 'bounce' view equals the lit view there",
 };
-const RETIRES = ['bounded GPU eviction', 'contract scene lights with shadow atlas'];
-export const CONTRACT_LIGHTS_UNSUPPORTED = baseCapabilities.unsupported
-  .filter((item) => !RETIRES.includes(item))
-  .concat('contract scene light shadows');
 
 /** Raw albedo by light: diffuse is `irradiance · albedo / π`, so an ambient irradiance of π
  *  yields albedo — `createUnlitAlbedo` keeps every material's response to it that albedo. */
