@@ -11,7 +11,7 @@
  * enough to exhaust the driver — while `pages` has only two and renders the same meshes. The two
  * sources are not compared; the report says which one served.
  */
-import type * as SdkBrowser from '../../packages/sdk-browser/src/measurement/measurement.ts';
+import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { Coupe } from './report/types.ts';
 
 type Backend = SdkBrowser.RenderBackend & { selectedPageIds?: () => Iterable<string> };

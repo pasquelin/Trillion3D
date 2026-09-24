@@ -5,9 +5,8 @@ import assert from 'node:assert/strict';
 import { srgbToLinear } from '../../../sdk-core/src/index.ts';
 import { createBlendScene } from './blendSceneRecord.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
-import type { HostNode } from '../host/resources.ts';
 
-const copy = () => ({ userData: {}, renderOrder: 0 }) as unknown as BlendCopy & HostNode;
+const copy = () => ({ userData: {}, renderOrder: 0 }) as unknown as BlendCopy;
 
 test('the published transparent graph carries the clear colour and gives its copies back', () => {
   const first = copy(),
@@ -20,7 +19,7 @@ test('the published transparent graph carries the clear colour and gives its cop
     [srgbToLinear(0x17 / 255), srgbToLinear(0x1d / 255), srgbToLinear(0x28 / 255)],
     'the background is linear, as every host reads a scene background',
   );
-  const walked: HostNode[] = [];
+  const walked: object[] = [];
   scene.traverse((node) => walked.push(node));
   assert.deepEqual(walked.slice(1), [first, second], 'the walk yields the scene, then its copies');
   scene.remove(first);

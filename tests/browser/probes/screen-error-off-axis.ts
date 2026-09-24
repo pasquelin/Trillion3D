@@ -10,7 +10,7 @@
 //
 // node --experimental-strip-types tests/browser/probes/screen-error-off-axis.ts
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts';
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
@@ -23,22 +23,23 @@ import {
 import { selectionGpu } from './selectionKernelGpu.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { project } from './cameraRig.ts';
 
 const SEUIL = 0.4;
 const VIEWPORT: [number, number] = [1920, 1080];
-const camera = new THREE.PerspectiveCamera(60, VIEWPORT[0] / VIEWPORT[1], 0.1, 1000);
+const camera = G.perspectiveCamera(60, VIEWPORT[0] / VIEWPORT[1], 0.1, 1000);
 camera.updateMatrixWorld(true);
-const world = new THREE.Matrix4();
+const world = new G.Matrix4();
 const focal = (VIEWPORT[1] * camera.projectionMatrix.elements[5]) / 2;
 
 const fin = [8, 0, -10, 8.01, 0, -10, 8, 0.01, -10];
 /** Bounding sphere of a vertex list: box centre, radius to the farthest vertex. */
 function sphereDe(sommets: number[]) {
-  const box = new THREE.Box3().setFromArray(sommets);
-  const c = box.getCenter(new THREE.Vector3());
+  const box = new G.Box3().setFromArray(sommets);
+  const c = box.getCenter(new G.Vector3());
   let r = 0;
   for (let i = 0; i < sommets.length; i += 3)
-    r = Math.max(r, c.distanceTo(new THREE.Vector3().fromArray(sommets, i)));
+    r = Math.max(r, c.distanceTo(new G.Vector3().fromArray(sommets, i)));
   return { sphere: [c.x, c.y, c.z, r], min: box.min.toArray(), max: box.max.toArray() };
 }
 // ε such that the old formula, `ε·f / (|C| − r)`, announces 0.39 px for the coarse sphere.
@@ -53,14 +54,14 @@ const boiteFin = sphereDe(fin),
 function reel() {
   let pire = 0;
   for (let i = 0; i < fin.length; i += 3) {
-    const a = new THREE.Vector3().fromArray(fin, i).project(camera);
-    const b = new THREE.Vector3().fromArray(grossier, i).project(camera);
+    const a = project(new G.Vector3().fromArray(fin, i), camera);
+    const b = project(new G.Vector3().fromArray(grossier, i), camera);
     pire = Math.max(pire, Math.hypot((b.x - a.x) * VIEWPORT[0], (b.y - a.y) * VIEWPORT[1]) / 2);
   }
   return pire;
 }
 
-const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+const material = G.basicSurface({ side: G.DOUBLE_SIDE });
 const page = (
   id: number,
   boite: ReturnType<typeof sphereDe>,

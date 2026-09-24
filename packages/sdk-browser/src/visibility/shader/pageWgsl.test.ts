@@ -5,7 +5,7 @@ import { importWrapMode } from '../../host/textureImport.ts';
 import test from 'node:test';
 import { TAA_SHADER } from '../../taa/shaderWgsl.ts';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import * as G from '../../host/graph/graph.fixture.ts';
 import {
   PAGE_INFO_STRUCT_WGSL,
   EDGE_WGSL,
@@ -84,7 +84,7 @@ test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in t
 const regle = lineaireThree as (
   t: number,
   taille: number,
-  wrap: THREE.Wrapping,
+  wrap: number,
 ) => [number, number, number];
 /** The value the two mixed texels yield: tap order is not imposed, colour is. */
 const valeur = ([i0, i1, poids]: [number, number, number]) => i0 * (1 - poids) + i1 * poids;
@@ -96,14 +96,10 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
       coordonnees.push(Math.fround(entier + reste));
   let couture = 0;
   for (const taille of [1, 2, 3, 4, 5, 8])
-    for (const wrap of [
-      THREE.ClampToEdgeWrapping,
-      THREE.RepeatWrapping,
-      THREE.MirroredRepeatWrapping,
-    ])
+    for (const wrap of [G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_REPEAT, G.HOST_WRAP_MIRRORED_REPEAT])
       for (const t of coordonnees) {
         const attendu = regle(t, taille, wrap);
-        if (attendu[1] !== attendu[0] + 1 && wrap === THREE.RepeatWrapping) couture++;
+        if (attendu[1] !== attendu[0] + 1 && wrap === G.HOST_WRAP_REPEAT) couture++;
         assert.ok(
           Math.abs(valeur(wrapLinear(t, taille, importWrapMode(wrap))) - valeur(attendu)) <= 1e-9,
           `${taille} texels, t=${t}: rule ${attendu}, read ${wrapLinear(t, taille, importWrapMode(wrap))}`,

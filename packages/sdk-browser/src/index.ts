@@ -77,6 +77,23 @@ export type {
 /** The host scene graph as the engine walks it (`host/scene/graphNodes.ts`): the shapes a source node,
  *  its pose and its rotation are read through. */
 export type { HostGraphNode, HostRotation, HostVector } from './host/scene/graphNodes.ts';
+/** The engine's own scene graph (`host/graph/`): the classes every `Host*` name above stands for,
+ *  the nodes, geometries, surfaces and textures a loaded scene hands back. */
+export type {
+  GraphArray,
+  GraphAttribute,
+  GraphElements,
+  GraphInterleavedAttribute,
+  GraphInterleavedBuffer,
+} from './host/graph/attributes.ts';
+export type { GraphGeometry } from './host/graph/geometry.ts';
+export type { GraphMesh } from './host/graph/mesh.ts';
+export type { GraphNode } from './host/graph/node.ts';
+export type { GraphNodeKind } from './host/graph/nodeKind.ts';
+export type { GraphAngles, GraphRotation } from './host/graph/rotation.ts';
+export type { GraphSurface } from './host/graph/surface.ts';
+export type { GraphTexture } from './host/graph/texture.ts';
+export type { GraphVector } from './host/graph/vector.ts';
 export type { HostNodeMatrix, MatrixElements } from './math/matrixElements.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpu/core/passBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts';

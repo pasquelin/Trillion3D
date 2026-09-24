@@ -111,7 +111,7 @@ function presentation(options: object, background: unknown) {
 }
 
 /** A background changed after the session opened is written in place on the active engine's own
- *  scene (`hostBackground`), never on `options.clearColor`: the presentation diagnostic must
+ *  scene (`graphBackground`), never on `options.clearColor`: the presentation diagnostic must
  *  read that live colour, or a background changed without a reopen reads as a false mismatch
  *  (#342). */
 test('the presentation diagnostic follows a changed background, not the colour the session opened on', () => {

@@ -38,7 +38,7 @@ try {
     console.log('captured', name);
   });
   const result = await page.evaluate(runOnPage, {
-    sdkUrl: '/dist/sdk-browser/src/measurement/measurement.js',
+    sdkUrl: '/dist/witnesses/measurement.js',
     posesUrl: '/runner/poses.ts',
     manifestUrl: assetsManifest(DEFAULT_SCENE, true),
     // `WEBGPU_TAA=off` yields the `--avant` of the Lumiere 16 batch, with no jitter and no history.

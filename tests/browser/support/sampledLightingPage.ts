@@ -2,7 +2,7 @@
 // eight contract lights — more than the samples a moving pixel shades — rendered at rest until
 // held, then under a sub-pixel camera shake that keeps every image moving.
 // Nothing internal is read: lights go through the host store, images through `capture`.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import type { SceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
@@ -19,9 +19,9 @@ const LAMPES = 8;
 /** One grey, rough, lit square facing the camera. */
 function scene() {
   const bati = batisseur();
-  const plan = new THREE.Mesh(
+  const plan = G.mesh(
     carre(1.2),
-    new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.7, metalness: 0 }),
+    G.standardSurface({ color: 0x9a9a9a, roughness: 0.7, metalness: 0 }),
   );
   plan.name = 'plan';
   bati.source.add(plan);

@@ -166,9 +166,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Cache products, each under its own name: lights, node and material tables, physics.
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
-    let tables = stage_scene_tables(&source, &directory, &progress)?;
-    let (autonomous_scene, autonomous_refusal, mut products) =
+    let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
+    let tables = stage_scene_tables(&source, autonomous.as_ref(), &directory, &progress)?;
     let (physics_file, physics) =
         physics_cook::stage_physics(&scene, &scene_nodes, &primitives, &collisions, &directory)?;
     products.extend([source_bin, source_gltf, lights, tables, physics_file]);
