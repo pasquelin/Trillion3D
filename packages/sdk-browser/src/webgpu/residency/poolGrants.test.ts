@@ -4,7 +4,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { asWebgpuDevice } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
 import { geometryPoolFor } from '../../residency/pools.ts';
 import { texturePoolFor } from './memoryBudgets.ts';
-import { poolEncoding } from '../../texture/blockFormats.ts';
+import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts';
 import { grantedGeometryPool, grantedTexturePool } from './poolGrants.ts';
 
 /** A device that refuses, as out of memory, every buffer or texture past `limit` bytes. */
@@ -85,8 +85,8 @@ test('a pool refused even at its floor is not drawn: the caller keeps what it ho
 
 test('a texture pool the device refuses is drawn with fewer layers, down to one per lane', async () => {
   installGpuGlobals();
-  const encoding = poolEncoding(null);
-  const lanes = { lossless: 20_000, rgba: 0, rg: 0 };
+  const encoding = poolEncoding(undefined);
+  const lanes = { ...laneCounts(), lossless: 20_000 };
   const poolFor = (bytes: number) =>
     texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes);
   const asked = poolFor(512 * 1024 * 1024);
