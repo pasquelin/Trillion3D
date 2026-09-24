@@ -22,8 +22,11 @@ export interface PhysicsHost {
   rebuild(body: ObjectPhysics): void;
   /** Friction, restitution or gravity scale changed. */
   tune(body: ObjectPhysics): void;
+  /** The velocity was written. */
   velocity(body: ObjectPhysics): void;
+  /** An impulse was applied. */
   impulse(body: ObjectPhysics, x: number, y: number, z: number): void;
+  /** The body was woken. */
   wake(body: ObjectPhysics): void;
   /** Whether contact events are wanted changed. */
   listened(body: ObjectPhysics): void;

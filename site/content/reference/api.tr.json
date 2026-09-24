@@ -6997,5 +6997,157 @@
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`."
     }
+  },
+  "ContactEvent": {
+    "summary": "Bir temasın dinleyicilerine verdiği: diğer nesne, itme ve dokunduğu yer.",
+    "members": {
+      "other": "Dokunulan nesne; sahneden çıkınca `null`.",
+      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir; `leave` üzerinde 0.",
+      "point": "Temas noktası, dünya çerçevesinde; `leave` üzerinde başlangıç noktası."
+    }
+  },
+  "ContactEventName": {
+    "summary": "Bir cismin olayları: itmeyle ilk dokunuş (`contact`) ve başlayan ya da biten dokunuş."
+  },
+  "DEFAULT_PHYSICS_BUDGET": {
+    "summary": "Motorun varsayılan fizik bütçeleri.",
+    "members": {
+      "bodies": "Aynı anda her türden cisim.",
+      "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
+      "decorative": "Aynı anda dekoratif cisimler.",
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez."
+    }
+  },
+  "GRAVITY_PRESETS": {
+    "summary": "Adlandırılmış yerçekimleri, −y boyunca m/s².",
+    "members": {
+      "earth": "Dünya’nınki.",
+      "moon": "Ay’ınki.",
+      "mars": "Mars’ınki.",
+      "none": "Yerçekimi yok."
+    }
+  },
+  "GravityInput": {
+    "summary": "Bir yerçekimi: bir ön ayarın adı ya da m/s² cinsinden bir vektör."
+  },
+  "GravityPreset": {
+    "summary": "Bir yerçekimi ön ayarının adı."
+  },
+  "ObjectPhysics": {
+    "summary": "Bir nesnenin fiziği, `obj.physics` tuttuğu gibi: cismin ne olduğunun ve ne yaptığının canlı kaydı.",
+    "description": "Yazmalar simülasyona bir sonraki adımda ulaşır; `velocity` son adımın bıraktığını okur.",
+    "members": {
+      "type": "Cisim nasıl hareket eder; değiştirmek için `obj.physics` değerini yeniden ata.",
+      "shape": "Bildirilen şekil, varsa.",
+      "sensor": "Cismin yalnızca temas bildirip bildirmediği.",
+      "ccd": "Sürekli çarpışmanın açık olup olmadığı.",
+      "decorative": "Cismin dekoratif enkaz olup olmadığı.",
+      "velocity": "Doğrusal hız, m/s, son adımın bıraktığı gibi; cismi fırlatmak için yaz.",
+      "asleep": "Cismin uyuyup uyumadığı: durgun, bir şey uyandırana dek benzetilmez.",
+      "mass": "Kilogram cinsinden kütle; `undefined` malzemenin yoğunluğu çarpı hacmi alır.",
+      "gravityScale": "Bu cisim için dünyanın yerçekimini çarpar.",
+      "friction": "Zorlanan sürtünme; `undefined` malzemeninkini alır.",
+      "restitution": "Zorlanan sekme; `undefined` malzemeninkini alır.",
+      "applyImpulse": "Cismi hemen iter, kütle merkezinden N·s cinsinden bir itme; onu uyandırır.",
+      "wake": "Cismi uyandırır, uyuyor olsun ya da olmasın.",
+      "on": "Bu cismin bir temas olayında `handler` çağırır.",
+      "listens": "Bir temas işleyicisi var mı."
+    }
+  },
+  "PHYSICS_MATERIALS": {
+    "summary": "`material.physics` için adlandırılmış maddeler, yuvarlanmış el kitabı değerlerinden.",
+    "members": {
+      "wood": "Ahşap.",
+      "metal": "Çelik.",
+      "rubber": "Kauçuk.",
+      "ice": "Buz.",
+      "stone": "Taş.",
+      "glass": "Cam."
+    }
+  },
+  "PhysicsBodyOptions": {
+    "summary": "`obj.physics` değerinin üç sözcüğü dışında kabul ettiği.",
+    "members": {
+      "type": "Cisim nasıl hareket eder.",
+      "mass": "Kilogram cinsinden kütle; verilmezse malzemenin yoğunluğu çarpı şeklin hacmi.",
+      "shape": "Çarpışma şekli; verilmezse geometriden çıkarılır.",
+      "gravityScale": "Bu cisim için dünyanın yerçekimini çarpar; 0 süzülür.",
+      "sensor": "Çarpışmadan temasları bildirir: bir tetik hacmi.",
+      "ccd": "Sürekli çarpışma, ince duvarlardan geçecek küçük hızlı cisimler için.",
+      "decorative": "Enkaz: yalnızca statik dünyayla karşılaşır ve yalnızca menzilde ve görüşteyken benzetilir. `budget.physics.decorative` ile sınırlı.",
+      "friction": "Malzemenin sürtünmesini değiştirir, 0 ve üstü.",
+      "restitution": "Malzemenin sekmesini değiştirir, 0 ile 1 arası."
+    }
+  },
+  "PhysicsBudget": {
+    "summary": "Bir dünyanın fiziğinin sabit sınırları; makineden asla okunmaz.",
+    "members": {
+      "bodies": "Aynı anda her türden cisim.",
+      "triangles": "Aynı anda tüm statik üçgen şekillerinin üçgenleri.",
+      "decorative": "Aynı anda dekoratif cisimler.",
+      "memoryBytes": "Fizik modülünün bellek baytı: katı bir tavan, modül bunun ötesine büyüyemez."
+    }
+  },
+  "PhysicsHost": {
+    "summary": "Bir cismin dünya tarafı: `obj.physics` üzerine bir yazmanın simülasyondan istediği.",
+    "members": {
+      "rebuild": "Cismin oluşturulduğu bir ayar değişti: yeniden oluşturulur.",
+      "tune": "Sürtünme, sekme ya da yerçekimi ölçeği değişti.",
+      "listened": "Temas olayı isteğinin değişip değişmediği.",
+      "velocity": "Hız yazıldı.",
+      "impulse": "Bir itme uygulandı.",
+      "wake": "Cisim uyandırıldı."
+    }
+  },
+  "PhysicsMaterialPreset": {
+    "summary": "Bir madde ön ayarının adı."
+  },
+  "PhysicsMatter": {
+    "summary": "Bir cismin maddesi: yoğunluk (kg/m³), sürtünme ve sekme.",
+    "members": {
+      "density": "kg/m³, bir cismin kütlesi için.",
+      "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+    }
+  },
+  "PhysicsOption": {
+    "summary": "`obj.physics` değerine verilebilecek olan."
+  },
+  "PhysicsShape": {
+    "summary": "Geometriden çıkarılan uygun değilse bir çarpışma şekli.",
+    "description": "Boyutlar nesnenin kendi çerçevesindedir, ölçeğinden önce."
+  },
+  "PhysicsStats": {
+    "summary": "Dünya fiziğinin bildirdiği: son tikin sayımları ve ayrı tutulan iki saat.",
+    "members": {
+      "bodies": "Simülasyonun tuttuğu cisimler.",
+      "active": "Son tikten sonra uyanık cisimler.",
+      "stepMs": "Sabit adım başına worker milisaniyesi, son tik: worker’ın saati, sayfanınkine asla eklenmez.",
+      "mainMs": "Son karede fiziğin aldığı sayfa milisaniyesi (`physics` CPU aşaması).",
+      "poses": "Son tikin geri gönderdiği pozlar.",
+      "events": "Son tikin geri gönderdiği temas olayları."
+    }
+  },
+  "PhysicsType": {
+    "summary": "Bir cisim nasıl hareket eder: hiç, sayfa ile (`kinematic`, karşılaştığını iterek) ya da simülasyonla."
+  },
+  "WorldPhysics": {
+    "summary": "`world.physics`, dünyanın fiziği.",
+    "members": {
+      "enabled": "Cisimlerin benzetilip benzetilmediği. İlk açılışta fizik yüklenir.",
+      "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
+      "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
+      "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "budget": "Sabit sınırlar (`budget.physics`), fizik başlarken bir kez okunur.",
+      "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`."
+    }
+  },
+  "WorldPhysicsOptions": {
+    "summary": "`createWorld(canvas, { physics })` işlevinin `true` dışında kabul ettiği.",
+    "members": {
+      "budget": "Sabit sınırlar, fizik başlarken bir kez okunur.",
+      "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
+    }
   }
 }

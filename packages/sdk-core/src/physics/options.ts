@@ -42,25 +42,30 @@ export interface PhysicsBodyOptions {
 export type PhysicsOption = PhysicsType | PhysicsBodyOptions;
 
 /** Named gravities, in m/s² along −y. */
-export const GRAVITY_PRESETS = { earth: 9.81, moon: 1.62, mars: 3.71, none: 0 } as const;
+export const GRAVITY_PRESETS = {
+  /** The Earth's. */ earth: 9.81,
+  /** The Moon's. */ moon: 1.62,
+  /** Mars's. */ mars: 3.71,
+  /** No gravity. */ none: 0,
+} as const;
 /** A gravity preset's name. */
 export type GravityPreset = keyof typeof GRAVITY_PRESETS;
 
 /** The matter a body is made of: density (kg/m³), friction and restitution. */
 export interface PhysicsMatter {
-  density: number;
-  friction: number;
-  restitution: number;
+  /** kg/m³, for a body's mass. */ density: number;
+  /** How much a body grips, 0 and up. */ friction: number;
+  /** How much a body bounces, 0 to 1. */ restitution: number;
 }
 
 /** Named matters for `material.physics`, from handbook values rounded. */
 export const PHYSICS_MATERIALS = {
-  wood: { density: 600, friction: 0.5, restitution: 0.3 },
-  metal: { density: 7800, friction: 0.4, restitution: 0.2 },
-  rubber: { density: 1100, friction: 0.9, restitution: 0.8 },
-  ice: { density: 917, friction: 0.03, restitution: 0.05 },
-  stone: { density: 2600, friction: 0.7, restitution: 0.1 },
-  glass: { density: 2500, friction: 0.4, restitution: 0.4 },
+  /** Wood. */ wood: { density: 600, friction: 0.5, restitution: 0.3 },
+  /** Steel. */ metal: { density: 7800, friction: 0.4, restitution: 0.2 },
+  /** Rubber. */ rubber: { density: 1100, friction: 0.9, restitution: 0.8 },
+  /** Ice. */ ice: { density: 917, friction: 0.03, restitution: 0.05 },
+  /** Stone. */ stone: { density: 2600, friction: 0.7, restitution: 0.1 },
+  /** Glass. */ glass: { density: 2500, friction: 0.4, restitution: 0.4 },
 } as const satisfies Record<string, PhysicsMatter>;
 /** A matter preset's name. */
 export type PhysicsMaterialPreset = keyof typeof PHYSICS_MATERIALS;
