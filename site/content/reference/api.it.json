@@ -5197,7 +5197,10 @@
       "pose": "Un nodo si è mosso.",
       "structure": "Un nodo ha guadagnato o perso figli.",
       "content": "La forma o il materiale di un nodo è cambiato.",
-      "posed": "Molti nodi si sono mossi insieme, scritti direttamente nel loro albero (i corpi della fisica): segnalato una volta."
+      "posed": "Molti nodi si sono mossi insieme, scritti direttamente nel loro albero (i corpi della fisica): segnalato una volta.",
+      "seat": "La riga da cui il nodo è disegnato, o `null`: sedici float per colonne da `row * 16` in `batch.rows.matrices`, letti sul posto dal renderer. Chi posiziona nodi a migliaia (la fisica) vi scrive le loro matrici mondo, valide finché `seatEpoch` non cambia, e indica le righe scritte con `placed`.",
+      "seatEpoch": "Cambia quando una riga viene presa, liberata o riallocata: ogni risposta precedente di `seat` è superata.",
+      "placed": "Le righe da `from` a `to` di `batch` sono state scritte tramite `seat`: disegnate al prossimo fotogramma."
     }
   },
   "SceneNode": {

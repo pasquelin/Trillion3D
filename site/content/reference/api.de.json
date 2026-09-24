@@ -5197,7 +5197,10 @@
       "pose": "Ein Knoten hat sich bewegt.",
       "structure": "Ein Knoten hat Kinder gewonnen oder verloren.",
       "content": "Die Form oder das Material eines Knotens hat sich geändert.",
-      "posed": "Viele Knoten haben sich auf einmal bewegt, direkt in ihren Baum geschrieben (die Körper der Physik): einmal gemeldet."
+      "posed": "Viele Knoten haben sich auf einmal bewegt, direkt in ihren Baum geschrieben (die Körper der Physik): einmal gemeldet.",
+      "seat": "Die Zeile, aus der der Knoten gezeichnet wird, oder `null`: sechzehn spaltenweise Gleitkommazahlen ab `row * 16` in `batch.rows.matrices`, vom Renderer an Ort und Stelle gelesen. Wer Knoten zu Tausenden platziert (die Physik), schreibt ihre Weltmatrizen selbst dorthin, gültig solange `seatEpoch` gleich bleibt, und meldet die geschriebenen Zeilen über `placed`.",
+      "seatEpoch": "Ändert sich, sobald eine Zeile belegt, freigegeben oder neu angelegt wird: jede frühere Antwort von `seat` ist veraltet.",
+      "placed": "Die Zeilen `from` bis `to` von `batch` wurden über `seat` geschrieben: im nächsten Bild gezeichnet."
     }
   },
   "SceneNode": {

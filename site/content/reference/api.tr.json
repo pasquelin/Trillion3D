@@ -2956,7 +2956,10 @@
       "pose": "Bir düğüm hareket etti.",
       "structure": "Bir düğüm çocuk kazandı ya da kaybetti.",
       "content": "Bir düğümün şekli ya da malzemesi değişti.",
-      "posed": "Birçok düğüm aynı anda hareket etti, doğrudan ağaçlarına yazıldı (fiziğin cisimleri): bir kez bildirilir."
+      "posed": "Birçok düğüm aynı anda hareket etti, doğrudan ağaçlarına yazıldı (fiziğin cisimleri): bir kez bildirilir.",
+      "seat": "Düğümün çizildiği satır ya da `null`: `batch.rows.matrices` içinde `row * 16` konumundan başlayan, sütun sıralı on altı sayı; çizici bunları yerinde okur. Düğümleri binlerce yerleştiren (fizik) dünya matrislerini oraya kendisi yazar, `seatEpoch` değişmediği sürece geçerlidir, yazdığı satırları `placed` ile bildirir.",
+      "seatEpoch": "Bir satır alındığında, bırakıldığında ya da yeniden ayrıldığında değişir: `seat`in önceki her yanıtı eskir.",
+      "placed": "`batch` içindeki `from`–`to` satırları `seat` üzerinden yazıldı: bir sonraki karede çizilir."
     }
   },
   "SceneNode": {
