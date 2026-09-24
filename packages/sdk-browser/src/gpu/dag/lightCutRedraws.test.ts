@@ -31,8 +31,9 @@ function redrawsWith(flag: { value: number }) {
 }
 
 // A frame whose light cut dropped work drew its pages without all their casters: they are drawn
-// again, fewer at a time, and the limit comes back once frames stay whole.
-test('the pages of a frame that dropped work are drawn again, and fewer a frame until none drops', async () => {
+// again, in fewer views a frame, and the limit comes back once frames stay whole. It bounds views,
+// never pages: one view never drops, so any number of pages still drains.
+test('the pages of a frame that dropped work are drawn again, in fewer views until none drops', async () => {
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder, frame } = redrawsWith(flag);
   assert.equal(
@@ -40,31 +41,40 @@ test('the pages of a frame that dropped work are drawn again, and fewer a frame 
     undefined,
     'a frame without pages copies nothing',
   );
-  assert.deepEqual(await frame([4, 9, 12, 20]), [4, 9, 12, 20], 'dropped: all drawn again');
-  assert.equal(redraws.pageLimit, 2, 'half the pages that dropped');
+  assert.deepEqual(await frame([4, 9, 12, 20], true, [0, 1, 2, 3]), [4, 9, 12, 20], 'all again');
+  assert.equal(redraws.viewLimit, 2, 'half the views that dropped');
   assert.equal(redraws.unsettled, false);
   flag.value = 0;
-  assert.deepEqual(await frame([4, 9]), [], 'whole: nothing drawn again');
-  assert.equal(redraws.pageLimit, 3, 'bisected between what fitted and what dropped');
+  assert.deepEqual(await frame([4, 9], true, [0, 1]), [], 'whole: nothing drawn again');
+  assert.equal(redraws.viewLimit, 3, 'bisected between what fitted and what dropped');
   flag.value = WORK_DROPPED;
-  await frame([4, 9, 12]);
-  assert.equal(redraws.pageLimit, 2, 'three dropped, two fitted: it stays at two');
+  await frame([4, 9, 12], true, [0, 1, 2]);
+  assert.equal(redraws.viewLimit, 2, 'three dropped, two fitted: it stays at two');
   flag.value = 0;
-  await frame([4, 9]);
-  assert.equal(redraws.pageLimit, 2, 'no swing back to what dropped');
+  await frame([4, 9, 12, 20, 21], true, [0, 0, 0, 1, 1]);
+  assert.equal(redraws.viewLimit, 2, 'five pages in two views fit: no swing back to three');
   redraws.residencyChanged();
-  assert.equal(redraws.pageLimit, 24, 'residency moved: the drop is forgotten');
+  assert.equal(redraws.viewLimit, 24, 'residency moved: the drop is forgotten');
+  flag.value = WORK_DROPPED;
+  for (let i = 0; i < 6; i++) await frame([1, 2], true, [0, 1]);
+  assert.equal(redraws.viewLimit, 1, 'drops floor the limit at one view');
 });
 
-// A view drew a placement coarser than it wanted: every page it drew waits for residency to move,
-// and is then drawn again — a cluster that never comes costs nothing.
-test('the pages a view drew coarse are drawn again once residency changes, and only then', async () => {
+// A view drew a placement coarser than it wanted: every page it drew waits for residency to move
+// and the camera to rest, and is then drawn again — a cluster that never comes costs nothing, and a
+// camera that only moves redraws none of them.
+test('the pages a view drew coarse are drawn again once residency changes at rest, and only then', async () => {
   const { redraws, frame, taken } = redrawsWith({ value: escalatedView(0) });
   assert.deepEqual(await frame([3, 7]), [], 'nothing arrived yet: they wait');
   assert.equal(redraws.unsettled, false, 'a wait for residency holds no image');
+  redraws.rest();
+  assert.deepEqual(taken(), [], 'at rest, residency unchanged: they still wait');
   redraws.residencyChanged();
-  assert.deepEqual(taken(), [3, 7], 'residency moved: drawn again');
-  assert.equal(redraws.pageLimit, 24, 'coarse is not a drop: the limit stays');
+  assert.deepEqual(taken(), [], 'the camera moves: no redraw');
+  assert.equal(redraws.unsettled, true, 'the next rest releases them');
+  redraws.rest();
+  assert.deepEqual(taken(), [3, 7], 'residency moved, the camera rests: drawn again');
+  assert.equal(redraws.viewLimit, 24, 'coarse is not a drop: the limit stays');
 });
 
 // A frame whose requests were never copied cannot wait on them: its coarse pages are drawn again.
@@ -85,5 +95,23 @@ test('only the pages of the views that escalated wait for residency', async () =
   const { redraws, frame, taken } = redrawsWith({ value: escalatedView(1) });
   assert.deepEqual(await frame([3, 7, 8], true, [0, 1, 2]), []);
   redraws.residencyChanged();
+  redraws.rest();
   assert.deepEqual(taken(), [7]);
+});
+
+// Dropped work leaves pages without casters: wrong, they are hidden until redrawn. A coarse view
+// drew the same casters at another precision: its pages stay read.
+test('only the pages of a frame that dropped work are hidden until they are redrawn', async () => {
+  const flag = { value: WORK_DROPPED };
+  const { redraws, encoder } = redrawsWith(flag);
+  const drawn = async (page: number, reported: boolean) => {
+    redraws.encode(encoder, [page], [0], 1, reported)?.(true);
+    await redraws.settled();
+    const seen: [number, boolean][] = [];
+    redraws.takeRedraw((again, hide) => seen.push([again, hide]));
+    return seen;
+  };
+  assert.deepEqual(await drawn(4, true), [[4, true]], 'dropped: hidden');
+  flag.value = escalatedView(0);
+  assert.deepEqual(await drawn(5, false), [[5, false]], 'coarse: still read');
 });

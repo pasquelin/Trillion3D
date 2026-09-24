@@ -24,6 +24,9 @@ import {
  *
  * The reject the manifest already allows — no replacement still too coarse in the subtree —
  * remains set by the caller, with the manifest bounds and on both passes.
+ *
+ * Rust mirror (CPU cut walk): `node_decision` and `node_decision_at_zero` of
+ * `packages/page-codec-wasm/src/cut_error.rs`, pinned by `walkWasm.test.ts`.
  */
 export function nodeDecision<T extends PageRecord>(
   s: SelectionState<T>,

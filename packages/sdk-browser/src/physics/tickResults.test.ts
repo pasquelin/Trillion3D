@@ -17,6 +17,7 @@ test('a tick steps on only while one more step of events fits its results', () =
     events: () => new Uint32Array(budget.contactEvents * EVENT_WORDS),
     dropped: () => 0,
     refused: () => [],
+    broken: () => [],
     overflow: () => [],
   } as unknown as JoltModule;
   const buffers = [new ArrayBuffer(resultWords(budget) * 4)];
