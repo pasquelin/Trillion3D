@@ -113,7 +113,7 @@ export async function loadPreparedScene(
   const replicas = options.replicaCount ?? 1;
   // The cells a partition reads by distance place rows the replicas would share.
   if (tables.partition && replicas > 1)
-    throw new EngineError('PARTITION_REPLICAS', 'a partitioned scene is not replicated', {
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a partitioned scene is not replicated', {
       replicas,
     });
   const partitions = tables.partition

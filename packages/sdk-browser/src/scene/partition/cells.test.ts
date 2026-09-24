@@ -6,7 +6,9 @@ import { GraphNode } from '../../host/graph/node.ts';
 import { pose } from '../../host/prepared/nodes.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import { createPartitionCells, type PartitionIo } from './cells.ts';
+import { createPartitionCells, type PartitionCells } from './cells.ts';
+
+type PartitionIo = Parameters<PartitionCells['frame']>[2];
 import { placedMesh, type RowLink } from './rows.ts';
 
 /** Two cells of one mesh, one near the origin and one 5 km away; the second hangs under a moved

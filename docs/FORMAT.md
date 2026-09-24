@@ -225,7 +225,7 @@ cell leaves two diagonals past its reach. The cells are read through the session
 — one request queue — and placed within the arrival budget (`ARRIVAL_BUDGET_MS`), one cell at
 least per frame. A buffer short of rows grows in place where the engine can (the WebGL2 path);
 elsewhere the world opens its session again on the grown rows. A partitioned scene is not
-replicated (`PARTITION_REPLICAS`).
+replicated (`UNSUPPORTED_SCENE_UPDATE`).
 
 The merged, simplified proxy of a far cell (HLOD) is not part of this format: #23 carries it.
 
