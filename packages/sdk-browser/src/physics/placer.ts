@@ -9,24 +9,11 @@ const UNASKED = -2,
   NO_ROW = -1;
 
 /** True when `node` sits at the origin, unturned and unscaled: its children's world is their local. */
-const atRest = (node: Object3D) => {
-  const p = node.position.elements,
-    q = node.quaternion.elements,
-    s = node.scale.elements;
-  return (
-    !node.parent &&
-    p[0] === 0 &&
-    p[1] === 0 &&
-    p[2] === 0 &&
-    q[0] === 0 &&
-    q[1] === 0 &&
-    q[2] === 0 &&
-    q[3] === 1 &&
-    s[0] === 1 &&
-    s[1] === 1 &&
-    s[2] === 1
-  );
-};
+const atRest = ({ parent, position, quaternion, scale }: Object3D) =>
+  !parent &&
+  position.elements.every((v) => v === 0) &&
+  quaternion.elements.every((v, k) => v === (k === 3 ? 1 : 0)) &&
+  scale.elements.every((v) => v === 1);
 
 /**
  * Writes the physics' drawn poses where they are read, in flat arrays only. A bound mesh keeps its
@@ -98,6 +85,19 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     batchOf[index] = rank;
     rowOf[index] = seat.row;
   };
+  /** Writes slot `index` at `pose` (7 numbers from `at`): node, tree, and row. */
+  const place = (index: number, pose: ArrayLike<number>, at: number) => {
+    const p = index * 3,
+      q = index * 4;
+    position[p] = pose[at];
+    position[p + 1] = pose[at + 1];
+    position[p + 2] = pose[at + 2];
+    quaternion[q] = pose[at + 3];
+    quaternion[q + 1] = pose[at + 4];
+    quaternion[q + 2] = pose[at + 5];
+    quaternion[q + 3] = pose[at + 6];
+    commit(index);
+  };
   /** The mesh keeps its own numbers again, as they stand. */
   const release = (mesh: Bodied) => {
     slotOf.delete(mesh);
@@ -147,44 +147,44 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       tq = tree.quaternion;
       flags = tree.flags;
     },
-    /** Writes slot `index` at `pose` (7 numbers from `at`): node, tree, and row. */
-    place(index: number, pose: ArrayLike<number>, at: number) {
-      const p = index * 3,
-        q = index * 4;
-      position[p] = pose[at];
-      position[p + 1] = pose[at + 1];
-      position[p + 2] = pose[at + 2];
-      quaternion[q] = pose[at + 3];
-      quaternion[q + 1] = pose[at + 4];
-      quaternion[q + 2] = pose[at + 5];
-      quaternion[q + 3] = pose[at + 6];
-      commit(index);
-    },
-    /** Moves slot `index` the fraction `step` of the way to `target` (7 numbers from `o`), its
-     *  turn normalised and taken the shorter way round: node, tree, and row. */
-    lerp(index: number, target: Float32Array, o: number, step: number) {
-      const p = index * 3,
-        q = index * 4;
-      position[p] += (target[o] - position[p]) * step;
-      position[p + 1] += (target[o + 1] - position[p + 1]) * step;
-      position[p + 2] += (target[o + 2] - position[p + 2]) * step;
-      // A quaternion and its opposite are one rotation: the target on the drawn one's side.
-      const dot =
-        quaternion[q] * target[o + 3] +
-        quaternion[q + 1] * target[o + 4] +
-        quaternion[q + 2] * target[o + 5] +
-        quaternion[q + 3] * target[o + 6];
-      const s = dot < 0 ? -1 : 1;
-      const x = quaternion[q] + (s * target[o + 3] - quaternion[q]) * step,
-        y = quaternion[q + 1] + (s * target[o + 4] - quaternion[q + 1]) * step,
-        z = quaternion[q + 2] + (s * target[o + 5] - quaternion[q + 2]) * step,
-        w = quaternion[q + 3] + (s * target[o + 6] - quaternion[q + 3]) * step;
-      const n = 1 / (Math.sqrt(x * x + y * y + z * z + w * w) || 1);
-      quaternion[q] = x * n;
-      quaternion[q + 1] = y * n;
-      quaternion[q + 2] = z * n;
-      quaternion[q + 3] = w * n;
-      commit(index);
+    place,
+    /**
+     * Draws the `count` slots listed in `list` the fraction `step` of the way from where they are
+     * drawn to their targets (7 numbers per slot in `target`, at the slot's index × 7), each turn
+     * normalised and taken the shorter way round; a `step` of 1 lands on the targets exactly. One
+     * loop over flat arrays for the whole list: node, tree and row of every slot.
+     */
+    draw(list: Int32Array, count: number, target: Float32Array, step: number) {
+      if (step === 1) {
+        for (let i = 0; i < count; i++) place(list[i], target, list[i] * 7);
+        return;
+      }
+      for (let i = 0; i < count; i++) {
+        const index = list[i],
+          o = index * 7;
+        const p = index * 3,
+          q = index * 4;
+        position[p] += (target[o] - position[p]) * step;
+        position[p + 1] += (target[o + 1] - position[p + 1]) * step;
+        position[p + 2] += (target[o + 2] - position[p + 2]) * step;
+        // A quaternion and its opposite are one rotation: the target on the drawn one's side.
+        const dot =
+          quaternion[q] * target[o + 3] +
+          quaternion[q + 1] * target[o + 4] +
+          quaternion[q + 2] * target[o + 5] +
+          quaternion[q + 3] * target[o + 6];
+        const s = dot < 0 ? -1 : 1;
+        const x = quaternion[q] + (s * target[o + 3] - quaternion[q]) * step,
+          y = quaternion[q + 1] + (s * target[o + 4] - quaternion[q + 1]) * step,
+          z = quaternion[q + 2] + (s * target[o + 5] - quaternion[q + 2]) * step,
+          w = quaternion[q + 3] + (s * target[o + 6] - quaternion[q + 3]) * step;
+        const n = 1 / (Math.sqrt(x * x + y * y + z * z + w * w) || 1);
+        quaternion[q] = x * n;
+        quaternion[q + 1] = y * n;
+        quaternion[q + 2] = z * n;
+        quaternion[q + 3] = w * n;
+        commit(index);
+      }
     },
     /** Closes the batch: the world hears the written rows and the nodes it recomposes itself. */
     end() {

@@ -50,8 +50,8 @@
   concurrently: two Chrome instances pollute each other's numbers and saturate the machine. They
   run one at a time, in one queue, on merged batches, and never block a pull request: the issue
   closes at merge labelled `to measure`, the queue measures it against the merge's first parent
-  and comments the numbers (`measure ok`); a regression becomes a new issue labelled `measure ko`
-  and linked to the measured one. A pull request carries the fast gates and names its proof.
+  and comments the numbers (`measure ok`); a regression reopens the measured issue, labelled
+  `measure ko`, with the numbers in a comment. A pull request carries the fast gates and names its proof.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the pull request body, and the folder is removed before the pull request is opened.
@@ -180,7 +180,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 
 ## Contribution workflow
 
-1. Open one issue per batch. Create a branch named `<issue>-<short-name>` from `origin/develop`
+1. Work from one issue per batch; only the maintainer opens issues (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>` from `origin/develop`
    in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
    run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
@@ -190,7 +190,9 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
    measuring queue runs it after the merge.
 4. Commit with a descriptive English message. Open a pull request targeting `develop`, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`. Describe what both
+   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` when it delivers every
+   To-do item, `Part of #<issue>` otherwise (the remainder is a comment on the issue, which stays
+   open). Describe what both
    local review passes found under "Local review before push". Replace `in progress` with `in review`.
 5. Obtain an independent review and resolve its findings before integration. The maintainer, or
    whoever the maintainer entrusts with it, merges once the review holds and `validate` is green on
@@ -204,7 +206,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    only if work resumes.
 
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
-no separate release branch is needed. Use the same template and `Closes #<issue>` first line,
+no separate release branch is needed. Use the same template and `Closes #<issue>` first line (the release delivers its whole issue),
 name the already reviewed implementation pull requests in the local-review section, and wait
 for validation and maintainer approval. Nothing built is committed on any branch: the site
 workflow (`.github/workflows/pages.yml`) builds the site from `main` (`site/` sources,
