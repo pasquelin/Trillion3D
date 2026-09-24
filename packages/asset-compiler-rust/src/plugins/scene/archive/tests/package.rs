@@ -92,20 +92,21 @@ impl<R: Read> Read for Counting<R> {
     }
 }
 
-/// The regular files left anywhere under `dir`.
-fn files(dir: &Path) -> Vec<PathBuf> {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return Vec::new();
+/// Unpacks `stream` into a fresh scratch `root`: the scratch directory, the root and the counts.
+fn unpacked(name: &str, stream: impl Read) -> (PathBuf, PathBuf, (usize, u64)) {
+    let dir = scratch(name);
+    let root = dir.join("root");
+    fs::create_dir_all(&root).expect("root");
+    let cancelled = std::sync::atomic::AtomicBool::new(false);
+    let request = SceneRequest {
+        source: &dir,
+        inputs: &[],
+        cache: &dir,
+        cancelled: &cancelled,
+        progress: &|_| {},
     };
-    let mut out = Vec::new();
-    for path in entries.flatten().map(|entry| entry.path()) {
-        if path.is_dir() {
-            out.extend(files(&path));
-        } else {
-            out.push(path);
-        }
-    }
-    out
+    let counts = unpack(&request, stream, &dir, &root).expect("the package extracts");
+    (dir, root, counts)
 }
 
 // Behaviour 5: the package is decompressed once — the extractor reads exactly the decompressed
@@ -121,34 +122,48 @@ fn a_package_is_decompressed_once_whatever_the_member_order() {
     flate2::read::GzDecoder::new(&bytes[..])
         .read_to_end(&mut whole)
         .expect("healthy gzip");
-    let dir = scratch("une-passe");
-    let root = dir.join("root");
-    fs::create_dir_all(&root).expect("root");
-    let cancelled = std::sync::atomic::AtomicBool::new(false);
-    let request = SceneRequest {
-        source: &dir,
-        inputs: &[],
-        cache: &dir,
-        cancelled: &cancelled,
-        progress: &|_| {},
-    };
     let mut stream = Counting {
         inner: flate2::read::GzDecoder::new(&bytes[..]),
         read: 0,
     };
-    let (entries, written) =
-        unpack(&request, &mut stream, &dir, &root).expect("the package extracts");
+    let (dir, root, counts) = unpacked("une-passe", &mut stream);
+    assert_eq!(stream.read, whole.len() as u64, "one decompression");
+    assert_eq!(counts, (3, (PNG.len() + 7) as u64));
+    let assets = root.join("Assets");
+    assert_eq!(fs::read(assets.join("checker.png")).expect("asset"), PNG);
     assert_eq!(
-        stream.read,
-        whole.len() as u64,
-        "one decompression, to the end"
-    );
-    assert_eq!((entries, written), (3, (PNG.len() + 7) as u64));
-    let asset = root.join("Assets").join("checker.png");
-    assert_eq!(fs::read(&asset).expect("asset"), PNG);
-    assert_eq!(
-        fs::read(root.join("Assets").join("checker.png.meta")).expect("meta"),
+        fs::read(assets.join("checker.png.meta")).expect("meta"),
         b"guid: 1"
+    );
+    assert_eq!(files(&root).len(), 2, "the pending area is gone");
+    cleanup(dir);
+}
+
+// Behaviour 5 bis: two GUIDs naming one target path — and GUIDs differing only by case, one
+// directory on a case-insensitive disk — land in archive order: the last member written wins,
+// as when each was written in place, whatever the GUIDs' own order.
+#[test]
+fn members_sharing_a_target_land_in_archive_order() {
+    let (upper, lower) = (
+        "0000000000000000000000000000000A",
+        "0000000000000000000000000000000a",
+    );
+    let bytes = pack(&[
+        (lower, "pathname", b"Assets/shared.png"),
+        (upper, "pathname", b"Assets/shared.png"),
+        (lower, "asset", b"first"),
+        (upper, "asset", b"second"),
+        (lower, "asset.meta", b"meta"),
+    ]);
+    let (dir, root, _) = unpacked("ordre", flate2::read::GzDecoder::new(&bytes[..]));
+    let assets = root.join("Assets");
+    assert_eq!(
+        fs::read(assets.join("shared.png")).expect("asset"),
+        b"second"
+    );
+    assert_eq!(
+        fs::read(assets.join("shared.png.meta")).expect("meta"),
+        b"meta"
     );
     assert_eq!(files(&root).len(), 2, "the pending area is gone");
     cleanup(dir);

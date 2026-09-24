@@ -62,22 +62,23 @@ impl ScenePlugin for UnityPackage {
     }
 }
 
-/// What a GUID directory announces: the target path, and which members it carries.
+/// What a GUID directory announces: the target path, and whether it carries asset bytes.
 #[derive(Default)]
 struct Target {
     path: String,
     file: bool,
-    meta: bool,
 }
 
 /// Where members wait for their GUID's `pathname`, which may come after them. The name holds
 /// `..`, which `safe_join` refuses: no target path of the package can land there.
 const PENDING: &str = "..pending";
 
-/// One pass over the decompressed `stream`: each member is written as read, under its GUID in
-/// the pending area, then renamed to its target once the gzip footer proved the stream whole.
-/// Yields the entry count and the total written. A refusal leaves no file: `root` is the
-/// container's staging directory, removed whole. A link entry stops everything.
+/// One pass over the decompressed `stream`: each member is written as read, to the pending area
+/// under its entry number — never under a name the package chose —, then renamed to its target,
+/// in archive order, once the gzip footer proved the stream whole. The last member written to a
+/// path wins, as when it was written in place. Yields the entry count and the total written. A
+/// refusal leaves no file: `root` is the container's staging directory, removed whole. A link
+/// entry stops everything.
 pub(super) fn unpack<R: Read>(
     request: &SceneRequest<'_>,
     stream: R,
@@ -85,8 +86,11 @@ pub(super) fn unpack<R: Read>(
     root: &Path,
 ) -> Result<(usize, u64)> {
     let pending = root.join(PENDING);
+    fs::create_dir_all(&pending)?;
     let mut archive = tar::Archive::new(stream);
     let mut targets: BTreeMap<String, Target> = BTreeMap::new();
+    // Each written member, in archive order: its GUID, whether it is the `.meta`, its file.
+    let mut members: Vec<(String, bool, PathBuf)> = Vec::new();
     let (mut entries, mut declared, mut written) = (0usize, 0u64, 0u64);
     for entry in archive.entries().map_err(unreadable(source))? {
         archive::check(request)?;
@@ -104,26 +108,28 @@ pub(super) fn unpack<R: Read>(
         let Some((guid, member)) = split(&entry) else {
             continue;
         };
-        let target = targets.entry(guid.clone()).or_default();
-        match member.as_str() {
+        let meta = match member.as_str() {
             PATHNAME => {
                 let path = first_line(&mut entry).map_err(unreadable(source))?;
                 // Judged here, by the same rule as any archive entry, before it names a write.
                 archive::safe_join(root, &path)?;
-                target.path = path;
+                targets.entry(guid).or_default().path = path;
                 continue;
             }
-            ASSET => target.file = true,
-            META => target.meta = true,
+            ASSET => false,
+            META => true,
             _ => continue,
+        };
+        if !meta {
+            targets.entry(guid.clone()).or_default().file = true;
         }
-        let members = pending.join(&guid);
-        fs::create_dir_all(&members)?;
-        let mut out = fs::File::create(members.join(&member))?;
+        let file = pending.join(entries.to_string());
+        let mut out = fs::File::create(&file)?;
         let room = archive::LIMITS.bytes - written;
         written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut out)
             .map_err(unreadable(source))?;
         archive::under_byte_limit(written)?;
+        members.push((guid, meta, file));
     }
     ended(archive, source)?;
     // A GUID directory without `pathname` has no place in the project: it is not written.
@@ -131,29 +137,23 @@ pub(super) fn unpack<R: Read>(
     if targets.is_empty() {
         return Err(archive::empty(source));
     }
-    for (guid, target) in &targets {
-        place(root, &pending.join(guid), target)?;
+    for (guid, meta, file) in &members {
+        let Some(target) = targets.get(guid) else {
+            continue;
+        };
+        // The editor's `.meta` sits beside what it describes, project directory included.
+        let path = if *meta {
+            archive::safe_join(root, &format!("{}.meta", target.path))?
+        } else {
+            archive::safe_join(root, &target.path)?
+        };
+        land(file, &path)?;
     }
-    if pending.exists() {
-        fs::remove_dir_all(&pending)?;
+    for target in targets.values().filter(|target| !target.file) {
+        fs::create_dir_all(archive::safe_join(root, &target.path)?)?;
     }
+    fs::remove_dir_all(&pending)?;
     Ok((entries, written))
-}
-
-/// Lands a GUID's members: its asset, or the project directory it names, and the editor's
-/// `.meta` beside what it describes.
-fn place(root: &Path, members: &Path, target: &Target) -> Result<()> {
-    let path = archive::safe_join(root, &target.path)?;
-    if target.file {
-        land(&members.join(ASSET), &path)?;
-    } else {
-        fs::create_dir_all(&path)?;
-    }
-    if target.meta {
-        let meta = archive::safe_join(root, &format!("{}.meta", target.path))?;
-        land(&members.join(META), &meta)?;
-    }
-    Ok(())
 }
 
 /// Moves a written member to its target path: a rename, no byte copied again.
