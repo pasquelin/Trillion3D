@@ -39,7 +39,7 @@ export class WaterSurface {
 
   /** The world point `[x, y, z]` the rest point `(x, level, z)` is carried to, into `out`: a
    *  grid moved point by point is the surface, crests drawn as sharp as the waves are. */
-  point(x: number, z: number, out: Float64Array | number[]) {
+  point(x: number, z: number, out: Float64Array) {
     this.waves.offset(x, z, out);
     out[0] += x;
     out[1] += this.level;
@@ -54,7 +54,8 @@ export class WaterSurface {
   }
 
   /** Unit normal `[x, y, z]` of the surface at the rest point `(x, z)`, into `out`. */
-  normal(x: number, z: number, out: Float64Array | number[]) {
-    return this.waves.normal(x, z, out);
+  normal(x: number, z: number, out: Float64Array) {
+    this.waves.normal(x, z, out);
+    return out;
   }
 }
