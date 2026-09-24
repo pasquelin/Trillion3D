@@ -16,5 +16,6 @@ export interface VehicleInput {
 
 /** Anything `world.controls.vehicle` can drive: it hears the input each time it changes. */
 export interface VehicleDriver {
+  /** Hears the pedals and the wheel, each time a key changes them. */
   drive(input: Readonly<VehicleInput>): void;
 }
