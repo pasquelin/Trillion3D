@@ -23,7 +23,7 @@ async function jsonResource(
   details: { url: string; status: number; contentType: string };
   bytes: number;
 }> {
-  const response = meter(await checked(url, signal)),
+  const response = meter.read(await checked(url, signal), url),
     contentType = response.headers.get('content-type') ?? '';
   const details = { url, status: response.status, contentType };
   if (!/^application\/(?:[\w.-]+\+)?json(?:;|$)/i.test(contentType))
@@ -94,6 +94,20 @@ export interface LoadedManifest {
   timing: ManifestTiming;
 }
 
+/** Every file the manifest declares, address to length: its binary sidecar and its `files`. */
+function declaredFiles(value: Record<string, unknown>, metadataUrl: string) {
+  const files = new Map<string, number>();
+  const declare = (url: unknown, bytes: unknown) => {
+    if (typeof url === 'string' && typeof bytes === 'number' && bytes > 0)
+      files.set(new URL(url, metadataUrl).href, bytes);
+  };
+  const binary = value.binary as { url?: unknown; bytes?: unknown } | undefined;
+  declare(binary?.url, binary?.bytes);
+  const listed = (value.files ?? {}) as Record<string, { bytes?: unknown } | undefined>;
+  for (const [name, file] of Object.entries(listed)) declare(name, file?.bytes);
+  return files;
+}
+
 /**
  * Reads the preparation pointer, then the cache it names. The `requested` scope is enforced when
  * the host names one — a pointer or a cache of another scope is refused by name —; left
@@ -101,8 +115,8 @@ export interface LoadedManifest {
  *
  * A cache compiled with a binary sidecar hands over a small JSON and a column file: the columns are
  * mapped, never parsed, so the cost of reading a manifest stops growing with the cluster count. A
- * cache without one is read exactly as before, so older caches stay loadable. `meter` counts the
- * bytes of each file as they arrive (`byteMeter`).
+ * cache without one is read exactly as before, so older caches stay loadable. `meter` is planned
+ * with every file the manifest declares once it is read, then counts each file as it arrives.
  */
 export async function loadClusterManifest(
   manifestUrl: string,
@@ -128,6 +142,7 @@ export async function loadClusterManifest(
   // that declares no scope leaves the cache's own to be read.
   const scope = declared ?? (value.scope as AssetScope);
   located(() => assertCacheReady(value, scope), metadataResource.details);
+  meter.plan(declaredFiles(value, metadataUrl));
   let metadata: ClusterManifest,
     binaryBytes = 0,
     binaryMs = 0,
@@ -138,7 +153,7 @@ export async function loadClusterManifest(
     assertManifestBinary(value.binary);
     const binaryUrl = new URL((value.binary as { url: string }).url, metadataUrl).href;
     const binaryStart = performance.now();
-    const buffer = await meter(await checked(binaryUrl, signal)).arrayBuffer();
+    const buffer = await meter.read(await checked(binaryUrl, signal), binaryUrl).arrayBuffer();
     binaryMs = performance.now() - binaryStart;
     binaryBytes = buffer.byteLength;
     const declared = (value.binary as { bytes: number }).bytes;
