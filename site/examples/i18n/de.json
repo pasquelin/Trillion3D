@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Ändere Pegel, Wellen, Dichte und Strömung des Wassers: Die Kisten schwimmen, treiben, sinken und kommen zur Ruhe.",
+    "controls": {
+      "level": "Pegel",
+      "waves": "Wellen",
+      "density": "Wasserdichte",
+      "current": "Strömung",
+      "drop": "Fallen lassen",
+      "again": "Nochmal",
+      "slowMotion": "Zeitlupe"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "awake": "Wach",
+      "step": "Schritt"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Zehntausend Kisten fallen zugleich. Das Feld zeigt live, was die Physik kostet.",
     "controls": {

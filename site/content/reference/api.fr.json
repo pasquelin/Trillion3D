@@ -460,7 +460,7 @@
     "description": "`memory(world)` est ce que le monde tient maintenant (`world.budget`) ; les deux réservoirs construisent le réglage que prend un monde."
   },
   "budget.memory": {
-    "summary": "Les budgets de mémoire que tient un monde en ce moment : les deux réservoirs et le maximum de chacun."
+    "summary": "Les budgets de mémoire que tient un monde en ce moment : les totaux GPU et CPU, leur partage par la règle, les deux réservoirs et le maximum de chacun."
   },
   "budget.geometryPool": {
     "summary": "Un réglage de réservoir de géométrie de `bytes`, prêt à donner à un monde.",
@@ -6342,10 +6342,13 @@
     "members": {
       "geometryPoolCeiling": "Les plus grands réservoirs qu’un monde peut demander : les budgets de départ du moteur.",
       "texturePoolCeiling": "Le plus grand réservoir de textures qu’un monde peut demander, en octets.",
-      "geometryPool": "Octets de mémoire GPU gardés pour les pages de géométrie ; règle-le pour changer l’enveloppe.",
-      "texturePool": "Octets de mémoire GPU gardés pour les pages de texture ; règle-le pour changer l’enveloppe.",
+      "geometryPool": "Octets de mémoire GPU gardés pour les pages de géométrie ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres et du réservoir de textures.",
+      "texturePool": "Octets de mémoire GPU gardés pour les pages de texture, `null` sur un moteur sans réservoir de textures (WebGL2) ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres et du réservoir de géométrie.",
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
-      "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe."
+      "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
+      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Jamais lu sur la machine.",
+      "cpu": "Octets de mémoire CPU que les pages décodées du monde peuvent tenir ; pris au prochain chargement de scène.",
+      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le cache de pages décodées prend le total CPU. Ce que donne la règle, avant un réservoir réglé seul."
     }
   },
   "world.diagnostic": {
@@ -6864,6 +6867,7 @@
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
+      "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
       "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
@@ -7014,6 +7018,19 @@
       "current": "Vitesse de l’eau (le courant d’une rivière), en m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "La surface de l’eau telle que la page la lit pour la dessiner (`world.physics.waterSurface`) : le modèle de vagues que la flottaison lit dans le worker de physique, les mêmes nombres, à l’heure de la simulation.",
+    "members": {
+      "level": "Hauteur de la surface au repos, en mètres.",
+      "crest": "Point le plus haut qu’une crête atteint au-dessus de `level`, en mètres.",
+      "time": "Secondes simulées depuis que l’eau a été posée : l’horloge des vagues.",
+      "setTime": "Règle les vagues à `t` secondes simulées.",
+      "height": "Hauteur de la surface au-dessus du point du monde `(x, z)`, en mètres.",
+      "point": "Le point du monde `[x, y, z]` où le point au repos `(x, level, z)` est porté, dans `out` : une grille déplacée point par point est la surface, crêtes aussi vives que les vagues.",
+      "wavesNow": "Les vagues déclarées, chaque phase portée à cet instant : reposées dans `world.physics.water` (dont les vagues repartent de 0 s), la surface continue d’où elle est au lieu de sauter.",
+      "normal": "Normale unitaire `[x, y, z]` de la surface au point au repos `(x, z)`, dans `out`."
+    }
+  },
   "WaveSpec": {
     "summary": "Une vague telle qu’une scène la déclare.",
     "members": {
@@ -7047,6 +7064,7 @@
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
+      "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
       "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
