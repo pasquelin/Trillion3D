@@ -7504,12 +7504,7 @@
       {
         "name": "maxLights",
         "type": "64",
-        "desc": "Lights the contract accepts in total; beyond that, `addLight` rejects."
-      },
-      {
-        "name": "maxLightsPerTile",
-        "type": "32",
-        "desc": "Lights a screen tile keeps; the pixel loop is bounded by this number (X2)."
+        "desc": "Lights the contract accepts in total; beyond that, `addLight` rejects. A screen tile keeps every one of them that touches it: its list, and the pixel loop, are bounded by this (X2)."
       },
       {
         "name": "tileSize",
@@ -13295,7 +13290,7 @@
     "members": [
       {
         "name": "settings",
-        "type": "{ readonly maxLights: 64; readonly maxLightsPerTile: 32; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shado...",
+        "type": "{ readonly maxLights: 64; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shadowPage: 128; readonly shadowBudg...",
         "desc": "Published settings of direct lighting. These are named product choices, not buried constants: every runtime bound rereads them, and the diagnostic publishes them as-is."
       },
       {
