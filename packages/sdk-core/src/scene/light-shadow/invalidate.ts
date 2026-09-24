@@ -2,6 +2,7 @@ import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
 import type { ShadowPool } from './pool.ts';
+import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { lampFacesOf, lampPagesAt, sunPageMetres } from './virtual.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
@@ -88,7 +89,8 @@ function sunPageMeets(level: number, ax: number, ay: number) {
  * What stales the mapped pages of a shadow light, and nothing more. Only mapped pages can be
  * stale: a page nobody reads has no content to keep, and is drawn whole when first asked for.
  *
- * - **The light moved, changed, or its clipmap changed projection** (`whole`): every page.
+ * - **The light moved, changed, or its clipmap changed projection** (`whole`): every page, and
+ *   none is read until redrawn — its depth was drawn under a projection the record no longer holds.
  * - **An object moved within its reach**: only the pages its projected box covers — the rest
  *   still describes the scene, since nothing else changed. An object already moving stales only
  *   their moving casters: the static layer under them holds. With per-page invalidation off,
@@ -98,6 +100,7 @@ function sunPageMeets(level: number, ax: number, ay: number) {
  */
 export function invalidateLightPages(
   pool: ShadowPool,
+  table: ShadowTable,
   sun: SunLevels,
   changes: Changes,
   light: SceneLight,
@@ -129,7 +132,9 @@ export function invalidateLightPages(
           ? sunPageMeets(key, pool.x[page], pool.y[page])
           : lampPageMeets(key >> 4, key & 15, pool.x[page], pool.y[page]));
       const level = moved?.moving ? STALE_DYNAMIC : STALE_FULL;
-      if (meets && pool.stale(page, nowMs, frame, level)) staled++;
+      if (!meets) continue;
+      if (pool.stale(page, nowMs, frame, level)) staled++;
+      if (whole) pool.withdraw(table, page);
     }
   }
   return staled;

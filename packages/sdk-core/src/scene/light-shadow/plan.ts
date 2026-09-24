@@ -125,6 +125,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         }
         counts.invalidatedPages += invalidateLightPages(
           pool,
+          table,
           sun,
           changes,
           light,
@@ -144,7 +145,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         if (read.stamp === before && !requests.counts.allocated && !requests.counts.refused)
           settledStamp = stampOf(store);
       }
-      const waiting = admission.run(pool, records, sun, budget, requests.latest, frame);
+      const waiting = admission.run(pool, table, records, sun, budget, requests.latest, frame);
       for (let i = 0; i < admission.count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);

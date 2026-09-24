@@ -145,3 +145,38 @@ test('an object already moving stales only the moving casters of the pages it cr
   planFrame(plan, store, 4);
   assert.equal(plan.pool.dirty[page], STALE_FULL, 'a static change raises it to full');
 });
+
+test('a light that moves reads none of its pages until each is drawn again', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  const pages = lampPages(plan, store.sliceOf(0), 0, 4),
+    word = (entry: number) => plan.table.words[entry] & (PAGE_MAPPED | PAGE_VALID);
+  cycle(plan, store, 1, () => pages);
+  cycle(plan, store, 2, () => pages);
+  assert.ok(pages.every((entry) => word(entry) === (PAGE_MAPPED | PAGE_VALID)));
+  // Its depth was drawn from the old position: the record the shading reads is the new one.
+  store.set('lamp', { position: [0, 4, 0] });
+  plan.admission.setLimit(1);
+  planFrame(plan, store, 3);
+  assert.ok(
+    pages.every((entry) => word(entry) === PAGE_MAPPED),
+    'mapped, not readable',
+  );
+  plan.commit();
+  assert.equal(pages.filter((entry) => word(entry) & PAGE_VALID).length, 1, 'the one redrawn');
+});
+
+test('a stale page no report names is not left readable to a pass that reads without asking', () => {
+  const { store, plan, pages } = sunScene();
+  cycle(plan, store, 1, () => pages);
+  cycle(plan, store, 2, () => pages);
+  // The opaque shading now reads one page; a blend surface may still read the other two.
+  cycle(plan, store, 3, () => pages.slice(0, 1));
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  planFrame(plan, store, 4);
+  assert.ok(plan.table.words[pages[0]] & PAGE_VALID, 'read, and drawn this frame: readable');
+  for (const entry of pages.slice(1))
+    assert.equal(plan.table.words[entry] & PAGE_VALID, 0, 'read by no report: withdrawn');
+});

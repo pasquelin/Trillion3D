@@ -2,6 +2,7 @@ import { LIGHT_KIND, LIGHT_SETTINGS } from '../light/contracts.ts';
 import type { ShadowBudget } from './budget.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
+import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { LAMP_MIPS, SUN_LEVELS } from './virtual.ts';
 
@@ -9,7 +10,8 @@ import { LAMP_MIPS, SUN_LEVELS } from './virtual.ts';
  * THE PAGES A FRAME DRAWS: stale pages the latest request report named — what the image reads
  * now —, by priority, until the millisecond budget or the buffer ceiling. A stale page nobody
  * reads waits, costs nothing, and is drawn the frame someone asks for it: that is what makes
- * the marking receiver-driven.
+ * the marking receiver-driven. It waits unreadable: a pass that reads without asking — blend,
+ * water — would otherwise read its old depth for as long as no report names it.
  *
  * Priority: a page never drawn before one merely stale — the first reads a coarser level, the
  * second an older depth —, a coarse page before a fine one — it covers more pixels, and the
@@ -41,6 +43,7 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     /** Picks this frame's pages into `list`; returns how many stale, asked-for pages remain. */
     run(
       pool: ShadowPool,
+      table: ShadowTable,
       records: ShadowRecords,
       sun: SunLevels,
       budget: ShadowBudget,
@@ -52,7 +55,11 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
       let found = 0,
         kept = 0;
       for (let page = 0; page < pool.pages; page++) {
-        if (pool.owner[page] < 0 || !pool.dirty[page] || pool.requested[page] < latest) continue;
+        if (pool.owner[page] < 0 || !pool.dirty[page]) continue;
+        if (pool.requested[page] < latest) {
+          pool.withdraw(table, page);
+          continue;
+        }
         const value =
           (pool.valid[page] ? 0 : 1) +
           coarseness(records, sun, page, pool) +

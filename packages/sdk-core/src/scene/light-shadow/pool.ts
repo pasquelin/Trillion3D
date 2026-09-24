@@ -124,6 +124,13 @@ export function createShadowPool(side: number) {
       layered[page] = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && layered[page]) ? 1 : 0;
       table.write(owner[page], page | PAGE_MAPPED | PAGE_VALID);
     },
+    /** The page keeps its place and its requests, but its depth is read no more until it is
+     *  drawn again: a reader falls back to a coarser page meanwhile. */
+    withdraw(table: ShadowTable, page: number) {
+      if (!valid[page]) return;
+      valid[page] = 0;
+      table.write(owner[page], page | PAGE_MAPPED);
+    },
     /** Unmaps the page: its entry reads nothing, and the page returns to the free list. */
     release(table: ShadowTable, page: number) {
       if (owner[page] < 0) return;
