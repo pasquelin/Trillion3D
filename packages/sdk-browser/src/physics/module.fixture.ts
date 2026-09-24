@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import { Worker as NodeWorker } from 'node:worker_threads';
 import { DEFAULT_PHYSICS_BUDGET, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
 import { openJolt, startJolt } from './joltModule.ts';
-import type { SpawnJoltThread } from './joltThreads.ts';
+import type { JoltThreadStart, SpawnJoltThread } from './joltThreads.ts';
 
 /** A committed module started for the tests: 64 bodies and 64 MB unless told otherwise. */
 export async function startModule(
@@ -12,6 +13,21 @@ export async function startModule(
   const bytes = await readFile(new URL(file, import.meta.url));
   const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget };
   return startJolt(await openJolt(bytes, full.memoryBytes, pool), full, pool?.count ?? 1);
+}
+
+/** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
+export async function startThreaded(count: number, budget: Partial<PhysicsBudget> = {}) {
+  const threads: NodeWorker[] = [];
+  const loader = new URL('./joltThreads.ts', import.meta.url).href;
+  const spawn = (start: JoltThreadStart) =>
+    threads.push(
+      new NodeWorker(
+        `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
+        { eval: true, workerData: start },
+      ),
+    );
+  const jolt = await startModule(budget, { count, spawn });
+  return { jolt, threads, close: () => Promise.all(threads.map((thread) => thread.terminate())) };
 }
 
 /** A started test module. */
