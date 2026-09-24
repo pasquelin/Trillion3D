@@ -37,11 +37,12 @@ test('a page whose depth is wrong is withdrawn until its draw lands, by one flag
     entries.every((entry) => current(plan.table.words[entry])),
     'drawn: all current',
   );
-  // One page a frame, the floor paid first: the three wait, and the shading falls back to it.
+  // One page a frame, the floor paid first — the four floor pages the view reaches —: the three
+  // wait, and the shading falls back to it.
   plan.observeCost(plan.budget.budgetMs, 1);
   plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
   let frame = 10;
-  assert.equal(planFrame(plan, store, frame), 1, 'the floor alone');
+  assert.equal(planFrame(plan, store, frame), 4, 'the floor alone');
   plan.commit();
   const readable = () => entries.filter((entry) => current(plan.table.words[entry])).length;
   assert.equal(readable(), 0, 'none of the three is read before it is drawn');
@@ -93,7 +94,8 @@ test('pages pending drain in N / limit frames at the fixed budget, whatever the 
   let frame = 20,
     drawn = 0;
   for (let i = 0; i < 1 + 12 / 4; i++) drawn += cycle(plan, store, frame++, () => entries);
-  assert.equal(drawn, 13, 'the floor, then twelve pages of one view drained in three frames');
+  // The four floor pages the view reaches, then twelve pages of one view drained in three frames.
+  assert.equal(drawn, 4 + 12, 'the floor, then twelve pages of one view drained in three frames');
   assert.equal(plan.counts.pendingPages, 0);
 });
 
@@ -139,7 +141,8 @@ test('a page restaled for detail stays readable until it is redrawn', () => {
     );
     cycle(plan, store, ++frame, () => entries);
   }
-  assert.equal(frame, 43, 'each redrawn, one a frame');
+  // Each redrawn, one a frame, with the three floor pages more the view reaches.
+  assert.equal(frame, 40 + 3 + 3, 'each redrawn, one a frame');
 });
 
 test('the floor a withdrawn page falls back to is current', () => {

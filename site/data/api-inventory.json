@@ -2733,7 +2733,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/graph/rotation.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/host/graph/node.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/euler\".Euler"
     },
@@ -3086,6 +3086,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs/examples/chess-pieces.ts",
@@ -3350,17 +3351,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/stageProfile\".GpuTimingMethod"
     },
     {
-      "name": "GraphAngles",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/rotation.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/rotation\".GraphAngles"
-    },
-    {
       "name": "GraphArray",
       "kind": "type",
       "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
@@ -3480,17 +3470,6 @@
       "bindingIdentity": "\"packages/sdk-browser/src/host/graph/nodeKind\".GraphNodeKind"
     },
     {
-      "name": "GraphRotation",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/rotation.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/rotation\".GraphRotation"
-    },
-    {
       "name": "GraphSurface",
       "kind": "both",
       "definingModule": "packages/sdk-browser/src/host/graph/surface.ts",
@@ -3515,17 +3494,6 @@
       "affectedConsumers": ["bench/witnesses/three/fromGraph.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/graph/texture\".GraphTexture"
-    },
-    {
-      "name": "GraphVector",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/vector.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/vector\".GraphVector"
     },
     {
       "name": "GRAVITY_PRESETS",
@@ -4245,6 +4213,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.test.ts"
       ],
       "disposition": "retained",
@@ -4722,6 +4691,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
@@ -5089,6 +5059,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
+        "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
@@ -5206,8 +5177,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/controls/flyControls.ts",
         "packages/sdk-browser/src/camera/controls/math.test.ts",
-        "packages/sdk-browser/src/camera/controls/trackballControls.ts",
-        "packages/sdk-browser/src/host/graph/rotation.ts"
+        "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/quaternion\".multiplyQuaternion"
@@ -5377,6 +5347,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
+        "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-scene-editor.test.ts"
@@ -6023,6 +5994,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/character.test.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "scripts/bench-physics.ts"
       ],
@@ -6796,6 +6768,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -8325,6 +8298,7 @@
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/live.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
@@ -8338,7 +8312,9 @@
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/core/worldTextures.ts",
-        "packages/sdk-browser/src/world/texture/index.ts"
+        "packages/sdk-browser/src/world/texture/index.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.test.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/contract\".Texture"
@@ -8373,6 +8349,7 @@
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/live.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
         "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
         "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
@@ -8386,7 +8363,9 @@
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/core/worldTextures.ts",
-        "packages/sdk-browser/src/world/texture/index.ts"
+        "packages/sdk-browser/src/world/texture/index.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.test.ts",
+        "packages/sdk-browser/src/world/texture/liveVideo.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/texture/texture\".Texture"
@@ -9173,6 +9152,8 @@
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/host/graph/light.ts",
+        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/physics/bodies.ts",

@@ -22,10 +22,11 @@ import type { CameraControlBase, ControlCamera } from './types.ts';
  * The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code`
  * so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward
  * and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start
- * or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, keeps its
- * momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to
- * `stepHeight`, slides along walls and stands on slopes up to `maxSlope`
- * (`sdk-core/src/collision/characterBody.ts`).
+ * or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, never faster
+ * than the friction of its floor lets a sole push, so a stop glides a little on stone and far on
+ * ice; it keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`,
+ * climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope`
+ * (`sdk-core/src/collision/characterBody.ts`, `characterDrive.ts`).
  *
  * The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and
  * dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on

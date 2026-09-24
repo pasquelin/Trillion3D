@@ -5675,7 +5675,7 @@
   },
   "texture": {
     "summary": "La familia `texture`: una imagen y la forma de muestrearla.",
-    "description": "Las imágenes de color están en sRGB, las imágenes de datos en lineal; `needsUpdate` después de escribir los píxeles hace que se vuelvan a leer."
+    "description": "Las imágenes de color están en sRGB, las de datos en lineal; `needsUpdate` tras escribir los píxeles hace que los muestreadores los vuelvan a leer, copiados en su sitio en la textura que ya está en la GPU — solo un tamaño nuevo la reconstruye. Un vídeo está vivo: sus fotogramas llegan solos."
   },
   "texture.image": {
     "summary": "Una textura de color a partir de una imagen ya en la página: una imagen, un bitmap o una imagen de vídeo.",
@@ -5694,12 +5694,14 @@
   },
   "texture.canvas": {
     "summary": "Una textura que muestra lo que contiene un lienzo.",
+    "description": "Después de volver a dibujar en el lienzo, pon `needsUpdate`: los píxeles nuevos se copian en la textura que ya está en la GPU, sin reconstruir nada.",
     "parameters": {
       "c": "El lienzo a mostrar."
     }
   },
   "texture.video": {
-    "summary": "Una textura que muestra un vídeo en reproducción.",
+    "summary": "Una textura que muestra un vídeo en reproducción, o el flujo de una cámara reproducido en un vídeo.",
+    "description": "Cada fotograma nuevo se copia solo en la textura que ya está en la GPU; un vídeo en pausa no cuesta nada.",
     "parameters": {
       "v": "El vídeo a mostrar."
     }
@@ -5829,7 +5831,8 @@
       "textureLevelReads": "Las fuentes. `textureLevelReads`: niveles horneados en curso de lectura en la caché. `textureLevelsDecoded`: niveles horneados decodificados desde el inicio. `textureLevelCacheBytes`: bytes del host de los niveles decodificados conservados para recortar de ahí otras teselas, bajo un presupuesto fijo. `textureScratchBuilds`: texturas de trabajo construidas para una textura sin cadena horneada, toda la fuente cada vez.",
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
-      "textureScratchBuilds": "Texturas temporales construidas."
+      "textureScratchBuilds": "Texturas temporales construidas.",
+      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño. Se descuentan de `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -6288,7 +6291,7 @@
       "jumpSpeed": "Solo personaje: velocidad ascendente con la que empieza un salto, en m/s; `sqrt(2 g h)` alcanza `h`, 1,1 m por defecto.",
       "gravity": "Solo personaje: aceleración hacia abajo, en m/s²; 9,80665 por defecto.",
       "airControl": "Solo personaje: qué tan rápido dirigen las teclas en el aire, como fracción de la respuesta en tierra; 0,3 por defecto, 0 es balístico.",
-      "responseTime": "Solo personaje: segundos para alcanzar el 95 % de la velocidad deseada, o para detenerse, en el suelo; por defecto un paso de zancada (1 / 1,8 s).",
+      "responseTime": "Solo personaje: segundos que tardan las piernas en alcanzar el 95 % de la velocidad deseada, en el suelo; 0,12 por defecto. La fricción del suelo limita primero el arranque: una suela empuja como mucho `μ g`, `μ` el agarre de una suela de goma sobre el `material.physics` del suelo (piedra sin física), así que un trote se alcanza en 0,45 s sobre piedra y 2,2 s sobre hielo.",
       "capsuleRadius": "Solo personaje: radio del cuerpo, en metros; media anchura de hombros (0,23 m) por defecto.",
       "capsuleHeight": "Solo personaje: altura del cuerpo, en metros; 1,75 por defecto.",
       "eyeHeight": "Solo personaje: altura de la cámara sobre los pies, en metros; 1,64 por defecto.",
@@ -6300,7 +6303,7 @@
       "onJump": "Solo personaje: se llama cuando el cuerpo deja el suelo en un salto; `null` por defecto.",
       "stride": "Solo personaje: la fase de la zancada en radianes, un pie golpea en 0 y en π; 0 en otro caso.",
       "fallGravity": "Solo personaje: aceleración hacia abajo mientras cae, en m/s²; 1,6 g por defecto, para que un salto no flote.",
-      "stopTime": "Solo personaje: segundos para perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,08 por defecto.",
+      "stopTime": "Solo personaje: segundos que tardan las piernas en perder el 95 % de la velocidad una vez que no se mantiene ninguna tecla, en el suelo; 0,12 por defecto. La fricción del suelo limita primero la parada: un trote se desliza `v² / (2 μ g)`, 0,8 m sobre piedra y 3,8 m sobre hielo; un tiempo más largo frena con más suavidad.",
       "headBob": "Solo personaje: metros que sube y baja el ojo en cada paso al trote; 0,035 por defecto, 0 lo mantiene nivelado.",
       "landingDip": "Solo personaje: segundos desde el contacto con el suelo hasta el punto más bajo de la caída de aterrizaje del ojo, tan profunda como rápido sea el impacto; 0,06 por defecto, 0 lo desactiva.",
       "mass": "Solo personaje, con física: kilogramos que el cuerpo apoya sobre lo que pisa; 80 por defecto.",
@@ -6500,6 +6503,7 @@
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
       "textureScratchBuilds": "Texturas temporales construidas.",
+      "textureLiveBytes": "Bytes que guardan las texturas vivas: una textura de trabajo cada una, de su propio tamaño. Se descuentan de `texturePoolBytes`.",
       "gpuAllocatedBytes": "Bytes asignados activos en el dispositivo, todos los recursos juntos.",
       "gpuAllocatedByLabel": "Bytes asignados agrupados por etiqueta de recurso. Las asignaciones sin etiqueta se agrupan bajo 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Número de texturas con formatos no reconocidos. El valor esperado es 0.",
@@ -6648,7 +6652,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UN PERSONAJE, visto a través de sus ojos: un cuerpo con masa que camina, corre, salta y cae, y choca con los triángulos del mundo como una cápsula vertical.",
-    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
+    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, nunca más rápido de lo que la fricción de su suelo deja empujar a una suela, así que una parada se desliza un poco sobre la piedra y lejos sobre el hielo, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
     "members": {
       "velocity": "La velocidad del cuerpo en metros por segundo, en vivo: `[x, y, z]`, y hacia arriba.",
       "onGround": "Si los pies están sobre un suelo.",
@@ -7250,17 +7254,6 @@
     },
     "summary": "Una imagen y el estado de muestreo con el que se lee, y la transformación de sus coordenadas."
   },
-  "GraphAngles": {
-    "summary": "La misma orientación como tres ángulos y su orden, que anuncia sus escrituras de la misma forma.",
-    "members": {
-      "x": "El primer ángulo, en radianes.",
-      "set": "Escribe los tres ángulos, y el orden si se da; anunciado una vez.",
-      "setFromRotation": "Los ángulos de `q` en este orden (el `Euler` del núcleo); anunciado salvo con `quiet`.",
-      "y": "El segundo ángulo, en radianes.",
-      "z": "El tercer ángulo, en radianes.",
-      "order": "El orden en que giran los tres ángulos, `'XYZ'` salvo que se fije."
-    }
-  },
   "GraphArray": {
     "summary": "Los arrays tipados que guarda un atributo."
   },
@@ -7303,40 +7296,6 @@
   },
   "GraphNodeKind": {
     "summary": "Qué es un nodo del grafo: un nodo simple, la raíz, un grupo, una malla dibujada (en una colocación o en varias), un ojo, o una de las luces que declara una escena."
-  },
-  "GraphRotation": {
-    "summary": "Una orientación `(x, y, z, w)` cuyas escrituras llaman a `_onChangeCallback`.",
-    "members": {
-      "x": "El primer número.",
-      "set": "Escribe los cuatro números, anunciado una vez.",
-      "copy": "Toma los números de otra rotación.",
-      "fromArray": "Lee cuatro números de una lista.",
-      "setFromAngles": "La rotación de `angles`, en su orden (`localTurnQuaternion`); anunciado salvo con `quiet`.",
-      "setFromRotationMatrix": "La rotación del 3×3 superior de una matriz por columnas cuyas columnas son unitarias.",
-      "premultiply": "Se convierte en `q` seguido de esta rotación, `q · this`.",
-      "invert": "Se convierte en el giro opuesto.",
-      "y": "El segundo número.",
-      "z": "El tercer número.",
-      "w": "El cuarto número."
-    }
-  },
-  "GraphVector": {
-    "summary": "Tres números de una pose o de un punto: campos de datos simples y las operaciones que usa un controlador.",
-    "members": {
-      "set": "Escribe los tres números.",
-      "copy": "Toma los números de otro punto.",
-      "clone": "Una copia.",
-      "add": "Suma otro vector.",
-      "sub": "Resta otro vector.",
-      "multiplyScalar": "Escala los tres números.",
-      "length": "Su longitud.",
-      "setLength": "Mantiene la dirección, fija la longitud.",
-      "distanceTo": "Distancia a un punto.",
-      "fromArray": "Lee tres números de una lista.",
-      "x": "De izquierda a derecha.",
-      "y": "De abajo arriba.",
-      "z": "De atrás hacia adelante."
-    }
   },
   "Joint": {
     "summary": "Una unión entre dos cuerpos, o entre un cuerpo y el mundo (`b` null), creada con `joint.*` y añadida a la simulación con `world.physics.add`.",

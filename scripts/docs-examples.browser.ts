@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
-import { openExample, RENDER_ONLY } from './docs/examples/capture.ts';
+import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
 
 /** The examples that turn physics on: the only pages that fetch the physics session's code, the
@@ -18,6 +18,7 @@ const PHYSICS = new Set([
   'walk-through-a-temple',
   'create-and-dispose',
   'hinges-and-joints',
+  'fly-over-a-model-town',
 ]);
 
 /** The centre of the render, the kit's panels outside it. */
@@ -69,15 +70,16 @@ test('every example file renders an image on its own, fetching Jolt only when it
       jolt: string[] = [];
     for (const gpu of [true, false])
       for (const example of ready) {
+        const share = leastDrawn(example.id, gpu);
         const opened = await openExample(
           browser,
           port,
           example,
           { width: 960, height: 600 },
-          0.1,
+          share,
           gpu,
         );
-        if (opened.errors.length > 0 || opened.drawn < 0.1)
+        if (opened.errors.length > 0 || opened.drawn < share)
           blank.push(
             `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors[0] ? `: ${opened.errors[0]}` : ''}`,
           );

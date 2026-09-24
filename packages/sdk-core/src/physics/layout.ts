@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 7;
+export const PHYSICS_LAYOUT_VERSION = 8;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -166,8 +166,9 @@ export const CHARACTER_WORDS = 10;
 export const CHARACTER_MOVE_WORDS = 5;
 /**
  * Words of the character's state after a step: `present, feet x, y, z, ground, ground velocity
- * x, y, z`; `ground` is `GROUND`, the ground velocity that of the point it stands on.
+ * x, y, z, ground friction`; `ground` is `GROUND`, the ground velocity that of the point it stands
+ * on, the ground friction that of the body it stands on (`material.physics`), -1 when none.
  */
-export const CHARACTER_STATE_WORDS = 8;
+export const CHARACTER_STATE_WORDS = 9;
 /** What the character stands on: a floor, a slope too steep, a touch that holds nothing, air. */
 export const GROUND = { floor: 0, steep: 1, unsupported: 2, air: 3 } as const;
