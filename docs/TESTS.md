@@ -9,7 +9,7 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 ```
 packages/
   sdk-core/src/       77 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    373 *.test.ts
+  sdk-browser/src/    374 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
