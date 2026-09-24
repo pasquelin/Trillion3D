@@ -1608,8 +1608,6 @@
       "reflections-from-the-screen": "phản chiếu screen-space",
       "an-ocean": "dựng hình vào kết cấu: phản chiếu và khúc xạ nước",
       "a-raging-sea": "vật liệu shader tùy chỉnh",
-      "a-town-in-the-fog": "sương mù",
-      "fog-on-the-ground": "sương mù: sương mù theo độ cao",
       "fog-that-scatters-light": "sương mù thể tích và tia sáng",
       "a-cloud-in-a-box": "dựng hình thể tích",
       "a-fire-in-a-volume": "dựng hình thể tích",
