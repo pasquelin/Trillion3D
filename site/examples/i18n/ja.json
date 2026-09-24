@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "水位・波・密度・流れを変えてみよう。木箱は浮かび、流され、沈み、やがて落ち着きます。",
+    "controls": {
+      "level": "水位",
+      "waves": "波",
+      "density": "水の密度",
+      "current": "流れ",
+      "drop": "落とす",
+      "again": "もう一度",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "awake": "動作中",
+      "step": "ステップ"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "一万個の箱が一斉に落ちる。パネルに物理の負荷がリアルタイムで出る。",
     "controls": {

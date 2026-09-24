@@ -1889,6 +1889,23 @@
       }
     }
   },
+  "floating-crates": {
+    "banner": "Ubah ketinggian, ombak, kerapatan, dan arus air: peti mengapung, hanyut, tenggelam, lalu diam.",
+    "controls": {
+      "level": "Ketinggian",
+      "waves": "Ombak",
+      "density": "Kerapatan air",
+      "current": "Arus",
+      "drop": "Jatuhkan",
+      "again": "Lagi",
+      "slowMotion": "Gerak lambat"
+    },
+    "readouts": {
+      "bodies": "Benda",
+      "awake": "Aktif",
+      "step": "Langkah"
+    }
+  },
   "ten-thousand-bodies": {
     "banner": "Sepuluh ribu kotak jatuh bersamaan. Panel menunjukkan biaya fisika secara langsung.",
     "controls": {
