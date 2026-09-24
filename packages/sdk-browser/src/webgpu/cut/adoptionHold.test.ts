@@ -1,26 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fixturePages, fixtureUniforms, mountCutAdopter, peekOnly } from './adopter.fixture.ts';
+import {
+  fixturePages,
+  fixtureTotals,
+  fixtureUniforms,
+  mountCutAdopter,
+  peekOnly,
+} from './adopter.fixture.ts';
 import type { GpuCut } from '../../gpu/core/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 
+/** A readback of `ids`, all drawable, whose header carries `totals`. */
+const readback = (ids: number[], uniforms = fixtureUniforms(), totals = fixtureTotals()) =>
+  ({
+    uniforms,
+    result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0, ...totals },
+  }) as GpuCut;
+
 function banc(ids: number[]) {
   const packedPages = fixturePages(ids.length, (i) => i % 3 === 2);
-  const residentOffsetWords = new Int32Array(packedPages.length).fill(0);
-  const cut: GpuCut = {
-    uniforms: fixtureUniforms(),
-    result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0 },
-  } as GpuCut;
+  const cut = readback(ids, fixtureUniforms(), fixtureTotals({ selectedTriangles: 15 }));
   let peeked: GpuCut | null = cut;
   const mounted = mountCutAdopter({
     packedPages,
-    residentOffsetWords,
     uniforms: fixtureUniforms(),
     selection: () => peekOnly(() => peeked),
   });
   return {
     ...mounted,
-    residentOffsetWords,
     packedPages,
     cut,
     montre: (next: GpuCut | null) => (peeked = next),
@@ -49,12 +56,14 @@ test('a shown list already held does not remake the drawable list, and yields th
   assert.equal(ecritSecond, false, 'and nothing was rewritten');
   b.shown.pop();
 
-  // Counts follow residency without the list moving: a hole appears, it does not change. The rank
-  // journal names the page whose row just left; here the bench does it for it.
-  b.residentOffsetWords[1] = -1;
-  b.counts.touch(1);
+  // Totals are the header's, not the list's: a hole the GPU digs without moving the list is
+  // published as-is, and the list stays that of the held shown list.
+  const hole = fixtureTotals({ selectedTriangles: 15, drawnTriangles: 13, uncoveredTriangles: 2 });
+  b.montre(readback([0, 1, 2, 3, 4], b.cut.uniforms, hole));
   assert.equal(b.adopter.adopt(), true);
-  assert.equal(b.adopter.metrics.uncoveredTriangles, 2, 'the hole is counted');
+  assert.equal(b.adopter.metrics.uncoveredTriangles, 2, "the hole is the header's");
+  assert.equal(b.adopter.metrics.drawnTriangles, 13);
+  assert.equal(b.adopter.metrics.listsRewritten, false, 'and no list moved');
   assert.deepEqual(b.shown, contenu, 'the list stayed that of the shown list');
 });
 
@@ -62,11 +71,7 @@ test('a new shown list remakes the list, and invalidation forgets the one that w
   const b = banc([0, 1, 2, 3, 4]);
   assert.equal(b.adopter.adopt(), true);
   const attendu = [...b.shown];
-  const autre: GpuCut = {
-    uniforms: b.cut.uniforms,
-    result: { pageIds: [3, 1], drawablePageIds: [3, 1], frustumRejected: 0, lodLevel: 0 },
-  } as GpuCut;
-  b.montre(autre);
+  b.montre(readback([3, 1], b.cut.uniforms, fixtureTotals({ drawnTriangles: 4 + 2 })));
   assert.equal(b.adopter.adopt(), true);
   assert.deepEqual(
     b.shown.map((page) => page.url),
@@ -94,15 +99,7 @@ test('a NEW shown list that republishes the same ids rewrites nothing', () => {
   // That is the still-pose case: the GPU yields a shown list per frame, and that shown list is
   // the same. A different object carrying the same id sequence does not change the image by a pixel.
   for (let image = 0; image < 3; image++) {
-    b.montre({
-      uniforms: b.cut.uniforms,
-      result: {
-        pageIds: [0, 1, 2, 3, 4],
-        drawablePageIds: [0, 1, 2, 3, 4],
-        frustumRejected: 0,
-        lodLevel: 0,
-      },
-    } as GpuCut);
+    b.montre(readback([0, 1, 2, 3, 4], b.cut.uniforms));
     assert.equal(b.adopter.adopt(), true, 'the shown list is adopted');
     assert.equal(
       b.adopter.metrics.listsRewritten,
@@ -122,12 +119,11 @@ test('a drawable sequence that would repeat an id displays it only once', () => 
   const b = banc([0, 1, 2]);
   b.montre({
     uniforms: b.cut.uniforms,
-    result: { pageIds: [0, 1], drawablePageIds: [0, 1, 1, 0], frustumRejected: 0, lodLevel: 0 },
+    result: { ...readback([0, 1]).result, drawablePageIds: [0, 1, 1, 0] },
   } as GpuCut);
   assert.equal(b.adopter.adopt(), true);
   assert.deepEqual(
     b.shown.map((page) => page.url),
     ['p0', 'p1'],
   );
-  assert.equal(b.adopter.metrics.drawnTriangles, 1 + 2, 'and the totals count it once');
 });

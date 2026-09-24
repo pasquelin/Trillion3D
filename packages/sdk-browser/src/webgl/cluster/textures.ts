@@ -120,7 +120,7 @@ export class WebglClusterTextures {
     this.bound[unit] = record.texture;
   }
   /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
-   *  the rule the WebGPU path and the Three witness share (`grantedAnisotropy`). */
+   *  the rule the WebGPU path shares (`grantedAnisotropy`). */
   private setSampler(texture: Texture) {
     const gl = this.gl;
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap(gl, texture.wrapS));

@@ -114,3 +114,43 @@ test('a mesh under a translated and rotated group draws where the reference draw
   assert.deepEqual(Array.from(uploaded[2] as Float32Array), Array.from(expected));
   draw.dispose();
 });
+
+// #337: a glass — a physical surface that transmits — is drawn, never dropped: the opaque meshes
+// are first drawn into the frozen backdrop, then on the display, and the glass last, reading it.
+test('a transmissive copy draws over the backdrop the opaque meshes were drawn into first', () => {
+  const context = createTestContext({
+    answers: {
+      getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null),
+      getParameter: (name: string) => (name === 'VIEWPORT' ? new Int32Array([0, 0, 8, 4]) : null),
+      isEnabled: () => false,
+    },
+  });
+  const glass = mesh(9, 0, new GraphSurface('physical', { transmission: 1, roughness: 0 }));
+  const scene = new GraphScene();
+  scene.add(mesh(6, 0), glass);
+  const draw = createSceneDraw(context.gl, scene, [glass]);
+  draw.render({} as HostCamera);
+  draw.drawHostGeometry(createHostDrawCamera(), OUTPUT);
+  const submitted = context.calls.filter((call) =>
+    ['drawElements', 'bindFramebuffer', 'uniform1i'].includes(call.name),
+  );
+  const at = (count: number) =>
+    submitted.findIndex((call) => call.name === 'drawElements' && call.args[1] === count);
+  assert.deepEqual(
+    context.of('drawElements').map((args) => args[1]),
+    [6, 6, 9],
+    'backdrop, display, then the glass',
+  );
+  const backdrop = submitted.findIndex(
+    (call) => call.name === 'bindFramebuffer' && call.args[1] !== null,
+  );
+  assert.ok(backdrop >= 0 && backdrop < at(6), 'the backdrop is bound before the first draw');
+  const transmits = submitted.findLastIndex(
+    (call) =>
+      call.name === 'uniform1i' && (call.args[0] as { uniform: string }).uniform === 'transmissive',
+  );
+  assert.equal(submitted[transmits].args[1], 1, 'the glass is drawn transmitting');
+  assert.ok(transmits < at(9));
+  assert.deepEqual(draw.counters(), { triangles: 7 });
+  draw.dispose();
+});
