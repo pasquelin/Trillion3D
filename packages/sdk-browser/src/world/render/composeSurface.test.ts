@@ -129,4 +129,7 @@ test('the presentation diagnostic reads the world’s colour whatever record the
     assert.equal(entry.clearColor, '#2244ff', 'read the stale, opened-on colour');
     assert.equal(entry.matchesClearAtTopLeft, true);
   }
+  // A background removed after opening clears with the default, never the opened-on colour.
+  for (const entry of presentation({ currentClearColor: () => undefined }, null))
+    assert.equal(entry.clearColor, '#171d28', 'a removed background read the opened-on colour');
 });
