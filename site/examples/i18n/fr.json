@@ -1811,6 +1811,26 @@
       "sound": "M son"
     }
   },
+  "watch-a-world-load": {
+    "banner": "Regarde la barre se remplir pendant que le monde arrive. Appuie sur Recharger pour le revoir dès le premier octet.",
+    "controls": {
+      "loadAgain": "Recharger"
+    },
+    "readouts": {
+      "phase": "Étape",
+      "bytes": "Octets",
+      "pages": "Premières pages"
+    },
+    "words": {
+      "credit": "Avenue d’urnes modelée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md",
+      "bytes": "lecture des octets",
+      "manifest": "manifeste lu",
+      "tables": "tables de la scène lues",
+      "resources": "fichiers de la scène",
+      "pages": "premières pages",
+      "ready": "prêt"
+    }
+  },
   "waves-of-points": {
     "banner": "Glisse pour tourner autour du champ. Choisis un motif pour changer les vagues.",
     "controls": {

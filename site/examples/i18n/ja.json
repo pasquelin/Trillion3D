@@ -1811,6 +1811,26 @@
       "sound": "M 音あり"
     }
   },
+  "watch-a-world-load": {
+    "banner": "世界が届くあいだにバーが満ちていくのを見てね。最初のバイトから見るには「もう一度読み込む」を押してね。",
+    "controls": {
+      "loadAgain": "もう一度読み込む"
+    },
+    "readouts": {
+      "phase": "段階",
+      "bytes": "バイト",
+      "pages": "最初のページ"
+    },
+    "words": {
+      "credit": "この例のためにコードで作ったつぼの並木道、CC0 — assets/examples/CREDITS.md を見てね",
+      "bytes": "バイトを読み込み中",
+      "manifest": "マニフェストを読んだ",
+      "tables": "シーンのテーブルを読んだ",
+      "resources": "シーンのファイル",
+      "pages": "最初のページ",
+      "ready": "準備完了"
+    }
+  },
   "waves-of-points": {
     "banner": "ドラッグして野原のまわりを回ろう。もようを選ぶと波が変わるよ。",
     "controls": {
