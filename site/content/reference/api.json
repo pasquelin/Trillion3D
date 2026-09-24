@@ -7404,6 +7404,24 @@
     "description": "It holds while both bodies are simulated, and until it breaks."
   },
   {
+    "id": "JointHost",
+    "module": "packages/sdk-core/src/physics/joint.ts",
+    "exports": ["JointHost"],
+    "section": "types",
+    "kind": "Type",
+    "title": "JointHost",
+    "signature": "interface JointHost",
+    "summary": "The world's side of a joint: what a write on it asks of the simulation.",
+    "members": [
+      {
+        "name": "motor(joint: Joint)",
+        "type": "void",
+        "desc": "The motor changed."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "JointKind",
     "module": "packages/sdk-core/src/physics/joint.ts",
     "exports": ["JointKind"],
@@ -25826,32 +25844,32 @@
     "members": [
       {
         "name": "fixed",
-        "type": "Make",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "Welds them: they move as one."
       },
       {
         "name": "point",
-        "type": "Make",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "A ball joint at `anchor`: they turn freely around it."
       },
       {
         "name": "hinge",
-        "type": "Make",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "A pin at `anchor` along `axis`: a door, a wheel. `limits` in radians."
       },
       {
         "name": "slider",
-        "type": "Make",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "A rail along `axis`: a drawer, a piston. `limits` in metres."
       },
       {
         "name": "distance",
-        "type": "Make",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "Keeps `anchor` on `a` and `anchorB` on `b` apart by their length, or within `limits`."
       },
       {
         "name": "cone",
-        "type": "Make",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "A ball joint whose `axis` swings within a cone of half angle `limits.max`."
       }
     ],
