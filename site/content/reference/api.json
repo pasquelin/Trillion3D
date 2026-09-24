@@ -7546,11 +7546,6 @@
         "desc": "Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`)."
       },
       {
-        "name": "shadowTableEntries",
-        "type": "number",
-        "desc": "Entries of the shadow page table, one word per virtual page: a fixed 4 MiB buffer. It holds sixteen suns or 128 point lights; a light that finds no room is denied its shadow, and counted."
-      },
-      {
         "name": "shadowRequestCap",
         "type": "4096",
         "desc": "Virtual pages the shading may request per frame; the rest ask again the next frame."
@@ -14056,7 +14051,7 @@
       },
       {
         "name": "counts",
-        "type": "{ denied: number; lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number...",
+        "type": "{ lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number; waitedFrames: ...",
         "desc": "What the last plan did, in pages."
       },
       {
