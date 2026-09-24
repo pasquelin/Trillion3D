@@ -65,7 +65,7 @@ export type GpuCut = {
   uniforms: SelectionUniforms;
   result: SelectionResult;
   /** Pose revision it was cut under: behind the selection's, it streams, counts, holds no image. */
-  worldRevision?: number;
+  worldRevision: number;
 };
 /**
  * Pages whose residency flag just changed, in increasing order. `sorted` false means the list

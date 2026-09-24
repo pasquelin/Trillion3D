@@ -6,15 +6,14 @@ type ResidencyEnvironment = {
   modifiedPages: Set<string>;
   shown: PageRec[];
   desired: PageRec[];
-  /** The lists `pendingUrls` and `pageUrls` rewrite, from image to image. */
-  pending?: string[];
-  retained?: string[];
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
 };
 
 export function createAutonomousResidency(env: ResidencyEnvironment) {
-  const { bootstrapUrls, modifiedPages, shown, desired, geometryStore } = env,
-    { pending = [], retained = [] } = env;
+  const { bootstrapUrls, modifiedPages, shown, desired, geometryStore } = env;
+  /** The lists `pendingUrls` and `pageUrls` rewrite, from image to image. */
+  const pending: string[] = [],
+    retained: string[] = [];
   const state = { cacheEvictions: 0 };
   // Two sets for the life of the host: a frame fills and clears them, it does not allocate them.
   const seen = new Set<string>(),

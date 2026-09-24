@@ -18,8 +18,8 @@ export const PARTITION_UNI_WGSL = `struct Uni{
  anchorHigh:vec3f,near:f32,
  anchorLow:vec3f,pad1:f32,
  rows:u32,width:u32,height:u32,levels:u32,
- layerTop:u32,hasRest:u32,viewMoved:u32,forgetFrom:u32,
- forgetEnd:u32,pad2:u32,pad3:u32,pad4:u32,
+ layerTop:u32,hasRest:u32,viewMoved:u32,pad2:u32,
+ pad3:u32,pad4:u32,pad5:u32,pad6:u32,
  levelOffset:array<vec4u,4>,
  levelWidth:array<vec4u,4>,
 }
