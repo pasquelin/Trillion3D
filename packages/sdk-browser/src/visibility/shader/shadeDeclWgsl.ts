@@ -1,7 +1,12 @@
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
-import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
+import {
+  BARY_WEIGHTS_WGSL,
+  EDGE_WGSL,
+  PAGE_INFO_STRUCT_WGSL,
+  UV_GRADIENTS_WGSL,
+} from './pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from './pageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
@@ -41,6 +46,7 @@ fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i]
 ${PAGE_NORMAL_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
+${UV_GRADIENTS_WGSL}
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
