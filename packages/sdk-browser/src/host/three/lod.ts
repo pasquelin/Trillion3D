@@ -3,8 +3,8 @@ import { asHostLibrary } from '../resources.ts';
 import { copyElements } from '../../math/matrixElements.ts';
 import { threeCamera, threeMeshCopy } from './fromGraphNodes.ts';
 import { collectCover, buildIndex } from './lodHelpers.ts';
-import { installSceneLighting, sceneLightingApi } from '../../lighting/sceneLighting.ts';
-import { hostAimNode } from './displayObjects.ts';
+import { sceneLightingApi } from '../../lighting/sceneLighting.ts';
+import { lighting } from './displayObjects.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from '../../backend/types.ts';
 import {
@@ -28,9 +28,13 @@ const HORS_PORTEE = [
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend: BackendFactory = (context) => {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
-  const lightSource = context.sceneLighting ?? context.source;
-  const sceneLights = installSceneLighting(scene, lightSource, hostAimNode);
+  // The source graph is the engine's own: its lights are copied into the library, like the
+  // reference's (`displayObjects.ts`).
+  const sceneLights = lighting(
+    scene,
+    context.clearColor ?? 0x171d28,
+    context.sceneLighting ?? context.source,
+  );
   const hostDraw = createThreeSceneDraw(context.webglContext, scene);
   const lods: THREE.LOD[] = [];
   let levels = 1,
