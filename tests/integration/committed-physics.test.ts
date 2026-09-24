@@ -11,16 +11,14 @@ const root = new URL('../../', import.meta.url);
 // older format is refused at load (`PHYSICS_FORMAT`), so it is recompiled in the change that bumps
 // the format, never left behind.
 test('every committed physics.json is in the format the engine reads', async () => {
-  const files = (await gitPaths(['ls-files', '-z'], fileURLToPath(root))).filter((file) =>
-    file.endsWith('/physics.json'),
-  );
+  const files = await gitPaths(['ls-files', '-z', '--', '*/physics.json'], fileURLToPath(root));
   assert.ok(files.length > 0, 'the site ships cooked physics');
   const refused: string[] = [];
   for (const file of files) {
     try {
       readCookedPhysics(JSON.parse(await readFile(new URL(file, root), 'utf8')));
-    } catch {
-      refused.push(file);
+    } catch (error) {
+      refused.push(`${file}: ${(error as Error).message}`);
     }
   }
   assert.deepEqual(refused, []);
