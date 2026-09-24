@@ -940,7 +940,7 @@
         "packages/sdk-browser/src/world/core/worldControlsPause.test.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.test.ts",
         "packages/sdk-browser/src/world/core/worldRaycast.ts",
-        "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
@@ -4279,6 +4279,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldRuntimeLights.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
@@ -7126,6 +7127,7 @@
         "packages/sdk-browser/src/world/api/lightApi.test.ts",
         "packages/sdk-browser/src/world/api/lightApi.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
+        "packages/sdk-browser/src/world/core/worldRuntime.fixture.ts",
         "tests/browser/support/blendCacheScenes.ts",
         "tests/browser/support/defaultBackendCase.ts",
         "tests/browser/support/materialFixtures.ts"
