@@ -2365,12 +2365,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Les matrices avec lesquelles un hôte dessine une image, telles que le moteur les donne.",
+    "summary": "Les matrices et la plage de profondeur avec lesquelles un hôte dessine une image, telles que le moteur les donne.",
     "members": {
       "projection": "La projection.",
       "world": "La matrice de la caméra dans le monde.",
       "view": "La matrice de vue.",
-      "eye": "Où est l’œil."
+      "eye": "Où est l’œil.",
+      "near": "Distance la plus proche.",
+      "far": "Distance la plus lointaine."
     }
   },
   "HostDrawOutput": {
@@ -2860,6 +2862,7 @@
       "bounds": "La boîte que remplit le modèle, dans son propre repère.",
       "lights": "Les lumières sous le modèle — celles que portait le fichier source, en nœuds : une page les modifie, les déplace ou les retire comme les siennes, et elles bougent avec le modèle.",
       "record": "Tout ce que le monde garde sur ce modèle : ses adresses, son manifeste et son graphe.",
+      "getObjectByName": "Le premier nœud en dessous portant ce nom : le modèle, un nœud de son fichier source, puis tout autre enfant — une lumière portée par le fichier, un nœud placé par une page.",
       "metadata": "Le manifeste compilé du modèle — ses primitives, `sourceTriangles` — et `clusters`, les clusters que contiennent ses pages, chaque niveau de ses DAG compté.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
     }
@@ -3268,7 +3271,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Ombre chaque point selon sa distance à la caméra.",
+    "summary": "Ombre chaque point selon sa distance à la caméra : blanc à `camera.near`, noir à `camera.far`, une rampe droite entre les deux, la même sur WebGPU et WebGL2.",
     "parameters": {
       "parameters": "Ce qu’une page peut donner à un membre de matériau ; chaque champ est facultatif.",
       "parameters.color": "La couleur de base.",

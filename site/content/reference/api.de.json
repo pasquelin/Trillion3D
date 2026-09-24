@@ -2357,12 +2357,14 @@
     }
   },
   "HostDrawCamera": {
-    "summary": "Die Matrizen, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
+    "summary": "Die Matrizen und der Tiefenbereich, mit denen ein Host ein Bild zeichnet, so wie die Engine sie gibt.",
     "members": {
       "projection": "Die Projektion.",
       "world": "Die Matrix der Kamera in der Welt.",
       "view": "Die Sichtmatrix.",
-      "eye": "Wo das Auge ist."
+      "eye": "Wo das Auge ist.",
+      "near": "Nächste Entfernung.",
+      "far": "Fernste Entfernung."
     }
   },
   "HostDrawOutput": {
@@ -2852,6 +2854,7 @@
       "bounds": "Die Box, die das Modell füllt, in seinem eigenen Bezugssystem.",
       "lights": "Die Lichter unter dem Modell — die, die die Quelldatei trug, als Knoten: eine Seite ändert, verschiebt oder entfernt sie wie ihre eigenen, und sie bewegen sich mit dem Modell.",
       "record": "Alles, was die Welt über dieses Modell hält: seine Adressen, sein Manifest und seinen Graphen.",
+      "getObjectByName": "Der erste Knoten darunter mit diesem Namen: das Modell, ein Knoten seiner Quelldatei, dann jedes andere Kind — ein Licht aus der Datei, ein von einer Seite platzierter Knoten.",
       "metadata": "Das kompilierte Manifest des Modells — seine Primitive, `sourceTriangles` — und `clusters`, die Cluster, die seine Seiten enthalten, jede Stufe seiner DAGs gezählt.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
     }
@@ -3260,7 +3263,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera.",
+    "summary": "Schattiert jeden Punkt nach seiner Entfernung zur Kamera: weiß bei `camera.near`, schwarz bei `camera.far`, dazwischen ein gerader Verlauf, gleich auf WebGPU und WebGL2.",
     "parameters": {
       "parameters": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
       "parameters.color": "Die Grundfarbe.",

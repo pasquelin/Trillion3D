@@ -50,6 +50,20 @@ export type SdkWasm = {
     parents: number,
     n: number,
   ): void;
+  /** The cut's node walk (`../cut/walkWasm.ts`): 0 walked, 1 left to the JavaScript descent. */
+  cut_walk(
+    nodes: number,
+    nodeValues: number,
+    stride: number,
+    bounds: number,
+    boundValues: number,
+    lens: number,
+    stack: number,
+    stackLength: number,
+    leaves: number,
+    leafCapacity: number,
+    result: number,
+  ): number;
 };
 type SourceWasm = BufferSource | (() => Promise<BufferSource>);
 
