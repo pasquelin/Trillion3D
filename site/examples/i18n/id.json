@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Tekan Main, lalu lari dengan W A S D dan lompat dengan Spasi.",
+    "banner": "Tekan Main, lalu lari dengan W A S D dan lompat dengan Spasi. Lepas lebih awal: di atas batu kamu meluncur sedikit sebelum berhenti.",
     "controls": {
       "keys": "Kendali karakter mesin: Main di menu mengunci mouse untuk melihat, W A S D untuk berlari (Z Q S D di AZERTY), Shift untuk berlari kencang, Spasi untuk melompat, Esc melepas mouse. Halaman menambahkan R untuk berlari lagi, M untuk membisukan.",
       "look": "Pandang",
@@ -1937,7 +1937,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya.",
+    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya, dan lepaskan tombol di atas es untuk meluncur.",
     "controls": {
       "pushStrength": "Gaya dorong (N)",
       "platformSpeed": "Kecepatan platform",
