@@ -3,22 +3,40 @@ import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from '.
 import { bytesOf } from './globals.ts';
 import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
-/** The device a whole pages backend runs on in Node — draws, passes, textures and writes
- *  recorded —, made a device as WebGPU writes one by `asWebgpuDevice`. A test that only records
- *  what one module creates uses `fakeDevice()` instead. */
-export function mockGpu(
-  limits: Record<string, number> = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
-  packed?: PackedDag,
+/** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on, and
+ *  the failures it injects. `compute` gives the device compute pipelines without a DAG. */
+export type MockGpuOptions = {
+  limits?: Record<string, number>;
+  packed?: PackedDag;
+  compute?: boolean;
+  failMap?: boolean;
+  rejectR32?: boolean;
+  failVisPass?: boolean;
+  failCompact?: boolean;
+  failCompile?: boolean;
+};
+
+/**
+ * The device that executes, in Node: command encoders record passes, draws and copies, compute
+ * dispatches run on the CPU doubles of their kernels (`mockCompute.ts`), and `asWebgpuDevice`
+ * gives it WebGPU's error scopes, uncaptured errors, loss and `this` checks. A whole pages
+ * backend, or a compute module whose results a test reads back, runs on it. A test that only
+ * records what one module creates uses `fakeDevice()` instead.
+ */
+export function mockGpu({
+  limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
+  packed,
+  compute = false,
   failMap = false,
   rejectR32 = false,
   failVisPass = false,
-  enableHiz = false,
   failCompact = false,
-) {
+  failCompile = false,
+}: MockGpuOptions = {}) {
   const draws: MockDraw[] = [],
     writes: Array<{ offset: number; bytes: Uint8Array; label?: string; seq: number }> = [];
   // One counter over writes and submits: a row has to reach the GPU before the image that reads it.
-  const buffers: Array<{ label?: string; size: number; data: Uint8Array }> = [],
+  const buffers: Array<{ label?: string; size: number; usage: number; data: Uint8Array }> = [],
     submits: number[] = [];
   let seq = 0;
   const textures: Array<{
@@ -100,7 +118,11 @@ export function mockGpu(
       return tex;
     },
     createSampler: () => ({}),
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
+    createShaderModule: () => ({
+      getCompilationInfo: async () => ({
+        messages: failCompile ? [{ type: 'error' as const, message: 'fail' }] : [],
+      }),
+    }),
     createBindGroupLayout: (desc: {
       entries: Array<{ binding: number; buffer?: { type?: string } }>;
     }) => {
@@ -157,10 +179,10 @@ export function mockGpu(
       onSubmittedWorkDone: async () => {},
     },
   };
-  if (packed || enableHiz)
-    members.createComputePipeline = ({ compute }: { compute: { entryPoint: string } }) => {
-      if (failCompact && compute.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT');
-      return compute;
+  if (packed || compute)
+    members.createComputePipeline = ({ compute: stage }: { compute: { entryPoint: string } }) => {
+      if (failCompact && stage.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT');
+      return stage;
     };
   return {
     ...asWebgpuDevice(members),
