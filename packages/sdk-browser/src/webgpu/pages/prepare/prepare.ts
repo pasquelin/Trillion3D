@@ -20,6 +20,7 @@ import { prepareWebgpuTextures } from './textures.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
 import { prepareDirectLights } from './lights.ts';
 import { createWebgpuPagesCache } from './cache.ts';
+import { grantedGeometryPool } from '../../residency/poolGrants.ts';
 import { prepareGpuTiming } from './timing.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
@@ -85,6 +86,16 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
         : 'texture-only',
     imageReadbackDuringRender: false,
   });
+  // Out of memory absorbed: the geometry pool is the one the device grants (`poolGrants.ts`).
+  const setup = rt.setup;
+  setup.geometryPool =
+    (await grantedGeometryPool(
+      gpuDevice,
+      setup.geometryPool.budgetBytes,
+      setup.geometryPoolFor,
+      diag.engineDiagnostic,
+    )) ?? setup.geometryPool;
+  throwIfStopped(rt);
   gpu.cache = createWebgpuPagesCache(rt, gpuDevice);
   ({
     bindGroupLayout: gpu.bindGroupLayout,
