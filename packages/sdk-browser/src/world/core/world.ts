@@ -15,6 +15,7 @@ import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from '.
 import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
+import { worldSwitches } from './worldSwitches.ts';
 
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
@@ -30,7 +31,6 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     toneMapping: ToneMapping = 'aces',
     exposure = 1,
     pixelError: number | undefined,
-    bounce = false,
     animating = false,
     disposed = false;
   // A lost device is asked for again, and the session reopened on it.
@@ -40,6 +40,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const scene = new Scene(worldModelLoader(ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
+  const switches = worldSwitches(options, () => runtime, device, invalidate);
   const runtime = createWorldRuntime({
     canvas,
     ready: () => device.pending,
@@ -48,7 +49,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     options: () =>
       sessionOptions(options, {
         gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
-        bounce,
+        ...switches.held,
         geometryPoolBytes: pools.geometryPool,
         texturePoolBytes: pools.texturePool,
         pixelError,
@@ -133,18 +134,17 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       live()?.setPixelError(value);
       invalidate();
     },
-    /** Light bounced off the surfaces, traced against the resident proxy; off by default. A
-     *  change is applied in place on a path that carries it, and taken by the next opening on
-     *  one that does not. */
-    get bounce() {
-      return bounce;
+    /** Light bounced off the surfaces; off by default (`worldSwitches`). */ get bounce() {
+      return switches.bounce;
     },
     set bounce(on: boolean) {
-      if (on === bounce) return;
-      bounce = on;
-      const session = runtime.explorer;
-      if (session && !session.setBounce(on)) runtime.renew();
-      invalidate();
+      switches.bounce = on;
+    },
+    /** Temporal antialiasing; on by default (`worldSwitches`). */ get temporalAntialiasing() {
+      return switches.temporalAntialiasing;
+    },
+    set temporalAntialiasing(on: boolean) {
+      switches.temporalAntialiasing = on;
     },
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */
     physics: physics.handle,

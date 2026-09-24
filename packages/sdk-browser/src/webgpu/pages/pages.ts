@@ -8,6 +8,7 @@ import { isCancelled } from '../../backend/common.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
 import { prepareWebgpuBackend } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
+import { setWebgpuTemporalAntialiasing } from '../../taa/prepare.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { captureSurfaceView } from './io/surfaceCapture.ts';
@@ -75,9 +76,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setTransform(nodeName, matrix) {
       setWebgpuTransform(rt, nodeName, matrix);
     },
-    setBounce(on) {
-      setWebgpuBounce(rt, on);
-    },
+    setBounce: (on) => setWebgpuBounce(rt, on),
+    setTemporalAntialiasing: (on) => setWebgpuTemporalAntialiasing(rt, on),
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },

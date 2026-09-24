@@ -3,29 +3,64 @@ import { dropTaaHistory } from './frame.ts';
 import { grantCapability } from '../webgpu/pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { isCancelled } from '../backend/common.ts';
-
-/** The two capabilities the pass serves: antialiasing, and the motion vectors it
- *  derives from the visibility buffer. Unsupported until it is rigged. */
-export const TAA_CAPABILITY = 'temporal antialiasing';
-export const MOTION_CAPABILITY = 'motion vectors';
+import { MOTION_CAPABILITY, TAA_CAPABILITY } from './capability.ts';
 
 /**
- * Rig temporal antialiasing, once, after deferred lighting. The host can refuse it
+ * Rig temporal antialiasing after deferred lighting. The host can refuse it
  * (`temporalAntialiasing: false`): nothing is then created, and the image stays sampled at
  * the pixel centre. A device that rejects the program leaves the capability unsupported and
  * the image as before — never a false image.
  */
 export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { gpu, context, capabilities } = rt;
-  if (context.temporalAntialiasing === false) return;
+  rt.gpu.temporalWanted = rt.context.temporalAntialiasing !== false;
+  if (rt.gpu.temporalWanted) await rigTemporalAntialiasing(rt, device);
+}
+
+async function rigTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { gpu, capabilities } = rt;
   try {
-    gpu.temporal = await createTemporalAntialiasing(device, rt.layout.selectionRoots);
+    const temporal = await createTemporalAntialiasing(device, rt.layout.selectionRoots);
+    // Switched off, rigged by an earlier call or closed while the program compiled: not kept.
+    if (!gpu.temporalWanted || gpu.temporal || isCancelled(rt.signal)) return temporal.dispose();
+    gpu.temporal = temporal;
     grantCapability(capabilities, TAA_CAPABILITY);
     grantCapability(capabilities, MOTION_CAPABILITY);
   } catch (error) {
     if (isCancelled(rt.signal)) throw error;
     dropTemporalAntialiasing(rt, error);
   }
+}
+
+/**
+ * Turns the pass on or off during the session, no session reopened; the history is dropped
+ * either way. Off, the next image is sampled at the pixel centre and the program is kept, so that
+ * on again is immediate. On in a session opened without it, the program is rigged in the
+ * background and the images stay unjittered until it is ready. The capability says which the
+ * image is.
+ */
+export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolean) {
+  const { gpu, capabilities } = rt;
+  if (gpu.temporalWanted === on) return;
+  gpu.temporalWanted = on;
+  dropTaaHistory(rt);
+  if (on && gpu.temporal) {
+    grantCapability(capabilities, TAA_CAPABILITY);
+    grantCapability(capabilities, MOTION_CAPABILITY);
+  } else if (on && gpu.device) {
+    void rigTemporalAntialiasing(rt, gpu.device).then(
+      () => {
+        // The history joins the targets as they stand; unallocated, `ensureTargets` counts it.
+        if (gpu.temporal && gpu.colorTexture)
+          gpu.targetBytes += ensureTaaTargets(rt, ...gpu.targetSize);
+        rt.run.gate.resourcesChanged();
+      },
+      () => {},
+    );
+  } else if (!on) {
+    for (const item of [TAA_CAPABILITY, MOTION_CAPABILITY])
+      if (!capabilities.unsupported.includes(item)) capabilities.unsupported.push(item);
+  }
+  rt.run.gate.resourcesChanged();
 }
 
 /** The pass leaves the session: capabilities dropped, cause named, image as before the batch. */
