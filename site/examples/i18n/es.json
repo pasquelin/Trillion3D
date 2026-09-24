@@ -1785,7 +1785,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Pulsa Jugar, luego corre con W A S D y salta con Espacio.",
+    "banner": "Pulsa Jugar, luego corre con W A S D y salta con Espacio. Suelta pronto: sobre la piedra te deslizas un poco antes de parar.",
     "controls": {
       "keys": "El control de personaje del motor: Jugar en el menú captura el ratón para mirar, W A S D para correr (Z Q S D en AZERTY), Mayús para esprintar, Espacio para saltar, Esc libera el ratón. La página añade R para correr otra vez, M para silenciar.",
       "look": "Mirar",
@@ -1957,7 +1957,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas.",
+    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas y suelta las teclas sobre el hielo para deslizarte.",
     "controls": {
       "pushStrength": "Fuerza de empuje (N)",
       "platformSpeed": "Velocidad de la plataforma",
