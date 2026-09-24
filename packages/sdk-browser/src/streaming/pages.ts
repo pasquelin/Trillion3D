@@ -5,8 +5,6 @@ import type { BackendDiagnostic } from '../backend/types.ts';
 import type { StreamContext, Job, StreamPage } from './types.ts';
 import { createStreamingCache } from './cache.ts';
 export type { StreamPage } from './types.ts';
-/** Hears how many pages of a request are resident, of how many it reads. */
-type PageCount = (resident: number, requested: number) => void;
 /** Resident bytes kept by default. Streaming bundles are far larger than a single cluster page, so
  *  a cache bounded only by entry count would hold hundreds of megabytes. */
 export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024;
@@ -137,10 +135,14 @@ export function createPageStreamer(
     retain,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
-    /** Reads `urls` the catalog holds, once each; `onPage` hears 0 first, then each resident. */
+    /** Reads `urls` the catalog holds, once each; `onPage` hears 0 resident, then each landing. */
     async request(
       urls: readonly string[],
-      options: { signal?: AbortSignal; priority?: number; onPage?: PageCount } = {},
+      options: {
+        signal?: AbortSignal;
+        priority?: number;
+        onPage?: (resident: number, requested: number) => void;
+      } = {},
     ) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
@@ -151,12 +153,9 @@ export function createPageStreamer(
       }));
       let resident = 0;
       options.onPage?.(resident, unique.length);
+      const landed = () => options.onPage?.(++resident, unique.length);
       await Promise.all(
-        unique.map((url) =>
-          subscribe(url, options.signal, options.priority ?? 1).then(() =>
-            options.onPage?.(++resident, unique.length),
-          ),
-        ),
+        unique.map((url) => subscribe(url, options.signal, options.priority ?? 1).then(landed)),
       );
     },
     stats() {
