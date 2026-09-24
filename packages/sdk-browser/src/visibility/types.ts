@@ -37,6 +37,9 @@ export const FLAG_LIT = 1,
    *  (`../cluster/decodeWgsl.ts`). A primitive the compiler gave no geometry page keeps the source
    *  float buffers, and its rows carry this bit at zero. */
   FLAG_CLUSTER_PAGE = 32,
+  /** A map of the material has a filter word (`../webgpu/tile/sampling.ts`): its reads take the
+   *  texture's filter rule. Without it, every read is the default one, and nothing else is run. */
+  FLAG_SAMPLED = 64,
   FLAG_MASK = 128,
   FLAG_BACK = 256,
   FLAG_HAS_ORM = 512,
@@ -52,8 +55,8 @@ export const FLAG_LIT = 1,
   FLAG_UNLIT_VIEW = 8192,
   /** The material transmits: the surface reads the already-drawn background instead of blending by alpha. */
   FLAG_TRANSMISSIVE = 16384;
-// Bits 64, 32768 and 65536 are free: they carried wrap of a single map, which each texture's
-// header now carries (`wrapModes.ts`).
+// Bits 32768 and 65536 are free: they carried wrap of a single map, which each texture's header
+// now carries (`wrapModes.ts`).
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
