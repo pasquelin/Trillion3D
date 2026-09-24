@@ -4,14 +4,15 @@ import type { BackendDiagnostic } from '../backend/types.ts';
 
 import type { StreamContext, Job, StreamPage } from './types.ts';
 import { createStreamingCache } from './cache.ts';
+import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
 export type { StreamPage } from './types.ts';
-/** Resident bytes kept by default. Streaming bundles are far larger than a single cluster page, so
- *  a cache bounded only by entry count would hold hundreds of megabytes. */
-export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024;
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
- *  eviction, so a caller keeps its displayed cover by retaining it. */
+ *  eviction, so a caller keeps its displayed cover by retaining it. The cache is `kept` when the
+ *  caller hands one in (`pageCache.ts`): the streamer then reserves its manifest tables and its
+ *  transfer queue off the cache's CPU total, drops what the catalogue no longer names at that size,
+ *  and leaves the pages there when it is disposed, for the next session. */
 export function createPageStreamer(
   pages: readonly StreamPage[],
   base: string,
@@ -21,10 +22,11 @@ export function createPageStreamer(
   onEvict?: (url: string) => void,
   maxTransferBytes = 8 * 1024 * 1024,
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void,
-  maxCachedBytes = DEFAULT_CACHED_BYTES,
+  kept?: PageCache,
 ) {
   const catalog = new Map(pages.map((page) => [page.url, page]));
-  const cache = new Map<string, Uint8Array>(),
+  const store = kept ?? createPageCache(),
+    cache = store.pages,
     jobs = new Map<string, Job>(),
     queue: Job[] = [];
   const pinned = new Set<string>(),
@@ -37,8 +39,7 @@ export function createPageStreamer(
   const limit = Number.isSafeInteger(workerCount) ? Math.max(1, workerCount) : 1;
   if (!Number.isSafeInteger(maxTransferBytes) || maxTransferBytes < 1)
     throw new Error('INVALID_PAGE_TRANSFER_BUDGET');
-  if (!Number.isSafeInteger(maxCachedBytes) || maxCachedBytes < 1)
-    throw new Error('INVALID_PAGE_CACHE_BUDGET');
+  const tableBytes = manifestTableBytes(pages);
   const state = {
     order: 0,
     active: 0,
@@ -52,7 +53,6 @@ export function createPageStreamer(
     admissionBlocked: 0,
     dropped: 0,
     disposed: false,
-    cachedBytes: 0,
   };
   const emit = (phase: string, message: string, context: () => Record<string, unknown>) => {
     if (onDiagnostic)
@@ -62,19 +62,11 @@ export function createPageStreamer(
         /* Observers cannot alter streaming. */
       }
   };
-  emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
-    version: 1,
-    pages: catalog.size,
-    workerCount: limit,
-    maxPages: maxPages ?? null,
-    maxTransferBytes,
-    maxCachedBytes,
-    totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
-  }));
   const abortError = () => new DOMException('Page request cancelled', 'AbortError');
   const context: StreamContext = {
     base,
     catalog,
+    store,
     cache,
     jobs,
     queue,
@@ -84,7 +76,6 @@ export function createPageStreamer(
     limit,
     maxPages,
     maxTransferBytes,
-    maxCachedBytes,
     onEvict,
     onDiagnostic,
     state,
@@ -92,6 +83,21 @@ export function createPageStreamer(
     abortError,
   };
   const { touch, evict, retain, retainRanks } = createStreamingCache(context);
+  // A kept page the catalogue names at another size is another page: it leaves before the first read.
+  for (const [url, bytes] of cache)
+    if (catalog.has(url) && catalog.get(url)!.bytes !== bytes.byteLength) store.drop(url);
+  const release = store.hold({ reservedBytes: tableBytes + maxTransferBytes, evict });
+  evict();
+  emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
+    version: 1,
+    pages: catalog.size,
+    workerCount: limit,
+    maxPages: maxPages ?? null,
+    maxTransferBytes,
+    maxCachedBytes: store.budgetBytes,
+    cpuBudgetBytes: store.cpuBytes,
+    totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
+  }));
   const loadOne = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const indexViews = new WeakMap<Uint8Array, Uint32Array>();
@@ -159,8 +165,12 @@ export function createPageStreamer(
         queued: queue.length - state.dropped,
         transferInFlightBytes: state.activeBytes,
         resident: cache.size,
-        residentBytes: state.cachedBytes,
-        maxCachedBytes,
+        residentBytes: store.bytes,
+        maxCachedBytes: store.budgetBytes,
+        /** CPU bytes the streamer holds: manifest tables, transfers in flight, cached pages. */
+        cpuBytes: tableBytes + state.activeBytes + store.bytes,
+        /** The CPU total those count against. */
+        cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         failed: failures.size,
         admissionBlocked: state.admissionBlocked,
@@ -180,8 +190,9 @@ export function createPageStreamer(
       jobs.clear();
       queue.length = 0;
       state.dropped = 0;
-      cache.clear();
-      state.cachedBytes = 0;
+      release();
+      // A kept cache is its owner's, for the next session; one of the streamer's own leaves now.
+      if (!kept) store.clear();
       pinned.clear();
       failures.clear();
     },

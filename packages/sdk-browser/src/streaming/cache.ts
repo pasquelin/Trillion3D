@@ -2,21 +2,13 @@ import type { HostRetentionDelta, StreamContext } from './types.ts';
 import { evictOldest } from './evictOldest.ts';
 
 export function createStreamingCache(context: StreamContext) {
-  const { cache, state, maxPages, maxCachedBytes, pinned, jobs, emit, onEvict, catalog } = context;
-  const touch = (url: string, array: Uint8Array) => {
-    const held = cache.get(url);
-    if (held) state.cachedBytes -= held.byteLength;
-    cache.delete(url);
-    cache.set(url, array);
-    state.cachedBytes += array.byteLength;
-  };
+  const { store, cache, state, maxPages, pinned, jobs, emit, onEvict, catalog } = context;
+  const touch = store.touch;
   const over = () =>
-    (!!maxPages && maxPages >= 1 && cache.size > maxPages) || state.cachedBytes > maxCachedBytes;
+    (!!maxPages && maxPages >= 1 && cache.size > maxPages) || store.bytes > store.budgetBytes;
   const pinnedOrLoading = (url: string) => pinned.has(url) || jobs.has(url);
   const evictOne = (url: string) => {
-    const held = cache.get(url);
-    if (held) state.cachedBytes -= held.byteLength;
-    cache.delete(url);
+    store.drop(url);
     state.evictions++;
     emit('page-cache-eviction', 'Page evicted from the LRU cache', () => ({
       version: 1,
@@ -24,9 +16,9 @@ export function createStreamingCache(context: StreamContext) {
       reason: 'capacity',
       drawDetached: false,
       resident: cache.size,
-      residentBytes: state.cachedBytes,
+      residentBytes: store.bytes,
       maxPages: maxPages ?? null,
-      maxCachedBytes,
+      maxCachedBytes: store.budgetBytes,
     }));
     onEvict?.(url);
   };
@@ -38,9 +30,9 @@ export function createStreamingCache(context: StreamContext) {
       emit('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({
         version: 1,
         resident: cache.size,
-        residentBytes: state.cachedBytes,
+        residentBytes: store.bytes,
         maxPages: maxPages ?? null,
-        maxCachedBytes,
+        maxCachedBytes: store.budgetBytes,
         pinned: pinned.size,
         loading: state.active,
       }));
