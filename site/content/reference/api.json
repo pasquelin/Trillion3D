@@ -25821,12 +25821,12 @@
       {
         "name": "gear",
         "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
-        "desc": "Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`); each needs its own hinge to hold it in place."
+        "desc": "Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`) and held by its own hinge (the wheel as its `a`); when `ratio` or 1 / `ratio` is whole, their teeth also keep the phase they were made in."
       },
       {
         "name": "rackAndPinion",
         "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
-        "desc": "A pinion `a` turning about `axis` drives a rack `b` along `axisB`; each needs its own hinge or slider to hold it in place."
+        "desc": "A pinion `a` turning about `axis` drives a rack `b` along `axisB`, each held by its own hinge or slider (the body as its `a`), their teeth kept in the phase they were made in."
       }
     ],
     "description": ""
