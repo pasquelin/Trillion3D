@@ -53,9 +53,7 @@ export const evidenceRequests = (requests: RequestRecord[]): RequestRecord[] =>
   requests.filter(
     ({ path, status }) =>
       status >= 400 ||
-      path === '/explorer.js' ||
-      path.startsWith('/chunks/') ||
+      path.endsWith('.js') ||
       path.includes('/native-cache') ||
-      path.endsWith('Worker.js') ||
       path.endsWith('.wasm'),
   );

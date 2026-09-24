@@ -925,7 +925,8 @@
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
       "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。"
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。"
     }
   },
   "EngineProfiler": {
@@ -3910,7 +3911,7 @@
       "zoomSpeed": "枢轴类控制器:滚轮和捏合缩放的速度;默认为 1。",
       "autoForward": "仅限飞行模式:不按任何键时以 `movementSpeed` 向前飞行,按 W 加速,按 S 减速至停止。",
       "autoUpdate": "世界的循环是否在每一帧、在 `world.beforeFrame` 钩子之前调用 `update`。设为 `false` 后,这一步就交给页面负责,由页面从这样的钩子中调用 `update`,想以多高的频率、拆成多少子步骤积分都可以;此时世界自身绝不会推进它。",
-      "colliders": "仅角色模式:身体会与之碰撞的网格——单个对象或一个列表,包括它们的所有后代——或者为 `null`。设置它们时,会根据当前世界空间中的三角形构建一棵静态三角形树:对三角形进行一次遍历,构建复杂度为 `O(T log T)`,每个三角形约占用 52 字节。目前还不会读取已编译的模型:请改用普通网格。 `CharacterCollision`(物理引擎的世界,任何能回答 `resolveCapsule` 和 `groundBelow` 的对象)会被原样使用。",
+      "colliders": "仅角色模式:身体会与之碰撞的网格——单个对象或一个列表,包括它们的所有后代——或者为 `null`。设置它们时,会根据当前世界空间中的三角形构建一棵静态三角形树:对三角形进行一次遍历,构建复杂度为 `O(T log T)`,每个三角形约占用 52 字节。目前还不会读取已编译的模型:请改用普通网格。 `CharacterCollision`(物理引擎的世界,任何能回答 `resolveCapsule` 和 `groundBelow` 的对象)会被原样使用。 `world.physics` 运行时不使用：身体属于物理，与其物体（`mesh.physics`）相遇。",
       "rebuildColliders": "仅角色模式:在碰撞体移动或改变之后,重建碰撞树。 `CharacterCollision` 本身就是一个世界,会原样传递。",
       "velocity": "仅角色模式:身体速度的一份拷贝,单位为米每秒;其他模式下为零。",
       "onGround": "仅角色模式:双脚是否在地面上;其他控制器中为 `false`。",
@@ -3936,7 +3937,10 @@
       "headBob": "仅角色模式:慢跑时每一步双眼上下摆动的米数;默认值为 0.035,为 0 时保持水平。",
       "landingDip": "仅角色模式:从落地到双眼落地下沉最低点所需的秒数,冲击越快下沉越深;默认值为 0.06,为 0 时关闭该效果。",
       "onLand": "仅角色模式:落地时调用,参数是向下的速度,单位 m/s;默认值为 `null`。",
-      "onJump": "仅角色模式:身体因跳跃离开地面时调用;默认值为 `null`。"
+      "onJump": "仅角色模式:身体因跳跃离开地面时调用;默认值为 `null`。",
+      "mass": "仅角色，需物理：身体压在支撑物上的千克数；默认 80。",
+      "pushStrength": "仅角色，需物理：身体推动其他物体的牛顿数；默认 250，成年人持续的推力。",
+      "vehicle": "仅载具：`'vehicle'` 控制所驾驶的对象——任何带有 `drive(input)` 的对象，按键每次变化时它都会收到油门、刹车、转向和手刹。默认 `null`；为 `null` 时 `kind = 'vehicle'` 会抛出 `NO_VEHICLE`。"
     }
   },
   "world.renderer": {
@@ -7164,6 +7168,22 @@
     "members": {
       "budget": "固定上限，物理启动时读取一次。",
       "gravity": "世界的重力：预设或向量。"
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle` 可以驾驶的任何对象：每当输入变化时它都会收到。",
+    "members": {
+      "drive": "每当按键改变踏板和方向盘时收到它们。"
+    }
+  },
+  "VehicleInput": {
+    "summary": "驾驶者对载具的要求：踏板和方向盘，由 `world.controls` `'vehicle'` 的按键设定。",
+    "description": "载具自身的物理——发动机、车轮、悬挂——对其作出回应；控制只知道这份约定。",
+    "members": {
+      "throttle": "油门，0 到 1。",
+      "brake": "刹车踏板，0 到 1。",
+      "steer": "方向盘，−1 左打到底到 1 右打到底。",
+      "handbrake": "手刹是否拉起。"
     }
   }
 }
