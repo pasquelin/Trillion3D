@@ -485,7 +485,6 @@
       "soft-bodies": "Anbindung einer Physik-Engine",
       "rolling-on-terrain": "Anbindung einer Physik-Engine",
       "hinges-and-joints": "Anbindung einer Physik-Engine",
-      "walk-with-collisions": "Anbindung einer Physik-Engine",
       "drive-a-car": "Anbindung einer Physik-Engine",
       "a-room-in-vr": "WebXR-Sitzung",
       "a-360-photo-in-vr": "WebXR-Sitzung",
@@ -1064,6 +1063,17 @@
           "Stoße einen Körper mit <code>applyImpulse</code> an oder höre auf seinen <code>contact</code>. Schlafen alle Körper, wird nichts berechnet und nichts gezeichnet."
         ],
         "tryIt": "Lass mehr Kisten fallen, stell die Schwerkraft auf den Mond und schalte die Zeitlupe ein."
+      },
+      "touch-and-react": {
+        "title": "Berühren und reagieren",
+        "description": "Betritt deine Welt: Mit Physik klettert die Figur, fährt mit und schiebt, was sie trifft – und das Getroffene schiebt zurück.",
+        "steps": [
+          "Erzeuge die Welt mit <code>controls: 'character'</code> und <code>physics: true</code>. Die Figur ist nun ein Körper der Physik, wie die Kisten.",
+          "Markiere alles Unbewegliche als <code>'static'</code>: Boden, Treppe, Wände. Die Figur steigt Stufen bis Kniehöhe und Hänge bis 45°.",
+          "Markiere eine Plattform als <code>'kinematic'</code> und bewege sie in jedem Bild aus deinem Code: Was darauf steht, fährt mit.",
+          "Mach leichte Kisten <code>'dynamic'</code>: Die Figur schiebt sie mit <code>pushStrength</code> Newton, sie fallen, kippen und schieben zurück."
+        ],
+        "tryIt": "Klicke ins Bild, laufe mit W A S D, springe mit Leertaste. Steig die Treppe hinauf, fahr auf der Plattform, schieb den Kistenstapel."
       },
       "your-own-scene": {
         "title": "Deine eigene Szene",

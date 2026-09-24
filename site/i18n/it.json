@@ -485,7 +485,6 @@
       "soft-bodies": "integrazione di un motore fisico",
       "rolling-on-terrain": "integrazione di un motore fisico",
       "hinges-and-joints": "integrazione di un motore fisico",
-      "walk-with-collisions": "integrazione di un motore fisico",
       "drive-a-car": "integrazione di un motore fisico",
       "a-room-in-vr": "sessione WebXR",
       "a-360-photo-in-vr": "sessione WebXR",
@@ -1064,6 +1063,17 @@
           "Spingi un corpo con <code>applyImpulse</code> o ascolta il suo <code>contact</code>. Quando tutti dormono, nulla è calcolato né disegnato."
         ],
         "tryIt": "Lascia cadere altre scatole, porta la gravità sulla Luna e accendi il rallentatore."
+      },
+      "touch-and-react": {
+        "title": "Toccare e reagire",
+        "description": "Entra nel tuo mondo: con la fisica, il personaggio sale, si fa trasportare e spinge ciò che incontra, e ciò che incontra lo spinge a sua volta.",
+        "steps": [
+          "Crea il mondo con <code>controls: 'character'</code> e <code>physics: true</code>. Il personaggio è ora un corpo della fisica, come le casse.",
+          "Segna come <code>'static'</code> ciò che non si muove mai: il pavimento, le scale, i muri. Il personaggio sale gradini fino al ginocchio e pendii fino a 45°.",
+          "Segna una piattaforma come <code>'kinematic'</code> e muovila dal tuo codice a ogni fotogramma: ciò che ci sta sopra viaggia con lei.",
+          "Rendi le casse <code>'dynamic'</code> e leggere: il personaggio le spinge con <code>pushStrength</code> newton, e loro cadono, rotolano e lo spingono."
+        ],
+        "tryIt": "Clicca sull’immagine, cammina con W A S D, salta con Spazio. Sali le scale, viaggia sulla piattaforma, spingi la pila di casse."
       },
       "your-own-scene": {
         "title": "La tua scena",

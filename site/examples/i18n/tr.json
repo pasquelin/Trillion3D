@@ -1903,9 +1903,9 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
     }
   },
@@ -1917,6 +1917,18 @@
     },
     "readouts": {
       "Look for": "Şuna bak"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin.",
+    "controls": {
+      "pushStrength": "İtme kuvveti (N)",
+      "platformSpeed": "Platform hızı",
+      "stackAgain": "Yeniden yığ"
+    },
+    "readouts": {
+      "awake": "Uyanık",
+      "speed": "Hız"
     }
   }
 }

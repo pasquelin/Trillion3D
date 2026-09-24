@@ -1903,9 +1903,9 @@
     },
     "choices": {
       "count": {
-        "10000": "10 000",
+        "1000": "1 000",
         "5000": "5 000",
-        "1000": "1 000"
+        "10000": "10 000"
       }
     }
   },
@@ -1917,6 +1917,18 @@
     },
     "readouts": {
       "Look for": "À observer"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses.",
+    "controls": {
+      "pushStrength": "Force de poussée (N)",
+      "platformSpeed": "Vitesse de la plateforme",
+      "stackAgain": "Réempiler"
+    },
+    "readouts": {
+      "awake": "Éveillés",
+      "speed": "Vitesse"
     }
   }
 }

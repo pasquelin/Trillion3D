@@ -1903,9 +1903,9 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
     }
   },
@@ -1917,6 +1917,18 @@
     },
     "readouts": {
       "Look for": "Achte auf"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben.",
+    "controls": {
+      "pushStrength": "Schubkraft (N)",
+      "platformSpeed": "Plattformtempo",
+      "stackAgain": "Neu stapeln"
+    },
+    "readouts": {
+      "awake": "Wach",
+      "speed": "Tempo"
     }
   }
 }

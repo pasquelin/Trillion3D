@@ -485,7 +485,6 @@
       "soft-bodies": "bir fizik motoru entegrasyonu",
       "rolling-on-terrain": "bir fizik motoru entegrasyonu",
       "hinges-and-joints": "bir fizik motoru entegrasyonu",
-      "walk-with-collisions": "bir fizik motoru entegrasyonu",
       "drive-a-car": "bir fizik motoru entegrasyonu",
       "a-room-in-vr": "WebXR oturumu",
       "a-360-photo-in-vr": "WebXR oturumu",
@@ -1064,6 +1063,17 @@
           "Bir cismi <code>applyImpulse</code> ile it ya da <code>contact</code> olayını dinle. Tüm cisimler uyuyunca hiçbir şey hesaplanmaz ve çizilmez."
         ],
         "tryIt": "Daha fazla kutu bırak, yerçekimini Ay’a çevir ve ağır çekimi aç."
+      },
+      "touch-and-react": {
+        "title": "Dokun ve tepki ver",
+        "description": "Dünyana adım at: fizik açıkken karakter tırmanır, taşınır ve karşılaştığını iter; karşılaştığı da onu geri iter.",
+        "steps": [
+          "Dünyayı <code>controls: 'character'</code> ve <code>physics: true</code> ile oluştur. Karakter artık kutular gibi fiziğin bir cismi.",
+          "Hiç kıpırdamayanları <code>'static'</code> olarak işaretle: zemin, merdiven, duvarlar. Karakter diz yüksekliğine kadar basamakları ve 45°’ye kadar yokuşları çıkar.",
+          "Bir platformu <code>'kinematic'</code> olarak işaretle ve her karede kodunla hareket ettir: üstünde duran her şey onunla gider.",
+          "Hafif kutuları <code>'dynamic'</code> yap: karakter onları <code>pushStrength</code> newton ile iter, kutular düşer, yuvarlanır ve geri iter."
+        ],
+        "tryIt": "Resme tıkla, W A S D ile yürü, Boşluk ile zıpla. Merdiveni çık, platforma bin, kutu yığınını it."
       },
       "your-own-scene": {
         "title": "Kendi sahneniz",

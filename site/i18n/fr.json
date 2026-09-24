@@ -485,7 +485,6 @@
       "soft-bodies": "intégration d’un moteur physique",
       "rolling-on-terrain": "intégration d’un moteur physique",
       "hinges-and-joints": "intégration d’un moteur physique",
-      "walk-with-collisions": "intégration d’un moteur physique",
       "drive-a-car": "intégration d’un moteur physique",
       "a-room-in-vr": "session WebXR",
       "a-360-photo-in-vr": "session WebXR",
@@ -1064,6 +1063,17 @@
           "Pousse un corps avec <code>applyImpulse</code>, ou écoute son <code>contact</code>. Quand tous les corps dorment, rien n’est calculé ni dessiné."
         ],
         "tryIt": "Lâche plus de boîtes, passe la gravité sur la Lune et active le ralenti."
+      },
+      "touch-and-react": {
+        "title": "Toucher et réagir",
+        "description": "Entrez dans votre monde : avec la physique, le personnage grimpe, se laisse porter et pousse ce qu’il rencontre, qui le repousse à son tour.",
+        "steps": [
+          "Créez le monde avec <code>controls: 'character'</code> et <code>physics: true</code>. Le personnage devient un corps de la physique, comme les caisses.",
+          "Marquez <code>'static'</code> ce qui ne bouge jamais : le sol, l’escalier, les murs. Le personnage monte les marches jusqu’à son genou et les pentes jusqu’à 45°.",
+          "Marquez une plateforme <code>'kinematic'</code> et déplacez-la depuis votre code à chaque image : ce qui se tient dessus est emporté.",
+          "Rendez des caisses <code>'dynamic'</code> et légères : le personnage les pousse avec <code>pushStrength</code> newtons, elles tombent, roulent et le repoussent."
+        ],
+        "tryIt": "Cliquez sur l’image, marchez avec Z Q S D, sautez avec Espace. Montez l’escalier, montez sur la plateforme, poussez la pile de caisses."
       },
       "your-own-scene": {
         "title": "Votre propre scène",

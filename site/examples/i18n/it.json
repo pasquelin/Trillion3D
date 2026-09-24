@@ -1903,9 +1903,9 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
     }
   },
@@ -1917,6 +1917,18 @@
     },
     "readouts": {
       "Look for": "Osserva"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Clicca per guardarti intorno, poi cammina con W A S D e salta con Spazio: sali le scale e la rampa, viaggia sulla piattaforma, spingi le casse.",
+    "controls": {
+      "pushStrength": "Forza di spinta (N)",
+      "platformSpeed": "Velocità della piattaforma",
+      "stackAgain": "Impila di nuovo"
+    },
+    "readouts": {
+      "awake": "Svegli",
+      "speed": "Velocità"
     }
   }
 }

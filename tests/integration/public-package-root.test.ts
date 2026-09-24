@@ -178,6 +178,9 @@ test('a packed installation resolves Node and browser runtime and declarations',
       }),
       [],
     );
+    // Jolt's licence ships with the physics modules built from it.
+    const notice = join(directory, 'node_modules/trillion3d/THIRD_PARTY_NOTICES.md');
+    assert.match(await readFile(notice, 'utf8'), /joltPhysicsThreads\.wasm/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

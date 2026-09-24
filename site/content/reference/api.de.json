@@ -1581,7 +1581,8 @@
       "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "PHYSICS_BUDGET": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
       "PHYSICS_NESTED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
-      "PHYSICS_FAILED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`."
+      "PHYSICS_FAILED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
+      "NO_VEHICLE": "`world.controls.kind` wurde auf `'vehicle'` gesetzt, während `world.controls.vehicle` `null` ist: Es gibt nichts zu fahren."
     }
   },
   "enginePose": {
@@ -6390,7 +6391,7 @@
       "enabled": "Ob der Controller auf Maus und Tastatur hört und die Kamera bewegt. `false` pausiert ihn — keine Eingabe, kein `update` —, ohne ihn neu zu erzeugen: Geschwindigkeit, Bodenkontakt, Schritt, Ausrichtung und Drehung bleiben erhalten, und `true` setzt genau dort fort, wo er stand.",
       "target": "Der Punkt, um den sich ein Drehpunkt-Controller dreht.",
       "autoUpdate": "Ob die Schleife der Welt `update` vor jedem Bild aufruft, vor den `world.beforeFrame`-Hooks. `false` überlässt den Schritt der Seite, die `update` aus einem solchen Hook aufruft, so oft und über so viele Teilschritte, wie sie integriert; die Welt macht ihn dann nie mehr.",
-      "colliders": "Nur Charakter: die Meshes, mit denen der Körper kollidiert — ein Objekt oder eine Liste, Nachkommen eingeschlossen — oder `null`. Sie zu setzen baut einen statischen Dreiecksbaum aus ihren Dreiecken im Weltraum, so wie sie jetzt stehen: ein Durchlauf über die Dreiecke und ein `O(T log T)`-Aufbau, etwa 52 Bytes pro Dreieck. Kompilierte Modelle werden noch nicht gelesen: gib ihnen ein einfaches Mesh als Platzhalter. Eine `CharacterCollision` — die Welt einer Physik-Engine, alles, was `resolveCapsule` und `groundBelow` beantwortet — wird unverändert verwendet.",
+      "colliders": "Nur Charakter: die Meshes, mit denen der Körper kollidiert — ein Objekt oder eine Liste, Nachkommen eingeschlossen — oder `null`. Sie zu setzen baut einen statischen Dreiecksbaum aus ihren Dreiecken im Weltraum, so wie sie jetzt stehen: ein Durchlauf über die Dreiecke und ein `O(T log T)`-Aufbau, etwa 52 Bytes pro Dreieck. Kompilierte Modelle werden noch nicht gelesen: gib ihnen ein einfaches Mesh als Platzhalter. Eine `CharacterCollision` — die Welt einer Physik-Engine, alles, was `resolveCapsule` und `groundBelow` beantwortet — wird unverändert verwendet. Unbenutzt, solange `world.physics` läuft: Der Körper ist dann der der Physik und trifft ihre Körper, `mesh.physics`.",
       "rebuildColliders": "Nur Charakter: baut den Kollisionsbaum erneut, nachdem sich die Kollidierer bewegt oder geändert haben. Eine `CharacterCollision` ist ihre eigene Welt und wird unverändert weitergegeben.",
       "velocity": "Nur Charakter: die Geschwindigkeit des Körpers in Metern pro Sekunde, eine Kopie; sonst null.",
       "onGround": "Nur Charakter: ob die Füße auf einem Boden stehen; `false` für jeden anderen Controller.",
@@ -6438,7 +6439,10 @@
       "fallGravity": "Nur Charakter: Abwärtsbeschleunigung während des Fallens, in m/s²; standardmäßig 1,6 g, damit ein Sprung nicht schwebt.",
       "stopTime": "Nur Charakter: Sekunden, um 95 % der Geschwindigkeit zu verlieren, sobald keine Taste mehr gedrückt ist, am Boden; standardmäßig 0,08.",
       "headBob": "Nur Charakter: Meter, um die das Auge bei jedem Schritt im Trab steigt und fällt; standardmäßig 0,035, 0 hält es waagerecht.",
-      "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus."
+      "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus.",
+      "mass": "Nur Figur, mit Physik: Kilogramm, die der Körper auf seinen Untergrund drückt; standardmäßig 80.",
+      "pushStrength": "Nur Figur, mit Physik: Newton, mit denen der Körper Körper schiebt; standardmäßig 250, der Dauerschub eines Erwachsenen.",
+      "vehicle": "Nur Fahrzeug: was die `'vehicle'`-Steuerung fährt – alles mit `drive(input)`, das Gas, Bremse, Lenkung und Handbremse bei jeder Tastenänderung erhält. Standardmäßig `null`; solange es das ist, wirft `kind = 'vehicle'` `NO_VEHICLE`."
     }
   },
   "world.renderer": {
@@ -7167,6 +7171,22 @@
       "stamp": "Der Stempel des Plans, als dieses Bild kodiert wurde (`ShadowPlan.stamp`).",
       "count": "Angeforderte Einträge, möglicherweise mehr als `entries` fasst: der Rest fragt im nächsten Bild erneut.",
       "entries": "Die angeforderten Einträge, höchstens die ersten `count`."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "Alles, was `world.controls.vehicle` fahren kann: Es erhält die Eingabe bei jeder Änderung.",
+    "members": {
+      "drive": "Erhält Pedale und Lenkrad, jedes Mal wenn eine Taste sie ändert."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Was ein Fahrer von einem Fahrzeug verlangt: Pedale und Lenkrad, wie die Tasten von `world.controls` `'vehicle'` sie setzen.",
+    "description": "Die Physik des Fahrzeugs – Motor, Räder, Federung – beantwortet sie; dieser Vertrag ist alles, was die Steuerung kennt.",
+    "members": {
+      "throttle": "Gaspedal, 0 bis 1.",
+      "brake": "Bremspedal, 0 bis 1.",
+      "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
+      "handbrake": "Ob die Handbremse gezogen ist."
     }
   }
 }

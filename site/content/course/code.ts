@@ -137,6 +137,24 @@ world.physics.gravity = 'moon'; // or 'earth', 'mars', 'none'`,
     ],
   },
   {
+    id: 'touch-and-react',
+    example: 'walk-with-collisions',
+    code: [
+      `const world = createWorld('view', { controls: 'character', physics: true });
+
+floor.physics = 'static'; // the ground, the stairs, the walls: they never move
+platform.physics = 'kinematic'; // moved by your code, it carries what stands on it
+box.physics = { type: 'dynamic', mass: 12 }; // light enough to push
+
+let phase = 0;
+world.beforeFrame(({ delta }) => {
+  platform.position.x = Math.sin((phase += delta * 0.5)) * 4;
+  world.invalidate();
+});
+world.controls.pushStrength = 400; // newtons: push harder`,
+    ],
+  },
+  {
     id: 'your-own-scene',
     example: 'a-scene-of-your-own',
     code: [

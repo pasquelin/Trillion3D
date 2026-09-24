@@ -1903,9 +1903,9 @@
     },
     "choices": {
       "count": {
-        "10000": "10.000",
+        "1000": "1.000",
         "5000": "5.000",
-        "1000": "1.000"
+        "10000": "10.000"
       }
     }
   },
@@ -1917,6 +1917,18 @@
     },
     "readouts": {
       "Look for": "Hãy xem"
+    }
+  },
+  "walk-with-collisions": {
+    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng.",
+    "controls": {
+      "pushStrength": "Lực đẩy (N)",
+      "platformSpeed": "Tốc độ bệ",
+      "stackAgain": "Xếp lại"
+    },
+    "readouts": {
+      "awake": "Đang hoạt động",
+      "speed": "Tốc độ"
     }
   }
 }
