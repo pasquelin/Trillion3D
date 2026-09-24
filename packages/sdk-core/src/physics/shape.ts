@@ -1,7 +1,8 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
+import type { CompoundPart } from './commands.ts';
 import { SHAPE } from './layout.ts';
-import type { PhysicsShape, PhysicsType } from './options.ts';
+import type { PhysicsPart, PhysicsShape, PhysicsType } from './options.ts';
 
 /** A shape ready for the ADD command: a primitive's sizes, or scaled vertices and indices. */
 interface ResolvedShape {
@@ -9,6 +10,7 @@ interface ResolvedShape {
   size: [number, number, number];
   vertices?: Float32Array;
   indices?: Uint32Array;
+  parts?: CompoundPart[];
   /** Triangles counted against `budget.physics.triangles`. */
   triangles: number;
 }
@@ -38,6 +40,7 @@ function triangleIndices(geometry: Geometry, vertexCount: number) {
 
 /** A primitive the declared or inferred shape names exactly, or `null` when the scale bends it. */
 function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
+  if (declared.type === 'compound') return compound(declared.parts, s);
   const x = Math.abs(s.x),
     y = Math.abs(s.y),
     z = Math.abs(s.z);
@@ -58,6 +61,27 @@ function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
       triangles: 0,
     };
   return null;
+}
+
+/**
+ * A compound's parts scaled into the body's frame. A scale that differs between axes would shear
+ * a turned part, so it is refused rather than approximated.
+ */
+function compound(parts: readonly PhysicsPart[], s: Scale): ResolvedShape {
+  if (!same(Math.abs(s.x), Math.abs(s.y)) || !same(Math.abs(s.x), Math.abs(s.z)))
+    throw new EngineError('PHYSICS_FAILED', 'A compound shape needs the same scale on all axes.');
+  const resolved = parts.map((part): CompoundPart => {
+    const { shape, size } = primitive(part, s)!;
+    const [x, y, z] = part.position ?? [0, 0, 0];
+    const position = [x * s.x, y * s.y, z * s.z];
+    return {
+      shape: shape as CompoundPart['shape'],
+      size,
+      position,
+      quaternion: part.quaternion ?? [0, 0, 0, 1],
+    };
+  });
+  return { shape: SHAPE.compound, size: [0, 0, 0], parts: resolved, triangles: 0 };
 }
 
 /** The exact primitive a geometry was built as (`Geometry.recipe`), or `null`. */

@@ -58,6 +58,25 @@ test('the shape is the exact primitive a geometry was built as, scaled', () => {
   assert.deepEqual(pill.size, [0.5, 0.3, 0]);
 });
 
+test('a compound places its primitives in the body, scaled; a stretched one is refused', () => {
+  const raft = resolveShape(box(), { x: 2, y: 2, z: 2 }, 'dynamic', {
+    type: 'compound',
+    parts: [
+      { type: 'box', halfExtents: [1, 0.1, 1], position: [0, 0.5, 0] },
+      { type: 'cylinder', halfHeight: 1, radius: 0.2, quaternion: [0, 0, 0.6, 0.8] },
+    ],
+  });
+  assert.equal(raft.shape, SHAPE.compound);
+  assert.deepEqual(raft.parts, [
+    { shape: SHAPE.box, size: [2, 0.2, 2], position: [0, 1, 0], quaternion: [0, 0, 0, 1] },
+    { shape: SHAPE.cylinder, size: [2, 0.4, 0], position: [0, 0, 0], quaternion: [0, 0, 0.6, 0.8] },
+  ]);
+  const stretched = { x: 1, y: 2, z: 1 };
+  assert.throws(() => resolveShape(box(), stretched, 'dynamic', { type: 'compound', parts: [] }), {
+    code: 'PHYSICS_FAILED',
+  });
+});
+
 test('any other mesh is triangles when static and a hull when it moves', () => {
   const ground = resolveShape(plane(4, 4, 2, 2), one, 'static');
   assert.equal(ground.shape, SHAPE.triangles);
