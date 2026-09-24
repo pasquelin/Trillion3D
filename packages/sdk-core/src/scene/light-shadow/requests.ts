@@ -99,7 +99,7 @@ export function createShadowRequests(
     if (isSun(slice)) {
       if (!sun.decode(slice, relative, reportFrame, scratch)) return false;
       if (!sun.holds(slice, scratch[0], scratch[1], scratch[2])) return false;
-      at.set(scratch.subarray(0, 3));
+      for (let k = 0; k < 3; k++) at[k] = scratch[k];
       return true;
     }
     decodeLampEntry(relative, scratch);
