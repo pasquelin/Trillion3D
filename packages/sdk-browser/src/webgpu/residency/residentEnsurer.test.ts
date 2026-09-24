@@ -52,7 +52,6 @@ const ensurer = (tracking: ReturnType<typeof createWebgpuPageTracking>, cache: u
     traceEnabled: false,
     traceDiagnostic: () => {},
     shadowPages: () => [],
-    settling: () => false,
   });
 
 test('a full pool stops the burst without dropping the image; any other error bubbles up', async () => {
@@ -118,7 +117,6 @@ test('shadow casters fill only what the camera leaves: never pinned, never evict
     traceEnabled: false,
     traceDiagnostic: () => {},
     shadowPages: () => lower,
-    settling: () => false,
   });
   await ensure([cam0, cam1], 1, 1);
   // The camera's two pages took the two free slots and are pinned; `old` and `sh0` remain.
@@ -136,33 +134,34 @@ test('shadow casters fill only what the camera leaves: never pinned, never evict
   assert.equal(cache.get('sh2'), undefined, 'and no other caster takes its place');
 });
 
-test('the pose barrier loads the whole caster list; outside it, one upload slice per job', async () => {
+test('a job that slices its caster uploads posts them all before it resolves', async () => {
   const pages = ['sh0', 'sh1', 'sh2'].map(pageOf);
   const tracking = createWebgpuPageTracking(pages);
-  // Every load outlasts the slice: the clock is the only thing that differs between two runs.
+  // Every load outlasts the slice: each caster ends one, and the job must resume after it.
   let clock = 0;
   mock.method(performance, 'now', () => clock);
   try {
-    for (const settling of [false, true]) {
-      const cache = lruCache(8),
-        load = cache.load;
-      cache.load = async (url: string) => {
-        clock += UPLOAD_SLICE_MS;
-        await load(url);
-      };
-      await createWebgpuResidentEnsurer({
-        getCache: () => cache as never,
-        tracking,
-        bootstrapKey: new Uint8Array(tracking.keyCount),
-        hasBytes: () => true,
-        isLost: () => false,
-        traceEnabled: false,
-        traceDiagnostic: () => {},
-        shadowPages: () => pages,
-        settling: () => settling,
-      })([], 1, 1);
-      assert.equal(cache.resident.size, settling ? 3 : 1, `settling: ${settling}`);
-    }
+    const cache = lruCache(8),
+      load = cache.load;
+    cache.load = async (url: string) => {
+      clock += UPLOAD_SLICE_MS;
+      await load(url);
+    };
+    // A task queued before the job runs between two slices: the job yields to the event loop.
+    let seen = -1;
+    setImmediate(() => (seen = cache.resident.size));
+    await createWebgpuResidentEnsurer({
+      getCache: () => cache as never,
+      tracking,
+      bootstrapKey: new Uint8Array(tracking.keyCount),
+      hasBytes: () => true,
+      isLost: () => false,
+      traceEnabled: false,
+      traceDiagnostic: () => {},
+      shadowPages: () => pages,
+    })([], 1, 1);
+    assert.equal(cache.resident.size, 3, 'every caster posted when the job resolves');
+    assert.ok(seen >= 1 && seen < 3, `the job yielded between slices (${seen} posted then)`);
   } finally {
     mock.restoreAll();
   }
@@ -190,7 +189,6 @@ test('the tier loads the list it began with, whatever a report rewrites meanwhil
     traceEnabled: false,
     traceDiagnostic: () => {},
     shadowPages: () => live,
-    settling: () => true,
   })([], 1, 1);
   assert.deepEqual([...cache.resident.keys()].sort(), ['a', 'b', 'c']);
 });

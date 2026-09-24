@@ -18,8 +18,6 @@ type EnsureOptions = {
   traceDiagnostic: Trace;
   /** The lower tier: casters the light cuts asked for, highest priority first (`shadowTier.ts`). */
   shadowPages: () => readonly PageRec[];
-  /** True while the pose barrier settles the image: the tier then loads its whole list. */
-  settling: () => boolean;
 };
 
 /**
@@ -52,7 +50,6 @@ export function createWebgpuResidentEnsurer({
   traceEnabled,
   traceDiagnostic,
   shadowPages,
-  settling,
 }: EnsureOptions) {
   /**
    * What the camera left: the casters the light cuts want, loaded only into slots nobody holds —
@@ -74,13 +71,15 @@ export function createWebgpuResidentEnsurer({
     for (let i = 0; i < lower.length; i++)
       if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]))) held++;
     let spare = cache.unpinnedSlots() - held;
-    // One upload slice per job, as the camera's burst: what remains waits for the next job. Not
-    // under the pose barrier: the next report replaces the list whole, and what a slice left
-    // would depend on the clock — two captures of one pose then held different casters (#281).
-    const started = performance.now(),
-      sliced = !settling();
+    // Upload slices, as the camera's burst: each yields to the event loop and the job resumes
+    // after it. A slice that ended the job instead left casters for a later cut to ask again —
+    // the job, and every wait on it, ended before the tier had posted its pages (#281).
+    let sliceStart = performance.now();
     for (let i = 0; i < lower.length && spare > 0; i++) {
-      if (sliced && performance.now() - started >= UPLOAD_SLICE_MS) return;
+      if (performance.now() - sliceStart >= UPLOAD_SLICE_MS) {
+        await yieldToEventLoop();
+        sliceStart = performance.now();
+      }
       const rec = lower[i],
         address = pageAddress(rec);
       if (skip(rec) || cache.get(address)) continue;
