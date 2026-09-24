@@ -1,5 +1,6 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import { selectFlat } from './select.ts';
+import { startBudgetPass } from './tally.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
@@ -32,6 +33,9 @@ export function selectVisiblePages<T extends PageRecord>(
     isResident?: (page: T) => boolean;
     rootFallback?: boolean;
     pageBudget?: number;
+    /** Slots of `pageBudget` held before the cut charges any page: what stays resident whatever
+     *  it draws. */
+    pageBudgetHeld?: number;
     wanted?: T[];
     result?: SelectionResult<T>;
   },
@@ -72,8 +76,10 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatMissing = false;
   state.flatShort = false;
   state.budget = budget;
+  state.budgetHeld = options.pageBudgetHeld ?? 0;
   const sweep = () => {
     state.over = false;
+    startBudgetPass(state);
     state.shownCount = 0;
     state.wantedCount = 0;
     state.wantedTriangles = 0;
@@ -97,6 +103,7 @@ export function selectVisiblePages<T extends PageRecord>(
     }
   };
   sweep();
+  const requestedSlots = budget ? state.budgetUsed : 0;
   // A pass above the budget brings only one thing: the next threshold. The abandoned cut
   // therefore stops at the overflowing page, and only the pass that holds the budget is taken to
   // the end. When even the coarsest threshold overflows, the whole cut is redone: the overflow
@@ -130,6 +137,7 @@ export function selectVisiblePages<T extends PageRecord>(
   result.lodLevel = state.lodLevel;
   result.complete = state.complete;
   result.pixelError = state.pixelError;
+  result.requestedSlots = requestedSlots;
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.flatStructure = undefined;

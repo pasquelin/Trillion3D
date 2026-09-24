@@ -1,19 +1,17 @@
-import { multiplyMatrix4, type Material } from '../../../../sdk-core/src/index.ts';
+import type { Material } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import {
   copyHostGeometry,
   hostPageBytes,
   hostPageSurface,
   releaseHostSurface,
-  setHostPose,
   setHostSurface,
   colouredTwin,
 } from '../../host/pageObjects.ts';
 import { surfaceOf } from '../../page/surface.ts';
-import { copyElements } from '../../math/matrixElements.ts';
-import type { HostNodeMatrix, MatrixElements } from '../../math/matrixElements.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import { composedPose, deplaceInstance } from './instancePose.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -28,54 +26,9 @@ type InstanceEnvironment = {
   cap: number;
   /** Notified by every entry point that writes the scene: that is where the origin is. */
   sceneChanged: () => void;
+  /** Notified when an instance adds or removes the copies of its root cover. */
+  coverChanged: () => void;
 };
-
-/** The two buffers the composition works in, allocated once: the core multiplies `Float64Array`
- *  alone — one caller passing another container makes its forty-eight accesses polymorphic for
- *  every caller — so a model pose is copied in, and the product copied back out. */
-const model = new Float64Array(16),
-  product = new Float64Array(16);
-
-/** `pose = transform · model`, sixteen floats in and sixteen floats out: no host library
- *  composes anything here, and the result is the one the reference computes, bit for bit.
- *
- *  `pose` is the mutable shape, `from` the read-only one, and the callers pass fields their own
- *  records declare as `MatrixElements`. TypeScript does not weigh `readonly` when it checks
- *  assignability, so that declaration is a statement of intent the compiler will not enforce:
- *  this function is the ONE writer of those sixteen floats, which is why the rest of the page
- *  path can read them as constants. Widening the records themselves would carry a mutable
- *  matrix through the cut, the rows and the raster, to serve one writer. */
-function placeInto(pose: HostNodeMatrix, transform: Float64Array, from: MatrixElements) {
-  copyElements(model, from.elements);
-  multiplyMatrix4(product, transform, model);
-  copyElements(pose.elements, product);
-}
-
-/** An instance's own copy of a model pose: storage of the engine's, never a host matrix. */
-function composedPose(transform: Float64Array, from: MatrixElements): MatrixElements {
-  const pose = { elements: new Float64Array(16) };
-  placeInto(pose, transform, from);
-  return pose;
-}
-
-/**
- * Re-places an instance: its roots and pages take back the transform applied to their
- * models. `pages[i]` is the clone of `bases[i]`, set once at creation, where the move
- * used to rebuild a page → base-page hash table on every call.
- */
-export function deplaceInstance(
-  instance: { pages: PageRec[]; bases: PageRec[]; roots: ClusterRoot<PageRec>[] },
-  baseRoots: readonly ClusterRoot<PageRec>[],
-  transform: Float64Array,
-) {
-  const { pages, bases, roots } = instance;
-  for (let i = 0; i < roots.length; i++) placeInto(roots[i].world, transform, baseRoots[i].world);
-  for (let i = 0; i < pages.length; i++) {
-    const rec = pages[i];
-    placeInto(rec.matrix, transform, bases[i].matrix);
-    if (rec.mesh) setHostPose(rec.mesh, rec.matrix);
-  }
-}
 
 export function createAutonomousInstances(env: InstanceEnvironment) {
   const {
@@ -90,6 +43,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     geometryStore,
     cap,
     sceneChanged,
+    coverChanged,
   } = env;
   // `pages[i]` is the clone of `bases[i]`: the pair is set at creation, not rebuilt as a
   // hash table on every instance move.
@@ -123,7 +77,10 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       if (bootstrap.length + baseBootstrap.length > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const mapped = new Map<PageRec, PageRec>();
       for (const base of basePages) {
-        const geometry = base.geometry ? copyHostGeometry(base.geometry) : undefined;
+        // A record rows place shares the page's geometry, as the store gives it (`geometry.ts`):
+        // only a geometry of the model's own is copied.
+        const geometry =
+          base.geometry && !base.placement ? copyHostGeometry(base.geometry) : base.geometry;
         const rec: PageRec = {
           ...base,
           clusterId: `${id}/${base.clusterId}`,
@@ -133,7 +90,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
           mesh: undefined,
           attached: false,
         };
-        if (geometry) geometryStore.state.allocationBytes += hostPageBytes(geometry);
+        if (geometry && geometry !== base.geometry)
+          geometryStore.state.allocationBytes += hostPageBytes(geometry);
         mapped.set(base, rec);
         allPages.push(rec);
         baseMaterials.set(rec, baseMaterials.get(base)!);
@@ -155,6 +113,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         bases: [...basePages],
         bootstrap: addedBootstrap,
       });
+      coverChanged();
     },
     updateInstance(id: string, transform: Float64Array) {
       sceneChanged();
@@ -170,6 +129,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       for (let i = roots.length - 1; i >= 0; i--) if (removed.has(roots[i])) roots.splice(i, 1);
       removeRecords(instance.pages);
       instances.delete(id);
+      coverChanged();
       sync();
     },
     updateMaterial(primitive: string, material: Material) {

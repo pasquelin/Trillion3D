@@ -4,7 +4,7 @@ import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts';
 import { anneauFroid } from '../../../packages/sdk-browser/src/world/render/draw.ts';
-import { deplaceInstance } from '../../../packages/sdk-browser/src/backend/autonomous/instances.ts';
+import { deplaceInstance } from '../../../packages/sdk-browser/src/backend/autonomous/instancePose.ts';
 import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts';
 import type {
   PageRec,
@@ -150,7 +150,7 @@ const resAttachments = await mesure({
 
 const resInstance = await mesure({
   name: 'instance displacement',
-  fichier: 'packages/sdk-browser/src/backend/autonomous/instances.ts',
+  fichier: 'packages/sdk-browser/src/backend/autonomous/instancePose.ts',
   cas: [
     { name: '5 000 pages', input: grosseInstance, size: 5000 },
     { name: '100 pages', input: petiteInstance, size: 100 },

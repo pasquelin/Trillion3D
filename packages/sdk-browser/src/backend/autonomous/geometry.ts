@@ -69,7 +69,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     colorMaterials,
     modifiedPages,
   } = env;
-  const state = { allocationBytes: 0, submittedTriangles: 0 };
+  const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
   // The set of displayed pages, reused from frame to frame rather than rebuilt.
   const affichees = new Set<PageRec>();
   // Pages actually attached to the scene, held by `attach` and `detach`. A frame detaches
@@ -119,14 +119,13 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     }
     batches.draw(rowed);
   };
+  // An instance's records: a geometry rows place is the page's, kept by the model's rows.
   const removeRecords = (records: PageRec[]) => {
     const removed = new Set(records);
     for (const rec of records) {
       detach(rec);
-      releaseGeometry(state, rec);
-      rec.geometry = undefined;
-      rec.mesh = undefined;
-      rec.array = undefined;
+      if (!rec.placement) releaseGeometry(state, rec);
+      rec.geometry = rec.mesh = rec.array = undefined;
       const list = byUrl.get(rec.url);
       if (list) {
         const index = list.indexOf(rec);
@@ -139,7 +138,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
     const recs = byUrl.get(url);
-    if (!recs?.length) return false;
+    if (!recs) return false;
     const descriptor = descriptors.get(url);
     if (
       !descriptor ||
@@ -148,6 +147,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       data.flags !== descriptor.flags
     )
       throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
+    if (recs[0] && !recs[0].array) state.residentPages++;
     let rowedGeometry: HostGeometry | undefined;
     for (const rec of recs) {
       detach(rec);
@@ -171,7 +171,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       state.allocationBytes += data.indices.byteLength;
       for (const array of Object.values(data.attributes)) state.allocationBytes += array.byteLength;
     }
-    return true;
+    return recs.length > 0;
   };
   // True when the store now holds the page: the host did not replace it, and a record draws it.
   const acceptGeometryPage = (url: string, data: DecodedGeometryPage) =>

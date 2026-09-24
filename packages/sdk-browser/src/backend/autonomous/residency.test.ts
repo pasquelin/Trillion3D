@@ -1,12 +1,11 @@
 // A7: residency url sets (pendingUrls, pageUrls, collectPendingUrls) live as long as the
-// host instead of being rebuilt every frame; A8: comptePagesResidentes counts instead of
-// allocating an intermediate array. Oracle: the versions from before batch A, in
+// host instead of being rebuilt every frame. Oracle: the versions from before batch A, in
 // `../../../../../bench/oracles/browser/selection.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { collectPendingUrls } from '../../page/selection/requests.ts';
-import { comptePagesResidentes, createAutonomousResidency } from './residency.ts';
+import { createAutonomousResidency } from './residency.ts';
 import {
   referenceCollectPendingUrls,
   referenceResidency,
@@ -14,11 +13,11 @@ import {
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
-// A minimal but complete geometry store: only `detach` and `state.allocationBytes` are read by
+// A minimal but complete geometry store: only `detach` and `state` are read by
 // `createAutonomousResidency`, but its parameter type is the full geometry-store shape.
 function fakeGeometryStore() {
   return {
-    state: { allocationBytes: 0, submittedTriangles: 0 },
+    state: { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 },
     colorMaterials: new Map(),
     detach: () => {},
     sync: () => {},
@@ -118,19 +117,9 @@ test('collectPendingUrls on an empty list returns an empty array from both sides
   assert.deepEqual(referenceCollectPendingUrls([], []), []);
 });
 
-test('comptePagesResidentes counts resident pages without building an intermediate array', () => {
-  const pages = [
-    fakePageRec('', new Uint32Array(1)),
-    fakePageRec(),
-    fakePageRec('', new Uint32Array(0)),
-    fakePageRec(),
-  ];
-  assert.equal(comptePagesResidentes(pages), 2);
-  assert.equal(comptePagesResidentes(pages), pages.filter((p) => !!p.array).length);
-  assert.equal(comptePagesResidentes([]), 0);
-});
-
 test('dropPage counts one eviction per page, whatever records draw it, and none for an empty page', () => {
+  const geometryStore = fakeGeometryStore();
+  geometryStore.state.residentPages = 1;
   const instances = [
     fakePageRec('g.bin', new Uint32Array(3)),
     fakePageRec('g.bin', new Uint32Array(3)),
@@ -140,11 +129,30 @@ test('dropPage counts one eviction per page, whatever records draw it, and none 
     pending: [],
     retained: [],
     byUrl: new Map([['g.bin', instances]]),
-    geometryStore: fakeGeometryStore(),
+    geometryStore,
   });
   residency.dropPage('g.bin');
   assert.equal(residency.cacheEvictions, 1, 'as the WebGPU page cache counts');
+  assert.equal(geometryStore.state.residentPages, 0, 'the page, not its two records, left');
   assert.ok(instances.every((rec) => !rec.array));
   residency.dropPage('g.bin');
   assert.equal(residency.cacheEvictions, 1, 'a page that held nothing is not evicted again');
+});
+
+test('the streamer pins the set the image gathered, without gathering it again', () => {
+  const env = makeEnv();
+  const residency = createAutonomousResidency({
+    ...env,
+    pending: [],
+    retained: [],
+    byUrl: new Map(),
+    geometryStore: fakeGeometryStore(),
+  });
+  const pinned = [...residency.pageUrls()];
+  env.shown.push(fakePageRec('z.bin'));
+  assert.deepEqual(residency.pageUrls(), pinned, 'read, not rebuilt');
+  assert.ok(!residency.keptUrls().has('z.bin'));
+  residency.collectKept();
+  assert.ok(residency.pageUrls().includes('z.bin'));
+  assert.equal(residency.keptUrls().size, pinned.length + 1);
 });

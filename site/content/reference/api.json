@@ -8313,7 +8313,7 @@
   },
   {
     "id": "MemoryBudgets",
-    "module": "packages/sdk-browser/src/webgpu/pages/io/memory.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["MemoryBudgets"],
     "section": "types",
     "kind": "Type",
@@ -8336,7 +8336,7 @@
   },
   {
     "id": "MemoryBudgetsReport",
-    "module": "packages/sdk-browser/src/webgpu/pages/io/memory.ts",
+    "module": "packages/sdk-browser/src/residency/pools.ts",
     "exports": ["MemoryBudgetsReport"],
     "section": "types",
     "kind": "Type",
@@ -8367,7 +8367,7 @@
       {
         "name": "residentPages",
         "type": "{ before: number; after: number; }",
-        "desc": "What resided just before the setting and just after."
+        "desc": "Pages whose geometry resided just before the setting and just after, counted by page as the frame metrics count them."
       },
       {
         "name": "residentTiles",

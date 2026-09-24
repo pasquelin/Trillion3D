@@ -15,8 +15,16 @@ export function sendEngineDiagnostic(
   }
 }
 
-/** The page budget's verdict just changed (`../residency/pageBudgetLadder.ts`): both engines
- *  publish it under one phase. */
+/** The page budget's verdict just changed: the cut sampled at `pixelError` asked for
+ *  `requiredSlots` against `slots`. Both engines build it here and publish it under one phase. */
+export const coverageBudgetEvent = (
+  limited: boolean,
+  requiredSlots: number,
+  slots: number,
+  fallbackRetained: boolean,
+  pixelError: number,
+) => ({ version: 1, limited, requiredSlots, slots, fallbackRetained, pixelError });
+
 export const sendCoverageBudget = (
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
   event: Record<string, unknown>,

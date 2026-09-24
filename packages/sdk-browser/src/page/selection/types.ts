@@ -10,6 +10,7 @@ import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/forced.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
+import type { BudgetShare } from '../cut/tally.ts';
 
 export type PageRec = {
   id: number;
@@ -79,6 +80,9 @@ export type PageRec = {
   /** The instance-buffer row this record is placed by, as its root: an engine drawn by the host
    *  renderer draws such records instanced, one mesh per page and surface. */
   placement?: PlacementOf;
+  /** The slots this record's page takes in a page budget, shared by every record of the page
+   *  (`../cut/state.ts`): set by the engine that bounds its cut by a pool of copies. */
+  budgetShare?: BudgetShare;
 };
 /**
  * Group links of a primitive, flattened once and shared by every instance of it.

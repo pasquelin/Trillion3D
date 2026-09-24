@@ -1,4 +1,4 @@
-import { pageBufferCap } from '../gpu/page/resize.ts';
+import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts';
 
 /**
  * Engine memory budgets, as in the reference: FIXED-size pools, set by the host and never read off
@@ -9,6 +9,12 @@ import { pageBufferCap } from '../gpu/page/resize.ts';
  * engine's (`../webgpu/residency/memoryBudgets.ts`).
  */
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
+
+/** Bytes a page buffer may occupy on this device: the smaller of its limits. */
+export const pageBufferCap = (limits?: {
+  maxBufferSize?: number;
+  maxStorageBufferBindingSize?: number;
+}) => Math.min(limits?.maxBufferSize ?? Infinity, limits?.maxStorageBufferBindingSize ?? Infinity);
 
 /** Why a pool does not make the requested size, or `null` when it does. */
 export type PoolClamp =
@@ -81,3 +87,31 @@ export function geometryPoolFor(options: {
   }
   return { budgetBytes, slots, pageBytes, allocatedBytes: slots * pageBytes, clamp };
 }
+
+/** What a host can change mid-session; a missing field keeps its value. */
+export type MemoryBudgets = {
+  /** Bytes for geometry pages. */
+  geometryPoolBytes?: number;
+  /** Bytes for texture tiles. */
+  texturePoolBytes?: number;
+};
+
+/** Pools as the engine holds them after the setting, and what the setting cost. */
+export type MemoryBudgetsReport = {
+  /** The geometry pool after the change. */
+  geometryPool: GeometryPool;
+  /** `null` before prepare has drawn the lane pools: the budget is kept for it. */
+  texturePool: TexturePool | null;
+  /** Pages and tiles the new pool could not keep: they will come back if the image asks again, their
+   *  coarse level holding the place in the meantime. */
+  evictedPages: number;
+  /** Texture tiles removed. */
+  evictedTiles: number;
+  /** Pages whose geometry resided just before the setting and just after, counted by page as
+   *  the frame metrics count them. */
+  residentPages: { before: number; after: number };
+  /** Texture tiles held, before and after. */
+  residentTiles: { before: number; after: number };
+  /** Time it took. */
+  durationMs: number;
+};

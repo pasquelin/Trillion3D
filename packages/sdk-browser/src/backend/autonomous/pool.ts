@@ -1,15 +1,9 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
 import type { BackendDiagnostic } from '../types.ts';
+import type { BudgetShare } from '../../page/cut/tally.ts';
 import { sessionGeometryPool } from '../../residency/sessionPool.ts';
 import type { GeometryPool } from '../../residency/pools.ts';
-import {
-  coverageBudgetEvent,
-  createPageBudgetLadder,
-  releasePassedFloor,
-  stepPageBudgetLadder,
-} from '../../residency/pageBudgetLadder.ts';
-import { sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
+import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
 
 /**
@@ -20,10 +14,9 @@ import { createResidentOrder } from './poolOrder.ts';
 export type PageCopies = {
   readonly generation: number;
   of(url: string): number;
-  /** Copies the root cover holds, those the whole scene would, and the most one page holds. */
+  /** Copies the root cover holds, and those the whole scene would. */
   root(): number;
   scene(): number;
-  most(): number;
 };
 
 type PoolEnvironment = {
@@ -36,13 +29,15 @@ type PoolEnvironment = {
   /** Pages of the root cover, held outside the order and never evicted. */
   rootUrls: ReadonlySet<string>;
   copies: PageCopies;
+  /** The share every record of a page names (`BudgetShare`): the cut charges its slots. */
+  shares: ReadonlyMap<string, BudgetShare>;
   /** Decoded bytes the pages hold, which the geometry store keeps. */
   state: { readonly allocationBytes: number };
   /** Decoded bytes nothing may evict — the root cover and the pages the host replaced —, read
    *  only once the pages hold more than the pool. */
   floorBytes: () => number;
-  /** Pages the frame keeps: the root cover, the host's own, the cut drawn and the cut wanted. */
-  kept: () => readonly string[];
+  /** Pages the image keeps: the root cover, the host's own, the cut drawn and the cut wanted. */
+  kept: () => ReadonlySet<string>;
   /** Gives a page's geometry back; a kept page is never named. */
   drop: (url: string) => void;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
@@ -54,17 +49,16 @@ type PoolEnvironment = {
  * always held, the page cap and the session ceiling applied. A slot holds one geometry COPY: a
  * page drawn by three classic instances fills three, since each holds its own (`PageCopies`).
  *
- * The slots bound the cut by the ladder both engines climb (`stepPageBudgetLadder`): the cut is
- * drawn at the floor the previous images' verdict left (`threshold`), and the copies its pages
- * hold are weighed against the slots after it (`admit`), so the cut the image asks for fits the
- * pool, not only the one it draws. While the floor moves, `settling` asks for another image.
+ * The slots bound the cut in the image that draws it: the cut charges the copies of each page it
+ * asks for or draws (`BudgetShare`), the root cover held beforehand, and draws coarser until they
+ * fit (`selectVisiblePages`'s `pageBudget`). A cut never holds more than the pool, so a smaller
+ * budget takes effect in the next image, and a larger one brings the detail back in it.
  *
  * The bytes bound what stays resident, as the slots do (`poolOrder.ts`). Under the budget nothing
- * is walked: an arrival costs two set insertions, an image one comparison of bytes and one of
- * counts.
+ * is walked: an arrival costs two set insertions, an image one comparison of bytes.
  */
 export function createGeometryBudget(env: PoolEnvironment) {
-  const { rootUrls, copies, state, kept, drop } = env;
+  const { rootUrls, copies, shares, state, kept, drop } = env;
   // A page's decoded size is the bytes it holds resident: its indices and its float attributes.
   let pageBytes = 1;
   for (const descriptor of env.descriptors.values())
@@ -81,26 +75,25 @@ export function createGeometryBudget(env: PoolEnvironment) {
       env.budgetBytes,
       env.ceilingBytes,
     );
+  // The root cover is held before the cut charges anything: its pages charge nothing.
+  const weighShares = () => {
+    for (const [url, share] of shares) share.slots = rootUrls.has(url) ? 0 : copies.of(url);
+  };
   let session = drawSession(),
     pool = session.pool,
     drawnFor = copies.generation;
+  weighShares();
   const current = () => {
     if (copies.generation !== drawnFor) {
       drawnFor = copies.generation;
       session = drawSession();
       pool = session.poolFor(pool.budgetBytes);
+      weighShares();
     }
     return pool;
   };
-  const ladder = createPageBudgetLadder();
-  let settling = false;
-  // Pages of a cut outside the root cover, counted only when the ladder has something to weigh.
-  const counted = new Set<string>();
-  const weigh = (url: string) => {
-    if (rootUrls.has(url) || counted.has(url)) return 0;
-    counted.add(url);
-    return copies.of(url);
-  };
+  let budgetPixelError = 0,
+    limited = false;
   // What the pool may hold above its slots: only what nothing may evict.
   const resident = createResidentOrder({
     state,
@@ -116,59 +109,30 @@ export function createGeometryBudget(env: PoolEnvironment) {
     },
     /** The floor the pool puts under the cut's screen error, 0 when the requested detail fits. */
     get budgetPixelError() {
-      return ladder.budgetPixelError;
+      return budgetPixelError;
     },
-    /** The last cut weighed did not fit the slots. */
+    /** The cut at the requested threshold did not fit the slots. */
     get coverageBudgetLimited() {
-      return ladder.coverageBudgetLimited;
+      return limited;
     },
-    /** The last weighing moved the floor: the view has not settled, another image is owed. */
-    get settling() {
-      return settling;
+    /** The budget the cut about to be drawn must fit: the slots, those the root cover holds, and
+     *  none at all when the pool holds the whole scene. */
+    bound(cut: { pageBudget: number; pageBudgetHeld: number }) {
+      const { slots, clamp } = current();
+      cut.pageBudget = clamp === 'scene' ? 0 : slots;
+      cut.pageBudgetHeld = copies.root();
     },
-    /** The threshold this image's cut is drawn at: the host's, or the floor the pool imposes. */
-    threshold(pixelError: number) {
-      releasePassedFloor(ladder, pixelError);
-      return Math.max(pixelError, ladder.budgetPixelError);
-    },
-    /**
-     * Weighs the cut just drawn at `sampled`: the copies its pages ask for, with the root cover,
-     * and those it holds, with what it still draws. True when the floor moved, so that the next
-     * image cuts again; a verdict that changes is published as `coverage-budget`. Nothing is
-     * counted while no floor rules and the records, each at the most copies a page holds, fit the
-     * slots.
-     */
-    admit(
-      pixelError: number,
-      sampled: number,
-      view: number,
-      wanted: readonly PageRec[],
-      shown: readonly PageRec[],
-    ) {
-      const floor = ladder.budgetPixelError,
-        limited = ladder.coverageBudgetLimited,
-        { slots, clamp } = current(),
-        roots = copies.root();
-      settling = false;
-      if (
-        floor === 0 &&
-        !limited &&
-        (clamp === 'scene' || roots + (wanted.length + shown.length) * copies.most() <= slots)
-      )
-        return false;
-      counted.clear();
-      let requested = roots;
-      for (let i = 0; i < wanted.length; i++) requested += weigh(wanted[i].url);
-      let held = requested;
-      for (let i = 0; i < shown.length; i++) held += weigh(shown[i].url);
-      stepPageBudgetLadder(ladder, pixelError, sampled, view, slots, requested, held);
-      if (ladder.coverageBudgetLimited !== limited)
+    /** Reads the cut drawn for the host's `pixelError`: the threshold it was coarsened to is the
+     *  floor, and a verdict that changes is published as `coverage-budget`. */
+    settle(pixelError: number, cut: { pixelError: number; requestedSlots: number }) {
+      const was = limited;
+      limited = cut.pixelError > pixelError;
+      budgetPixelError = limited ? cut.pixelError : 0;
+      if (limited !== was)
         sendCoverageBudget(
           env.onDiagnostic,
-          coverageBudgetEvent(ladder, requested, slots, true, sampled),
+          coverageBudgetEvent(limited, cut.requestedSlots, pool.slots, true, pixelError),
         );
-      settling = ladder.budgetPixelError !== floor;
-      return settling;
     },
     /** A page has arrived, or arrived again; the root cover is held outside the order. */
     arrived(url: string) {

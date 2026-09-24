@@ -5,6 +5,7 @@ import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElement
 import type { ClusterCut } from '../selection/math.ts';
 import type { ClusterStructureIndex } from '../selection/types.ts';
 import type { PageSurface } from '../surface.ts';
+import type { BudgetShare } from './tally.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -14,6 +15,7 @@ export interface PageRecord extends ClusterCut {
   cone?: NormalCone;
   material?: PageSurface;
   array?: Uint32Array;
+  budgetShare?: BudgetShare;
 }
 
 export interface SelectionState<T extends PageRecord> {
@@ -69,6 +71,10 @@ export interface SelectionState<T extends PageRecord> {
   shownTriangles: number;
   /** Page budget beyond which a pass has nothing left to say; `0` when there is none. */
   budget: number;
+  /** Slots held before any page is charged, those this pass has charged, and the pass itself. */
+  budgetHeld: number;
+  budgetUsed: number;
+  budgetPass: number;
   /** This pass overflowed the budget: its result is discarded, the descent stops there. */
   over: boolean;
 }
@@ -86,6 +92,10 @@ export interface SelectionResult<T> {
   lodLevel: number;
   complete: boolean;
   pixelError: number;
+  /** Slots the pass at the requested threshold charged to the page budget: all of them when it
+   *  fit, and at least one past the budget when it did not, its descent stopping there. `0`
+   *  without a budget. */
+  requestedSlots: number;
 }
 
 /** An empty cut result, to set once per hot caller then reuse from image to image:
@@ -102,6 +112,7 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     lodLevel: 0,
     complete: true,
     pixelError: 0,
+    requestedSlots: 0,
   };
 }
 
@@ -177,17 +188,11 @@ const reusedState: SelectionState<PageRecord> = {
   wantedTriangles: 0,
   shownTriangles: 0,
   budget: 0,
+  budgetHeld: 0,
+  budgetUsed: 0,
+  budgetPass: 0,
   over: false,
 };
-
-/** Shrinks `shown` to a prefix and its triangle sum with it: same order, same bits as the
- *  sweep this sum replaces. Fallbacks are the only ones that shorten the cut. */
-export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: number) {
-  s.shownCount = to;
-  let sum = 0;
-  for (let i = 0; i < to; i++) sum += s.shown[i].triangles;
-  s.shownTriangles = sum;
-}
 
 /** The reused state, viewed at the requested page type. */
 export function selectionState<T extends PageRecord>(): SelectionState<T> {

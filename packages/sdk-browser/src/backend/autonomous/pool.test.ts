@@ -15,7 +15,7 @@ test('under its budget the pool walks nothing: an arrival only enters the order'
 
 test('over its budget the pool sheds the oldest pages no cut keeps, never a kept one', () => {
   const f = fixture(10, { budgetBytes: 3 * PAGE });
-  f.kept.push('p0');
+  f.kept.add('p0');
   for (let i = 0; i < 3; i++) f.arrive(`p${i}`);
   f.pool.trim();
   f.arrive('p3');
@@ -23,7 +23,7 @@ test('over its budget the pool sheds the oldest pages no cut keeps, never a kept
   assert.deepEqual(f.dropped, ['p1']);
   assert.ok(f.state.allocationBytes <= 3 * PAGE);
   // Kept at the last pass, p0 became the most recent: once released, p2 goes before it.
-  f.kept.length = 0;
+  f.kept.clear();
   f.pool.trim();
   f.arrive('p4');
   assert.deepEqual(f.dropped, ['p1', 'p2']);
@@ -42,7 +42,7 @@ test('a page accepted again is the most recent again', () => {
 
 test('when what is kept fills the budget, arrivals stay and nothing is walked again', () => {
   const f = fixture(100, { budgetBytes: 2 * PAGE });
-  f.kept.push('p0', 'p1', 'p2');
+  for (const url of ['p0', 'p1', 'p2']) f.kept.add(url);
   for (let i = 0; i < 3; i++) f.arrive(`p${i}`);
   f.pool.trim();
   const calls = f.keptCalls();
@@ -52,8 +52,8 @@ test('when what is kept fills the budget, arrivals stay and nothing is walked ag
   assert.deepEqual(f.dropped, [], 'a drawn page is never evicted, an arrival not on arrival');
   assert.equal(f.keptCalls(), calls);
   // The next cut draws a coarser cover: what it left goes, oldest first, down to the budget.
-  f.kept.length = 0;
-  f.kept.push('p49');
+  f.kept.clear();
+  f.kept.add('p49');
   assert.equal(f.pool.trim(), 48);
   assert.equal(f.state.allocationBytes, 2 * PAGE);
   assert.equal(f.keptCalls(), calls + 1);
@@ -90,7 +90,7 @@ test('a smaller budget mid-session evicts at once; an invalid one changes nothin
   const f = fixture(10);
   for (let i = 0; i < 6; i++) f.arrive(`p${i}`);
   assert.equal(f.pool.held.clamp, 'scene');
-  f.kept.push('p5');
+  f.kept.add('p5');
   f.pool.trim();
   assert.equal(f.pool.resize(2 * PAGE), 4);
   assert.deepEqual(f.dropped, ['p0', 'p1', 'p2', 'p3']);

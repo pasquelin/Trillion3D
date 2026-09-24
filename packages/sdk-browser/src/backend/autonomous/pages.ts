@@ -9,8 +9,8 @@ import { decodePageOffThread } from '../../page/decode/host.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './manifest.ts';
-import { comptePagesResidentes, createAutonomousResidency } from './residency.ts';
-import { createAutonomousPool } from './poolApi.ts';
+import { createAutonomousResidency } from './residency.ts';
+import { createAutonomousPool, createHeldFloor } from './poolApi.ts';
 import { createContractLighting } from '../../lighting/contractLightingApi.ts';
 import { createThreeSceneDraw, hostDiagnostics } from '../../host/three/sceneAdapter.ts';
 import type { BackendFactory } from '../types.ts';
@@ -67,6 +67,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const { sync, acceptGeometryPage } = geometryStore;
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
+  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...tables,
     baseRoots,
@@ -75,6 +76,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     geometryStore,
     cap,
     sceneChanged: gate.sceneChanged,
+    coverChanged: heldFloor.changed,
   });
   const residency = createAutonomousResidency({
     bootstrapUrls,
@@ -86,16 +88,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     byUrl,
     geometryStore,
   });
-  const placements = autonomousPlacements({
-    ...tables,
-    blendCopies,
-    scene,
-    gate,
-    rowsWritten: geometryStore.rowsWritten,
-  });
-  // The fixed geometry budget, drawn by the WebGPU pool's rule; `setMemoryBudgets` redraws it.
   const pool = createAutonomousPool({
-    bootstrap,
     byUrl,
     context,
     descriptors,
@@ -105,6 +98,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     gate,
     geometryStore,
     residency,
+    heldFloor,
     instanceCount,
   });
   const renderFrame = createAutonomousRender({
@@ -119,6 +113,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     bootstrap,
     cap,
     sync,
+    collectKept: residency.collectKept,
     pool: pool.budget,
   });
   return {
@@ -143,22 +138,29 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
           acceptGeometryPage(url, await decodePageOffThread(bytes, context.signal));
         }),
       );
-      gate.sceneChanged(); // the root cover is held: what reads it per scene revision reads again
+      heldFloor.changed();
       ready = true;
       shown.push(...bootstrap);
       sync();
+      residency.collectKept();
     },
     render(camera) {
       hostDraw.render(camera);
       if (ready) renderFrame(camera);
     },
-    /** Another image while the pool's floor moves, as WebGPU asks until its cut settles. */
-    pendingFrame: async () => pool.budget.settling,
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
-    ...placements,
+    ...autonomousPlacements({
+      ...tables,
+      blendCopies,
+      scene,
+      gate,
+      rowsWritten: geometryStore.rowsWritten,
+      coverChanged: heldFloor.changed,
+    }),
     ...lightingApi,
-    ...residency,
+    pendingUrls: residency.pendingUrls,
+    pageUrls: residency.pageUrls,
     ...pool.api,
     syncResident() {
       gate.resourcesChanged();
@@ -173,7 +175,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       return {
         clusters: state.visible,
         selectedTriangles: state.selectedTriangles,
-        residentPages: comptePagesResidentes(allPages),
         ...pool.metrics,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected: state.frustumRejected,

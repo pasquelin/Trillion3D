@@ -10,10 +10,10 @@ import {
   fallbackScratch,
   residentUnder,
   selectionScratch,
-  truncateShown,
   type PageRecord,
   type SelectionState,
 } from './state.ts';
+import { truncateShown } from './tally.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 
