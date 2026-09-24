@@ -135,8 +135,6 @@ export interface BackendContext {
   /** What host-memory engines keep resident without a host ceiling; the WebGPU pool is in bytes. */
   residentPagesDefault?: number;
   maxCachedPages?: number;
-  /** Resident page/bundle bytes kept by the streamer; `DEFAULT_CACHED_BYTES` by default. */
-  maxCachedBytes?: number;
   pixelError?: number;
   lodAdaptive?: boolean;
   /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */

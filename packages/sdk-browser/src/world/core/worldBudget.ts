@@ -10,19 +10,31 @@ import {
   splitMemoryBudget,
 } from '../../residency/memoryBudget.ts';
 import { raycastTreeBudget } from '../../../../sdk-core/src/world/object/raycastTrees.ts';
+import { createPageCache, type PageCache } from '../../streaming/pageCache.ts';
 
-/** The pools a page asks for, and the two totals, kept to open every later session with them. */
-export type Pools = { geometryPool?: number; texturePool?: number; gpu?: number; cpu?: number };
+/** The pools a page asks for, and the two totals, kept to open every later session with them; and
+ *  the world's decoded-page cache, which every session reads through — one reopened, on a device
+ *  granted after a loss or on a changed scene, fetches nothing it holds. */
+export type Pools = {
+  geometryPool?: number;
+  texturePool?: number;
+  gpu?: number;
+  cpu?: number;
+  readonly pageCache: PageCache;
+};
+
+/** A world's pools, none asked yet, and its page cache at the default CPU total. */
+export const worldPools = (): Pools => ({ pageCache: createPageCache(DEFAULT_CPU_BUDGET) });
 
 /** The split of the totals as asked, the defaults for those not set. */
 const splitOf = (pools: Pools) =>
   splitMemoryBudget(pools.gpu ?? DEFAULT_GPU_BUDGET, pools.cpu ?? DEFAULT_CPU_BUDGET);
 
-/** What a session opens with: the pools as asked, and the page cache the CPU total gives. */
+/** What a session opens with: the pools as asked, and the world's page cache. */
 export const sessionPools = (pools: Pools) => ({
   geometryPoolBytes: pools.geometryPool,
   texturePoolBytes: pools.texturePool,
-  maxCachedBytes: splitOf(pools).pageCache,
+  pageCache: pools.pageCache,
 });
 
 /**
@@ -76,17 +88,19 @@ export function worldBudget(
       pools.texturePool = shares.texturePool;
       rebalance();
     },
-    /** Bytes of CPU memory the world's decoded pages may hold; taken by the next scene load. */
+    /** Bytes of CPU memory the world may hold: its decoded pages, its manifest tables and its
+     *  transfer queue together. A change applies at once: pages leave by last use until they fit. */
     get cpu() {
       return pools.cpu ?? DEFAULT_CPU_BUDGET;
     },
     set cpu(bytes: number) {
-      splitMemoryBudget(pools.gpu ?? DEFAULT_GPU_BUDGET, bytes);
+      const { pageCache } = splitMemoryBudget(pools.gpu ?? DEFAULT_GPU_BUDGET, bytes);
       pools.cpu = bytes;
+      pools.pageCache.resize(pageCache);
     },
     /** How the two totals are shared: the shadow pool at its largest, then half each to the
      *  geometry and texture pools, capped at their ceilings; the decoded-page cache takes the CPU
-     *  total. What the rule gives, before a pool set on its own. */
+     *  total, less the manifest tables and the transfer queue of the session in place. What the rule gives, before a pool set on its own. */
     get split() {
       return split();
     },

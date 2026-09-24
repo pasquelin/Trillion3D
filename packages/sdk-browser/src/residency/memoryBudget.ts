@@ -2,7 +2,7 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
 import { shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
+import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts';
 
 /** The shadow pool at its largest — the side of the largest screen, and its static layer: the
  *  shadows never hold more, whatever the screen. */
@@ -11,7 +11,7 @@ export const SHADOW_POOL_BYTES = 2 * shadowAtlasBytes(shadowPoolSide(Infinity, I
  *  one total. */
 export const DEFAULT_GPU_BUDGET =
   SHADOW_POOL_BYTES + DEFAULT_GEOMETRY_POOL_BUDGET + DEFAULT_TEXTURE_POOL_BUDGET;
-/** The CPU total by default: the decoded-page cache's default. */
+/** The CPU total by default: the decoded-page cache's default, tables and transfers included. */
 export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES;
 
 const checkTotal = (bytes: number, name: string) => {
@@ -24,7 +24,8 @@ const checkTotal = (bytes: number, name: string) => {
  *   geometry pool and the texture pool, each no larger than its ceiling. A total under the shadow
  *   pool leaves the other two at their floors — the root cover, one layer per lane —, which the
  *   pools' own clamps name.
- * - CPU: the decoded-page cache takes the whole total, the only CPU pool the engine bounds.
+ * - CPU: the decoded-page cache takes the whole total (`pageCache.ts`), the session's manifest
+ *   tables and transfer queue reserved off it.
  * At the defaults, the split gives each pool its own default.
  */
 export function splitMemoryBudget(gpu: number, cpu: number) {
