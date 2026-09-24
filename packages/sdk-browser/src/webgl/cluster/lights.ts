@@ -1,4 +1,5 @@
 import { LTC_UNIT, WEBGL_RECT_KIND, createLtcTexture } from './rectGlsl.ts';
+import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe, type ProbeLight } from './probe.ts';
 
 type MatrixNode = {
@@ -20,6 +21,7 @@ type ClusterLight = MatrixNode &
     type: string;
     color: { r: number; g: number; b: number };
     intensity: number;
+    castShadow?: boolean;
     distance?: number;
     decay?: number;
     angle?: number;
@@ -63,11 +65,6 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
     reason ?? (count > 64 ? `${count} visible lights exceed the 64-light contract` : undefined)
   );
 };
-
-/** A light's rank in the program's `lightData`; an ambient light is summed apart. */
-const kindOf = (light: ClusterLight) =>
-  light.isDirectionalLight ? 0 : light.isPointLight ? 1 : light.isSpotLight ? 2 : WEBGL_RECT_KIND;
-const KIND_ORDER = [1, 2, 0, WEBGL_RECT_KIND];
 
 export class WebglClusterLights {
   private data = new Float32Array(4 * 4 * 64);
@@ -122,10 +119,9 @@ export class WebglClusterLights {
       ambient[2] += light.color.b * light.intensity;
       ambient[3] = 1;
     });
-    // The reference's order: the points, the spots, the suns, the rectangles, each in the graph's
-    // order; the ambient lights are one irradiance, summed here.
-    for (const rank of KIND_ORDER)
-      for (const light of lights) if (kindOf(light) === rank) writeLight(light, rank);
+    // The reference's order: the points, the spots, the suns, the rectangles, the shadow casters
+    // first within a kind; the ambient lights are one irradiance, summed here.
+    inReferenceOrder(lights, writeLight);
     if (ambient[3]) {
       write(count * 16 + 4, 0, 0, -1, 3);
       write(count++ * 16 + 8, ambient[0], ambient[1], ambient[2], 1);
