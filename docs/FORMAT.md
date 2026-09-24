@@ -213,15 +213,14 @@ instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a 
 row at the world matrix the engine composes for a child of its parent — the same bits a host node
 there would carry, proven against the host loader on `site/assets/examples/ten-thousand-objects`
 (`host/prepared/partition.test.ts`) — and gives it back, parked, when its cell leaves. A cell is
-needed while its largest object can cover the error target: seen from a distance `d` to the cell's
-box by a camera of vertical field `fov` drawn `H` pixels high, focal `f = H / (2·tan(fov/2))`, the
-off-axis stretch of the frustum at most `w = 1 + tan²(fov/2)·(1 + aspect²)`, it covers at most
-`size·f·w / d` pixels, so its **reach** is `size·f·w / pixelError`, and never more than the far plane
-met on the frustum's diagonal, `far·√w`. With `pixelError` 0 (the exact image) only the far plane
-bounds it; an orthographic camera reads every cell. Before its first frame a session reads the
-cells within their reach, and nothing else. Then, before every frame, cells within their reach are
+read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
+diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
+The error target does not shorten it: nothing coarser stands for a cell that is not read (the
+proxy of #23), so an object dropped below the target would be missing from the image, not
+replaced. An orthographic camera reads every cell. `size` is not read by the runtime yet. Before
+its first frame a session reads the cells within the reach, and nothing else. Then, before every frame, cells within the reach are
 asked for nearest first, those within one cell diagonal past it at the prefetch priority, and a
-cell leaves two diagonals past its reach. The cells are read through the session's page streamer
+cell leaves two diagonals past the reach. The cells are read through the session's page streamer
 — one request queue — and placed within the arrival budget (`ARRIVAL_BUDGET_MS`), one cell at
 least per frame. A buffer short of rows grows in place where the engine can (the WebGL2 path);
 elsewhere the world opens its session again on the grown rows. A partitioned scene is not

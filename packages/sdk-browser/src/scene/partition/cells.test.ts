@@ -78,7 +78,7 @@ function io(bytes: (url: string) => Uint8Array, grows = true) {
   return { port, asked, updates, grown, held };
 }
 
-const everywhere = () => Infinity;
+const everywhere = Infinity;
 /** No arrival budget: what a test places never depends on the time the machine takes. */
 const noBudget = Infinity;
 const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)];
@@ -120,7 +120,7 @@ test('a cell past its reach gives its rows back, parked, for the next cell to ta
   ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
   cells.frame([0, 0, 0], everywhere, port, noBudget);
   updates.length = 0;
-  cells.frame([0, 0, 0], () => 100, port, noBudget);
+  cells.frame([0, 0, 0], 100, port, noBudget);
   assert.equal(cells.stats().held, 1, 'the far cell left');
   const live = links[0].placements!.live;
   assert.equal(
@@ -134,12 +134,12 @@ test('rows grow through the session, and a session that cannot grow them keeps t
   const grown = world();
   const growing = io(grown.bytes);
   growing.held.add('https://cache.test/key/near.json');
-  grown.cells.frame([0, 0, 0], () => 100, growing.port, noBudget);
+  grown.cells.frame([0, 0, 0], 100, growing.port, noBudget);
   assert.equal(growing.grown.length, 2, 'one buffer per primitive, grown together');
   const fixed = world();
   const still = io(fixed.bytes, false);
   still.held.add('https://cache.test/key/near.json');
-  fixed.cells.frame([0, 0, 0], () => 100, still.port, noBudget);
+  fixed.cells.frame([0, 0, 0], 100, still.port, noBudget);
   assert.deepEqual(fixed.cells.stats(), { cells: 2, held: 0, waiting: 1 });
 });
 
@@ -150,6 +150,6 @@ test('a world that poses the scene root reads the cells its camera sees there', 
   root.position.set(-500, 0, 0);
   root.scale.set(0.1, 0.1, 0.1);
   const { port, asked } = io(bytes);
-  cells.frame([2, 0, 0], () => 100, port, noBudget);
+  cells.frame([2, 0, 0], 100, port, noBudget);
   assert.deepEqual(asked, ['https://cache.test/key/far.json']);
 });

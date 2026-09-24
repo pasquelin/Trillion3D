@@ -56,7 +56,7 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
     meshes: built.placed,
   });
   const read = async (url: string) => new Uint8Array(await readFile(fileURLToPath(url)));
-  await cells.prime([0, 0, 0], () => Infinity, read);
+  await cells.prime([0, 0, 0], Infinity, read);
   const prepared: string[] = [];
   built.source.traverse((node) => {
     const link = built.associations.get(node);
