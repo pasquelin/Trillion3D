@@ -104,6 +104,8 @@ export function createWebgpuResidencySets(options: {
     get keepCount() {
       return tracking.keep.count;
     },
+    /** True when this image asks the cache for the key, even past the page budget. */
+    requests: (key: number) => desired.has(key),
     /** Applies one cut difference: only the pages that entered and left are touched. */
     applyCut(delta: CutDelta) {
       askedKeys.apply(delta);
