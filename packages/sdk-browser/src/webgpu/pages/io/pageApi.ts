@@ -3,6 +3,7 @@ import { applyArrivalPlan } from '../../../page/integration/arrivalSpecs.ts';
 import { pageSourceBytes } from './catalogue.ts';
 import { pageAddress } from '../../row/pageSlots.ts';
 import type { ArrivalPlan } from '../../../page/integration/host.ts';
+import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesCore } from '../runtime.ts';
 
 /**
@@ -11,12 +12,17 @@ import type { WebgpuPagesCore } from '../runtime.ts';
  * The arrival plan — computed off the main thread — already carries those offsets and the page
  * ranks the request stirs, sorted: all that remains here is to post the views and name the pages
  * to the journal. With no plan, the same calculation is redone inline, to the same result.
+ *
+ * `affectsImage` says whether these clusters can change the image. When it says no, the bytes are
+ * kept and the pages named to the journal, but neither the page epoch nor the resource revision
+ * moves: a held frame stays held. Without it — the bootstrap cover — the arrival always counts.
  */
 export function acceptPage(
   rt: WebgpuPagesCore,
   url: string,
   array: Uint32Array,
   plan?: ArrivalPlan,
+  affectsImage?: (recs: readonly PageRec[]) => boolean,
 ) {
   const { run, diag } = rt,
     { rows } = rt.layout,
@@ -34,9 +40,12 @@ export function acceptPage(
     const bytes = pageSourceBytes(recs[i]);
     if (bytes) sourceBytes.set(pageAddress(recs[i]), bytes);
   }
-  // Bytes have arrived: the list of pages still waited for is no longer the previous one.
-  run.pageArrayEpoch++;
-  run.gate.resourcesChanged();
+  // Bytes the image draws, queues, waits for or casts a shadow with have arrived: the list of pages
+  // still waited for is no longer the previous one, and the next frame must read them.
+  if (!affectsImage || affectsImage(recs)) {
+    run.pageArrayEpoch++;
+    run.gate.resourcesChanged();
+  }
   if (planned && plan) for (let i = 0; i < plan.pageCount; i++) rows.touchPage(plan.pages[i]);
   else
     for (let i = 0; i < recs.length; i++) {
