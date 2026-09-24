@@ -125,7 +125,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         store.assignSlice(slot, slice);
         const light = store.light(store.ids[slot]);
         if (!light) continue;
-        let whole = records.moved(slice, store.revision[slot]);
+        let whole = records.moved(slice, light);
         if (rank === LIGHT_KIND.directional) {
           if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
             whole = true;

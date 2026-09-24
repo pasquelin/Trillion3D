@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { PAGE_VALID, SUN_LEVELS, sunEntry } from './virtual.ts';
+import { LAMP_FLOOR_MIP, PAGE_VALID, SUN_LEVELS, sunEntry } from './virtual.ts';
 import {
   SUN,
   VIEW,
@@ -95,7 +95,7 @@ test('a light moved every frame draws coarse first: no finer page overtakes by i
   );
 });
 
-test('guard: after a move, every page read was drawn in that frame, at the new pose', () => {
+test('guard: after a move, every finer page read was drawn in that frame, at the new pose', () => {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24, 32);
   store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
@@ -112,6 +112,26 @@ test('guard: after a move, every page read was drawn in that frame, at the new p
     report(plan, store, frame, read);
     for (let page = 0; page < plan.pool.pages; page++)
       if (plan.pool.owner[page] >= 0 && plan.pool.slice[page] === slice && plan.pool.valid[page])
-        assert.ok(drawn.has(page), `page ${page} read at frame ${frame} was not drawn in it`);
+        // The floor alone stays read, stale, until redrawn: a reader never falls back to nothing.
+        if ((plan.pool.view[page] & 15) !== LAMP_FLOOR_MIP)
+          assert.ok(drawn.has(page), `page ${page} read at frame ${frame} was not drawn in it`);
+  }
+});
+
+test('a light whose intensity or colour changes neither re-poses nor withdraws a page', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  const slice = store.sliceOf(0);
+  const read = [...lampPages(plan, slice, 0, 4), ...lampPages(plan, slice, 0, 3)];
+  for (let frame = 1; frame < 6; frame++) cycle(plan, store, frame, () => read);
+  for (let frame = 6; frame < 12; frame++) {
+    store.set('lamp', { intensity: frame, color: [1, frame / 12, 1] });
+    assert.equal(cycle(plan, store, frame, () => read), 0, `nothing drawn at frame ${frame}`);
+    assert.ok(
+      read.every((entry) => valid(plan, entry)),
+      `every page still read at frame ${frame}`,
+    );
   }
 });

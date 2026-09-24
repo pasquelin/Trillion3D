@@ -69,15 +69,16 @@ test('past its first frame, a page nobody reads is never drawn, and a still scen
       i ? 0 : 3,
     );
   assert.equal(plan.counts.pendingPages, 0);
-  assert.equal(plan.counts.cachedPages, 4, 'read straight from the pool');
+  // The three pages, the floor under them, and the three floor pages more the view reaches.
+  assert.equal(plan.counts.cachedPages, 3 + 4, 'read straight from the pool');
   assert.equal(plan.settled(store), true, 'a report proves the image reads only drawn pages');
   // The image now reads one page: a moving object stales all seven — three pages, four floor
-  // pages —, it and its floor are drawn.
+  // pages —, it and the floor pages the view reaches are drawn.
   cycle(plan, store, frame++, () => pages.slice(0, 1));
   plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
   assert.equal(
     cycle(plan, store, frame, () => pages.slice(0, 1)),
-    2,
+    1 + 4,
   );
   assert.equal(plan.counts.invalidatedPages, 3 + 4);
 });
