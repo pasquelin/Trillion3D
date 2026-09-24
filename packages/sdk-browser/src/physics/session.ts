@@ -21,7 +21,8 @@ import {
 } from './protocol.ts';
 import { createPhysicsView } from './view.ts';
 import { stepThreads } from './joltThreads.ts';
-import { createCharacterPort } from './physicsCharacter.ts';
+import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
+import type { CharacterBodyFactory } from '../../../sdk-core/src/collision/characterBody.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -136,10 +137,13 @@ export function createPhysicsSession(
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
   const character = createCharacterPort((message) => worker.postMessage(message));
+  /** The character's body in this session's worker, for `world.controls`. */
+  const characterBody: CharacterBodyFactory = (settings) =>
+    createPhysicsCharacter(character, settings);
   return {
     stats,
     writer,
-    character,
+    characterBody,
     /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
       Object.assign(clock, { paused, timeScale });

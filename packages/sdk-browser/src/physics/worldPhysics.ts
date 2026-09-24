@@ -43,7 +43,9 @@ export function createWorldPhysics(
     loading: Promise<typeof import('./session.ts')> | null = null,
     paused = false,
     timeScale = 1,
-    error: EngineError | null = null;
+    error: EngineError | null = null,
+    /** Told when a session starts or ends: the character's body changes with it. */
+    watcher: (() => void) | null = null;
   const stopped = emptyPhysicsStats();
   const clock = () => {
     session?.setClock(paused, timeScale);
@@ -71,6 +73,7 @@ export function createWorldPhysics(
         session = createPhysicsSession(root, Object.freeze({ ...budget }), invalidate, failed);
         session.writer.gravity(gravity.elements);
         clock();
+        watcher?.();
       },
       (cause) => failed(new EngineError('PHYSICS_FAILED', `Physics: ${cause}`), true),
     );
@@ -88,6 +91,7 @@ export function createWorldPhysics(
       else {
         session?.dispose();
         session = null;
+        watcher?.();
       }
       invalidate();
     },
@@ -150,8 +154,14 @@ export function createWorldPhysics(
       (runtime.explorer as HostCpuProfile | null)?.cpuStep?.('physicsMs', session.stats.mainMs);
       return moving;
     },
-    /** The running session's end of the character, for `world.controls`; `null` when off. */
-    character: () => session?.character ?? null,
+    /** The character's body in the running session, for `world.controls`; `watch` is told
+     *  each time a session starts or ends. */
+    character: {
+      body: () => session?.characterBody ?? null,
+      watch(listener: () => void) {
+        watcher = listener;
+      },
+    },
     dispose: () => (handle.enabled = false),
   };
 }

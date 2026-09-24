@@ -4,8 +4,7 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts';
 import { controlSettingAccessors } from './worldControlsAccessors.ts';
 import { characterSettingAccessors } from './worldCharacterAccessors.ts';
-import { controlTargets } from './worldControlTargets.ts';
-import type { CharacterPort } from '../../physics/physicsCharacter.ts';
+import { controlTargets, type CharacterSource } from './worldControlTargets.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 
 /**
@@ -32,7 +31,7 @@ export function worldControlsHandle(
   camera: () => Camera,
   surface: HTMLElement,
   invalidate: () => void,
-  physics: () => CharacterPort | null = () => null,
+  physics: CharacterSource | null = null,
 ) {
   let kind = initial,
     enabled = true,
@@ -77,6 +76,11 @@ export function worldControlsHandle(
     current?.addEventListener('change', invalidate);
   };
   const targets = controlTargets(physics, () => {
+    targets.bind(current as Record<string, unknown> | null);
+    invalidate();
+  });
+  // The world's physics started or stopped: the character's body follows it.
+  physics?.watch(() => {
     targets.bind(current as Record<string, unknown> | null);
     invalidate();
   });
@@ -134,9 +138,6 @@ export function worldControlsHandle(
      *  and an orbit turns by `autoRotate`. A paused controller does nothing. */
     update(delta = 0) {
       if (!enabled) return;
-      // The world's physics started or stopped since: the character's body follows it.
-      if (current && 'physics' in current)
-        targets.bind(current as unknown as Record<string, unknown>);
       current?.update?.(delta);
     },
     /** The world's camera changed: the controller follows it. */

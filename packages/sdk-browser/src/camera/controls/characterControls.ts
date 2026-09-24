@@ -5,8 +5,8 @@ import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts';
 import {
   createCharacterBody,
   type CharacterBody,
+  type CharacterBodyFactory,
 } from '../../../../sdk-core/src/collision/characterBody.ts';
-import { createPhysicsCharacter, type CharacterPort } from '../../physics/physicsCharacter.ts';
 import { createCharacterEye } from '../../../../sdk-core/src/collision/characterEye.ts';
 import {
   HUMAN_BODY,
@@ -78,7 +78,7 @@ export function createCharacterCameraControls(
   const gate = createChangeGate(base, 7);
   const input = { wishX: 0, wishZ: 0, sprint: false };
   let world: CharacterCollision | null = null,
-    port: CharacterPort | null = null;
+    physics: CharacterBodyFactory | null = null;
   const api: CharacterCameraControls = {
     ...base.api,
     ...HUMAN_BODY,
@@ -128,19 +128,19 @@ export function createCharacterCameraControls(
     },
   };
   /**
-   * `physics`, kept off the public type: the world's physics, when it runs (`world.controls`
-   * hands it over). The body is then Jolt's virtual character in the physics worker
-   * (`physicsCharacter.ts`) and meets every body of the simulation; `null` goes back to
-   * `collision`. The body keeps its place across the switch.
+   * `physics`, kept off the public type: what makes the body of the world's physics, when it
+   * runs (`world.controls` hands it over) — Jolt's virtual character in the physics worker, which
+   * meets every body of the simulation; `null` goes back to `collision`. The body keeps its place
+   * across the switch.
    */
   Object.defineProperty(api, 'physics', {
-    get: () => port,
-    set(next: CharacterPort | null) {
-      if (next === port) return;
+    get: () => physics,
+    set(next: CharacterBodyFactory | null) {
+      if (next === physics) return;
       const [x, y, z] = body.feet;
       body.dispose?.();
-      port = next;
-      body = next ? createPhysicsCharacter(next, api) : triangles;
+      physics = next;
+      body = next ? next(api) : triangles;
       body.place(x, y, z);
     },
   });
