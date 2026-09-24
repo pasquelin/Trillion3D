@@ -14,6 +14,8 @@ export default tseslint.config(
       '**/target/**',
       // Measurement bench outputs: extracted source trees are built there.
       '.mesure/**',
+      // Worktrees and agents' logs inside the project (#452).
+      '.worktrees/**',
     ],
   },
   js.configs.recommended,
