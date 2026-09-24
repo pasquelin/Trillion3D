@@ -2,7 +2,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
-import { openExample, RENDER_ONLY, thumbnailDelay } from './docs/examples/capture.ts';
+import { leastDrawn, openExample, RENDER_ONLY, thumbnailDelay } from './docs/examples/capture.ts';
 import { readyEntries } from '../site/app/examples/list.ts';
 
 /**
@@ -24,7 +24,7 @@ try {
       width: 800,
       height: 500,
     });
-    if (errors.length || drawn < 0.1)
+    if (errors.length || drawn < leastDrawn(entry.id))
       throw new Error(`${entry.id}: ${errors.join('; ') || 'blank'}`);
     const html = await readFile(resolve(site, entry.file), 'utf8');
     await page.waitForTimeout(thumbnailDelay(html) * 1000);
