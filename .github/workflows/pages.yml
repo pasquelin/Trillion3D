@@ -114,10 +114,18 @@ jobs:
           -e "ssh -p $PORT -i $HOME/.ssh/deploy -o StrictHostKeyChecking=yes"
           dist/site/ "$TARGET:/"
       # The address checked is the one the built page declares canonical (scripts/docs/site.ts).
+      # Each answer must carry the cross-origin isolation `scripts/docs-serve.ts` serves locally:
+      # without it `crossOriginIsolated` is false and the physics falls back to one thread (#444).
       - name: Check the published site
         run: |
           url=$(grep -o 'rel="canonical" href="[^"]*"' dist/site/index.html | sed 's/.*href="//; s/"$//')
           test -n "$url" || { echo "::error::no canonical address in index.html"; exit 1; }
           for page in "$url" "${url}runtime/portal.js"; do
-            curl -fsS -o /dev/null --retry 2 --retry-all-errors --retry-delay 10 -w "%{http_code} $page\n" "$page"
+            headers=$(curl -fsS -D - -o /dev/null --retry 2 --retry-all-errors --retry-delay 10 "$page")
+            echo "$headers" | head -n 1
+            for header in 'cross-origin-opener-policy: same-origin' \
+              'cross-origin-embedder-policy: credentialless'; do
+              echo "$headers" | tr -d '\r' | grep -qix "$header" ||
+                { echo "::error::$page does not answer '$header'"; exit 1; }
+            done
           done

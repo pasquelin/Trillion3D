@@ -3,7 +3,6 @@ import { sameSelectionUniforms } from '../../gpu/core/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { copyPages } from '../pages/helpers.ts';
 import type { CutDelta } from './delta.ts';
-import type { CutCounts } from './counts.ts';
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
@@ -19,8 +18,6 @@ export function createWebgpuCutAdopter(options: {
   shown: PageRec[];
   drawn: PageRec[];
   uniforms: SelectionUniforms;
-  /** Totals of the drawable cut, held by the difference: they are read, never resommed. */
-  counts: CutCounts;
   delta: CutDelta;
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
   drawnDelta: CutDelta;
@@ -122,17 +119,15 @@ export function createWebgpuCutAdopter(options: {
       shownCut = cut;
       shownSeq = drawnSeq;
     }
-    // GPU FIRST. It counted the triangles where the verdict is given, in `dagMask`, and shipped
-    // them in the shown-list header (`../../gpu/dag/shader/totalsWgsl.ts`): they describe the cut, not the list
-    // that reports it. The CPU sum now serves only what has no GPU — the `adoptCpuCut` fallback —
-    // and that is the only case where the header does not carry them.
-    const gpu = cut.result.selectedTriangles;
-    const counts = gpu === undefined ? options.counts.totals : cut.result;
+    // The GPU counted the triangles where the verdict is given, in `dagMask`, and shipped them in
+    // the shown-list header (`../../gpu/dag/shader/totalsWgsl.ts`): they describe the cut, not the
+    // list that reports it, and the CPU sums nothing. The CPU cut sets its own
+    // (`../pages/render/cpu.ts`).
     metrics.ready = true;
-    metrics.selectedTriangles = counts.selectedTriangles ?? 0;
-    metrics.uncoveredTriangles = counts.uncoveredTriangles ?? 0;
-    metrics.drawnTriangles = counts.drawnTriangles ?? 0;
-    metrics.transparentTriangles = counts.transparentTriangles ?? 0;
+    metrics.selectedTriangles = cut.result.selectedTriangles;
+    metrics.uncoveredTriangles = cut.result.uncoveredTriangles;
+    metrics.drawnTriangles = cut.result.drawnTriangles;
+    metrics.transparentTriangles = cut.result.transparentTriangles;
     metrics.frustumRejected = cut.result.frustumRejected;
     metrics.lodLevel = cut.result.lodLevel;
     return true;
