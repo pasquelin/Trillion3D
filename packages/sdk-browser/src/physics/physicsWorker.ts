@@ -97,14 +97,22 @@ function tick() {
 }
 
 function post() {
-  if (results?.post(steps, stepMs, active, character.report)) steps = stepMs = 0;
+  if (results?.post(steps, stepMs, active, character.report, water.time)) steps = stepMs = 0;
+}
+
+/** At rest (no tick due), the simulated time since the last tick runs the water's waves on: a
+ *  world asleep still has moving water, and the bodies it wakes meet the waves drawn. */
+function rested(now: number) {
+  if (timer === null && !paused) water.rest(((now - last) / 1000) * timeScale);
 }
 
 /** A resting world steps at once: what the page just sent is owed now, not a frame later. */
 function wake() {
   if (!jolt) return;
   if (timer === null) {
-    last = performance.now();
+    const now = performance.now();
+    rested(now);
+    last = now;
     if (!paused) owed = Math.max(owed, PHYSICS_STEP);
   }
   schedule(0);
@@ -173,9 +181,11 @@ scope.onmessage = ({ data: message }) => {
     character.press(message.input, message.jumps);
     wake();
   } else {
+    const now = performance.now();
+    rested(now);
     paused = message.paused;
     timeScale = message.timeScale;
-    last = performance.now();
+    last = now;
     schedule(0);
   }
 };
