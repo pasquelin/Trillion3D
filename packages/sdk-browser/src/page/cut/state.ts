@@ -90,6 +90,9 @@ export interface SelectionResult<T> {
   budgetSettled: boolean;
   /** The cut at the host's threshold fits the budget; `null` when this image did not try it. */
   hostCutFits: boolean | null;
+  /** Even the search's coarsest threshold overflowed the budget: the cut is drawn there without
+   *  it, limited by what no threshold coarsens — the root cover, and what reaches the near plane. */
+  budgetExceeded: boolean;
 }
 
 /** An empty cut result, set once per hot caller: `selectVisiblePages` rewrites every field. */
@@ -108,6 +111,7 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     requiredSlots: null,
     budgetSettled: true,
     hostCutFits: null,
+    budgetExceeded: false,
   };
 }
 

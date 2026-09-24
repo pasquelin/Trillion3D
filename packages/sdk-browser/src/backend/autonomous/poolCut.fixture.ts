@@ -10,53 +10,82 @@ import {
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
 import { PAGE } from './pool.fixture.ts';
+import type { HostCamera } from '../../camera/world.ts';
 
 /**
  * A DAG of `PAGE`-byte pages — by default 511, only its root resident — drawn by the pool and the
  * cut as the WebGL2 frame draws them (`render.ts`): the pages an image asks for arrive before the
- * next. `rootFallback` draws a resident ancestor in place of a missing page, as the forcing
- * fallback of a DAG with its group structure does. `rootCharged` leaves the root page out of the
- * root cover the pool holds: the root cover then charges one slot more than the pool, and no cut
- * fits.
+ * next. `primitives` cuts the pages into one selection root each, `bytes` gives each page its
+ * decoded size, and `camera` the view. `rootFallback` draws a resident ancestor in place of a
+ * missing page, as the forcing fallback of a DAG with its group structure does. `rootCharged`
+ * leaves the root page out of the root cover the pool holds: the root cover then charges one slot
+ * more than the pool, and no cut fits.
  */
 export function mount(
   budgetBytes: number,
   {
     pages = dag({ feuilles: 256, seed: 11, residentes: 0 }),
+    primitives = [pages],
+    bytes = () => PAGE,
+    camera: view,
     rootFallback = false,
     rootCharged = false,
-  }: { pages?: DagPage[]; rootFallback?: boolean; rootCharged?: boolean } = {},
+  }: {
+    pages?: DagPage[];
+    primitives?: DagPage[][];
+    bytes?: (url: string) => number;
+    camera?: HostCamera;
+    rootFallback?: boolean;
+    rootCharged?: boolean;
+  } = {},
 ) {
-  const root = pages.find((page) => page.parentError === null)!;
-  root.array ??= new Uint32Array(3);
-  const byUrl = new Map(pages.map((page) => [page.url, page]));
-  const shares = new Map(pages.map((page) => [page.url, { pass: 0, slots: 0 }]));
-  for (const page of pages) page.budgetShare = shares.get(page.url);
-  const state = { allocationBytes: pages.filter((page) => page.array).length * PAGE },
+  const all = primitives.flat();
+  const rootPages = all.filter((page) => page.parentError == null),
+    root = rootPages[0];
+  for (const page of rootPages) page.array ??= new Uint32Array(3);
+  const byUrl = new Map(all.map((page) => [page.url, page]));
+  const shares = new Map(all.map((page) => [page.url, { pass: 0, slots: 0 }]));
+  let rootError = 0;
+  for (const page of all) {
+    page.budgetShare = shares.get(page.url);
+    if (page.parentError != null) rootError = Math.max(rootError, page.parentError);
+  }
+  const state = { allocationBytes: 0 },
     kept = new Set<string>(),
     diagnostics: BackendDiagnostic[] = [];
+  for (const page of byUrl.values()) if (page.array) state.allocationBytes += bytes(page.url);
+  const rootBytes = rootPages.reduce((sum, page) => sum + bytes(page.url), 0);
   const pool = createGeometryBudget({
     budgetBytes,
-    ceilingBytes: 1000 * PAGE,
+    ceilingBytes: 1000 * Math.max(...all.map((page) => bytes(page.url))),
     descriptors: new Map(
-      pages.map((page) => [page.url, { uncompressedBytes: PAGE } as GeometryPageDescriptor]),
+      all.map((page) => [
+        page.url,
+        { uncompressedBytes: bytes(page.url) } as GeometryPageDescriptor,
+      ]),
     ),
-    rootUrls: new Set(rootCharged ? [] : [root.url]),
-    copies: { generation: 0, of: () => 1, root: () => 1, scene: () => pages.length },
+    rootUrls: new Set(rootCharged ? [] : rootPages.map((page) => page.url)),
+    rootError,
+    copies: {
+      generation: 0,
+      of: () => 1,
+      root: () => rootPages.length,
+      scene: () => byUrl.size,
+    },
     shares,
     state,
-    floorBytes: () => PAGE,
+    floorBytes: () => rootBytes,
     kept: () => kept,
     drop: (url) => {
       const page = byUrl.get(url)!;
       if (!page.array) return;
       page.array = undefined;
-      state.allocationBytes -= PAGE;
+      state.allocationBytes -= bytes(url);
     },
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
-  let camera = dagCamera();
-  const roots = [racine(pages)],
+  let camera = view ?? dagCamera();
+  const roots = primitives.map(racine),
     shown: DagPage[] = [];
   const cut = {
     pixelError: 0,
@@ -66,6 +95,7 @@ export function mount(
     pageBudget: 0,
     pageBudgetHeld: 0,
     pageBudgetFrom: 0,
+    pageBudgetRootError: 0,
     wanted: [] as DagPage[],
     result: createSelectionResult<DagPage>(),
   };
@@ -79,7 +109,7 @@ export function mount(
     const drawn = selectVisiblePages(roots, cameraMoteur(camera), cut, shown);
     pool.settle(pixelError, drawn);
     kept.clear();
-    kept.add(root.url);
+    for (const page of rootPages) kept.add(page.url);
     for (const page of drawn.shown) kept.add(page.url);
     for (const page of drawn.wanted) kept.add(page.url);
     pool.trim();
@@ -92,7 +122,7 @@ export function mount(
     for (const page of drawn.wanted)
       if (!page.array && left-- > 0) {
         page.array = new Uint32Array(3);
-        state.allocationBytes += PAGE;
+        state.allocationBytes += bytes(page.url);
         pool.arrived(page.url);
         most = Math.max(most, state.allocationBytes);
       }

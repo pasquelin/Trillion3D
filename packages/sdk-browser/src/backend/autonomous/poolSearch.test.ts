@@ -4,7 +4,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dagLevels } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { PAGE } from './pool.fixture.ts';
+import { fileURLToPath } from 'node:url';
 import { mount } from './poolCut.fixture.ts';
+import { publicScene } from '../../../../../bench/perf/browser/support/publicScene.ts';
+
+/** A public scene's cache, from this file. */
+const SCENE = '../../../../../site/assets/gallery/signature-architecture/cache/native/full';
 
 /** The most the zoom below held above its 150 slots (`docs/ENGINE.md`). */
 const TRANSIENT_SLOTS = 11;
@@ -78,4 +83,35 @@ test('a refinement holds the ancestors it replaces beside their pages, then come
     `peak ${peak / PAGE} pages for ${slots} slots`,
   );
   assert.ok(metricAbove > 0, 'the frame metrics show it');
+});
+
+test('a public scene whose coarsest cut overflows a small pool holds the threshold, and lets it go', () => {
+  // Seen from inside its bounds, the scene refines pages whose parent reaches the near plane at
+  // every threshold: at 256 KiB, no threshold brings its cut under the 34 slots.
+  const { pool, image } = mount(512 * 1024 * 1024, {
+    ...publicScene(fileURLToPath(new URL(SCENE, import.meta.url))),
+    rootFallback: true,
+  });
+  const sequence = (bytes: number, images = 16) => {
+    pool.resize(bytes);
+    const thresholds: number[] = [];
+    for (let frame = 0; frame < images; frame++) {
+      image(1, 16);
+      thresholds.push(pool.budgetPixelError);
+    }
+    return thresholds;
+  };
+  assert.ok(sequence(512 * 1024 * 1024).every((threshold) => threshold === 0));
+  const small = sequence(256 * 1024),
+    top = small[0];
+  assert.ok(top > 1 && small.every((threshold) => threshold === top), `${small}`);
+  assert.equal(pool.clamp, 'root-cover', 'limited by what no threshold coarsens');
+  assert.equal(pool.settling, false, 'the search is fixed');
+  // A larger pool: one step of √2 finer an image, down to the host's threshold.
+  const back = sequence(2560 * 1024, 2 * Math.log2(top) + 2);
+  const settled = back.indexOf(0);
+  assert.ok(settled > 0, `back at the host's threshold: ${back}`);
+  for (let frame = 1; frame < settled; frame++)
+    assert.equal(back[frame], back[frame - 1] / Math.SQRT2, `${back}`);
+  assert.equal(pool.clamp, null);
 });

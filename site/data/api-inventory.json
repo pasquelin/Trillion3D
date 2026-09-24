@@ -658,6 +658,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -2873,7 +2874,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/framing\".framingFromBounds"
     },
@@ -5689,7 +5690,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/world/pose/index\".pose"
     },
@@ -8626,6 +8627,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",

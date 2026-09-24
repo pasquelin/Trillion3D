@@ -21,7 +21,7 @@ tests/
 bench/
   core/               14 modules: measure, report, diff, ulp, baseline
   perf/core/          15 *.perf.ts
-  perf/browser/       38 *.perf.ts + 32 support modules
+  perf/browser/       38 *.perf.ts + 33 support modules
   oracles/            46 reference implementations, copied verbatim
   runner/             81 modules: the measurement harness (README)
 scripts/docs/examples/openworld/
