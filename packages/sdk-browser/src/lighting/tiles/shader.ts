@@ -27,7 +27,7 @@ const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
  * column's planes are read at a finite depth, which gives the same planes at any depth.
  */
 export const LIGHT_TILES_SHADER = `
-struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,counts:vec4f,}
+struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,}
 @group(0) @binding(0) var depth:texture_depth_2d;
 @group(0) @binding(1) var<uniform> view:TileView;
 @group(0) @binding(2) var<storage,read> lights:DirectLights;

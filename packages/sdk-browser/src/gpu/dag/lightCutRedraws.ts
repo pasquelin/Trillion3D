@@ -1,11 +1,9 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_PAGES as PAGES } from '../shadow/recordPack.ts';
 import { ESCALATED_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
 
 /** Frames whose flag word may be in flight at once: a readback maps a frame or two later. */
 const SLOTS = 8;
-/** Pages a frame draws at most, whatever views they fall in. */
-const PAGES: number = LIGHT_SETTINGS.shadowPagesPerFrame;
 
 /**
  * WHICH PAGES A LIGHT CUT DREW SHORT, TO BE DRAWN AGAIN. Every frame that runs a cut copies its
