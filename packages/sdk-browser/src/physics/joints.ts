@@ -7,9 +7,9 @@ import {
   MOTOR,
   type CommandWriter,
   type Joint,
-  type JointHost,
   type JointMotor,
 } from '../../../sdk-core/src/physics/index.ts';
+import type { JointHost } from '../../../sdk-core/src/physics/joint.ts';
 import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 import { readVec3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';

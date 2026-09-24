@@ -15,7 +15,7 @@ export interface JointLimits {
 export interface JointMotor {
   /** `'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made. */
   mode: 'velocity' | 'position';
-  target: number;
+  /** The velocity or the position to reach. */ target: number;
   /** N·m for a hinge, N for a slider; left out, no bound. */ maxForce?: number;
 }
 

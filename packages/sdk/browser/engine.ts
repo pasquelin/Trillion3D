@@ -119,6 +119,13 @@ export type {
 } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
 export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
+export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
+export type {
+  JointKind,
+  JointLimits,
+  JointMotor,
+  JointOptions,
+} from '../../sdk-core/src/physics/joint.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
