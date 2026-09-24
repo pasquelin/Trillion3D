@@ -7,6 +7,8 @@ import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 /** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json';
+/** Where a cache keeps its lights: the one address their reader and a load's plan use. */
+export const importedLightsUrl = (base: string) => new URL(IMPORTED_LIGHTS_FILE, base).href;
 const IMPORTED_LIGHTS_VERSION = 1;
 
 /** What the cache declares: the source file's light list and the count of those refused. */
@@ -30,7 +32,7 @@ export async function loadImportedLights(
   const none = { lights: [], rejected: {} };
   let file: ImportedLightsFile;
   try {
-    const url = new URL(IMPORTED_LIGHTS_FILE, base).href;
+    const url = importedLightsUrl(base);
     const response = await fetch(url, { signal });
     if (!response.ok) return none;
     file = (await meter.read(response, url).json()) as ImportedLightsFile;
