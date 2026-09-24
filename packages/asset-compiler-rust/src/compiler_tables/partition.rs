@@ -4,18 +4,21 @@
 //! a spatial cell instead, which the runtime reads by distance to its camera. What stays is the core: every other
 //! node, the ranks renumbered without the placed ones.
 //!
-//! A cell holds the nodes of one size class — objects whose world box diagonal rounds up to the
-//! same power of two —, so its reach (the distance past which its largest object covers less than
-//! the error target) is that of objects of its own size, and it is split in two along its widest
-//! axis until its bytes fit one stream unit (`STREAM_BUNDLE_BYTES`), the budget a geometry bundle
-//! has. A scene whose placed nodes fit one unit is not partitioned: its table is the one it was.
+//! A cell is halved along its widest axis until its bytes fit one stream unit
+//! (`STREAM_BUNDLE_BYTES`), the budget a geometry bundle has. It carries, for each core parent its
+//! nodes hang under, the box around them in that parent's frame: a page that moves the parent
+//! moves the box, and the runtime reads the cell where its objects are. A scene whose placed nodes
+//! fit one unit is not partitioned: its table is the one it was.
 use super::*;
-use crate::compiler_world::{world_matrices, Mat4};
+use crate::compiler_world::{local_matrix, world_matrices, Mat4};
 
 mod boxes;
 mod split;
 use boxes::{grow, mesh_boxes, world_box, EMPTY};
 use split::{split_cells, Placed};
+
+/// A box, `[minX, minY, minZ, maxX, maxY, maxZ]`.
+type Box6 = [f64; 6];
 
 /// Version of a cell file and of the partition descriptor the core carries.
 const PARTITION_VERSION: u32 = 1;
@@ -115,16 +118,19 @@ pub(super) fn partition(
     let mut placed = Vec::with_capacity(placed_ids.len());
     for (id, mesh) in placed_ids {
         let node = &table[id];
+        let core_parent = parent[id].and_then(|p| rank[p]);
         let entry = json!({
-            "parent": parent[id].map(|p| rank[p]),
+            "parent": core_parent,
             "mesh": mesh,
             "matrix": node["matrix"], "translation": node["translation"],
             "rotation": node["rotation"], "scale": node["scale"],
         });
-        let bounds = world_box(&worlds[id], boxes[mesh].as_ref().expect("placeable"));
+        let mesh_box = boxes[mesh].as_ref().expect("placeable");
         let bytes = serde_json::to_vec(&entry)?.len() + 1;
         placed.push(Placed {
-            bounds,
+            bounds: world_box(&worlds[id], mesh_box),
+            parent: core_parent,
+            local: world_box(&local_matrix(&gltf_nodes[id])?, mesh_box),
             entry,
             bytes,
         });
@@ -160,29 +166,33 @@ pub(super) fn partition(
 }
 
 /// Writes one file per cell and returns the descriptor the core carries: every cell's address,
-/// fingerprint, size, box, largest object and how many nodes of each mesh it places — what the
-/// runtime sizes its rows by before its first frame —, the union box, and the meshes the cells place.
+/// fingerprint, size, its box in the frame of each core parent it hangs nodes under, and how many
+/// nodes of each mesh it places — what the runtime sizes its rows by before its first frame —, the
+/// union box at the declared poses, and the meshes the cells place.
 fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<Product>)> {
     let mut products = Vec::with_capacity(cells.len());
     let mut descriptors = Vec::with_capacity(cells.len());
     let mut meshes = BTreeSet::new();
     let mut union = EMPTY;
     for (at, cell) in cells.iter().enumerate() {
-        let bounds = split::union_of(cell);
-        let size = cell.iter().map(Placed::size).fold(0.0, f64::max);
+        let mut parents = BTreeMap::<Option<usize>, Box6>::new();
+        for placed in cell {
+            grow(parents.entry(placed.parent).or_insert(EMPTY), &placed.local);
+            grow(&mut union, &placed.bounds);
+        }
         let mut counts = BTreeMap::<u64, usize>::new();
         for mesh in cell.iter().filter_map(|p| p.entry["mesh"].as_u64()) {
             *counts.entry(mesh).or_default() += 1;
         }
         meshes.extend(counts.keys().copied());
-        grow(&mut union, &bounds);
+        let parents: Vec<Value> = parents.iter().map(|(p, b)| json!([p, b])).collect();
         let body = json!({"version": PARTITION_VERSION, "nodes": cell.iter().map(|p| &p.entry).collect::<Vec<_>>()});
         let written = product(
             directory,
             &format!("scene-cell-{at}.json"),
             &serde_json::to_vec(&body)?,
         )?;
-        descriptors.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "bounds": bounds, "size": size, "meshes": counts.into_iter().collect::<Vec<_>>()}));
+        descriptors.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "parents": parents, "meshes": counts.into_iter().collect::<Vec<_>>()}));
         products.push(written);
     }
     let partition = json!({"version": PARTITION_VERSION, "bounds": union, "meshes": meshes, "cells": descriptors});

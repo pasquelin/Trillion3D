@@ -194,15 +194,15 @@ the runtime reads the cells by distance to its camera instead of reading every n
 first frame. A scene whose placements fit one unit keeps them in `nodes[]` and has `partition:
 null`: its tables are the ones it always had.
 
-Placements are grouped by **size class** — the power of two their world-box diagonal rounds up to
-—, then each class is halved along the widest spread of its centres until a cell's descriptors fit
+The placements are halved along the widest spread of their centres until a cell's descriptors fit
 the unit. `partition` is `{ version: 1, bounds, meshes, cells }`: `bounds` the box around every cell
-(scene frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), `meshes` the mesh ranks the cells place, and
-per cell `{ url, sha256, bytes, bounds, size, meshes }` — its file beside the tables
-(`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a page), the
-box around its placements, `size` the world-box diagonal of its largest placement, and `meshes`,
-`[[rank, count], …]` in rank order: how many placements of each mesh it holds, which the runtime
-sizes its rows by before reading any cell. A cell file is `{ version: 1, nodes }`, each node `{ parent, mesh, matrix, translation,
+at the declared poses (scene frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), `meshes` the mesh
+ranks the cells place, and per cell `{ url, sha256, bytes, parents, meshes }` — its file beside the
+tables (`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a
+page), `parents`, `[[rank, box], …]`: for each core node its placements hang under (`null`, the
+scene), the box around them **in that node's frame**, and `meshes`, `[[rank, count], …]` in rank
+order: how many placements of each mesh it holds, which the runtime sizes its rows by before
+reading any cell. A cell file is `{ version: 1, nodes }`, each node `{ parent, mesh, matrix, translation,
 rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs under (`null`, the
 scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
 placement's name is not kept: it is a row, not a host node. The cells are products of the key
@@ -212,13 +212,17 @@ folder, recorded in the manifest's `files`.
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
 row at the world matrix the engine composes for a child of its parent — the same bits a host node
 there would carry, proven against the host loader on `site/assets/examples/ten-thousand-objects`
-(`host/prepared/partition.test.ts`) — and gives it back, parked, when its cell leaves. A cell is
-read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
+(`host/prepared/partition.test.ts`) — and gives it back, parked, when its cell leaves. A page may
+move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's box is
+that parent's box under its current matrix (`boxes.ts`), so the cell is read where its placements
+stand. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
 diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
 The error target does not shorten it: nothing coarser stands for a cell that is not read (the
 proxy of #23), so an object dropped below the target would be missing from the image, not
-replaced. An orthographic camera reads every cell. `size` is not read by the runtime yet. Before
-its first frame a session reads the cells within the reach, and nothing else. Then, before every frame, cells within the reach are
+replaced. An orthographic camera reads every cell. Before its first frame a session reads the cells within
+the reach of the camera the page draws with (a world hands its camera to the session it opens; a
+bare explorer, which has none, reads for its framing camera, which sees the whole scene), and
+nothing else. Then, before every frame, cells within the reach are
 asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
 leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
 never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
@@ -227,8 +231,9 @@ least per frame. The rows are sized once, when a session opens and before its en
 for every placement its camera's reach can hold at once (`residentRows`): two cells held together
 are within `2 × 1.5 × reach` of each other, so the largest sum of `meshes` over the cells that close
 to any one cell bounds each mesh's rows — set by the reach and the cells' size, not by the world.
-Nothing grows under a drawing engine: a camera whose reach later outgrows the rows asks the
-session's owner, once, to open it again sized for that reach (the world does). A session no owner
+Nothing grows under a drawing engine: a camera whose reach later outgrows the rows, or parents
+moved so close together that a cell is short of them, asks the session's owner, once, to open it
+again sized for that reach and where the cells stand (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
 asked for within reach are read and placed. A partitioned scene is not
