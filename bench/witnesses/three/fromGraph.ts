@@ -151,19 +151,6 @@ function threeAttribute(attribute: GraphElements) {
   return made;
 }
 
-/** The library's attributes of a set of engine attributes, by name; a library attribute
- *  crosses as it is. */
-export function threeAttributes(named: Record<string, unknown>) {
-  const out: Record<string, THREE.BufferAttribute | THREE.InterleavedBufferAttribute> = {};
-  for (const [name, attribute] of Object.entries(named))
-    out[name] =
-      attribute instanceof THREE.BufferAttribute ||
-      attribute instanceof THREE.InterleavedBufferAttribute
-        ? attribute
-        : threeAttribute(attribute as GraphElements);
-  return out;
-}
-
 /** The library's geometry of an engine geometry: the same storage, index, targets and bounds. */
 export function threeGeometry(
   geometry: GraphGeometry | THREE.BufferGeometry,
