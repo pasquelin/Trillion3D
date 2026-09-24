@@ -20,9 +20,11 @@ test('dispose drops the raycast tree of its geometry', () => {
 
 test('past the budget, the tree cast at least recently is evicted', () => {
   const [a, b, c] = [1, 2, 3].map((s) => object.mesh(geometry.box(s, s, s)));
+  raycastTreeBudget.bytes = 0; // an empty cache, whatever an earlier test held
+  raycastTreeBudget.bytes = RAYCAST_TREE_BUDGET;
   raycast(a, down);
   const one = raycastTreeBudget.held;
-  raycastTreeBudget.bytes = one * 2; // room for two box trees, whatever else was held
+  raycastTreeBudget.bytes = one * 2; // room for two box trees
   try {
     raycast(b, down);
     raycast(a, down); // a is now the most recent, b the oldest
@@ -31,6 +33,10 @@ test('past the budget, the tree cast at least recently is evicted', () => {
     assert.ok(heldTree(a.geometry) && heldTree(c.geometry));
     assert.ok(raycastTreeBudget.held <= raycastTreeBudget.bytes);
     assert.equal(raycast(b, down).length, 1, 'an evicted shape is still hit, its tree rebuilt');
+    raycastTreeBudget.bytes = one; // lowering the budget evicts at once, oldest first
+    assert.equal(raycastTreeBudget.held, one);
+    assert.ok(heldTree(b.geometry), 'the most recent tree stays');
+    assert.equal(heldTree(a.geometry), null);
   } finally {
     raycastTreeBudget.bytes = RAYCAST_TREE_BUDGET;
   }

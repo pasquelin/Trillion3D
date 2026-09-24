@@ -442,7 +442,8 @@ frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
 ray through a point of the picture. A mesh's triangle tree is kept for the next ray, within
-`world.budget.raycastTrees` bytes (64 MiB by default, settable): past it the tree cast at least
+`world.budget.raycastTrees` bytes (64 MiB by default, settable, shared by every world on the
+page): past it the tree cast at least
 recently is dropped, and `geometry.dispose()` drops its own at once. Live example:
 [click to pick](../site/examples/click-to-pick.html).
 
