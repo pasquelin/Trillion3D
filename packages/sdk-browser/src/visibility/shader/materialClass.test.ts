@@ -56,6 +56,24 @@ test('the resolve shader tests class overrides, never the page flags, for what a
   );
 });
 
+test('the resolve cuts on the alpha the raster kept the pixel by, and colours anisotropically', () => {
+  const fragment = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shade_fs'));
+  // The raster's test (`maskKeep`): one isotropic tap of the base map under the filter rule.
+  assert.match(
+    SHADE_SHADER,
+    /fn maskAlpha\(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool\)->f32/,
+  );
+  assert.doesNotMatch(SHADE_SHADER, /fn maskAlphaTaps\(/);
+  assert.ok(
+    fragment.includes(
+      'if(HAS_MASK){var alpha=sample.w;if(HAS_SAMPLING){alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,HAS_SAMPLING);}if(alpha<page.baseColor.w){return cutSurface(request);}}',
+    ),
+  );
+  // The colour keeps its anisotropic read, and no other cutout tests the colour's alpha.
+  assert.ok(fragment.includes('let sample=colorSample(page.mapIndex,uv,ddx,ddy,HAS_SAMPLING);'));
+  assert.doesNotMatch(fragment, /sample\.w<page\.baseColor\.w/);
+});
+
 test('the resolve compiles one pipeline per class under equal depth, after the depth export', async () => {
   installGpuGlobals();
   const pipelines: Array<{

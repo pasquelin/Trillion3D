@@ -70,7 +70,7 @@ export class WebglClusterTextures {
       this.bound[unit] = target;
       return;
     }
-    // Brought up to its host once per image, then uploaded or set again by its counters.
+    // Brought up to its host at this bind, then uploaded or set again by its counters.
     followHostTexture(texture);
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
     let record = this.records.get(key);
@@ -111,6 +111,9 @@ export class WebglClusterTextures {
       }
       if (record.sampling !== texture.sampling) {
         record.sampling = texture.sampling;
+        // `setSampler` writes the texture bound on the ACTIVE unit: select it even when the
+        // texture is already bound there, or the parameters land on another unit's texture.
+        gl.activeTexture(gl.TEXTURE0 + unit);
         this.setSampler(texture);
       }
     }
