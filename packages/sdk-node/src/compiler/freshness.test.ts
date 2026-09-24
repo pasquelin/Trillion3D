@@ -56,18 +56,17 @@ test('editing a crate source refuses the cook until the compiler is rebuilt', as
 });
 
 // Behaviour: a binary the operator names is trusted whatever the crate says, and announced once.
-test('a binary named by TRILLION3D_COMPILER_BIN is trusted and announced once', async () => {
+test('a binary named by TRILLION3D_COMPILER_BIN is trusted and announced once', async (t) => {
   const { root } = await crate(1_000, 2_000);
-  const written: string[] = [];
-  const write = process.stderr.write;
-  process.stderr.write = ((chunk: string) => written.push(chunk)) as typeof write;
+  const written: unknown[] = [];
+  t.mock.method(process.stderr, 'write', (chunk: unknown) => written.push(chunk) > 0);
   try {
     const environment = { TRILLION3D_COMPILER_BIN: '/operator/compiler' };
     assert.equal(currentCompilerExecutable(undefined, environment, root), '/operator/compiler');
     assert.equal(currentCompilerExecutable(undefined, environment, root), '/operator/compiler');
     assert.equal(currentCompilerExecutable('/caller/compiler', {}, root), '/caller/compiler');
   } finally {
-    process.stderr.write = write;
+    t.mock.restoreAll();
     await rm(root, { recursive: true, force: true });
   }
   assert.deepEqual(written, ['compiler: /operator/compiler (TRILLION3D_COMPILER_BIN)\n']);
