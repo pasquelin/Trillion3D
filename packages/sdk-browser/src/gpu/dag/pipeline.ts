@@ -1,5 +1,6 @@
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
-import { dagBindEntries } from './shader/bindings.ts';
+import { DAG_BINDING, dagBindEntries } from './shader/bindings.ts';
+import { namedBufferEntries } from '../core/computeBindings.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { withScreenErrorVariant } from './shader/error.ts';
 import { screenErrorVariant } from '../../../../sdk-core/src/index.ts';
@@ -45,9 +46,17 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
       viewOffsetsPipeline = stage('dagViewOffsets');
     const bindGroup = device.createBindGroup({
       layout,
-      entries: [clusters, nodes, uniforms, flags, output, work, worlds, frames, pageCones].map(
-        (buffer, binding) => ({ binding, resource: { buffer } }),
-      ),
+      entries: namedBufferEntries(DAG_BINDING, {
+        clusters: { buffer: clusters },
+        nodes: { buffer: nodes },
+        views: { buffer: uniforms },
+        flags: { buffer: flags },
+        out: { buffer: output },
+        work: { buffer: work },
+        worlds: { buffer: worlds },
+        frames: { buffer: frames },
+        cold: { buffer: pageCones },
+      }),
     });
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous
