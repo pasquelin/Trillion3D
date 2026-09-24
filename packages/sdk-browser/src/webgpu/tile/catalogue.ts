@@ -1,9 +1,9 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { previewIsWhole, type TexturePreview } from '../../../../sdk-core/src/index.ts';
 import { WHITE_TAIL, type PoolEncoding } from '../../texture/blockFormats.ts';
-import { textureRgba } from '../../visibility/buffer.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import { tileLayout } from '../../texture/tiles.ts';
+import { sourceSize } from './live.ts';
 import type { TileTexture } from './atlas.ts';
 
 /**
@@ -32,7 +32,6 @@ export function tileCatalogue(
       preview && previewIsWhole(preview) && (preview.bakedLevels === 0 || readLevel)
         ? preview
         : undefined;
-    const rgba = textureRgba(map);
     if (chain) {
       const layout = tileLayout(chain.width, chain.height);
       if (chain.firstLevel !== layout.tail || chain.levels.length !== layout.last - layout.tail + 1)
@@ -47,14 +46,12 @@ export function tileCatalogue(
             : { kind: 'baked', sha256: chain.sha256, atlas: chain.atlas, tail: chain },
       };
     }
-    const image = map.image as { width?: number; height?: number } | undefined;
-    const width = rgba?.width ?? Math.max(1, image?.width ?? 1),
-      height = rgba?.height ?? Math.max(1, image?.height ?? 1);
+    const [width, height] = sourceSize(map);
     return {
       layout: tileLayout(width, height),
       texture: map,
       lane: 'lossless',
-      source: { kind: 'host', map, rgba },
+      source: { kind: 'host', map },
     };
   });
   // The fill takes a lane the textures already open, so its one texel costs no layer of its
