@@ -46,6 +46,11 @@
  *   touch-down, `impact × landingDip / e` below its height. The reflexes that steady a real
  *   eye make a screen show less than the hips travel, and no study fixes how much: a jump
  *   dips the eye about 9 cm, a 2 m fall 18 cm. Sensitivity: the depth is linear in the value.
+ * - MASS 80 kg: the mean adult male body mass of Europe and North America (NCD-RisC, 2016),
+ *   the weight the body presses on what it stands on. Physics backend only.
+ * - PUSH STRENGTH 250 N: the horizontal force an adult man sustains pushing a load at shoulder
+ *   height (Snook and Ciriello, 1991, sustained push forces, 200 to 300 N); a crate lighter than
+ *   that force's worth of friction slides, a heavier one stays. Physics backend only.
  */
 
 /** What a character body reads on every tick; the controller publishes it as its settings. */
@@ -67,6 +72,8 @@ export interface CharacterSettings {
   jumpBuffer: number;
   headBob: number;
   landingDip: number;
+  mass: number;
+  pushStrength: number;
 }
 
 const STATURE = 1.75,
@@ -77,6 +84,16 @@ const STATURE = 1.75,
  *  cadence of recreational runners (160 to 180). Runners go faster mostly by longer strides,
  *  not quicker ones (Dorn, Schache and Pandy, 2012), so the cadence holds from a jog up. */
 export const RUN_CADENCE = 170 / 60;
+
+/** The settings that shape the body a physics backend holds: a change makes it again. */
+export const RESHAPING = [
+  'capsuleRadius',
+  'capsuleHeight',
+  'maxSlope',
+  'stepHeight',
+  'mass',
+  'pushStrength',
+] as const satisfies readonly (keyof CharacterSettings)[];
 
 export const HUMAN_BODY: Readonly<CharacterSettings> = Object.freeze({
   walkSpeed: 3.5,
@@ -96,6 +113,8 @@ export const HUMAN_BODY: Readonly<CharacterSettings> = Object.freeze({
   jumpBuffer: 0.1,
   headBob: 0.035,
   landingDip: 0.06,
+  mass: 80,
+  pushStrength: 250,
 });
 
 /** The fraction of the gap to the wished speed left after the response time: 95 % is closed. */

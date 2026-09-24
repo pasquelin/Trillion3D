@@ -1907,5 +1907,17 @@
         "1000": "1,000"
       }
     }
+  },
+  "walk-with-collisions": {
+    "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀어 보세요.",
+    "controls": {
+      "pushStrength": "미는 힘 (N)",
+      "platformSpeed": "발판 속도",
+      "stackAgain": "다시 쌓기"
+    },
+    "readouts": {
+      "awake": "활성",
+      "speed": "속도"
+    }
   }
 }

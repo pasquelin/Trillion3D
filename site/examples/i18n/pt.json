@@ -1907,5 +1907,17 @@
         "1000": "1.000"
       }
     }
+  },
+  "walk-with-collisions": {
+    "banner": "Clique para olhar em volta, depois ande com W A S D e salte com Espaço: suba a escada e a rampa, ande na plataforma, empurre as caixas.",
+    "controls": {
+      "pushStrength": "Força de empurrão (N)",
+      "platformSpeed": "Velocidade da plataforma",
+      "stackAgain": "Empilhar de novo"
+    },
+    "readouts": {
+      "awake": "Acordados",
+      "speed": "Velocidade"
+    }
   }
 }

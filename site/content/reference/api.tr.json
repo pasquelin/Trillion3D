@@ -925,7 +925,8 @@
       "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
       "PHYSICS_BUDGET": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
       "PHYSICS_NESTED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
-      "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde."
+      "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
+      "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok."
     }
   },
   "EngineProfiler": {
@@ -3769,7 +3770,7 @@
       "follow": "Dünyanın kamerası değişti: kontrolcü onu takip eder.",
       "dispose": "Kontrolcüyü durdurur ve dinleyicilerini canvas'tan kaldırır.",
       "autoUpdate": "Dünyanın döngüsünün, `world.beforeFrame` kancalarından önce, her kareden önce `update`'i çağırıp çağırmadığı. `false`, adımı, böyle bir kancadan `update`'i çağıran, entegre ettiği alt adımlar üzerinden ne sıklıkta olursa olsun çağıran sayfaya verir; dünya o zaman onu asla ilerletmez.",
-      "colliders": "Yalnızca karakter: gövdenin çarpıştığı meshler — bir nesne ya da bir liste, torunları dahil — ya da `null`. Bunları ayarlamak, şu anda durdukları şekliyle dünya-uzayı üçgenlerinden statik bir üçgen ağacı inşa eder: üçgenler üzerinde bir geçiş ve bir `O(T log T)` inşası, üçgen başına yaklaşık 52 bayt tutulur. Derlenmiş modeller henüz okunmaz: onlar için basit bir mesh yer tutucusu verin. Bir `CharacterCollision` — bir fizik motorunun dünyası, `resolveCapsule` ve `groundBelow` sorularını yanıtlayan her şey — olduğu gibi kullanılır.",
+      "colliders": "Yalnızca karakter: gövdenin çarpıştığı meshler — bir nesne ya da bir liste, torunları dahil — ya da `null`. Bunları ayarlamak, şu anda durdukları şekliyle dünya-uzayı üçgenlerinden statik bir üçgen ağacı inşa eder: üçgenler üzerinde bir geçiş ve bir `O(T log T)` inşası, üçgen başına yaklaşık 52 bayt tutulur. Derlenmiş modeller henüz okunmaz: onlar için basit bir mesh yer tutucusu verin. Bir `CharacterCollision` — bir fizik motorunun dünyası, `resolveCapsule` ve `groundBelow` sorularını yanıtlayan her şey — olduğu gibi kullanılır. `world.physics` çalışırken kullanılmaz: gövde fiziğin olur ve cisimleriyle (`mesh.physics`) karşılaşır.",
       "rebuildColliders": "Yalnızca karakter: çarpışma nesneleri hareket ettikten ya da değiştikten sonra, çarpışma ağacını yeniden inşa eder. Bir `CharacterCollision` kendi dünyasıdır ve değiştirilmeden aktarılır.",
       "velocity": "Yalnızca karakter: gövdenin saniyede metre cinsinden hızı, bir kopya; aksi halde sıfır.",
       "onGround": "Yalnızca karakter: ayakların bir zeminde olup olmadığı; başka herhangi bir kontrolcü için `false`.",
@@ -3802,7 +3803,10 @@
       "headBob": "Yalnızca karakter: tempolu bir koşuda her adımda gözün yükselip alçaldığı metre; varsayılan olarak 0,035, 0 düz tutar.",
       "landingDip": "Yalnızca karakter: yere değmeden gözün iniş dalışının en düşük noktasına kadar geçen, çarpma ne kadar hızlıysa o kadar derin olan saniye; varsayılan olarak 0,06, 0 kapatır.",
       "onLand": "Yalnızca karakter: m/s cinsinden aşağı hızla, inişte çağrılır; varsayılan olarak `null`.",
-      "onJump": "Yalnızca karakter: gövde bir zıplamada yerden ayrıldığında çağrılır; varsayılan olarak `null`."
+      "onJump": "Yalnızca karakter: gövde bir zıplamada yerden ayrıldığında çağrılır; varsayılan olarak `null`.",
+      "mass": "Yalnız karakter, fizikle: gövdenin üstünde durduğu yere bastırdığı kilogram; varsayılan 80.",
+      "pushStrength": "Yalnız karakter, fizikle: gövdenin cisimleri ittiği newton; varsayılan 250, bir yetişkinin sürekli itişi.",
+      "vehicle": "Yalnız araç: `'vehicle'` kontrollerinin sürdüğü şey — `drive(input)` sahibi her şey; tuşlar her değiştiğinde gaz, fren, direksiyon ve el frenini alır. Varsayılan `null`; öyle kaldıkça `kind = 'vehicle'` `NO_VEHICLE` fırlatır."
     }
   },
   "world.renderer": {
@@ -7253,6 +7257,22 @@
       "x": "Soldan sağa.",
       "y": "Alttan üste.",
       "z": "Arkadan öne."
+    }
+  },
+  "VehicleDriver": {
+    "summary": "`world.controls.vehicle`’ın sürebileceği her şey: girdi her değiştiğinde onu alır.",
+    "members": {
+      "drive": "Bir tuş değiştirdiğinde pedalları ve direksiyonu alır."
+    }
+  },
+  "VehicleInput": {
+    "summary": "Sürücünün araçtan istediği: `world.controls` `'vehicle'` tuşlarının ayarladığı pedallar ve direksiyon.",
+    "description": "Aracın kendi fiziği — motor, tekerlekler, süspansiyon — bunlara yanıt verir; kontrollerin bildiği yalnızca bu sözleşmedir.",
+    "members": {
+      "throttle": "Gaz pedalı, 0 ile 1 arası.",
+      "brake": "Fren pedalı, 0 ile 1 arası.",
+      "steer": "Direksiyon, −1 tam sol ile 1 tam sağ arası.",
+      "handbrake": "El freninin çekili olup olmadığı."
     }
   }
 }

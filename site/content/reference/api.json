@@ -1934,7 +1934,7 @@
       {
         "name": "collision",
         "type": "CharacterCollision | null",
-        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls."
+        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls. Unused while the world's physics runs: the body is then the physics' own."
       },
       {
         "name": "update(delta?: number)",
@@ -2733,7 +2733,7 @@
       {
         "name": "other",
         "type": "Object3D | null",
-        "desc": "The object touched; `null` once it has left the scene."
+        "desc": "The object touched, the camera when the character touched it; `null` once it has left the scene."
       },
       {
         "name": "impulse",
@@ -3966,6 +3966,10 @@
       {
         "name": "PHYSICS_FAILED",
         "desc": "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`."
+      },
+      {
+        "name": "NO_VEHICLE",
+        "desc": "`world.controls.kind` was set to `'vehicle'` while `world.controls.vehicle` is `null`: there is nothing to drive."
       }
     ],
     "description": ""
@@ -17571,6 +17575,57 @@
     "description": ""
   },
   {
+    "id": "VehicleDriver",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleDriver"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleDriver",
+    "signature": "interface VehicleDriver",
+    "summary": "Anything `world.controls.vehicle` can drive: it hears the input each time it changes.",
+    "members": [
+      {
+        "name": "drive(input: Readonly<VehicleInput>)",
+        "type": "void",
+        "desc": "Hears the pedals and the wheel, each time a key changes them, when it starts to be driven, and all released when it stops being driven."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "VehicleInput",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleInput"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleInput",
+    "signature": "interface VehicleInput",
+    "summary": "What a driver asks of a vehicle: the pedals and the wheel, as the keys of `world.controls` `'vehicle'` set them (`sdk-browser/src/camera/controls/vehicleControls.ts`).",
+    "members": [
+      {
+        "name": "throttle",
+        "type": "number",
+        "desc": "Accelerator, 0 to 1."
+      },
+      {
+        "name": "brake",
+        "type": "number",
+        "desc": "Brake pedal, 0 to 1."
+      },
+      {
+        "name": "steer",
+        "type": "number",
+        "desc": "Wheel, −1 full left to 1 full right."
+      },
+      {
+        "name": "handbrake",
+        "type": "boolean",
+        "desc": "Whether the handbrake is pulled."
+      }
+    ],
+    "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
+  },
+  {
     "id": "World",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["World"],
@@ -17692,7 +17747,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.controls",
-    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; autoUpdate: boolean; colliders: Object3D | readonly Object3D[] | CharacterCollision | null...",
+    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; autoUpdate: boolean; readonly velocity: Vector3; readonly onGround: boolean; readonly stri...",
     "summary": "The mouse and keyboard controller that moves the camera.",
     "members": [
       {
@@ -17714,16 +17769,6 @@
         "name": "autoUpdate",
         "type": "boolean",
         "desc": "Whether the world's loop calls `update` ahead of each frame, before `world.beforeFrame` hooks. `false` hands the step to the page, which calls `update` from such a hook, as often and over whatever sub-steps it integrates; the world then never steps it."
-      },
-      {
-        "name": "colliders",
-        "type": "Object3D | CharacterCollision | readonly Object3D[] | null",
-        "desc": "Character only: what the body collides with, or `null`. Meshes — one object or a list, their descendants included — build a static triangle tree from their world-space triangles as they stand now: one pass over the triangles and an `O(T log T)` build, about 52 bytes kept per triangle. Compiled models are not read yet: give a simple mesh stand-in for them. A `CharacterCollision` — a physics backend's world, anything that answers `resolveCapsule` and `groundBelow` — is used as it is."
-      },
-      {
-        "name": "rebuildColliders()",
-        "type": "void",
-        "desc": "Character only: builds the collision tree again, after the colliders moved or changed; a `CharacterCollision` is its own world and is handed on unchanged."
       },
       {
         "name": "velocity",
@@ -17951,6 +17996,16 @@
         "desc": "Character only: seconds from touch-down to the lowest point of the eye's landing dip, as deep as the impact is fast; 0.06 by default, 0 turns it off."
       },
       {
+        "name": "mass",
+        "type": "number",
+        "desc": "Character only, with physics: kilograms the body presses on what it stands on; 80 by default."
+      },
+      {
+        "name": "pushStrength",
+        "type": "number",
+        "desc": "Character only, with physics: newtons the body pushes bodies with; 250 by default, an adult's sustained push."
+      },
+      {
         "name": "onLand",
         "type": "((impact: number) => void) | null",
         "desc": "Character only: called on landing with the downward speed in m/s; `null` by default."
@@ -17959,6 +18014,21 @@
         "name": "onJump",
         "type": "(() => void) | null",
         "desc": "Character only: called when the body leaves the ground on a jump; `null` by default."
+      },
+      {
+        "name": "colliders",
+        "type": "Object3D | CharacterCollision | readonly Object3D[] | null",
+        "desc": "Character only: what the body collides with, or `null`. Meshes — one object or a list, their descendants included — build a static triangle tree from their world-space triangles as they stand now: one pass over the triangles and an `O(T log T)` build, about 52 bytes kept per triangle. Compiled models are not read yet: give a simple mesh stand-in for them. A `CharacterCollision` — anything that answers `resolveCapsule` and `groundBelow` — is used as it is. Unused while `world.physics` is on: the body is then Jolt's and meets the simulation's bodies, `mesh.physics`."
+      },
+      {
+        "name": "rebuildColliders()",
+        "type": "void",
+        "desc": "Character only: builds the collision tree again, after the colliders moved or changed; a `CharacterCollision` is its own world and is handed on unchanged."
+      },
+      {
+        "name": "vehicle",
+        "type": "VehicleDriver | null",
+        "desc": "Vehicle only: what the `'vehicle'` controls drive — anything with `drive(input)`, which hears the throttle, brake, steer and handbrake each time the keys change them. `null` by default; the `'vehicle'` controls never run without one: `kind = 'vehicle'` and `createWorld(…, { controls: 'vehicle' })` throw `NO_VEHICLE` while it is `null`, and so does setting it to `null` while they drive."
       }
     ],
     "description": ""
@@ -18299,7 +18369,7 @@
     "section": "world",
     "kind": "Type",
     "title": "WorldControls",
-    "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'character' | 'trackball' | 'panZoom' | 'none'",
+    "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'character' | 'vehicle' | 'trackball' | 'panZoom' | 'none'",
     "summary": "The ways a page can steer the camera with the mouse and keyboard, or `'none'`.",
     "description": "`'firstPerson'` moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with `world.controls.colliders` — and looks through its eyes."
   },
@@ -18839,7 +18909,7 @@
       {
         "name": "controls?",
         "type": "WorldControls | undefined",
-        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later."
+        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later. `'vehicle'` throws `NO_VEHICLE` here: no vehicle is set before the world exists — set `world.controls.vehicle`, then `kind`."
       },
       {
         "name": "signal?",
@@ -22535,7 +22605,7 @@
         "name": "options.controls?",
         "type": "WorldControls",
         "default": "'none'",
-        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later."
+        "desc": "The controller that moves the camera from the canvas; `world.controls.kind` changes it later. `'vehicle'` throws `NO_VEHICLE` here: no vehicle is set before the world exists — set `world.controls.vehicle`, then `kind`."
       },
       {
         "name": "options.signal?",

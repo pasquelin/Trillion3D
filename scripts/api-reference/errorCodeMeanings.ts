@@ -35,4 +35,6 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
     'A saved scene is of another format or version, or holds what a saved scene cannot store.',
   PHYSICS_BUDGET:
     "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`.",
+  NO_VEHICLE:
+    "`world.controls.kind` was set to `'vehicle'` while `world.controls.vehicle` is `null`: there is nothing to drive.",
 };

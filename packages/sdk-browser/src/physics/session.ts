@@ -20,16 +20,9 @@ import {
   type PhysicsResults,
 } from './protocol.ts';
 import { createPhysicsView } from './view.ts';
-
-/**
- * Threads the step gets: the budget's, capped by the logical cores minus the page's own; one where
- * memory cannot be shared (a page that is not cross-origin isolated) or the cores are not reported.
- */
-function stepThreads(wanted: number) {
-  const cores = navigator.hardwareConcurrency;
-  if (!globalThis.crossOriginIsolated || !Number.isInteger(cores) || cores < 2) return 1;
-  return Math.max(1, Math.min(Math.floor(wanted), cores - 1));
-}
+import { stepThreads } from './joltThreads.ts';
+import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
+import type { CharacterBodyFactory } from '../../../sdk-core/src/collision/characterBody.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -37,7 +30,7 @@ function stepThreads(wanted: number) {
  */
 export function createPhysicsSession(
   root: Object3D,
-  budget: PhysicsBudget,
+  budget: Readonly<PhysicsBudget>,
   invalidate: () => void,
   failed: (error: EngineError, fatal?: boolean) => void,
 ) {
@@ -86,6 +79,8 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
+  /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
+  const touched: { id: number; eye: Object3D | null } = { id: budget.bodies, eye: null };
   const worker = new Worker(besideModule('physicsWorker', import.meta.url), { type: 'module' });
   const threads = stepThreads(budget.threads);
   const bytes = resultWords(budget) * 4;
@@ -112,9 +107,10 @@ export function createPhysicsSession(
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
     const moved = poses.receive(words, m.poses, bodies, ms);
-    emitContacts(words, eventsAt(budget), m.events, bodies.meshOf);
+    emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
+    if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
-    const changed = moved > 0 || m.active !== stats.active;
+    const changed = moved > 0 || m.active !== stats.active || m.character !== null;
     Object.assign(stats, { active: m.active, poses: m.poses, events: m.events });
     stats.droppedEvents += m.dropped;
     stats.bodies = bodies.count.bodies;
@@ -140,9 +136,12 @@ export function createPhysicsSession(
   worker.onerror = (event) =>
     failed(new EngineError('PHYSICS_FAILED', `Physics worker: ${event.message}`), true);
   const clock = { paused: false, timeScale: 1 };
+  const character = createCharacterPort((message) => worker.postMessage(message));
+  const characterBody: CharacterBodyFactory = (s) => createPhysicsCharacter(character, s);
   return {
     stats,
     writer,
+    /** The character's body in this session's worker, for `world.controls`. */ characterBody,
     /** Pauses or scales the simulation's time; a scale of 0 stands still, like a pause. */
     setClock(paused: boolean, timeScale: number) {
       Object.assign(clock, { paused, timeScale });
@@ -170,6 +169,7 @@ export function createPhysicsSession(
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
     frame(camera: Camera) {
+      touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
         stale.clear();
@@ -184,6 +184,7 @@ export function createPhysicsSession(
         const words = writer.take();
         worker.postMessage({ type: 'commands', words }, [words.buffer]);
       }
+      if (ready) character.flush();
       return moving;
     },
     dispose() {
