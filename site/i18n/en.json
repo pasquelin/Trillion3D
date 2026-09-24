@@ -1060,7 +1060,8 @@
           "Give the world <code>physics: true</code>. The simulation runs apart from the drawing, in a <em>worker</em>, so it never slows the picture down.",
           "Mark the floor <code>'static'</code>: it holds the others and never moves. Mark a box <code>'dynamic'</code>: gravity pulls it.",
           "The shape comes from the geometry, the weight from the material: <code>physics: 'wood'</code> is light, <code>'metal'</code> is heavy, <code>'rubber'</code> bounces.",
-          "Push a body with <code>applyImpulse</code>, or listen to its <code>contact</code>. Once every body sleeps, nothing is computed and nothing is drawn."
+          "Push a body with <code>applyImpulse</code>, or listen to its <code>contact</code>. Once every body sleeps, nothing is computed and nothing is drawn.",
+          "A model loaded with <code>scene.load</code> collides with its own triangles, cooked when it was compiled. <code>await world.raycast(point, { exact: true })</code> finds the very triangle under the cursor."
         ],
         "tryIt": "Drop more boxes, switch the gravity to the Moon, and turn on slow motion."
       },

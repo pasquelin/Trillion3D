@@ -568,6 +568,36 @@ tightest sphere wins. The field is written only when the radius is finite, stric
 strictly below `range`; otherwise it is counted `light-emitter-radius-invalid` and omitted. A lamp
 with no envelope, and a `directional` lamp — which has no centre — receive nothing, uncounted.
 
+### `physics.json` — the cooked colliders (stage `physics-cook`)
+
+At runtime, loading a collider is a decode and a copy: no tree, hull or mass is computed in the
+browser. Native Jolt is linked into the compiler from the same pinned submodule as the web module
+(`build.rs` builds `packages/physics-jolt-wasm` with `-DCOOK=ON`, which needs CMake and a C++17
+compiler, and the submodule checked out: `git submodule update --init`). The stage contract is
+`PHYSICS_COOK_STAGE` / `PHYSICS_COOK_VERSION`; the Jolt commit and the stage version enter the cache
+key, so a cache cooked by another Jolt is another key, never reused. The algorithms live in
+`src/physics_cook/`:
+
+- **Collision level** (`cut.rs`). A cut through the DAG at one tolerance `t`, the clusters with
+  `lod_error <= t < parent_error` — the rule the renderer and the proxy cut by, so the surface is
+  covered once, borders locked. `t` is the object's own: the median error of its first simplified
+  level. A primitive with no simplified level collides at level 0. The distance to level 0 is then
+  measured both ways (`hausdorff.rs`, vertices, edge midpoints and centroids of each side to the
+  other's nearest triangle) and published as `hausdorff`.
+- **Tiles.** The cut is split along the culling hierarchy: a node whose collision triangles fit
+  4096 is one tile, a larger one hands its children down. Each tile is a Jolt `MeshShape` in the
+  primitive's frame, with its triangles' material index, stored under its SHA-256.
+- **Height fields** (`height.rs`). A primitive whose used vertices sit on an evenly spaced x-z
+  lattice, one per point, every triangle within one cell, becomes a `HeightFieldShape`; the largest
+  gap between the two diagonals of a cell is published as its `hausdorff`.
+- **Declared bodies** (`declared.rs`). `KHR_physics_rigid_bodies` and `KHR_implicit_shapes` are
+  read; a node that declares nothing is static. A declared dynamic body without a shape gets a
+  convex decomposition (`decompose.rs`, after Mamou & Ghorbel's hierarchical approximate convex
+  decomposition: a part is cut across its longest axis until its concavity is within the mesh's mean
+  edge length, 64 hulls at most), weighed at cook time (mass, centre of mass, inertia).
+
+Primitives without a DAG (skinned, morphed, shared blend) cook no collider.
+
 ## Cutouts declared as blend
 
 The virtualized path takes opaque and masked materials, not blended ones: a blended primitive costs
