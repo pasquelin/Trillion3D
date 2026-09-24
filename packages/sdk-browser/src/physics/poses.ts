@@ -106,8 +106,8 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         velocity[v + 5] = floats[at + 13] * moves;
         if (asleep && decorative[index]) {
           place(index, floats, at + 1);
-          // Off the moving list: the slot may hold another body before the list is drawn.
-          listed[index] = 0;
+          // Its generation moves on: the next frame takes it off the moving list, and a body
+          // that takes the slot before then is listed once, not twice.
           bodies.retire(index);
           moved++;
           continue;
@@ -155,30 +155,29 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
       const step = alpha < 1 ? (alpha - drawn) / (1 - drawn) : 1;
       drawn = alpha;
       placer.begin();
+      // A slot whose body left, or went to another mesh, leaves the list: it waits for that
+      // mesh's own record, which lists it again. The rest is drawn in one pass.
+      let kept = 0;
       for (let i = 0; i < count; i++) {
         const index = moving[i];
-        // A slot whose body left, or went to another mesh, waits for that mesh's own record.
-        if (!listed[index] || bound[index] !== generation[index]) continue;
-        const o = index * 7,
-          v = index * 6;
-        // The frame at the target lands on the record exactly: sent again, it is seen unchanged.
-        if (alpha === 1 && ahead === 0) {
-          place(index, to, o);
-          continue;
-        }
-        if (alpha < 1) {
-          placer.lerp(index, to, o, step);
-          continue;
-        }
-        extrapolate(pose, to, o, velocity, v, ahead);
-        const n =
-          1 /
-          (Math.sqrt(
-            pose[3] * pose[3] + pose[4] * pose[4] + pose[5] * pose[5] + pose[6] * pose[6],
-          ) || 1);
-        for (let k = 3; k < 7; k++) pose[k] *= n;
-        place(index, pose, 0);
+        if (listed[index] && bound[index] === generation[index]) moving[kept++] = index;
+        else listed[index] = 0;
       }
+      count = kept;
+      // Short of the target, or on it: the record itself, sent again, is then seen unchanged.
+      if (alpha < 1 || ahead === 0) placer.draw(moving, count, to, alpha < 1 ? step : 1);
+      else
+        for (let i = 0; i < count; i++) {
+          const index = moving[i];
+          extrapolate(pose, to, index * 7, velocity, index * 6, ahead);
+          const n =
+            1 /
+            (Math.sqrt(
+              pose[3] * pose[3] + pose[4] * pose[4] + pose[5] * pose[5] + pose[6] * pose[6],
+            ) || 1);
+          for (let k = 3; k < 7; k++) pose[k] *= n;
+          place(index, pose, 0);
+        }
       placer.end();
       if (alpha < 1 || (awake && elapsed < 2 * span)) return true;
       for (let i = 0; i < count; i++) listed[moving[i]] = 0;
