@@ -28,6 +28,9 @@ export const atlasLayoutEntries = (
   })),
   { binding: bindings.pages, visibility, buffer: readOnly },
 ];
+/** Bytes of the visibility-buffer uniform `Uniforms` (`../../visibility/shader/pageWgsl.ts`): its
+ *  nine words after the matrix, rounded up to the struct's 16-byte alignment. */
+export const VIS_UNIFORM_BYTES = 112;
 export const VIS_BINDINGS = {
   cache: 0,
   position: 1,

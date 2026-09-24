@@ -2968,6 +2968,7 @@
       "affectedConsumers": [
         "bench/perf/browser/frustum-residency.perf.ts",
         "bench/perf/browser/support/volumeFrustumCases.ts",
+        "packages/sdk-browser/src/page/cut/take.ts",
         "packages/sdk-browser/src/page/cut/visit.ts",
         "packages/sdk-browser/src/page/selection/math.test.ts"
       ],
@@ -5392,7 +5393,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/camera/engineCamera.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/camera/depthRamp.test.ts",
+        "packages/sdk-browser/src/camera/engineCamera.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/camera\".orthographicProjection"
     },
@@ -5902,6 +5906,7 @@
         "bench/oracles/browser/occlusion.ts",
         "bench/perf/browser/support/hierarchyReplayEngine.ts",
         "bench/perf/core/three-vs-core-camera.perf.ts",
+        "packages/sdk-browser/src/camera/depthRamp.test.ts",
         "packages/sdk-browser/src/camera/engineCamera.ts",
         "packages/sdk-browser/src/camera/world.test.ts",
         "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts"
@@ -6825,7 +6830,7 @@
       "currentEntryPoints": ["trillion3d (node condition)"],
       "proposedEnvironments": "node",
       "classification": "public",
-      "affectedConsumers": ["bench/runner/assets.ts", "scripts/native-compiler.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/src/compiler/process\".resolveCompilerExecutable"
     },
@@ -7318,7 +7323,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "experimental",
-      "affectedConsumers": ["packages/sdk-browser/src/gpu/dag/pipeline.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/dag/pipeline.ts",
+        "packages/sdk-browser/src/page/cut/walkWasm.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lod/screenErrorVariant\".screenErrorVariant"
     },

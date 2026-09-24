@@ -135,7 +135,7 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
   }
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`).
  if(model==${SURFACE_MODEL.normal}u){rgb=viewNormal(N)*0.5+0.5;}
- if(model==${SURFACE_MODEL.depth}u){rgb=vec3f(dot(bary,vec3f(c0.z,c1.z,c2.z))/dot(bary,vec3f(c0.w,c1.w,c2.w)));}
+ if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
  if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),1u,request);}
  var flag=select(1u,2u,(page.flags&1u)!=0u);
  if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}

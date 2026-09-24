@@ -8,6 +8,10 @@ import { FRAME_VEC4, type PackedDag } from './types.ts';
  */
 const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10];
 
+/** First per-primitive word of primitive `w` in the frame buffer, behind its six planes: the
+ *  stretch, then the root (`+ 1`) and the record shift (`+ 2`), as `primitiveFrameWords` lays them. */
+export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4;
+
 /**
  * Object-to-view stretch of primitives whose linear part moved, recomputed for them only; returns
  * their count.
@@ -37,7 +41,7 @@ export function refreshWorldStretch(
     count++;
     const stretch = maxStretch(next.subarray(base, base + 16));
     packed.worldStretch[w] = stretch;
-    frameData[(w * FRAME_VEC4 + 6) * 4] = stretch;
+    frameData[primitiveWordAt(w)] = stretch;
   }
   return count;
 }
@@ -50,4 +54,24 @@ export function refreshWorldStretch(
 export function worldsChanged(previous: Float32Array, next: Float32Array) {
   for (let j = 0; j < next.length; j++) if (previous[j] !== next[j]) return true;
   return false;
+}
+
+/**
+ * Per-primitive frame words, behind the six planes of its first row: the stretch, the root the
+ * descent starts from, and the record shift that leads its pages to their shared records
+ * (`layout.ts`). Three words the kernel reads without one more storage buffer bound to the stage.
+ */
+export function primitiveFrameWords(
+  packed: Pick<PackedDag, 'worldCount' | 'worldStretch' | 'rootNodes' | 'recordShift'>,
+) {
+  const worldCount = Math.max(1, packed.worldCount);
+  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
+    frameInts = new Uint32Array(frameData.buffer);
+  for (let w = 0; w < packed.worldCount; w++) {
+    const at = primitiveWordAt(w);
+    frameData[at] = packed.worldStretch[w];
+    frameInts[at + 1] = packed.rootNodes[w];
+    frameInts[at + 2] = packed.recordShift[w];
+  }
+  return frameData;
 }

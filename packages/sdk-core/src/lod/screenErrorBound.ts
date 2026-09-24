@@ -52,6 +52,7 @@ export function screenErrorBound(
   // EXPERIMENT switch (`screenErrorVariant.ts`), read here for the whole CPU selection.
   if (screenErrorVariant() !== 'certifiee')
     return referenceScreenError(error, stretch, depth, focal, near, perspective);
+  // Rust mirror (CPU cut walk): `projected_error_at` of `packages/page-codec-wasm/src/cut_error.rs`.
   const reach = radius * stretch,
     shift = error * stretch;
   const nearest = clipWeight(perspective, depth - reach),

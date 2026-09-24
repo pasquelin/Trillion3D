@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
-import { compileFullCache } from './native-compiler.ts';
+import { compileFullCache, nativeCompiler } from './native-compiler.ts';
 
 /**
  * Writes the sources of the example scenes, under `site/assets/examples/<scene>/source` — an
@@ -15,9 +15,11 @@ const root = resolve(import.meta.dirname, '..'),
 
 const names = Object.keys(modelScenes).filter((name) => !only || name === only);
 if (!names.length) throw new Error(`Unknown example scene: ${only}`);
+const sourceOnly = process.argv.includes('--source-only');
+if (!sourceOnly) nativeCompiler();
 
 await writeModelScenes(examples, resolve(examples, 'models'), names);
-if (process.argv.includes('--source-only')) process.exit(0);
+if (sourceOnly) process.exit(0);
 
 for (const name of names) {
   const directory = resolve(examples, name);
