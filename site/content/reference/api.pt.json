@@ -1016,6 +1016,10 @@
       "autoForward": "CRUZEIRO, desligado por padrão: a câmera voa para frente a `movementSpeed` sem nenhuma tecla pressionada, como um avião faz. W então soma `movementSpeed` (duas vezes mais rápido) e S a tira (a câmera fica parada no lugar); ela nunca voa para trás. Nada se move até o próximo `update`, então um host que redesenha em `change` pede um quadro quando liga o cruzeiro."
     }
   },
+  "Fog": {
+    "summary": "Névoa sobre cada superfície iluminada: linear de `near` a `far`, ou que se adensa com a distância segundo `density`, e rareia em altura acima de `baseHeight` quando `heightFalloff` é dado.",
+    "description": "A cor é a luz que a névoa espalha em direção ao olho, exposta e passada pela curva de exibição como a de uma superfície."
+  },
   "FrameInfo": {
     "summary": "O que um hook de quadro recebe: segundos desde o último quadro e desde que o mundo começou.",
     "description": "O objeto único do mundo, reescrito a cada quadro: um hook que mantém um valor o copia.",
@@ -2750,8 +2754,8 @@
     "members": {
       "isScene": "Sempre `true`: distingue a raiz da cena de qualquer outro objeto.",
       "environment": "Uma imagem dos arredores que superfícies brilhantes refletem; `null` para nenhuma.",
-      "fog": "Névoa que esmaece objetos em direção a `color` entre `near` e `far`; `null` para nenhuma.",
       "background": "O que preenche a imagem atrás de cada objeto: uma cor, ou `null` para o padrão. Uma mudança aparece no quadro seguinte, mantendo a sessão: uma nova cor atribuída aqui, ou a atual escrita pelos seus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Uma escrita direta de `.r`, `.g` ou `.b` não é detetada: atribua `background` de novo depois. Uma imagem, ou qualquer valor sem `getHex`, é recusada (`UNSUPPORTED_SCENE_UPDATE`): nenhum caminho a desenha.",
+      "fog": "Névoa sobre cada superfície iluminada, opaca ou transparente, nos dois renderizadores; `null`, o padrão, para nenhuma, sem custo. `{ color, near, far }` esvai os objetos em `color` de `near` a `far`, distâncias a partir da câmera; `{ color, density }` se adensa `density` por unidade de distância; acrescente `heightFalloff` (e `baseHeight`, 0 por padrão) e ela assenta no chão, rareando acima de `baseHeight` — dividida por e a cada `1 / heightFalloff` unidades para cima. Uma mudança aparece no quadro seguinte: uma névoa nova dada aqui, ou sua cor escrita pelos seus métodos. Uma escrita direta de `near`, `far`, `density`... não é ouvida: dê `fog` de novo depois. Uma névoa fora do intervalo — `far` não além de `near`, uma densidade negativa — é recusada (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carrega um modelo compilado — a URL de seu manifesto — e o adiciona a esta cena.",
       "toJSON": "A cena como JSON simples e versionado: seus objetos, as formas pela chamada que as construiu, os materiais, as luzes e os modelos carregados por endereço; também a pose de `camera` quando uma é informada.",
       "fromJSON": "Substitui o que a cena contém por uma cena salva com `toJSON`, mantendo suas marcas `helper`; é resolvida quando seus modelos estão carregados. Outro formato ou outra versão é recusado (`UNSUPPORTED_SCENE_FORMAT`). Chamadas feitas enquanto uma está sendo lida rodam uma depois da outra, em ordem, cada uma sobre o que a anterior deixou: duas cenas salvas nunca se misturam."
@@ -2762,8 +2766,21 @@
     "members": {
       "exposure": "Multiplicador da radiância linear, aplicado antes da curva.",
       "toneMapping": "A curva de exibição; `DEFAULT_TONE_MAPPING` quando ausente.",
-      "irradiance": "A irradiância chegando de cada direção, como 27 números: nove coeficientes, cada um uma tripla RGB, na ordem de banda constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, ou tudo zero, nada ilumina uma superfície além das lâmpadas declaradas."
+      "irradiance": "A irradiância chegando de cada direção, como 27 números: nove coeficientes, cada um uma tripla RGB, na ordem de banda constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, ou tudo zero, nada ilumina uma superfície além das lâmpadas declaradas.",
+      "fog": "Névoa de distância ou de altura sobre cada superfície iluminada (`SceneFog`); ausente, nenhuma."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Névoa que se adensa com a distância: `density` por unidade da cena; com `heightFalloff`, rareia acima de `baseHeight`, dividida por e a cada `1 / heightFalloff` unidades para cima.",
+    "members": {
+      "color": "A radiância para a qual a névoa esvai os objetos, em RGB linear.",
+      "density": "Extinção por unidade da cena, em `baseHeight`; ≥ 0.",
+      "heightFalloff": "Quão depressa a densidade cai com a altura, por unidade da cena; 0, o padrão, a mantém uniforme em qualquer altura.",
+      "baseHeight": "A altura em que a densidade vale `density`; 0 por padrão."
+    }
+  },
+  "SceneFog": {
+    "summary": "Névoa de distância ou de altura, como a iluminação a lê."
   },
   "SceneLight": {
     "summary": "Uma luz de cena, versão 2.",
@@ -2812,6 +2829,14 @@
   "SceneLightingView": {
     "summary": "O que o host pede para ver.",
     "description": "`lit` é iluminação real e só isso; `unlit` é a visão de diagnóstico de albedo bruto — cor do material como está, sem luz, sem ambiente e sem emissão — para benchmarks de geometria que comparam imagens pixel a pixel. `auto`, o padrão, produz `unlit` enquanto nenhuma luz é declarada e `lit` assim que existe uma. `bounce` é a terceira visão de diagnóstico: apenas a irradiância indireta, multiplicada pela exposição e produzida como valores lineares sem ACES ou sRGB. É isso que o arcabouço de teste compara ao oráculo do compilador; não é uma imagem para olhar, e é preta sem um rebote preparado."
+  },
+  "SceneLinearFog": {
+    "summary": "Névoa que começa em `near` e esconde tudo a partir de `far`, distâncias a partir do olho.",
+    "members": {
+      "color": "A radiância para a qual a névoa esvai os objetos, em RGB linear.",
+      "near": "Distância a partir do olho onde a névoa começa.",
+      "far": "Distância a partir do olho onde só se vê a névoa."
+    }
   },
   "SceneLink": {
     "summary": "O que um nó relata ao mundo em que está pendurado: uma pose se moveu, a árvore mudou, um conteúdo mudou.",
@@ -6782,7 +6807,7 @@
       "format": "Sempre `'trillion3d-scene'`.",
       "formatVersion": "A versão desta estrutura; outra é recusada.",
       "background": "A cor de fundo, ou `null`.",
-      "fog": "A névoa, ou `null`.",
+      "fog": "A névoa, sua cor em componentes lineares, ou `null`.",
       "camera": "A câmera salva com a cena, ou `null`.",
       "geometries": "Cada forma, uma só vez, não importa quantas malhas a usem.",
       "materials": "Cada material, uma só vez, não importa quantas malhas o usem.",
