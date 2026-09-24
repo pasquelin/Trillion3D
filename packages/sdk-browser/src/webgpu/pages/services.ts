@@ -9,6 +9,7 @@ import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
 import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
+import { createPageParents } from '../residency/admission.ts';
 import { createShadowTier } from '../residency/shadowTier.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
@@ -148,6 +149,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     bootstrapKey,
     signal: context.signal,
     hasBytes,
+    parentsOf: createPageParents(rt.layout.selectionRoots),
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,

@@ -21,6 +21,7 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
+      // Waits for #573: a shape rewritten every frame is uploaded in place, not cut again.
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls, readout, seeded } from '../runtime/kit.js';
 

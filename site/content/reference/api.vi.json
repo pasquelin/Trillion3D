@@ -309,7 +309,9 @@
       "texturePreviewSha": "Dấu vân tay của mỗi bản xem trước kết cấu.",
       "texturePreviewPixels": "Các điểm ảnh của các bản xem trước đó.",
       "texturePreviewBc7": "Các khối BC7 của các bản xem trước đó.",
-      "texturePreviewAstc": "Các khối ASTC của các bản xem trước đó."
+      "texturePreviewAstc": "Các khối ASTC của các bản xem trước đó.",
+      "bundleDependencyCount": "Mỗi gói cần bao nhiêu gói khác.",
+      "bundleDependency": "Các gói mà mỗi gói cần, cho đến tận gốc."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -659,7 +661,8 @@
       "bundles": "Gói.",
       "previews": "Bản xem trước kết cấu.",
       "previewBytes": "Byte của cột điểm ảnh, mỗi mức của mỗi mục được nối lại.",
-      "previewBlockBytes": "Byte của mỗi cột khối: đuôi các chuỗi được giữ lại đã nén, các khối nguyên vẹn, các mục liền kề, không có gì cho một chuỗi mà nhóm đó để nguyên không mất mát."
+      "previewBlockBytes": "Byte của mỗi cột khối: đuôi các chuỗi được giữ lại đã nén, các khối nguyên vẹn, các mục liền kề, không có gì cho một chuỗi mà nhóm đó để nguyên không mất mát.",
+      "bundleDependencies": "Phụ thuộc của các gói, danh sách của mọi gói nối liền nhau."
     }
   },
   "CpuStepSummary": {
@@ -3165,7 +3168,8 @@
       "version": "Phiên bản định dạng.",
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
-      "pages": "Có bao nhiêu gói."
+      "pages": "Có bao nhiêu gói.",
+      "maxDependencies": "Số phụ thuộc lớn nhất của một gói: giới hạn mà trình biên dịch công bố."
     }
   },
   "SlimStructure": {
@@ -3258,7 +3262,8 @@
       "url": "Nơi nó được đọc.",
       "sha256": "Dấu vân tay của các byte của nó.",
       "bytes": "Kích thước của nó.",
-      "count": "Số cụm nó chứa."
+      "count": "Số cụm nó chứa.",
+      "dependencies": "Các gói chứa cha của các cụm của nó, cho đến các gốc luôn được nạp, theo thứ tự tăng dần: nó được cài sau từng gói đó."
     }
   },
   "StreamCatalogue": {
@@ -3268,7 +3273,8 @@
       "version": "Phiên bản định dạng.",
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
-      "pages": "Mọi gói."
+      "pages": "Mọi gói.",
+      "maxDependencies": "Số phụ thuộc lớn nhất của một gói, như trình biên dịch đã công bố."
     }
   },
   "StreamPage": {

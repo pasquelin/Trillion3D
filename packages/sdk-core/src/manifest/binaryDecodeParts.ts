@@ -16,6 +16,15 @@ export interface PartCursors {
   output: number;
   root: number;
   bundle: number;
+  dependency: number;
+}
+
+/** The bundle columns: two words, a digest and a dependency list per bundle. */
+export interface BundleColumns {
+  bundleWords: Uint32Array;
+  bundleShaText: string;
+  bundleDependencyCount: Uint32Array;
+  bundleDependency: Uint32Array;
 }
 
 export interface GroupColumns {
@@ -95,8 +104,7 @@ export function decodeStructure(
 /** The streaming bundles of one primitive, each named by its own digest. */
 export function decodeStreams(
   binary: SlimPrimitiveBinary,
-  words: Uint32Array,
-  shaText: string,
+  { bundleWords: words, bundleShaText: shaText, ...lists }: BundleColumns,
   url: { prefix: string; suffix: string },
   cursors: PartCursors,
 ): StreamCatalogue | null | undefined {
@@ -105,17 +113,23 @@ export function decodeStreams(
   const pages: StreamBundle[] = new Array(binary.streams.pages);
   for (let b = 0; b < binary.streams.pages; b++, cursors.bundle++) {
     const sha = shaText.substring(cursors.bundle * 64, cursors.bundle * 64 + 64);
+    const count = lists.bundleDependencyCount[cursors.bundle];
+    const dependencies = Array.from(
+      lists.bundleDependency.subarray(cursors.dependency, (cursors.dependency += count)),
+    );
     pages[b] = {
       url: url.prefix + sha + url.suffix,
       sha256: sha,
       bytes: words[cursors.bundle * 2],
       count: words[cursors.bundle * 2 + 1],
+      dependencies,
     };
   }
   return {
     version: binary.streams.version,
     pinned: binary.streams.pinned,
     bundleBytes: binary.streams.bundleBytes,
+    maxDependencies: binary.streams.maxDependencies,
     pages,
   };
 }
