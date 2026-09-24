@@ -2024,6 +2024,7 @@
       "children": "Filhos anexados na ordem de inserção. A lista devolvida não pode ser alterada.",
       "add": "Torna objetos filhos deste nó.",
       "remove": "Tira filhos deste nó.",
+      "destroy": "Liberta o nó e tudo abaixo dele agora, em vez de quando forem recolhidos.",
       "removeFromParent": "Tira o nó de seu pai.",
       "clear": "Tira todo filho deste nó.",
       "traverse": "Chama `fn` neste nó e em todos abaixo dele.",
@@ -3533,7 +3534,7 @@
   },
   "TransformTree": {
     "summary": "Hierarquia de transformações do motor, orientada a dados: um nó é um índice em arrays lineares — pai, flags, posição, quatérnio `(x, y, z, w)`, escala, matriz local e matriz de mundo em ordem de coluna.",
-    "description": "`localViews[i]` e `worldViews[i]` são views de dezesseis números sobre `local` e `world`, criadas no crescimento e nunca durante uma atualização: a GPU lê o buffer inteiro, as fórmulas do kernel leem a view de um nó. As escritas passam pelos setters, que marcam o que mudam. Um crescimento substitui cada array: um chamador relê `tree.world` ou `tree.worldViews` depois de uma adição.",
+    "description": "`localViews[i]` e `worldViews[i]` são views de dezesseis números sobre `local` e `world`, criadas no crescimento e nunca durante uma atualização: a GPU lê o buffer inteiro, as fórmulas do kernel leem a view de um nó. As escritas passam pelos setters, que marcam o que mudam. Um crescimento substitui cada array: um chamador relê `tree.world` ou `tree.worldViews` depois de uma adição. Cada nó lista os seus filhos: um percurso de subárvore nunca lê fora da subárvore (`links.ts`).",
     "members": {
       "capacity": "Quantos nós cabem antes de crescer.",
       "end": "Índices atendidos: todo nó vivo está sob esse limite.",
@@ -3550,14 +3551,12 @@
       "seen": "A versão do pai que cada nó viu por último.",
       "free": "Índices liberados, reutilizados antes de estender `end`.",
       "freeCount": "Quantos índices liberados esperam.",
-      "order": "Ordem de atualização, pais antes de filhos, e o posto de cada nó nessa ordem.",
-      "orderAt": "O posto de cada nó em `order`.",
-      "orderCount": "Nós em `order`.",
-      "orderDirty": "Se `order` precisa ser reconstruída.",
-      "depth": "Buffers de trabalho de travessia: profundidade, cadeia de ancestrais, baldes, marcas.",
+      "firstChild": "Os filhos de cada nó como lista ligada, −1 para nenhum: um percurso de subárvore custa a subárvore.",
+      "lastChild": "Último filho, onde uma ligação se prende.",
+      "nextSibling": "Próximo filho do mesmo pai.",
+      "previousSibling": "Filho anterior do mesmo pai.",
       "chain": "Buffer de cadeia de ancestrais.",
-      "buckets": "Buffer de baldes.",
-      "stamp": "Buffer de marcas.",
+      "stamp": "Buffer de marcas: o que um percurso passa de um pai aos seus filhos.",
       "call": "Número de travessia atual."
     }
   },
