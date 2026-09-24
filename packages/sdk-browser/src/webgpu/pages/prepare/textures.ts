@@ -20,7 +20,6 @@ import {
   type TexturePreview,
 } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { untaggedLabel } from '../../../gpu/core/sessionHandle.ts';
 import type { TileTexture } from '../../tile/atlas.ts';
 
 /** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
@@ -136,7 +135,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       clamp: pools.pool.clamp,
       compression: choice,
       pools: [...textures.color.pools, ...textures.data.pools].map((pool) => ({
-        label: untaggedLabel(pool.texture.label),
+        label: pool.label,
         format: pool.texture.format,
         layers: pool.layers,
         tiles: pool.tiles,

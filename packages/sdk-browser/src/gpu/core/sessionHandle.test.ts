@@ -1,115 +1,74 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { claimGpuDevice } from './deviceOwners.ts';
-import { sessionLabel, sharedGpuDevice, untaggedLabel } from './sessionHandle.ts';
+import { sharedGpuDevice, tagsIn, untag } from './sessionHandle.ts';
 import { installGpuDeviceLedger } from './deviceLedger.ts';
 import { generateMaterialMips } from '../../texture/mips.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { FakeDevice, fakeDevice, owner } from './fakeDevice.fixture.ts';
+import { fakeDevice, owner } from './fakeDevice.fixture.ts';
 
-test('a session handle forwards every member to the device, under the device as `this`', () => {
-  const device = fakeDevice();
-  const { device: handle } = claimGpuDevice(device, owner());
-  // The fake refuses what WebGPU refuses: a member read on anything but the device.
-  assert.throws(() => Reflect.get(FakeDevice.prototype, 'queue', handle), /Illegal invocation/);
-  assert.equal(handle.queue, device.queue);
-  assert.equal(handle.lost, device.lost);
-  assert.equal(handle.limits.minUniformBufferOffsetAlignment, 256);
-  assert.equal(sharedGpuDevice(handle), device);
-  assert.equal(sharedGpuDevice(device), device);
-  // Methods, even detached, run on the device.
-  const { createBuffer, addEventListener } = handle;
-  assert.doesNotThrow(() => createBuffer({ size: 4, usage: 0 }));
-  let heard = 0;
-  addEventListener('uncapturederror', () => heard++);
-  device.raise('[Buffer] is destroyed');
-  assert.equal(heard, 1);
-});
-
-test('every object a session creates names it, views included; the device names none', () => {
+test('every object a session creates names it; the device names none', () => {
   const device = fakeDevice();
   const { device: handle, tag } = claimGpuDevice(device, owner());
-  const texture = handle.createTexture({ size: [1, 1], format: 'r8unorm', usage: 0, label: 'hdr' });
+  assert.equal(sharedGpuDevice(handle), device);
+  assert.equal(handle.limits.minUniformBufferOffsetAlignment, 256);
+  // Detached, a creation still runs on the device, which refuses any other `this`.
+  const { createTexture } = handle;
+  const texture = createTexture({ size: [1, 1], format: 'r8unorm', usage: 0, label: 'hdr' });
   assert.equal(texture.label, `hdr ${tag}`);
-  assert.equal(untaggedLabel(texture.label), 'hdr');
-  assert.equal(texture.createView().label, tag);
-  assert.equal(texture.createView({ label: 'level 1' }).label, `level 1 ${tag}`);
+  assert.equal(untag(texture.label), 'hdr');
+  assert.deepEqual(tagsIn(`[TextureView of Texture "${texture.label}"]`), tagsIn(tag));
   assert.equal(handle.createQuerySet({ type: 'timestamp', count: 2 }).label, tag);
   assert.equal(handle.createCommandEncoder().label, tag);
-  assert.equal(handle.createBindGroupLayout({ entries: [] }).label, tag);
   assert.equal(device.createBuffer({ size: 4, usage: 0, label: 'raw' }).label, 'raw');
+});
+
+test('a descriptor holding only a label is tagged once, then handed again; the caller’s is kept', () => {
+  const device = fakeDevice();
+  const { device: handle, tag } = claimGpuDevice(device, owner());
+  const mine = { label: 'frame' };
+  handle.createCommandEncoder(mine);
+  handle.createCommandEncoder({ label: 'frame' });
+  handle.createBuffer({ size: 4, usage: 0, label: 'frame' });
+  const [first, second, copy] = device.given;
+  assert.equal(first, second, 'no copy per frame');
+  assert.notEqual(copy, first);
+  assert.equal(copy?.label, `frame ${tag}`);
+  assert.deepEqual(mine, { label: 'frame' });
+});
+
+test('a released handle is inert: its creations abort, its queue writes nothing', async () => {
+  const device = fakeDevice();
+  const claim = claimGpuDevice(device, owner());
+  const { queue } = claim.device;
+  const buffer = claim.device.createBuffer({ size: 4, usage: 0 });
+  queue.writeBuffer(buffer, 0, new Uint8Array(4));
+  claim.release();
+  assert.throws(() => claim.device.createBuffer({ size: 4, usage: 0 }), { name: 'AbortError' });
+  assert.throws(() => claim.device.createCommandEncoder(), { name: 'AbortError' });
+  queue.writeBuffer(buffer, 0, new Uint8Array(4));
+  queue.writeTexture({ texture: buffer as never }, new Uint8Array(4), {}, [1]);
+  queue.copyExternalImageToTexture({} as never, {} as never, [1]);
+  queue.submit([]);
+  // Its teardown may still wait for what it submitted.
+  await queue.onSubmittedWorkDone();
+  assert.deepEqual(device.queued, ['writeBuffer', 'onSubmittedWorkDone']);
 });
 
 test('what the device keeps for every session is created on it, untagged', () => {
   installGpuGlobals();
   const device = fakeDevice();
-  const created: string[] = [];
-  const createBuffer = device.createBuffer.bind(device);
-  device.createBuffer = (descriptor) => {
-    created.push(descriptor.label ?? '');
-    return createBuffer(descriptor);
-  };
   const { device: handle } = claimGpuDevice(device, owner());
-  const texture = handle.createTexture({
-    size: [4, 4],
-    format: 'rgba8unorm',
-    usage: 0,
-    mipLevelCount: 3,
-  });
+  const texture = handle.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: 0 });
+  device.given.length = 0;
   generateMaterialMips(handle, texture, 'rgba8unorm', 4, 4);
-  assert.deepEqual(created, ['Trillion3D texture mips uniforms']);
+  assert.ok(device.given.some((given) => given?.label === 'Trillion3D texture mips uniforms'));
 });
 
-test('the ledger counts by the label as the engine wrote it', () => {
+test('the ledger, on the handle, counts by the label as the engine wrote it', () => {
   const device = fakeDevice();
-  const ledger = installGpuDeviceLedger(device);
   const { device: handle } = claimGpuDevice(device, owner());
+  const ledger = installGpuDeviceLedger(handle);
   handle.createBuffer({ size: 8, usage: 0, label: 'page table' });
-  handle.createQuerySet({ type: 'timestamp', count: 2 });
-  assert.deepEqual(Object.keys(ledger.snapshot().byLabel), ['page table']);
-});
-
-test('a member replaced on the device after the claim is what the handle calls', () => {
-  const device = fakeDevice();
-  const { device: handle, tag } = claimGpuDevice(device, owner());
-  const before = handle.createBuffer;
-  assert.equal(handle.createBuffer, before, 'bound once per key');
-  // The allocation ledger, installed after the session's claim, still counts its creations.
-  const ledger = installGpuDeviceLedger(device);
-  assert.notEqual(handle.createBuffer, before);
-  handle.createBuffer({ size: 16, usage: 0, label: 'late' });
-  assert.deepEqual(ledger.snapshot().byLabel, { late: 16 });
-  assert.equal(installGpuDeviceLedger(handle), ledger, 'one ledger per device');
-  // What the handle does not create, the canvas's views, takes the tag by name.
-  assert.equal(sessionLabel(handle, 'canvas'), `canvas ${tag}`);
-  assert.equal(sessionLabel(device, 'canvas'), 'canvas');
-});
-
-test('a session handle writes nothing: a member set on it never reaches the shared device', () => {
-  const device = fakeDevice();
-  const { device: handle } = claimGpuDevice(device, owner());
-  const createBuffer = device.createBuffer;
-  assert.throws(() => {
-    (handle as { createBuffer: unknown }).createBuffer = () => null;
-  }, /read-only/);
-  assert.throws(() => Object.defineProperty(handle, 'label', { value: 'x' }), /read-only/);
-  assert.equal(device.createBuffer, createBuffer);
-  assert.equal(Object.hasOwn(device, 'label'), false);
-});
-
-test('a label is tagged once, then read back; every texture shares one view function', () => {
-  const device = fakeDevice();
-  const { device: handle, tag } = claimGpuDevice(device, owner());
-  const a = handle.createBuffer({ size: 4, usage: 0, label: 'rows' }).label;
-  const b = handle.createBuffer({ size: 4, usage: 0, label: 'rows' }).label;
-  assert.equal(a, `rows ${tag}`);
-  assert.equal(a, b);
-  const descriptor = { size: [1, 1], format: 'r8unorm', usage: 0 } as const;
-  const one = handle.createTexture(descriptor),
-    two = handle.createTexture(descriptor);
-  assert.equal(one.createView, two.createView);
-  // The caller's descriptor is never written.
-  const view = { label: 'level' };
-  assert.equal(one.createView(view).label, `level ${tag}`);
-  assert.deepEqual(view, { label: 'level' });
+  assert.deepEqual(ledger.snapshot().byLabel, { 'page table': 8 });
 });
