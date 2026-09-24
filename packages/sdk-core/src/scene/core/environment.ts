@@ -14,6 +14,7 @@
  * curve brings it into the display range (P4). Neither is a light: a scene with neither lamp nor
  * environment irradiance stays black whatever its exposure.
  */
+import { packFog, type SceneFog } from './fog.ts';
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
 export const TONE_MAPPING_RANK = {
@@ -49,13 +50,15 @@ export interface SceneEnvironment {
    * Absent, or all zero, nothing lights a surface but the declared lamps.
    */
   irradiance?: readonly number[];
+  /** Distance or height fog over every lit surface (`SceneFog`); absent, none. */
+  fog?: SceneFog;
 }
 
 /** Coefficients of the irradiance, and the floats they take in a GPU buffer: one `vec4` each.
  *  Written as literals, like the factors below, so a bundle that reads none of them keeps none. */
 export const ENVIRONMENT_COEFFICIENTS = 9;
-/** Floats of the environment in the GPU buffer. */
-export const SCENE_ENVIRONMENT_FLOATS = 36;
+/** Floats of the environment in the GPU buffer: the coefficients, then the fog's block. */
+export const SCENE_ENVIRONMENT_FLOATS = 44;
 
 /**
  * The factors of the cosine-lobe convolution per band (Ramamoorthi and Hanrahan, eq. 12): the
@@ -110,9 +113,11 @@ export function addIrradianceCoefficients(
   return sh;
 }
 
-/** Writes an environment's irradiance into its GPU block, one `vec4` per coefficient. */
+/** Writes an environment's irradiance into its GPU block, one `vec4` per coefficient, then its
+ *  fog behind them. */
 export function packEnvironment(environment: SceneEnvironment | undefined, out: Float32Array) {
   out.fill(0);
+  packFog(environment?.fog, out, ENVIRONMENT_COEFFICIENTS * 4);
   const sh = environment?.irradiance;
   if (!sh) return out;
   for (let k = 0; k < ENVIRONMENT_COEFFICIENTS; k++)
