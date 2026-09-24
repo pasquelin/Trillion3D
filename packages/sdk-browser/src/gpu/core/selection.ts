@@ -62,7 +62,8 @@ export type SelectionResult = {
    *  back through the CPU cut rather than adopt them (`../dag/layout.ts`). */
   truncated?: boolean;
 };
-export type GpuCut = { uniforms: SelectionUniforms; result: SelectionResult };
+/** A readback and its uniforms; `stalePose`: a placement moved since, it streams but draws nothing. */
+export type GpuCut = { uniforms: SelectionUniforms; result: SelectionResult; stalePose: boolean };
 /**
  * Pages whose residency flag just changed, in increasing order. `sorted` false means the list
  * no longer describes the set: the reader then starts over from every page.
