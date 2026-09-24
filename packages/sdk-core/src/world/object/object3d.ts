@@ -8,13 +8,8 @@ import { Quaternion } from '../math/quaternion.ts';
 import { Matrix4 } from '../math/matrix4.ts';
 import { listen } from '../math/observed.ts';
 import type { Box3 } from '../math/box3.ts';
-
-/** What a node reports to the world it hangs in: a pose moved, the tree changed, a content changed. */
-export interface SceneLink {
-  /** A node moved. */ pose(node: Object3D): void;
-  /** A node gained or lost children. */ structure(node: Object3D): void;
-  /** A node's shape or material changed. */ content(node: Object3D): void;
-}
+import type { SceneLink } from './sceneLink.ts';
+export type { SceneLink } from './sceneLink.ts';
 
 /** The transform hierarchy every scene object is a node of; a new node is a detached root of it. */
 const space = createSceneRoot({ id: 'world-objects' });
@@ -57,15 +52,20 @@ export class Object3D extends SceneNode {
       this.setScale(this.scale.x, this.scale.y, this.scale.z);
       pose();
     });
-    /** Written angles stay as written (`object3d.test.ts`): only a quaternion write re-derives them. */
+    /** Written angles stay as written (`object3d.test.ts`); a quaternion write re-derives them. */
     const turned = (fromAngles: boolean) => {
       const q = fromAngles ? this.quaternion.setFromEuler(this.rotation, true) : this.quaternion;
       this.setQuaternion(q.x, q.y, q.z, q.w);
-      if (!fromAngles) this.rotation.setFromQuaternion(q, undefined, true);
+      if (fromAngles) this.rotation._follow(q);
       pose();
     };
+    this.rotation._follow(this.quaternion);
     listen(this.quaternion, () => turned(false));
     listen(this.rotation, () => turned(true));
+  }
+  /** A node's transform tree, for an owner placing nodes by the thousand (`_link.posed`). */
+  static _treeOf(node: Object3D) {
+    return node.state.tree;
   }
   /** Whether the node and its children are drawn. */ override get visible() {
     return super.visible;

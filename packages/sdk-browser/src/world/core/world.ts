@@ -1,6 +1,6 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import type { SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { cameraSceneLink } from './worldLink.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
 import { probeWorldRenderer, type WorldRenderer } from '../capability/worldReady.ts';
@@ -78,7 +78,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   });
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   /** The camera outside the scene still redraws when it moves. */
-  const cameraLink: SceneLink = { pose: invalidate, structure: () => {}, content: () => {} };
+  const cameraLink = cameraSceneLink(invalidate);
   const adopt = (next: Camera) => {
     if (!next._link) next._link = cameraLink;
     return next;

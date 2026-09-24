@@ -35,7 +35,11 @@ export async function buildRuntime(root: string, outdir: string) {
     },
     logLevel: 'warning',
   });
-  for (const wasm of ['page/decode/pageCodec.wasm', 'physics/joltPhysics.wasm'])
+  for (const wasm of [
+    'page/decode/pageCodec.wasm',
+    'physics/joltPhysics.wasm',
+    'physics/joltPhysicsThreads.wasm',
+  ])
     await copyFile(
       resolve(root, 'packages/sdk-browser/src', wasm),
       resolve(outdir, wasm.slice(wasm.lastIndexOf('/') + 1)),

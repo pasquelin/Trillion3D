@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 1;
+export const PHYSICS_LAYOUT_VERSION = 2;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -54,8 +54,11 @@ export const ADD_WORDS = 23;
  */
 export const VIEW_WORDS = 9;
 
-/** Words of one pose record: `index | asleep bit, px, py, pz, qx, qy, qz, qw, vx, vy, vz`. */
-export const POSE_WORDS = 11;
+/**
+ * Words of one pose record: `index | asleep bit, px, py, pz, qx, qy, qz, qw, vx, vy, vz, wx, wy,
+ * wz` — the linear and angular velocities let the page extrapolate a late tick.
+ */
+export const POSE_WORDS = 14;
 /** Set on a pose record's index word when the body fell asleep during the step. */
 export const ASLEEP_BIT = 0x80000000;
 
