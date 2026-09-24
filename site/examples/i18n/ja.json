@@ -1859,27 +1859,5 @@
       "fieldOfView": "視野",
       "dollyZoom": "ドリーズーム"
     }
-  },
-  "openworld": {
-    "banner": "W A S Dで歩こう。車か飛行機の近くでEをおすと乗れるよ。",
-    "controls": {
-      "keys": "WASD 歩く · Shift 走る · Space ジャンプ · C しゃがむ · E 車や飛行機に乗り降り",
-      "teleport": "テレポート",
-      "timeOfDay": "時刻",
-      "daySpeed": "一日の速さ",
-      "pause": "一時停止",
-      "rain": "雨",
-      "geometryMB": "ジオメトリ MB",
-      "textureMB": "テクスチャ MB",
-      "view": "表示"
-    },
-    "choices": {
-      "teleport": {
-        "—": "—"
-      }
-    },
-    "readouts": {
-      "streaming": "ストリーミング"
-    }
   }
 }

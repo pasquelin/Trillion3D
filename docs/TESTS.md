@@ -24,15 +24,6 @@ bench/
   perf/browser/       38 *.perf.ts + 33 support modules
   oracles/            46 reference implementations, copied verbatim
   runner/             83 modules: the measurement harness (README)
-scripts/docs/examples/openworld/
-  plan/               4 *.test.ts — relief, roads, tunnels, tiles, places
-  build/              3 *.test.ts — the placed world: collision meshes, where markers stand, which way props face
-  props/              4 *.test.ts — shared meshes and their soundness
-  regions/            6 *.test.ts — one per region, its helpers in testing.ts
-  play/               6 *.test.ts — flight, simulation, solids, streaming, view, world
-  gltf/               1 *.test.ts — the glTF writer
-site/examples/kit/openworld/
-  sky/                4 *.test.ts — sun, atmosphere, clouds, particles
 ```
 <!-- tests-inventory:end -->
 
