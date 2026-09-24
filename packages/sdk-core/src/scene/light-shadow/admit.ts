@@ -40,8 +40,10 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  *
  * **The floor is drawn in the frame.** A light's last level (`sunFloorLevel`, `LAMP_FLOOR_MIP`) is
  * what every finer page of it falls back to, and each report asks for the floor page under every
- * page it names (`requests.ts`): a stale floor page is admitted first, whatever the budget — the
- * budget pays it before any finer page —, so a reader that falls back never finds nothing. Only
+ * page it names (`requests.ts`): a floor page not read — never drawn, or withdrawn — is admitted
+ * first, whatever the budget — the budget pays it before any finer page —, so a reader that falls
+ * back never finds nothing. A floor still read, stale for its moving casters or for detail, waits
+ * its turn like any page: redrawing it every frame something moves would starve the finer ones. Only
  * the view limit can hold one back, when the frame's floor pages span more views than the light
  * cut holds; it is drawn the next frame. All arrays are allocated once.
  */
@@ -111,7 +113,7 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
           continue;
         }
         found++;
-        if (isFloor(records, sun, page, pool)) {
+        if (!pool.valid[page] && isFloor(records, sun, page, pool)) {
           if (count < capacity) admit(pool, page, budget.estimate(1) ?? 0);
           continue;
         }
