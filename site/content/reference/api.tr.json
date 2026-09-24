@@ -3844,10 +3844,13 @@
     "members": {
       "geometryPoolCeiling": "Bir dünyanın isteyebileceği en büyük havuzlar: motorun başlangıç bütçeleri.",
       "texturePoolCeiling": "Bir dünyanın isteyebileceği en büyük doku havuzu, bayt cinsinden.",
-      "geometryPool": "Geometri sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
-      "texturePool": "Doku sayfaları için tutulan GPU belleği baytları; zarfı değiştirmek için ayarlayın.",
+      "geometryPool": "Geometri sayfaları için ayrılan GPU belleği baytı; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve doku havuzunun yanında bıraktığı kadarıyla.",
+      "texturePool": "Doku sayfaları için ayrılan GPU belleği baytı, doku havuzu olmayan bir motorda (WebGL2) `null`; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin ve geometri havuzunun yanında bıraktığı kadarıyla.",
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
-      "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın."
+      "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
+      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Asla makineden okunmaz.",
+      "cpu": "Dünyanın çözülmüş sayfalarının tutabileceği CPU belleği baytı; bir sonraki sahne yüklemesinde uygulanır.",
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -4301,7 +4304,7 @@
     "description": "`memory(world)`, dünyanın şu anda tuttuğu şeydir (`world.budget`); iki havuz, bir dünyanın aldığı ayarı oluşturur."
   },
   "budget.memory": {
-    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: her iki havuz ve her birinin büyüyebileceği en büyük boyut."
+    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü."
   },
   "budget.geometryPool": {
     "summary": "Bir dünyaya vermeye hazır, `bytes`'lık bir geometri havuzu ayarı.",
@@ -6868,6 +6871,7 @@
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
+      "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
@@ -7018,6 +7022,19 @@
       "current": "Suyun hızı (bir nehrin akıntısı), m/s."
     }
   },
+  "WaterSurface": {
+    "summary": "Sayfanın çizmek için okuduğu su yüzeyi (`world.physics.waterSurface`): fizik worker’ında kaldırma kuvvetinin okuduğu dalga modeli, aynı sayılar, simülasyonun zamanında.",
+    "members": {
+      "level": "Yüzeyin durgunken yüksekliği, metre.",
+      "crest": "Bir tepenin `level` üzerinde ulaştığı en yüksek nokta, metre.",
+      "time": "Su ayarlandığından beri geçen simüle saniyeler: dalgaların saati.",
+      "setTime": "Dalgaları `t` simüle saniyeye ayarlar.",
+      "height": "Dünya noktası `(x, z)` üzerindeki yüzeyin yüksekliği, metre.",
+      "point": "Durgun nokta `(x, level, z)`’nin taşındığı dünya noktası `[x, y, z]`, `out` içine: nokta nokta taşınan bir ızgara yüzeyin kendisidir, tepeler dalgalar kadar keskin.",
+      "wavesNow": "Bildirilen dalgalar, her faz bu âna taşınmış: `world.physics.water`’a yeniden verildiğinde (dalgaları 0 sn’den yeniden başlar), yüzey sıçramadan olduğu yerden sürer.",
+      "normal": "Durgun nokta `(x, z)`’de yüzeyin birim normali `[x, y, z]`, `out` içine."
+    }
+  },
   "WaveSpec": {
     "summary": "Bir sahnenin bildirdiği şekliyle bir dalga.",
     "members": {
@@ -7051,6 +7068,7 @@
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
+      "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
       "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",

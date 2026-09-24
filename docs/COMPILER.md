@@ -578,12 +578,15 @@ the submodule checked out: `git submodule update --init`). The stage contract is
 key, so a cache cooked by another Jolt is another key, never reused. The algorithms live in
 `src/physics_cook/`:
 
-- **Collision level** (`cut.rs`). A cut through the DAG at one tolerance `t`, the clusters with
-  `lod_error <= t < parent_error` — the rule the renderer and the proxy cut by, so the surface is
-  covered once, borders locked. `t` is the object's own: the median error of its first simplified
-  level. A primitive with no simplified level collides at level 0. The distance to level 0 is then
-  measured both ways (`hausdorff.rs`, vertices, edge midpoints and centroids of each side to the
-  other's nearest triangle) and published as `hausdorff`.
+- **Collision level** (`cut.rs`). A cut through the DAG at one threshold, the clusters with
+  `lod_error <= threshold < parent_error` — the rule the renderer and the proxy cut by, so the
+  surface is covered once, borders locked. The tolerance `t` is the object's own: the median error
+  of its first simplified level. A cluster's error is the simplifier's estimate, not a bound, so
+  each cut tried is measured against level 0 both ways (`hausdorff.rs`, vertices, edge midpoints
+  and centroids of each side to the other's nearest triangle): the cut at `t` first, then a
+  bisection over the cluster errors under `t` down to level 0, which holds any tolerance. The
+  coarsest cut found within `t` is kept and its distance published as `hausdorff`, at or under
+  the published `tolerance`. A primitive with no simplified level collides at level 0.
 - **Tiles.** The cut is split along the culling hierarchy: a node whose collision triangles fit
   4096 is one tile, a larger one hands its children down. Each tile is a Jolt `MeshShape` in the
   primitive's frame, with its triangles' material index, stored under its SHA-256.
