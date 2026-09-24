@@ -45,8 +45,10 @@ test('every class depth is exact in f32, distinct, above the background and belo
 
 test('the resolve shader tests class overrides, never the page flags, for what a class fixes', () => {
   const fragment = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shade_fs'));
-  for (const name of ['HAS_UV', 'HAS_MAP', 'HAS_MASK', 'HAS_NORMAL_MAP', 'HAS_TANGENT'])
+  // `HAS_MASK` steers the tile request only (`shadeRequest`): the cutout is the raster's.
+  for (const name of ['HAS_UV', 'HAS_MAP', 'HAS_NORMAL_MAP', 'HAS_TANGENT'])
     assert.ok(fragment.includes(name), `${name} is read`);
+  assert.ok(SHADE_SHADER.includes('HAS_MASK'), 'HAS_MASK is read by the request');
   assert.doesNotMatch(fragment, /page\.flags&(?:2|4|8|16|128|2048)u/);
   assert.doesNotMatch(fragment, /page\.[a-zA-Z]+Index!=0u/);
   // One override per feature, each derived from the key the pipeline is created with.
@@ -56,22 +58,13 @@ test('the resolve shader tests class overrides, never the page flags, for what a
   );
 });
 
-test('the resolve cuts on the alpha the raster kept the pixel by, and colours anisotropically', () => {
+test('the resolve trusts the raster that kept the pixel: no second cutout', () => {
   const fragment = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shade_fs'));
-  // The raster's test (`maskKeep`): one isotropic tap of the base map under the filter rule.
-  assert.match(
-    SHADE_SHADER,
-    /fn maskAlpha\(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool\)->f32/,
-  );
-  assert.doesNotMatch(SHADE_SHADER, /fn maskAlphaTaps\(/);
-  assert.ok(
-    fragment.includes(
-      'if(HAS_MASK){var alpha=sample.w;if(HAS_SAMPLING){alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,HAS_SAMPLING);}if(alpha<page.baseColor.w){return cutSurface(request);}}',
-    ),
-  );
-  // The colour keeps its anisotropic read, and no other cutout tests the colour's alpha.
-  assert.ok(fragment.includes('let sample=colorSample(page.mapIndex,uv,ddx,ddy,HAS_SAMPLING);'));
-  assert.doesNotMatch(fragment, /sample\.w<page\.baseColor\.w/);
+  // The raster's test (`maskKeep`) is the only cutout; the resolve reads the colour, anisotropic.
+  assert.doesNotMatch(SHADE_SHADER, /fn maskAlpha\(/);
+  assert.ok(fragment.includes('rgb=rgb*colorSample(page.mapIndex,uv,ddx,ddy,HAS_SAMPLING).xyz;'));
+  assert.doesNotMatch(fragment, /baseColor\.w/);
+  assert.doesNotMatch(fragment, /discard/);
 });
 
 test('the resolve compiles one pipeline per class under equal depth, after the depth export', async () => {

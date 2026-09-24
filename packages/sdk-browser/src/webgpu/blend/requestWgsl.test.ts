@@ -14,7 +14,7 @@ test('both passes request their tiles by the same rule, phase then position', ()
   assert.match(TILE_REQUEST_WGSL, /let px=u32\(pos\.x\)\+u32\(pos\.y\);/);
   assert.match(
     TILE_REQUEST_WGSL,
-    /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u,\(px\/choices\/2u\)%3u,\(\(px\/choices\/6u\)&1u\)==1u\)/,
+    /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u,\(px\/choices\/2u\)%3u\)/,
   );
   for (const [nom, hote] of Object.entries({ BLEND_REQUEST_WGSL, SHADE_REQUEST_WGSL })) {
     assert.match(hote, /feedbackPhase\([a-z.]+,uni\.feedback\)/, `${nom}: phase first`);
@@ -52,20 +52,19 @@ test('a request asks the level of the read that posts it', () => {
   assert.match(TILE_REQUEST_WGSL, /dataRequestIndex\([^;]*,p\.next,p\.along,true,sampled\);/);
   assert.match(
     BLEND_REQUEST_WGSL,
-    /mapRequest\(p,[^;]*,false,\(in\.ids\.y&64u\)!=0u\);/,
-    'no cutout in the blend, the item says whether its maps are sampled',
+    /mapRequest\(p,[^;]*,gradX,gradY,\(in\.ids\.y&64u\)!=0u\);/,
+    'the item says whether its maps are sampled',
   );
 });
 
-// #360, #361: the alpha cutouts (`maskAlpha`) read the isotropic level. The shadow cascades ask for
-// it alone; on screen a masked material's base map is read by the cutout AND by the shading, so its
-// pixels share out the two levels (`iso`), and an unmasked one asks only for the shading's.
-test('the cutouts ask the isotropic level they read, the shading the anisotropic one', () => {
+// #360, #361: the shadow cutout reads the isotropic level, and its cascades ask for it alone; the
+// camera cutout reads the base map as the shading does, so every map on screen asks one level.
+test('the shadow cutout asks the isotropic level it reads, the screen the anisotropic one', () => {
   assert.match(
     SHADE_REQUEST_WGSL,
     /colorRequestIndex\([^;]*g\.xy,g\.zw,p\.next,1u,false,HAS_SAMPLING\);/,
   );
-  assert.match(SHADE_REQUEST_WGSL, /mapRequest\(p,[^;]*,HAS_MASK,HAS_SAMPLING\);/);
-  assert.match(TILE_REQUEST_WGSL, /let aniso=!\(cutout&&map==0u&&p\.iso\);/);
-  assert.match(TILE_REQUEST_WGSL, /colorRequestIndex\([^;]*,p\.next,p\.along,aniso,sampled\);/);
+  assert.match(SHADE_REQUEST_WGSL, /mapRequest\(p,[^;]*,uv,ddx,ddy,HAS_SAMPLING\);/);
+  assert.doesNotMatch(TILE_REQUEST_WGSL, /\biso\b|cutout/);
+  assert.match(TILE_REQUEST_WGSL, /colorRequestIndex\([^;]*,p\.next,p\.along,true,sampled\);/);
 });

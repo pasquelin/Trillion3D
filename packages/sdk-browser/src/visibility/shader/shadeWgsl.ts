@@ -75,10 +75,10 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  ${siCarte('normal', `nrmSample=${lecture('dataSample', 'normal')};`)}
  ${siCarte(
    'base',
-   // The cutout reads alpha as the raster that kept the pixel read it (`maskKeep`): one
-   // isotropic tap under a filter rule, where the colour averages its anisotropic taps. Two reads
-   // that disagreed across the threshold would leave a hole where the raster wrote the depth.
-   `let sample=${lecture('colorSample', 'base')};rgb=rgb*sample.xyz;if(HAS_MASK){var alpha=sample.w;if(HAS_SAMPLING){alpha=${lecture('maskAlpha', 'base')};}if(alpha<page.baseColor.w){return cutSurface(request);}}`,
+   // No cutout here: every pixel this pass shades was kept by the raster's test (`maskKeep`,
+   // hardware or compute). A second test, on other derivatives or another read, would cut
+   // pixels the raster had written the depth of, and leave holes.
+   `rgb=rgb*${lecture('colorSample', 'base')}.xyz;`,
  )}
  if(uni.mode==1u){
   let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
