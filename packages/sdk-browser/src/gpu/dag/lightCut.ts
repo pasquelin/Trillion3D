@@ -6,12 +6,8 @@ import { createLightCutRows } from './lightCutRows.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
-import {
-  DAG_MAX_VIEWS,
-  DAG_UNIFORM_BYTES,
-  DAG_VIEW_WORDS,
-  VIEW_STATE_WORD,
-} from './shader/viewsWgsl.ts';
+import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
+import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS, VIEW_STATE_WORD } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -32,18 +28,18 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  * Its escalation and pinned fallback live in its own `work`: a caster the light wants and the
  * cache lacks raises the light's threshold, never the one an object on screen is drawn at.
  *
- * Its budget is fixed at creation, whatever the views a frame runs: the lists and queues are the
+ * Its budget is fixed at creation, whatever the views a frame runs — at most the views the device's
+ * dispatch and binding limits hold (`lightCutCapacity.ts`): the lists and queues are the
  * camera cut's — each list the whole catalogue, each queue every node, or one root per slot when
  * the slots outnumber the nodes —, and the per-primitive words one row per view. What several views
  * together keep beyond the catalogue is dropped and said (`WORK_DROPPED`, `reports`). Allocated
  * once, when a scene first draws a shadow: a scene without one pays nothing.
  */
 export function createDagLightCut(resources: DagResources) {
-  const { device, packed, residentCut, pageCount, nodeCount, outputBytes, readbackBytes } =
-    resources;
+  const { device, packed, residentCut, pageCount, outputBytes, readbackBytes } = resources;
   const { worldCount, blockCount, buffers } = resources;
-  const capacity = DAG_MAX_VIEWS,
-    queueCap = Math.max(nodeCount, worldCount * capacity),
+  const capacity = lightCutCapacity(device.limits, resources),
+    queueCap = lightQueueCap(resources, capacity),
     layout = dagWorkLayout(blockCount, worldCount, capacity);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const own = (descriptor: GPUBufferDescriptor) => {
@@ -119,6 +115,8 @@ export function createDagLightCut(resources: DagResources) {
   const reports = createLightCutReports(own, output, outputBytes);
   const redraws = createLightCutRedraws(own, output, capacity);
   return {
+    /** The most views a frame's cut runs, hence the most pages a frame draws. */
+    capacity,
     /** Catalogue pages the logs index. */
     pageCount,
     /** Where the mask kernel logs the pages each view draws: what the shadow cull reads. */

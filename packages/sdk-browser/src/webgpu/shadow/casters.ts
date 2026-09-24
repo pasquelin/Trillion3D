@@ -44,6 +44,9 @@ export function encodeShadowCasters(
   const selection = run.gpuFrameActive ? run.gpuSelection : undefined;
   const light = selection && lightCutOf(selection);
   if (light) lights.lightCut = light;
+  // More views than the device holds in one cut — the frame planned before the cut bounded its
+  // pages (`redrawShortPages`): the pages are reissued, under that bound from the next frame.
+  if (light && runs.count > light.capacity) return false;
   if (light) {
     const map = gpuDraw.lightRows(light.pageCount);
     // Each region reads its own view's range of the one log the cut writes.
