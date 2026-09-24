@@ -108,15 +108,32 @@ export const ENGINE_ERROR_CODES: readonly CodeFamily[] = [
 
 const documented: ReadonlySet<string> = new Set(ENGINE_ERROR_CODES.flatMap(([codes]) => codes));
 
+/** What `cause` says: an error's message; for another object, its `message` or `code` when it
+ *  has one, else its JSON — never `[object Object]`; anything else as text. */
+function wordsOf(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  if (typeof cause !== 'object' || cause === null) return String(cause);
+  const { message, code } = cause as { message?: unknown; code?: unknown };
+  if (typeof message === 'string') return message;
+  if (typeof code === 'string') return code;
+  try {
+    return JSON.stringify(cause) ?? typeof cause;
+  } catch {
+    // A cycle, or a value JSON refuses: the kind of object is what can still be said.
+    return `${cause.constructor?.name ?? 'Object'} (cannot be written out)`;
+  }
+}
+
 /**
  * `cause` as a named engine error: an `EngineError` of a documented code as it is; an error whose
- * whole message is a documented code — the bare `new Error('WEBGPU_LOST')` of the renderers — under
- * that code; anything else, an `EngineError` of a code no page can test included, under
- * `fallback`. The error thrown stays in `details.cause`, stack included.
+ * whole message — or an object whose `message` or `code` — is a documented code (the bare
+ * `new Error('WEBGPU_LOST')` of the renderers) under that code; anything else, an `EngineError` of
+ * a code no page can test included, under `fallback`. A converted error keeps the one thrown in
+ * `details.cause`, stack included.
  */
 export function engineErrorOf(cause: unknown, fallback: string, message: string): EngineError {
   if (cause instanceof EngineError && documented.has(cause.code)) return cause;
-  const words = cause instanceof Error ? cause.message : String(cause);
+  const words = wordsOf(cause);
   const code = !(cause instanceof EngineError) && documented.has(words) ? words : fallback;
   return new EngineError(code, `${message}: ${words}`, { cause });
 }

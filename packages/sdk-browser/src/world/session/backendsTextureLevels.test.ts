@@ -15,14 +15,20 @@ import type { ExplorerSession } from './session.ts';
 const metadata = (textures?: { url: string }) =>
   ({ primitives: [], textures }) as unknown as ClusterManifest;
 
-async function run(options: { textureSource?: 'host' | 'cache' }, cacheTextures?: { url: string }) {
+async function run(
+  options: { textureSource?: 'host' | 'cache' },
+  cacheTextures?: { url: string },
+  probe: Partial<RenderBackend> = {},
+  session: Partial<ExplorerSession> = {},
+) {
   let seen: BackendContext | undefined;
-  const backend: RenderBackend = {
+  const backend = {
     id: 'probe',
     prepare: async () => {},
     dispose: () => {},
+    ...probe,
   } as unknown as RenderBackend;
-  const session = {
+  const opened = {
     canvas: { width: 4, height: 4 },
     options: { ...options, importedLights: false },
     scope: 'full',
@@ -30,8 +36,9 @@ async function run(options: { textureSource?: 'host' | 'cache' }, cacheTextures?
     diagnosticChannel: { enabled: false, detail: 'summary', emit: () => {} },
     emit: () => {},
     diagnose: () => {},
+    ...session,
   } as unknown as ExplorerSession;
-  await prepareExplorerBackends(session, {
+  await prepareExplorerBackends(opened, {
     source: {} as never,
     associations: new Map(),
     textureIndices: new Map(),
@@ -76,4 +83,25 @@ test('the baked-level reader follows the cache, not the texture-source option', 
 test('a cache that bakes no texture chain hands no reader over', async () => {
   const context = await run({ textureSource: 'cache' }, undefined);
   assert.equal(context.readTextureLevel, undefined);
+});
+
+test('an abort is a cancellation only when the session asked it; otherwise the WebGPU path falls back', async () => {
+  const aborted = () => {
+    throw new DOMException('closed', 'AbortError');
+  };
+  const probe = { id: 'webgpu-page-raster', prepare: async () => aborted() };
+  const phases: string[] = [];
+  const diagnose = (phase: string) => phases.push(phase);
+  // Not asked: diagnosed, and the WebGPU path falls back (here to nothing, so no backend).
+  await assert.rejects(run({}, undefined, probe, { diagnose } as never), /No backend/);
+  assert.deepEqual(phases, ['backend-preparation-start', 'backend-preparation-error', 'fallback']);
+  // Asked: the abort goes up as it is, nothing diagnosed, nothing fallen back.
+  phases.length = 0;
+  const cancel = new AbortController();
+  cancel.abort();
+  const signal = cancel.signal;
+  await assert.rejects(run({}, undefined, probe, { diagnose, signal } as never), {
+    name: 'AbortError',
+  });
+  assert.deepEqual(phases, ['backend-preparation-start']);
 });

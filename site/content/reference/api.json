@@ -16824,7 +16824,7 @@
       {
         "name": "error",
         "type": "EngineError | null",
-        "desc": "Why the last session could not open, as a named engine error: its `code` is one of those documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device), or `SESSION_OPEN_FAILED` for a reason without one; the error thrown is in `details.cause`. `null` once a session opens, or when there is nothing to draw and no session is tried."
+        "desc": "Why the last session could not open, as a named engine error: its `code` is one of those documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device), or `SESSION_OPEN_FAILED` for a reason without one. An `EngineError` of a documented code is the one thrown; any other error is converted, and the error thrown is then in `details.cause`. `null` from the start of each opening, and when nothing is tried."
       },
       {
         "name": "modes",

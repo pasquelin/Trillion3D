@@ -31,9 +31,9 @@ type Inputs = {
   drawn: () => boolean;
   /** Settles once the world's renderer — and its device — is granted. */
   ready: Promise<unknown>;
-  /** Where the world says what its sessions do: its notices; a session that could not open, the
-   *  scene kept; none tried, when the scene holds nothing to draw. */
-  diagnostic: Pick<ReturnType<typeof worldDiagnostic>, 'notices' | 'failed' | 'idle'>;
+  /** Where the world says what its sessions do: its notices; each opening, tried or not; a session
+   *  that could not open, the scene kept. */
+  diagnostic: Pick<ReturnType<typeof worldDiagnostic>, 'notices' | 'failed' | 'opening'>;
 };
 
 /**
@@ -88,9 +88,9 @@ export function createWorldRuntime(inputs: Inputs) {
     for (const [node, twin] of twins) poses.writeTwin(node, twin, contents.shown(node));
     lights.reset();
     lightsChanged = true;
+    inputs.diagnostic.opening();
     if (!built) {
       closed = 'nothing to draw: the scene holds no mesh and no loaded model';
-      inputs.diagnostic.idle();
       return;
     }
     mirror = built;
