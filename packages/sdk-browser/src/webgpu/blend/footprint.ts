@@ -1,5 +1,5 @@
 import { FRUSTUM_PLANE_VALUES } from '../../../../sdk-core/src/index.ts';
-import { rowParked } from '../../placement/rows.ts';
+import { notDrawn } from '../../placement/hidden.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -7,8 +7,8 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
  * FOOTPRINT OF THE LAST PAINT ORDER: every input `orderBlendPasses` reads, as it read them.
  *
  * The order, the frustum mask and the runs are a pure function of the eye, the frustum planes,
- * the plan tables, and per item its box — or, without one, its world origin —, its parked row and
- * its pass. When all of them are bit-identical to the last ranked frame, ranking again would
+ * the plan tables, and per item its box — or, without one, its world origin —, whether it is drawn (a hidden node, a
+ * parked row: `notDrawn`) and its pass. When all of them are bit-identical to the last ranked frame, ranking again would
  * write the same words: the frame keeps them, as `keepMoved`/`orderMoved` already keep the GPU
  * copies. Anything that differs — one bit — ranks again.
  *
@@ -58,7 +58,7 @@ function holdItems(footprint: BlendFootprint, items: readonly BlendGpuItem[]) {
     const item = items[i],
       box = item.bounds,
       at = i * ITEM_VALUES;
-    const flags = (box ? 1 : 0) | (rowParked(item.placement) ? 2 : 0) | (item.transmissive ? 4 : 0);
+    const flags = (box ? 1 : 0) | (notDrawn(item) ? 2 : 0) | (item.transmissive ? 4 : 0);
     if (record[at] !== flags) {
       record[at] = flags;
       same = false;
