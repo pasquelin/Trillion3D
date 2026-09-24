@@ -52,6 +52,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         texturePoolBytes: pools.texturePool,
         pixelError,
         clearColor: scene.background?.getHex(), // read at opening; a change is written in place
+        currentClearColor: () => scene.background?.getHex(),
         beforeFrame: () => {
           animating = frames.step(controls, scene, physics.frame);
           runtime.beforeFrame();

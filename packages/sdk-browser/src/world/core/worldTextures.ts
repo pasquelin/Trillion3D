@@ -20,6 +20,7 @@ import {
   HOST_WRAP_MIRRORED_REPEAT,
   HOST_WRAP_REPEAT,
 } from '../../host/surfaceConstants.ts';
+import { hostTextureWritten } from '../../host/textureImport.ts';
 
 const WRAP = {
   repeat: HOST_WRAP_REPEAT,
@@ -59,6 +60,13 @@ type Written = { version?: number; sampling?: number; placement?: number };
  *  version sends the picture again (`needsUpdate`); sampling and placement are fields only. */
 function writeHostTexture(host: THREE.Texture, texture: Texture, colour: boolean) {
   const written = host.userData as Written;
+  if (
+    written.placement === texture.placement &&
+    written.sampling === texture.sampling &&
+    written.version === texture.version
+  )
+    return;
+  hostTextureWritten();
   if (written.placement !== texture.placement) {
     written.placement = texture.placement;
     host.repeat.set(texture.repeat.x, texture.repeat.y);
