@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { median } from '../../kit/median.ts';
 import type { executer } from './cutDispatchesPage.ts';
 
 declare global {
@@ -31,10 +32,7 @@ const BORNES = [0, 1000, 100000, 1000000];
 const mediane = (
   valeurs: Array<{ encodage: number; total: number }>,
   champ: 'encodage' | 'total',
-): number => {
-  const triees = valeurs.map((v) => v[champ]).sort((a, b) => a - b);
-  return Number(triees[triees.length >> 1].toFixed(4));
-};
+): number => Number(median(valeurs.map((v) => v[champ])).toFixed(4));
 
 test('cut opens fewer commands and retains exactly the same pages', async () => {
   const script = await empaquetePage(resolve(ici, 'cutDispatchesPage.ts'), 'coupeLancements');
