@@ -43,10 +43,12 @@ import { PHYSICS_MATERIALS } from '../physics/options.ts';
  *   start, below `μ g × time / 3` (0.31 m/s on stone), where the gap closes exponentially and the
  *   body comes to rest without a jerk. A longer time is a gentler leg than the floor allows, and
  *   wins; no time beats the floor.
- * - AIR CONTROL 0.05 of the ground start, a game's choice, declared: a body in the air
- *   cannot push on anything, and 0 is the physical answer; a little steering lets a player
- *   correct a jump without flying. Sensitivity: a key held through a flight of `t` seconds
- *   closes `1 - exp(-3 a t / response)` of the gap to the wished speed, 50 % over a jump.
+ * - AIR CONTROL 0.05 of the legs' rate on the ground (`responseTime`), a game's choice,
+ *   declared: a body in the air cannot push on anything, and 0 is the physical answer; a little
+ *   steering lets a player correct a jump without flying. No floor bounds it, so it stays keyed
+ *   to the legs, not to the friction's slower start: every jump flies as it did before.
+ *   Sensitivity: a key held through a flight of `t` seconds closes `1 - exp(-3 a t / response)`
+ *   of the gap to the wished speed, 50 % over a jump.
  * - COYOTE TIME and JUMP BUFFER 0.1 s: the spread of a trained human's timing of a key press
  *   against a visual cue. A press that late or that early is still meant for that edge.
  * - HEAD BOB 0.035 m: the head rises and falls once a step with the body's centre of mass,
