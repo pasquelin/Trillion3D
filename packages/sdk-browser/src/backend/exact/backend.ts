@@ -7,7 +7,7 @@ import { createExactPagesAttachment } from './attachment.ts';
 import { createExactPagesResidency } from './residency.ts';
 import { createExactPagesMaterials } from './materials.ts';
 import { DEFAULT_CLEAR_COLOR, baseCapabilities } from '../common.ts';
-import { lighting } from '../../host/scene/objects.ts';
+import { hostBackground, lighting } from '../../host/scene/objects.ts';
 import { CONTRACT_LIGHTS_UNSUPPORTED } from './contractLights.ts';
 import { contractLightingApi } from '../../lighting/contractLightingApi.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
@@ -182,6 +182,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
       return renderState.frameHeld;
     },
     ...contract,
+    setClearColor: hostBackground(scene, gate.resourcesChanged),
     render(camera) {
       renderFrame(camera);
     },
