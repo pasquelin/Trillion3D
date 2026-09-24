@@ -88,7 +88,7 @@ function fillPlacement(host: HostTexture, placed: Float64Array) {
       put(placed, 3, e[4]) |
       put(placed, 4, e[6]) |
       put(placed, 5, e[7]) |
-      put(placed, 6, NaN)
+      put(placed, 6, 0)
     );
   const { offset, repeat, center } = host;
   const moved =
