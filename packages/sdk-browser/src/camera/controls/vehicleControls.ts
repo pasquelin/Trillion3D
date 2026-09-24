@@ -27,7 +27,7 @@ const WHEEL: KeyAxis = [
   HANDBRAKE = 'Space';
 
 /** The pedals and wheel `pressed` keys (`KeyboardEvent.code`) ask for, written into `into`. */
-export function vehicleInputOf(pressed: Set<string>, into: VehicleInput) {
+function vehicleInputOf(pressed: Set<string>, into: VehicleInput) {
   into.throttle = THROTTLE.some((code) => pressed.has(code)) ? 1 : 0;
   into.brake = BRAKE.some((code) => pressed.has(code)) ? 1 : 0;
   into.steer = axisOf(pressed, ...WHEEL);
