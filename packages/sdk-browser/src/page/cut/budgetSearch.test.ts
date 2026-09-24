@@ -4,54 +4,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { selectVisiblePages } from '../selection/selection.ts';
 import {
+  DAG_LEVEL_ERRORS,
   dag,
   dagAsk as ask,
+  dagLevels,
   dagCamera as camera,
   racine,
-  type DagPage,
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
-/** Levels on one sphere: `fine` pages, missing, whose parent error is that of `coarse` pages,
- *  resident, under one resident top page. A cut at `FINE_ERROR` asks for the fine pages and draws
- *  the coarse ones in their place. */
-const FINE_ERROR = 0.01,
-  COARSE_ERROR = 0.02,
-  TOP_ERROR = 0.08;
-function twoLevels(fine: number, coarse: number, share: boolean) {
-  const sphere = [0, 0, 0, 0.5],
-    level = (count: number, error: number, parent: number | null, resident: boolean) =>
-      Array.from({ length: count }, (_, i) => ({
-        url: `${error}-${i}.bin`,
-        level: Math.log2(error / FINE_ERROR),
-        triangles: 1,
-        min: [-0.5, -0.5, -0.5],
-        max: [0.5, 0.5, 0.5],
-        sphere,
-        lodError: error,
-        parentError: parent,
-        parentSphere: parent === null ? null : sphere,
-        group: null,
-        source: null,
-        array: resident ? new Uint32Array(3) : undefined,
-        budgetShare: share ? { pass: 0, slots: 1 } : undefined,
-      })) as DagPage[];
-  return [
-    racine([
-      ...level(1, TOP_ERROR, null, true),
-      ...level(coarse, COARSE_ERROR, TOP_ERROR, true),
-      ...level(fine, FINE_ERROR, COARSE_ERROR, false),
-    ]),
-  ];
-}
+const { fine: FINE_ERROR, top: TOP_ERROR } = DAG_LEVEL_ERRORS;
+const twoLevels = (fine: number, coarse: number, share: boolean) => [
+  racine(dagLevels(fine, coarse, { share })),
+];
 
 /** The cut at one pixel, which selects the fine level (0.01 seen from nine units away is under a
- *  pixel, 0.02 over it), with the fallback that draws resident ancestors. */
-function drawnInPlace(roots: ReturnType<typeof twoLevels>, budget: number) {
+ *  pixel, 0.02 over it), with the fallback that draws resident ancestors; `from` takes the budget
+ *  search's path (`pageBudgetFrom`). */
+function drawnInPlace(roots: ReturnType<typeof twoLevels>, budget: number, from?: number) {
   return selectVisiblePages(
     roots,
     cameraMoteur(camera()),
-    { ...ask(1, budget), rootFallback: true },
+    { ...ask(1, budget), rootFallback: true, pageBudgetFrom: from },
     [],
   );
 }
@@ -65,10 +39,10 @@ test('a missing page drawn by its resident ancestor takes one place: the fine cu
   assert.equal(cut.requiredSlots, 100);
 });
 
-test('an overflow only a fallback draws fails the pass', () => {
+test('an overflow only a fallback draws fails a pass of the budget search, not of the one-shot cut', () => {
   // Records naming no share take a slot per record drawn: the 60 coarse pages drawn in place of
-  // the missing fine ones overflow 50 slots, and the cut is drawn coarser, at the top page.
-  const cut = drawnInPlace(twoLevels(10, 60, false), 50);
+  // the missing fine ones overflow 50 slots, and the search draws the cut coarser, at the top page.
+  const cut = drawnInPlace(twoLevels(10, 60, false), 50, 0);
   assert.ok(cut.pixelError > 1, 'the cut is drawn coarser');
   assert.deepEqual(
     cut.shown.map((page) => page.lodError),
@@ -76,6 +50,11 @@ test('an overflow only a fallback draws fails the pass', () => {
     'the budget holds',
   );
   assert.equal(cut.requiredSlots, null, 'the fallback that overflowed was not kept');
+  assert.equal(cut.hostCutFits, false);
+  // Without `pageBudgetFrom` (the exact engine), only a page the descent keeps fails a pass.
+  const exact = drawnInPlace(twoLevels(10, 60, false), 50);
+  assert.equal(exact.pixelError, 1, 'the one-shot cut keeps the host threshold');
+  assert.equal(exact.shown.length, 60);
 });
 
 test('the search goes on from the previous threshold, one step of √2 an image, and settles', () => {

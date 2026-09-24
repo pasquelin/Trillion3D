@@ -3091,7 +3091,7 @@
         "packages/sdk-browser/src/backend/autonomous/pool.fixture.ts",
         "packages/sdk-browser/src/backend/autonomous/pool.ts",
         "packages/sdk-browser/src/backend/autonomous/poolApi.ts",
-        "packages/sdk-browser/src/backend/autonomous/poolCut.test.ts",
+        "packages/sdk-browser/src/backend/autonomous/poolCut.fixture.ts",
         "packages/sdk-browser/src/page/selection/types.ts",
         "packages/sdk-browser/src/scene/manifestPageIndex.ts"
       ],

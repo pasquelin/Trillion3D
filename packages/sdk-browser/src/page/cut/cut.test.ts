@@ -113,6 +113,7 @@ test('the hierarchical cut reuses its result and arrays from one frame to the ne
     pixelError: 0,
     requiredSlots: null,
     budgetSettled: true,
+    hostCutFits: null,
   };
   const ask = { ...ASK, result, wanted };
   const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
