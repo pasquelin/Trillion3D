@@ -142,3 +142,30 @@ test('a camera that moves brings in the sun floor pages its view reaches, drawn 
       }
   }
 });
+
+test('past the page cap, the sun floor pages a walking camera brings in outrank the stale lamp floors', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  const ids = lamps(store, 5);
+  store.add(SUN);
+  planFrame(plan, store, 0);
+  const slices = ids.map((k) => store.sliceOf(k)),
+    sun = store.sliceOf(ids.length);
+  const read = slices.flatMap((slice) => lampPages(plan, slice, 0, 3));
+  for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
+  const level = sunFloorLevel(plan.sun.finest[sun]),
+    reach = new Int32Array(4);
+  for (let frame = 4; frame < 20; frame++) {
+    // Thirty lamp floors stale at a past pose, and new sun floor pages no one has drawn yet.
+    for (const k of ids) store.set(`lamp${k}`, { position: [k * 10, 3 + frame / 10, 0] });
+    const view = { ...VIEW, position: [(frame - 3) * sunPageMetres(level), 5, 0] as const };
+    cycle(plan, store, frame, () => read, view);
+    assertFloors(plan, slices, frame);
+    plan.sun.floorReach(sun, view, reach);
+    for (let y = reach[1]; y <= reach[3]; y++)
+      for (let x = reach[0]; x <= reach[2]; x++) {
+        const entry = plan.table.baseOf(sun) + sunEntry(level, x, y);
+        assert.ok(plan.table.words[entry] & PAGE_VALID, `floor page ${x},${y} at frame ${frame}`);
+      }
+  }
+});
