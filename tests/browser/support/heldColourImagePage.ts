@@ -8,9 +8,11 @@
 // must be identical byte for byte: the copy already carries the display output, putting it back
 // must neither re-encode nor re-tone-map it — and must work at all on a drawing buffer without
 // alpha, where a copy into an RGBA texture through `copyTexSubImage2D` was refused.
-import * as THREE from 'three';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import { createThreeSceneDraw } from '../../../bench/witnesses/three/sceneAdapter.ts';
+import { threeGraph } from '../../../bench/witnesses/three/fromGraphNodes.ts';
 import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/surface.ts';
 import { baseCapabilities } from '../../../packages/sdk-browser/src/backend/common.ts';
 
@@ -34,20 +36,20 @@ function lire(gl: WebGL2RenderingContext) {
 
 /** Two planes of different colours, lit or not according to what the case asks. */
 function scene(eclairee: boolean) {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x171d28);
+  const scene = new G.GraphScene();
+  scene.background = new G.Color(0x171d28);
   const materiau = (couleur: number) =>
     eclairee
-      ? new THREE.MeshStandardMaterial({ color: couleur, roughness: 0.6 })
-      : new THREE.MeshBasicMaterial({ color: couleur });
-  const fond = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), materiau(0x336699));
-  const carre = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materiau(0xcc8844));
+      ? G.standardSurface({ color: couleur, roughness: 0.6 })
+      : G.basicSurface({ color: couleur });
+  const fond = G.mesh(G.planeGeometry(4, 3), materiau(0x336699));
+  const carre = G.mesh(G.planeGeometry(1, 1), materiau(0xcc8844));
   carre.position.set(-0.6, 0.4, 0.5);
   scene.add(fond, carre);
   if (eclairee) {
-    const lampe = new THREE.DirectionalLight(0xffffff, 2.5);
+    const lampe = G.directionalLight(0xffffff, 2.5);
     lampe.position.set(1, 2, 3);
-    scene.add(lampe, new THREE.AmbientLight(0xffffff, 0.3));
+    scene.add(lampe, G.ambientLight(0xffffff, 0.3));
   }
   return scene;
 }
@@ -61,11 +63,14 @@ const calls = (dessin: ReturnType<typeof createThreeSceneDraw>) => {
 
 /** One case: a complete image, then the same image held. Returns both pixel readings. */
 function cas(gl: WebGL2RenderingContext, eclairee: boolean) {
-  const camera = new THREE.PerspectiveCamera(50, LARGEUR / HAUTEUR, 0.1, 100);
+  const camera = G.perspectiveCamera(50, LARGEUR / HAUTEUR, 0.1, 100);
   camera.position.z = 3;
   camera.updateMatrixWorld(true);
   const monde = scene(eclairee);
-  const dessin = createThreeSceneDraw(gl, monde);
+  const dessin = createThreeSceneDraw(
+    gl,
+    asHostLibrary<Parameters<typeof createThreeSceneDraw>[1]>(threeGraph(monde)),
+  );
   // A witness engine as the composer sees it: its scene, its light flag, its held-frame word.
   const moteur = {
     id: 'witness',
@@ -96,7 +101,7 @@ function cas(gl: WebGL2RenderingContext, eclairee: boolean) {
   compose.dispose();
   dessin.dispose();
   monde.traverse((objet) => {
-    if (!(objet instanceof THREE.Mesh)) return;
+    if (!(objet instanceof G.GraphMesh)) return;
     objet.geometry.dispose();
     (Array.isArray(objet.material) ? objet.material : [objet.material]).forEach((m) => m.dispose());
   });

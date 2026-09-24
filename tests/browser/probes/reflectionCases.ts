@@ -7,7 +7,7 @@
 // reflection — `windingCw` in WebGPU, `frontFaceCW = determinant() < 0` in Three on WebGL. This
 // module opposes the two truths: the raw one and the engine's, measured in fragments actually
 // covered by rasterisation.
-import * as THREE from 'three';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { windingCw } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
@@ -24,13 +24,13 @@ export const VUE: [number, number] = [128, 128];
 
 /** The case seen as a visibility-buffer page: a front face, two triangles, its matrix. */
 export function pageVisible(cas: Cas) {
-  const geometrie = new THREE.BufferGeometry();
-  geometrie.setAttribute('position', new THREE.Float32BufferAttribute(cas.positions, 3));
+  const geometrie = new G.GraphGeometry();
+  geometrie.setAttribute('position', G.floatAttribute(cas.positions, 3));
   return {
     array: new Uint32Array(cas.indices),
     attributes: geometrie.attributes,
     matrix: cas.world,
-    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
+    material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
 }
 
@@ -38,7 +38,7 @@ export function pageVisible(cas: Cas) {
 function viewProjection(): number[] {
   camera.updateWorldMatrix(true, false);
   return [
-    ...new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    ...new G.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
       .elements,
   ];
 }
@@ -67,7 +67,7 @@ export function chargeRaster(cas: Cas[]) {
     for (const i of groupes[sens])
       for (const triangle of TRIANGLES)
         for (const sommet of triangle) {
-          const p = new THREE.Vector3()
+          const p = new G.Vector3()
             .fromArray(cas[i].positions, sommet * 3)
             .applyMatrix4(cas[i].world);
           sommets.push(p.x, p.y, p.z, i);
