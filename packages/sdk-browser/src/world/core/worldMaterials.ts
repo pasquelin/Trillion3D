@@ -4,6 +4,7 @@ import {
 } from '../../../../sdk-core/src/world/material/material.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
+import { composesWithBackground } from '../../scene/materialBlending.ts';
 
 /** The parameters a session reads as values — a page-table row's colour and numbers, a host
  *  surface's uniforms — and so the only ones written in place: none of them changes a shader, a
@@ -33,9 +34,12 @@ function materialKey(material: Material, values = true) {
 }
 
 /** A surface drawn by the opaque passes, where a value is read from the row at every frame; a
- *  blended or transmissive one is laid out in its forward pass when the session opens. */
+ *  blended or transmissive one is laid out in its forward pass when the session opens, and so is
+ *  one whose blending mode composes with the background, whatever `transparent` says. */
 const opaque = (material: Material) =>
-  !material.transparent && !((material.transmission as number | undefined) ?? 0);
+  !material.transparent &&
+  !composesWithBackground(material.blending) &&
+  !((material.transmission as number | undefined) ?? 0);
 
 /** An entry of the table: the parameters as they were when the entry was made or repainted. */
 export type MaterialEntry = { readonly id: number; key: string; readonly material: Material };

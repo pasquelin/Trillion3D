@@ -24,7 +24,7 @@ export interface PhysicsRaycastOptions {
 }
 
 /** A physics hit: the object — the compiled model, or the mesh of a body —, and the glTF material
- *  of the cooked triangle hit, `-1` when the shape carries none. */
+ *  of the cooked triangle hit (its collider's, `physics.json`), `-1` for a body's own shape. */
 export type PhysicsIntersection = Intersection & { material: number };
 
 /** Whether `world.raycast` options ask the physics. */
@@ -64,6 +64,6 @@ export async function physicsRaycast(
     normal: new Vector3(f[5], f[6], f[7]),
     distance: f[1] * reach,
     face: -1,
-    material: hit[8] === MISS ? -1 : hit[8],
+    material: session.materialOf(hit[0]),
   };
 }

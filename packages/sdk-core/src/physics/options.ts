@@ -8,12 +8,26 @@ export type PhysicsType = 'static' | 'dynamic' | 'kinematic';
  * object's own frame, before its scale.
  */
 export type PhysicsShape =
+  | PhysicsPrimitive
+  | { type: 'triangles' }
+  | { type: 'hull' }
+  /** Primitives placed in the object's frame, one rigid body: a raft of two pontoons and a deck.
+   *  Its scale must be the same on all three axes. */
+  | { type: 'compound'; parts: readonly PhysicsPart[] };
+
+/** An exact primitive: its sizes in the object's own frame. */
+export type PhysicsPrimitive =
   | { type: 'box'; halfExtents: readonly [number, number, number] }
   | { type: 'sphere'; radius: number }
   | { type: 'capsule'; halfHeight: number; radius: number }
-  | { type: 'cylinder'; halfHeight: number; radius: number }
-  | { type: 'triangles' }
-  | { type: 'hull' };
+  | { type: 'cylinder'; halfHeight: number; radius: number };
+
+/** One part of a compound shape: a primitive, placed and turned in the object's frame. */
+export type PhysicsPart = PhysicsPrimitive & {
+  /** @defaultValue [0, 0, 0] */ position?: readonly [number, number, number];
+  /** A unit quaternion `[x, y, z, w]`. @defaultValue [0, 0, 0, 1] */
+  quaternion?: readonly [number, number, number, number];
+};
 
 /** What `obj.physics` accepts beyond its three words. */
 export interface PhysicsBodyOptions {
