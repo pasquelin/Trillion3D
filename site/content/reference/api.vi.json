@@ -1510,7 +1510,12 @@
       "colorSpace": "Cách các con số của nó được đọc.",
       "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
       "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
-      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay."
+      "updateMatrix": "Dựng lại `matrix` từ độ lệch, độ lặp lại và góc xoay.",
+      "offset": "Những gì `matrix` được ghép từ đó.",
+      "repeat": "Số lần nó vừa khít.",
+      "center": "Tâm xoay.",
+      "rotation": "Góc xoay, tính bằng radian.",
+      "addEventListener": "Báo cho bộ nhập khi máy chủ buông texture."
     }
   },
   "HostTraversable": {
@@ -3547,8 +3552,9 @@
       "flipY": "Hình ảnh có bị lật ngược khi đọc hay không.",
       "anisotropy": "Hình ảnh giữ được độ sắc nét đến mức nào khi nhìn xiên.",
       "channel": "Tập UV nào của hình học mà kết cấu tuân theo.",
-      "version": "Tăng sau mỗi lần ghi, trừ khi ghi vị trí đặt: thứ một vật liệu so sánh để gửi lại ảnh cùng cách lấy mẫu.",
-      "placement": "Tăng khi vị trí đặt thay đổi — `repeat`, `offset`, `rotation` —: nó dời ảnh, không bao giờ đổi điểm ảnh; thứ một vật liệu so sánh để đặt lại ảnh.",
+      "version": "Tăng khi ghi ảnh hoặc cách đọc ảnh: thứ mà vật liệu so sánh để gửi lại ảnh.",
+      "sampling": "Tăng khi ghi địa chỉ hóa, bộ lọc hoặc bất đẳng hướng: đặt lại, không gửi gì.",
+      "placement": "Tăng khi ghi `repeat`, `offset` hoặc `rotation`: đặt lại vị trí, không gửi gì.",
       "image": "Chính hình ảnh đó: một image, một canvas, một video hoặc các điểm ảnh thô.",
       "layout": "Những gì hình ảnh chứa ngoài các điểm ảnh của nó: `'cube'`, `'array'`, `'depth'`, `'compressed'`.",
       "format": "Cách mỗi điểm ảnh được lưu trữ: `'rgba'`, `'rgb'`, `'r'`, `'depth'`…",
@@ -3566,6 +3572,8 @@
       "id": "Định danh của kết cấu trong cảnh đã nhập: điều mà một khóa bộ nhớ đệm và một thông điệp nêu tên nó bằng đó.",
       "name": "Tên mà tệp nguồn đặt cho nó, rỗng khi nó không đặt tên nào; chỉ các thông điệp đọc.",
       "version": "Tăng lên bất cứ khi nào các texel thay đổi: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
+      "sampling": "Tăng khi địa chỉ hóa, bộ lọc hoặc bất đẳng hướng thay đổi: bộ lấy mẫu được đặt lại.",
+      "placement": "Tăng khi `transform` thay đổi: vị trí được ghi lại, không tải lên gì.",
       "image": "Hình ảnh đã giải mã. Vật chứa của nó vẫn là `unknown`: chỉ ranh giới tải nó lên mới biết.",
       "channel": "Tập UV mà bộ lấy mẫu đọc, `texCoord` của `KHR_texture_transform`; bộ máy lấy mẫu 0 và 1.",
       "wrapS": "Lặp lại theo chiều ngang.",

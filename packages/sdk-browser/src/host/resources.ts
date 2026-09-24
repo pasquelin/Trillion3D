@@ -33,6 +33,12 @@ export type HostTexture = {
   readonly matrix: { readonly elements: number[] };
   /** Whether the host rebuilds `matrix`. */ readonly matrixAutoUpdate: boolean;
   /** Rebuilds `matrix` from offset, repeat and rotation. */ updateMatrix(): void;
+  /** What `matrix` is composed from. */ readonly offset: Readonly<{ x: number; y: number }>;
+  /** How many times it fits. */ readonly repeat: Readonly<{ x: number; y: number }>;
+  /** The pivot of the rotation. */ readonly center: Readonly<{ x: number; y: number }>;
+  /** The rotation, in radians. */ readonly rotation: number;
+  /** Tells the importer when the host lets go of the texture. */
+  addEventListener?(type: 'dispose', listener: () => void): void;
 };
 
 /** One vertex attribute of a host geometry, interleaved or not: its layout and its storage. */

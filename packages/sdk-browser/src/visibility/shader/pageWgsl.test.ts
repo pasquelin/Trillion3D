@@ -115,7 +115,7 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
 // Folding a coordinate cannot wrap a period: both taps and their weight are therefore carried
 // through to the atlas reads, which mix four reads on the seam and a single one elsewhere. A
 // read that took the folded coordinate alone would reopen the defect.
-test('atlas reads receive their map nibble and mix four taps', () => {
+test("atlas reads fold by their texture's nibble and mix four taps", () => {
   assert.match(
     WRAP_COORD_WGSL,
     /struct WrapTaps\{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,\}/,
@@ -125,13 +125,13 @@ test('atlas reads receive their map nibble and mix four taps', () => {
     MASK_ALPHA_WGSL: maskAlphaWgsl(true),
     DATA_SAMPLE_WGSL,
   })) {
-    assert.match(bloc, /,uv:vec2f,wrap:u32/, `${nom} must receive its map nibble`);
-    // #360, #361: a texture at the defaults takes the read it had, at the level it had, before
-    // anything else; any other reaches its transform and filter word, blended and shadow alike.
+    assert.match(bloc, /wrapUv\(uv,s\.wrap,s\.size\)/, `${nom} must fold by its texture's nibble`);
+    // #360, #361: the header is read once, then the footprint — the default read for a zero
+    // filter word, the transform and filter rule otherwise —, blended and shadow alike.
     assert.match(
       bloc,
-      /let s=(color|data)Slot\(slot\);\n if\(s\.sampling==0u\)\{return \w+Tap\(s,uv,wrap,slotLod\(s,ddx,ddy\),false\);\}\n let r=(color|data)Read\(slot,s,uv,ddx,ddy,(true|false)\);/,
-      `${nom} must read its sampling after the default read`,
+      /let s=(color|data)Slot\(slot\);\n let r=(color|data)Footprint\(slot,s,uv,ddx,ddy,(true|false)\);/,
+      `${nom} must read its footprint once`,
     );
     assert.match(bloc, /if\(!t\.couture\|\|nearest\)\{return /, `${nom} must keep the unique read`);
     assert.match(

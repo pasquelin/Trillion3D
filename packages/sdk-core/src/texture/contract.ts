@@ -33,6 +33,10 @@ export interface Texture {
   readonly name: string;
   /** Bumped whenever the texels change: what an upload compares to skip a re-copy. */
   readonly version: number;
+  /** Bumped when the addressing, the filters or the anisotropy move: the sampler set again. */
+  readonly sampling: number;
+  /** Bumped when `transform` moves: the placement written again, nothing uploaded. */
+  readonly placement: number;
   /** The decoded image. Its container stays `unknown`: only the boundary that uploads it knows. */
   readonly image: unknown;
   /** UV set the sampler reads, `KHR_texture_transform`'s `texCoord`; the engine samples 0 and 1. */

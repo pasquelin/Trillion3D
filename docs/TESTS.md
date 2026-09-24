@@ -16,7 +16,7 @@ tests/
   browser/renders/    42 *.browser.ts — rendering in real Chromium
   browser/probes/     20 GPU probes + 32 support modules
   browser/support/    69 pages and cases served to the render proofs
-  kit/                29 shared test tools: fake GPU devices, servers, assertions
+  kit/                30 shared test tools: fake GPU devices, servers, assertions
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
   core/               14 modules: measure, report, diff, ulp, baseline
