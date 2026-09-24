@@ -904,10 +904,11 @@ crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, imp
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
   scale throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
-  linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
+linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
   worker fits a plane of the waves to every piece under water and pushes it by the weight of the
   water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
-  never where. A wave out of range throws `RangeError`.
+  never where; setting or removing it wakes every dynamic body. A wave out of range throws
+  `RangeError`.
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
