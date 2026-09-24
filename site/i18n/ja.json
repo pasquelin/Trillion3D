@@ -482,7 +482,6 @@
       "breaking-things": "物理エンジンとの連携",
       "cloth-and-rope": "物理エンジンとの連携",
       "soft-bodies": "物理エンジンとの連携",
-      "hinges-and-joints": "物理エンジンとの連携",
       "drive-a-car": "物理エンジンとの連携",
       "a-room-in-vr": "WebXRセッション",
       "a-360-photo-in-vr": "WebXRセッション",
@@ -1073,6 +1072,18 @@
           "軽い箱を <code>'dynamic'</code> にする：キャラクターは <code>pushStrength</code> ニュートンで押し、箱は倒れ、転がり、押し返す。"
         ],
         "tryIt": "画像をクリックし、W A S D で歩き、スペースでジャンプ。階段を登り、台に乗り、積まれた箱を押そう。"
+      },
+      "connect-drive-and-break": {
+        "title": "つなぐ、動かす、壊す",
+        "description": "ジョイントは2つの物体どうし、または物体と世界をつなぎます。ドアは蝶番で回り、引き出しはレールを滑り、鎖は輪でぶら下がり、橋は強く引かれると壊れます。",
+        "steps": [
+          "<code>joint.hinge(a, b, options)</code> やその仲間 — <code>fixed</code>, <code>point</code>, <code>slider</code>, <code>distance</code>, <code>cone</code> — でジョイントを作り、<code>world.physics.add</code> に渡します。物体を世界に固定するには <code>b</code> に <code>null</code> を入れます。",
+          "<code>anchor</code> は物体どうしがつながる点、<code>axis</code> はピンやレールの向きです。どちらもワールド座標で、ジョイントを作るときに読まれます。",
+          "<code>limits</code> でジョイントを止めます。蝶番はラジアン、スライダーはメートル。<code>spring</code> で止まり方がやわらかくなります。",
+          "<code>motor</code> は蝶番やスライダーを速度または位置へ動かします。<code>joint.motor</code> はいつでも変えられます。",
+          "<code>breakForce</code> はジョイントが切れる引っ張りの強さ(ニュートン)です。切れると <code>joint.broken</code> が true になり、<code>joint.on('break', …)</code> が呼ばれます。"
+        ],
+        "tryIt": "ドアと引き出しを開けて、石を橋に落としてみよう。橋の強さを下げて作り直すと、自分の重さで壊れます。"
       },
       "your-own-scene": {
         "title": "自分だけのシーン",

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hinges and joints</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import {
+        createWorld,
+        geometry,
+        material,
+        object,
+        light,
+        math,
+        joint,
+      } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A door on a hinge, a drawer on a slider, a chain of ball joints and a bridge of planks
+      // that breaks under a weight. Every joint is one of Jolt's constraints between two bodies,
+      // or between a body and the world (`null`); `world.physics.add` puts it in the simulation.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#dfe8f2');
+      world.camera.far = 300;
+
+      const paint = (color, physics = 'wood') =>
+        material.meshStandard({ color, roughness: 0.8, physics });
+      const block = (size, at, color, type, physics) => {
+        const mesh = object.mesh(geometry.box(...size), paint(color, physics));
+        mesh.position.set(...at);
+        mesh.castShadow = mesh.receiveShadow = true;
+        mesh.physics = type;
+        world.scene.add(mesh);
+        return mesh;
+      };
+      block([40, 1, 40], [0, -0.5, 0], '#9aa7b5', 'static', 'stone');
+
+      // The door turns about a pin along its left edge; its motor swings it to an angle.
+      block([0.2, 2.3, 0.2], [-6.1, 1.15, 2], '#6b4f36', 'static');
+      const door = block([1.2, 2.1, 0.08], [-5.35, 1.15, 2], '#c08a4d', 'dynamic');
+      const hinge = joint.hinge(door, null, {
+        anchor: [-5.95, 1.15, 2],
+        axis: [0, 1, 0],
+        limits: { min: -1.7, max: 1.7 },
+        motor: { mode: 'position', target: 0, maxForce: 600 },
+      });
+
+      // The drawer slides out of its cabinet on a rail, as far as its limit.
+      block([1.1, 0.06, 1], [0, 0.35, 2], '#7a5a3e', 'static');
+      block([1.1, 0.06, 1], [0, 0.95, 2], '#7a5a3e', 'static');
+      block([0.06, 0.66, 1], [-0.58, 0.65, 2], '#7a5a3e', 'static');
+      block([0.06, 0.66, 1], [0.58, 0.65, 2], '#7a5a3e', 'static');
+      const drawer = block([0.9, 0.4, 0.9], [0, 0.63, 2], '#d7b27a', 'dynamic');
+      const rail = joint.slider(drawer, null, {
+        axis: [0, 0, 1],
+        limits: { min: 0, max: 0.75 },
+        motor: { mode: 'position', target: 0, maxForce: 800 },
+      });
+
+      // The chain: links held end to end by ball joints, the first one to the world.
+      const links = [];
+      const chain = [];
+      for (let i = 0; i < 10; i++) {
+        const link = block(
+          [0.12, 0.3, 0.12],
+          [6, 4.8 - i * 0.34, 2],
+          '#8d99a6',
+          'dynamic',
+          'metal',
+        );
+        const top = [6, 4.97 - i * 0.34, 2];
+        chain.push(joint.point(link, links[i - 1] ?? null, { anchor: top }));
+        links.push(link);
+      }
+
+      // The bridge: planks hinged end to end, hung between two pillars in a gentle sag. Each hinge
+      // breaks past `strength` newtons of pull; a stone weighs far more than the bridge.
+      block([0.6, 2.4, 1.6], [-3.6, 1.2, -5], '#a39b8f', 'static', 'stone');
+      block([0.6, 2.4, 1.6], [3.6, 1.2, -5], '#a39b8f', 'static', 'stone');
+      const PLANKS = 11,
+        PLANK = 0.62,
+        SPAN = 6.6;
+      let planks = [],
+        bridge = [],
+        weight = null;
+      // The sag: plank angles from −a to a whose run across adds up to the span.
+      const angle = (a, i) => a * ((2 * i + 1) / PLANKS - 1);
+      const run = (a) =>
+        Array.from({ length: PLANKS }, (_, i) => PLANK * Math.cos(angle(a, i))).reduce(
+          (s, x) => s + x,
+        );
+      let low = 0,
+        high = 1.2;
+      for (let k = 0; k < 40; k++)
+        run((low + high) / 2) > SPAN ? (low = (low + high) / 2) : (high = (low + high) / 2);
+      const sag = low;
+      const build = (strength) => {
+        for (const j of bridge) world.physics.remove(j);
+        for (const plank of planks) world.scene.remove(plank);
+        if (weight) world.scene.remove(weight);
+        planks = [];
+        bridge = [];
+        weight = null;
+        let x = -SPAN / 2,
+          y = 2.46;
+        for (let i = 0; i < PLANKS; i++) {
+          const a = angle(sag, i),
+            dx = PLANK * Math.cos(a),
+            dy = PLANK * Math.sin(a);
+          const plank = block(
+            [PLANK - 0.02, 0.08, 1.2],
+            [x + dx / 2, y + dy / 2, -5],
+            '#b98b57',
+            'dynamic',
+          );
+          plank.rotation.z = a;
+          const options = { anchor: [x, y, -5], axis: [0, 0, 1], breakForce: strength };
+          bridge.push(joint.hinge(plank, planks[i - 1] ?? null, options));
+          planks.push(plank);
+          x += dx;
+          y += dy;
+        }
+        bridge.push(
+          joint.hinge(planks[PLANKS - 1], null, {
+            anchor: [x, y, -5],
+            axis: [0, 0, 1],
+            breakForce: strength,
+          }),
+        );
+        for (const j of bridge) world.physics.add(j);
+      };
+      for (const j of [hinge, rail, ...chain]) world.physics.add(j);
+
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      sun.position.set(8, 16, 10);
+      world.scene.add(
+        sun,
+        light.hemisphere({ intensity: 1.2, color: '#ffffff', groundColor: '#8a9099' }),
+      );
+      world.camera.position.set(0, 7, 14);
+      world.controls.target.set(0, 1.5, -1);
+
+      const settings = controls(
+        {
+          openDoor: false,
+          openDrawer: false,
+          strength: [2000, 30000, 12000, 500],
+          swingChain: () => links[links.length - 1].physics.applyImpulse(60, 0, 0),
+          dropStone: () => {
+            if (weight) return;
+            weight = block([0.8, 0.8, 0.8], [0, 6, -5], '#6f6a64', 'dynamic', 'stone');
+          },
+          rebuild: () => build(settings.strength),
+        },
+        ({ openDoor, openDrawer }) => {
+          // A motor is changed at any time: the joint drives its body to the new target.
+          hinge.motor = { mode: 'position', target: openDoor ? 1.5 : 0, maxForce: 600 };
+          rail.motor = { mode: 'position', target: openDrawer ? 0.7 : 0, maxForce: 800 };
+        },
+        world,
+      );
+      build(settings.strength);
+      const held = readout('joints'),
+        snapped = readout('broken');
+      world.onFrame(() => {
+        const broken = bridge.filter((j) => j.broken).length;
+        held(String(2 + chain.length + bridge.length - broken));
+        snapped(String(broken));
+      });
+    </script>
+  </body>
+</html>
