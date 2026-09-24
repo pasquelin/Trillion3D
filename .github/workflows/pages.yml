@@ -39,9 +39,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/node
-      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone;
-      # `--published` adds the audience measurement, which no local or proof build carries.
-      - run: node scripts/docs-build.ts --published
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of
       # site/ (sources .ts/.tsx excluded) and writes index.html, robots.txt and the report.html
@@ -55,6 +52,9 @@ jobs:
           statics=$(git ls-files -- site/examples site/assets site/data site/reports | grep -cEv '\.tsx?$')
           echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
           echo "floor=$((statics + 3))" >> "$GITHUB_OUTPUT"
+      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone;
+      # `--published` adds the audience measurement, which no local or proof build carries.
+      - run: node scripts/docs-build.ts --published
       - if: steps.plan.outputs.deploy == 'true'
         uses: actions/upload-artifact@v7
         with:

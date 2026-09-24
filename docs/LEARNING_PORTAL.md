@@ -134,9 +134,10 @@ hash, so its root is the only address to list and no sitemap is written.
 
 ### Deploy
 
-`.github/workflows/pages.yml` builds the site on every pull request that touches it, and
-publishes it to https://www.trillion3d.com on every push to `main`. A manual run publishes only
-when asked, and only from `main`:
+`.github/workflows/pages.yml` builds the site on every pull request that touches it, without
+the open world's cook (about thirty-five minutes, run only before a publication), and publishes
+it to https://www.trillion3d.com on every push to `main`. A manual run publishes only when asked,
+and only from `main`:
 
 ```sh
 gh workflow run pages.yml -f deploy=true --ref main
