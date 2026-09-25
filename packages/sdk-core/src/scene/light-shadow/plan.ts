@@ -1,7 +1,6 @@
 import { LIGHT_KIND, lightDirection, type ShadowViewpoint } from '../light/contracts.ts';
 import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
 import { createShadowChanges } from './changes.ts';
-import { createShadowBudget } from './budget.ts';
 import { invalidateLightPages } from './invalidate.ts';
 import { createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
@@ -13,28 +12,28 @@ import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
 import { createShadowThresholds } from './thresholds.ts';
 
-/** The frame's shadow work: which virtual pages are drawn, and which wait. */
+/** The frame's shadow work: which virtual pages are drawn. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
  * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
  * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws the stale pages the image reads — coarse first,
- * up to a millisecond budget —, and the rest waits, never lost, its lag published. A still scene,
- * whose shading runs no more, asks for nothing and draws nothing.
+ * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
+ * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
+ * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
+ * asks for nothing and draws nothing.
  *
  * All arrays are allocated once; `plan()` allocates nothing.
  */
-export function createShadowPlan(capacity: number, poolSide: number) {
+export function createShadowPlan(poolSide: number) {
   const table = createShadowTable(poolSide * poolSide),
     pool = createShadowPool(poolSide),
     sun = createSunLevels(),
     records = createShadowRecords(table, pool, sun),
     requests = createShadowRequests(table, pool, records, sun),
     changes = createShadowChanges(),
-    budget = createShadowBudget(),
     counts = createShadowCounts(),
-    admission = createShadowAdmission(capacity, pool.pages),
+    admission = createShadowAdmission(pool.pages),
     thresholds = createShadowThresholds(pool),
     posed = new Int32Array(records.taken.length);
   let byPage = true,
@@ -54,11 +53,9 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     records,
     /** The request reports read back: what the latest one named, allocated or refused. */
     requests,
-    /** The Shadows-stage millisecond budget and the measured cost of a page. */
-    budget,
     /** What the last plan did, in pages. */
     counts,
-    /** This frame's pages, in admission order. */
+    /** This frame's pages, light view by light view. */
     admission,
     /** A node has moved: its box stales the pages it covers at the next plan. */
     worldChanged: changes.worldChanged,
@@ -76,10 +73,6 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     },
     /** The frame plans no shadow: the held boxes enter the list at once. */
     releaseDeferred: changes.releaseDeferred,
-    /** Timer of a frame's Shadows pass, reported to the pages it drew. */
-    observeCost: budget.observe,
-    /** Budget published by the host, in GPU milliseconds per frame. */
-    setBudgetMs: budget.setBudgetMs,
     /** Turns off per-page invalidation: a moving object stales every page of the lights it
      *  touches. On by default. */
     setPageInvalidation(on: boolean) {
@@ -98,7 +91,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     receive(next: ShadowRequestReport) {
       if (!report || next.frame > report.frame) report = next;
     },
-    /** Plans a frame: stales what moved, reads the last report, admits the pages to draw. */
+    /** Plans a frame: stales what moved, reads the last report, admits every page to draw. */
     plan(
       store: SceneLightStore,
       view: ShadowViewpoint,
@@ -158,26 +151,28 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
       requests.floors(posed, view, nowMs, frame);
-      const left = admission.run(pool, table, records, sun, budget, requests, frame, posed);
-      for (let i = 0; i < admission.count; i++) {
+      const count = admission.run(pool, table, requests.latest);
+      for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
       }
       // What the pool cannot hold waits for nothing: it is published, never pending.
-      counts.endFrame(pool, records, requests.latest, left, nowMs, frame);
-      return admission.count;
+      counts.endFrame(pool, records, requests.latest, nowMs, frame);
+      return count;
     },
-    /** The frame's pages were encoded, each in its `modes` entry: their draws land before
-     *  anything reads them. */
-    commit(modes?: ArrayLike<number>) {
-      for (let i = 0; i < admission.count; i++) {
-        pool.drew(table, admission.list[i], modes ? modes[i] : DRAW_ALL);
+    /** Pages `[from, to)` of the frame's list were encoded, page `from + i` in `modes[i]`: their
+     *  draws land before anything reads them. The last batch closes the list. */
+    commit(modes?: ArrayLike<number>, from = 0, to = admission.count) {
+      for (let i = from; i < to; i++) {
+        pool.drew(table, admission.list[i], modes ? modes[i - from] : DRAW_ALL);
         thresholds.drew(admission.list[i]);
       }
-      admission.reset();
+      if (to >= admission.count) admission.reset();
     },
-    /** The frame's pages could not be encoded: they stay stale, and wait for the next frame. */
-    reissue() {
+    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, and are
+     *  drawn by the next frame. */
+    reissue(from = 0) {
+      counts.pendingPages = Math.max(0, admission.count - from);
       admission.reset();
     },
     /** Starts over. */
@@ -188,7 +183,6 @@ export function createShadowPlan(capacity: number, poolSide: number) {
       thresholds.reset();
       requests.reset();
       changes.reset();
-      budget.reset();
       counts.reset();
       admission.reset();
       report = null;
