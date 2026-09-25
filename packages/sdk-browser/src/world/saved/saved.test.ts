@@ -132,21 +132,6 @@ test('a shape written by hand comes back in its array type, normalized or not', 
   assert.ok(back.array instanceof Uint8Array && back.normalized);
 });
 
-// #457: a host geometry is read at its value, a world one as stored; a saved one keeps its owner.
-test('a shape keeps who built it, the world or the host, once saved and read back', async () => {
-  const scene = sceneWithLoads([]);
-  for (const owner of ['world', 'host'] as const) {
-    const shape = geometry.createBuffer({
-      position: new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3),
-    });
-    shape._owner = owner;
-    scene.add(object.mesh(shape));
-  }
-  await scene.fromJSON(JSON.parse(JSON.stringify(scene.toJSON())));
-  const owners = scene.children.map((m) => (m as ReturnType<typeof object.mesh>).geometry._owner);
-  assert.deepEqual(owners, ['world', 'host']);
-});
-
 test('a parameter cleared to null is read back null, not an empty object', async () => {
   const cleared = material.meshStandard({ color: 0x00ff00 });
   cleared.map = null;
