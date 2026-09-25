@@ -30,9 +30,9 @@ export function createSceneProxyReader(
   signal?: AbortSignal,
 ) {
   const url = proxy && new URL(proxy.url, base).href;
-  cache?.keepOnly(url ? [url] : []);
+  cache?.keepOnly(url);
   if (!proxy || !url) return undefined;
-  const read = async () => {
+  const fetchProxy = async () => {
     const buffer = await (await checked(url, signal)).arrayBuffer();
     // Sized before the fingerprint, which transfers the buffer to a worker and back.
     const bytes = buffer.byteLength;
@@ -41,19 +41,22 @@ export function createSceneProxyReader(
     if (verified.sha256 !== proxy.sha256) throw corruptObject(url, proxy, bytes, verified.sha256);
     return new Uint8Array(verified.source);
   };
-  return async (): Promise<SceneProxy> => {
-    let bytes = cache?.kept(url);
-    if (!bytes) {
-      cache?.keep(url, proxy.bytes);
-      try {
-        bytes = await read();
-      } catch (error) {
-        // What failed keeps nothing: its reservation leaves the total.
-        cache?.keepOnly([]);
+  /** The read in flight, shared by every caller until it lands or fails. */
+  let pending: Promise<Uint8Array> | undefined;
+  const read = () => {
+    cache?.keep(url, proxy.bytes);
+    return fetchProxy().then(
+      (bytes) => (cache?.keep(url, bytes), bytes),
+      (error: unknown) => {
+        // What failed keeps nothing: its reservation leaves the total, and a later call asks again.
+        cache?.keepOnly();
+        pending = undefined;
         throw error;
-      }
-      cache?.keep(url, bytes.byteLength, bytes);
-    }
+      },
+    );
+  };
+  return async (): Promise<SceneProxy> => {
+    const bytes = cache?.kept(url) ?? (await (pending ??= read()));
     // The columns are views of the bytes the cache keeps, whole: they are only read, never written.
     return decodeSceneProxy(proxy, bytes.buffer as ArrayBuffer);
   };
