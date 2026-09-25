@@ -149,8 +149,7 @@ export function createLightCutRedraws(
     /**
      * The camera rests: what residency changed meanwhile is drawn again, and the views a batch
      * draws in may grow back. Never before: under a moving camera residency changes every frame,
-     * and a limit reset each time made the batch that dropped drop again, its pages drawn short,
-     * withdrawn and drawn again frame after frame.
+     * and the batch that dropped would drop again each time.
      */
     rest() {
       if (!moved) return;

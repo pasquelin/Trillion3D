@@ -12,6 +12,9 @@ export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>
   light?: { views: number; queueCap: number };
 };
 
+/** Workgroups for `count` threads, never none. */
+const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
+
 /**
  * Cut kernels, encoded in order. Each dispatch waits for the previous — the GPU empties its queue
  * and caches between two —, and that wait is attributed to no kernel: it is the number of
@@ -75,7 +78,6 @@ function encodeOnce(
   const views = light?.views ?? 1,
     queueCap = light?.queueCap ?? resources.nodeCount;
   const label = light ? LIGHT_CUT_PASS : 'Trillion3D DAG selection';
-  const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
   // Head word of the dispatch argument, copied outside a pass: the other two have been one since
   // the buffer was created. That is the only reason for cuts between passes.
   const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
@@ -155,6 +157,6 @@ export function encodeAskedBest(encoder: GPUCommandEncoder, view: DagView, entri
   const pass = encoder.beginComputePass({ label: LIGHT_CUT_PASS });
   pass.setBindGroup(0, view.bindGroup);
   pass.setPipeline(view.askedBestPipeline);
-  pass.dispatchWorkgroups(Math.max(1, Math.ceil(entries / WORKGROUP)));
+  pass.dispatchWorkgroups(groups(entries));
   pass.end();
 }
