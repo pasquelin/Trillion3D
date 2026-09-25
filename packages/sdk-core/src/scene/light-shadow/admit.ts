@@ -22,7 +22,8 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * asking — blend, water — would otherwise read its old depth for as long as no report names it.
  *
  * The list holds the pages light view by light view, each view's pages in page order: what the
- * light cut selects casters for once. The GPU draws it in the batches its buffers hold
+ * light cut selects casters for once — but the view a list resumes in (below), whose pages before
+ * the resumed one come back at the list's end. The GPU draws it in the batches its buffers hold
  * (`batchEnd`), every batch in the frame. All arrays are allocated once.
  *
  * NO PAGE WAITS FOREVER. A frame that cannot draw the whole list — its batches past the most its
@@ -40,8 +41,6 @@ export function createShadowAdmission(poolPages: number) {
     /** One exact sort key per admitted page: its view, then the page itself. */
     order = new Float64Array(poolPages);
   let count = 0,
-    /** Where the list starts in `order`: at `resume`, wrapping around. */
-    start = 0,
     /** The sort key the next list starts at: the first page the last frame left undrawn. */
     resume = -Infinity;
   return {
@@ -60,7 +59,8 @@ export function createShadowAdmission(poolPages: number) {
         else order[count++] = viewKeyOf(pool, page) * poolPages + page;
       }
       order.subarray(0, count).sort();
-      start = 0;
+      // The list starts at `resume` in the order, and wraps around.
+      let start = 0;
       while (start < count && order[start] < resume) start++;
       for (let i = 0; i < count; i++) {
         const key = order[(start + i) % count];
@@ -87,7 +87,8 @@ export function createShadowAdmission(poolPages: number) {
     },
     /** Closes the list. The frame drew it up to `stopped`: the next list starts at that page. */
     reset(stopped = count) {
-      resume = stopped < count ? order[(start + stopped) % count] : -Infinity;
+      // The stopped page's sort key, rebuilt exactly from its view and page.
+      resume = stopped < count ? keys[stopped] * poolPages + list[stopped] : -Infinity;
       count = 0;
     },
   };
