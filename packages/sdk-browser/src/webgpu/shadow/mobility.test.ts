@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShadowMobility } from './mobility.ts';
-import { MOVE_MOVING, MOVE_PROMOTED } from '../../placement/update.ts';
+import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import { createShadowResidence } from './residence.ts';
 
 test('the first move promotes a placement and opens the static layer; its later moves do not', () => {
@@ -30,8 +30,15 @@ test('a placement posed where it already stands does not move', () => {
   mobility.ensure(2, 2, () => identity);
   mobility.move(0, identity);
   assert.equal(mobility.layered, false, 'same pose: still');
-  mobility.move(0);
+  mobility.move(0, identity, true);
   assert.equal(mobility.layered, true, 'taken or parked: moved');
+  assert.equal(mobility.move(0, identity), MOVE_NONE, 'posed again where it was taken: no move');
+  mobility.move(0);
+  assert.equal(
+    mobility.move(0, identity),
+    MOVE_MOVING,
+    'a move said without its pose: judged moved',
+  );
   const shifted = identity.slice();
   shifted[12] = 1;
   mobility.move(1, shifted);

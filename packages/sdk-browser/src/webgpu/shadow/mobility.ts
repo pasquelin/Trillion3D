@@ -43,15 +43,16 @@ export function createShadowMobility() {
       wholeRows = true;
     },
     /**
-     * Placement `rank` was posed, at `world` when its pose is all that changed: it moved unless
-     * `world` is the pose it was last seen at. Returns `MOVE_NONE`, `MOVE_MOVING` — it was
-     * moving already, its static casters stay — or `MOVE_PROMOTED`, its first move.
+     * Placement `rank` was posed, at `world` when it is known: it moved unless `world` is the pose
+     * it was last seen at, or whatever its pose when `forced` — a row taken or parked. Returns
+     * `MOVE_NONE`, `MOVE_MOVING` — it was moving already, its static casters stay — or
+     * `MOVE_PROMOTED`, its first move.
      */
-    move(rank: number, world?: ArrayLike<number>) {
+    move(rank: number, world?: ArrayLike<number>, forced = false) {
       if (rank < 0 || rank >= moving.length) return MOVE_PROMOTED;
       // A move said without its pose leaves none to compare the next write with.
       if (!world) poses[rank * 16] = NaN;
-      else if (sameElements(poses, world, rank * 16)) return MOVE_NONE;
+      else if (!forced && sameElements(poses, world, rank * 16)) return MOVE_NONE;
       else poses.set(world, rank * 16);
       if (moving[rank]) return MOVE_MOVING;
       moving[rank] = 1;
