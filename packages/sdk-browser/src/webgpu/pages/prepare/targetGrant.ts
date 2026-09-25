@@ -7,35 +7,30 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 /** What the device still answers for the frame targets, while it answers. */
 export function frameTargetsPending(rt: WebgpuPagesRuntime) {
   const grant = rt.gpu.targetGrant;
-  return grant && !grant.settled ? grant.done : undefined;
+  return grant && !grant.refused ? grant.done : undefined;
 }
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
  *  this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
-export function frameTargetsAwaited(rt: WebgpuPagesRuntime) {
-  const grant = rt.gpu.targetGrant;
-  return !!grant && !grant.granted;
-}
+export const frameTargetsAwaited = (rt: WebgpuPagesRuntime) => rt.gpu.targetGrant !== undefined;
 
 /**
- * Asks the device for the frame targets of `width × height`, unless those in place fit, a grant
+ * Asks the device for the frame targets of the view's size, unless those in place fit, a grant
  * is still in flight — one at a time: its answer asks the next frame (`pendingWebgpuFrame`) —, or
- * this size was already answered. A size the device cannot make is refused at once, by name
- * (`SURFACE_DEVICE_LIMIT`), before anything is released.
+ * this size was refused and `retry` is not set. A size the device cannot make is refused at once,
+ * by name (`SURFACE_DEVICE_LIMIT`), before anything is released. The steady path, targets in
+ * place, allocates nothing and returns nothing.
  */
-export function requestFrameTargets(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  width: number,
-  height: number,
-) {
-  const { gpu, capture, diag, run } = rt;
+export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, retry = false) {
+  const { gpu, capture, diag, run } = rt,
+    width = Math.max(1, rt.setup.viewport[0]),
+    height = Math.max(1, rt.setup.viewport[1]);
+  const asked = gpu.targetGrant;
   if (targetsFit(rt, width, height)) {
-    if (gpu.targetGrant?.settled) gpu.targetGrant = undefined;
+    if (asked?.refused) gpu.targetGrant = undefined;
     return;
   }
-  const asked = gpu.targetGrant;
-  if (asked && (!asked.settled || (asked.width === width && asked.height === height)))
+  if (asked && (!asked.refused || (!retry && asked.width === width && asked.height === height)))
     return asked.done;
   diag.traceDiagnostic('targets-request', 'GPU frame targets request', () => ({
     frame: run.frame,
@@ -45,40 +40,37 @@ export function requestFrameTargets(
     additionalBytes: capture.captureAllocationBytes,
     hiZReserved: rt.setup.reserveHiz,
   }));
+  // Thrown here, synchronously: a size beyond the device's limits releases nothing.
   const targetBytes = frameTargetAllocation(
     rt,
     width,
     height,
     capture.captureAllocationBytes + backdropBytes(rt, width, height),
   );
-  const grant = { width, height, settled: false, granted: false, done: Promise.resolve() };
+  const grant = { width, height, refused: false, done: Promise.resolve() };
   gpu.targetGrant = grant;
-  grant.done = grantTargets(rt, device, width, height, targetBytes)
-    .then(
-      (granted) => void (grant.granted = granted),
-      (error: unknown) => {
-        releaseTargets(rt);
-        diag.diagnosticFailure('frame-targets-refused', error);
-      },
-    )
-    .finally(() => (grant.settled = true));
+  grant.done = grantTargets(rt, device, width, height, targetBytes).then(
+    (granted) => {
+      if (!granted) grant.refused = true;
+      else if (gpu.targetGrant === grant) gpu.targetGrant = undefined;
+    },
+    (error: unknown) => {
+      grant.refused = true;
+      releaseTargets(rt);
+      diag.diagnosticFailure('frame-targets-refused', error);
+    },
+  );
   return grant.done;
 }
 
 /**
- * The frame targets of `width × height`, granted before a capture, its restore or prepare draws
+ * The frame targets of the view's size, granted before a capture, its restore or prepare draws
  * with them: a grant in flight is waited for first, and a size refused before is asked again.
  * What the device refuses even without Hi-Z is refused by name: `WEBGPU_FRAME_TARGETS_REFUSED`.
  */
-export async function grantFrameTargets(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  width: number,
-  height: number,
-) {
+export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   await frameTargetsPending(rt);
-  if (rt.gpu.targetGrant?.settled) rt.gpu.targetGrant = undefined;
-  await requestFrameTargets(rt, device, width, height);
+  await requestFrameTargets(rt, device, true);
   if (frameTargetsAwaited(rt)) throw new Error('WEBGPU_FRAME_TARGETS_REFUSED');
 }
 
@@ -114,8 +106,10 @@ async function grantTargets(
       made = await deviceMade(device, make);
     }
   }
-  if (made && (run.lost || rt.signal.aborted)) made.destroy();
-  if (run.lost || rt.signal.aborted) return false;
+  if (run.lost || rt.signal.aborted) {
+    made?.destroy();
+    return false;
+  }
   if (!made) {
     diag.engineDiagnostic('frame-targets-refused', 'The device refused the frame targets', {
       kind: 'error',
