@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Letture limitate, per priorità e senza duplicati.",
-    "description": "Una richiesta ancora in attesa in coda viene scartata quando il suo ultimo consumatore se ne va; una richiesta già in transito può arrivare nella cache. La cache è un insieme «usato meno di recente» limitato sia in voci che in byte; le voci fissate sopravvivono allo sfratto, quindi un chiamante mantiene la propria copertura mostrata trattenendola."
+    "description": "Una richiesta ancora in attesa in coda viene scartata quando il suo ultimo consumatore se ne va; una richiesta già in transito può arrivare nella cache. La cache è un insieme «usato meno di recente» limitato sia in voci che in byte; le voci fissate sopravvivono allo sfratto, quindi un chiamante mantiene la propria copertura mostrata trattenendola.",
+    "parameters": {
+      "options": "Come legge uno streamer di pagine (`createPageStreamer`). Accanto alle sue pagine, la sua cache riserva le tabelle del manifesto e la coda di trasferimento; ogni membro ha un valore predefinito.",
+      "options.signal": "Annulla ogni lettura una volta interrotto.",
+      "options.workerCount": "Letture eseguite insieme; 8 per impostazione predefinita.",
+      "options.maxPages": "Massimo di pagine tenute insieme; limitato solo dai byte se assente.",
+      "options.onEvict": "Riceve ogni pagina che lascia la cache.",
+      "options.maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
+      "options.onDiagnostic": "Riceve ogni passo di ogni lettura.",
+      "options.maxCachedBytes": "Il totale CPU della cache: pagine, tabelle del manifesto e coda di trasferimento insieme; 256 MiB per impostazione predefinita."
+    }
   },
   "createPathGovernor": {
     "summary": "Un regolatore."
@@ -4623,6 +4633,19 @@
     "members": {
       "source": "Da dove vengono lette le pagine.",
       "workers": "Quanti lavoratori recuperano e decodificano pagine alla volta."
+    }
+  },
+  "PageStreamerOptions": {
+    "summary": "Come legge uno streamer di pagine (`createPageStreamer`).",
+    "description": "Accanto alle sue pagine, la sua cache riserva le tabelle del manifesto e la coda di trasferimento; ogni membro ha un valore predefinito.",
+    "members": {
+      "signal": "Annulla ogni lettura una volta interrotto.",
+      "workerCount": "Letture eseguite insieme; 8 per impostazione predefinita.",
+      "maxPages": "Massimo di pagine tenute insieme; limitato solo dai byte se assente.",
+      "onEvict": "Riceve ogni pagina che lascia la cache.",
+      "maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
+      "onDiagnostic": "Riceve ogni passo di ogni lettura.",
+      "maxCachedBytes": "Il totale CPU della cache: pagine, tabelle del manifesto e coda di trasferimento insieme; 256 MiB per impostazione predefinita."
     }
   },
   "PanZoomCameraControls": {

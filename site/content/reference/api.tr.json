@@ -2525,6 +2525,19 @@
       "workers": "Aynı anda kaç worker'ın sayfaları getirip çözdüğü."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Bir sayfa akışının nasıl okuduğu (`createPageStreamer`).",
+    "description": "Önbelleği, sayfalarının yanında bildirim tablolarını ve aktarım kuyruğunu ayırır; her üyenin varsayılan değeri vardır.",
+    "members": {
+      "signal": "İptal edildiğinde tüm okumaları durdurur.",
+      "workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
+      "maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
+      "onEvict": "Önbellekten çıkan her sayfayı duyar.",
+      "maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
+      "onDiagnostic": "Her okumanın her adımını duyar.",
+      "maxCachedBytes": "Önbelleğin CPU toplamı: sayfaları, bildirim tabloları ve aktarım kuyruğu birlikte; varsayılan 256 MiB."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "DÜZLEMSEL KAYDIRMA-YAKINLAŞTIRMA, düz görünüm: kamera asla dönmez.",
     "description": "Kontrolcü yapıldığında hangi yöne bakıyorsa o yönü korur, ve her jest, kameranın baktığı düzlemde görünümü kaydırır ya da onu bu düzleme yaklaştırır — bir plan, bir kesit, bir harita. Herhangi bir sürükleme kaydırır, tekerlek ve bir sıkıştırma `minDistance` ile `maxDistance` arasında yakınlaştırır, ve ok tuşları, işaretçisi olmayan bir izleyici için sabit bir adımla kaydırır. `rotateSpeed`, pivot sözleşmesinden miras alınır ve burada hiçbir şey yapmaz: hızlandırılacak bir dönüş yoktur. `enablePan` ve `enableZoom`, var olan iki jesti açıp kapatır.",
@@ -4773,7 +4786,17 @@
   },
   "createPageStreamer": {
     "summary": "Sınırlı, önceliklendirilmiş ve tekilleştirilmiş okumalar.",
-    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur."
+    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur.",
+    "parameters": {
+      "options": "Bir sayfa akışının nasıl okuduğu (`createPageStreamer`). Önbelleği, sayfalarının yanında bildirim tablolarını ve aktarım kuyruğunu ayırır; her üyenin varsayılan değeri vardır.",
+      "options.signal": "İptal edildiğinde tüm okumaları durdurur.",
+      "options.workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
+      "options.maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
+      "options.onEvict": "Önbellekten çıkan her sayfayı duyar.",
+      "options.maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
+      "options.onDiagnostic": "Her okumanın her adımını duyar.",
+      "options.maxCachedBytes": "Önbelleğin CPU toplamı: sayfaları, bildirim tabloları ve aktarım kuyruğu birlikte; varsayılan 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Bir regülatör."

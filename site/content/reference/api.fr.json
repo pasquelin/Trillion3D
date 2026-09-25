@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Lectures bornées, par priorité et sans doublon.",
-    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant."
+    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant.",
+    "parameters": {
+      "options": "Comment un flux de pages lit (`createPageStreamer`). À côté de ses pages, son cache réserve ses tables de manifeste et sa file de transfert ; chaque membre a une valeur par défaut.",
+      "options.signal": "Annule toutes les lectures une fois interrompu.",
+      "options.workerCount": "Lectures menées en même temps ; 8 par défaut.",
+      "options.maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
+      "options.onEvict": "Entend chaque page qui quitte le cache.",
+      "options.maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
+      "options.onDiagnostic": "Entend chaque étape de chaque lecture.",
+      "options.maxCachedBytes": "Le total CPU du cache : ses pages, ses tables de manifeste et sa file de transfert ensemble ; 256 Mio par défaut."
+    }
   },
   "createPathGovernor": {
     "summary": "Un régulateur."
@@ -4631,6 +4641,19 @@
     "members": {
       "source": "D’où les pages sont lues.",
       "workers": "Combien de travailleurs récupèrent et décodent des pages à la fois."
+    }
+  },
+  "PageStreamerOptions": {
+    "summary": "Comment un flux de pages lit (`createPageStreamer`).",
+    "description": "À côté de ses pages, son cache réserve ses tables de manifeste et sa file de transfert ; chaque membre a une valeur par défaut.",
+    "members": {
+      "signal": "Annule toutes les lectures une fois interrompu.",
+      "workerCount": "Lectures menées en même temps ; 8 par défaut.",
+      "maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
+      "onEvict": "Entend chaque page qui quitte le cache.",
+      "maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
+      "onDiagnostic": "Entend chaque étape de chaque lecture.",
+      "maxCachedBytes": "Le total CPU du cache : ses pages, ses tables de manifeste et sa file de transfert ensemble ; 256 Mio par défaut."
     }
   },
   "PanZoomCameraControls": {

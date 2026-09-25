@@ -133,7 +133,7 @@ export type {
   TextureLevelRequest,
 } from './texture/levelReader.ts';
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts';
-export type { HostRetentionDelta, StreamPage } from './streaming/types.ts';
+export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts';
 export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts';
 export type { LightingCapabilities } from '../../sdk-core/src/index.ts';
 export { framingFromBounds } from './camera/framing.ts';

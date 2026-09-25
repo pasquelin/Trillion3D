@@ -2543,6 +2543,19 @@
       "workers": "Berapa banyak worker mengambil dan menguraikan halaman sekaligus."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Cara pembaca halaman membaca (`createPageStreamer`).",
+    "description": "Di samping halamannya, cache-nya mencadangkan tabel manifes dan antrean transfernya; setiap anggota punya nilai bawaan.",
+    "members": {
+      "signal": "Membatalkan setiap pembacaan setelah dihentikan.",
+      "workerCount": "Pembacaan yang berjalan bersamaan; bawaan 8.",
+      "maxPages": "Halaman terbanyak yang disimpan sekaligus; jika tidak ada, dibatasi oleh byte saja.",
+      "onEvict": "Mendengar setiap halaman yang keluar dari cache.",
+      "maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
+      "onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
+      "maxCachedBytes": "Total CPU cache: halaman, tabel manifes, dan antrean transfernya bersama-sama; bawaan 256 MiB."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PAN-ZOOM DATAR, tampilan datar: kamera tidak pernah berputar.",
     "description": "Arah mana pun yang ditunjuknya saat controller dibuat adalah arah yang dipertahankannya, dan setiap gestur menggeser tampilan pada bidang yang dihadapi kamera atau menggerakkannya lebih dekat ke bidang itu — sebuah denah, sebuah elevasi, sebuah peta. Seretan apa pun menggeser, roda dan cubit memperbesar antara `minDistance` dan `maxDistance`, dan tombol panah menggeser dengan langkah tetap untuk pengamat yang tidak punya pointer. `rotateSpeed` diwarisi dari kontrak pivot dan tidak berbuat apa-apa di sini: tidak ada rotasi untuk dipercepat. `enablePan` dan `enableZoom` menyalakan kedua gestur yang ada.",
@@ -4763,7 +4776,17 @@
   },
   "createPageStreamer": {
     "summary": "Pembacaan terbatas, terprioritaskan dan tanpa duplikat.",
-    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi baik oleh entri maupun byte; entri yang di-pin bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menahannya."
+    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi baik oleh entri maupun byte; entri yang di-pin bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menahannya.",
+    "parameters": {
+      "options": "Cara pembaca halaman membaca (`createPageStreamer`). Di samping halamannya, cache-nya mencadangkan tabel manifes dan antrean transfernya; setiap anggota punya nilai bawaan.",
+      "options.signal": "Membatalkan setiap pembacaan setelah dihentikan.",
+      "options.workerCount": "Pembacaan yang berjalan bersamaan; bawaan 8.",
+      "options.maxPages": "Halaman terbanyak yang disimpan sekaligus; jika tidak ada, dibatasi oleh byte saja.",
+      "options.onEvict": "Mendengar setiap halaman yang keluar dari cache.",
+      "options.maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
+      "options.onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
+      "options.maxCachedBytes": "Total CPU cache: halaman, tabel manifes, dan antrean transfernya bersama-sama; bawaan 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Sebuah governor."

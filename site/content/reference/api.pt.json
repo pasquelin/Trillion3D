@@ -2525,6 +2525,19 @@
       "workers": "Quantos workers buscam e decodificam páginas de uma vez."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Como um leitor de páginas lê (`createPageStreamer`).",
+    "description": "Além das suas páginas, o seu cache reserva as tabelas do manifesto e a fila de transferência; cada membro tem um valor padrão.",
+    "members": {
+      "signal": "Cancela todas as leituras quando abortado.",
+      "workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
+      "maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
+      "onEvict": "Ouve cada página que sai do cache.",
+      "maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
+      "onDiagnostic": "Ouve cada passo de cada leitura.",
+      "maxCachedBytes": "O total de CPU do cache: páginas, tabelas do manifesto e fila de transferência juntas; 256 MiB por padrão."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PAN-ZOOM PLANAR, a visão plana: a câmera nunca gira.",
     "description": "Qualquer direção para a qual estava apontando quando o controlador foi feito é a direção que ela mantém, e todo gesto desliza a visão no plano para o qual a câmera aponta ou a move mais perto desse plano — uma planta, uma elevação, um mapa. Qualquer arraste desloca, a roda e um pinça dão zoom entre `minDistance` e `maxDistance`, e as setas do teclado deslocam por um passo fixo para um observador sem ponteiro. `rotateSpeed` é herdado do contrato de pivô e não faz nada aqui: não há rotação para acelerar. `enablePan` e `enableZoom` alternam os dois gestos que existem.",
@@ -4773,7 +4786,17 @@
   },
   "createPageStreamer": {
     "summary": "Leituras limitadas, priorizadas e deduplicadas.",
-    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la."
+    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la.",
+    "parameters": {
+      "options": "Como um leitor de páginas lê (`createPageStreamer`). Além das suas páginas, o seu cache reserva as tabelas do manifesto e a fila de transferência; cada membro tem um valor padrão.",
+      "options.signal": "Cancela todas as leituras quando abortado.",
+      "options.workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
+      "options.maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
+      "options.onEvict": "Ouve cada página que sai do cache.",
+      "options.maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
+      "options.onDiagnostic": "Ouve cada passo de cada leitura.",
+      "options.maxCachedBytes": "O total de CPU do cache: páginas, tabelas do manifesto e fila de transferência juntas; 256 MiB por padrão."
+    }
   },
   "createPathGovernor": {
     "summary": "Um regulador."

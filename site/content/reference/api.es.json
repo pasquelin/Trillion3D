@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Lecturas acotadas, por prioridad y sin duplicado.",
-    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola."
+    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola.",
+    "parameters": {
+      "options": "Cómo lee un lector de páginas (`createPageStreamer`). Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+      "options.signal": "Cancela todas las lecturas una vez abortado.",
+      "options.workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
+      "options.maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
+      "options.onEvict": "Escucha cada página que sale de la caché.",
+      "options.maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
+      "options.onDiagnostic": "Escucha cada paso de cada lectura.",
+      "options.maxCachedBytes": "El total de CPU de la caché: sus páginas, tablas de manifiesto y cola de transferencia juntas; 256 MiB por defecto."
+    }
   },
   "createPathGovernor": {
     "summary": "Un regulador."
@@ -4623,6 +4633,19 @@
     "members": {
       "source": "De dónde se leen las páginas.",
       "workers": "Cuántos trabajadores recuperan y decodifican páginas a la vez."
+    }
+  },
+  "PageStreamerOptions": {
+    "summary": "Cómo lee un lector de páginas (`createPageStreamer`).",
+    "description": "Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+    "members": {
+      "signal": "Cancela todas las lecturas una vez abortado.",
+      "workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
+      "maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
+      "onEvict": "Escucha cada página que sale de la caché.",
+      "maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
+      "onDiagnostic": "Escucha cada paso de cada lectura.",
+      "maxCachedBytes": "El total de CPU de la caché: sus páginas, tablas de manifiesto y cola de transferencia juntas; 256 MiB por defecto."
     }
   },
   "PanZoomCameraControls": {

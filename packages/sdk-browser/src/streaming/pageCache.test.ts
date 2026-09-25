@@ -126,10 +126,13 @@ test("a streamer's own cache leaves with it; a kept one stays, minus pages cooke
   assert.equal(second.has('a.bin'), true);
   assert.equal(second.has('b.bin'), false, 'another page under the same url is not served');
   second.dispose();
+  const resized = open([{ ...pages[0], bytes: 16 }], kept);
+  assert.equal(resized.has('a.bin'), false, 'nor the same fingerprint named at another size');
+  resized.dispose();
   assert.throws(() => createPageCache(0), /INVALID_PAGE_CACHE_BUDGET/);
 });
 
-test('a kept page is served only as the file it was read as: its address and its fingerprint', async () => {
+test('a kept page is served only as the file it was read as: its fingerprint, under any base', async () => {
   const file = async (value: number) => {
     const bytes = new Uint8Array(12).fill(value);
     return { bytes, sha256: await sha256Hex(bytes.buffer) };
@@ -158,6 +161,8 @@ test('a kept page is served only as the file it was read as: its address and its
   served.set('http://b/p.bin', one);
   assert.equal(await read('http://b/', one), 1, 'the same address, another fingerprint');
   assert.equal(await read('http://b/', one), 1);
+  // The same file under a third base: the bytes verified against its fingerprint are served.
+  assert.equal(await read('http://c/', one), 1);
   assert.deepEqual(
     fetched,
     ['http://a/p.bin', 'http://b/p.bin', 'http://b/p.bin'],
