@@ -67,6 +67,8 @@ fn slotOf(w:u32)->u32{return vi*views[0u].worldCount+w;}
 fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;}
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
+/** A light cut's best request of \`page\` this frame, behind it (\`dagWorkLayout\`, \`askedAt\`). */
+fn askedWord(page:u32)->u32{return drawnGroupsMax()+1u+page;}
 fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
 fn noteCoarser(){if(isLightCut()){atomicOr(&out.overflow,1u<<(${COARSER_VIEWS}u+vi));}}
 fn isLightCut()->bool{return (views[0u].viewFlags&VIEW_LIGHT)!=0u;}
