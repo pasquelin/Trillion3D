@@ -82,7 +82,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },
-    refreshMaterials: () => refreshWebgpuMaterials(rt),
+    refreshMaterials: (values) => refreshWebgpuMaterials(rt, values),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
     async prepare() {
