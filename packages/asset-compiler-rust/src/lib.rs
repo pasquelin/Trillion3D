@@ -72,15 +72,6 @@ impl CompilerError {
             message: message.into(),
         }
     }
-    /// The same refusal, naming the source glTF mesh and primitive it was raised in: page ids
-    /// restart at 0 in every primitive, so a page named alone is ambiguous in a cook of several.
-    /// A cancellation is no refusal of that primitive and keeps its message.
-    fn within(mut self, mesh: usize, primitive: usize) -> Self {
-        if self.code != "CANCELLED" {
-            self.message = format!("Mesh {mesh} primitive {primitive}: {}", self.message);
-        }
-        self
-    }
 }
 impl Display for CompilerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
