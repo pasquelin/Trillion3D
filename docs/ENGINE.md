@@ -353,11 +353,13 @@ path applies) reflects the scene: the resolve fires one ray along the mirror dir
 resident proxy, from the origin the sun's far shadow uses, and reads the face it hits in the surface
 cache; a ray that leaves the proxy reads the probe irradiance in that direction over π. The radiance
 is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
-rectangular light reads. The water composite reflects through the same function, at every
-roughness, weighted by its Fresnel, so the engine has one reflection model
-(`packages/sdk-browser/src/bounce/reflectWgsl.ts`). What a mirror shows is the proxy: its certified
-error, one radiance per triangle face, and nothing nearer than one proxy cell along the ray. A
-rougher surface, a diffuse or toon one, and every surface with the bounce off add exactly zero: the
+rectangular light reads. The water composite reflects through the same function, weighted by its
+Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounce/reflectWgsl.ts`):
+mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
+irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
+certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
+ray. A rougher opaque surface, a diffuse or toon one, and every surface with the bounce off add
+exactly zero: the
 floor is a material threshold, so a roughness map that crosses it shows reflecting and
 non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
 traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
