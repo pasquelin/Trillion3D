@@ -70,14 +70,16 @@ const full = () => new Uint8Array(dag.pages.length).fill(1);
 for (const [name, backend] of Object.entries(backends)) {
   const cut = backend(dag, THRESHOLD);
 
-  test(`${name}: the full cut spans several levels and draws what it wants`, () => {
-    const { drawn, wanted } = cut(full());
-    assert.deepEqual(
-      [...drawn].sort((a, b) => a - b),
-      [...wanted].sort((a, b) => a - b),
-    );
-    assert.ok(new Set(wanted.map((p) => dag.pages[p].level)).size >= 3);
-    assert.equal(coverFault(dag, drawn), -1);
+  test(`${name}: at full residency the cut draws exactly what it wants, at every threshold`, () => {
+    // No image loss: with every page resident the rule is the plain band test, the cut `develop`
+    // draws, and top-down pruning drops no more than it did.
+    for (const threshold of [0.05, THRESHOLD, 0.3, 1]) {
+      const { drawn, wanted } = backend(dag, threshold)(full());
+      const sorted = (ids: number[]) => [...ids].sort((a, b) => a - b);
+      assert.deepEqual(sorted(drawn), sorted(wanted), `at ${threshold} px`);
+      assert.equal(coverFault(dag, drawn), -1);
+    }
+    assert.ok(new Set(cut(full()).wanted.map((p) => dag.pages[p].level)).size >= 3);
   });
 
   test(`${name}: pages removed at random, each leaf drawn once by its nearest resident ancestor`, () => {
