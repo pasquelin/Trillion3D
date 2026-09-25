@@ -4146,7 +4146,7 @@
   },
   "SOFT_FOOTPRINT": {
     "summary": "Dichiarata: la parte della sua sezione media — un quarto della sua area, per ogni forma convessa (Cauchy) — su cui un volume a riposo sul suolo si affloscia, il suo gas che vi preme il suo peso.",
-    "description": "La sua pressione predefinita è allora `4·m·g / (share·area)`: 31 Pa per una pelle di `SOFT_AREAL_DENSITY`. Metà parte, doppia pressione. Una pressione molto sopra quella del suo peso lo gonfia oltre la sua forma a riposo: ogni passo sposta un vertice di `pressure·dt² / (kg/m²)`, più di quanto i suoi spigoli reggano allora."
+    "description": "La sua pressione predefinita è allora `4·m·g / (share·area)`: 31 Pa per una pelle di `SOFT_AREAL_DENSITY`. Metà parte, doppia pressione. Non supera mai il massimo che la sua pelle regge entro un decimo del suo volume a riposo."
   },
   "SOFT_LINEAR_DENSITY": {
     "summary": "Una corda di poliammide da 10 mm, kg/m: le tabelle dei produttori danno da 0,06 a 0,07."
@@ -4181,7 +4181,7 @@
     "summary": "Le opzioni di un volume: una mesh chiusa sostenuta dal gas dentro.",
     "members": {
       "type": "Un volume.",
-      "pressure": "La pressione del gas sopra quella dell’aria a riposo, Pa; schiacciato, sale mentre il volume cala (legge di Boyle). I triangoli devono guardare verso l’esterno. Se omessa, la pressione che posa il peso del volume su `SOFT_FOOTPRINT` della sua sezione media."
+      "pressure": "La pressione del gas sopra quella dell’aria a riposo, Pa; schiacciato, sale mentre il volume cala (legge di Boyle). I triangoli devono guardare verso l’esterno. Se omessa, la pressione che posa il peso del volume su `SOFT_FOOTPRINT` della sua sezione media, o il massimo che la sua pelle regge se minore. Rifiutata oltre il massimo che la sua pelle regge entro un decimo del suo volume a riposo."
     }
   },
   "TransformNode": {

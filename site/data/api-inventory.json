@@ -3162,6 +3162,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/physics/soft.fixture.ts",
+        "packages/sdk-browser/src/physics/soft.test.ts",
+        "packages/sdk-browser/src/physics/softContact.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -8003,7 +8005,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/soft.fixture.ts",
-        "packages/sdk-browser/src/physics/soft.test.ts"
+        "packages/sdk-browser/src/physics/soft.test.ts",
+        "packages/sdk-browser/src/physics/softContact.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftBodyOptions"

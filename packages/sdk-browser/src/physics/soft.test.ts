@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
-import type { SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
+import { softBodyOf, type SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
+import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { addSoft, at, ropeLine, settle, softWorld } from './soft.fixture.ts';
 
 /** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
@@ -25,12 +27,21 @@ function volumeOf(indices: ArrayLike<number>, v: Float32Array) {
   return six / 6;
 }
 
-/** A 0.5 m ball dropped on the floor, after 3 s: its volume over its rest volume. */
-async function ball(options: Omit<Extract<SoftBodyOptions, { type: 'volume' }>, 'type'>) {
+type Volume = Omit<Extract<SoftBodyOptions, { type: 'volume' }>, 'type'>;
+/** A ball (0.5 m unless told) dropped on the floor, after 3 s: its volume over its rest volume;
+ *  `pressure` overrides the one its options give, `gravityScale` Earth's pull. */
+async function ball(
+  options: Volume,
+  shape: Geometry = sphere(0.5, 16, 12),
+  { pressure, gravityScale = 1 }: { pressure?: number; gravityScale?: number } = {},
+) {
   const jolt = await softWorld();
-  const shape = sphere(0.5, 16, 12);
   const rest = volumeOf(shape.index!.array, shape.getAttribute('position')!.array as Float32Array);
-  const record = addSoft(jolt, shape, { type: 'volume', ...options }, [0, 1, 0]);
+  const settings = softSettings({ type: 'volume', ...options });
+  const made = softBodyOf(shape, { x: 1, y: 1, z: 1 }, settings);
+  const record = addSoft(jolt, shape, { type: 'volume', ...options }, [0, 1, 0], {
+    ...{ gravityScale, record: { ...made, pressure: pressure ?? made.pressure } },
+  });
   return volumeOf(shape.index!.array, settle(jolt, record, 3)) / rest;
 }
 
@@ -44,7 +55,11 @@ test('a pinned cloth laid flat swings down and hangs from its pins, and falls wi
   assert.equal(jolt.step(null, 1 / 60), 0, 'a soft body sends no rigid pose');
   assert.ok(jolt.active() > 0, 'a moving soft body keeps the worker stepping');
   const hung = settle(jolt, record, 3);
-  for (const pin of pins) assert.ok(Math.abs(at(hung, pin)[1] - 0.5) < 1e-4, `pin ${pin} held`);
+  // Each pin stays where it was, at the cloth's edge `y = 0.5` and its height `z = 0`.
+  for (const pin of pins) {
+    const [, y, z] = at(hung, pin);
+    assert.ok(Math.hypot(y - 0.5, z) < 1e-4, `pin ${pin} held, at ${at(hung, pin)}`);
+  }
   // The far edge hangs a metre below the pins: the geometry's −z is the world's down.
   for (const v of row(0)) assert.ok(at(hung, v)[2] < -0.9, `vertex ${v} hangs, ${at(hung, v)}`);
   const free = await softWorld();
@@ -70,6 +85,22 @@ test('a volume keeps its volume on the floor, by its gas: without, or too heavy,
   assert.ok(Math.abs(kept - 1) < 0.1, `volume ${kept} of its rest`);
   assert.ok((await ball({ pressure: 0 })) < 0.6, 'no gas, it slumps');
   assert.ok((await ball({ pressure: 31, mass: 50 })) < 0.8, 'too heavy for its gas, it slumps');
+});
+
+test('a volume keeps within a tenth of its rest volume at the most pressure its skin holds', async () => {
+  // A light fine skin, and a heavy compliant one, weightless: their default is capped there.
+  const cases: [() => Geometry, Volume][] = [
+    [() => sphere(0.1, 32, 24), {}],
+    [() => sphere(0.5, 16, 12), { stretch: 1e-3, mass: 5 }],
+  ];
+  for (const [shape, options] of cases) {
+    const settings = softSettings({ type: 'volume', ...options });
+    const held = softBodyOf(shape(), { x: 1, y: 1, z: 1 }, settings).pressure;
+    const kept = await ball(options, shape(), { gravityScale: 0 });
+    assert.ok(Math.abs(kept - 1) < 0.1, `volume ${kept} at ${held} Pa`);
+    const swollen = await ball(options, shape(), { pressure: 2 * held, gravityScale: 0 });
+    assert.ok(swollen > 1.1, `volume ${swollen} at ${2 * held} Pa`);
+  }
 });
 
 test('a cloth bent stiff stays out flat from its pins; folding freely, it hangs', async () => {
