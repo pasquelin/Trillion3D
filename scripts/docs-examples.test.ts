@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { access, readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { markdownLinks } from './check-links.ts';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
 import { exampleModules, thumbnailDelay } from './docs/examples/capture.ts';
@@ -25,6 +27,20 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
 await loadDictionary('fr');
+
+test('no Markdown page links an example parked until the engine draws it', () => {
+  const parked = new Set(
+    written
+      .filter(({ status }) => status === 'waiting-engine')
+      .map(({ file }) => fileURLToPath(new URL(file, site))),
+  );
+  const links = markdownLinks(fileURLToPath(new URL('..', import.meta.url))).local;
+  const found = links.filter(({ dest }) => parked.has(dest));
+  assert.deepEqual(
+    found.map(({ file, target }) => `${file}: ${target}`),
+    [],
+  );
+});
 
 test('every example is one standalone HTML file that imports the built engine', async () => {
   assert.equal(new Set(roadmapEntries.map(({ id }) => id)).size, roadmapEntries.length);
