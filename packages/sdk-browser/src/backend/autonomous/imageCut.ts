@@ -24,7 +24,7 @@ export function createImageCut(options: {
   requested: PageRec[];
   /** Moves when the placements change (`requests.ts`). */
   revision: () => number;
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit'>;
+  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit'> & { readonly held: object };
 }) {
   const { roots, shown, desired, requested, pool } = options;
   const requests = createAutonomousRequests(roots, options.revision, requested);
@@ -37,11 +37,27 @@ export function createImageCut(options: {
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
-  return (cam: EngineCamera, pixelError: number) => {
+  // The pool the requests were last admitted to: another one — a new budget or root cover — is
+  // fitted again before the next trim, so the image that first sees it already holds no more.
+  let admittedTo: unknown;
+  const cut = (cam: EngineCamera, pixelError: number) => {
     selectOptions.pixelError = pixelError;
     const selected = selectVisiblePages(roots, cam, selectOptions, shown);
     requests.of(desired);
     requested.length = pool.admit(requested, pixelError);
+    admittedTo = pool.held;
     return selected;
   };
+  return Object.assign(cut, {
+    /** Cuts the last requests to the pool drawn since; true when they lost pages, which what the
+     *  image keeps must then forget before the pool trims. */
+    readmit() {
+      if (pool.held === admittedTo) return false;
+      admittedTo = pool.held;
+      const n = pool.fit(requested);
+      if (n === requested.length) return false;
+      requested.length = n;
+      return true;
+    },
+  });
 }
