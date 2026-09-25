@@ -8,7 +8,7 @@ test('every JavaScript source anywhere in the repository is refused', () => {
     'site/demos/engine.ts',
     'site/app/draw.js',
     'site/reports/copy.mjs',
-    'site/assets/kinetic-garden/cache/native/full/manifest.json',
+    'tests/fixtures/scenes/kinetic-garden/cache/native/full/manifest.json',
     'scripts/docs-build.mjs',
     'site.js',
   ];
