@@ -83,7 +83,6 @@ export async function auditPoses(options: AuditPosesOptions) {
         coupes: total.coupes - avant.coupes,
         cpuSelectMs: metriques.cpuSelectMs ?? null,
         gpuSelectionFallback: metriques.gpuSelectionFallback ?? null,
-        uncoveredTriangles: metriques.uncoveredTriangles ?? null,
         hizTestedClusters: metriques.hizTestedClusters ?? null,
         hizRejectedClusters: metriques.hizRejectedClusters ?? null,
         hizOversizedClusters: metriques.hizOversizedClusters ?? null,

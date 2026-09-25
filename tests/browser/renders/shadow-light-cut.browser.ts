@@ -39,7 +39,6 @@ try {
       const cut = (m: Record<string, number | null>) => ({
         selectedTriangles: m.selectedTriangles,
         drawnTriangles: m.drawnTriangles,
-        uncoveredTriangles: m.uncoveredTriangles,
         lodLevel: m.lodLevel,
       });
       const lit = await settle(behind);

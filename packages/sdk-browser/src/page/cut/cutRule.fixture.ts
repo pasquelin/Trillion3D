@@ -131,11 +131,14 @@ export function ruleDag(leaves = 64, leafError = 0.002) {
 }
 export type RuleDag = ReturnType<typeof ruleDag>;
 
+/** What a coverage check reads of a DAG: the leaf units each page spans. */
+export type UnitSpans = { leaves: number; pages: readonly { units: readonly number[] }[] };
+
 /**
  * Whether `drawn` covers every leaf unit exactly once; returns the first unit covered zero times
  * or more than once, or -1.
  */
-export function coverFault(dag: RuleDag, drawn: Iterable<number>) {
+export function coverFault(dag: UnitSpans, drawn: Iterable<number>) {
   const hits = new Int32Array(dag.leaves);
   for (const page of drawn) {
     const [a, b] = dag.pages[page].units;

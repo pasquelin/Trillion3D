@@ -33,7 +33,6 @@ const champs = (releve: (Partial<SelectionResult> & { complete?: boolean }) | nu
     requestPriorities: _r,
     selectedTriangles: _s,
     drawnTriangles: _d,
-    uncoveredTriangles: _u,
     transparentTriangles: _p,
     ...reste
   } = releve;
@@ -130,15 +129,14 @@ test('the sort stays stable on a massive readback where almost everything is tie
   }
 });
 
-test('triangle totals are reread as the GPU posted them', () => {
+test('triangle totals are reread as the GPU posted them, the one drawn counter under both names', () => {
+  // Words 6 and 7 are reserved: whatever they hold, the drawn total is the selected one.
   const { neuf } = paire([3, 0, 0, 0, 900, 90, 700, 200], [10, 20, 30]);
   const releve = lire(neuf)!;
   assert.equal(releve.selectedTriangles, 900);
   assert.equal(releve.transparentTriangles, 90);
-  assert.equal(releve.drawnTriangles, 700);
-  assert.equal(releve.uncoveredTriangles, 200);
-  // The invariant the CPU documented, now held by the GPU.
-  assert.equal(releve.selectedTriangles - releve.drawnTriangles - releve.uncoveredTriangles, 0);
+  assert.equal(releve.drawnTriangles, 900);
+  assert.equal('uncoveredTriangles' in releve, false, 'no uncovered counter is read');
 });
 
 test('a normal readback without a mask matches the reference field for field', () => {

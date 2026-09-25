@@ -85,7 +85,6 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     // after the fallback, like the WebGL backend. Nothing of it is missing, so there is no hole.
     assert.equal(backend.metrics().selectedTriangles, 1);
     assert.equal(backend.metrics().submittedTriangles, 1);
-    assert.equal(backend.metrics().uncoveredTriangles, 0);
     backend.acceptPage!('0', fixture.indices.get('0')!);
     render();
     await backend.flush();
