@@ -3,7 +3,7 @@ import { normalizeVector3, type ShadowViewpoint } from '../../../../../sdk-core/
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { pixelNearOf } from '../../../streaming/priority.ts';
-import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
+import { writeShadowRecords } from '../../shadow/pages.ts';
 import { createShadowStaticLayer, shadowLayerTexture } from '../../../gpu/shadow/staticLayer.ts';
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
 import { shadowAtlasBytes } from '../../../gpu/shadow/atlas.ts';
@@ -54,9 +54,9 @@ export function shadowViewpointOf(cam: EngineCamera, height: number) {
 }
 
 /**
- * Plans this image's shadow pages — the stale ones the image reads, within budget — and writes,
- * for each, its matrix, its cull volume and its physical page, then every light's record and the
- * page-table words that changed. Returns the pages to draw.
+ * Plans this image's shadow pages — every stale one the image reads — and writes every light's
+ * record; the pages themselves are composed batch by batch as they are encoded
+ * (`encodeShadowBatches.ts`). Returns the pages to draw.
  */
 export function planShadowRegions(
   rt: WebgpuPagesRuntime,
@@ -77,6 +77,7 @@ export function planShadowRegions(
     noteResidenceChange(lights, packedPages[page]);
   });
   lights.shadowPages = 0;
+  lights.shadowFaces = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
   // An atlas not sized yet holds no page: nothing to plan before the first frame on the canvas.
@@ -85,23 +86,22 @@ export function planShadowRegions(
     return 0;
   }
   // The light cuts measure their error at the camera's threshold.
-  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError);
+  lights.shadowPixelError = followLightThreshold(lights, rt.run.gate.pixelError);
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
   const box = lights.sceneBox(rt.layout);
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
-  plan.plan(store, view, box.min, box.max, frame, nowMs);
-  const slots = writeShadowRecords(lights);
-  const count = writeShadowPages(lights, slots, cam.eye, pixelError);
-  lights.shadowPages = plan.admission.count;
+  const count = plan.plan(store, view, box.min, box.max, frame, nowMs);
+  lights.shadowSlots = writeShadowRecords(lights);
+  lights.shadowsUpdated = plan.counts.lights;
   return count;
 }
 
 /**
  * Plans the image's shadow pages once. The CPU cut plans them before it writes its rows — the
- * light cuts' casters need rows too —, and the direct-lighting pass then reads the same plan:
- * its regions, one or two per page, never its page count. An unlit view, or a scene without
- * light, plans nothing and leaves no run behind.
+ * light cuts' casters need rows too —, and the direct-lighting pass then reads the same plan.
+ * Returns the pages to draw. An unlit view, or a scene without light, plans nothing and leaves no
+ * run behind.
  */
 export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { lights, run } = rt,
@@ -110,7 +110,7 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     lights.runs.reset();
     return 0;
   }
-  if (lights.plannedFrame === run.frame) return lights.regions.count;
+  if (lights.plannedFrame === run.frame) return lights.plan.admission.count;
   lights.plannedFrame = run.frame;
   return planShadowRegions(rt, cam, run.frame, performance.now());
 }

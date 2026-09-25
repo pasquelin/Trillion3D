@@ -11,12 +11,10 @@ import {
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 
-/**
- * Pages drawn at most in a frame: the buffer cap, not a quality setting. The millisecond budget
- * almost always stops first.
- */
-export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerFrame;
-/** Regions at most in a frame: a page draws its static layer and its moving casters, two at most. */
+/** Pages one GPU batch draws: the size of the per-batch buffers. A frame draws every page it
+ *  marks, in as many batches as that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`). */
+export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
+/** Regions at most in a batch: a page draws its static layer and its moving casters, two at most. */
 export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
 
 /**

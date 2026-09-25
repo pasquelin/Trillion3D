@@ -110,7 +110,6 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
       options.diagnosticGpuVariant,
       diagnosticChannel.detail,
     ),
-    shadowBudgetMs: options.shadowBudgetMs,
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
     // Bounced light stays off by default: its measured step holds 1.1 to 1.3 ms on Emerald,
