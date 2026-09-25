@@ -240,12 +240,11 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   (`SHADOW_POOL_BYTES`), and 178 KiB of host memory in the CPU total's (`SHADOW_HOST_BYTES`). A
   frame that needs more batches — only when a light cut dropped work and its view limit cut
   batches short — draws 171 and leaves the rest pending: a declared limit, counted in
-  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. The list puts the
-  pages stale longest first, so views re-marked every frame cannot keep the pages behind them
-  waiting: a page that stays read is drawn within 25 frames at worst (the bound, in `admit.ts`). One flag says
-  whether a page is read, the table word's valid
-  bit: a page whose
-  depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
+  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. While pages are
+  pending, the list puts the pages stale longest first, so views re-marked every frame cannot keep
+  the pages behind them waiting: a page that stays read is drawn within 25 frames at worst (the
+  bound, in `admit.ts`). One flag says whether a page is read, the table word's valid bit: a page
+  whose depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
   next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
   stales every page it maps, and withdraws them: their depth belongs to the old projection. An
   object that moves, is added or is removed stales only the mapped pages its projected box — where

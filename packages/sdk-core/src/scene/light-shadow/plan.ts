@@ -173,7 +173,7 @@ export function createShadowPlan(poolSide: number) {
      *  every page that turns stale after them in the next frame's list (`admit.ts`). */
     reissue(from = 0) {
       counts.pendingPages = Math.max(0, admission.count - from);
-      admission.reset();
+      admission.reset(from);
     },
     /** Starts over. */
     reset() {
