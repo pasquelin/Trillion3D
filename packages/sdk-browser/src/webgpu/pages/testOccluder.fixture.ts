@@ -30,7 +30,7 @@ export function occluderScene() {
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]));
   const material = G.basicSurface({ color: 0xff0000 }),
     mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const pages = dagRoots([
     {

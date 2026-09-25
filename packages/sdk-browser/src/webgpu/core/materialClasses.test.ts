@@ -31,9 +31,9 @@ const page = (id: number, url: string, start: number) => ({
 
 /** Three primitives, one per material class, the way the compiler classifies them. */
 function scene() {
-  const source = new G.GraphGroup(),
+  const source = new G.Group(),
     meshes: G.GraphMesh[] = [],
-    associations = new Map<G.GraphNode, { meshes: number; primitives: number }>();
+    associations = new Map<G.Object3D, { meshes: number; primitives: number }>();
   const materials = [
     // A cut-out: alphaMode MASK carries an alpha test and is not blended.
     G.standardSurface({ alphaTest: 0.5, side: G.DOUBLE_SIDE }),
@@ -118,7 +118,14 @@ test('a row carries its resolve class, the census of the scene knows it before a
   const geometryBlocks = new Map(
     collected.roots.map((root) => [
       root.pages[0].attributes,
-      { vertexBase: 0, count: 3, hasUv: false, hasNormal: true, hasTangent: false },
+      {
+        vertexBase: 0,
+        count: 3,
+        hasUv: false,
+        hasNormal: true,
+        hasTangent: false,
+        hasColor: false,
+      },
     ]),
   );
   const layers = { mapLayer: new Map(), dataLayer: new Map() };

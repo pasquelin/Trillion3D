@@ -12,10 +12,10 @@ export function triangleBackend(
 ) {
   const position = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
   const geometry = new G.GraphGeometry();
-  geometry.setAttribute('position', new G.GraphAttribute(position, 3));
+  geometry.setAttribute('position', new G.BufferAttribute(position, 3));
   geometry.setIndex(G.indices([0, 1, 2]));
   const mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const page = {
     id: 0,

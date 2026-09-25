@@ -1,41 +1,9 @@
 import type { ClusterStructureIndex } from '../selection/types.ts';
-
-/**
- * Upward links of the culling hierarchy: each node's parent, each cluster's leaf node. The DAG's
- * shape depends on no world matrix: these two arrays are computed once per primitive and shared
- * by all of its instances.
- *
- * They serve one thing: knowing, without sweeping a subtree, whether a forced group touches it.
- * The forcing fallback does not test the cut but the forced group — a subtree that no forced
- * group touches therefore decides like the ordinary cut, and a touched subtree is descended.
- */
-export type CullingLinks = { parents: Int32Array; leafOfPage: Int32Array };
+import type { CullingLinks } from './readiness.ts';
 
 /** Forcing marks of an instance: how many forced clusters each subtree contains.
  *  Zero means "no forced group here", the only read the descent makes of it. */
 export type ForcedMarks = Int32Array;
-
-export function cullingLinks(
-  { nodes, stride }: { nodes: Float64Array; stride: number },
-  pages: number,
-): CullingLinks {
-  const count = (nodes.length / stride) | 0;
-  const parents = new Int32Array(count).fill(-1),
-    leafOfPage = new Int32Array(pages).fill(-1);
-  for (let node = 0; node < count; node++) {
-    const base = node * stride,
-      children = nodes[base + 12];
-    if (children > 0) {
-      const first = nodes[base + 11];
-      for (let child = 0; child < children; child++) parents[first + child] = node;
-      continue;
-    }
-    const firstPage = nodes[base + 13],
-      pageCount = nodes[base + 14];
-    for (let i = 0; i < pageCount; i++) leafOfPage[firstPage + i] = node;
-  }
-  return { parents, leafOfPage };
-}
 
 /** Carries a cluster and its ancestors to the mark `delta`. A cluster outside the hierarchy carries nothing. */
 function markPage(links: CullingLinks, marks: ForcedMarks, page: number, delta: number) {

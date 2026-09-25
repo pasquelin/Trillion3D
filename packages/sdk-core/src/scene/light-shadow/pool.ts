@@ -1,5 +1,4 @@
-import { LIGHT_SETTINGS } from '../light/contracts.ts';
-import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
+import { PAGE_MAPPED, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
 /** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
@@ -14,6 +13,11 @@ export const STALE_DYNAMIC = 1,
 export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
+
+/** Host bytes a `side × side` pool allocates, per page 9·4 + 3 + 2·8, one bit per table entry. */
+export function shadowPoolHostBytes(side: number) {
+  return side * side * (9 * 4 + 3 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+}
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -47,7 +51,7 @@ export function createShadowPool(side: number) {
     /** Eviction keys: last request, then rank, then page, packed into one exact number. */
     order = new Float64Array(pages);
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
-  const evicted = new Uint32Array(LIGHT_SETTINGS.shadowTableEntries / 32);
+  const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
   let refetched = 0,
     freeCount = 0,
     orderCount = -1,
@@ -90,6 +94,11 @@ export function createShadowPool(side: number) {
     /** Physical pages per side of the atlas, and in all. */
     side,
     pages,
+    /** Bytes of every host array the pool holds: what `shadowPoolHostBytes` declares. */
+    get hostBytes() {
+      const all = [owner, slice, view, x, y, rank, requested, dirty, valid, layered, since];
+      return [...all, sinceFrame, free, order, evicted].reduce((n, a) => n + a.byteLength, 0);
+    },
     get used() {
       return pages - freeCount;
     },

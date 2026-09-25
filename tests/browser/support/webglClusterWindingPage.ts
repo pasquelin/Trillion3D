@@ -20,9 +20,9 @@ const inputs = () => {
     matrix = drawMatrix();
   geometry.setAttribute(
     'position',
-    new G.GraphAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
+    new G.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
   );
-  geometry.setIndex(new G.GraphAttribute(new Uint32Array([0, 1, 2]), 1));
+  geometry.setIndex(new G.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
   (material.color as G.Color).setRGB(0.18, 0, 0);
   const index = geometry.index;
   if (!index) throw new Error('winding proof requires an indexed geometry');
@@ -56,7 +56,7 @@ export function windingComparisons() {
     witnessScene = new THREE.Scene(),
     witnessMesh = threeMeshCopy({ geometry: mesh.geometry, material: mesh.ownMaterial }),
     camera = G.perspectiveCamera(60, 1, 0.1, 10),
-    rig = new G.GraphNode();
+    rig = new G.Object3D();
   witness.outputColorSpace = THREE.SRGBColorSpace;
   witness.toneMapping = THREE.NoToneMapping;
   witness.setClearColor(0, 1);

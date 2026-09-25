@@ -5,9 +5,10 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { packedRowBase } from './pageRow.ts';
 import { emptyGeometryBlock, rowGeometry, rowMaterial } from './pageRowMaterial.ts';
-import { FLAG_UV } from '../../cluster/format.ts';
+import { FLAG_COLOR, FLAG_UV } from '../../cluster/format.ts';
 import {
   FLAG_CLUSTER_PAGE,
+  FLAG_HAS_COLOR,
   FLAG_SAMPLED,
   VIS_TRIANGLE_BITS,
   visMaterial,
@@ -37,7 +38,14 @@ test('packedRowBase returns a 32-bit unsigned integer for a large rank', () => {
 // carries, and it carries no tangent — the resolve rebuilds the frame from the triangle.
 test('a row over a quantized page takes its attributes from the page, never a tangent', () => {
   const block = emptyGeometryBlock();
-  const source = { vertexBase: 7, count: 3, hasUv: true, hasNormal: true, hasTangent: true };
+  const source = {
+    vertexBase: 7,
+    count: 3,
+    hasUv: true,
+    hasNormal: true,
+    hasTangent: true,
+    hasColor: false,
+  };
   const attributes = {} as never;
   const blocks = new Map([[attributes, source]]);
   assert.equal(rowGeometry({ attributes }, blocks, block), source);
@@ -53,7 +61,15 @@ test('a row over a quantized page takes its attributes from the page, never a ta
   const paged = rowGeometry({ attributes, geometryPage }, blocks, block)!;
   assert.deepEqual(
     { ...paged },
-    { vertexBase: 0, count: 3, hasUv: true, hasNormal: false, hasTangent: false, quantized: true },
+    {
+      vertexBase: 0,
+      count: 3,
+      hasUv: true,
+      hasNormal: false,
+      hasTangent: false,
+      hasColor: false,
+      quantized: true,
+    },
   );
 });
 
@@ -61,7 +77,14 @@ test('a row over a quantized page takes its attributes from the page, never a ta
 test('the cluster-page flag rides the row without moving its material class', () => {
   const layers = { mapLayer: new Map(), dataLayer: new Map() };
   const material = visMaterial(G.standardSurface());
-  const source = { vertexBase: 0, count: 3, hasUv: true, hasNormal: true, hasTangent: false };
+  const source = {
+    vertexBase: 0,
+    count: 3,
+    hasUv: true,
+    hasNormal: true,
+    hasTangent: false,
+    hasColor: false,
+  };
   const plain = rowMaterial(material, source, layers);
   const paged = rowMaterial(material, { ...source, quantized: true }, layers);
   assert.equal(paged.classKey, plain.classKey);
@@ -75,7 +98,14 @@ test('a page takes the filter rule, and its class, only when one of its maps has
   const map = {} as Texture,
     normal = {} as Texture;
   const material = { ...visMaterial(G.standardSurface()), map, normalMap: normal };
-  const source = { vertexBase: 0, count: 3, hasUv: true, hasNormal: true, hasTangent: false };
+  const source = {
+    vertexBase: 0,
+    count: 3,
+    hasUv: true,
+    hasNormal: true,
+    hasTangent: false,
+    hasColor: false,
+  };
   // Two page tables, four slots each; slot 3 of the data table is the normal map's.
   const tables = { color: new Uint32Array(64), data: new Uint32Array(64) };
   const layers = {
@@ -94,4 +124,39 @@ test('a page takes the filter rule, and its class, only when one of its maps has
   const sampled = rowMaterial(material, source, layers);
   assert.equal(sampled.flags, plain.flags | FLAG_SAMPLED, 'its normal map is filtered');
   assert.equal(sampled.classKey, plain.classKey | CLASS_FEATURE.HAS_SAMPLING);
+});
+
+// #347: a page that carries `COLOR_0` — a runtime cut, a compiled glTF — is drawn with its vertex
+// colours when its material asks for them, as the forward path draws it; any other row keeps the
+// flags and the class it had, so nothing it draws moves.
+test('a row multiplies by its vertex colours only when the material asks and the page has some', () => {
+  const layers = { mapLayer: new Map(), dataLayer: new Map() };
+  const block = emptyGeometryBlock();
+  const page = (flags: number) =>
+    rowGeometry(
+      {
+        attributes: {} as never,
+        geometryPage: {
+          url: 'g',
+          sha256: 'g',
+          bytes: 64,
+          vertexCount: 3,
+          indexCount: 3,
+          flags,
+          uncompressedBytes: 128,
+        },
+      },
+      new Map(),
+      block,
+    )!;
+  const asks = visMaterial(G.standardSurface({ vertexColors: true })),
+    ignores = visMaterial(G.standardSurface());
+  assert.equal(asks.vertexColors, true);
+  assert.equal(ignores.vertexColors, false);
+  const plain = rowMaterial(ignores, { ...page(FLAG_UV) }, layers);
+  const coloured = rowMaterial(asks, { ...page(FLAG_UV | FLAG_COLOR) }, layers);
+  assert.equal(coloured.flags, plain.flags | FLAG_HAS_COLOR);
+  assert.equal(coloured.classKey, plain.classKey | CLASS_FEATURE.HAS_VERTEX_COLOR);
+  assert.deepEqual(rowMaterial(ignores, { ...page(FLAG_UV | FLAG_COLOR) }, layers), plain);
+  assert.deepEqual(rowMaterial(asks, { ...page(FLAG_UV) }, layers), plain);
 });

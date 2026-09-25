@@ -7,18 +7,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { GraphNode } from './node.ts';
-import { GraphGroup, GraphInstancedMesh, GraphMesh } from './mesh.ts';
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { GraphInstancedMesh, GraphMesh } from './mesh.ts';
 import { GraphCamera } from './camera.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
-import { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } from './attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphGeometry } from './geometry.ts';
 import { GraphSurface } from './surface.ts';
 import { GraphTexture } from './texture.ts';
 import { hookHostNode } from '../scene/hooks.ts';
 
 test('a posed chain resolves to the reference world matrices, aim and decomposition included', () => {
-  const [a, b, c] = [new GraphGroup(), new GraphNode(), new GraphCamera({ fov: 47, aspect: 1.6 })];
+  const [a, b, c] = [new Group(), new Object3D(), new GraphCamera({ fov: 47, aspect: 1.6 })];
   const [ta, tb, tc] = [
     new THREE.Group(),
     new THREE.Object3D(),
@@ -45,17 +45,17 @@ test('a posed chain resolves to the reference world matrices, aim and decomposit
     q,
     new THREE.Vector3(-2, 1.5, 0.25),
   );
-  const [n, tn] = [new GraphNode(), new THREE.Object3D()];
+  const [n, tn] = [new Object3D(), new THREE.Object3D()];
   n.applyMatrix4({ elements: m.elements });
   tn.applyMatrix4(m);
-  const numbers = (node: GraphNode | THREE.Object3D) =>
+  const numbers = (node: Object3D | THREE.Object3D) =>
     [node.position, node.quaternion, node.scale].flatMap((v) => [v.x, v.y, v.z]);
   assert.deepEqual(numbers(n), numbers(tn));
   assert.equal(n.quaternion.w, tn.quaternion.w);
 });
 
 test('a rotation premultiplied by another turns as the reference product', () => {
-  const [q, p] = [new GraphNode().quaternion, new GraphNode().quaternion];
+  const [q, p] = [new Object3D().quaternion, new Object3D().quaternion];
   const tq = new THREE.Quaternion(0.1, 0.7, -0.2, 0.6).normalize();
   const tp = new THREE.Quaternion(-0.4, 0.3, 0.8, 0.2).normalize();
   q.copy(tq);
@@ -66,7 +66,7 @@ test('a rotation premultiplied by another turns as the reference product', () =>
 });
 
 test('angles and quaternion follow each other, and a watch hears either face', () => {
-  const node = new GraphNode(),
+  const node = new Object3D(),
     reference = new THREE.Object3D();
   node.rotation.set(0.3, -1.1, 2.4);
   reference.rotation.set(0.3, -1.1, 2.4);
@@ -80,28 +80,11 @@ test('angles and quaternion follow each other, and a watch hears either face', (
   assert.equal(revision.revision, 3);
 });
 
-test('a normalised or interleaved element reads as the reference reads it', () => {
-  const bytes = new Int16Array([32767, -32768, 12, 7, -5, 3000]);
-  const [own, reference] = [
-    new GraphAttribute(bytes, 3, true),
-    new THREE.BufferAttribute(bytes, 3, true),
-  ];
-  const data = new Float32Array([1, 2, 3, 9, 4, 5, 6, 9]);
-  const view = new GraphInterleavedAttribute(new GraphInterleavedBuffer(data, 4), 3, 0);
-  const tview = new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(data, 4), 3, 0);
-  for (let i = 0; i < 2; i++)
-    for (const get of ['getX', 'getY', 'getZ'] as const) {
-      assert.equal(own[get](i), reference[get](i));
-      assert.equal(view[get](i), tview[get](i));
-    }
-  assert.equal(view.count, tview.count);
-});
-
 test('a geometry bounds itself as the reference does, morph targets included', () => {
   const positions = new Float32Array([0, 0, 0, 1, 2, 3, -4, 0.5, 2]);
   const morph = new Float32Array([0.5, -1, 0, 0, 0, 2, 1, 1, 1]);
-  const geometry = new GraphGeometry().setAttribute('position', new GraphAttribute(positions, 3));
-  geometry.morphAttributes.position = [new GraphAttribute(morph, 3)];
+  const geometry = new GraphGeometry().setAttribute('position', new BufferAttribute(positions, 3));
+  geometry.morphAttributes.position = [new BufferAttribute(morph, 3)];
   geometry.morphTargetsRelative = true;
   const reference = new THREE.BufferGeometry();
   reference.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -152,9 +135,9 @@ test('a copied geometry owns its buffers, and a triangle list spells every corne
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0]),
     order = new Uint16Array([0, 1, 2, 2, 1, 3]),
     shades = new Uint8Array([0, 64, 128, 255]);
-  const geometry = new GraphGeometry().setIndex(new GraphAttribute(order, 1));
-  geometry.setAttribute('position', new GraphAttribute(positions, 3));
-  geometry.setAttribute('shade', new GraphAttribute(shades, 1, true));
+  const geometry = new GraphGeometry().setIndex(new BufferAttribute(order, 1));
+  geometry.setAttribute('position', new BufferAttribute(positions, 3));
+  geometry.setAttribute('shade', new BufferAttribute(shades, 1, true));
   const reference = new THREE.BufferGeometry().setIndex(new THREE.BufferAttribute(order, 1));
   reference.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   reference.setAttribute('shade', new THREE.BufferAttribute(shades, 1, true));

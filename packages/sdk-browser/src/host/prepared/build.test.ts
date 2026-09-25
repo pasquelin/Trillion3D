@@ -19,7 +19,7 @@ import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import { buildPreparedScene } from './build.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
-import type { GraphNode } from '../graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { caches, describe, describeShape, serveFiles, type Ranks } from './scenes.fixture.ts';
 
 async function witness(folder: URL, document: string, text?: string) {
@@ -47,7 +47,7 @@ async function prepared(folder: URL, document: string, written?: unknown) {
   const textures = built.textureIndices as Map<object, number>;
   const ranks: Ranks = (object) =>
     textures.has(object) ? { textures: textures.get(object) } : meshes.get(object);
-  const source = built.source as unknown as GraphNode;
+  const source = built.source as unknown as Object3D;
   return {
     shape: describeShape(source, ranks),
     whole: describe(threeGraph(source), () => undefined),
@@ -58,7 +58,11 @@ test('the scene built from the tables is the scene the loader built, on every pu
   serveFiles(t);
   const folders = await caches();
   assert.ok(folders.length >= 10, 'the published caches are found');
-  for (const folder of folders)
+  for (const folder of folders) {
+    // A partitioned cache draws its placements from rows, not nodes: `partition.test.ts` proves
+    // them against the loader's.
+    const tables = JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'));
+    if (tables.partition) continue;
     for (const document of ['source.gltf', 'scene.gltf']) {
       const exists = await readFile(new URL(document, folder)).then(
         () => true,
@@ -71,6 +75,7 @@ test('the scene built from the tables is the scene the loader built, on every pu
         `${pathToFileURL(fileURLToPath(folder)).pathname.split('site/assets/')[1]}${document}`,
       );
     }
+  }
 });
 
 /** A slot as the tables write it: the texture, the set sampled, the slot's own, the transform. */

@@ -360,6 +360,22 @@
       "up": "HAUT"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Glissez pour regarder autour. Choisissez le brouillard, sa portée et sa couleur.",
+    "controls": {
+      "fog": "Brouillard",
+      "reach": "Portée",
+      "height": "Hauteur",
+      "colour": "Couleur"
+    },
+    "choices": {
+      "fog": {
+        "distance": "distance",
+        "thick": "épais",
+        "ground": "au sol"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Glisse pour regarder autour. Les perles glissent le long du tube.",
     "controls": {
@@ -2014,6 +2030,20 @@
     "readouts": {
       "joints": "Liaisons",
       "broken": "Rompues"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Changez la vitesse du mécanisme, montez l’ascenseur et lâchez des poids dans le seau pour soulever le contrepoids.",
+    "controls": {
+      "speed": "Vitesse du mécanisme (rad/s)",
+      "raiseLift": "Monter l’ascenseur",
+      "addWeight": "Lâcher un poids",
+      "emptyBucket": "Vider le seau"
+    },
+    "readouts": {
+      "lift": "Ascenseur",
+      "load": "Poids",
+      "rope": "Corde déroulée"
     }
   }
 }

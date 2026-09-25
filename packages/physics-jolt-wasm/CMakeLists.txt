@@ -60,20 +60,20 @@ endif ()
 if (NOT EMSCRIPTEN)
   # The native bench (`bench/native.cpp`), for comparison with the web module; never shipped.
   add_executable(joltBench bench/native.cpp src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp
-    src/buoyancy.cpp src/joints.cpp
+    src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp
     ${PROFILE_SOURCES})
   target_link_libraries(joltBench PRIVATE Jolt)
   target_compile_options(joltBench PRIVATE -O3)
   # Its buoyancy share (`bench/water.cpp`, `scripts/bench-fluids.ts`).
   add_executable(joltWaterBench bench/water.cpp src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp
-    src/report.cpp src/restore.cpp src/character.cpp src/buoyancy.cpp src/joints.cpp)
+    src/report.cpp src/restore.cpp src/character.cpp src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp)
   target_link_libraries(joltWaterBench PRIVATE Jolt)
   target_compile_options(joltWaterBench PRIVATE -O3)
   return()
 endif ()
 
 add_executable(${NAME} src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp
-  src/buoyancy.cpp src/joints.cpp ${SOURCES} ${PROFILE_SOURCES})
+  src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp ${SOURCES} ${PROFILE_SOURCES})
 target_link_libraries(${NAME} PRIVATE Jolt)
 set_target_properties(${NAME} PROPERTIES SUFFIX ".wasm")
 target_compile_options(${NAME} PRIVATE -O3 -msimd128)

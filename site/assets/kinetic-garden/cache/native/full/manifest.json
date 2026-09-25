@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 {"compiler":"native-rust","formatVersion":5,"key":"43ddbbc42ad4f3e39eef5b422bb0295b48df9e1cf923cb7b2f50dd6d615c46b8","scope":"full","status":"ready","url":"43ddbbc42ad4f3e39eef5b422bb0295b48df9e1cf923cb7b2f50dd6d615c46b8/clusters.json"}
+=======
+{"compiler":"native-rust","formatVersion":5,"key":"91992e7c472bd35de7013892ddfbaf2eca2916606f14119d6d5e9417504968dd","scope":"full","status":"ready","url":"91992e7c472bd35de7013892ddfbaf2eca2916606f14119d6d5e9417504968dd/clusters.json"}
+>>>>>>> origin/develop

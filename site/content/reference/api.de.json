@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Immer `true`: unterscheidet ein Pufferattribut von allem anderen.",
       "type": "Wie die Werte deklariert wurden; ein Attribut in Halbfließkommazahlen wird in Fließkommagenauigkeit gehalten.",
-      "normalized": "Ob sich die Ganzzahlen als Werte zwischen 0 und 1 lesen.",
       "version": "Bei jedem deklarierten Schreibvorgang erhöht: das, was die Welt vergleicht, um zu sehen, dass sich der Inhalt geändert hat.",
       "array": "Die Zahlen selbst.",
-      "itemSize": "Wie viele Zahlen zu einem Scheitelpunkt gehören: 3 für eine Position.",
       "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
-      "needsUpdate": "`attribute.needsUpdate = true`, nachdem `array` geschrieben wurde: die Welt liest es dann erneut.",
-      "getComponent": "Die Zahl `component` des Scheitelpunkts `index`.",
-      "getX": "Die erste Zahl des Scheitelpunkts `i`.",
-      "getY": "Die zweite Zahl des Scheitelpunkts `i`.",
-      "getZ": "Die dritte Zahl des Scheitelpunkts `i`.",
-      "getW": "Die vierte Zahl des Scheitelpunkts `i`.",
-      "setXYZ": "Schreibt drei Zahlen für den Scheitelpunkt `i`.",
-      "setXY": "Schreibt zwei Zahlen für den Scheitelpunkt `i`.",
-      "setX": "Schreibt die erste Zahl des Scheitelpunkts `i`.",
-      "clone": "Ein neues Attribut mit einer Kopie der Zahlen."
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch.",
+      "clone": "Ein neues Attribut mit einer Kopie der Zahlen, ihres Typs, ihrer Normalisierung und des Namens.",
+      "kind": "Das Attribut besitzt seinen Puffer.",
+      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
+      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
+      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen."
     }
   },
   "BufferNumbers": {
@@ -644,6 +638,7 @@
       "top": "Oberer Rand der orthografischen Box.",
       "bottom": "Unterer Rand der orthografischen Box.",
       "projection": "`'perspective'` macht Fernes klein; `'orthographic'` behält alle Größen.",
+      "copy": "Übernimmt die Knotenwerte von `source` und, von einer Kamera, ihre Optik; die eigene `projection` bleibt.",
       "updateProjectionMatrix": "Für Seiten erhalten, die für ein Rendering-Backend geschrieben wurden, das sie braucht: jeder Optik-Schreibvorgang zeichnet bereits neu.",
       "rayThrough": "Der Weltstrahl durch einen Punkt des Bildes, in der eigenen Projektion der Engine (`engineCamera.ts`): vom Auge entlang der Blickrichtung bei einer perspektivischen Kamera, gerade in Blickrichtung aus dem Quader bei einer orthografischen. Seine Richtung ist ein Einheitsvektor.",
       "set": "Platziert das Auge bei `pose.position`, das zu `pose.target` schaut, mit dem angegebenen Sichtfeld."
@@ -1693,6 +1688,10 @@
       "autoForward": "REISEFLUG, standardmäßig deaktiviert: die Kamera fliegt ohne gehaltene Taste mit `movementSpeed` nach vorn, wie ein Flugzeug. W fügt dann `movementSpeed` hinzu (doppelt so schnell) und S nimmt es weg (die Kamera bleibt stehen); sie fliegt nie rückwärts. Nichts bewegt sich vor dem nächsten `update`, sodass ein Host, der bei `change` neu zeichnet, ein Bild anfordert, wenn er den Reiseflug aktiviert."
     }
   },
+  "Fog": {
+    "summary": "Nebel auf jeder Fläche: linear von `near` bis `far`, oder mit der Entfernung dichter werdend nach `density`, nach oben über `baseHeight` dünner, wenn `heightFalloff` gesetzt ist.",
+    "description": "Die Farbe ist das Licht, das der Nebel zum Auge streut, belichtet und durch die Anzeigekurve geführt wie das einer Fläche."
+  },
   "FORMAT_VERSION": {
     "summary": "Cache-Format, das diese Engine liest.",
     "description": "Format 5 trägt `scene-tables.json`, die Knoten- und Materialtabellen, gegen die die vorbereitete Szene geprüft wird; die Formate 3 und 4 haben dieses Produkt nicht und werden anhand ihrer Nummer abgelehnt, statt halb gelesen zu werden."
@@ -1740,8 +1739,8 @@
       "transparentDrawCalls": "Durchsichtige Zeichenaufrufe.",
       "transparentSubmittedTriangles": "Gesendete durchsichtige Dreiecke.",
       "coverageReady": "Der vollständige anfängliche GPU-Rückfall ist verfügbar; null für Engines ohne diese Garantie.",
-      "coverageBudgetLimited": "Das angeforderte Detail kann nicht mit dem im GPU-Seitenbudget angehefteten Rückfall koexistieren.",
-      "budgetPixelError": "Mindestfehler auf dem Bildschirm, den das GPU-Seitenbudget dem Schnitt auferlegt, in Pixeln: `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Null für Engines ohne Seitenbudget.",
+      "coverageBudgetLimited": "Das angeforderte Detail braucht mehr Seiten, als das GPU-Seitenbudget fasst: der Rest wird gröber gezeichnet.",
+      "budgetPixelError": "Nur WebGL2: Mindestfehler auf dem Bildschirm, den sein Seitenbudget dem Schnitt auferlegt, in Pixeln — `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Fehlt unter WebGPU, wo allein die Residenz das Bild vergröbert. Null für Engines ohne Seitenbudget.",
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
@@ -2383,10 +2382,6 @@
   "HostGeometry": {
     "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat."
   },
-  "HostGraphNode": {
-    "summary": "Ein Knoten des Host-Graphen, so wie ihn ein Durchlauf sieht: seine Identität, seine lokale Pose, die Weltmatrix, die der Host für ihn aufgelöst hat, und seine Kette.",
-    "description": "Die Engine berechnet ihre EIGENEN Weltmatrizen aus den lokalen Posen (`../world/tree.ts`); `matrixWorld` wird dort gelesen, wo es die eigene Auflösung des HOSTS ist, die eine Grenze ihr zurückgibt. WARUM `HostPlaced` (`../resources.ts`) AUCH EINEN PLATZIERTEN KNOTEN BESCHREIBT. Die beiden sind keine Kopie: sie stützen sich auf die beiden unterschiedlichen Auflösungen, die ein Host bietet. `HostPlaced` verlangt `updateWorldMatrix(ancestors, descendants)` — die Kette EINES Knotens, das, was eine Platzierung und ein Sichtbarkeitsdurchlauf zurückgeben; dieses hier verlangt `updateMatrixWorld(force)` — den TEILBAUM unter einem Knoten, das, was ein Durchlauf, eine Grenzenvereinigung und eine Replikation in einem Aufruf auflösen. Ein Host, der nur eines der beiden bietet, erfüllt nur den Vertrag, dem er entspricht, also kann keines das andere ersetzen."
-  },
   "HostMaterial": {
     "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`."
   },
@@ -2395,9 +2390,6 @@
   },
   "HostMesh": {
     "summary": "Ein Host-Mesh, gehalten durch seine Identität: der Zeicheneintrag, die durchsichtige Tabelle und die Auswahlmengen benennen die Oberfläche, die der Host platziert hat."
-  },
-  "HostNode": {
-    "summary": "Ein Knoten des Host-Szenengraphen, gehalten durch seine Identität und die beiden Felder, die ein Durchlauf braucht."
   },
   "HostNodeMatrix": {
     "summary": "Dieselben sechzehn Fließkommazahlen, term-für-term VERÄNDERBAR: die Pose, die eine Grenze auf einen Host-Knoten oder eine Host-Kamera zurücksetzt, die sie wiederherstellt.",
@@ -2450,9 +2442,6 @@
   "HostTexture": {
     "summary": "Eine Host-Textur: das vom Host dekodierte Bild und der von ihm deklarierte Abtastzustand, ebenfalls durch ihre Identität gehalten."
   },
-  "HostTraversable": {
-    "summary": "Ein Host-Knoten, den die Engine durchläuft: der Teilbaum darunter, er zuerst, in der eigenen Reihenfolge des Hosts."
-  },
   "HostVector": {
     "summary": "Drei Zahlen einer Pose, so wie der Host sie hält und eine Grenze sie zurücksetzt.",
     "members": {
@@ -2478,7 +2467,10 @@
       "array": "Die Zahlen jedes Scheitelpunkts, nacheinander angeordnet.",
       "stride": "Wie viele Zahlen jeder Scheitelpunkt einnimmt.",
       "count": "Wie viele Scheitelpunkte er verpackt.",
-      "attribute": "Ein aus dem Paket extrahiertes Attribut, als eigenständiges Fließkomma-Attribut."
+      "attribute": "Ein aus dem Paket extrahiertes Attribut, als eigenständiges Attribut.",
+      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
+      "version": "Von `needsUpdate` erhöht.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
     }
   },
   "invertMatrix4": {
@@ -2729,6 +2721,7 @@
       "height": "Höhe eines rechteckigen Lichts.",
       "radius": "Radius der strahlenden Kugel; `emitterRadius` in der Speicherung der Engine.",
       "kind": "Welche Art von Licht es ist: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Übernimmt die Knotenwerte von `source` und, von einem Licht, seine Zahlen, Farben, Koeffizienten und Ausrichtung; die eigene `kind` bleibt.",
       "needsUpdate": "`light.needsUpdate = true`, nachdem `sh` an Ort und Stelle geschrieben wurde: die Welt liest es erneut.",
       "lookAt": "Zielt mit dem Licht auf einen Weltpunkt: ein Richtungslicht oder ein Spot verschiebt dorthin sein `target` — seine Richtung ergibt sich daraus —, und der Knoten dreht sich ebenfalls, was ein Rechteck ausrichtet."
     }
@@ -2783,7 +2776,6 @@
       "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
       "shadowPagesPerFrame": "Höchstzahl der pro Bild gezeichneten Schattenseiten: die Puffergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget greift fast immer zuerst; diese Grenze ist nur eine letzte Schranke und die einzige auf einem Gerät ohne GPU-Uhr.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
-      "shadowTableEntries": "Einträge der Schattenseitentabelle, ein Wort pro virtueller Seite: ein fester Puffer von 4 MiB. Er fasst sechzehn Sonnen oder 128 Punktlichter; ein Licht ohne Platz bekommt keinen Schatten und wird gezählt.",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
       "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
       "sunLevelPages": "Seiten pro Seite des Ausschnitts einer Clipmap-Stufe um die Kamera. Eine Kapazität, keine Einstellung: jedes Pixel liest seine eigene Dichte, solange `height / tan(halfFovY)` höchstens `sunLevelPages · shadowPage / 2` = 4096 beträgt (eine 4K-Leinwand bei 55° vertikalem Feld); darüber lesen die äußeren Pixel die nächste Stufe mit halber Dichte."
@@ -2988,7 +2980,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3026,7 +3018,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3064,7 +3056,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3102,7 +3094,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3140,7 +3132,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3178,7 +3170,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3216,7 +3208,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3254,7 +3246,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3292,7 +3284,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3330,7 +3322,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3368,7 +3360,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3406,7 +3398,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3444,7 +3436,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3482,7 +3474,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3540,7 +3532,7 @@
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
       "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "parameters.dashSize": "Länge eines Strichs.",
       "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -3603,7 +3595,7 @@
       "flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "size": "Größe eines Punkts, für das Punktmaterial.",
       "sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "linewidth": "Breite einer Linie.",
+      "linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
       "dashSize": "Länge eines Strichs.",
       "gapSize": "Länge der Lücke zwischen zwei Strichen.",
       "vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
@@ -4114,6 +4106,8 @@
       "remove": "Entfernt Kinder von diesem Knoten.",
       "destroy": "Gibt den Knoten und alles darunter sofort frei, statt erst bei ihrer Einsammlung.",
       "removeFromParent": "Entfernt den Knoten von seinem Elternteil.",
+      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt.",
       "clear": "Entfernt alle Kinder dieses Knotens.",
       "traverse": "Ruft `fn` für diesen Knoten und alle darunter auf.",
       "traverseVisible": "Ruft `fn` für jeden von hier aus sichtbaren Knoten auf.",
@@ -4126,11 +4120,7 @@
       "rotateY": "Dreht den Knoten um seine eigene y-Achse.",
       "rotateZ": "Dreht den Knoten um seine eigene z-Achse.",
       "translateOnAxis": "Verschiebt den Knoten entlang seiner eigenen `axis`.",
-      "getWorldPosition": "Wo der Knoten in der Welt steht.",
-      "getWorldQuaternion": "Wie der Knoten in der Welt gedreht ist.",
       "getWorldDirection": "In welche Richtung der Knoten in der Welt schaut.",
-      "localToWorld": "Ein Punkt aus dem Bezugssystem des Knotens, in der Welt.",
-      "worldToLocal": "Ein Punkt aus der Welt, im Bezugssystem des Knotens.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
     }
   },
@@ -4141,7 +4131,11 @@
       "matrixWorld": "Matrix in der Welt, so wie zuletzt zusammengesetzt (`updateMatrixWorld`), eine Sicht auf den Baum.",
       "matrixAutoUpdate": "Falsch, wenn `matrix` die Pose IST und nichts sie neu zusammensetzt.",
       "matrixWorldNeedsUpdate": "Gesetzt, wenn sich die lokale Matrix geändert hat und die Weltmatrix nicht gefolgt ist.",
-      "updateMatrixWorld": "Setzt die Matrix in der Welt dieses Knotens und seiner Nachkommen zusammen, wobei die des Elternteils unverändert übernommen wird."
+      "updateMatrixWorld": "Setzt die Matrix in der Welt dieses Knotens und seiner Nachkommen zusammen, wobei die des Elternteils unverändert übernommen wird.",
+      "getWorldPosition": "Wo der Knoten in der Welt steht.",
+      "getWorldQuaternion": "Wie der Knoten in der Welt gedreht ist.",
+      "localToWorld": "Ein Punkt aus dem Bezugssystem des Knotens, in der Welt.",
+      "worldToLocal": "Ein Punkt aus der Welt, im Bezugssystem des Knotens."
     }
   },
   "OcclusionFrameMetrics": {
@@ -4964,8 +4958,8 @@
     "members": {
       "isScene": "Immer `true`: unterscheidet die Szenenwurzel von jedem anderen Objekt.",
       "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
-      "fog": "Ein Nebel, der Objekte in `color` zwischen `near` und `far` verschmelzen lässt; `null` für keinen.",
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
+      "fog": "Nebel auf jeder Fläche, deckend oder transparent, in beiden Renderern; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
       "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
@@ -5004,8 +4998,21 @@
     "members": {
       "exposure": "Multiplikator der linearen Radianz, vor der Kurve angewendet.",
       "toneMapping": "Die Anzeigekurve; `DEFAULT_TONE_MAPPING`, wenn sie fehlt.",
-      "irradiance": "Die aus allen Richtungen ankommende Bestrahlungsstärke, in 27 Zahlen: neun Koeffizienten, jeder ein RGB-Tripel, in der Reihenfolge der Bänder konstant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Fehlt sie, oder ist sie ganz null, beleuchtet nichts eine Oberfläche außer den deklarierten Lampen."
+      "irradiance": "Die aus allen Richtungen ankommende Bestrahlungsstärke, in 27 Zahlen: neun Koeffizienten, jeder ein RGB-Tripel, in der Reihenfolge der Bänder konstant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Fehlt sie, oder ist sie ganz null, beleuchtet nichts eine Oberfläche außer den deklarierten Lampen.",
+      "fog": "Entfernungs- oder Höhennebel auf jeder Fläche (`SceneFog`); fehlt er, keiner."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Nebel, der mit der Entfernung dichter wird: `density` pro Szeneneinheit; mit `heightFalloff` wird er über `baseHeight` dünner, alle `1 / heightFalloff` Einheiten nach oben durch e geteilt.",
+    "members": {
+      "color": "Die Strahldichte, in die der Nebel übergeht, in linearem RGB.",
+      "density": "Extinktion pro Szeneneinheit, auf `baseHeight`; ≥ 0.",
+      "heightFalloff": "Wie schnell die Dichte mit der Höhe abnimmt, pro Szeneneinheit; 0, der Standard, hält sie in jeder Höhe gleich.",
+      "baseHeight": "Die Höhe, in der die Dichte `density` beträgt; standardmäßig 0."
+    }
+  },
+  "SceneFog": {
+    "summary": "Entfernungs- oder Höhennebel, wie die Beleuchtung ihn liest."
   },
   "SceneLight": {
     "summary": "Ein Szenenlicht, Version 2.",
@@ -5030,6 +5037,14 @@
     "summary": "Was der Host zu sehen verlangt.",
     "description": "`lit` ist die echte Beleuchtung und nur diese; `unlit` ist die Diagnoseansicht in rohem Albedo — die Materialfarbe unverändert, ohne Licht, ohne Umgebungslicht und ohne Emission — für Geometrie-Prüfstände, die Bilder pixelgenau vergleichen. `auto`, standardmäßig, gibt `unlit`, solange kein Licht deklariert ist, und `lit`, sobald eines existiert. `bounce` ist die dritte Diagnoseansicht: allein die indirekte Bestrahlungsstärke, multipliziert mit der Belichtung und in linearen Werten ohne ACES oder sRGB ausgegeben. Das ist es, was der Prüfstand mit dem Compiler-Orakel vergleicht; es ist kein anzusehendes Bild, und es ist schwarz ohne eingestellten Rückstrahl."
   },
+  "SceneLinearFog": {
+    "summary": "Nebel, der bei `near` beginnt und ab `far` alles verdeckt, Entfernungen vom Auge.",
+    "members": {
+      "color": "Die Strahldichte, in die der Nebel übergeht, in linearem RGB.",
+      "near": "Entfernung vom Auge, bei der der Nebel beginnt.",
+      "far": "Entfernung vom Auge, ab der nur noch Nebel zu sehen ist."
+    }
+  },
   "SceneLightStore": {
     "summary": "Die Lichter einer Szene, so wie die GPU sie liest, angeordnet und auf dem neuesten Stand gehalten.",
     "members": {
@@ -5041,6 +5056,7 @@
       "ids": "Der Name des Lichts an jedem Platz.",
       "count": "Wie viele Lichter.",
       "epoch": "Erhöht, wenn sich die Lichtmenge ändert.",
+      "transportEpoch": "Wird mit der Epoche erhöht, außer durch eine Änderung allein des Nebels: Nebel ist ein Term des Sichtstrahls, kein Lichttransport, daher behält, was transportiertes Licht zwischenspeichert (die Bounce-Sonden), es bei.",
       "environment": "Die Umgebung der Szene.",
       "lightingView": "Vom Host angeforderte Ansicht, unverändert: `auto`, solange er nichts angefordert hat.",
       "unlit": "Wahr, wenn das Bild in rohem Albedo ausgegeben werden muss, ohne Licht. Das ist das Standardverhalten, solange kein Licht deklariert ist: eine Szene ohne Quelle hat nichts zu beleuchten, und ein schwarzes Bild würde keinem Geometrie-Prüfstand helfen. Sobald ein Licht existiert, übernimmt die echte Beleuchtung — außer der Host hat explizit die Diagnoseansicht angefordert.",
@@ -5303,6 +5319,10 @@
   },
   "Side": {
     "summary": "Welche Flächen ein Material zeichnet: `'front'`, `'back'` oder `'double'`."
+  },
+  "SixDofAxis": {
+    "summary": "Die Achsen eines Gelenks mit sechs Freiheitsgraden: Gleiten entlang `x`, `y`, `z` und Drehen um sie.",
+    "description": "`x` liegt entlang der `axis` des Gelenks, `y` so nah an der Senkrechten der Welt, wie es rechtwinklig dazu sein kann."
   },
   "sideOf": {
     "summary": "Die Seite, die ein Host-Material deklariert, einmal an der Grenze in die engine-eigene Aufzählung gelesen."
@@ -5570,7 +5590,7 @@
       "baseMetal": "Grundfarbe in RGB, A für Metall.",
       "normalRough": "Normale XYZ in der Welt, A für Rauheit.",
       "emissiveAo": "Emission RGB, A für Umgebungsverdeckung.",
-      "flags": "0 Hintergrund, 1 unbeleuchtet, 2 Lesevorgänge, 3 Diagnose im Anzeigeraum.",
+      "flags": "0 Hintergrund, 1 unbeleuchtet (im Nebel), 2 gelesen, 3 unverändert gezeigt: eine Diagnose, eine Normalen- oder Tiefenansicht.",
       "views": "Ihre GPU-Textursichten.",
       "dispose": "Gibt sie frei."
     }
@@ -6358,8 +6378,8 @@
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
       "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter dem Schatten-Pool wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
-      "cpu": "Bytes CPU-Speicher, die die dekodierten Seiten der Welt halten dürfen; beim nächsten Laden einer Szene übernommen.",
-      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Cache dekodierter Seiten nimmt die CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
+      "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten, beim nächsten Laden einer Szene übernommen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {
@@ -6461,8 +6481,8 @@
       "transparentDrawCalls": "Durchsichtige Zeichenaufrufe.",
       "transparentSubmittedTriangles": "Gesendete durchsichtige Dreiecke.",
       "coverageReady": "Der vollständige anfängliche GPU-Rückfall ist verfügbar; null für Engines ohne diese Garantie.",
-      "coverageBudgetLimited": "Das angeforderte Detail kann nicht mit dem im GPU-Seitenbudget angehefteten Rückfall koexistieren.",
-      "budgetPixelError": "Mindestfehler auf dem Bildschirm, den das GPU-Seitenbudget dem Schnitt auferlegt, in Pixeln: `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Null für Engines ohne Seitenbudget.",
+      "coverageBudgetLimited": "Das angeforderte Detail braucht mehr Seiten, als das GPU-Seitenbudget fasst: der Rest wird gröber gezeichnet.",
+      "budgetPixelError": "Nur WebGL2: Mindestfehler auf dem Bildschirm, den sein Seitenbudget dem Schnitt auferlegt, in Pixeln — `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Fehlt unter WebGPU, wo allein die Residenz das Bild vergröbert. Null für Engines ohne Seitenbudget.",
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
@@ -6796,7 +6816,7 @@
       "format": "Immer `'trillion3d-scene'`.",
       "formatVersion": "Die Version dieses Aufbaus; eine andere wird abgelehnt.",
       "background": "Die Hintergrundfarbe oder `null`.",
-      "fog": "Der Nebel oder `null`.",
+      "fog": "Der Nebel, seine Farbe in linearen Komponenten, oder `null`.",
       "camera": "Die mit der Szene gespeicherte Kamera oder `null`.",
       "geometries": "Jede Form, einmal, egal wie viele Meshes sie tragen.",
       "materials": "Jedes Material, einmal, egal wie viele Meshes es tragen.",
@@ -7132,19 +7152,6 @@
       "handbrake": "Ob die Handbremse gezogen ist."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Wie viele Scheitelpunkte.",
-      "array": "Die Speicherung.",
-      "kind": "Das Attribut besitzt seinen Puffer.",
-      "version": "Von `needsUpdate` erhöht.",
-      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
-      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
-      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    },
-    "summary": "Ein Attribut mit eigenem Speicher: `itemSize` Zahlen pro Vertex, hintereinander."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Ihre Scheitelpunktattribute.",
@@ -7174,14 +7181,9 @@
   "GraphNode": {
     "members": {
       "serial": "Die Nummer des Knotens, eindeutig in der Sitzung.",
-      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt.",
-      "parent": "Sein Elternteil.",
-      "children": "Die Knoten, die dieser hält, der Reihe nach.",
-      "traverse": "Der Teilbaum unter dem Knoten, er zuerst, in der eigenen Reihenfolge des Hosts.",
-      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
-      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt."
     },
-    "summary": "Ein Knoten des Graphen: sein Name, seine Pose, seine Weltmatrix, sein Elternteil und seine Kinder."
+    "summary": "Ein Knoten des Graphen: der Knoten des Kerns, unterschieden durch sein `kind`, kopiert durch das `clone` des Kerns."
   },
   "GraphSurface": {
     "members": {
@@ -7245,34 +7247,6 @@
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
   },
-  "GraphArray": {
-    "summary": "Die typisierten Arrays, die ein Attribut hält."
-  },
-  "GraphElements": {
-    "summary": "Eine der beiden Attributarten."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
-    "members": {
-      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
-      "data": "Der Puffer, den es betrachtet.",
-      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
-      "array": "Der Speicher, in dem die Elemente liegen.",
-      "count": "Wie viele Vertices.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Ein Speicher, den mehrere Attribute betrachten, ein Vertex alle `stride` Zahlen.",
-    "members": {
-      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
-      "count": "Wie viele Vertices.",
-      "version": "Von `needsUpdate` erhöht.",
-      "array": "Der Speicher.",
-      "stride": "Zahlen pro Vertex.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    }
-  },
   "GraphMesh": {
     "summary": "Ein gezeichneter Knoten: eine Geometrie und ihre Oberfläche, oder eine Oberfläche pro Geometriegruppe.",
     "members": {
@@ -7286,27 +7260,34 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
+    "summary": "Was ein Knoten des Graphen ist: die Wurzel, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",
     "description": "Es hält, solange beide Körper simuliert werden und bis es bricht.",
     "parameters": {
       "options": "Was `joint.*` annimmt. Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
-      "options.anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
-      "options.anchorB": "Das Ende eines Abstands an `b`.",
-      "options.axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
-      "options.limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
-      "options.spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
-      "options.motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
-      "options.breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+      "options.anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands oder des Seils eines Flaschenzugs an `a`.",
+      "options.anchorB": "Das Ende eines Abstands oder des Seils eines Flaschenzugs an `b`.",
+      "options.axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels oder Schwenk-Dreh-Gelenks, das `x` eines Gelenks mit sechs Freiheitsgraden, der Stift eines Zahnrads oder Ritzels (`a`).",
+      "options.axisB": "Der Stift eines Zahnrads an `b`, die Schiene einer Zahnstange (`b`).",
+      "options.limits": "Scharnier, Schiebegelenk, Abstand, Kegel, Schwenk-Dreh-Gelenk und Flaschenzug: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge, das Seil eines Flaschenzugs reicht von 0 bis zu seiner Länge.",
+      "options.axes": "Die Achsen eines Gelenks mit sechs Freiheitsgraden, die sich bewegen, frei (`'free'`) oder in Grenzen; die anderen sind gesperrt.",
+      "options.spring": "Scharnier, Schiebegelenk, Abstand und sechs Freiheitsgrade: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "options.motor": "Scharnier, Schiebegelenk, Schwenk-Dreh-Gelenk (seine Verdrehung), sechs Freiheitsgrade und Pfad: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "options.path": "Die Bahn eines Pfads: mindestens zwei Punkte, die von `b` (oder der Welt), wie sie beim Erzeugen stehen; `a` startet am Punkt der Bahn, der `anchor` am nächsten ist.",
+      "options.loop": "Die Bahn eines Pfads schließt sich zu einem Ring.",
+      "options.follow": "Das `a` eines Pfads dreht sich mit der Bahn, wie ein Wagen, statt frei, wie eine Perle.",
+      "options.over": "Die zwei Rollen eines Flaschenzugs in der Welt: Das Seil von `a` läuft zur ersten hinauf, das von `b` zur zweiten.",
+      "options.ratio": "Beim Zahnrad die Umdrehungen von `b` je Umdrehung von `a` (Zähne von `a` durch Zähne von `b`), gegenläufig; beim Ritzel Radiant je Meter Zahnstange, 1 / sein Radius; beim Flaschenzug Meter Seil von `b` je Meter Seil von `a`.",
+      "options.breakForce": "Zug in Newton, ab dem das Gelenk bricht (N·m Drehmoment zwischen den Zähnen eines Zahnrads oder einer Zahnstange); weggelassen, nie."
     },
     "members": {
       "kind": "Was das Gelenk ist.",
       "a": "Der erste Körper.",
       "b": "Der zweite Körper oder `null` für die Welt.",
       "options": "Womit es erzeugt wurde.",
-      "motor": "Der Motor eines Scharniers oder Schiebegelenks; `null` lässt es frei drehen oder gleiten.",
+      "motor": "Der Motor eines Scharniers, Schiebegelenks, Schwenk-Dreh-Gelenks, Gelenks mit sechs Freiheitsgraden oder Pfads; `null` lässt das Gelenk frei bewegen.",
       "broken": "Ob es gebrochen ist: über seine `breakForce` hinaus gezogen. Ein gebrochenes Gelenk hält nichts mehr.",
       "on": "Ruft `handler` auf, wenn das Gelenk bricht."
     }
@@ -7315,31 +7296,40 @@
     "summary": "Die Gelenke zwischen Körpern, jedes eine von Jolts eigenen Bedingungen."
   },
   "JointLimits": {
-    "summary": "Wie weit sich ein Gelenk bewegen darf: Radiant für ein Scharnier, Meter für ein Schiebegelenk oder einen Abstand, der halbe Kegelwinkel (`max`) für einen Kegel.",
+    "summary": "Wie weit sich ein Gelenk bewegen darf: Radiant für ein Scharnier oder eine Drehung, Meter für ein Schiebegelenk, einen Abstand oder das Seil eines Flaschenzugs, der halbe Kegelwinkel (`max`) für einen Kegel.",
     "members": {
-      "min": "Bei einem Scharnier von −π bis 0, bei einem Schiebegelenk 0 oder weniger.",
-      "max": "Bei einem Scharnier von 0 bis π, bei einem Schiebegelenk 0 oder mehr."
+      "min": "Beim Scharnier von −π bis 0, beim Schiebegelenk 0 oder weniger; die Verdrehung eines Schwenk-Dreh-Gelenks ab −π.",
+      "max": "Beim Scharnier von 0 bis π, beim Schiebegelenk 0 oder mehr; die Verdrehung eines Schwenk-Dreh-Gelenks bis π.",
+      "swing": "Der Kegel eines Schwenk-Dreh-Gelenks: wie weit seine `axis` schwingt, ein halber Winkel bis π."
     }
   },
   "JointMotor": {
-    "summary": "Der Motor eines Scharniers oder Schiebegelenks: Er treibt das Gelenk auf eine Geschwindigkeit oder eine Position.",
+    "summary": "Der Motor eines Gelenks: Er treibt es auf eine Geschwindigkeit oder eine Position.",
     "members": {
-      "mode": "`'velocity'`: rad/s oder m/s; `'position'`: Radiant oder Meter ab der Lage, in der das Gelenk entstand.",
+      "mode": "`'velocity'`: rad/s oder m/s; `'position'`: Radiant oder Meter ab der Lage, in der das Gelenk entstand — bei einem Pfad der Punkt entlang des Pfads (1.5: halb zwischen seinem zweiten und dritten).",
       "target": "Die zu erreichende Geschwindigkeit oder Position.",
-      "maxForce": "N·m für ein Scharnier, N für ein Schiebegelenk; weggelassen: unbegrenzt."
+      "maxForce": "N·m für eine Drehung, N für ein Gleiten; weggelassen, keine Grenze.",
+      "axis": "Die Achse, die er bei einem Gelenk mit sechs Freiheitsgraden antreibt."
     }
   },
   "JointOptions": {
     "summary": "Was `joint.*` annimmt.",
     "description": "Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
     "members": {
-      "anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
-      "anchorB": "Das Ende eines Abstands an `b`.",
-      "axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
-      "limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
-      "spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
-      "motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
-      "breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+      "anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands oder des Seils eines Flaschenzugs an `a`.",
+      "anchorB": "Das Ende eines Abstands oder des Seils eines Flaschenzugs an `b`.",
+      "axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels oder Schwenk-Dreh-Gelenks, das `x` eines Gelenks mit sechs Freiheitsgraden, der Stift eines Zahnrads oder Ritzels (`a`).",
+      "axisB": "Der Stift eines Zahnrads an `b`, die Schiene einer Zahnstange (`b`).",
+      "limits": "Scharnier, Schiebegelenk, Abstand, Kegel, Schwenk-Dreh-Gelenk und Flaschenzug: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge, das Seil eines Flaschenzugs reicht von 0 bis zu seiner Länge.",
+      "axes": "Die Achsen eines Gelenks mit sechs Freiheitsgraden, die sich bewegen, frei (`'free'`) oder in Grenzen; die anderen sind gesperrt.",
+      "spring": "Scharnier, Schiebegelenk, Abstand und sechs Freiheitsgrade: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "motor": "Scharnier, Schiebegelenk, Schwenk-Dreh-Gelenk (seine Verdrehung), sechs Freiheitsgrade und Pfad: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "path": "Die Bahn eines Pfads: mindestens zwei Punkte, die von `b` (oder der Welt), wie sie beim Erzeugen stehen; `a` startet am Punkt der Bahn, der `anchor` am nächsten ist.",
+      "loop": "Die Bahn eines Pfads schließt sich zu einem Ring.",
+      "follow": "Das `a` eines Pfads dreht sich mit der Bahn, wie ein Wagen, statt frei, wie eine Perle.",
+      "over": "Die zwei Rollen eines Flaschenzugs in der Welt: Das Seil von `a` läuft zur ersten hinauf, das von `b` zur zweiten.",
+      "ratio": "Beim Zahnrad die Umdrehungen von `b` je Umdrehung von `a` (Zähne von `a` durch Zähne von `b`), gegenläufig; beim Ritzel Radiant je Meter Zahnstange, 1 / sein Radius; beim Flaschenzug Meter Seil von `b` je Meter Seil von `a`.",
+      "breakForce": "Zug in Newton, ab dem das Gelenk bricht (N·m Drehmoment zwischen den Zähnen eines Zahnrads oder einer Zahnstange); weggelassen, nie."
     }
   },
   "joint": {
@@ -7350,7 +7340,52 @@
       "hinge": "Ein Stift bei `anchor` entlang `axis`: eine Tür, ein Rad. `limits` in Radiant.",
       "slider": "Eine Schiene entlang `axis`: eine Schublade, ein Kolben. `limits` in Metern.",
       "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
-      "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
+      "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt.",
+      "swingTwist": "Eine Schulter: `axis` schwingt in einem Kegel mit halbem Winkel `limits.swing` und verdreht sich um sich selbst zwischen `limits.min` und `max`; sein Motor treibt die Verdrehung.",
+      "sixDof": "Sechs Achsen, jede gesperrt, frei oder begrenzt (`axes`): jedes Gelenk zwischen den anderen.",
+      "path": "`a` läuft auf einer glatten Bahn durch `path`, fest an `b` oder der Welt: eine Achterbahn.",
+      "pulley": "Ein Seil von `a` über zwei Rollen (`over`) hinunter zu `b`: Das eine steigt, wenn das andere sinkt.",
+      "gear": "Zwei Räder, die sich im Verhältnis `ratio` zusammen drehen, jedes um seinen eigenen Stift (`axis`, `axisB`) und von seinem eigenen Scharnier gehalten (das Rad als dessen `a`); ist `ratio` oder 1 / `ratio` ganzzahlig, behalten ihre Zähne auch die Phase, in der sie gemacht wurden.",
+      "rackAndPinion": "Ein Ritzel `a`, das sich um `axis` dreht, treibt eine Zahnstange `b` entlang `axisB`, jedes von seinem eigenen Scharnier oder Schiebegelenk gehalten (der Körper als dessen `a`), ihre Zähne in der Phase gehalten, in der sie gemacht wurden."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
+    "members": {
+      "isInterleavedBufferAttribute": "Immer `true`: unterscheidet eine verschachtelte Ansicht von allem anderen.",
+      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
+      "data": "Der Puffer, den es betrachtet.",
+      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch.",
+      "clone": "Seine eigenen Zahlen, aus dem Paket in ein Attribut kopiert, das sie besitzt."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Eine der beiden Attributarten: mit eigenem Speicher oder als Ansicht eines verschachtelten Speichers."
+  },
+  "VertexElements": {
+    "summary": "Die Elemente eines Vertex-Attributs, komponentenweise gelesen und geschrieben.",
+    "members": {
+      "name": "Der Name, unter dem ein Morph-Ziel bekannt ist; leer für die anderen.",
+      "itemSize": "Wie viele Zahlen zu einem Scheitelpunkt gehören: 3 für eine Position.",
+      "normalized": "Ob sich die Ganzzahlen als Werte zwischen 0 und 1 lesen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
+      "stored": "Die Zahl `component` des Scheitelpunkts `index`, wie sie gespeichert ist; eine normalisierte Ganzzahl unskaliert.",
+      "getComponent": "Die Zahl `component` des Scheitelpunkts `index`, gelesen als die Zahl, für die sie steht.",
+      "setComponent": "Schreibt die Zahl `component` des Scheitelpunkts `index`.",
+      "getX": "Die erste Zahl des Scheitelpunkts `i`.",
+      "getY": "Die zweite Zahl des Scheitelpunkts `i`.",
+      "getZ": "Die dritte Zahl des Scheitelpunkts `i`.",
+      "getW": "Die vierte Zahl des Scheitelpunkts `i`.",
+      "setX": "Schreibt die erste Zahl des Scheitelpunkts `i`.",
+      "setY": "Schreibt die zweite Zahl des Scheitelpunkts `i`.",
+      "setZ": "Schreibt die dritte Zahl des Scheitelpunkts `i`.",
+      "setW": "Schreibt die vierte Zahl des Scheitelpunkts `i`.",
+      "setXY": "Schreibt zwei Zahlen für den Scheitelpunkt `i`.",
+      "setXYZ": "Schreibt drei Zahlen für den Scheitelpunkt `i`."
     }
   }
 }

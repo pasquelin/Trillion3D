@@ -12,6 +12,7 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
 import { depthOf } from './meshDepth.ts';
+import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
  *  before the read. */
@@ -22,10 +23,11 @@ type DisplayNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
   readonly kind?: string;
   readonly visible: boolean;
-  readonly serial: number;
   readonly renderOrder: number;
   readonly children: readonly DisplayNode[];
 };
+/** A drawn node: the engine's mesh, numbered in creation order (a group or a bare node is not). */
+type DrawnNode = DisplayNode & { readonly serial: number };
 type DisplayScene = ClusterDrawScene & {
   readonly children: readonly DisplayNode[];
   onBeforeRender?(): void;
@@ -45,12 +47,14 @@ const NO_BATCHES: readonly never[] = [];
  * `render(camera)` opens the frame: it zeroes the counters, so that a frame
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
  * `null` before the first frame. Without a context (a session that never draws on the host
- * surface) the draw is refused by name.
+ * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
+ * width to the image's pixels.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
   display: GraphScene,
   copies: readonly object[] = [],
+  pixelRatio: () => number = () => DEFAULT_PIXEL_RATIO,
 ) {
   const scene: DisplayScene = display;
   // The copies list grows with the placement rows (`growBlendCopies`): the set follows it.
@@ -60,7 +64,7 @@ export function createSceneDraw(
   };
   // Reused from frame to frame: a draw allocates no list.
   const opaque: WholeMesh[] = [],
-    seeThrough: DisplayNode[] = [];
+    seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
     opened = false;
   // The projection times the view, and each drawn mesh's depth, read once a frame.
@@ -71,7 +75,8 @@ export function createSceneDraw(
   const collect = (node: DisplayNode) => {
     if (!node.visible) return;
     if (node.kind === 'mesh' || node.kind === 'instancedMesh') {
-      if (copied.has(node) || firstMaterial(node.material!)?.transparent) seeThrough.push(node);
+      if (copied.has(node) || firstMaterial(node.material!)?.transparent)
+        seeThrough.push(node as DrawnNode);
       else opaque.push(node as WholeMesh);
       depths.set(node, depthOf(node, screen));
     }
@@ -88,12 +93,12 @@ export function createSceneDraw(
     if (rank === undefined) ranks.set(surface, (rank = nextRank++));
     return rank;
   };
-  const frontToBack = (a: DisplayNode, b: DisplayNode) =>
+  const frontToBack = (a: DrawnNode, b: DrawnNode) =>
     a.renderOrder - b.renderOrder ||
     rankOf(a as WholeMesh) - rankOf(b as WholeMesh) ||
     depth(a) - depth(b) ||
     a.serial - b.serial;
-  const backToFront = (a: DisplayNode, b: DisplayNode) =>
+  const backToFront = (a: DrawnNode, b: DrawnNode) =>
     a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.serial - b.serial;
   return {
     render(_camera: HostCamera) {
@@ -105,6 +110,7 @@ export function createSceneDraw(
       if (!opened) throw new Error('Draw before render');
       owner ??= new WebglClusterOwner(gl);
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
+      owner.pixelRatio = pixelRatio();
       scene.onBeforeRender?.();
       try {
         scene.updateMatrixWorld();
@@ -113,7 +119,7 @@ export function createSceneDraw(
         followCopies();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
         for (const child of scene.children) collect(child);
-        (opaque as DisplayNode[]).sort(frontToBack);
+        (opaque as DrawnNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
         owner.draw(
           NO_BATCHES,

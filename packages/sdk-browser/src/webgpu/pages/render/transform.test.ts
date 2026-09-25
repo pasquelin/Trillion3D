@@ -7,8 +7,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 // A node set where it already stands — its first write included, while its pose is still its
 // position, rotation and scale — moves nothing: no placement turns moving, no page is staled.
 test('a node moved to the world it already stands at moves nothing, on its first write too', () => {
-  const scene = new G.GraphGroup(),
-    crate = new G.GraphGroup();
+  const scene = new G.Group(),
+    crate = new G.Group();
   crate.name = 'Crate';
   crate.position.set(1.5, 2, -3);
   scene.add(crate);

@@ -27,7 +27,7 @@ const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn drawFlag(i:u32)->u32{return flags[views[0u].queueCap+i];}
 fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
-fn blockBase()->u32{return slots()*2u;}
+fn blockBase()->u32{return 0u;}
 var<workgroup> laneTotals:array<u32,64>;
 @compute @workgroup_size(64)
 fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){

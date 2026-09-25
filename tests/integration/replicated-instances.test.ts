@@ -7,18 +7,18 @@ import { asHostLibrary } from '../../packages/sdk-browser/src/host/resources.ts'
 test('1/4/9/12 replicas share assets, preserve associations and extend real bounds', () => {
   const counts: readonly (1 | 4 | 9 | 12)[] = [1, 4, 9, 12];
   for (const count of counts) {
-    const source = new G.GraphGroup(),
+    const source = new G.Group(),
       geometry = G.boxGeometry(2, 1, 3),
       material = G.basicSurface(),
       mesh = G.mesh(geometry, material);
     source.add(mesh);
-    const associations: Map<G.GraphNode, { meshes: number; primitives: number }> = new Map([
+    const associations: Map<G.Object3D, { meshes: number; primitives: number }> = new Map([
         [mesh, { meshes: 7, primitives: 0 }],
       ]),
       grid = replicateInstances(source, associations, count),
       meshes: G.GraphMesh[] = [];
     grid.traverse((o) => {
-      if (o.kind === 'mesh') meshes.push(o as G.GraphMesh);
+      if (o instanceof G.GraphMesh && o.kind === 'mesh') meshes.push(o);
     });
     assert.equal(meshes.length, count);
     for (const copy of meshes) {

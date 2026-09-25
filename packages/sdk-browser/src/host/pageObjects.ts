@@ -22,9 +22,9 @@ import { setGeometryBounds } from './geometryBounds.ts';
 import { GraphScene } from './graph/scene.ts';
 import { GraphInstancedMesh, GraphMesh } from './graph/mesh.ts';
 import { GraphGeometry } from './graph/geometry.ts';
-import { GraphAttribute, type GraphArray } from './graph/attributes.ts';
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './graph/surface.ts';
-import type { GraphNode } from './graph/node.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 type Surfaces = GraphSurface | GraphSurface[];
 
@@ -32,7 +32,7 @@ type Surfaces = GraphSurface | GraphSurface[];
  *  copies it draws whole (`../cluster/blendCopyMesh.ts`). */
 export function hostPageScene(copies: readonly object[] = []): GraphScene {
   const scene = new GraphScene();
-  for (const copy of copies) scene.add(copy as unknown as GraphNode);
+  for (const copy of copies) scene.add(copy as unknown as Object3D);
   return scene;
 }
 
@@ -118,9 +118,9 @@ export function hostPageGeometry(
   max: ArrayLike<number>,
 ): HostGeometry {
   const geometry = new GraphGeometry();
-  geometry.setIndex(new GraphAttribute(page.indices, 1));
+  geometry.setIndex(new BufferAttribute(page.indices, 1));
   for (const [name, array] of Object.entries(page.attributes))
-    geometry.setAttribute(name, new GraphAttribute(array as GraphArray, itemSize(name)));
+    geometry.setAttribute(name, new BufferAttribute(array, itemSize(name)));
   setGeometryBounds(geometry, min, max);
   return geometry as unknown as HostGeometry;
 }

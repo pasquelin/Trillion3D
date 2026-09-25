@@ -33,7 +33,7 @@ export function proche(
 
 /** Host scene AND the engine's world-matrix index, the one a move recomputes. */
 export function scene(nom = 'cible') {
-  const source = new G.GraphNode(),
+  const source = new G.Object3D(),
     mesh = G.mesh();
   mesh.name = nom;
   source.add(mesh);
@@ -42,7 +42,7 @@ export function scene(nom = 'cible') {
 
 /** A minimal selection root: what the transform reprojects and what it sends. The matrix it carries
  *  is the engine's, like every collected root. */
-export function racine(mesh: G.GraphNode, local: number[], worlds: HostWorldPlacements) {
+export function racine(mesh: G.Object3D, local: number[], worlds: HostWorldPlacements) {
   const localBox = Float64Array.from(local),
     worldBox = new Float64Array(BOX_VALUES),
     world = worlds.of(mesh);
@@ -56,7 +56,7 @@ export function racine(mesh: G.GraphNode, local: number[], worlds: HostWorldPlac
 }
 
 export function runtime(
-  source: G.GraphNode,
+  source: G.Object3D,
   roots: Array<ClusterRoot<PageRec>> = [],
   worlds: HostWorldPlacements = hostWorldPlacements(source),
 ) {

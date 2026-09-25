@@ -360,6 +360,22 @@
       "up": "LÊN"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Kéo để nhìn quanh. Chọn sương mù, tầm xa và màu của nó.",
+    "controls": {
+      "fog": "Sương mù",
+      "reach": "Tầm xa",
+      "height": "Độ cao",
+      "colour": "Màu"
+    },
+    "choices": {
+      "fog": {
+        "distance": "khoảng cách",
+        "thick": "dày",
+        "ground": "sát đất"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Kéo để nhìn quanh. Những hạt cườm chạy dọc theo ống.",
     "controls": {
@@ -2014,6 +2030,20 @@
     "readouts": {
       "joints": "Khớp nối",
       "broken": "Đã gãy"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Đổi tốc độ bộ máy, nâng thang máy và thả quả nặng vào xô để kéo đối trọng lên.",
+    "controls": {
+      "speed": "Tốc độ bộ máy (rad/s)",
+      "raiseLift": "Nâng thang máy",
+      "addWeight": "Thả một quả nặng",
+      "emptyBucket": "Đổ sạch xô"
+    },
+    "readouts": {
+      "lift": "Thang máy",
+      "load": "Quả nặng",
+      "rope": "Dây đã chạy"
     }
   }
 }

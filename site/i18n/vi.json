@@ -626,7 +626,8 @@
           "<code>anchor</code> là nơi các vật nối với nhau và <code>axis</code> là hướng của chốt hay ray; cả hai ở trong thế giới, được đọc khi khớp được tạo.",
           "<code>limits</code> chặn khớp lại: radian cho bản lề, mét cho ray trượt. Một <code>spring</code> làm điểm chặn mềm đi.",
           "Một <code>motor</code> đưa bản lề hoặc ray trượt tới một vận tốc hay một vị trí. Đổi <code>joint.motor</code> bất cứ lúc nào.",
-          "<code>breakForce</code> là lực kéo, tính bằng newton, mà vượt quá thì khớp đứt: <code>joint.broken</code> thành true và <code>joint.on('break', …)</code> được gọi."
+          "<code>breakForce</code> là lực kéo, tính bằng newton, mà vượt quá thì khớp đứt: <code>joint.broken</code> thành true và <code>joint.on('break', …)</code> được gọi.",
+          "Các khớp nâng cao ràng buộc chuyển động với nhau: <code>joint.gear(a, b, { ratio })</code> quay hai bánh xe gắn bản lề như một bộ truyền, <code>joint.rackAndPinion</code> biến phép xoay thành phép trượt, <code>joint.pulley(a, b, { over })</code> treo hai vật trên một sợi dây, <code>joint.path(a, b, { path })</code> giữ toa xe trên đường ray, còn <code>swingTwist</code> và <code>sixDof</code> tạo khớp vai và khớp theo ý bạn."
         ],
         "tryIt": "Mở cửa và ngăn kéo, rồi thả hòn đá lên cầu. Giảm độ bền của cầu và dựng lại: nó gãy dưới chính sức nặng của mình."
       },
@@ -1496,6 +1497,7 @@
       "soft-bodies": "Vật thể mềm",
       "rolling-on-terrain": "Lăn trên địa hình",
       "hinges-and-joints": "Bản lề và khớp nối",
+      "gears-and-pulleys": "Bánh răng và ròng rọc",
       "walk-with-collisions": "Đi bộ có va chạm",
       "drive-a-car": "Lái một chiếc xe",
       "a-room-in-vr": "Một căn phòng trong VR",
@@ -1509,7 +1511,6 @@
       "a-walker-among-balls": "Người đi bộ giữa những quả bóng"
     },
     "missing": {
-      "colours-on-the-vertices": "màu theo từng đỉnh trên WebGPU",
       "dashed-lines": "đường đứt nét",
       "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
@@ -1609,8 +1610,6 @@
       "reflections-from-the-screen": "phản chiếu screen-space",
       "an-ocean": "dựng hình vào kết cấu: phản chiếu và khúc xạ nước",
       "a-raging-sea": "vật liệu shader tùy chỉnh",
-      "a-town-in-the-fog": "sương mù",
-      "fog-on-the-ground": "sương mù: sương mù theo độ cao",
       "fog-that-scatters-light": "sương mù thể tích và tia sáng",
       "a-cloud-in-a-box": "dựng hình thể tích",
       "a-fire-in-a-volume": "dựng hình thể tích",

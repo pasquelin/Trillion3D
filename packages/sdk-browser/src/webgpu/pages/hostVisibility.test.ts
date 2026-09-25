@@ -50,9 +50,9 @@ test('the WebGPU path hides a compiled node the host hid, and draws it again onc
 // The same node's see-through parts and shadow: a hidden node vanishes entirely (#407).
 test('a host hide parks the root, hides its blend items and stales the shadow pages it covered', () => {
   const { blendState } = prepared();
-  const group = new G.GraphGroup(),
-    node = new G.GraphGroup(),
-    other = new G.GraphGroup();
+  const group = new G.Group(),
+    node = new G.Group(),
+    other = new G.Group();
   group.add(node);
   const [item, kept] = blendState.blendGpu;
   item.sourceMesh = node as never;

@@ -77,10 +77,10 @@ function fixture() {
 test('two pages packed in one bundle each receive their own decoded geometry', async () => {
   const { metadata, bytes } = fixture();
   const geometry = new G.GraphGeometry();
-  geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(18), 3));
+  geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(18), 3));
   const material = G.basicSurface({ side: G.DOUBLE_SIDE });
   const mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const backend = autonomousPagesBackend({
     source,

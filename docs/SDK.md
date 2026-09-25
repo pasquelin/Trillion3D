@@ -618,6 +618,36 @@ costs the subtree it starts from, never the other nodes of the hierarchy. The sc
 one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
 `destroy()` frees a subtree at once.
 
+The engine's graph is built of the same classes: a bare node is an `Object3D` and a group a
+`Group`, and every function of the browser facade that takes or returns a node of that graph names
+`Object3D`. `GraphNode` is abstract: it is only the base of the graph's nodes that draw, look or
+light (`GraphMesh`, and the camera and light classes the engine builds), which add a `kind` and a
+creation number.
+
+`clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
+`Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
+pose, matrices, flags and `userData`, and a `clone` of each child unless `recursive` is `false`;
+`copy(source, recursive)` writes the same values into an existing node. A class whose constructor
+takes arguments says how an empty one is made (`blank`). A `Light` also keeps its colours,
+intensity, range, cone, coefficients and target; a `Camera` its optics (`fov`, `near`, `far`,
+`aspect`, `zoom` and the orthographic box); a `Mesh` its primitive, and shares its geometry and
+material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPPORTED_SCENE_UPDATE`.
+`cloneObject` stays the deep copy: it shares nothing with the source, a mesh's geometry and
+materials included. The former aliases of the node, `HostNode`,
+`HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
+
+The engine's geometries hold the same vertex attributes as a world's `Geometry`: a
+`BufferAttribute` owning its numbers, or an `InterleavedBufferAttribute` viewing `itemSize` numbers
+at `offset` of each vertex of an `InterleavedBuffer` (`VertexAttribute` names either).
+`new BufferAttribute(array, itemSize, normalized)` reads an integer attribute declared normalised
+as its value over the largest of its type, and writes it back the same way; `needsUpdate = true`
+bumps `version` (the buffer's, for a view), which the renderer compares before uploading the same
+bytes again, and `addUpdateRange` limits that upload to the numbers written. `clone()` copies the
+numbers, their type, normalisation and name; a view's clone owns its numbers. The former engine
+classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` and the types
+`GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
+`InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
@@ -865,14 +895,17 @@ once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
 **One GPU total, one CPU total.** `world.budget.gpu` is every GPU pool together, and
-`world.budget.cpu` the decoded pages the world keeps in CPU memory. A fixed rule splits them, published
+`world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
 - GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
   in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
   each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
   a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
-- CPU: the decoded-page cache takes the whole total, taken by the next scene load.
+- CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
+  decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
+  plus the cache's own default; a total not above the mirror is refused
+  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
 ```js
 world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split
@@ -887,10 +920,11 @@ their floors (the root cover, one texture layer per lane), which they never go b
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
-What a view asks beyond a pool is shown **coarser**, never refused: the cut raises its screen error
-until the cover fits, a texture tile shows its coarser level. The frame metrics say so —
-`coverageBudgetLimited`, `budgetPixelError` (the rung the image is drawn at, `0` when the requested
-detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
+What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU the pages that do not
+fit stay out and their surface is drawn by its nearest resident ancestor, on WebGL2 the cut raises
+its screen error until the cover fits, and a texture tile shows its coarser level. The frame metrics
+say so — `coverageBudgetLimited`, `budgetPixelError` (WebGL2: the threshold the image is drawn at,
+`0` when the requested detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
 is too small for that view). A value that cannot be held as given is brought to what can be, and
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the
@@ -1020,6 +1054,27 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is
   called, and the bodies part. A tuning a kind lacks (a motor on a fixed joint) throws
   `RangeError`. Live example: [hinges and joints](../site/examples/hinges-and-joints.html).
+- **Advanced joints.** The same entry holds Jolt's advanced constraints, with the same `add`,
+  `remove`, `breakForce` and `motor`. `joint.swingTwist` is a shoulder: `axis` swings within a
+  cone of half angle `limits.swing` and twists between `limits.min` and `max`; its motor drives
+  the twist. `joint.sixDof` has six axes — `x` along `axis`, `y` as near the world's up as it can,
+  and `turnX | turnY | turnZ` about them —, each locked unless `axes` frees it (`'free'`) or
+  limits it (`{ min, max }`); `spring` softens its slide limits and `motor.axis` names the axis
+  its motor drives. `joint.path(a, b, { path, loop, follow })` runs `a` along a smooth track
+  through the points of `path` (at least two, fixed to `b` or the world), turning with it unless
+  `follow` is `false`; its motor drives `a` at a speed along the track, or to a point of it (1.5:
+  halfway between the second and the third). `joint.pulley(a, b, { over, ratio })` hangs `a` and
+  `b` on one rope over two wheels in the world, the rope from 0 up to its length unless `limits`
+  says otherwise. `joint.gear(a, b, { axis, axisB, ratio })` turns `b` `ratio` times per turn of
+  `a` (the teeth of `a` over those of `b`), the other way round; `joint.rackAndPinion(pinion,
+rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metres per radian
+  of the pinion (`ratio` is 1 / its radius). A gear, a pinion and a rack each still need their own
+  hinge or slider to hold them in place, the body as its `a`, about the same axis. Jolt reads
+  those to keep the teeth in the phase they were made in over any run: always for a rack and
+  pinion, and for a gear when one wheel has a whole multiple of the other's teeth (`ratio` or
+  `1 / ratio` whole — it wraps each hinge's angle to one turn); any other gear ties the speeds
+  only, and may slip by a fraction of a tooth under load. Live example:
+  [gears and pulleys](../site/examples/gears-and-pulleys.html).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its

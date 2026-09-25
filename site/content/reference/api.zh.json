@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "始终为 `true`:用来把缓冲属性和其他对象区分开来。",
       "type": "这些值最初是如何声明的;半精度浮点属性会以单精度保存。",
-      "normalized": "整数值是否被读作 0 到 1 之间的数值。",
       "version": "每次声明式写入都会递增:世界靠比较它来判断内容是否发生了变化。",
       "array": "数值本身。",
-      "itemSize": "属于一个顶点的数字个数:位置是 3。",
       "count": "这些数字描述了多少个顶点。",
-      "needsUpdate": "写入 `array` 之后设置 `attribute.needsUpdate = true`:世界会重新读取它。",
-      "getComponent": "顶点 `index` 的第 `component` 个数字。",
-      "getX": "顶点 `i` 的第一个数字。",
-      "getY": "顶点 `i` 的第二个数字。",
-      "getZ": "顶点 `i` 的第三个数字。",
-      "getW": "顶点 `i` 的第四个数字。",
-      "setXYZ": "为顶点 `i` 写入三个数字。",
-      "setXY": "为顶点 `i` 写入两个数字。",
-      "setX": "为顶点 `i` 写入第一个数字。",
-      "clone": "一个带有数值副本的新属性对象。"
+      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。",
+      "clone": "一个新属性,带有这些数字、其类型、归一化和名称的副本。",
+      "kind": "该属性拥有自己的缓冲区。",
+      "updateRanges": "自上次上传以来写入的 `array` 范围，单独发送。",
+      "addUpdateRange": "将从 `start` 起的 `count` 个数标记为已写入。",
+      "clearUpdateRanges": "上传后忘记已写入的范围。"
     }
   },
   "BufferNumbers": {
@@ -370,6 +364,7 @@
       "top": "正交视野盒的上边界。",
       "bottom": "正交视野盒的下边界。",
       "projection": "`'perspective'` 会让远处的物体变小;`'orthographic'` 则保持所有尺寸不变。",
+      "copy": "取 `source` 的节点值，若为相机则取其光学参数；自身的 `projection` 保持不变。",
       "updateProjectionMatrix": "为了兼容那些针对需要它的渲染器而写的页面而保留:任何光学参数的写入本身就已经会触发重绘。",
       "rayThrough": "穿过画面上某一点的世界射线，按引擎自己的投影计算（`engineCamera.ts`）：透视相机从眼睛出发沿视线方向，正交相机从盒子出发笔直沿视线方向。它的方向是单位向量。",
       "set": "把眼睛放在 `pose.position`,朝向 `pose.target` 看,并使用指定的视场角。"
@@ -1019,6 +1014,10 @@
       "rollInput": "[-1, 1] 范围内的横滚倾斜量,与 Q 一致,向左为正;其余同 `pitchInput`。"
     }
   },
+  "Fog": {
+    "summary": "覆盖每个表面的雾：从 `near` 到 `far` 线性变化，或按 `density` 随距离变浓；给出 `heightFalloff` 时，在 `baseHeight` 之上随高度变淡。",
+    "description": "颜色是雾向眼睛散射的光，像表面的光一样经过曝光和显示曲线。"
+  },
   "FrameInfo": {
     "summary": "一个帧钩子接收到的内容:距上一帧的秒数,以及自世界创建以来的秒数。",
     "description": "这是世界持有的唯一一个对象,每帧都会被重写:需要保留某个值的钩子应当自行复制它。",
@@ -1062,8 +1061,8 @@
       "transparentDrawCalls": "透射绘制调用数。",
       "transparentSubmittedTriangles": "已发送的透射三角形数。",
       "coverageReady": "完整的初始 GPU 后备方案是否可用;在没有此保证的后端上为 null。",
-      "coverageBudgetLimited": "在 GPU 页面预算范围内,所请求的细节程度无法与固定的后备方案共存。",
-      "budgetPixelError": "GPU 页面预算对裁切施加的屏幕误差下限,单位像素:所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。在没有页面预算概念的引擎上为 null。",
+      "coverageBudgetLimited": "所请求的细节程度需要的页面多于 GPU 页面预算所能容纳的数量:其余部分以更粗糙的细节绘制。",
+      "budgetPixelError": "仅限 WebGL2:其页面预算对裁切施加的屏幕误差下限,单位像素——所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。WebGPU 上不存在,在那里只有驻留状态会使图像变粗糙。在没有页面预算概念的引擎上为 null。",
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
@@ -1358,10 +1357,6 @@
   "HostGeometry": {
     "summary": "一个宿主几何体:它的属性,以及宿主基于这些属性计算出的局部包围盒。"
   },
-  "HostGraphNode": {
-    "summary": "从遍历的角度看到的宿主图中的一个节点:它的身份、局部姿态、宿主为它解析出的世界矩阵,以及它的祖先链。",
-    "description": "引擎从局部姿态出发计算**自己的**世界矩阵(`../world/tree.ts`);读取 `matrixWorld` 的地方,正是边界层需要把**宿主自身**的解析结果交回去的场合。**为什么 `HostPlaced`(`../resources.ts`)也用来描述一个带姿态的节点。** 这两者并不是彼此的复制品:它们分别对应宿主提供的两种不同解析方式。`HostPlaced` 要求的是 `updateWorldMatrix(ancestors, descendants)`——**单个**节点的祖先链,是放置和可见性遍历所要爬升的部分;而这里要求的是 `updateMatrixWorld(force)`——某个节点**之下的整棵子树**,是扫描、包围盒合并和实例复制在一次调用中要解析的部分。只提供其中一种的宿主,只满足它所回应的那份契约,因此两者都不能互相替代。"
-  },
   "HostMaterial": {
     "summary": "引擎读取到的宿主材质:所有宿主材质共有的表面参数,在边界处一次性读入引擎的 `VisMaterial`;只有 `side` 单独由 `sideOf` 读取。"
   },
@@ -1370,9 +1365,6 @@
   },
   "HostMesh": {
     "summary": "按身份保存的宿主网格:绘制记录、透明表、以及选择集,共同为宿主放置的表面命名。"
-  },
-  "HostNode": {
-    "summary": "宿主场景图中的一个节点,按身份以及遍历所需的两个字段来保存。"
   },
   "HostNodeMatrix": {
     "summary": "同样的十六个浮点数,可逐项**写入**:边界层写回到某个宿主节点或它恢复的某个宿主摄像机上的姿态。",
@@ -1425,9 +1417,6 @@
   "HostTexture": {
     "summary": "一个宿主纹理:宿主解码出的图像及其声明的采样器状态,同样按身份保存。"
   },
-  "HostTraversable": {
-    "summary": "引擎会遍历的一个宿主节点:它之下的子树,自身优先,按宿主自己的顺序。"
-  },
   "HostVector": {
     "summary": "姿态的三个数值,按宿主存储、边界层写回的方式表示。",
     "members": {
@@ -1447,7 +1436,10 @@
       "array": "每个顶点的数值,依次紧密排列。",
       "stride": "每个顶点占用多少个数字。",
       "count": "它打包了多少个顶点。",
-      "attribute": "从这个打包结构中取出的某一个属性,作为它自己独立的浮点属性。"
+      "attribute": "从这个打包结构中取出的某一个属性,作为它自己独立的属性。",
+      "kind": "由多个属性共同查看的一块存储。",
+      "version": "由 `needsUpdate` 递增。",
+      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
     }
   },
   "JobProgress": {
@@ -1547,7 +1539,6 @@
       "shadowNormalOffsetTexels": "采样点沿法线方向的偏移量,以切片纹素为单位。正是它闭合了点光源两个面之间的接缝,并消除了掠射角处的痤疮状瑕疵;之所以用纹素而不是米作单位,是为了让它始终与该光源获得的分辨率成比例。",
       "shadowPagesPerFrame": "每帧最多绘制的阴影页数：缓冲区上限，从不是质量设置。毫秒预算几乎总是先停下；此上限只是最后的界限，也是没有 GPU 时钟的设备上唯一的限制。",
       "lampFaceSize": "灯光面最细 mip 的边长（纹素）：32 × 32 个 128 的页（池：`shadowPoolSide`）。",
-      "shadowTableEntries": "阴影页表的条目，每个虚拟页一个字：固定的 4 MiB 缓冲区。可容纳十六个太阳或 128 个点光源；找不到位置的光没有阴影，并被计数。",
       "shadowRequestCap": "着色每帧可请求的虚拟页数；其余的在下一帧再次请求。",
       "sunLevels": "平行光的 clipmap 级别。级别 `L` 的纹素为 `2^L` 米，像素读取纹素不超过自身足迹的级别：十六个级别覆盖 2^15 的远近比。最后一级之外由远处阴影接管。",
       "sunLevelPages": "相机周围一个 clipmap 级别范围每边的页数。这是容量而非调节：只要 `height / tan(halfFovY)` 不超过 `sunLevelPages · shadowPage / 2` = 4096（垂直视场 55° 的 4K 画布），每个像素都读取自己的密度；超出后外侧像素以一半密度读取下一级。"
@@ -1605,6 +1596,7 @@
       "height": "矩形光源的高度。",
       "radius": "发光球体的半径;在引擎的存储中对应 `emitterRadius`。",
       "kind": "这是哪一种光源:`'point'`、`'spot'`、`'directional'`……",
+      "copy": "取 `source` 的节点值，若为灯光则取其数值、颜色、系数和瞄准；自身的 `kind` 保持不变。",
       "needsUpdate": "原地写入 `sh` 之后设置 `light.needsUpdate = true`:世界会重新读取它。",
       "lookAt": "让光源瞄准世界中的某一点:定向光或聚光灯会把它的 `target` 移动到那里——其方向由此读取——同时该节点本身也会转动,矩形光源正是依据这个朝向来确定其朝向的。"
     }
@@ -1758,7 +1750,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -1821,7 +1813,7 @@
       "flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "size": "点材质中,点的大小。",
       "sizeAttenuation": "点是否会随距离变小。",
-      "linewidth": "线的宽度。",
+      "linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "dashSize": "一段虚线的长度。",
       "gapSize": "两段虚线之间空隙的长度。",
       "vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -2029,6 +2021,8 @@
       "remove": "把若干子节点从这个节点上移除。",
       "destroy": "立即释放该节点及其下所有节点，而不是等到它们被回收。",
       "removeFromParent": "把该节点从它的父节点上移除。",
+      "clone": "同类型、同值的节点；除非另有指示，其子节点也会被复制。",
+      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。",
       "clear": "把这个节点的所有子节点都移除。",
       "traverse": "对该节点及其下所有节点调用 `fn`。",
       "traverseVisible": "从这里往下,对每个可见节点调用 `fn`。",
@@ -2041,11 +2035,7 @@
       "rotateY": "把该节点绕自己的 y 轴旋转。",
       "rotateZ": "把该节点绕自己的 z 轴旋转。",
       "translateOnAxis": "沿该节点自己的 `axis` 移动它。",
-      "getWorldPosition": "该节点在世界中所处的位置。",
-      "getWorldQuaternion": "该节点在世界中的旋转状态。",
       "getWorldDirection": "该节点在世界中所朝向的方向。",
-      "localToWorld": "该节点坐标系下的一个点,换算到世界坐标系中的结果。",
-      "worldToLocal": "世界坐标系下的一个点,换算到该节点坐标系中的结果。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
     }
   },
@@ -2056,7 +2046,11 @@
       "matrixWorld": "最近一次合成得到的世界矩阵(`updateMatrixWorld`),是变换树的一个视图。",
       "matrixAutoUpdate": "当 `matrix` 本身就是位姿、没有任何东西重新合成它时为 false。",
       "matrixWorldNeedsUpdate": "局部矩阵已改变而世界矩阵尚未跟随时置位。",
-      "updateMatrixWorld": "合成该节点及其所有后代的世界矩阵,父节点的世界矩阵按现状直接采用。"
+      "updateMatrixWorld": "合成该节点及其所有后代的世界矩阵,父节点的世界矩阵按现状直接采用。",
+      "getWorldPosition": "该节点在世界中所处的位置。",
+      "getWorldQuaternion": "该节点在世界中的旋转状态。",
+      "localToWorld": "该节点坐标系下的一个点,换算到世界坐标系中的结果。",
+      "worldToLocal": "世界坐标系下的一个点,换算到该节点坐标系中的结果。"
     }
   },
   "OcclusionFrameMetrics": {
@@ -2764,8 +2758,8 @@
     "members": {
       "isScene": "始终为 `true`:用来把场景根节点和其他任何对象区分开来。",
       "environment": "光滑表面所反射的周围环境图像;没有时为 `null`。",
-      "fog": "在 `near` 和 `far` 之间把物体渐渐淡化成 `color` 的雾效;没有时为 `null`。",
       "background": "填充每个对象背后画面的内容：一种颜色，或表示默认值的 `null`。更改会在下一帧显示，会话保持不变：在这里设置的新颜色，或通过其方法（`set`、`setRGB`、`setHex`、`setHSL`...）写入的当前颜色。直接写入 `.r`、`.g` 或 `.b` 不会被察觉：之后请重新设置 `background`。图片或任何没有 `getHex` 的值都会被拒绝（`UNSUPPORTED_SCENE_UPDATE`）：没有路径会绘制它。",
+      "fog": "覆盖每个表面的雾，不透明和透明表面都有，两种渲染器都支持；默认 `null` 表示无雾，没有任何开销。`{ color, near, far }` 让物体从 `near` 到 `far` 融入 `color`，距离从相机算起；`{ color, density }` 每单位距离变浓 `density`；加上 `heightFalloff`（以及默认为 0 的 `baseHeight`），雾就贴在地面上，在 `baseHeight` 之上变淡——每向上 `1 / heightFalloff` 个单位除以 e。修改在下一帧显示：在这里设置的新雾，或通过其方法写入的颜色。直接写 `near`、`far`、`density`... 不会被察觉：写完后请重新设置 `fog`。超出范围的雾——`far` 不在 `near` 之外、密度为负——会被拒绝（`INVALID_SCENE_ENVIRONMENT`）。",
       "load": "加载一个已编译模型——通过它的清单 URL——并把它添加到这个场景中。",
       "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
       "fromJSON": "用 `toJSON` 保存的场景替换场景当前的内容，保留其 `helper` 标记；模型加载完后完成。其他格式或版本会被拒绝（`UNSUPPORTED_SCENE_FORMAT`）。读取期间发起的调用会按顺序一个接一个执行，每个都基于前一个留下的结果：两个保存的场景绝不会混在一起。"
@@ -2776,8 +2770,21 @@
     "members": {
       "exposure": "在应用显示曲线之前,施加在线性辐亮度上的乘数。",
       "toneMapping": "显示曲线;缺省时为 `DEFAULT_TONE_MAPPING`。",
-      "irradiance": "来自各个方向的辐照度,表示为 27 个数字:九个系数,每个是一个 RGB 三元组,按常数项、`y`、`z`、`x`、`xy`、`yz`、`3z² − 1`、`xz`、`x² − y²` 的频段顺序排列。缺省或全部为零时,除了声明的光源之外没有任何东西会照亮表面。"
+      "irradiance": "来自各个方向的辐照度,表示为 27 个数字:九个系数,每个是一个 RGB 三元组,按常数项、`y`、`z`、`x`、`xy`、`yz`、`3z² − 1`、`xz`、`x² − y²` 的频段顺序排列。缺省或全部为零时,除了声明的光源之外没有任何东西会照亮表面。",
+      "fog": "覆盖每个表面的距离雾或高度雾（`SceneFog`）；缺省则无雾。"
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "随距离变浓的雾：每场景单位 `density`；有 `heightFalloff` 时，在 `baseHeight` 之上变淡，每向上 `1 / heightFalloff` 个单位除以 e。",
+    "members": {
+      "color": "雾把物体融入的辐射亮度，线性 RGB。",
+      "density": "在 `baseHeight` 处每场景单位的消光；≥ 0。",
+      "heightFalloff": "密度随高度下降的快慢，每场景单位；默认 0 使其在任何高度都均匀。",
+      "baseHeight": "密度等于 `density` 的高度；默认 0。"
+    }
+  },
+  "SceneFog": {
+    "summary": "距离雾或高度雾，按光照读取它的形式。"
   },
   "SceneLight": {
     "summary": "场景光源,第 2 版。",
@@ -2809,6 +2816,7 @@
       "ids": "每个槽位对应的光源名称。",
       "count": "光源的数量。",
       "epoch": "光源集合发生变化时递增。",
+      "transportEpoch": "随纪元递增，但仅雾的变化除外：雾是视线光线的项，而非光传输，因此缓存已传输光的部分（反弹探针）会保留它。",
       "environment": "该场景的环境设置。",
       "lightingView": "宿主请求的视图模式,原样保留:只要宿主什么都没要求,就是 `auto`。",
       "unlit": "当图像必须以原始反照率、完全不受光照影响的形式呈现时为 true。只要没有声明任何光源,这就是默认行为:一个没有光源的场景没有什么可照亮的,而一张全黑的图像对任何几何基准测试都毫无帮助。一旦存在光源,真正的光照计算就会接管——除非宿主明确要求了诊断视图。",
@@ -2826,6 +2834,14 @@
   "SceneLightingView": {
     "summary": "宿主要求查看的内容。",
     "description": "`lit` 是真正的光照效果,仅此而已;`unlit` 是原始反照率诊断视图——材质颜色原样呈现,没有光照、没有环境光也没有自发光——用于逐像素精确比较图像的几何基准测试。默认值 `auto` 在没有声明任何光源时给出 `unlit`,一旦有了光源就给出 `lit`。`bounce` 是第三种诊断视图:只呈现间接辐照度,乘以曝光度后以线性值输出,不经过 ACES 或 sRGB 处理。这正是测试框架用来与编译器权威结果做比较的内容;它不是一张供人观看的图像,如果没有专门搭建的间接光照场景,它就是黑的。"
+  },
+  "SceneLinearFog": {
+    "summary": "从 `near` 开始、自 `far` 起遮住一切的雾，距离从眼睛算起。",
+    "members": {
+      "color": "雾把物体融入的辐射亮度，线性 RGB。",
+      "near": "雾开始处距眼睛的距离。",
+      "far": "只能看到雾处距眼睛的距离。"
+    }
   },
   "SceneLink": {
     "summary": "一个节点向它所挂靠的世界报告的内容:一次姿态的移动、树结构的改变,或是内容的改变。",
@@ -3026,6 +3042,10 @@
   },
   "Side": {
     "summary": "一种材质绘制哪些面:`'front'`、`'back'`,或 `'double'`。"
+  },
+  "SixDofAxis": {
+    "summary": "六自由度关节的轴：沿 `x`、`y`、`z` 滑动，并绕它们转动。",
+    "description": "`x` 沿关节的 `axis`，`y` 在与其垂直的前提下尽量接近世界的上方。"
   },
   "SlimClusterManifest": {
     "summary": "一份清单,它的长列表存放在旁边的一个二进制文件中。",
@@ -3229,7 +3249,7 @@
       "baseMetal": "RGB 为基础颜色,A 为金属度。",
       "normalRough": "XYZ 为世界空间法线,A 为粗糙度。",
       "emissiveAo": "RGB 为自发光,A 为环境光遮蔽。",
-      "flags": "0 表示背景,1 表示无光照,2 表示读取,3 表示显示空间诊断。",
+      "flags": "0 背景，1 无光照（受雾影响），2 读取，3 原样显示：诊断、法线或深度视图。",
       "views": "它的 GPU 纹理视图。",
       "dispose": "释放它。"
     }
@@ -3864,8 +3884,8 @@
       "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。",
       "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。",
       "gpu": "世界可占用的 GPU 内存字节数（所有池合计）；设置后按分配规则（`split`）重新划分每个池。低于阴影池的总量会被拒绝（`GPU_BUDGET_UNDER_SHADOW_POOL`）。从不从机器读取。",
-      "cpu": "世界已解码页面可占用的 CPU 内存字节数；在下一次加载场景时生效。",
-      "split": "两个总量的分配方式：阴影池取其最大值，其余一半给几何池、一半给纹理池，各自不超过上限；已解码页面缓存占用 CPU 总量。这是单独设置某个池之前规则给出的值。"
+      "cpu": "世界可占用的 CPU 内存字节数：先是阴影页表的主机镜像，再是已解码页面；在下一次加载场景时生效。不超过镜像的总量会被拒绝（`CPU_BUDGET_UNDER_SHADOW_MIRROR`）。从不从机器读取。",
+      "split": "两个总量的分配方式：阴影池取其最大值，其余一半给几何池、一半给纹理池，各自不超过上限；CPU 总量先给阴影表的主机镜像，其余由已解码页面缓存占用。这是单独设置某个池之前规则给出的值。"
     }
   },
   "world.diagnostic": {
@@ -3953,8 +3973,8 @@
       "transparentDrawCalls": "透射绘制调用数。",
       "transparentSubmittedTriangles": "已发送的透射三角形数。",
       "coverageReady": "完整的初始 GPU 后备方案是否可用;在没有此保证的后端上为 null。",
-      "coverageBudgetLimited": "在 GPU 页面预算范围内,所请求的细节程度无法与固定的后备方案共存。",
-      "budgetPixelError": "GPU 页面预算对裁切施加的屏幕误差下限,单位像素:所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。在没有页面预算概念的引擎上为 null。",
+      "coverageBudgetLimited": "所请求的细节程度需要的页面多于 GPU 页面预算所能容纳的数量:其余部分以更粗糙的细节绘制。",
+      "budgetPixelError": "仅限 WebGL2:其页面预算对裁切施加的屏幕误差下限,单位像素——所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。WebGPU 上不存在,在那里只有驻留状态会使图像变粗糙。在没有页面预算概念的引擎上为 null。",
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
@@ -5562,7 +5582,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5600,7 +5620,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5638,7 +5658,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5676,7 +5696,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5714,7 +5734,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5752,7 +5772,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5790,7 +5810,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5828,7 +5848,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5866,7 +5886,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5904,7 +5924,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5942,7 +5962,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -5980,7 +6000,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -6018,7 +6038,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -6056,7 +6076,7 @@
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
       "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
       "parameters.dashSize": "一段虚线的长度。",
       "parameters.gapSize": "两段虚线之间空隙的长度。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
@@ -6796,7 +6816,7 @@
       "format": "总是 `'trillion3d-scene'`。",
       "formatVersion": "这种布局的版本；其他版本会被拒绝。",
       "background": "背景颜色，或 `null`。",
-      "fog": "雾，或 `null`。",
+      "fog": "雾，其颜色为线性分量，或 `null`。",
       "camera": "与场景一起保存的相机，或 `null`。",
       "geometries": "每个形状只存一次，不管有多少网格使用它。",
       "materials": "每个材质只存一次，不管有多少网格使用它。",
@@ -7132,25 +7152,6 @@
       "handbrake": "手刹是否拉起。"
     }
   },
-  "GraphArray": {
-    "summary": "属性持有的类型化数组。"
-  },
-  "GraphAttribute": {
-    "summary": "拥有自己存储的属性：每个顶点 `itemSize` 个数，依次排列。",
-    "members": {
-      "kind": "该属性拥有自己的缓冲区。",
-      "count": "顶点数。",
-      "version": "由 `needsUpdate` 递增。",
-      "array": "存储区域。",
-      "updateRanges": "自上次上传以来写入的 `array` 范围，单独发送。",
-      "addUpdateRange": "将从 `start` 起的 `count` 个数标记为已写入。",
-      "clearUpdateRanges": "上传后忘记已写入的范围。",
-      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
-    }
-  },
-  "GraphElements": {
-    "summary": "两种属性中的任一种。"
-  },
   "GraphGeometry": {
     "summary": "网格绘制的属性、为其建立索引的三角形列表、移动它们的变形目标，以及在其上计算的局部包围盒和包围球。",
     "members": {
@@ -7177,28 +7178,6 @@
       "computeBoundingSphere": "计算局部包围球：以包围盒为中心，延伸到最远的顶点。"
     }
   },
-  "GraphInterleavedAttribute": {
-    "summary": "查看交错缓冲区每个顶点 `offset` 处 `itemSize` 个数的属性。",
-    "members": {
-      "kind": "该属性查看一个共享缓冲区。",
-      "data": "它所查看的缓冲区。",
-      "offset": "它的数值在每个顶点中的起始位置。",
-      "array": "元素所在的存储。",
-      "count": "顶点数量。",
-      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "由多个属性共同查看的一块存储，每 `stride` 个数为一个顶点。",
-    "members": {
-      "kind": "由多个属性共同查看的一块存储。",
-      "count": "顶点数量。",
-      "version": "由 `needsUpdate` 递增。",
-      "array": "存储。",
-      "stride": "每个顶点的数值个数。",
-      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
-    }
-  },
   "GraphMesh": {
     "summary": "被绘制的节点：一个几何体及其表面，或每个几何分组一个表面。",
     "members": {
@@ -7212,19 +7191,14 @@
     }
   },
   "GraphNode": {
-    "summary": "图的节点：名称、姿态、世界矩阵、父节点和子节点。",
+    "summary": "图的一个节点：核心的节点，以其 `kind` 区分，由核心的 `clone` 复制。",
     "members": {
       "serial": "节点的编号，在会话中唯一。",
-      "kind": "节点是什么：图的每个读取方据此收窄类型。",
-      "parent": "它的父节点。",
-      "children": "本节点按顺序持有的节点。",
-      "traverse": "该节点之下的子树,自身优先,按宿主自己的顺序。",
-      "clone": "同类型、同值的节点；除非另有指示，其子节点也会被复制。",
-      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。"
+      "kind": "节点是什么：图的每个读取方据此收窄类型。"
     }
   },
   "GraphNodeKind": {
-    "summary": "图的节点是什么：普通节点、根、分组、被绘制的网格（一个或多个放置处）、眼睛，或场景声明的某种光源。"
+    "summary": "图的节点是什么：根、被绘制的网格（一个或多个放置处）、眼睛，或场景声明的某种光源。"
   },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",
@@ -7293,20 +7267,27 @@
     "description": "只要两个物体都在模拟中，它就一直保持，直到断开。",
     "parameters": {
       "options": "`joint.*` 接受的选项。点和轴都在世界坐标中，在关节首次创建时读取。",
-      "options.anchor": "物体相连的位置：铰链的销轴、点关节的球心、距离关节在 `a` 上的端点。",
-      "options.anchorB": "距离关节在 `b` 上的端点。",
-      "options.axis": "铰链的销轴、滑动关节的滑轨、锥形关节的中心轴。",
-      "options.limits": "铰链、滑动、距离和锥形关节：能移动多远。距离关节默认保持其长度。",
-      "options.spring": "铰链、滑动和距离关节：超出限位时由弹簧拉回，而不是撞墙；`frequency` 单位为 Hz，`damping` 从 0（无）到 1（临界）。",
-      "options.motor": "铰链和滑动关节：马达，可随时通过 `joint.motor` 修改。",
-      "options.breakForce": "关节断开所需的拉力（牛顿）；省略则永不断开。"
+      "options.anchor": "物体相连的位置：铰链的销轴、点关节的球心、距离关节或滑轮绳在 `a` 上的端点。",
+      "options.anchorB": "距离关节或滑轮绳在 `b` 上的端点。",
+      "options.axis": "铰链的销轴、滑动关节的滑轨、锥形关节或摆转关节的中心轴、六自由度关节的 `x`、齿轮或小齿轮的销轴（`a`）。",
+      "options.axisB": "齿轮在 `b` 上的销轴、齿条的滑轨（`b`）。",
+      "options.limits": "铰链、滑动、距离、锥形、摆转和滑轮关节：能移动多远。距离关节默认保持其长度；滑轮的绳从 0 到其长度。",
+      "options.axes": "六自由度关节中可动的轴，自由（`'free'`）或在限位内；其余轴锁定。",
+      "options.spring": "铰链、滑动、距离和六自由度关节：超出限位时由弹簧拉回，而不是撞墙；`frequency` 单位为 Hz，`damping` 从 0（无）到 1（临界）。",
+      "options.motor": "铰链、滑动、摆转（其扭转）、六自由度和路径关节：马达，可随时通过 `joint.motor` 修改。",
+      "options.path": "路径的轨道：至少两个点，是创建时 `b`（或世界）中的点；`a` 从轨道上离 `anchor` 最近的点出发。",
+      "options.loop": "路径的轨道首尾相接成环。",
+      "options.follow": "路径关节的 `a` 像车厢一样随轨道转向，而不是像珠子一样自由转动。",
+      "options.over": "滑轮在世界中的两个轮：`a` 的绳上到第一个轮，`b` 的绳上到第二个轮。",
+      "options.ratio": "齿轮：`a` 转一圈时 `b` 转的圈数（`a` 的齿数除以 `b` 的齿数），方向相反；小齿轮：每米齿条对应的弧度，即 1 / 其半径；滑轮：`a` 的绳每走一米时 `b` 的绳走的米数。",
+      "options.breakForce": "关节断开所需的拉力（牛顿；齿轮或齿条为齿间扭矩 N·m）；省略则永不断开。"
     },
     "members": {
       "kind": "关节的种类。",
       "a": "第一个物体。",
       "b": "第二个物体，或表示世界的 `null`。",
       "options": "创建时使用的选项。",
-      "motor": "铰链或滑动关节的马达；`null` 让它自由转动或滑动。",
+      "motor": "铰链、滑动、摆转、六自由度或路径关节的马达；`null` 让关节自由运动。",
       "broken": "是否已断开：被拉力超过其 `breakForce`。断开的关节不再连接任何东西。",
       "on": "关节断开时调用 `handler`。"
     }
@@ -7315,31 +7296,40 @@
     "summary": "物体之间的关节，每种都是 Jolt 自己的约束。"
   },
   "JointLimits": {
-    "summary": "关节能移动多远：铰链用弧度，滑动或距离关节用米，锥形关节为锥体半角（`max`）。",
+    "summary": "关节能移动多远：铰链或转动用弧度，滑动关节、距离关节或滑轮的绳用米，锥形关节用锥的半角（`max`）。",
     "members": {
-      "min": "铰链为 −π 到 0，滑动关节为 0 或更小。",
-      "max": "铰链为 0 到 π，滑动关节为 0 或更大。"
+      "min": "铰链从 −π 到 0，滑动关节为 0 或更小；摆转关节的扭转从 −π 开始。",
+      "max": "铰链从 0 到 π，滑动关节为 0 或更大；摆转关节的扭转最多到 π。",
+      "swing": "摆转关节的锥：其 `axis` 能摆多远，最大为 π 的半角。"
     }
   },
   "JointMotor": {
-    "summary": "铰链或滑动关节的马达：把关节驱动到某个速度或位置。",
+    "summary": "关节的马达：把关节驱动到某个速度或位置。",
     "members": {
-      "mode": "`'velocity'`：rad/s 或 m/s；`'position'`：从关节创建时的位置算起的弧度或米。",
+      "mode": "`'velocity'`：rad/s 或 m/s；`'position'`：相对关节创建时姿态的弧度或米——对路径关节，是沿路径的点（1.5：第二点与第三点的正中间）。",
       "target": "要达到的速度或位置。",
-      "maxForce": "铰链为 N·m，滑动关节为 N；省略则不限。"
+      "maxForce": "转动用 N·m，滑动用 N；省略则无上限。",
+      "axis": "六自由度关节中马达驱动的轴。"
     }
   },
   "JointOptions": {
     "summary": "`joint.*` 接受的选项。",
     "description": "点和轴都在世界坐标中，在关节首次创建时读取。",
     "members": {
-      "anchor": "物体相连的位置：铰链的销轴、点关节的球心、距离关节在 `a` 上的端点。",
-      "anchorB": "距离关节在 `b` 上的端点。",
-      "axis": "铰链的销轴、滑动关节的滑轨、锥形关节的中心轴。",
-      "limits": "铰链、滑动、距离和锥形关节：能移动多远。距离关节默认保持其长度。",
-      "spring": "铰链、滑动和距离关节：超出限位时由弹簧拉回，而不是撞墙；`frequency` 单位为 Hz，`damping` 从 0（无）到 1（临界）。",
-      "motor": "铰链和滑动关节：马达，可随时通过 `joint.motor` 修改。",
-      "breakForce": "关节断开所需的拉力（牛顿）；省略则永不断开。"
+      "anchor": "物体相连的位置：铰链的销轴、点关节的球心、距离关节或滑轮绳在 `a` 上的端点。",
+      "anchorB": "距离关节或滑轮绳在 `b` 上的端点。",
+      "axis": "铰链的销轴、滑动关节的滑轨、锥形关节或摆转关节的中心轴、六自由度关节的 `x`、齿轮或小齿轮的销轴（`a`）。",
+      "axisB": "齿轮在 `b` 上的销轴、齿条的滑轨（`b`）。",
+      "limits": "铰链、滑动、距离、锥形、摆转和滑轮关节：能移动多远。距离关节默认保持其长度；滑轮的绳从 0 到其长度。",
+      "axes": "六自由度关节中可动的轴，自由（`'free'`）或在限位内；其余轴锁定。",
+      "spring": "铰链、滑动、距离和六自由度关节：超出限位时由弹簧拉回，而不是撞墙；`frequency` 单位为 Hz，`damping` 从 0（无）到 1（临界）。",
+      "motor": "铰链、滑动、摆转（其扭转）、六自由度和路径关节：马达，可随时通过 `joint.motor` 修改。",
+      "path": "路径的轨道：至少两个点，是创建时 `b`（或世界）中的点；`a` 从轨道上离 `anchor` 最近的点出发。",
+      "loop": "路径的轨道首尾相接成环。",
+      "follow": "路径关节的 `a` 像车厢一样随轨道转向，而不是像珠子一样自由转动。",
+      "over": "滑轮在世界中的两个轮：`a` 的绳上到第一个轮，`b` 的绳上到第二个轮。",
+      "ratio": "齿轮：`a` 转一圈时 `b` 转的圈数（`a` 的齿数除以 `b` 的齿数），方向相反；小齿轮：每米齿条对应的弧度，即 1 / 其半径；滑轮：`a` 的绳每走一米时 `b` 的绳走的米数。",
+      "breakForce": "关节断开所需的拉力（牛顿；齿轮或齿条为齿间扭矩 N·m）；省略则永不断开。"
     }
   },
   "joint": {
@@ -7350,7 +7340,52 @@
       "hinge": "位于 `anchor`、沿 `axis` 的销轴：门、车轮。`limits` 单位为弧度。",
       "slider": "沿 `axis` 的滑轨：抽屉、活塞。`limits` 单位为米。",
       "distance": "让 `a` 上的 `anchor` 与 `b` 上的 `anchorB` 保持其长度，或在 `limits` 之内。",
-      "cone": "`axis` 在半角为 `limits.max` 的锥体内摆动的球关节。"
+      "cone": "`axis` 在半角为 `limits.max` 的锥体内摆动的球关节。",
+      "swingTwist": "肩关节：`axis` 在半角为 `limits.swing` 的锥内摆动，并在 `limits.min` 与 `max` 之间绕自身扭转；马达驱动扭转。",
+      "sixDof": "六个轴，每个锁定、自由或受限（`axes`）：介于其他关节之间的任意关节。",
+      "path": "`a` 沿一条穿过 `path` 的平滑轨道运行，轨道固定在 `b` 或世界上：过山车。",
+      "pulley": "一根绳从 `a` 绕过两个轮（`over`）垂到 `b`：一边下降，另一边就上升。",
+      "gear": "两个按 `ratio` 一起转动的轮，各绕自己的销轴（`axis`、`axisB`），由各自的铰链固定（轮为其 `a`）；当 `ratio` 或 1 / `ratio` 为整数时，齿也保持创建时的相位。",
+      "rackAndPinion": "绕 `axis` 转动的小齿轮 `a` 带动齿条 `b` 沿 `axisB` 移动，各由自己的铰链或滑动关节固定（物体为其 `a`），齿保持创建时的相位。"
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "查看交错缓冲区每个顶点 `offset` 处 `itemSize` 个数的属性。",
+    "members": {
+      "isInterleavedBufferAttribute": "始终为 `true`:用来把交错视图和其他对象区分开来。",
+      "kind": "该属性查看一个共享缓冲区。",
+      "data": "它所查看的缓冲区。",
+      "offset": "它的数值在每个顶点中的起始位置。",
+      "array": "元素所在的存储。",
+      "count": "这些数字描述了多少个顶点。",
+      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。",
+      "clone": "它自己的数字,从打包结构中复制到一个拥有它们的属性里。"
+    }
+  },
+  "VertexAttribute": {
+    "summary": "两种属性中的任一种:拥有自己的存储,或查看一个交错存储。"
+  },
+  "VertexElements": {
+    "summary": "一个顶点属性的元素,按分量读写。",
+    "members": {
+      "name": "变形目标的名称;其他属性为空。",
+      "itemSize": "属于一个顶点的数字个数:位置是 3。",
+      "normalized": "整数值是否被读作 0 到 1 之间的数值。",
+      "array": "元素所在的存储。",
+      "count": "这些数字描述了多少个顶点。",
+      "stored": "顶点 `index` 的第 `component` 个数字,按存储原样;归一化整数不做缩放。",
+      "getComponent": "顶点 `index` 的第 `component` 个数字,按其代表的数值读取。",
+      "setComponent": "写入顶点 `index` 的第 `component` 个数字。",
+      "getX": "顶点 `i` 的第一个数字。",
+      "getY": "顶点 `i` 的第二个数字。",
+      "getZ": "顶点 `i` 的第三个数字。",
+      "getW": "顶点 `i` 的第四个数字。",
+      "setX": "为顶点 `i` 写入第一个数字。",
+      "setY": "为顶点 `i` 写入第二个数字。",
+      "setZ": "为顶点 `i` 写入第三个数字。",
+      "setW": "为顶点 `i` 写入第四个数字。",
+      "setXY": "为顶点 `i` 写入两个数字。",
+      "setXYZ": "为顶点 `i` 写入三个数字。"
     }
   }
 }

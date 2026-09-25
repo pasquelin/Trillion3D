@@ -7,7 +7,7 @@ import * as G from '../graph/graph.fixture.ts';
 import { scan, snapshot, type WatchVerdict } from './scan.ts';
 
 function scene() {
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   const mesh = G.mesh();
   parent.add(mesh);
   const light = G.spotLight(0xffffff, 1, 10, 0.5, 0.2, 2);
@@ -32,7 +32,7 @@ const WRITES: Array<{
   {
     name: 'reparenting',
     node: 'mesh',
-    write: ({ mesh }) => void new G.GraphGroup().add(mesh),
+    write: ({ mesh }) => void new G.Group().add(mesh),
     verdict: 'reshaped',
   },
   { name: 'light intensity', node: 'light', write: ({ light }) => void (light.intensity = 7) },
@@ -59,7 +59,7 @@ const WRITES: Array<{
   {
     name: 'a light target replaced',
     node: 'light',
-    write: ({ light }) => void (light.target = new G.GraphNode()),
+    write: ({ light }) => void (light.target = new G.Object3D()),
     verdict: 'reshaped',
   },
 ];

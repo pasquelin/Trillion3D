@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Luôn là `true`: phân biệt một thuộc tính bộ đệm với bất cứ thứ gì khác.",
       "type": "Cách các giá trị được khai báo; một thuộc tính half-float được giữ ở độ chính xác float.",
-      "normalized": "Các số nguyên có được đọc thành giá trị giữa 0 và 1 hay không.",
       "version": "Tăng lên ở mỗi lần ghi đã khai báo: đó là điều mà thế giới so sánh để biết nội dung đã thay đổi.",
       "array": "Chính các con số đó.",
-      "itemSize": "Có bao nhiêu số thuộc về một đỉnh: 3 cho một vị trí.",
       "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
-      "needsUpdate": "`attribute.needsUpdate = true` sau khi ghi `array`: thế giới sẽ đọc lại nó.",
-      "getComponent": "Số `component` của đỉnh `index`.",
-      "getX": "Số đầu tiên của đỉnh `i`.",
-      "getY": "Số thứ hai của đỉnh `i`.",
-      "getZ": "Số thứ ba của đỉnh `i`.",
-      "getW": "Số thứ tư của đỉnh `i`.",
-      "setXYZ": "Ghi ba số cho đỉnh `i`.",
-      "setXY": "Ghi hai số cho đỉnh `i`.",
-      "setX": "Ghi số đầu tiên của đỉnh `i`.",
-      "clone": "Một thuộc tính mới với bản sao các con số."
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại.",
+      "clone": "Một thuộc tính mới với bản sao các số, kiểu, chuẩn hóa và tên của chúng.",
+      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
+      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
+      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
+      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên."
     }
   },
   "BufferNumbers": {
@@ -370,6 +364,7 @@
       "top": "Cạnh trên của hộp trực giao.",
       "bottom": "Cạnh dưới của hộp trực giao.",
       "projection": "`'perspective'` làm vật ở xa nhỏ lại; `'orthographic'` giữ nguyên mọi kích thước.",
+      "copy": "Lấy các giá trị nút của `source` và, từ một camera, quang học của nó; `projection` riêng vẫn giữ.",
       "updateProjectionMatrix": "Được giữ lại cho các trang được viết dựa trên một bộ kết xuất cần đến nó: mọi lần ghi quang học đã tự vẽ lại rồi.",
       "rayThrough": "Tia trong thế giới đi qua một điểm của hình ảnh, theo đúng phép chiếu của bộ máy (`engineCamera.ts`): từ mắt dọc theo hướng nhìn với camera phối cảnh, thẳng theo hướng nhìn từ hộp với camera trực giao. Hướng của nó là một vectơ đơn vị.",
       "set": "Đặt con mắt tại `pose.position`, nhìn về `pose.target`, ở trường nhìn mà nó nêu tên."
@@ -1027,6 +1022,10 @@
       "yawInput": "Độ lệch yaw trong [-1, 1], trái là dương như ArrowLeft; giống như `pitchInput`."
     }
   },
+  "Fog": {
+    "summary": "Sương mù trên mọi bề mặt: tuyến tính từ `near` đến `far`, hoặc dày dần theo khoảng cách với `density`, mỏng dần lên cao phía trên `baseHeight` khi có `heightFalloff`.",
+    "description": "Màu là ánh sáng sương mù tán xạ về phía mắt, được phơi sáng và qua đường cong hiển thị như ánh sáng của một bề mặt."
+  },
   "FrameInfo": {
     "summary": "Những gì một hook khung hình nhận được: số giây kể từ khung hình trước và kể từ khi thế giới bắt đầu.",
     "description": "Đối tượng duy nhất của thế giới, được ghi lại mỗi khung hình: một hook muốn giữ một giá trị cần sao chép nó.",
@@ -1070,8 +1069,8 @@
       "transparentDrawCalls": "Số lệnh gọi vẽ trong suốt.",
       "transparentSubmittedTriangles": "Số tam giác trong suốt đã gửi.",
       "coverageReady": "Phương án dự phòng GPU ban đầu đầy đủ có sẵn; rỗng trên các backend không có sự đảm bảo này.",
-      "coverageBudgetLimited": "Mức chi tiết được yêu cầu không thể cùng tồn tại với phương án dự phòng đã ghim trong ngân sách trang GPU.",
-      "budgetPixelError": "Sàn sai số màn hình mà ngân sách trang GPU áp đặt lên lát cắt, tính bằng điểm ảnh: `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Rỗng trên các bộ máy không có ngân sách trang.",
+      "coverageBudgetLimited": "Mức chi tiết được yêu cầu cần nhiều trang hơn số ngân sách trang GPU chứa được: phần còn lại được vẽ thô hơn.",
+      "budgetPixelError": "Chỉ WebGL2: sàn sai số màn hình mà ngân sách trang của nó áp đặt lên lát cắt, tính bằng điểm ảnh — `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Không có trên WebGPU, nơi chỉ riêng việc thường trú làm hình ảnh thô đi. Rỗng trên các bộ máy không có ngân sách trang.",
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
@@ -1366,10 +1365,6 @@
   "HostGeometry": {
     "summary": "Một hình học chủ: các thuộc tính của nó, và hộp cục bộ mà ứng dụng chủ đã tính trên chúng."
   },
-  "HostGraphNode": {
-    "summary": "Một node của đồ thị chủ như một lượt duyệt nhìn thấy: định danh của nó, tư thế cục bộ của nó, ma trận thế giới mà ứng dụng chủ đã giải quyết cho nó, và chuỗi tổ tiên của nó.",
-    "description": "Bộ máy tự tính các ma trận thế giới CỦA RIÊNG NÓ từ các tư thế cục bộ (`../world/tree.ts`); `matrixWorld` được đọc ở nơi mà chính lời giải của ỨNG DỤNG CHỦ là thứ mà một ranh giới trao trả lại cho nó. VÌ SAO `HostPlaced` (`../resources.ts`) CŨNG MÔ TẢ MỘT NODE CÓ TƯ THẾ. Hai thứ này không phải bản sao của nhau: chúng được gắn khóa theo hai lời giải khác nhau mà một ứng dụng chủ cung cấp. `HostPlaced` yêu cầu `updateWorldMatrix(ancestors, descendants)` — chuỗi của MỘT node duy nhất, thứ mà một phép đặt vị trí và một lượt duyệt khả kiến leo lên; cái này yêu cầu `updateMatrixWorld(force)` — CÂY CON dưới một node, thứ mà một lượt quét, một phép hợp giới hạn và một phép nhân bản giải quyết trong một lệnh gọi duy nhất. Một ứng dụng chủ chỉ cung cấp một trong hai chỉ thỏa mãn hợp đồng mà nó đáp ứng, nên không cái nào có thể thay thế cái kia."
-  },
   "HostMaterial": {
     "summary": "Một vật liệu chủ đúng như bộ máy đọc nó: các tham số bề mặt mà mọi vật liệu chủ chia sẻ, được đọc một lần tại ranh giới vào `VisMaterial` của bộ máy; chỉ riêng `sideOf` đọc `side`."
   },
@@ -1378,9 +1373,6 @@
   },
   "HostMesh": {
     "summary": "Một mesh chủ, được giữ theo định danh: bản ghi vẽ, bảng trong suốt và các tập lựa chọn nêu tên bề mặt mà ứng dụng chủ đã đặt."
-  },
-  "HostNode": {
-    "summary": "Một node của đồ thị cảnh chủ, được giữ theo định danh và hai trường mà một lượt duyệt cần."
   },
   "HostNodeMatrix": {
     "summary": "Chính mười sáu số thực đó, CÓ THỂ GHI từng số hạng một: tư thế mà một ranh giới đặt trở lại một node chủ hoặc một camera chủ mà nó khôi phục.",
@@ -1433,9 +1425,6 @@
   "HostTexture": {
     "summary": "Một kết cấu chủ: hình ảnh mà ứng dụng chủ đã giải mã và trạng thái bộ lấy mẫu mà nó khai báo, cũng được giữ theo định danh."
   },
-  "HostTraversable": {
-    "summary": "Một node chủ mà bộ máy duyệt qua: cây con bên dưới nó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ."
-  },
   "HostVector": {
     "summary": "Ba con số của một tư thế, đúng như ứng dụng chủ lưu trữ chúng và một ranh giới đặt chúng trở lại.",
     "members": {
@@ -1455,7 +1444,10 @@
       "array": "Các con số của từng đỉnh, được đóng gói lần lượt.",
       "stride": "Mỗi đỉnh chiếm bao nhiêu con số.",
       "count": "Nó đóng gói bao nhiêu đỉnh.",
-      "attribute": "Một thuộc tính được đọc ra khỏi gói đó, như thuộc tính số thực của riêng nó."
+      "attribute": "Một thuộc tính được đọc ra khỏi gói đó, như thuộc tính của riêng nó.",
+      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
+      "version": "Tăng bởi `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
     }
   },
   "Intersection": {
@@ -1565,7 +1557,6 @@
       "shadowNormalOffsetTexels": "Độ lệch của điểm lấy mẫu dọc theo pháp tuyến, tính bằng texel của lát. Đây là thứ khép kín đường nối giữa hai mặt của một nguồn sáng điểm và loại bỏ hiện tượng mụn ở góc xiên; nó tính bằng texel chứ không phải mét để giữ tỉ lệ với độ phân giải mà nguồn sáng đó đạt được.",
       "shadowPagesPerFrame": "Số trang bóng vẽ tối đa mỗi khung hình: trần của bộ đệm, không bao giờ là thiết lập chất lượng. Ngân sách mili giây gần như luôn dừng trước; trần này chỉ là giới hạn cuối cùng, và là giới hạn duy nhất trên thiết bị không có đồng hồ GPU.",
       "lampFaceSize": "Cạnh của mip mịn nhất của một mặt đèn, tính bằng texel: 32 × 32 trang 128 (bể: `shadowPoolSide`).",
-      "shadowTableEntries": "Các mục của bảng trang bóng, một từ cho mỗi trang ảo: một bộ đệm cố định 4 MiB. Chứa được mười sáu mặt trời hoặc 128 đèn điểm; đèn nào không còn chỗ thì không có bóng, và được đếm.",
       "shadowRequestCap": "Số trang ảo mà phép tô bóng được yêu cầu mỗi khung hình; phần còn lại yêu cầu lại ở khung sau.",
       "sunLevels": "Các mức clipmap của một đèn định hướng. Mức `L` có texel `2^L` mét, và một điểm ảnh đọc mức có texel không lớn hơn dấu chân của chính nó: mười sáu mức phủ tỉ lệ xa/gần 2^15. Sau mức cuối, bóng xa đảm nhận.",
       "sunLevelPages": "Số trang mỗi cạnh của vùng một mức clipmap quanh camera. Đây là dung lượng, không phải tinh chỉnh: mỗi điểm ảnh đọc mật độ riêng khi `height / tan(halfFovY)` không vượt `sunLevelPages · shadowPage / 2` = 4096 (khung 4K với trường dọc 55°); vượt quá, các điểm ảnh ngoài đọc mức kế tiếp, mật độ một nửa."
@@ -1623,6 +1614,7 @@
       "height": "Chiều cao của một nguồn sáng hình chữ nhật.",
       "radius": "Bán kính của hình cầu phát sáng; `emitterRadius` trong kho lưu trữ của bộ máy.",
       "kind": "Đây là loại nguồn sáng nào: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Lấy các giá trị nút của `source` và, từ một đèn, các số, màu, hệ số và hướng ngắm của nó; `kind` riêng vẫn giữ.",
       "needsUpdate": "`light.needsUpdate = true` sau khi ghi `sh` tại chỗ: thế giới đọc lại nó.",
       "lookAt": "Nhắm nguồn sáng vào một điểm trong thế giới: một nguồn sáng định hướng hoặc spot di chuyển `target` của nó đến đó — hướng của nó được đọc từ đó —, và node cũng xoay theo, đây chính là hướng mà một hình chữ nhật hướng mặt tới."
     }
@@ -1763,7 +1755,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc độ phẳng, để lộ các mặt phẳng của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm (points).",
       "parameters.sizeAttenuation": "Các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Độ rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Độ dài của một nét gạch.",
       "parameters.gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -1839,7 +1831,7 @@
       "flatShading": "Cho mỗi tam giác một sắc độ phẳng, để lộ các mặt phẳng của nó.",
       "size": "Kích thước của một chấm, cho vật liệu điểm (points).",
       "sizeAttenuation": "Các chấm có nhỏ dần theo khoảng cách hay không.",
-      "linewidth": "Độ rộng của một đường thẳng.",
+      "linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "dashSize": "Độ dài của một nét gạch.",
       "gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -2047,6 +2039,8 @@
       "remove": "Gỡ các con khỏi node này.",
       "destroy": "Giải phóng nút và mọi thứ bên dưới ngay bây giờ, thay vì khi chúng bị thu gom.",
       "removeFromParent": "Gỡ node khỏi cha của nó.",
+      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không.",
       "clear": "Gỡ mọi con khỏi node này.",
       "traverse": "Gọi `fn` trên node này và mọi thứ bên dưới nó.",
       "traverseVisible": "Gọi `fn` trên mỗi node khả kiến từ đây trở xuống.",
@@ -2059,11 +2053,7 @@
       "rotateY": "Xoay node quanh trục y riêng của nó.",
       "rotateZ": "Xoay node quanh trục z riêng của nó.",
       "translateOnAxis": "Di chuyển node dọc theo `axis` riêng của nó.",
-      "getWorldPosition": "Nơi node đứng trong thế giới.",
-      "getWorldQuaternion": "Node được xoay như thế nào trong thế giới.",
       "getWorldDirection": "Hướng mà node hướng tới trong thế giới.",
-      "localToWorld": "Một điểm trong khung của node, trong thế giới.",
-      "worldToLocal": "Một điểm của thế giới, trong khung của node.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
     }
   },
@@ -2074,7 +2064,11 @@
       "matrixWorld": "Ma trận thế giới như lần dựng gần nhất (`updateMatrixWorld`), một view vào cây đó.",
       "matrixAutoUpdate": "Sai (false) khi `matrix` CHÍNH LÀ tư thế và không gì dựng lại nó.",
       "matrixWorldNeedsUpdate": "Được đặt khi ma trận cục bộ đã đổi mà ma trận thế giới chưa theo kịp.",
-      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng."
+      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng.",
+      "getWorldPosition": "Nơi node đứng trong thế giới.",
+      "getWorldQuaternion": "Node được xoay như thế nào trong thế giới.",
+      "localToWorld": "Một điểm trong khung của node, trong thế giới.",
+      "worldToLocal": "Một điểm của thế giới, trong khung của node."
     }
   },
   "OcclusionFrameMetrics": {
@@ -2825,7 +2819,7 @@
       "format": "Luôn là `'trillion3d-scene'`.",
       "formatVersion": "Phiên bản của cách bố trí này; phiên bản khác bị từ chối.",
       "background": "Màu nền, hoặc `null`.",
-      "fog": "Sương mù, hoặc `null`.",
+      "fog": "Sương mù, màu của nó theo thành phần tuyến tính, hoặc `null`.",
       "camera": "Camera được lưu cùng cảnh, hoặc `null`.",
       "geometries": "Mỗi hình khối, một lần, dù có bao nhiêu mesh dùng nó.",
       "materials": "Mỗi vật liệu, một lần, dù có bao nhiêu mesh dùng nó.",
@@ -2837,8 +2831,8 @@
     "members": {
       "isScene": "Luôn là `true`: phân biệt gốc cảnh với bất kỳ vật thể nào khác.",
       "environment": "Một hình ảnh môi trường xung quanh mà các bề mặt bóng bẩy phản chiếu; `null` cho không có.",
-      "fog": "Sương mù làm mờ dần các vật thể thành `color` giữa `near` và `far`; `null` cho không có.",
       "background": "Thứ lấp đầy hình phía sau mọi vật thể: một màu, hoặc `null` cho màu mặc định. Thay đổi hiện ra ở khung hình kế tiếp, phiên được giữ nguyên: một màu mới gán ở đây, hoặc màu hiện tại được ghi bằng các phương thức của nó (`set`, `setRGB`, `setHex`, `setHSL`...). Ghi trực tiếp vào `.r`, `.g` hoặc `.b` không được nhận biết: hãy gán lại `background` sau đó. Một hình ảnh, hoặc bất kỳ giá trị nào không có `getHex`, đều bị từ chối (`UNSUPPORTED_SCENE_UPDATE`): không đường vẽ nào vẽ nó.",
+      "fog": "Sương mù trên mọi bề mặt, đục hay trong suốt, trên cả hai trình kết xuất; `null`, mặc định, là không sương, không tốn gì. `{ color, near, far }` làm mờ vật thể vào `color` từ `near` đến `far`, khoảng cách tính từ camera; `{ color, density }` dày thêm `density` trên mỗi đơn vị khoảng cách; thêm `heightFalloff` (và `baseHeight`, mặc định 0) thì nó nằm sát mặt đất, mỏng dần phía trên `baseHeight` — chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao. Thay đổi hiện ra ở khung hình kế tiếp: một sương mù mới đặt ở đây, hoặc màu của nó được ghi qua các phương thức của màu. Ghi trực tiếp `near`, `far`, `density`... không được nghe thấy: hãy đặt lại `fog` sau đó. Sương mù ngoài phạm vi — `far` không vượt quá `near`, mật độ âm — bị từ chối (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
       "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
       "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
@@ -2857,8 +2851,21 @@
     "members": {
       "exposure": "Hệ số nhân của độ chói tuyến tính, áp dụng trước đường cong.",
       "toneMapping": "Đường cong hiển thị; `DEFAULT_TONE_MAPPING` khi vắng mặt.",
-      "irradiance": "Độ rọi đến từ mọi hướng, dưới dạng 27 con số: chín hệ số, mỗi hệ số là một bộ ba RGB, theo thứ tự dải hằng số, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Vắng mặt, hoặc toàn bằng không, không gì chiếu sáng một bề mặt ngoài các đèn đã khai báo."
+      "irradiance": "Độ rọi đến từ mọi hướng, dưới dạng 27 con số: chín hệ số, mỗi hệ số là một bộ ba RGB, theo thứ tự dải hằng số, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Vắng mặt, hoặc toàn bằng không, không gì chiếu sáng một bề mặt ngoài các đèn đã khai báo.",
+      "fog": "Sương mù theo khoảng cách hoặc độ cao trên mọi bề mặt (`SceneFog`); không có thì không sương."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Sương mù dày dần theo khoảng cách: `density` trên mỗi đơn vị cảnh; với `heightFalloff`, nó mỏng dần phía trên `baseHeight`, chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao.",
+    "members": {
+      "color": "Bức xạ mà sương mù làm mờ vật thể vào, RGB tuyến tính.",
+      "density": "Độ tắt dần trên mỗi đơn vị cảnh, tại `baseHeight`; ≥ 0.",
+      "heightFalloff": "Mật độ giảm theo độ cao nhanh đến đâu, trên mỗi đơn vị cảnh; 0, mặc định, giữ nó đều ở mọi độ cao.",
+      "baseHeight": "Độ cao mà mật độ bằng `density`; mặc định 0."
+    }
+  },
+  "SceneFog": {
+    "summary": "Sương mù theo khoảng cách hoặc độ cao, như ánh sáng đọc nó."
   },
   "SceneLight": {
     "summary": "Một nguồn sáng cảnh, phiên bản 2.",
@@ -2890,6 +2897,7 @@
       "ids": "Tên nguồn sáng của mỗi khe.",
       "count": "Có bao nhiêu nguồn sáng.",
       "epoch": "Tăng lên khi tập hợp các nguồn sáng thay đổi.",
+      "transportEpoch": "Tăng cùng epoch, trừ khi chỉ sương mù thay đổi: sương mù là một số hạng của tia nhìn, không phải của sự truyền ánh sáng, nên thứ lưu đệm ánh sáng đã truyền (các đầu dò phản xạ) vẫn giữ nó.",
       "environment": "Môi trường của cảnh đó.",
       "lightingView": "Góc nhìn mà ứng dụng chủ yêu cầu, nguyên trạng: `auto` chừng nào nó chưa yêu cầu gì cả.",
       "unlit": "Đúng khi hình ảnh phải xuất ra dưới dạng albedo thô, không có ánh sáng. Đây là hành vi mặc định chừng nào chưa có nguồn sáng nào được khai báo: một cảnh không có nguồn sáng thì không có gì để chiếu sáng, và một hình ảnh đen sẽ chẳng giúp ích gì cho bài đo hình học nào. Ngay khi một nguồn sáng tồn tại, ánh sáng thật sẽ tiếp quản — trừ khi ứng dụng chủ đã yêu cầu rõ ràng góc nhìn chẩn đoán.",
@@ -2907,6 +2915,14 @@
   "SceneLightingView": {
     "summary": "Những gì ứng dụng chủ yêu cầu xem.",
     "description": "`lit` là ánh sáng thật và chỉ mình nó; `unlit` là góc nhìn chẩn đoán albedo thô — màu vật liệu nguyên trạng, không ánh sáng, không ánh sáng môi trường xung quanh và không phát sáng — dành cho các bài đo hình học so sánh hình ảnh chính xác từng điểm ảnh. `auto`, giá trị mặc định, cho ra `unlit` chừng nào chưa có nguồn sáng nào được khai báo và `lit` ngay khi có một nguồn. `bounce` là góc nhìn chẩn đoán thứ ba: chỉ riêng độ rọi gián tiếp, nhân với độ phơi sáng và xuất ra dưới dạng giá trị tuyến tính không có ACES hay sRGB. Đây là thứ mà bộ khai thác so sánh với hàm sấm truyền của trình biên dịch; nó không phải một hình ảnh để nhìn ngắm, và nó đen thui nếu không có một lần dội được dàn dựng."
+  },
+  "SceneLinearFog": {
+    "summary": "Sương mù bắt đầu từ `near` và che hết mọi thứ từ `far` trở đi, khoảng cách tính từ mắt.",
+    "members": {
+      "color": "Bức xạ mà sương mù làm mờ vật thể vào, RGB tuyến tính.",
+      "near": "Khoảng cách từ mắt nơi sương mù bắt đầu.",
+      "far": "Khoảng cách từ mắt nơi chỉ còn thấy sương mù."
+    }
   },
   "SceneLink": {
     "summary": "Những gì một node báo cáo cho thế giới mà nó treo vào: một tư thế đã di chuyển, cây đã thay đổi, một nội dung đã thay đổi.",
@@ -3104,6 +3120,10 @@
   },
   "Side": {
     "summary": "Mặt nào một vật liệu vẽ: `'front'`, `'back'` hoặc `'double'`."
+  },
+  "SixDofAxis": {
+    "summary": "Các trục của khớp sáu bậc tự do: trượt dọc `x`, `y`, `z` và xoay quanh chúng.",
+    "description": "`x` nằm dọc `axis` của khớp, `y` gần hướng lên của thế giới nhất có thể mà vẫn vuông góc với nó."
   },
   "Side-common": {
     "summary": "Mặt nào của một bề mặt được vẽ, enum riêng của bộ máy, được so sánh ở mọi nơi phía sau."
@@ -3310,7 +3330,7 @@
       "baseMetal": "Màu nền RGB, tính kim loại A.",
       "normalRough": "Pháp tuyến thế giới XYZ, độ nhám A.",
       "emissiveAo": "Phát sáng RGB, occlusion môi trường xung quanh A.",
-      "flags": "0 nền, 1 không ánh sáng, 2 đọc, 3 chẩn đoán không gian hiển thị.",
+      "flags": "0 nền, 1 không chiếu sáng (có sương mù), 2 được đọc, 3 hiển thị nguyên trạng: một chẩn đoán, một góc nhìn pháp tuyến hoặc độ sâu.",
       "views": "Các view kết cấu GPU của nó.",
       "dispose": "Giải phóng nó."
     }
@@ -3935,8 +3955,8 @@
       "transparentDrawCalls": "Số lệnh gọi vẽ trong suốt.",
       "transparentSubmittedTriangles": "Số tam giác trong suốt đã gửi.",
       "coverageReady": "Phương án dự phòng GPU ban đầu đầy đủ có sẵn; rỗng trên các backend không có sự đảm bảo này.",
-      "coverageBudgetLimited": "Mức chi tiết được yêu cầu không thể cùng tồn tại với phương án dự phòng đã ghim trong ngân sách trang GPU.",
-      "budgetPixelError": "Sàn sai số màn hình mà ngân sách trang GPU áp đặt lên lát cắt, tính bằng điểm ảnh: `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Rỗng trên các bộ máy không có ngân sách trang.",
+      "coverageBudgetLimited": "Mức chi tiết được yêu cầu cần nhiều trang hơn số ngân sách trang GPU chứa được: phần còn lại được vẽ thô hơn.",
+      "budgetPixelError": "Chỉ WebGL2: sàn sai số màn hình mà ngân sách trang của nó áp đặt lên lát cắt, tính bằng điểm ảnh — `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Không có trên WebGPU, nơi chỉ riêng việc thường trú làm hình ảnh thô đi. Rỗng trên các bộ máy không có ngân sách trang.",
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
@@ -5393,7 +5413,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5431,7 +5451,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5469,7 +5489,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5507,7 +5527,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5545,7 +5565,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5583,7 +5603,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5621,7 +5641,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5659,7 +5679,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5697,7 +5717,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5735,7 +5755,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5773,7 +5793,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5811,7 +5831,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5849,7 +5869,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5887,7 +5907,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -6625,8 +6645,8 @@
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
       "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn pool bóng đổ bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy.",
-      "cpu": "Số byte bộ nhớ CPU mà các trang đã giải mã của thế giới được giữ; áp dụng ở lần tải cảnh kế tiếp.",
-      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bộ đệm trang đã giải mã lấy tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
+      "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: trước hết là bản sao phía host của bảng trang bóng, rồi các trang đã giải mã; áp dụng ở lần tải cảnh kế tiếp. Tổng không vượt quá bản sao bị từ chối (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Không bao giờ đọc từ máy.",
+      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {
@@ -7133,25 +7153,6 @@
       "handbrake": "Phanh tay có đang kéo không."
     }
   },
-  "GraphArray": {
-    "summary": "Các mảng có kiểu mà một thuộc tính giữ."
-  },
-  "GraphAttribute": {
-    "summary": "Một thuộc tính sở hữu vùng lưu trữ của nó: `itemSize` số mỗi đỉnh, nối tiếp nhau.",
-    "members": {
-      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
-      "count": "Có bao nhiêu đỉnh.",
-      "version": "Tăng bởi `needsUpdate`.",
-      "array": "Nơi lưu trữ.",
-      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
-      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
-      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
-    }
-  },
-  "GraphElements": {
-    "summary": "Một trong hai loại thuộc tính."
-  },
   "GraphGeometry": {
     "summary": "Các thuộc tính mà một lưới vẽ, danh sách tam giác đánh chỉ mục chúng, các mục tiêu morph di chuyển chúng, cùng hộp và hình cầu cục bộ tính trên chúng.",
     "members": {
@@ -7178,28 +7179,6 @@
       "computeBoundingSphere": "Tính hình cầu cục bộ: tâm ở hộp, chạm tới đỉnh xa nhất."
     }
   },
-  "GraphInterleavedAttribute": {
-    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
-    "members": {
-      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
-      "data": "Bộ đệm mà nó xem.",
-      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
-      "array": "Vùng lưu trữ chứa các phần tử.",
-      "count": "Bao nhiêu đỉnh.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem, mỗi `stride` số là một đỉnh.",
-    "members": {
-      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
-      "count": "Bao nhiêu đỉnh.",
-      "version": "Tăng bởi `needsUpdate`.",
-      "array": "Vùng lưu trữ.",
-      "stride": "Số lượng số mỗi đỉnh.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
-    }
-  },
   "GraphMesh": {
     "summary": "Một nút được vẽ: một hình học và bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
     "members": {
@@ -7213,19 +7192,14 @@
     }
   },
   "GraphNode": {
-    "summary": "Một nút của đồ thị: tên, tư thế, ma trận thế giới, cha và các con của nó.",
+    "summary": "Một nút của đồ thị: nút của lõi, phân biệt bằng `kind` của nó, được sao chép bằng `clone` của lõi.",
     "members": {
       "serial": "Số của nút, duy nhất trong phiên.",
-      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu.",
-      "parent": "Cha của nó.",
-      "children": "Các nút mà nút này giữ, theo thứ tự.",
-      "traverse": "Cây con dưới node đó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
-      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
-      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu."
     }
   },
   "GraphNodeKind": {
-    "summary": "Một nút của đồ thị là gì: một nút trần, gốc, một nhóm, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
+    "summary": "Một nút của đồ thị là gì: gốc, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
   },
   "GraphSurface": {
     "summary": "Một bề mặt: các tham số của một họ, theo giá trị của bản tham chiếu trừ khi cảnh nói khác.",
@@ -7294,20 +7268,27 @@
     "description": "Khớp giữ chừng nào cả hai vật còn được mô phỏng, và cho đến khi nó gãy.",
     "parameters": {
       "options": "Những gì `joint.*` nhận. Điểm và trục nằm trong thế giới, được đọc khi khớp được tạo lần đầu.",
-      "options.anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách trên `a`.",
-      "options.anchorB": "Đầu của khoảng cách trên `b`.",
-      "options.axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón.",
-      "options.limits": "Bản lề, khớp trượt, khoảng cách và hình nón: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài của nó.",
-      "options.spring": "Bản lề, khớp trượt và khoảng cách: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
-      "options.motor": "Bản lề và khớp trượt: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
-      "options.breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy; bỏ trống thì không bao giờ."
+      "options.anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách hoặc dây ròng rọc trên `a`.",
+      "options.anchorB": "Đầu của khoảng cách hoặc dây ròng rọc trên `b`.",
+      "options.axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón hoặc khớp lắc-xoắn, trục `x` của khớp sáu bậc tự do, chốt của bánh răng hoặc bánh răng nhỏ (`a`).",
+      "options.axisB": "Chốt của bánh răng trên `b`, ray của thanh răng (`b`).",
+      "options.limits": "Bản lề, khớp trượt, khoảng cách, hình nón, lắc-xoắn và ròng rọc: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài; dây ròng rọc từ 0 đến độ dài của nó.",
+      "options.axes": "Các trục chuyển động của khớp sáu bậc tự do, tự do (`'free'`) hoặc trong giới hạn; các trục khác bị khóa.",
+      "options.spring": "Bản lề, khớp trượt, khoảng cách và sáu bậc tự do: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
+      "options.motor": "Bản lề, khớp trượt, lắc-xoắn (độ xoắn của nó), sáu bậc tự do và đường ray: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
+      "options.path": "Đường ray của khớp đường: ít nhất hai điểm, của `b` (hoặc thế giới) như lúc tạo; `a` bắt đầu ở điểm của ray gần `anchor` nhất.",
+      "options.loop": "Đường ray khép kín thành vòng.",
+      "options.follow": "`a` của khớp đường xoay theo đường ray như một toa xe, thay vì tự do như một hạt cườm.",
+      "options.over": "Hai bánh xe của ròng rọc trong thế giới: dây của `a` đi lên bánh thứ nhất, dây của `b` lên bánh thứ hai.",
+      "options.ratio": "Với bánh răng, số vòng của `b` cho mỗi vòng của `a` (số răng của `a` chia số răng của `b`), quay ngược chiều; với bánh răng nhỏ, radian trên mỗi mét thanh răng, 1 / bán kính của nó; với ròng rọc, số mét dây của `b` cho mỗi mét dây của `a`.",
+      "options.breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy (N·m mô-men giữa các răng của bánh răng hoặc thanh răng); bỏ trống thì không bao giờ."
     },
     "members": {
       "kind": "Khớp đó là loại gì.",
       "a": "Vật thứ nhất.",
       "b": "Vật thứ hai, hoặc `null` cho thế giới.",
       "options": "Những gì dùng để tạo ra nó.",
-      "motor": "Động cơ của bản lề hoặc khớp trượt; `null` để nó quay hoặc trượt tự do.",
+      "motor": "Động cơ của bản lề, khớp trượt, khớp lắc-xoắn, khớp sáu bậc tự do hoặc khớp đường; `null` để khớp chuyển động tự do.",
       "broken": "Nó đã gãy chưa: bị kéo vượt quá `breakForce`. Khớp đã gãy không giữ gì nữa.",
       "on": "Gọi `handler` khi khớp gãy."
     }
@@ -7316,31 +7297,40 @@
     "summary": "Các khớp nối giữa các vật, mỗi loại là một ràng buộc của chính Jolt."
   },
   "JointLimits": {
-    "summary": "Khớp được di chuyển bao xa: radian cho bản lề, mét cho khớp trượt hoặc khoảng cách, nửa góc hình nón (`max`) cho hình nón.",
+    "summary": "Khớp được di chuyển bao xa: radian cho bản lề hoặc phép xoay, mét cho khớp trượt, khoảng cách hoặc dây ròng rọc, nửa góc của hình nón (`max`) cho hình nón.",
     "members": {
-      "min": "Của bản lề từ −π đến 0, của khớp trượt 0 hoặc nhỏ hơn.",
-      "max": "Của bản lề từ 0 đến π, của khớp trượt 0 hoặc lớn hơn."
+      "min": "Của bản lề từ −π đến 0, của khớp trượt 0 hoặc nhỏ hơn; độ xoắn của khớp lắc-xoắn từ −π.",
+      "max": "Của bản lề từ 0 đến π, của khớp trượt 0 hoặc lớn hơn; độ xoắn của khớp lắc-xoắn đến π.",
+      "swing": "Hình nón của khớp lắc-xoắn: `axis` của nó lắc được bao xa, một nửa góc đến π."
     }
   },
   "JointMotor": {
-    "summary": "Động cơ của bản lề hoặc khớp trượt: đưa khớp tới một vận tốc hoặc một vị trí.",
+    "summary": "Động cơ của khớp: đưa khớp tới một vận tốc hoặc một vị trí.",
     "members": {
-      "mode": "`'velocity'`: rad/s hoặc m/s; `'position'`: radian hoặc mét tính từ chỗ khớp được tạo.",
+      "mode": "`'velocity'`: rad/s hoặc m/s; `'position'`: radian hoặc mét tính từ chỗ khớp được tạo — với đường ray, là điểm dọc theo nó (1.5: giữa điểm thứ hai và thứ ba).",
       "target": "Vận tốc hoặc vị trí cần đạt.",
-      "maxForce": "N·m cho bản lề, N cho khớp trượt; bỏ trống thì không giới hạn."
+      "maxForce": "N·m cho phép xoay, N cho phép trượt; bỏ trống thì không giới hạn.",
+      "axis": "Trục mà nó dẫn động, với khớp sáu bậc tự do."
     }
   },
   "JointOptions": {
     "summary": "Những gì `joint.*` nhận.",
     "description": "Điểm và trục nằm trong thế giới, được đọc khi khớp được tạo lần đầu.",
     "members": {
-      "anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách trên `a`.",
-      "anchorB": "Đầu của khoảng cách trên `b`.",
-      "axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón.",
-      "limits": "Bản lề, khớp trượt, khoảng cách và hình nón: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài của nó.",
-      "spring": "Bản lề, khớp trượt và khoảng cách: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
-      "motor": "Bản lề và khớp trượt: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
-      "breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy; bỏ trống thì không bao giờ."
+      "anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách hoặc dây ròng rọc trên `a`.",
+      "anchorB": "Đầu của khoảng cách hoặc dây ròng rọc trên `b`.",
+      "axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón hoặc khớp lắc-xoắn, trục `x` của khớp sáu bậc tự do, chốt của bánh răng hoặc bánh răng nhỏ (`a`).",
+      "axisB": "Chốt của bánh răng trên `b`, ray của thanh răng (`b`).",
+      "limits": "Bản lề, khớp trượt, khoảng cách, hình nón, lắc-xoắn và ròng rọc: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài; dây ròng rọc từ 0 đến độ dài của nó.",
+      "axes": "Các trục chuyển động của khớp sáu bậc tự do, tự do (`'free'`) hoặc trong giới hạn; các trục khác bị khóa.",
+      "spring": "Bản lề, khớp trượt, khoảng cách và sáu bậc tự do: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
+      "motor": "Bản lề, khớp trượt, lắc-xoắn (độ xoắn của nó), sáu bậc tự do và đường ray: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
+      "path": "Đường ray của khớp đường: ít nhất hai điểm, của `b` (hoặc thế giới) như lúc tạo; `a` bắt đầu ở điểm của ray gần `anchor` nhất.",
+      "loop": "Đường ray khép kín thành vòng.",
+      "follow": "`a` của khớp đường xoay theo đường ray như một toa xe, thay vì tự do như một hạt cườm.",
+      "over": "Hai bánh xe của ròng rọc trong thế giới: dây của `a` đi lên bánh thứ nhất, dây của `b` lên bánh thứ hai.",
+      "ratio": "Với bánh răng, số vòng của `b` cho mỗi vòng của `a` (số răng của `a` chia số răng của `b`), quay ngược chiều; với bánh răng nhỏ, radian trên mỗi mét thanh răng, 1 / bán kính của nó; với ròng rọc, số mét dây của `b` cho mỗi mét dây của `a`.",
+      "breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy (N·m mô-men giữa các răng của bánh răng hoặc thanh răng); bỏ trống thì không bao giờ."
     }
   },
   "joint": {
@@ -7351,7 +7341,52 @@
       "hinge": "Một chốt tại `anchor` dọc theo `axis`: cánh cửa, bánh xe. `limits` tính bằng radian.",
       "slider": "Một ray dọc theo `axis`: ngăn kéo, pít-tông. `limits` tính bằng mét.",
       "distance": "Giữ `anchor` trên `a` và `anchorB` trên `b` cách nhau đúng độ dài, hoặc trong `limits`.",
-      "cone": "Một khớp cầu có `axis` đung đưa trong hình nón nửa góc `limits.max`."
+      "cone": "Một khớp cầu có `axis` đung đưa trong hình nón nửa góc `limits.max`.",
+      "swingTwist": "Một khớp vai: `axis` lắc trong hình nón nửa góc `limits.swing` và xoắn quanh chính nó giữa `limits.min` và `max`; động cơ dẫn động phần xoắn.",
+      "sixDof": "Sáu trục, mỗi trục bị khóa, tự do hoặc có giới hạn (`axes`): mọi khớp nằm giữa các khớp khác.",
+      "path": "`a` chạy dọc một đường ray trơn đi qua `path`, gắn với `b` hoặc thế giới: một tàu lượn siêu tốc.",
+      "pulley": "Một sợi dây từ `a` vắt qua hai bánh xe (`over`) xuống `b`: vật này lên khi vật kia xuống.",
+      "gear": "Hai bánh xe quay cùng nhau theo `ratio`, mỗi bánh quanh chốt riêng (`axis`, `axisB`) và được giữ bởi bản lề riêng (bánh xe là `a` của nó); khi `ratio` hoặc 1 / `ratio` là số nguyên, răng của chúng cũng giữ pha lúc được tạo.",
+      "rackAndPinion": "Bánh răng nhỏ `a` quay quanh `axis` đẩy thanh răng `b` dọc `axisB`, mỗi cái được giữ bởi bản lề hoặc khớp trượt riêng (vật là `a` của nó), răng giữ đúng pha lúc được tạo."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
+    "members": {
+      "isInterleavedBufferAttribute": "Luôn là `true`: phân biệt một khung nhìn xen kẽ với bất cứ thứ gì khác.",
+      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
+      "data": "Bộ đệm mà nó xem.",
+      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại.",
+      "clone": "Các số của riêng nó, được sao ra khỏi gói vào một thuộc tính sở hữu chúng."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Một trong hai loại thuộc tính: sở hữu bộ nhớ của mình hoặc xem một bộ nhớ xen kẽ."
+  },
+  "VertexElements": {
+    "summary": "Các phần tử của một thuộc tính đỉnh, được đọc và ghi theo từng thành phần.",
+    "members": {
+      "name": "Tên mà một mục tiêu morph được biết đến; để trống với các thuộc tính khác.",
+      "itemSize": "Có bao nhiêu số thuộc về một đỉnh: 3 cho một vị trí.",
+      "normalized": "Các số nguyên có được đọc thành giá trị giữa 0 và 1 hay không.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
+      "stored": "Số `component` của đỉnh `index` như được lưu trữ; một số nguyên chuẩn hóa chưa được co giãn.",
+      "getComponent": "Số `component` của đỉnh `index`, được đọc như số mà nó biểu thị.",
+      "setComponent": "Ghi số `component` của đỉnh `index`.",
+      "getX": "Số đầu tiên của đỉnh `i`.",
+      "getY": "Số thứ hai của đỉnh `i`.",
+      "getZ": "Số thứ ba của đỉnh `i`.",
+      "getW": "Số thứ tư của đỉnh `i`.",
+      "setX": "Ghi số đầu tiên của đỉnh `i`.",
+      "setY": "Ghi số thứ hai của đỉnh `i`.",
+      "setZ": "Ghi số thứ ba của đỉnh `i`.",
+      "setW": "Ghi số thứ tư của đỉnh `i`.",
+      "setXY": "Ghi hai số cho đỉnh `i`.",
+      "setXYZ": "Ghi ba số cho đỉnh `i`."
     }
   }
 }

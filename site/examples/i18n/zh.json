@@ -360,6 +360,22 @@
       "up": "上"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "拖动以环顾四周。选择雾的类型、范围和颜色。",
+    "controls": {
+      "fog": "雾",
+      "reach": "范围",
+      "height": "高度",
+      "colour": "颜色"
+    },
+    "choices": {
+      "fog": {
+        "distance": "距离",
+        "thick": "浓雾",
+        "ground": "地面"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "拖动四处看看。珠子沿着管子滑动。",
     "controls": {
@@ -2014,6 +2030,20 @@
     "readouts": {
       "joints": "关节",
       "broken": "已断"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "调整机械的速度，升起升降台，往桶里丢重物把配重拉上去。",
+    "controls": {
+      "speed": "机械速度 (rad/s)",
+      "raiseLift": "升起升降台",
+      "addWeight": "丢一个重物",
+      "emptyBucket": "清空水桶"
+    },
+    "readouts": {
+      "lift": "升降台",
+      "load": "重物",
+      "rope": "绳子走过"
     }
   }
 }

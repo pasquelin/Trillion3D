@@ -17,7 +17,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
     roughness: 0,
   });
   const mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const pages = [
     { id: 0, url: '0', count: 3, min: [-1, -1, 0], max: [1, 1, 0], bytes: 12, sha256: 'x' },
@@ -30,7 +30,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
     scope: 'full',
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
   };

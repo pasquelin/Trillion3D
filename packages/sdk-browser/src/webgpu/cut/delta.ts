@@ -38,6 +38,9 @@ export type CutDelta = {
   adoptRecords(records: readonly PageRec[]): void;
 };
 
+/** What a reader of a difference walks: the ids that entered and left, and membership. */
+export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'exitedCount' | 'has'>;
+
 /**
  * The opaque cut as a set that outlives the image: given the page ids the GPU published, it names the
  * pages that entered and left since the previous cut, so every consumer downstream reads a difference

@@ -44,7 +44,7 @@ test('a cache whose pages carry their own cluster errors requires the DAG error 
     scope: 'full' as const,
     sourceTriangles: 2,
     selectedTriangles: 2,
-    selectedNodes: [0],
+    selectedNodes: 1,
     totalNodes: 1,
     primitives: [
       {
@@ -112,7 +112,7 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     clusterStrategy: 'dag-groups',
     errorModel: DAG_ERROR_MODEL,
-    selectedNodes: [0],
+    selectedNodes: 1,
     selectedTriangles: 10046405,
     primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters' }],
     binary: { version: MANIFEST_BINARY_VERSION, url: 'clusters.bin', sha256: 'x', bytes: 8 },
@@ -135,6 +135,7 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     ['not an object', 'INVALID_CACHE'],
     [{ ...slim, primitives: undefined }, 'INVALID_CACHE'],
     [{ ...slim, selectedTriangles: 'many' }, 'INVALID_CACHE'],
+    [{ ...slim, selectedNodes: [0] }, 'INVALID_CACHE'],
     [{ ...slim, status: 'pending' }, 'INVALID_CACHE'],
     [{ ...slim, scope: 'slice' }, 'SCOPE_MISMATCH'],
     [
@@ -163,7 +164,7 @@ test('an unsplit primitive has no error band, and the cache remains readable', (
     errorModel: DAG_ERROR_MODEL,
     sourceTriangles: 2,
     selectedTriangles: 2,
-    selectedNodes: [0],
+    selectedNodes: 1,
     totalNodes: 1,
     primitives: [{ mesh: 0, primitive: 0, pass: UNSPLIT_PASS, pages: [] }],
   };

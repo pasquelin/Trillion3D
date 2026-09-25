@@ -6,14 +6,10 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
  *
  * Each work item carries the index of the view it serves: a descent-queue entry, a candidate page
  * and a live cluster pack it in their top bits (`VIEW_SHIFT`). Each view reads its own block of the
- * uniform array — planes, projection, page mask, texel error — and owns its own per-primitive
- * state: threshold, pinned fallback, pruning words and per-primitive frustum planes are indexed by
- * the SLOT `row * worldCount + world`, not the primitive. The row is the view's own from one frame
- * to the next — a sun level or a lamp face keeps its row while it keeps being drawn
- * (`../lightCutRows.ts`) —, so the threshold a view carries over is its own, never the one of the
- * view that had its rank last frame. What the views share is what one cut
- * shares: the clusters, the hierarchy, the residency bits, the queues and lists, and the request
- * readback.
+ * uniform array — planes, projection, page mask, texel error — and owns its per-primitive
+ * frustum planes, indexed by the SLOT `view * worldCount + world`. Nothing carries from one frame
+ * to the next. What the views share is what one cut shares: the clusters, the hierarchy, the
+ * residency bits, the queues and lists, and the request readback.
  *
  * A dispatch waits for the previous one whatever its size (`../encode.ts`): V views run as V
  * traversals paid V times that wait, and as one traversal pay it once. The thread count is the
@@ -31,17 +27,11 @@ const VIEW_SHIFT = 27;
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
   throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`);
 
-/** The view's state row, in the view block's last word; `VIEW_STATE_FRESH` when the row served
- *  another view before, and carries nothing over. A camera's row is zero. */
-export const VIEW_STATE_WORD = 63;
-export const VIEW_STATE_FRESH = 0x80000000;
-const VIEW_STATE_ROW = 0xffff;
-
 /** Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`). */
 export const DAG_VIEW_WORDS = 64;
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
 export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4;
-/** Per-view words behind `work`'s pruning words, one row of `viewCapacity` each: live count,
+/** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each: live count,
  *  live offset, drawn count; then one word, the most sixty-four-wide groups any view drew — the
  *  width of the shadow cull that reads every view's log in one dispatch (`dagWorkLayout`). */
 export const VIEW_WORD_ROWS = 3;
@@ -52,12 +42,12 @@ export const VIEW_WORD_ROWS = 3;
  * alone can fill them, and several can only by together keeping more than the catalogue.
  */
 export const WORK_DROPPED = 4;
-/** Bit `ESCALATED_VIEWS + view` of the same word is set when light view `view` drew a primitive
- *  coarser than it wanted, its cluster not resident (`escalate`): the pages of that view, and
- *  only those, wait for residency to change. */
-export const ESCALATED_VIEWS = 8;
-if (ESCALATED_VIEWS + DAG_MAX_VIEWS > 32)
-  throw new Error(`${DAG_MAX_VIEWS} views do not fit the flag word's escalation bits`);
+/** Bit `COARSER_VIEWS + view` of the same word is set when light view `view` wanted a cluster that
+ *  is not resident, and drew its nearest resident ancestor (`noteCoarser`): the pages of that view,
+ *  and only those, wait for residency to change. */
+export const COARSER_VIEWS = 8;
+if (COARSER_VIEWS + DAG_MAX_VIEWS > 32)
+  throw new Error(`${DAG_MAX_VIEWS} views do not fit the flag word's coarser-view bits`);
 
 export const DAG_VIEWS_WGSL = `const MAX_VIEWS:u32=${DAG_MAX_VIEWS}u;
 const VIEW_SHIFT:u32=${VIEW_SHIFT}u;
@@ -68,17 +58,14 @@ var<private> vi:u32;
 fn packEntry(view:u32,index:u32)->u32{return (view<<VIEW_SHIFT)|index;}
 fn entryIndex(entry:u32)->u32{return entry&ENTRY_INDEX;}
 fn entryView(entry:u32)->u32{return entry>>VIEW_SHIFT;}
-/** Per-primitive state slots: one row of \`worldCount\` per view the buffers were sized for. */
-fn slots()->u32{return views[0u].worldCount*views[0u].viewCapacity;}
-fn slotOf(w:u32)->u32{return (views[vi].stateRow&${VIEW_STATE_ROW})*views[0u].worldCount+w;}
-/** The view's row was another view's last frame: nothing it holds carries over. */
-fn stateFresh()->bool{return (views[vi].stateRow&${VIEW_STATE_FRESH}u)!=0u;}
+/** Per-primitive frustum planes: one row of \`worldCount\` per view. */
+fn slotOf(w:u32)->u32{return vi*views[0u].worldCount+w;}
 /** Row \`row\` of the per-view words, for view \`v\` (\`VIEW_WORD_ROWS\`). */
-fn viewWord(row:u32,v:u32)->u32{return extraBase()+slots()*2u+row*views[0u].viewCapacity+v;}
+fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;}
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
 fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
-fn noteEscalation(){if(isLightCut()){atomicOr(&out.overflow,1u<<(${ESCALATED_VIEWS}u+vi));}}
+fn noteCoarser(){if(isLightCut()){atomicOr(&out.overflow,1u<<(${COARSER_VIEWS}u+vi));}}
 fn isLightCut()->bool{return (views[0u].viewFlags&VIEW_LIGHT)!=0u;}
 /** A drawn cluster of the current view, appended at its view's own range of the drawn log — the
  *  candidate list's words, free once \`dagWanted\` has read them. Opening a sixty-four slice
