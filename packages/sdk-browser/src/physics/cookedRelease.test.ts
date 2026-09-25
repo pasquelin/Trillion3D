@@ -6,11 +6,10 @@ import {
   JOLT_COMMIT,
 } from '../../../sdk-core/src/physics/index.ts';
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
-import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import type { PhysicsResults } from './protocol.ts';
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsSession } from './session.ts';
-import { landed, streamedModel } from './tiles.fixture.ts';
-import { fakeWorkers } from './worker.fixture.ts';
+import { compiledModel, landed, streamedModel, stubFetch } from './tiles.fixture.ts';
+import { fakeWorkers, idleTick } from './worker.fixture.ts';
 
 /** A `physics.json` of one two-triangle tile at the origin, placed once, and `softBodies`. */
 const cooked = (softBodies: object[] = []) => ({
@@ -83,13 +82,6 @@ test('a model back while its physics.json or a tile is on its way holds one set 
   assert.deepEqual(held(), [1, 2], 'the new opening’s tile alone');
 });
 
-/** A tick that moves nothing. */
-const tick: PhysicsResults = {
-  ...{ type: 'results', buffer: new ArrayBuffer(0), poses: 0, events: 0, dropped: 0, steps: 0 },
-  ...{ seconds: 0, water: 0, waterEpoch: 0, stepMs: 0, stepMaxMs: 0, active: 0 },
-  ...{ character: null, vehicles: null, soft: null },
-};
-
 test('a cooked soft body and a tile the worker refuses give their slots and budget back', async () => {
   const { workers, restore } = fakeWorkers();
   try {
@@ -102,20 +94,8 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
         settings: { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: 1 },
       },
     };
-    const fetched: string[] = [];
-    globalThis.fetch = (async (url: string) => {
-      fetched.push(url.split('/').pop()!);
-      return {
-        ok: true,
-        json: async () => cooked([cloth]),
-        arrayBuffer: async () => new ArrayBuffer(1),
-      };
-    }) as unknown as typeof fetch;
-    const scene = new Group();
-    const model = Object.assign(new Object3D(), {
-      isLoadedModel: true as const,
-      record: { base: 'https://cache.test/model/' },
-    });
+    const fetched = stubFetch(cooked([cloth]), new Uint8Array(1));
+    const [scene, model] = [new Group(), compiledModel()];
     scene.add(model);
     const wanted = { joints: new Set<never>(), vehicles: new Set<never>() };
     const session = createPhysicsSession(
@@ -136,7 +116,7 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     assert.deepEqual([session.objectOf(soft), session.objectOf(tile)], [model, model]);
     const refusal = { type: 'error', code: 'PHYSICS_FAILED', message: '', fatal: false };
     worker.onmessage({ data: { ...refusal, bodies: [soft, tile] } });
-    worker.onmessage({ data: tick });
+    worker.onmessage({ data: idleTick });
     assert.equal(session.stats.bodies, 0, 'both slots given back, their budget with them');
     assert.deepEqual([session.objectOf(soft), session.objectOf(tile)], [null, null]);
     session.frame(camera);

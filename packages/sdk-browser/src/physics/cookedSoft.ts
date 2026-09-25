@@ -34,8 +34,6 @@ export function createCookedSoftBodies(
   failed: (error: EngineError) => void,
 ) {
   const held = new Map<Model, Opening>();
-  /** Soft bodies the worker refused: not made again until their model opens again. */
-  const refused = new WeakSet<CookedSoftBody>();
   /** Each soft body's settings, fetched once: a model moved frame after frame makes its bodies
    *  again from them within the frame, never waiting on the network. */
   const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>();
@@ -63,7 +61,7 @@ export function createCookedSoftBodies(
   async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
     const cooked = await settingsOf(model, soft);
     // Forgotten, opened again or moved meanwhile: this opening's bodies are no longer wanted.
-    if (held.get(model) !== opening || refused.has(soft)) return;
+    if (held.get(model) !== opening) return;
     const { position, quaternion } = poseOf(model, soft);
     const p = new ObjectPhysics(soft.physics);
     const id = bodies.claim(0, soft.vertices);
@@ -83,7 +81,7 @@ export function createCookedSoftBodies(
   /** Makes the soft bodies `model` was cooked with, the last opening's out: none held twice. */
   function open(model: Model, softBodies: readonly CookedSoftBody[] = []) {
     forget(model);
-    const opening = { softBodies, made: new Map<number, CookedSoftBody>() };
+    const opening: Opening = { softBodies, made: new Map() };
     held.set(model, opening);
     for (const soft of softBodies)
       add(model, opening, soft).catch((error) => failed(error as EngineError));
@@ -103,14 +101,16 @@ export function createCookedSoftBodies(
       for (const [model, { made }] of held) if (made.has(id)) return model;
       return null;
     },
-    /** The worker refused soft body `id`: its slot and budget given back; any other id ignored. */
+    /** The worker refused soft body `id`: its slot and budget given back, and it is not made
+     *  again until its model opens again; any other id ignored. */
     refused(id: number) {
-      for (const { made } of held.values()) {
-        const soft = made.get(id);
+      for (const opening of held.values()) {
+        const soft = opening.made.get(id);
         if (!soft) continue;
-        made.delete(id);
+        opening.made.delete(id);
         bodies.release(id & BODY_INDEX);
-        return void refused.add(soft);
+        opening.softBodies = opening.softBodies.filter((s) => s !== soft);
+        return;
       }
     },
   };

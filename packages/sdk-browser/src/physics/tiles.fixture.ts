@@ -13,6 +13,25 @@ import { createTileStreamer } from './tiles.ts';
  *  next turn of the event loop comes once every answer has been read. */
 export const landed = () => new Promise(setImmediate);
 
+/** Answers every fetch from now on: `physics.json` with `file`, any other file with `bytes`;
+ *  the names of the files fetched. */
+export function stubFetch(file: object, bytes: Uint8Array) {
+  const fetched: string[] = [];
+  globalThis.fetch = (async (url: string) => {
+    fetched.push(url.split('/').pop()!);
+    const json = async () => JSON.parse(JSON.stringify(file));
+    return { ok: true, json, arrayBuffer: async () => bytes.slice().buffer };
+  }) as unknown as typeof fetch;
+  return fetched;
+}
+
+/** A compiled model at the origin, as `world.scene.load` places one. */
+export const compiledModel = () =>
+  Object.assign(new Object3D(), {
+    isLoadedModel: true as const,
+    record: { base: 'https://cache.test/model/' },
+  });
+
 /**
  * A model at the origin, scaled by `scale`, whose `physics.json` is `file` and every other file
  * `bytes`, opened by a tile streamer within `budget` (8 bodies): the streamer, the scene, the model,
@@ -24,12 +43,7 @@ export async function streamedModel(
   budget: Partial<PhysicsBudget> = {},
   scale = 1,
 ) {
-  const fetched: string[] = [];
-  globalThis.fetch = (async (url: string) => {
-    fetched.push(url.split('/').pop()!);
-    const json = async () => JSON.parse(JSON.stringify(file));
-    return { ok: true, json, arrayBuffer: async () => bytes.slice().buffer };
-  }) as unknown as typeof fetch;
+  const fetched = stubFetch(file, bytes);
   const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
   const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
   const { state } = createPhysicsPoses(limits.bodies, scene);
@@ -41,10 +55,7 @@ export async function streamedModel(
     () => {},
     (e) => errors.push(e),
   );
-  const model = Object.assign(new Object3D(), {
-    isLoadedModel: true as const,
-    record: { base: 'https://cache.test/model/' },
-  });
+  const model = compiledModel();
   model.scale.setScalar(scale);
   model.updateMatrixWorld(true);
   scene.add(model);
