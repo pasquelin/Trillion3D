@@ -18,10 +18,11 @@
 use super::bounds::bounding_sphere;
 use crate::join::Join;
 use crate::physics_cook::hausdorff::one_sided_distance;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
-/// The parts of `source`, connected over shared positions (`weld`): one corner list each.
-pub(crate) fn parts(source: &[u32], weld: &[u32]) -> Vec<Vec<u32>> {
+/// The corners of `source` as local ids of their welded position (`weld`), those ids joined over
+/// its triangles: one root per part.
+fn joined(source: &[u32], weld: &[u32]) -> (HashMap<u32, u32>, Vec<u32>, Join) {
     let mut local: HashMap<u32, u32> = HashMap::new();
     let mut id = |v: u32| {
         let next = local.len() as u32;
@@ -33,6 +34,12 @@ pub(crate) fn parts(source: &[u32], weld: &[u32]) -> Vec<Vec<u32>> {
         join.unite(tri[0], tri[1]);
         join.unite(tri[0], tri[2]);
     }
+    (local, corners, join)
+}
+
+/// The parts of `source`, connected over shared positions (`weld`): one corner list each.
+pub(crate) fn parts(source: &[u32], weld: &[u32]) -> Vec<Vec<u32>> {
+    let (_, corners, mut join) = joined(source, weld);
     let mut parts: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
     let triangles = source.as_chunks::<3>().0.iter();
     for (tri, local) in triangles.zip(corners.as_chunks::<3>().0) {
@@ -67,13 +74,20 @@ pub(super) fn vanished_error(
     weld: &[u32],
     extents: &[f64],
 ) -> f64 {
-    let alive: HashSet<u32> = kept.iter().map(|&v| weld[v as usize]).collect();
+    let (local, corners, mut join) = joined(source, weld);
+    let mut alive = vec![false; local.len()];
+    for v in kept {
+        if let Some(&l) = local.get(&weld[*v as usize]) {
+            alive[join.root(l) as usize] = true;
+        }
+    }
     let (mut extent, mut removed) = (0.0_f64, Vec::new());
-    for part in parts(source, weld) {
-        if !part.iter().any(|&v| alive.contains(&weld[v as usize])) {
+    let triangles = source.as_chunks::<3>().0.iter();
+    for (tri, local) in triangles.zip(corners.as_chunks::<3>().0) {
+        if !alive[join.root(local[0]) as usize] {
             // A part of `source` lies within one source part: its corners share one extent.
-            extent = extent.max(extents[part[0] as usize]);
-            removed.extend(part);
+            extent = extent.max(extents[tri[0] as usize]);
+            removed.extend(tri);
         }
     }
     extent.max(one_sided_distance(positions, &removed, kept))
