@@ -1,8 +1,6 @@
 import {
-  BODY_INDEX,
   CommandWriter,
   FLAG,
-  POSE_WORDS,
   SOFT_STATE_WORDS,
   softBodyOf,
   writeSoft,
@@ -20,16 +18,6 @@ export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
   const writer = new CommandWriter();
   writer.add({ ...body(2 | (1 << 24), 2, y, 0.1, flags), mass });
   jolt.step(writer.take(), 0);
-}
-
-/** Steps once; the height of the box in slot 2 when the step sent its pose, else `last`. */
-export function stepBox(jolt: Module, last: number) {
-  const count = jolt.step(null, 1 / 60),
-    poses = new Float32Array(jolt.poses(count).slice().buffer);
-  for (let r = 0; r < count; r++)
-    if ((new Uint32Array(poses.buffer)[r * POSE_WORDS] & BODY_INDEX) === 2)
-      return poses[r * POSE_WORDS + 2];
-  return last;
 }
 
 /** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */

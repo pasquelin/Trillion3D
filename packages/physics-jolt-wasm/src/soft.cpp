@@ -77,13 +77,11 @@ bool addSoft(const uint32_t *w) {
     return (world.error = BAD_COMMAND, false);
   Vec3 scale = vec3(w + 9);
   Ref<SoftBodySharedSettings> shared = new SoftBodySharedSettings;
-  float mass = 0;
   for (const uint32_t *v = w + SOFT_WORDS, *end = v + count * SOFT_VERTEX_WORDS; v < end; v += SOFT_VERTEX_WORDS) {
     Float3 at;
     (vec3(v) * scale).StoreFloat3(&at);
     // A mass of 0 is a pin: held where it is.
     shared->mVertices.emplace_back(at, Float3(0, 0, 0), f32(v + 3) > 0 ? 1.0f / f32(v + 3) : 0.0f);
-    mass += f32(v + 3);
   }
   if (count < 2 || !constrain(*shared, w, count)) {
     world.slots[index] = {};
@@ -109,7 +107,6 @@ bool addSoft(const uint32_t *w) {
   slot.id = body->GetID();
   slot.engine = engine;
   slot.used = slot.soft = true;
-  slot.softMass = mass;
   world.engineOf[body->GetID().GetIndex()] = engine;
   softs.push_back({index, engine, vec3(w + 2), Vec3::sReplicate(1) / scale, quat(w + 5).Conjugated()});
   return true;

@@ -28,16 +28,11 @@ struct Touch {
 
 SoftBodyValidateResult Listener::OnSoftBodyContactValidate(const Body &soft, const Body &other,
                                                            SoftBodyContactSettings &settings) {
-  uint32_t ia = uint32_t(soft.GetUserData()), ib = uint32_t(other.GetUserData());
-  // A sensor meets a soft body for its events alone: none wanted, it is passed by.
-  if (settings.mIsSensor)
-    return wantsEvents(ia) || wantsEvents(ib) ? SoftBodyValidateResult::AcceptContact
-                                              : SoftBodyValidateResult::RejectContact;
-  // XPBD holds a rigid body no heavier than the soft body's free vertices; a heavier one pushes
-  // between them, so it meets them as if they weighed what it weighs.
-  float mass = world().slots[ia & INDEX_MASK].softMass, inverse = inverseMass(other);
-  if (inverse > 0 && mass * inverse < 1) settings.mInvMassScale1 = mass * inverse;
-  return SoftBodyValidateResult::AcceptContact;
+  // A sensor meets a soft body for its events alone: none wanted, it is passed by, as with no
+  // listener; any other body collides as Jolt makes it.
+  bool heard = wantsEvents(uint32_t(soft.GetUserData())) || wantsEvents(uint32_t(other.GetUserData()));
+  return !settings.mIsSensor || heard ? SoftBodyValidateResult::AcceptContact
+                                      : SoftBodyValidateResult::RejectContact;
 }
 
 void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &manifold) {
@@ -65,6 +60,7 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
   }
   // A sensor reports presence alone: at the soft body's centre, with no impulse.
   for (uint32_t i = 0; i < manifold.GetNumSensorContacts(); ++i) touch(manifold.GetSensorContactBodyID(i));
+  if (std::none_of(touches.begin(), touches.end(), [](const Touch &t) { return t.engine != ~0u; })) return;
   RMat44 com = soft.GetCenterOfMassTransform();
   const BodyLockInterfaceNoLock &locks = world().system->GetBodyLockInterfaceNoLock();
   std::lock_guard guard(lock);
@@ -96,6 +92,10 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
 void leaveSoft() {
   World &w = world();
   BodyInterface &bodies = w.system->GetBodyInterfaceNoLock();
+  auto stepped = [&](uint32_t engine) {
+    return bodies.IsActive(w.slots[engine & INDEX_MASK].id) ||
+           std::find(w.deactivated.begin(), w.deactivated.end(), engine) != w.deactivated.end();
+  };
   for (auto at = w.softPairs.begin(); at != w.softPairs.end();) {
     auto pair = w.pairs.find(at->first);
     // Gone from `pairs`: a body of the pair left, and `leaveAll` sent its leave.
@@ -103,11 +103,10 @@ void leaveSoft() {
       at = w.softPairs.erase(at);
       continue;
     }
-    // Touched this step, or its soft body asleep through it: kept, as a rigid body keeps its own.
-    uint32_t engine = at->second.soft;
-    if (at->second.seen == w.step ||
-        !(bodies.IsActive(w.slots[engine & INDEX_MASK].id) ||
-          std::find(w.deactivated.begin(), w.deactivated.end(), engine) != w.deactivated.end())) {
+    // Touched this step, or both asleep through it: kept, as a rigid pair keeps its own. A body
+    // that moved while the soft body slept left it: overlapping it, it would have woken it.
+    uint32_t soft = at->second.soft, low = uint32_t(at->first), other = low == soft ? uint32_t(at->first >> 32) : low;
+    if (at->second.seen == w.step || !(stepped(soft) || stepped(other))) {
       ++at;
       continue;
     }
