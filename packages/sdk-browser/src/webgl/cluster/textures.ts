@@ -50,7 +50,6 @@ export class WebglClusterTextures {
   private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
-  /** The readers of each colour map (#42), each declaration filed once (`file`). */
   private readers = new CoverageReaders();
   private declarations = new WeakSet<object>();
   constructor(gl: WebGL2RenderingContext) {
@@ -62,9 +61,8 @@ export class WebglClusterTextures {
         this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
       ) as number;
   }
-  /** Binds `texture` on `unit`, decoded from sRGB when `color`. `reader`: a colour map (base or
-   *  emissive), its chain by its readers' coverage rule (#42) and apart from a data binding of the
-   *  same texture, as the WebGPU atlases hold it: the role decides, never the sRGB tag. */
+  /** `reader`: a base or emissive map, its own chain under its readers' rule (#42) — the role
+   *  decides, never the sRGB tag, as the WebGPU atlases. */
   bind(unit: number, texture?: Texture, color = false, fallback = WHITE, reader = false) {
     const gl = this.gl;
     if (!texture) {
@@ -154,10 +152,9 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    if (texture.generateMipmaps) {
-      this.mips.reduce(unit, record, weighted, !inPlace || held?.weighted === undefined);
-      record.weighted = weighted;
-    }
+    const allocate = !inPlace || held?.weighted === undefined;
+    if (texture.generateMipmaps)
+      this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }
@@ -194,7 +191,6 @@ export class WebglClusterTextures {
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();
     this.fallbacks.clear();
-    this.readers.clear();
     this.mips.dispose();
   }
 }
