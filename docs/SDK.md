@@ -909,9 +909,10 @@ as `world.budget.split`:
   each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
   a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
-  decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
-  plus the cache's own default; a total not above the mirror is refused
-  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
+  decoded-page cache takes the rest, taken by the next scene load. The engine's cut tables (group
+  closure and residency readiness, sized by the scene's placed pages) come out of that cache share
+  once the scene is prepared. The default total is the mirror plus the cache's own default; a total
+  not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
 ```js
 world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split
@@ -1120,7 +1121,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   frequency, damping and travel, the anti-roll bars, the turning radius the steering lock is read
   from, the time a hand takes to full lock, the brakes' grip, a motorcycle's lean and a track's
   turn; any of them is an option. A wheel that is not a child of the body, a wrong wheel count or
-  more than six gears throws `RangeError`. Live example: [drive a car](../site/examples/drive-a-car.html).
+  more than six gears throws `RangeError`, and so does an option its kind would ignore (a car's
+  `trackTurn` or `maxLean`; a motorcycle's `drive`, `trackTurn` or `antiRoll`; a tracked
+  vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
+  longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
 bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
   a rope its vertices in order, each joined to the next; a volume its closed triangles, facing

@@ -6434,13 +6434,13 @@
     "members": {
       "geometryPoolCeiling": "Le riserve più grandi che un mondo può richiedere: i budget di partenza del motore.",
       "texturePoolCeiling": "La riserva di texture più grande che un mondo può richiedere, in byte.",
-      "geometryPool": "Byte di memoria GPU riservati alle pagine di geometria; impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre e al serbatoio delle texture.",
-      "texturePool": "Byte di memoria GPU riservati alle pagine di texture, `null` su un motore senza serbatoio di texture (WebGL2); impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre e al serbatoio di geometria.",
+      "geometryPool": "Byte di memoria GPU riservati alle pagine di geometria; impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre, alle sonde di rimbalzo e al serbatoio delle texture.",
+      "texturePool": "Byte di memoria GPU riservati alle pagine di texture, `null` su un motore senza serbatoio di texture (WebGL2); impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre, alle sonde di rimbalzo e al serbatoio di geometria.",
       "physics": "I limiti della fisica (corpi, triangoli, corpi decorativi, memoria), letti una volta all’avvio; superarne uno solleva `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte di memoria CPU che `raycast` tiene per gli alberi di triangoli, condivisi da tutti i mondi della pagina; oltre, l’albero usato meno di recente viene scartato. Impostalo per cambiare l’involucro.",
       "gpu": "Byte di memoria GPU che il mondo può occupare, tutti i serbatoi insieme; impostalo per ridisegnare ogni serbatoio secondo la regola di ripartizione (`split`). Un totale inferiore al serbatoio delle ombre viene rifiutato (`GPU_BUDGET_UNDER_SHADOW_POOL`). Mai letto dalla macchina.",
-      "cpu": "Byte di memoria CPU che il mondo può occupare: prima lo specchio host della tabella delle pagine d’ombra, poi le pagine decodificate; applicato al prossimo caricamento di scena. Un totale che non supera lo specchio viene rifiutato (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Mai letto dalla macchina.",
-      "split": "Come si dividono i due totali: il serbatoio delle ombre al suo massimo, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; lo specchio host della tabella delle ombre, poi la cache delle pagine decodificate prende il resto del totale CPU. Ciò che dà la regola, prima di un serbatoio impostato da solo."
+      "cpu": "Byte di memoria CPU che il mondo può occupare: prima lo specchio host della tabella delle pagine d’ombra, poi le pagine decodificate e le tabelle di taglio del motore; applicato al prossimo caricamento di scena. Un totale che non supera lo specchio viene rifiutato (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Mai letto dalla macchina.",
+      "split": "Come si dividono i due totali: il serbatoio delle ombre e le sonde di rimbalzo al loro massimo, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; lo specchio host della tabella delle ombre, poi la cache delle pagine decodificate prende il resto del totale CPU. Ciò che dà la regola, prima di un serbatoio impostato da solo."
     }
   },
   "world.diagnostic": {
