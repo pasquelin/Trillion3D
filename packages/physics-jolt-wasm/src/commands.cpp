@@ -81,6 +81,12 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       ++added;
       continue;
     }
+    if (op == SOFT) {
+      if (!addSoft(w)) return false;
+      w += SOFT_WORDS + w[20] * SOFT_VERTEX_WORDS + w[21];
+      ++added;
+      continue;
+    }
     if (op == JOINT || op == UNJOINT || op == MOTOR) {
       w += jointCommand(w);
       continue;
@@ -128,6 +134,11 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       continue;
     }
     if (!slot.used) return (world.error = UNKNOWN_BODY, false);
+    // A soft body is moved by its vertices alone.
+    if (slot.soft && (op == TELEPORT || op == MOVE_KINEMATIC || op == VELOCITY || op == IMPULSE)) {
+      w += SIZES[op];
+      continue;
+    }
     switch (op) {
       case REMOVE: {
         BodyID id = slot.id;

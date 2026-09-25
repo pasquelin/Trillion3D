@@ -1150,8 +1150,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "CLUSTERED_BLEND_FORMAT_VERSION",
-    "signature": "const CLUSTERED_BLEND_FORMAT_VERSION: 6",
-    "summary": "Outer cache format required for clustered BLEND; source manifests keep their own format.",
+    "signature": "const CLUSTERED_BLEND_FORMAT_VERSION: 8",
+    "summary": "Outer cache format required for clustered BLEND (6 before `selectedNodes` became a count); source manifests keep their own format.",
     "description": ""
   },
   {
@@ -3134,6 +3134,11 @@
         "name": "threads",
         "type": "number",
         "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
+      },
+      {
+        "name": "softVertices",
+        "type": "number",
+        "desc": "Vertices of every soft body at once (cloths, ropes, volumes). Each one is solved every step and read back to the page, 12 bytes a step."
       }
     ],
     "description": ""
@@ -4226,9 +4231,9 @@
     "section": "types",
     "kind": "Constant",
     "title": "FORMAT_VERSION",
-    "signature": "const FORMAT_VERSION: 5",
+    "signature": "const FORMAT_VERSION: 7",
     "summary": "Cache format this runtime reads.",
-    "description": "Format 5 carries `scene-tables.json`, the node and material tables the prepared scene is checked against; formats 3 and 4 have no such product and are refused by their number rather than half-read."
+    "description": "Format 5 added `scene-tables.json`, the node and material tables the prepared scene is checked against; format 7 carries `selectedNodes` as a count, not a list (#404). Earlier formats are refused by their number rather than half-read."
   },
   {
     "id": "FRUSTUM_PLANE_VALUES",
@@ -8230,7 +8235,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -8539,7 +8549,12 @@
       {
         "name": "sizeAttenuation?",
         "type": "boolean | undefined",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "rotation?",
+        "type": "number | undefined",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "linewidth?",
@@ -9512,8 +9527,13 @@
     "members": [
       {
         "name": "type",
-        "type": "PhysicsType",
-        "desc": "How the body moves; set `obj.physics` again to change it."
+        "type": "PhysicsType | SoftBodyType",
+        "desc": "How the body moves, or the soft body it is; set `obj.physics` again to change it."
+      },
+      {
+        "name": "soft",
+        "type": "Readonly<SoftSettings> | null",
+        "desc": "A soft body's settings, every default filled; `null` for a rigid body."
       },
       {
         "name": "shape?",
@@ -9539,6 +9559,11 @@
         "name": "damping",
         "type": "{ readonly linear: number; readonly angular: number; }",
         "desc": "The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`)."
+      },
+      {
+        "name": "vertices",
+        "type": "Float32Array<ArrayBufferLike> | null",
+        "desc": "A soft body's vertices as the last tick left them, `x, y, z` per geometry vertex in the geometry's own frame; `null` for a rigid body and until its first tick."
       },
       {
         "name": "velocity",
@@ -11189,6 +11214,11 @@
         "name": "threads",
         "type": "number",
         "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
+      },
+      {
+        "name": "softVertices",
+        "type": "number",
+        "desc": "Vertices of every soft body at once (cloths, ropes, volumes). Each one is solved every step and read back to the page, 12 bytes a step."
       }
     ],
     "description": ""
@@ -11282,8 +11312,8 @@
     "section": "types",
     "kind": "Type",
     "title": "PhysicsOption",
-    "signature": "type PhysicsOption = PhysicsType | PhysicsBodyOptions",
-    "summary": "What `obj.physics` may be set to.",
+    "signature": "type PhysicsOption = PhysicsType | PhysicsBodyOptions | SoftBodyOptions",
+    "summary": "What `obj.physics` may be set to: a rigid body, or a soft one (`SoftBodyOptions`).",
     "description": ""
   },
   {
@@ -12532,6 +12562,39 @@
     "description": ""
   },
   {
+    "id": "SOFT_AREAL_DENSITY",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SOFT_AREAL_DENSITY"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "SOFT_AREAL_DENSITY",
+    "signature": "const SOFT_AREAL_DENSITY: 0.2",
+    "summary": "A medium woven cotton, kg/m²: textile weights run 0.15 to 0.25.",
+    "description": "A cloth falls the same at any mass; it weighs against its pins and what it meets. A volume's skin is taken as such a cloth."
+  },
+  {
+    "id": "SOFT_FOOTPRINT",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SOFT_FOOTPRINT"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "SOFT_FOOTPRINT",
+    "signature": "const SOFT_FOOTPRINT: 0.25",
+    "summary": "Declared: the share of its mean cross-section — a quarter of its area, for any convex shape (Cauchy) — a volume at rest on the ground sags onto, its gas pressing its weight there.",
+    "description": "Its default pressure is then `4·m·g / (share·area)`: 31 Pa for a skin of `SOFT_AREAL_DENSITY`. Half the share, twice the pressure. It never passes the most its skin holds within a tenth of its rest volume."
+  },
+  {
+    "id": "SOFT_LINEAR_DENSITY",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SOFT_LINEAR_DENSITY"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "SOFT_LINEAR_DENSITY",
+    "signature": "const SOFT_LINEAR_DENSITY: 0.065",
+    "summary": "A 10 mm polyamide rope, kg/m: makers' tables give 0.06 to 0.07.",
+    "description": ""
+  },
+  {
     "id": "SPEC_PAGE_INDEX",
     "module": "packages/sdk-core/src/page/integrationContracts.ts",
     "exports": ["SPEC_PAGE_INDEX"],
@@ -12833,8 +12896,8 @@
       },
       {
         "name": "mesh?",
-        "type": "{ geometry: number; material: number | number[]; primitive: string; } | undefined",
-        "desc": "Ranks in `geometries` and `materials`, and how the triangles are read."
+        "type": "{ geometry: number; material: number | number[]; primitive: string; center?: [number, number]; } | undefined",
+        "desc": "Ranks in `geometries` and `materials`, how the triangles are read, and a sprite's centre."
       },
       {
         "name": "light?",
@@ -14501,6 +14564,127 @@
     "description": ""
   },
   {
+    "id": "SoftBodyCommon",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftBodyCommon"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftBodyCommon",
+    "signature": "interface SoftBodyCommon",
+    "summary": "What `obj.physics` accepts for a soft body: its vertices are simulated one by one.",
+    "members": [
+      {
+        "name": "pins?",
+        "type": "readonly number[] | undefined",
+        "desc": "Indices of the geometry's vertices held where they are: a flag's pole, a rope's hook."
+      },
+      {
+        "name": "mass?",
+        "type": "number | undefined",
+        "desc": "Kilograms, spread over the vertices by the area (a rope: the length) each one holds; left out, `SOFT_AREAL_DENSITY` per m² (a rope: `SOFT_LINEAR_DENSITY` per m)."
+      },
+      {
+        "name": "stretch?",
+        "type": "number | undefined",
+        "desc": "How much an edge gives when pulled, m/N (the inverse of its stiffness): 0 never stretches."
+      },
+      {
+        "name": "bend?",
+        "type": "number | undefined",
+        "desc": "How much it gives when folded, rad/(N·m) (a rope: m/N); `Infinity` folds freely."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SoftBodyOptions",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftBodyOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftBodyOptions",
+    "signature": "type SoftBodyOptions = (SoftBodyCommon & { type: 'cloth' | 'rope' }) | SoftVolumeOptions",
+    "summary": "A soft body's options: a cloth, a rope, or a volume with the pressure of its gas.",
+    "description": ""
+  },
+  {
+    "id": "SoftBodyType",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftBodyType"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftBodyType",
+    "signature": "type SoftBodyType = 'cloth' | 'rope' | 'volume'",
+    "summary": "A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or a volume (its closed triangles, held up by the gas inside).",
+    "description": ""
+  },
+  {
+    "id": "SoftSettings",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftSettings"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftSettings",
+    "signature": "interface SoftSettings",
+    "summary": "A soft body's options once read: every default filled.",
+    "members": [
+      {
+        "name": "type",
+        "type": "SoftBodyType",
+        "desc": "What it is."
+      },
+      {
+        "name": "pins",
+        "type": "readonly number[]",
+        "desc": "The geometry's vertices held in place."
+      },
+      {
+        "name": "mass",
+        "type": "number | undefined",
+        "desc": "Kilograms, `undefined` for the default density's."
+      },
+      {
+        "name": "stretch",
+        "type": "number",
+        "desc": "m/N."
+      },
+      {
+        "name": "bend",
+        "type": "number",
+        "desc": "rad/(N·m), a rope's m/N."
+      },
+      {
+        "name": "pressure",
+        "type": "number | undefined",
+        "desc": "Pa; `undefined` for a volume's default (`SOFT_FOOTPRINT`)."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SoftVolumeOptions",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftVolumeOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftVolumeOptions",
+    "signature": "interface SoftVolumeOptions extends SoftBodyCommon",
+    "summary": "A volume's options: a closed mesh held up by the gas inside.",
+    "members": [
+      {
+        "name": "type",
+        "type": "'volume'",
+        "desc": "A volume."
+      },
+      {
+        "name": "pressure?",
+        "type": "number | undefined",
+        "desc": "The gas's pressure above the air's at rest, Pa; squeezed, it rises as the volume falls (Boyle's law). The triangles must face out. Left out, the pressure that rests the volume's weight on `SOFT_FOOTPRINT` of its mean cross-section, or the most its skin holds if less. Refused past the most its skin holds within a tenth of its rest volume."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "Sphere",
     "module": "packages/sdk-core/src/world/math/volumes.ts",
     "exports": ["Sphere"],
@@ -14670,6 +14854,36 @@
       }
     ],
     "description": ""
+  },
+  {
+    "id": "Sprite",
+    "module": "packages/sdk-core/src/world/object/sprite.ts",
+    "exports": ["Sprite"],
+    "section": "object",
+    "kind": "Type",
+    "title": "Sprite",
+    "signature": "class Sprite extends Mesh\nnew Sprite(material?: Material): Sprite",
+    "summary": "A flat picture that always faces the camera: a unit square every renderer turns toward the image at draw time, about the sprite's position.",
+    "parameters": [
+      {
+        "name": "material?",
+        "type": "Material",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "isSprite",
+        "type": "true",
+        "desc": "Always `true`: tells a sprite apart from any other mesh."
+      },
+      {
+        "name": "center",
+        "type": "Vector2",
+        "desc": "The point of the picture that sits on the sprite's position: `(0.5, 0.5)` its middle, `(0, 0)` its bottom-left corner, `(0.5, 0)` the middle of its bottom edge."
+      }
+    ],
+    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow."
   },
   {
     "id": "StablePreview",
@@ -18944,12 +19158,12 @@
       {
         "name": "cpu",
         "type": "number",
-        "desc": "Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the decoded pages, taken by the next scene load. A total not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine."
+        "desc": "Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the decoded pages, their manifest tables, their transfer queue and the engine's cut tables together. A change applies at once: pages leave by last use until they fit. A total not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine."
       },
       {
         "name": "split",
         "type": "{ shadowPool: number; bounceProbes: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }",
-        "desc": "How the two totals are shared: the shadow pool and the bounce probes at their largest, then half each to the geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the rest of the CPU total. What the rule gives, before a pool set on its own."
+        "desc": "How the two totals are shared: the shadow pool and the bounce probes at their largest, then half each to the geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the whole rest of the CPU total, within which the session in place reserves its manifest tables, its transfer queue and the engine's cut tables. What the rule gives, before a pool set on its own."
       },
       {
         "name": "geometryPoolCeiling",
@@ -27511,7 +27725,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -27701,7 +27920,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -27891,7 +28115,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28081,7 +28310,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28271,7 +28505,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28461,7 +28700,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28651,7 +28895,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28841,7 +29090,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29031,7 +29285,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29221,7 +29480,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29411,7 +29675,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29601,7 +29870,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29676,7 +29950,7 @@
     "kind": "Function",
     "title": "material.sprite()",
     "signature": "material.sprite(parameters?: MaterialParameters): Material",
-    "summary": "A flat picture that always faces the camera.",
+    "summary": "A flat picture that always faces the camera (`object.sprite`), see-through where its picture is, turned in the image by `rotation` and smaller with distance unless `sizeAttenuation` is false.",
     "parameters": [
       {
         "name": "parameters?",
@@ -29791,7 +30065,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29981,7 +30260,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -31453,20 +31737,20 @@
     "section": "object",
     "kind": "Function",
     "title": "object.sprite()",
-    "signature": "object.sprite(material?: Material): Mesh",
-    "summary": "A unit square facing `+z`, in the sprite kind.",
+    "signature": "object.sprite(material?: Material): Sprite",
+    "summary": "A flat picture that always faces the camera, whichever way the camera looks: a unit square, sized by the sprite's scale and turned in the image by its material's `rotation`.",
     "parameters": [
       {
-        "name": "material",
+        "name": "material?",
         "type": "Material",
-        "default": "new Material('sprite')",
-        "desc": "What the square shows."
+        "desc": "What the square shows: a `material.sprite`."
       }
     ],
     "returns": {
-      "type": "Mesh",
+      "type": "Sprite",
       "desc": ""
     },
+    "example": "const marker = object.sprite(material.sprite({ map })); marker.scale.set(2, 2, 1);",
     "description": ""
   },
   {
