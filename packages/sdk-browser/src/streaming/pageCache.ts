@@ -36,12 +36,22 @@ const checkBytes = (bytes: number) => {
  *
  * The total is shared by a fixed rule: the session reading through it reserves its manifest
  * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
- * streamer's `reserve`), and the pages hold the rest (`budgetBytes`). A total set lower applies at
- * once: pages leave by last use until they fit, save those the session pins.
+ * streamer's `reserve`), the scene's resident proxy its own (`keep`), and the pages hold the
+ * rest (`budgetBytes`). A total set lower applies at once: pages leave by last use until they fit,
+ * save those the session pins.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
+  /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
+   *  cancellation that is the cache's, not a session's. */
+  let slot:
+    { key: string; bytes: number; read: Promise<ArrayBuffer>; abort: AbortController } | undefined;
+  /** Lets the kept file go; `cancel` stops its read too, which no one waits for any longer. */
+  const release = (cancel: boolean) => {
+    if (cancel) slot?.abort.abort(new DOMException('Kept file released', 'AbortError'));
+    slot = undefined;
+  };
   let bytes = 0,
     total = cpuBytes,
     holder: Holder | undefined;
@@ -74,11 +84,11 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get cpuBytes() {
       return total;
     },
-    /** Bytes the session in place reserves off the total, `0` when none reads through it. */
+    /** Bytes reserved off the total: the session's in place, and the kept file's. */
     get reservedBytes() {
-      return holder?.reserved() ?? 0;
+      return (holder?.reserved() ?? 0) + cache.keptBytes;
     },
-    /** Bytes the pages may hold: the total less what the session reserves. */
+    /** Bytes the pages may hold: the total less what is reserved (`reservedBytes`). */
     get budgetBytes() {
       return Math.max(0, total - cache.reservedBytes);
     },
@@ -93,6 +103,38 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     dropResized(sizes: ReadonlyMap<string, { bytes: number }>) {
       for (const [url, held] of pages)
         if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
+    },
+    /**
+     * The read of the file `key` names, of `bytes` bytes — the scene's resident proxy —, kept whole
+     * beside the pages in place of any other: `start` begins it on the cache's own cancellation when
+     * none is kept, and a session reopened meanwhile joins the one in flight. Its bytes come off the
+     * total from the moment it is asked, and no page evicts it: it stays kept, across sessions, until
+     * `keepOnly` no longer names it, or it yields (`yieldKept`). A read that fails leaves at once.
+     */
+    keep(key: string, bytes: number, start: (signal: AbortSignal) => Promise<ArrayBuffer>) {
+      if (slot?.key === key) return slot.read;
+      release(true);
+      const abort = new AbortController();
+      const kept = { key, bytes, read: start(abort.signal), abort };
+      slot = kept;
+      kept.read.catch(() => {
+        if (slot === kept) slot = undefined;
+      });
+      evict();
+      return kept.read;
+    },
+    /** Bytes the kept file takes off the total. */
+    get keptBytes() {
+      return slot?.bytes ?? 0;
+    },
+    /** Lets the kept file go, its read cancelled, unless `key` names it: a scene gone. */
+    keepOnly(key?: string) {
+      if (slot?.key !== key) release(true);
+    },
+    /** Gives the kept file's bytes back to the pages, its read left to whoever waits for it: the
+     *  pages a frame keeps come first (`streaming/cache.ts`). */
+    yieldKept() {
+      release(false);
     },
     /** Sets the total, and evicts at once what no longer fits. */
     resize(cpu: number) {
@@ -110,6 +152,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear();
+      release(true);
       bytes = 0;
     },
   };
