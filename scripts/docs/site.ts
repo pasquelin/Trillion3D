@@ -3,7 +3,6 @@
  * Every consumer — `build:docs`, `docs:serve`, the browser proofs, the site deployment — builds
  * the same tree from the same function; nothing under `site/` is a build product.
  */
-import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { generateApiFiles } from '../generate-api-reference.ts';
@@ -118,19 +117,16 @@ export async function copyStatics(source: string, out: string, published = false
   await mkdir(out, { recursive: true });
   for (const name of STATIC_ENTRIES)
     await copyTree(resolve(source, name), resolve(out, name), published);
-  // No report is tracked (#683): with none staged or fetched, the portal lists no campaign.
-  if (!existsSync(resolve(source, 'reports/index.json')))
-    await writeFile(resolve(out, 'reports/index.json'), '[]\n');
   await writeMetadata(source, out, published);
   await prune(out, [...STATIC_ENTRIES, ...METADATA_ENTRIES, ...BUILT_FOLDERS]);
 }
 
 /** Builds the whole site from `root` into `out`, the API files and the scene caches it serves
- * generated first; only the deployed build is `published`: it carries the audience measurement
- * (`measurement.ts`) and cannot go without a cache. */
+ * generated first when stale (the deploy compiles the caches before, `pages.yml`); only the
+ * deployed build is `published`, and carries the audience measurement (`measurement.ts`). */
 export async function buildSite(root = ROOT, out = SITE_OUTPUT, published = false) {
   await generateApiFiles();
-  compileSiteCaches(published);
+  compileSiteCaches(false);
   await buildBundles(root, out);
   await copyStatics(resolve(root, 'site'), out, published);
 }

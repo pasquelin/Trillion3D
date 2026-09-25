@@ -1,21 +1,21 @@
-/** The two sides of the prepared-scene proof (`build.test.ts`): every published cache served from
+/** The two sides of the prepared-scene proof (`build.test.ts`): every compiled cache served from
  *  disk, and a graph walked into the fields a reader compares — whole, as the reference renderer
  *  reads it, or by shape, as the engine reads it, whichever library built it. */ import { type TestContext } from 'node:test';
 import { createHash } from 'node:crypto';
-import { glob, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import * as K from './sceneKinds.fixture.ts';
+import { COOKED_SCENES } from '../../../../../scripts/site-caches.ts';
 
-const repository = new URL('../../../../../', import.meta.url);
-const MANIFESTS = '{site/assets/**,tests/fixtures/scenes/*}/cache/native/full/manifest.json';
+export const repository = new URL('../../../../../', import.meta.url);
 
-/** Every compiled scene cache, the site's and the test scenes': the key folder its pointer names. */
+/** Every compiled scene cache (`scripts/site-caches.ts`): the key folder its pointer names. */
 export async function caches() {
   const found: URL[] = [];
-  for await (const entry of glob(MANIFESTS, { cwd: fileURLToPath(repository) })) {
-    const pointer = new URL(entry, repository);
+  for (const { directory } of Object.values(COOKED_SCENES)) {
+    const pointer = new URL(`${directory}/cache/native/full/manifest.json`, repository);
     const { url } = JSON.parse(await readFile(pointer, 'utf8')) as { url: string };
     found.push(new URL('./', new URL(url, pointer)));
   }
