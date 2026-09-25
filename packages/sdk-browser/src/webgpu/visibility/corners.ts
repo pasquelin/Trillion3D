@@ -14,7 +14,8 @@ export function createCornerUploadHold() {
  * A corner changes only when its page's world matrix changes, and the table's age names exactly that
  * moment: a moving camera rewrites none. On an ordinary image, only the rows the table just declared
  * dirty travel, run by run — a model whose rows are scattered sends its own and none of the rows
- * between them — and a new age asks for the drawable rows again, once.
+ * between them — and a new age, or an image the partition did not read, asks for the drawable rows
+ * again, once.
  *
  * The corners are those double precision derives (`pageCornersInto`), each carried by TWO single-
  * precision values: the rounded value and its residue. The kernel reports them to the camera pose,
@@ -23,7 +24,12 @@ export function createCornerUploadHold() {
  */
 export function uploadRowCorners(rt: WebgpuPagesRuntime) {
   const { rows, cornerHold } = rt.layout;
-  if (!rt.vis.gpuPartition) return;
+  // No partition reads the marks this image clears: the hold then names no age, and the partition
+  // that reads next asks for every drawable row again, whatever changed in between (#198).
+  if (!rt.vis.gpuPartition) {
+    cornerHold.epoch = -1;
+    return;
+  }
   const stale = cornerHold.epoch !== rows.tableEpoch;
   if (stale) cornerHold.epoch = rows.tableEpoch;
   // Rows whose page arrived, left, changed rank or moved: what they held describes another page or
