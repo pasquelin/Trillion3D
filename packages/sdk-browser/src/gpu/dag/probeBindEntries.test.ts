@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { runInNewContext } from 'node:vm';
-import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
-import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
-import { PAGE_INIT_SCRIPT } from './pageWebgpu.ts';
+import { DAG_BINDING } from './shader/bindings.ts';
+import { EXPAND_BINDING } from '../../webgpu/blend/expandBindings.ts';
+import { PAGE_INIT_SCRIPT } from '../../../../../tests/browser/probes/pageWebgpu.ts';
 
 /** `namedBufferEntries` as the page sees it: installed by the init script, with no module scope. */
 function pageBuilder() {
@@ -39,10 +39,10 @@ for (const [kernel, bindings] of KERNELS) {
 // The two probes, the cut oracle whose frozen descent still binds the shipped group 0, and the
 // light cut, which binds the selection kernel's group 0 for its own views.
 const BUILDERS = [
-  'selectionKernelGpu.ts',
-  'scatterKernelGpu.ts',
-  '../../../bench/oracles/browser/cut-dispatches.ts',
-  '../../../packages/sdk-browser/src/gpu/dag/lightCut.ts',
+  '../../../../../tests/browser/probes/selectionKernelGpu.ts',
+  '../../../../../tests/browser/probes/scatterKernelGpu.ts',
+  '../../../../../bench/oracles/browser/cut-dispatches.ts',
+  './lightCut.ts',
 ];
 for (const probe of BUILDERS) {
   test(`${probe} builds its bind group through namedBufferEntries, not by position`, () => {
