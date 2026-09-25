@@ -24,6 +24,8 @@ import { refuseCluster } from './refusal.ts';
 import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './submit.ts';
 
+type Drawn = ClusterDrawMesh | WholeMesh;
+
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
@@ -31,15 +33,12 @@ export class WebglClusterRenderer {
   private textures: WebglClusterTextures;
   private uniforms = new Map<string, WebGLUniformLocation | null>();
   private normal = new Float32Array(9);
-  /** The model-view product in double precision, the normal matrix read from it, as the
-   *  reference derives both; the program receives its single-precision copy. */
+  /** Model-view in double precision, the normal matrix read from it; the program gets floats. */
   private modelView = new Float64Array(16);
   private modelViewUpload = new Float32Array(16);
-  private materialMatrices: Matrix3UniformCache;
   private lights: WebglClusterLights;
   private state: WebglClusterState;
   private validatedMaterials = new Map<Material, HostAttributes>();
-  private materialUniforms: WebglClusterMaterialUniforms;
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
   private copies = new WebglClusterCopies<SceneCopy>();
@@ -56,25 +55,30 @@ export class WebglClusterRenderer {
   /** The display curve's rank (`TONE_MAPPING_RANK`), written by the owner before a frame. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
   readonly pass: ClusterMaterialPass;
-  constructor(gl: WebGL2RenderingContext) {
+  /** The display renderer whose vertex arrays, maps, backdrop and raster state this one shares:
+   *  set on the effect chain's linear variant (`createClusterProgram`). */
+  private readonly display: WebglClusterRenderer | undefined;
+  private readonly locations: Record<string, number>;
+  constructor(gl: WebGL2RenderingContext, display?: WebglClusterRenderer) {
     this.gl = gl;
-    const program = (this.program = createClusterProgram(gl));
-    const locations: Record<string, number> = {};
-    for (const name of ['position', 'normal', 'uv', 'uv1', 'color', 'instanceMatrix'])
-      locations[name] = gl.getAttribLocation(program, name);
-    this.geometry = new WebglClusterGeometry(gl, locations);
-    this.textures = new WebglClusterTextures(gl);
+    this.display = display;
+    const program = (this.program = createClusterProgram(gl, display?.locations));
+    this.locations = display?.locations ?? {};
+    if (!display)
+      for (const name of ['position', 'normal', 'uv', 'uv1', 'color', 'instanceMatrix'])
+        this.locations[name] = gl.getAttribLocation(program, name);
+    this.geometry = display?.geometry ?? new WebglClusterGeometry(gl, this.locations);
+    this.textures = display?.textures ?? new WebglClusterTextures(gl);
     this.lights = new WebglClusterLights(gl, this.program);
-    this.state = new WebglClusterState(gl);
-    this.backdrop = new WebglClusterBackdrop(gl, BACKDROP_UNITS);
+    this.state = display?.state ?? new WebglClusterState(gl);
+    this.backdrop = display?.backdrop ?? new WebglClusterBackdrop(gl, BACKDROP_UNITS);
     this.multiDraw = gl.getExtension('WEBGL_multi_draw') as typeof this.multiDraw;
-    this.materialMatrices = new Matrix3UniformCache(gl, (name) => this.at(name));
-    this.materialUniforms = new WebglClusterMaterialUniforms(gl, (name) => this.at(name));
     this.pass = new ClusterMaterialPass({
-      uniforms: this.materialUniforms,
-      matrices: this.materialMatrices,
+      uniforms: new WebglClusterMaterialUniforms(gl, (name) => this.at(name)),
+      matrices: new Matrix3UniformCache(gl, (name) => this.at(name)),
       textures: this.textures,
       state: this.state,
+      linear: !!display,
     });
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
@@ -115,11 +119,7 @@ export class WebglClusterRenderer {
     }
     return passes.length;
   }
-  private submit(
-    meshes: readonly (ClusterDrawMesh | WholeMesh)[],
-    camera: HostDrawCamera,
-    toneMapped: boolean,
-  ) {
+  private submit(meshes: readonly Drawn[], camera: HostDrawCamera, toneMapped: boolean) {
     let submitted = 0;
     for (const mesh of meshes) submitted += this.mesh(mesh, camera, toneMapped);
     return submitted;
@@ -191,9 +191,8 @@ export class WebglClusterRenderer {
     return submitted;
   }
   dispose() {
-    this.backdrop.dispose();
-    this.geometry.dispose();
-    this.textures.dispose();
+    if (!this.display)
+      for (const shared of [this.backdrop, this.geometry, this.textures]) shared.dispose();
     this.lights.dispose();
     this.gl.deleteProgram(this.program);
   }

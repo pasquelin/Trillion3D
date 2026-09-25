@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Glow around lights</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #05070d;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, effect, geometry, light, material, math, object } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#05070d');
+      // A square at night: wet paving, a row of lamp posts and a neon sign. Each globe and each
+      // neon tube shines far brighter than white — that is the light the glow spreads.
+      const paving = object.mesh(
+        geometry.box(40, 0.2, 40),
+        material.meshStandard({ color: '#1b1f27', roughness: 0.35 }),
+      );
+      paving.position.y = -0.1;
+      world.scene.add(paving);
+      const iron = material.meshStandard({ color: '#2b2f36', metalness: 0.8, roughness: 0.4 });
+      const colours = ['#ffcf8a', '#ffe4b8', '#ffcf8a', '#ffe4b8', '#ffcf8a'];
+      colours.forEach((colour, index) => {
+        const x = (index - 2) * 4;
+        const post = object.mesh(geometry.cylinder(0.08, 0.12, 4, 16), iron);
+        post.position.set(x, 2, -2);
+        const globe = object.mesh(
+          geometry.sphere(0.35, 32, 16),
+          material.meshStandard({ color: '#000000', emissive: colour, emissiveIntensity: 12 }),
+        );
+        globe.position.set(x, 4.3, -2);
+        world.scene.add(
+          post,
+          globe,
+          light.point({ position: [x, 4.3, -2], color: colour, intensity: 18, distance: 10 }),
+        );
+      });
+      // The sign: three tubes on a dark wall, each its own colour.
+      const wall = object.mesh(
+        geometry.box(12, 5, 0.3),
+        material.meshStandard({ color: '#14161c', roughness: 0.9 }),
+      );
+      wall.position.set(0, 2.5, -6);
+      world.scene.add(wall);
+      [
+        ['#ff3d7f', 3.6],
+        ['#3dd9ff', 2.8],
+        ['#b6ff3d', 2],
+      ].forEach(([colour, height], index) => {
+        const tube = object.mesh(
+          geometry.box(6 - index * 1.2, 0.12, 0.12),
+          material.meshStandard({ color: '#000000', emissive: colour, emissiveIntensity: 20 }),
+        );
+        tube.position.set(0, height, -5.8);
+        world.scene.add(tube);
+      });
+      world.scene.add(
+        light.hemisphere({ color: '#3a4c80', groundColor: '#0b0d12', intensity: 0.2 }),
+      );
+      world.camera.position.set(0, 2.2, 9);
+      world.camera.lookAt(0, 2.5, -2);
+      world.controls.target.set(0, 2.5, -2);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // The glow: one bloom pass in the world's effect chain. It works on the image's light before
+      // tone mapping, and spreads it without adding any: the lamps give their neighbours some of
+      // their own. Taking it out of the chain leaves the image exactly as it was without it.
+      const glow = effect.bloom({ intensity: 0.08 });
+      controls(
+        { glow: true, intensity: [0, 0.3, 0.08], radius: [0.5, 3, 1] },
+        (values) => {
+          if (values.glow && !world.effects.size) world.effects.add(glow);
+          if (!values.glow) world.effects.remove(glow);
+          glow.intensity = values.intensity;
+          glow.radius = values.radius;
+        },
+        world,
+      );
+    </script>
+  </body>
+</html>
