@@ -4169,7 +4169,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Was `obj.physics` für einen weichen Körper annimmt: seine Eckpunkte werden einzeln simuliert.",
+    "description": "Seine Materie und sein Zug wie bei einem starren Körper; keine Winkeldämpfung, keine Form, kein Sensor, kein CCD, keine Trümmer.",
     "members": {
+      "damping": "Der Anteil der Geschwindigkeit seiner Eckpunkte, der pro Sekunde verloren geht, `dv/dt = −c·v`, 0 und mehr.",
       "pins": "Indizes der Eckpunkte der Geometrie, die an ihrem Platz gehalten werden: die Stange einer Fahne, der Haken eines Seils.",
       "mass": "Kilogramm, über die Eckpunkte nach der Fläche (beim Seil: der Länge) verteilt, die jeder trägt; weggelassen `SOFT_AREAL_DENSITY` je m² (beim Seil `SOFT_LINEAR_DENSITY` je m).",
       "stretch": "Wie sehr eine Kante unter Zug nachgibt, m/N (der Kehrwert ihrer Steifigkeit): 0 dehnt sich nie.",
