@@ -5,7 +5,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MASK_KEEP_WGSL } from './pageWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
-import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts';
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
 
@@ -29,13 +28,14 @@ test('the cutout is the hard threshold: the test of 9893b51d9, with the dash and
 });
 
 test('every raster calls it as before the stipple, and no shader reads a stipple', () => {
-  // Camera: the fragment's own derivatives. Compute raster: none, level 0. Shadows: vertex alpha one.
-  assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)').length, 3);
+  // The call sites themselves are pinned by `maskVertexAlpha.test.ts`. Camera: the fragment's own
+  // derivatives. Compute raster: none, level 0.
   assert.equal(VIS_SHADER.split('let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);').length, 3);
-  const small = ENGINE_SHADERS.RASTER!;
-  assert.ok(small.includes('if(!maskKeep(page,tc.xy,tc.z,vec2f(0.0),vec2f(0.0))){return;}'));
-  assert.doesNotMatch(small, /uvGradients/, 'the compute raster computes no footprint');
-  assert.ok(SHADOW_DEPTH_SHADER.includes('maskKeep(pages[in.instance],in.uv,1.0,gx,gy)'));
+  assert.doesNotMatch(
+    ENGINE_SHADERS.RASTER!,
+    /uvGradients/,
+    'the compute raster computes no footprint',
+  );
   for (const [name, source] of Object.entries(ENGINE_SHADERS))
     assert.doesNotMatch(source, /stipple/i, name);
 });
