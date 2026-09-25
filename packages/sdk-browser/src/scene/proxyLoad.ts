@@ -3,6 +3,7 @@ import {
   type ClusterManifest,
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
+import { ownBuffer } from '../page/decode/host.ts';
 
 /**
  * Read the resident proxy's cache object through the session's page streamer, whose catalogue
@@ -20,9 +21,7 @@ export function createSceneProxyReader(
 ) {
   if (!proxy) return undefined;
   return async (): Promise<SceneProxy> => {
-    const bytes = await readBytes(proxy.url);
     // The columns are views of the bytes the cache holds: they are only read, never written.
-    const whole = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength;
-    return decodeSceneProxy(proxy, (whole ? bytes : bytes.slice()).buffer as ArrayBuffer);
+    return decodeSceneProxy(proxy, ownBuffer(await readBytes(proxy.url)));
   };
 }

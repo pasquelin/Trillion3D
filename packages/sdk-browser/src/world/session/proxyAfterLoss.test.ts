@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { prepareExplorerBackends } from './backends.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { createPageCache } from '../../streaming/pageCache.ts';
-import { sha256Hex } from '../../measurement/sha256Hex.ts';
+import { servedPages } from '../../streaming/servedPages.fixture.ts';
 import {
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
@@ -19,19 +19,13 @@ async function servedProxy() {
   const words = new Uint32Array(4 + 9 + 1);
   words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 1, 0]);
   new Float32Array(words.buffer, 16, 9).set([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  const { pages, fetched } = await servedPages(['proxy.bin'], new Uint8Array(words.buffer));
   const proxy = {
+    ...pages[0],
     version: SCENE_PROXY_VERSION,
-    url: 'proxy.bin',
-    sha256: await sha256Hex(words.buffer),
-    bytes: words.byteLength,
     triangles: 1,
     nodes: 0,
     bounds: [0, 0, 0, 1, 1, 0],
-  };
-  const fetched: string[] = [];
-  globalThis.fetch = async (url) => {
-    fetched.push(String(url));
-    return new Response(words.slice(), { status: 200 });
   };
   return { metadata: { primitives: [], proxy } as unknown as ClusterManifest, fetched };
 }
