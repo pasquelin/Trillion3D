@@ -58,14 +58,18 @@ export function buildWorldMirror(input: MirrorInput) {
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
   const geometries = new Map<Cut, GraphGeometry>(),
-    surfaces = new Map<Material, GraphSurface>(),
+    // One surface per material, and a second one when the material asks for vertex colours and
+    // is worn by geometries with and without them: the material decides, as in the reference
+    // (`material.vertexColors`), and a geometry with no colour has none to tint by.
+    surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    let surface = surfaces.get(material);
-    if (!surface)
-      surfaces.set(material, (surface = hostSurface(material, !!cut.drawn.colors, textures)));
+    const tinted = material.vertexColors && !!cut.drawn.colors;
+    let worn = surfaces.get(material);
+    if (!worn) surfaces.set(material, (worn = []));
+    const surface = (worn[+tinted] ??= hostSurface(material, tinted, textures));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
@@ -86,9 +90,9 @@ export function buildWorldMirror(input: MirrorInput) {
   /** Writes a repainted material entry's values into the host surface built for it; false when
    *  this mirror built none. */
   const repaint = (material: Material) => {
-    const surface = surfaces.get(material);
-    if (surface) repaintHostSurface(surface, material);
-    return !!surface;
+    const worn = surfaces.get(material);
+    for (const surface of worn ?? []) if (surface) repaintHostSurface(surface, material);
+    return !!worn;
   };
   return { root, twins, associations, repaint };
 }
