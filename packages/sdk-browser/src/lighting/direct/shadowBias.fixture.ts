@@ -58,6 +58,16 @@ export const normalOffset = (texel: number, cosine: number) =>
   (LIGHT_SETTINGS.shadowNormalOffsetTexels +
     PCF_REACH * Math.max(Math.sqrt(1 - cosine * cosine) - cosine, 0));
 
+const tangent = (cosine: number) => Math.sqrt(1 - cosine * cosine) / cosine;
+/** The bias, in metres: along the normal, then toward the light — this branch's, and develop's
+ *  before #456 (1.5 texel/max(cos, 0.2); 2 cm + 8 cm·tan, at most 0.5 m), for the proof. */
+export type Bias = (texel: number, cosine: number) => number[];
+export const BIAS: Bias = (texel, c) => [normalOffset(texel, c), depthMargin(texel, tangent(c))];
+export const DEVELOP_BIAS: Bias = (texel, c) => [
+  (1.5 * texel) / Math.max(c, 0.2),
+  0.02 + Math.min(0.08 * tangent(c), 0.5),
+];
+
 /** A hardware comparison at texel coordinate `(x, y)`: each of the four texel centres of the
  *  bilinear footprint is lit when `reference`, a distance along the light, is strictly nearer
  *  than its stored one — the `greater` comparison of reversed depth —, weighted bilinearly. */
@@ -95,15 +105,15 @@ export type Face = { from: Vec; to: Vec; normal: Vec };
 const float32Depth = (s: number, range: number) => range * (1 - Math.fround(1 - s / range));
 
 /**
- * A sun `zenith` radians from vertical, shining toward +x over a profile of `faces`, read at a
+ * A sun `angle` radians from vertical, shining toward +x over a profile of `faces`, read at a
  * texel of `texel` metres, as `sunShadowFactor` reads its level. Returns the lit fraction at the
- * point `x` along face `index` (0 at `from`, 1 at `to`). With a map `range`, both depths are
- * rounded as the depth format rounds them; without, they are exact.
+ * point `x` along face `index` (0 at `from`, 1 at `to`); `truth` asks a ray-cast of the faces
+ * instead, 1 lit or 0. In a map `deep` metres deep, both depths round as the depth format does.
  */
-export function sunOverProfile(faces: Face[], zenith: number, texel: number, range = 0) {
-  const depth = (s: number) => (range ? float32Depth(s, range) : s);
-  const light = [Math.sin(zenith), -Math.cos(zenith)],
-    across = [Math.cos(zenith), Math.sin(zenith)];
+export function sunOverProfile(faces: Face[], angle: number, texel: number, deep = 0, bias = BIAS) {
+  const depth = (s: number) => (deep ? float32Depth(s, deep) : s);
+  const light = [Math.sin(angle), -Math.cos(angle)],
+    across = [Math.cos(angle), Math.sin(angle)];
   /** The distance along the light of the first face met at `u` across it. */
   const stored = (u: number) => {
     let first = Infinity;
@@ -118,14 +128,13 @@ export function sunOverProfile(faces: Face[], zenith: number, texel: number, ran
     }
     return first;
   };
-  return (index: number, x: number) => {
+  return (index: number, x: number, truth = false) => {
     const { from, to, normal } = faces[index];
     const P = along(from, sub(to, from), x);
-    const cosine = clamp(-dot(normal, light), 1e-3, 1);
-    const Q = along(P, normal, normalOffset(texel, cosine));
-    const reference =
-      depth(dot(Q, light) - depthMargin(texel, Math.sqrt(1 - cosine ** 2) / cosine)) -
-      range * SHADOW_DEPTH_ROUNDING;
+    if (truth) return stored(dot(P, across)) < dot(P, light) - 1e-9 ? 0 : 1;
+    const [offset, margin] = bias(texel, clamp(-dot(normal, light), 1e-3, 1));
+    const Q = along(P, normal, offset);
+    const reference = depth(dot(Q, light) - margin) - deep * SHADOW_DEPTH_ROUNDING;
     return pcf([dot(Q, across) / texel, 0.5], (cx) => depth(stored(cx * texel)), reference);
   };
 }

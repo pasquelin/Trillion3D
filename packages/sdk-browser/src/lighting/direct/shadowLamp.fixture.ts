@@ -8,7 +8,8 @@ import { faceBasis } from '../../../../sdk-core/src/scene/light-shadow/math.ts';
 import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
-import { along, depthMargin, normalOffset, pcf, sub, type Vec } from './shadowBias.fixture.ts';
+import { DEVELOP_BIAS, along, depthMargin, normalOffset, pcf, sub } from './shadowBias.fixture.ts';
+import type { Vec } from './shadowBias.fixture.ts';
 
 /** `pointFaceOf`: the major axis of the light-to-point direction, in `POINT_FACE_AXES` order. */
 function pointFaceOf(d: Vec) {
@@ -34,9 +35,10 @@ export const lampAt = (at: Vec, direction?: Vec, coneAngle?: number) =>
  * for a spot — composed by `writeFace` as the record holds them. Returns `lampShadowFactor` at
  * `mip` for the point `P` of normal `N`: the offset point's place in the face it read, and the lit
  * fraction — the map holding, at each texel, the depth along the face's axis of the first plane
- * its ray meets.
+ * its ray meets. `develop` reads as develop did before #456: its bias, the face of `P`, and full
+ * light off that face.
  */
-export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[]) {
+export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], develop = false) {
   const at = light.position!,
     point = light.kind === 'point',
     m = new Float32Array(6 * 16);
@@ -62,9 +64,10 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[]) 
     const radius = Math.hypot(...sub(P, at)),
       cosine = clamp(-dot(N, sub(P, at)) / radius, 1e-3, 1);
     const texel = ((2 * tan * radius) / (LAMP_SIDE * SHADOW_PAGE)) * 2 ** mip;
-    const Q = along(P, N, normalOffset(texel, cosine)),
+    const [old, metres] = DEVELOP_BIAS(texel, cosine);
+    const Q = along(P, N, develop ? old : normalOffset(texel, cosine)),
       d = sub(Q, at);
-    const face = point ? pointFaceOf(d) : 0,
+    const face = point ? pointFaceOf(develop ? sub(P, at) : d) : 0,
       o = face * 16,
       matrix = m.subarray(o, o + 16);
     const [x, y, , w] = transformHomogeneousPoint([0, 0, 0, 0], matrix, Q[0], Q[1], Q[2]);
@@ -74,7 +77,10 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[]) 
     const slope = Math.sqrt(Math.max(1 - facing * facing, 0)) / (dot(d, d) * cosine);
     // The shader adds `k·margin` to a depth of `k/w` plus a constant: in the axial metres the map
     // stores, the reference is `1/(1/w + margin)`, the margin `w²·margin` only to first order.
-    const margin = depthMargin(texel, slope, 1 / (w * w)) + SHADOW_DEPTH_ROUNDING / k;
+    if (develop && Math.max(Math.abs(ndc[0]), Math.abs(ndc[1])) > 1) return { ndc, lit: 1 };
+    const margin = develop
+      ? metres / (w * w)
+      : depthMargin(texel, slope, 1 / (w * w)) + SHADOW_DEPTH_ROUNDING / k;
     const reference = 1 / (1 / w + margin);
     const t = [(ndc[0] * 0.5 + 0.5) * side, (0.5 - ndc[1] * 0.5) * side];
     const map = (cx: number, cy: number) => stored(face, (2 * cx) / side - 1, 1 - (2 * cy) / side);
