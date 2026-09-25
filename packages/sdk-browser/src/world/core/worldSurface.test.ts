@@ -182,7 +182,7 @@ test('a dashed line surface carries its dash and gap, and a repaint writes them'
     assert.deepEqual([lines.dashSize, lines.gapSize], [0, 0], `scale ${scale}`);
     for (let at = 0; at < 2; at += 0.05) assert.ok(lineDash(at, Number(lines.dashSize), 0));
   }
-  const solid = hostSurface(material.line(), false, new Map(), true);
+  const solid = hostSurface(material.line(), false, new Map(), 'lines');
   assert.equal(solid.dashSize, undefined);
   repaintHostSurface(solid, material.line());
   assert.equal(importHostSurface(solid)?.dashSize, undefined);

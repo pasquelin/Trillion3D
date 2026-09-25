@@ -24,7 +24,7 @@ function tokens(text: string) {
 const lift = (a: Value, b: Value, f: (x: number, y: number) => number): Value => {
   if (Array.isArray(a) || Array.isArray(b)) {
     const size = Array.isArray(a) ? a.length : (b as number[]).length;
-    const at = (v: Value, i: number) => (Array.isArray(v) ? v[i] : (v as number));
+    const at = (v: Value, i: number) => (Array.isArray(v) ? (v[i] as number) : (v as number));
     return Array.from({ length: size }, (_, i) => f(at(a, i), at(b, i)));
   }
   return f(a as number, b as number);
