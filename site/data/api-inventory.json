@@ -4216,8 +4216,11 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/advancedJoints.test.ts",
+        "packages/sdk-browser/src/physics/gearPhase.test.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/jointSprings.test.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/joints.test.ts"
       ],
       "disposition": "retained",
@@ -4231,6 +4234,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/physics/jointFrames.ts",
         "packages/sdk-browser/src/physics/jointList.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/joints.ts",
@@ -4242,46 +4246,46 @@
     {
       "name": "JointKind",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "definingModule": "packages/sdk-core/src/physics/jointOptions.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointKind"
+      "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointKind"
     },
     {
       "name": "JointLimits",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "definingModule": "packages/sdk-core/src/physics/jointOptions.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointLimits"
+      "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointLimits"
     },
     {
       "name": "JointMotor",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "definingModule": "packages/sdk-core/src/physics/jointOptions.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointMotor"
+      "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointMotor"
     },
     {
       "name": "JointOptions",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/physics/joint.ts",
+      "definingModule": "packages/sdk-core/src/physics/jointOptions.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".JointOptions"
+      "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointOptions"
     },
     {
       "name": "JsonSchemaObject",
@@ -5289,7 +5293,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/physics/joints.ts",
+        "packages/sdk-browser/src/physics/jointFrames.ts",
         "packages/sdk-browser/src/visibility/shader/shadingNormal.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts",
         "scripts/ltc-fit.ts"
@@ -5372,6 +5376,7 @@
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/contacts.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
+        "packages/sdk-browser/src/physics/jointFrames.ts",
         "packages/sdk-browser/src/physics/joints.ts",
         "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/poses.ts",
@@ -6956,7 +6961,7 @@
         "packages/sdk-browser/src/camera/controls/pivot.ts",
         "packages/sdk-browser/src/camera/controls/steering.fixture.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts",
-        "packages/sdk-browser/src/physics/joints.ts"
+        "packages/sdk-browser/src/physics/jointFrames.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/quaternion\".rotateByQuaternion"
@@ -7711,6 +7716,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/singular\".SINGULAR_DETERMINANT_WGSL"
+    },
+    {
+      "name": "SixDofAxis",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/jointOptions.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/jointFrames.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".SixDofAxis"
     },
     {
       "name": "SLICE_OFFSET_WORDS",
@@ -9142,7 +9158,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/pose/index.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/jointFrames.ts",
+        "packages/sdk-browser/src/world/pose/index.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector3\".Vec3Input"
     },
