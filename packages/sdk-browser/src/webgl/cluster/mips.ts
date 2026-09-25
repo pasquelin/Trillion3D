@@ -1,17 +1,6 @@
 import { createWebglProgram } from '../core/program.ts';
-import { CoverageReaders, mipsWeighByAlpha } from '../../texture/coverage.ts';
-import { surfaceOf } from '../../page/surface.ts';
-import type { HostMaterials } from '../../host/resources.ts';
-import {
-  previewLastLevel,
-  previewLevelSize,
-  type Texture,
-} from '../../../../sdk-core/src/index.ts';
-
-const VERTEX = `#version 300 es
-void main(){
- gl_Position=vec4(float((gl_VertexID&1)*4-1),float((gl_VertexID>>1)*4-1),0.0,1.0);
-}`;
+import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../core/fullscreenPass.ts';
+import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
 
 /**
  * The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`), line for line:
@@ -37,8 +26,25 @@ void main(){
  color=vec4(weighted&&any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,(u+v)*0.5);
 }`;
 
-/** The capabilities a reduction turns off, restored after it. */
-const TOGGLES = ['BLEND', 'CULL_FACE', 'DEPTH_TEST', 'SCISSOR_TEST', 'STENCIL_TEST'] as const;
+/** The capabilities a reduction turns off (`setFullscreenPassState`, and the stencil test),
+ *  restored after it. */
+const TOGGLES = [
+  'BLEND',
+  'CULL_FACE',
+  'DEPTH_TEST',
+  'DITHER',
+  'SCISSOR_TEST',
+  'STENCIL_TEST',
+] as const;
+
+/** A texture as the reducer reads it: its GL name, its format and size, its colour rule. */
+type Chain = {
+  texture: WebGLTexture;
+  format: number;
+  width: number;
+  height: number;
+  weighted?: boolean;
+};
 
 /**
  * The material mip chain on WebGL2 (#42): one draw per level into a framebuffer on that level, in
@@ -48,46 +54,41 @@ const TOGGLES = ['BLEND', 'CULL_FACE', 'DEPTH_TEST', 'SCISSOR_TEST', 'STENCIL_TE
  * program, framebuffer, viewport, vertex array, colour mask, capabilities — is restored after it,
  * so it may run in the middle of a pass.
  */
-export class WebglMipChains {
+export class WebglMipReducer {
   private gl: WebGL2RenderingContext;
-  private program: WebGLProgram | undefined;
-  private framebuffer: WebGLFramebuffer | undefined;
-  private vertexArray: WebGLVertexArrayObject | undefined;
-  /** The readers of each colour map in the frame (`follow`): they say whether its chain weighs
-   *  by alpha, and a chain is reduced again when their rule moves. */
-  private readers = new CoverageReaders();
-  /** Each texture's rule, read once a frame. */
-  private rules = new Map<Texture, boolean>();
+  private built:
+    | {
+        program: WebGLProgram;
+        source: WebGLUniformLocation | null;
+        weighted: WebGLUniformLocation | null;
+        framebuffer: WebGLFramebuffer;
+        vertexArray: WebGLVertexArrayObject;
+      }
+    | undefined;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
   }
-  /** A new frame: the readers of the colour maps are the surfaces it draws. */
-  follow(materials: Iterable<HostMaterials>) {
-    this.rules.clear();
-    this.readers.clear();
-    for (const material of materials) this.readers.read(surfaceOf(material));
+  private build() {
+    const gl = this.gl,
+      program = createWebglProgram(gl, FULLSCREEN_VERTEX, FRAGMENT);
+    return {
+      program,
+      source: gl.getUniformLocation(program, 'source'),
+      weighted: gl.getUniformLocation(program, 'weighted'),
+      framebuffer: gl.createFramebuffer()!,
+      vertexArray: gl.createVertexArray()!,
+    };
   }
-  /** Whether a texture's chain weighs by alpha in this frame (`mipsWeighByAlpha`). */
-  weighs(texture: Texture) {
-    let rule = this.rules.get(texture);
-    if (rule === undefined)
-      this.rules.set(texture, (rule = mipsWeighByAlpha(texture, this.readers.coverage(texture))));
-    return rule;
-  }
-  /** Draws levels 1… of `texture`, bound on the active `unit`'s TEXTURE_2D, each from the one
-   *  above it; `allocate` first gives them storage — a new size, or a first chain. */
-  reduce(
-    unit: number,
-    texture: WebGLTexture,
-    format: number,
-    [width, height]: readonly [number, number],
-    weighted: boolean,
-    allocate: boolean,
-  ) {
-    const gl = this.gl;
-    const levels = previewLastLevel(width, height) + 1;
+  /** Draws levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
+   *  one above it, `weighted` or not, which the chain keeps; `allocate` first gives them storage —
+   *  a new size, or a first chain. */
+  reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean) {
+    chain.weighted = weighted;
+    const gl = this.gl,
+      { texture, format, width, height } = chain;
+    const levels = mipLevelCountFor(width, height);
     if (levels === 1) return;
-    const program = (this.program ??= createWebglProgram(gl, VERTEX, FRAGMENT));
+    const built = (this.built ??= this.build());
     const saved = {
       program: gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null,
       framebuffer: gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null,
@@ -96,15 +97,15 @@ export class WebglMipChains {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: TOGGLES.map((name) => gl.isEnabled(gl[name])),
     };
-    for (const name of TOGGLES) gl.disable(gl[name]);
-    gl.colorMask(true, true, true, true);
-    gl.useProgram(program);
-    gl.uniform1i(gl.getUniformLocation(program, 'source'), unit);
-    gl.uniform1i(gl.getUniformLocation(program, 'weighted'), weighted ? 1 : 0);
-    gl.bindVertexArray((this.vertexArray ??= gl.createVertexArray()!));
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, (this.framebuffer ??= gl.createFramebuffer()!));
+    setFullscreenPassState(gl);
+    gl.disable(gl.STENCIL_TEST);
+    gl.useProgram(built.program);
+    gl.uniform1i(built.source, unit);
+    gl.uniform1i(built.weighted, weighted ? 1 : 0);
+    gl.bindVertexArray(built.vertexArray);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, built.framebuffer);
     for (let level = 1; level < levels; level++) {
-      const [w, h] = previewLevelSize(width, height, level);
+      const [w, h] = levelSize(width, height, level);
       if (allocate)
         gl.texImage2D(gl.TEXTURE_2D, level, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, level - 1);
@@ -130,9 +131,11 @@ export class WebglMipChains {
     TOGGLES.forEach((name, i) => saved.toggles[i] && gl.enable(gl[name]));
   }
   dispose() {
-    const gl = this.gl;
-    if (this.program) gl.deleteProgram(this.program);
-    if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
-    if (this.vertexArray) gl.deleteVertexArray(this.vertexArray);
+    const { gl, built } = this;
+    if (!built) return;
+    gl.deleteProgram(built.program);
+    gl.deleteFramebuffer(built.framebuffer);
+    gl.deleteVertexArray(built.vertexArray);
+    this.built = undefined;
   }
 }
