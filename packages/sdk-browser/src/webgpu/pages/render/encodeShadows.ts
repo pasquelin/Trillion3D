@@ -4,7 +4,9 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { pixelNearOf } from '../../../streaming/priority.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
-import { createShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
+import { createShadowStaticLayer, shadowLayerTexture } from '../../../gpu/shadow/staticLayer.ts';
+import { deviceMade } from '../../../gpu/core/errorScope.ts';
+import { shadowAtlasBytes } from '../../../gpu/shadow/atlas.ts';
 import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
@@ -82,8 +84,8 @@ export function planShadowRegions(
     plan.releaseDeferred();
     return 0;
   }
-  // The light cuts measure their error at the camera's threshold, budget included.
-  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError, rt.run.budgetPixelError);
+  // The light cuts measure their error at the camera's threshold.
+  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError);
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
   const box = lights.sceneBox(rt.layout);
   ensureStaticLayer(rt);
@@ -136,7 +138,9 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
 /**
  * The static layer is built the first time an object moves, with the pyramids of its pages and
  * the occlusion test of the moving casters; until they are ready, pages are drawn whole, every
- * caster at once. A device that refuses the layer keeps drawing them so.
+ * caster at once. A device that refuses the layer keeps drawing them so: its texture is allocated
+ * under an out-of-memory check (`deviceMade`), and a refusal is said under `gpu-out-of-memory`,
+ * never handed to the frame.
  */
 function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
@@ -144,9 +148,20 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
     return;
   lights.staticLayerPending = true;
-  const capacity = rt.layout.drawSlots;
-  createShadowStaticLayer(device, lights.plan.pool.side)
+  const capacity = rt.layout.rows.casterSlots,
+    side = lights.plan.pool.side;
+  deviceMade(device, () => shadowLayerTexture(device, side))
+    .then((texture) => {
+      if (texture) return createShadowStaticLayer(device, texture);
+      rt.diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the shadow static layer', {
+        kind: 'warning',
+        pool: 'shadow-static-layer',
+        requestedBytes: shadowAtlasBytes(side),
+        grantedBytes: null,
+      });
+    })
     .then(async (layer) => {
+      if (!layer) return;
       // The pyramids and the occlusion test read the layer: a device that refuses them keeps the
       // layer, and draws the moving casters untested.
       try {

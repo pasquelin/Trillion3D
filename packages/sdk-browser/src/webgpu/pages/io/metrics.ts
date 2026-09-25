@@ -44,11 +44,12 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   return {
     coverageReady: services.bootstrapState.ready,
     coverageBudgetLimited: run.coverageBudgetLimited,
-    budgetPixelError: run.budgetPixelError,
     frameHeld: run.frameHeld,
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
-    uncoveredTriangles: run.uncoveredTriangles,
+    // Both cuts draw what they select, so neither can tell a hole from its counters: the no-hole
+    // proof is on the drawn set (`page/cut/cutRule.test.ts`, `held-gpu-cut.browser.ts`).
+    uncoveredTriangles: null,
     drawnTriangles: run.drawnTriangles,
     residentPages: run.gpuFrameActive ? (stats?.residentPages ?? 0) : run.drawn.length,
     cacheEvictions: stats?.evictions ?? 0,

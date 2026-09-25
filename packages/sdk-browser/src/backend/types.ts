@@ -98,6 +98,9 @@ export interface RenderBackend extends BackendSceneUpdates {
     data: import('../page/decode/geometryPage.ts').DecodedGeometryPage,
   ): void;
   dropPage?(url: string): void;
+  /** Bytes of CPU tables the engine sized by the scene's pages once prepared, which the CPU total
+   *  holds beside the decoded pages (`../residency/memoryBudget.ts`). */
+  hostTableBytes?(): number;
   syncResident?(): void;
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
@@ -129,8 +132,6 @@ export interface BackendContext {
   /** What host-memory engines keep resident without a host ceiling; the WebGPU pool is in bytes. */
   residentPagesDefault?: number;
   maxCachedPages?: number;
-  /** Resident page/bundle bytes kept by the streamer; `DEFAULT_CACHED_BYTES` by default. */
-  maxCachedBytes?: number;
   pixelError?: number;
   lodAdaptive?: boolean;
   /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
@@ -142,6 +143,9 @@ export interface BackendContext {
   /** Summary suppresses per-frame trace records; trace is the default with an observer. */
   diagnosticDetail?: DiagnosticDetail;
   viewport?: [number, number];
+  /** Image pixels per CSS pixel, read each frame: the host's `pixelRatio`, which a resize may
+   *  change. A line's `linewidth` counts CSS pixels, as the reference's `LineMaterial` does. */
+  pixelRatio?: () => number;
   gpuDevice?: GPUDevice;
   gpuCanvas?: HTMLCanvasElement; // a host canvas dedicated to this WebGPU backend
   /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */

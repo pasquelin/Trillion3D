@@ -10,10 +10,19 @@ import type { Format } from 'esbuild';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { serverPort } from '../../kit/server/staticServer.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
+import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts';
 
 declare global {
   var ouvrirAppareil: typeof import('./webgpuDevice.ts').ouvrirAppareil;
+  var namedBufferEntries: typeof import('../../../packages/sdk-browser/src/gpu/core/computeBindings.ts').namedBufferEntries;
 }
+
+/**
+ * What the page holds before any probe runs: the device opener, and the engine's own bind-group
+ * builder, so a probe lays its buffers out under their shader names, never by position.
+ */
+export const PAGE_INIT_SCRIPT = `globalThis.ouvrirAppareil = ${ouvrirAppareil};
+globalThis.namedBufferEntries = ${namedBufferEntries};`;
 
 /**
  * Bundles a page module for the browser and returns the bundle text: as an IIFE under `nomGlobal`
@@ -43,8 +52,8 @@ export async function empaquetePage(
 /**
  * Serves an empty page on a free port, opens it in Chromium and evaluates `fonction(argument)`
  * there. `fonction` runs in the page: it sees only its argument, serialised, and returns JSON.
- * `globalThis.ouvrirAppareil` is installed ahead of time (`webgpuDevice.ts`), since a
- * serialised function does not see its module's scope.
+ * `globalThis.ouvrirAppareil` and `globalThis.namedBufferEntries` are installed ahead of time
+ * (`PAGE_INIT_SCRIPT`), since a serialised function does not see its module's scope.
  *
  * Options: `titre` (the page title), `script` (a bundle served on `/page.js` and loaded by the
  * page, for reproductions that need the engine's real modules) and `erreursPage` (an array that
@@ -68,7 +77,7 @@ export async function dansPageWebgpu<A, R>(
   try {
     const page = await browser.newPage();
     if (erreursPage) page.on('pageerror', (error) => erreursPage.push(error.message));
-    await page.addInitScript({ content: `globalThis.ouvrirAppareil = ${ouvrirAppareil};` });
+    await page.addInitScript({ content: PAGE_INIT_SCRIPT });
     await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
     // `page.evaluate`'s `PageFunction<A, R>` runs `argument` through Playwright's `Unboxed<A>`,
     // which only differs from `A` when it carries a `JSHandle` — never the plain data this harness

@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue un attributo di buffer da tutto il resto.",
       "type": "Come sono stati dichiarati i valori; un attributo in semi-float è mantenuto in precisione float.",
-      "normalized": "Se i numeri interi si leggono come valori tra 0 e 1.",
       "version": "Incrementato a ogni scrittura dichiarata: ciò che il mondo confronta per vedere che il contenuto è cambiato.",
       "array": "I numeri stessi.",
-      "itemSize": "Quanti numeri appartengono a un vertice: 3 per una posizione.",
       "count": "Quanti vertici descrivono i numeri.",
-      "needsUpdate": "`attribute.needsUpdate = true` dopo aver scritto `array`: il mondo lo rilegge.",
-      "getComponent": "Il numero `component` del vertice `index`.",
-      "getX": "Il primo numero del vertice `i`.",
-      "getY": "Il secondo numero del vertice `i`.",
-      "getZ": "Il terzo numero del vertice `i`.",
-      "getW": "Il quarto numero del vertice `i`.",
-      "setXYZ": "Scrive tre numeri per il vertice `i`.",
-      "setXY": "Scrive due numeri per il vertice `i`.",
-      "setX": "Scrive il primo numero del vertice `i`.",
-      "clone": "Un nuovo attributo con una copia dei numeri."
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica.",
+      "clone": "Un nuovo attributo con una copia dei numeri, del loro tipo, della normalizzazione e del nome.",
+      "kind": "L’attributo possiede il suo buffer.",
+      "updateRanges": "Intervalli di `array` scritti dall’ultimo caricamento, inviati da soli.",
+      "addUpdateRange": "Segna `count` numeri scritti a partire da `start`.",
+      "clearUpdateRanges": "Dimentica gli intervalli scritti, una volta caricati."
     }
   },
   "BufferNumbers": {
@@ -767,7 +761,7 @@
     "description": "Ciò che restituisce l'API pubblica è una di queste copie: un host che scrive nella copia ricevuta non cambia nulla nel motore, e un host che modifica una luce già inviata non cambia nulla nemmeno — la memorizzazione ha verificato la propria copia in ingresso. La copia viene fatta dove l'host legge, mai sul percorso dell'immagine: i backend leggono il record mantenuto e il buffer disposto, e non copiano nulla."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Formato di cache esterna richiesto per il BLEND in cluster; i manifesti sorgente mantengono il proprio formato."
+    "summary": "Formato di cache esterna richiesto per il BLEND in cluster (6 prima che `selectedNodes` diventasse un conteggio); i manifesti sorgente mantengono il proprio formato."
   },
   "clusterErrorAtDepth": {
     "summary": "Lo stesso errore proiettato quando la distanza del centro dall'asse di vista e la sua profondità (−z della vista) sono già note: un nodo che fissa pavimento e soffitto sulla stessa sfera condivide la sua profondità."
@@ -1277,7 +1271,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identità della cache per gli errori di DAG per cluster: l'errore QEM del gruppo proiettato attraverso la sfera del gruppo."
+    "summary": "Identità della cache per gli errori del DAG per cluster: errore QEM assoluto del gruppo su posizioni, normali e coordinate di texture, limitato all’estensione del gruppo; una cache v1 viene rifiutata."
   },
   "DagReport": {
     "summary": "Report del DAG di una primitiva; solo i suoi avvisi vengono usati dal motore.",
@@ -1701,7 +1695,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Formato di cache letto da questo motore.",
-    "description": "Il formato 5 porta `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; i formati 3 e 4 non hanno questo prodotto e vengono rifiutati in base al loro numero piuttosto che letti a metà."
+    "description": "Il formato 5 ha aggiunto `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; il formato 7 porta `selectedNodes` come conteggio, non come lista (#404). I formati precedenti vengono rifiutati in base al loro numero piuttosto che letti a metà."
   },
   "FrameInfo": {
     "summary": "Ciò che riceve un hook di fotogramma: i secondi dall'ultimo fotogramma e dall'inizio del mondo.",
@@ -1746,8 +1740,8 @@
       "transparentDrawCalls": "Chiamate di disegno trasparenti.",
       "transparentSubmittedTriangles": "Triangoli trasparenti inviati.",
       "coverageReady": "Il ripiego GPU iniziale completo è disponibile; nullo per motori senza questa garanzia.",
-      "coverageBudgetLimited": "Il dettaglio richiesto non può coesistere con il ripiego fissato nel budget di pagine GPU.",
-      "budgetPixelError": "Soglia minima di errore sullo schermo che il budget di pagine GPU impone al taglio, in pixel: `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Nullo per motori senza budget di pagine.",
+      "coverageBudgetLimited": "Il dettaglio richiesto chiede più pagine di quante ne contenga il budget di pagine GPU: il resto viene disegnato più grossolano.",
+      "budgetPixelError": "Solo WebGL2: soglia minima di errore sullo schermo che il suo budget di pagine impone al taglio, in pixel — `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Assente su WebGPU, dove solo la residenza rende l'immagine più grossolana. Nullo per motori senza budget di pagine.",
       "frameHeld": "Vero quando il fotogramma è stato mantenuto: né la scena, né la vista, né le risorse si sono mosse, nessun lavoro asincrono era in attesa, e nessuna fase CPU è girata. I pixel mostrati sono quelli del fotogramma originale, bit per bit. Ciò che HA FATTO il fotogramma mantenuto viene pubblicato così com'è, mai copiato dall'ultimo rendering completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contano solo la presentazione, e le durate CPU e GPU per fase valgono zero quando la fase non è girata, `null` quando nulla l'ha cronometrata. Un motore la cui immagine è una scena disegnata dall'adattatore testimone conta ciò che quell'adattatore ha inviato in quel fotogramma — nulla, per un fotogramma mantenuto. Ciò che MOSTRA il fotogramma mantenuto resta descritto dal taglio che ripropone: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` sono quelli del fotogramma originale, poiché è lo stesso taglio. Assente in un motore che non mantiene i propri fotogrammi.",
       "streamingError": "Errore di caricamento persistente; gli URL falliti chiedono di ricaricare l'esploratore dopo tre tentativi.",
       "gpuPassMs": "Ultima misurazione di pass GPU di questo motore; nullo quando il dispositivo non sa fare timestamp.",
@@ -2510,7 +2504,10 @@
       "array": "I numeri di ogni vertice, disposti uno dopo l'altro.",
       "stride": "Quanti numeri occupa ogni vertice.",
       "count": "Quanti vertici imballa.",
-      "attribute": "Un attributo estratto dal pacchetto, come attributo di float a parte."
+      "attribute": "Un attributo estratto dal pacchetto, come attributo a parte.",
+      "kind": "Una memoria che più attributi osservano.",
+      "version": "Incrementato da `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
     }
   },
   "invertMatrix4": {
@@ -3019,10 +3016,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3057,10 +3056,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3095,10 +3096,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3133,10 +3136,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3171,10 +3176,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3209,10 +3216,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3247,10 +3256,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3285,10 +3296,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3323,10 +3336,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3361,10 +3376,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3399,10 +3416,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3413,7 +3432,7 @@
     }
   },
   "material.lineDashed": {
-    "summary": "Disegna linee tratteggiate.",
+    "summary": "Disegna linee tratteggiate: `dashSize` disegnato, poi `gapSize` lasciato vuoto, lungo la linea.",
     "parameters": {
       "parameters": "Ciò che una pagina può dare a un membro di materiale; ogni campo è facoltativo.",
       "parameters.color": "Il colore di base.",
@@ -3437,10 +3456,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3451,7 +3472,7 @@
     }
   },
   "material.sprite": {
-    "summary": "Un'immagine piatta sempre rivolta verso la camera.",
+    "summary": "Un’immagine piatta sempre rivolta verso la camera (`object.sprite`), trasparente dove lo è la sua immagine, ruotata nell’immagine da `rotation` e più piccola in lontananza a meno che `sizeAttenuation` sia false.",
     "parameters": {
       "parameters": "Ciò che una pagina può dare a un membro di materiale; ogni campo è facoltativo.",
       "parameters.color": "Il colore di base.",
@@ -3475,10 +3496,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3513,10 +3536,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3571,10 +3596,12 @@
       "parameters.wireframe": "Disegna solo gli spigoli dei triangoli.",
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
-      "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
-      "parameters.dashSize": "Lunghezza di un trattino.",
-      "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
+      "parameters.sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "parameters.rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "parameters.dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "parameters.gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "parameters.scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "parameters.depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "parameters.depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -3634,10 +3661,12 @@
       "wireframe": "Disegna solo gli spigoli dei triangoli.",
       "flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "size": "Dimensione di un punto, per il materiale a punti.",
-      "sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "linewidth": "Larghezza di una linea.",
-      "dashSize": "Lunghezza di un trattino.",
-      "gapSize": "Lunghezza dello spazio tra due trattini.",
+      "sizeAttenuation": "Se punti e sprite diventano più piccoli con la distanza.",
+      "rotation": "Di quanto l’immagine di uno sprite è ruotata nell’immagine, in radianti, in senso antiorario.",
+      "linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
+      "dashSize": "Lunghezza di un tratto, in unità del mondo lungo la linea.",
+      "gapSize": "Lunghezza dello spazio tra due tratti, in unità del mondo lungo la linea.",
+      "scale": "Quanto viene allungata la distanza lungo una linea tratteggiata: 2 disegna tratti e spazi lunghi la metà.",
       "vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
       "depthWrite": "Se la superficie scrive la propria profondità, e nasconde ciò che viene disegnato dopo di essa.",
       "depthTest": "Se la superficie si nasconde dietro ciò che è già più vicino.",
@@ -4118,9 +4147,9 @@
     }
   },
   "object.sprite": {
-    "summary": "Un quadrato di un'unità rivolto verso `+z`, del tipo sprite.",
+    "summary": "Un’immagine piatta sempre rivolta verso la camera, ovunque guardi: un quadrato di un’unità, grande quanto la scala dello sprite e ruotato nell’immagine dalla `rotation` del suo materiale.",
     "parameters": {
-      "material": "Ciò che mostra il quadrato."
+      "material": "Cosa mostra il quadrato: un `material.sprite`."
     }
   },
   "Object3D": {
@@ -4162,6 +4191,52 @@
       "translateOnAxis": "Sposta il nodo lungo il proprio `axis`.",
       "getWorldDirection": "In quale direzione guarda il nodo nel mondo.",
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una."
+    }
+  },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Un cotone tessuto medio, kg/m²: le grammature tessili vanno da 0,15 a 0,25.",
+    "description": "Un tessuto cade allo stesso modo con qualsiasi massa; pesa contro i suoi spilli e ciò che incontra. La pelle di un volume è presa come un tessuto simile."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Dichiarata: la parte della sua sezione media — un quarto della sua area, per ogni forma convessa (Cauchy) — su cui un volume a riposo sul suolo si affloscia, il suo gas che vi preme il suo peso.",
+    "description": "La sua pressione predefinita è allora `4·m·g / (share·area)`: 31 Pa per una pelle di `SOFT_AREAL_DENSITY`. Metà parte, doppia pressione. Non supera mai il massimo che la sua pelle regge entro un decimo del suo volume a riposo."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Una corda di poliammide da 10 mm, kg/m: le tabelle dei produttori danno da 0,06 a 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Ciò che `obj.physics` accetta per un corpo morbido: i suoi vertici sono simulati uno a uno.",
+    "description": "La sua materia e la sua attrazione come quelle di un corpo rigido; niente smorzamento angolare, forma, sensore, CCD né detriti.",
+    "members": {
+      "damping": "La quota della velocità dei suoi vertici persa al secondo, `dv/dt = −c·v`, 0 o più.",
+      "pins": "Indici dei vertici della geometria tenuti dove sono: l’asta di una bandiera, il gancio di una corda.",
+      "mass": "Chilogrammi, ripartiti sui vertici secondo l’area (una corda: la lunghezza) che ciascuno regge; se omessi, `SOFT_AREAL_DENSITY` per m² (una corda: `SOFT_LINEAR_DENSITY` per m).",
+      "stretch": "Quanto cede uno spigolo quando è tirato, m/N (l’inverso della sua rigidezza): 0 non si allunga mai.",
+      "bend": "Quanto cede quando è piegato, rad/(N·m) (una corda: m/N); `Infinity` si piega liberamente."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Le opzioni di un corpo morbido: un tessuto, una corda, o un volume con la pressione del suo gas."
+  },
+  "SoftBodyType": {
+    "summary": "Un corpo morbido: un tessuto (i suoi triangoli, aperto), una corda (i suoi vertici, ognuno unito al successivo) o un volume (i suoi triangoli chiusi, sostenuto dal gas dentro)."
+  },
+  "SoftSettings": {
+    "summary": "Le opzioni di un corpo morbido una volta lette: ogni valore predefinito riempito.",
+    "members": {
+      "type": "Che cos’è.",
+      "pins": "I vertici della geometria tenuti al loro posto.",
+      "mass": "Chilogrammi, `undefined` per quelli della densità predefinita.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m); per una corda, m/N.",
+      "pressure": "Pa; `undefined` per la pressione predefinita di un volume (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Le opzioni di un volume: una mesh chiusa sostenuta dal gas dentro.",
+    "members": {
+      "type": "Un volume.",
+      "pressure": "La pressione del gas sopra quella dell’aria a riposo, Pa; schiacciato, sale mentre il volume cala (legge di Boyle). I triangoli devono guardare verso l’esterno. Se omessa, la pressione che posa il peso del volume su `SOFT_FOOTPRINT` della sua sezione media, o il massimo che la sua pelle regge se minore. Rifiutata oltre il massimo che la sua pelle regge entro un decimo del suo volume a riposo."
     }
   },
   "TransformNode": {
@@ -4326,10 +4401,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Ciò che restituisce un `cut`: le sue pagine, e la griglia di posizioni su cui sono state quantizzate.",
+    "summary": "Ciò che restituisce un `cut`: le sue pagine, e le griglie su cui sono state quantizzate.",
     "members": {
       "pages": "Le pagine scritte.",
       "positionExponent": "Passo della griglia delle posizioni, in potenza di due.",
+      "uvExponent": "Passo della griglia delle coordinate di texture, in potenza di due.",
       "maxPositionError": "Errore di posizione più grande su questa griglia."
     }
   },
@@ -6413,13 +6489,13 @@
     "members": {
       "geometryPoolCeiling": "Le riserve più grandi che un mondo può richiedere: i budget di partenza del motore.",
       "texturePoolCeiling": "La riserva di texture più grande che un mondo può richiedere, in byte.",
-      "geometryPool": "Byte di memoria GPU riservati alle pagine di geometria; impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre e al serbatoio delle texture.",
-      "texturePool": "Byte di memoria GPU riservati alle pagine di texture, `null` su un motore senza serbatoio di texture (WebGL2); impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre e al serbatoio di geometria.",
+      "geometryPool": "Byte di memoria GPU riservati alle pagine di geometria; impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre, alle sonde di rimbalzo e al serbatoio delle texture.",
+      "texturePool": "Byte di memoria GPU riservati alle pagine di texture, `null` su un motore senza serbatoio di texture (WebGL2); impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre, alle sonde di rimbalzo e al serbatoio di geometria.",
       "physics": "I limiti della fisica (corpi, triangoli, corpi decorativi, memoria), letti una volta all’avvio; superarne uno solleva `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte di memoria CPU che `raycast` tiene per gli alberi di triangoli, condivisi da tutti i mondi della pagina; oltre, l’albero usato meno di recente viene scartato. Impostalo per cambiare l’involucro.",
       "gpu": "Byte di memoria GPU che il mondo può occupare, tutti i serbatoi insieme; impostalo per ridisegnare ogni serbatoio secondo la regola di ripartizione (`split`). Un totale inferiore al serbatoio delle ombre viene rifiutato (`GPU_BUDGET_UNDER_SHADOW_POOL`). Mai letto dalla macchina.",
-      "cpu": "Byte di memoria CPU che il mondo può occupare: prima lo specchio host della tabella delle pagine d’ombra, poi le pagine decodificate; applicato al prossimo caricamento di scena. Un totale che non supera lo specchio viene rifiutato (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Mai letto dalla macchina.",
-      "split": "Come si dividono i due totali: il serbatoio delle ombre al suo massimo, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; lo specchio host della tabella delle ombre, poi la cache delle pagine decodificate prende il resto del totale CPU. Ciò che dà la regola, prima di un serbatoio impostato da solo."
+      "cpu": "Byte di memoria CPU che il mondo può occupare: prima lo specchio host della tabella delle pagine d’ombra, poi le pagine decodificate, le loro tabelle di manifesto, la loro coda di trasferimenti e le tabelle di taglio del motore insieme. Una modifica si applica subito: le pagine escono per ultimo uso finché non stanno nel totale. Un totale che non supera lo specchio viene rifiutato (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Mai letto dalla macchina.",
+      "split": "Come si dividono i due totali: il serbatoio delle ombre e le sonde di rimbalzo al loro massimo, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; lo specchio host della tabella delle ombre, poi la cache delle pagine decodificate prende il resto del totale CPU, intero, e al suo interno la sessione in corso riserva le sue tabelle di manifesto, la sua coda di trasferimenti e le tabelle di taglio del motore. Ciò che dà la regola, prima di un serbatoio impostato da solo."
     }
   },
   "world.diagnostic": {
@@ -6524,8 +6600,8 @@
       "transparentDrawCalls": "Chiamate di disegno trasparenti.",
       "transparentSubmittedTriangles": "Triangoli trasparenti inviati.",
       "coverageReady": "Il ripiego GPU iniziale completo è disponibile; nullo per motori senza questa garanzia.",
-      "coverageBudgetLimited": "Il dettaglio richiesto non può coesistere con il ripiego fissato nel budget di pagine GPU.",
-      "budgetPixelError": "Soglia minima di errore sullo schermo che il budget di pagine GPU impone al taglio, in pixel: `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Nullo per motori senza budget di pagine.",
+      "coverageBudgetLimited": "Il dettaglio richiesto chiede più pagine di quante ne contenga il budget di pagine GPU: il resto viene disegnato più grossolano.",
+      "budgetPixelError": "Solo WebGL2: soglia minima di errore sullo schermo che il suo budget di pagine impone al taglio, in pixel — `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Assente su WebGPU, dove solo la residenza rende l'immagine più grossolana. Nullo per motori senza budget di pagine.",
       "frameHeld": "Vero quando il fotogramma è stato mantenuto: né la scena, né la vista, né le risorse si sono mosse, nessun lavoro asincrono era in attesa, e nessuna fase CPU è girata. I pixel mostrati sono quelli del fotogramma originale, bit per bit. Ciò che HA FATTO il fotogramma mantenuto viene pubblicato così com'è, mai copiato dall'ultimo rendering completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contano solo la presentazione, e le durate CPU e GPU per fase valgono zero quando la fase non è girata, `null` quando nulla l'ha cronometrata. Un motore la cui immagine è una scena disegnata dall'adattatore testimone conta ciò che quell'adattatore ha inviato in quel fotogramma — nulla, per un fotogramma mantenuto. Ciò che MOSTRA il fotogramma mantenuto resta descritto dal taglio che ripropone: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` sono quelli del fotogramma originale, poiché è lo stesso taglio. Assente in un motore che non mantiene i propri fotogrammi.",
       "streamingError": "Errore di caricamento persistente; gli URL falliti chiedono di ricaricare l'esploratore dopo tre tentativi.",
       "gpuPassMs": "Ultima misurazione di pass GPU di questo motore; nullo quando il dispositivo non sa fare timestamp.",
@@ -6848,7 +6924,7 @@
       "renderOrder": "Il suo ordine di disegno tra le cose trasparenti.",
       "userData": "I dati propri della pagina, in JSON.",
       "children": "I nodi sotto di esso, in ordine.",
-      "mesh": "Numeri in `geometries` e `materials`, e come vengono letti i triangoli.",
+      "mesh": "Posizioni in `geometries` e `materials`, come si leggono i triangoli, e il centro di uno sprite.",
       "light": "Il tipo di una luce, i suoi colori, i suoi numeri, la sua direzione e i coefficienti della sonda.",
       "model": "Un modello compilato, tramite l'indirizzo del manifesto da cui è stato caricato: mai copiato dentro."
     }
@@ -6983,7 +7059,8 @@
       "threads": "Thread che fanno avanzare la simulazione, compreso quello del worker fisico. Sopra 1 serve una pagina isolata cross-origin (memoria condivisa); altrimenti la simulazione avanza su uno. Mai più dei core logici della macchina meno quello della pagina.",
       "bodyPairs": "Coppie di corpi i cui volumi si sovrappongono in un passo. Una pila densa ne ha circa quattro per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
       "contactConstraints": "Coppie a contatto risolte in un passo. Una pila ferma ne ha circa due per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
-      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato."
+      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato.",
+      "softVertices": "Vertici di tutti i corpi morbidi insieme (tessuti, corde, volumi). Ognuno è risolto a ogni passo e riletto dalla pagina, 12 byte per passo."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7009,11 +7086,12 @@
     "summary": "La fisica di un oggetto, come la tiene `obj.physics`: un registro vivo di ciò che il corpo è e fa.",
     "description": "Le scritture raggiungono la simulazione al passo successivo; `velocity` legge ciò che ha lasciato l’ultimo passo.",
     "members": {
-      "type": "Come si muove il corpo; riassegna `obj.physics` per cambiarlo.",
+      "type": "Come si muove il corpo, o il corpo morbido che è; riassegna `obj.physics` per cambiarlo.",
       "shape": "La forma dichiarata, se c’era.",
       "sensor": "Se il corpo segnala solo i contatti.",
       "ccd": "Se la collisione continua è attiva.",
       "decorative": "Se il corpo è un detrito decorativo.",
+      "damping": "La quota della sua velocità persa da sé ogni secondo, lineare e angolare (`dv/dt = −c·v`).",
       "velocity": "Velocità lineare, m/s, come l’ha lasciata l’ultimo passo; scrivila per lanciare il corpo.",
       "asleep": "Se il corpo dorme: fermo, e non più simulato finché qualcosa non lo sveglia.",
       "mass": "Massa in chilogrammi; `undefined` prende la densità del materiale per il volume.",
@@ -7023,7 +7101,9 @@
       "applyImpulse": "Spinge il corpo di colpo, un impulso in N·s attraverso il baricentro; lo sveglia.",
       "wake": "Sveglia il corpo, addormentato o no.",
       "on": "Chiama `handler` a un evento di contatto di questo corpo.",
-      "listens": "Se è impostato un gestore di contatto."
+      "listens": "Se è impostato un gestore di contatto.",
+      "soft": "Le impostazioni di un corpo morbido, con ogni valore predefinito riempito; `null` per un corpo rigido.",
+      "vertices": "I vertici di un corpo morbido come li ha lasciati l’ultimo tick: `x, y, z` per vertice della sua geometria, nel sistema proprio della geometria; `null` per un corpo rigido, e fino al suo primo tick."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7048,7 +7128,8 @@
       "ccd": "Collisione continua, per corpi piccoli e veloci che attraverserebbero pareti sottili.",
       "decorative": "Detriti: incontra solo il mondo statico ed è simulato solo a portata e in vista. Limitato da `budget.physics.decorative`.",
       "friction": "Sostituisce l’attrito del materiale, da 0 in su.",
-      "restitution": "Sostituisce il rimbalzo del materiale, da 0 a 1."
+      "restitution": "Sostituisce il rimbalzo del materiale, da 0 a 1.",
+      "damping": "Quanta velocità il corpo perde da sé, al secondo, come per l’aria e il rotolamento: `dv/dt = −c·v`, 0 o più, lineare e angolare a parte; 0 conserva tutto. Fissato alla creazione: riassegna `obj.physics` per cambiarlo."
     }
   },
   "PhysicsBudget": {
@@ -7061,7 +7142,8 @@
       "threads": "Thread che fanno avanzare la simulazione, compreso quello del worker fisico. Sopra 1 serve una pagina isolata cross-origin (memoria condivisa); altrimenti la simulazione avanza su uno. Mai più dei core logici della macchina meno quello della pagina.",
       "bodyPairs": "Coppie di corpi i cui volumi si sovrappongono in un passo. Una pila densa ne ha circa quattro per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
       "contactConstraints": "Coppie a contatto risolte in un passo. Una pila ferma ne ha circa due per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
-      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato."
+      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato.",
+      "softVertices": "Vertici di tutti i corpi morbidi insieme (tessuti, corde, volumi). Ognuno è risolto a ogni passo e riletto dalla pagina, 12 byte per passo."
     }
   },
   "PhysicsHost": {
@@ -7087,7 +7169,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Ciò che `obj.physics` può ricevere."
+    "summary": "Ciò che `obj.physics` può ricevere: un corpo rigido, o uno morbido (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Una forma di collisione, quando quella dedotta dalla geometria non va bene.",
@@ -7139,6 +7221,7 @@
       "bodies": "Corpi che la simulazione tiene.",
       "active": "Corpi svegli dopo l’ultimo tick.",
       "stepMs": "Millisecondi del worker per passo fisso, ultimo tick: l’orologio del worker, mai sommato a quello della pagina.",
+      "stepMaxMs": "Millisecondi del worker del passo fisso più lento dell’ultimo tick: un passo lento che la media nasconde.",
       "mainMs": "Millisecondi di pagina presi dalla fisica nell’ultimo fotogramma (la fase CPU `physics`).",
       "poses": "Pose restituite dall’ultimo tick.",
       "events": "Eventi di contatto restituiti dall’ultimo tick.",
@@ -7198,19 +7281,6 @@
       "steer": "Volante, da −1 tutto a sinistra a 1 tutto a destra.",
       "handbrake": "Se il freno a mano è tirato."
     }
-  },
-  "GraphAttribute": {
-    "members": {
-      "count": "Quanti vertici.",
-      "array": "La memorizzazione.",
-      "kind": "L’attributo possiede il suo buffer.",
-      "version": "Incrementato da `needsUpdate`.",
-      "updateRanges": "Intervalli di `array` scritti dall’ultimo caricamento, inviati da soli.",
-      "addUpdateRange": "Segna `count` numeri scritti a partire da `start`.",
-      "clearUpdateRanges": "Dimentica gli intervalli scritti, una volta caricati.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    },
-    "summary": "Un attributo che possiede la sua memoria: `itemSize` numeri per vertice, uno dopo l’altro."
   },
   "GraphGeometry": {
     "members": {
@@ -7306,34 +7376,6 @@
       "rotation": "La rotazione, in radianti."
     },
     "summary": "Un’immagine e lo stato di campionamento con cui è letta, e la trasformazione delle sue coordinate."
-  },
-  "GraphArray": {
-    "summary": "Gli array tipizzati che un attributo contiene."
-  },
-  "GraphElements": {
-    "summary": "L’uno o l’altro tipo di attributo."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Un attributo che osserva `itemSize` numeri a `offset` di ogni vertice di un buffer interlacciato.",
-    "members": {
-      "kind": "L’attributo osserva un buffer condiviso.",
-      "data": "Il buffer che osserva.",
-      "offset": "Dove iniziano i suoi numeri in ogni vertice.",
-      "array": "La memoria in cui vivono gli elementi.",
-      "count": "Quanti vertici.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Una memoria che più attributi osservano, un vertice ogni `stride` numeri.",
-    "members": {
-      "kind": "Una memoria che più attributi osservano.",
-      "count": "Quanti vertici.",
-      "version": "Incrementato da `needsUpdate`.",
-      "array": "La memoria.",
-      "stride": "Numeri per vertice.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    }
   },
   "GraphMesh": {
     "summary": "Un nodo disegnato: una geometria e la sua superficie, o una superficie per gruppo della geometria.",
@@ -7435,6 +7477,150 @@
       "pulley": "Una fune da `a` su due ruote (`over`) fino a `b`: uno sale mentre l’altro scende.",
       "gear": "Due ruote che girano insieme secondo `ratio`, ciascuna attorno al proprio perno (`axis`, `axisB`) e tenuta dal suo cardine (la ruota come suo `a`); quando `ratio` o 1 / `ratio` è intero, i loro denti mantengono anche la fase in cui sono stati creati.",
       "rackAndPinion": "Un pignone `a` che ruota attorno ad `axis` muove una cremagliera `b` lungo `axisB`, ciascuno tenuto dal suo cardine o giunto prismatico (il corpo come suo `a`), i denti mantenuti nella fase in cui sono stati creati."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Un attributo che osserva `itemSize` numeri a `offset` di ogni vertice di un buffer interlacciato.",
+    "members": {
+      "isInterleavedBufferAttribute": "Sempre `true`: distingue una vista interlacciata da tutto il resto.",
+      "kind": "L’attributo osserva un buffer condiviso.",
+      "data": "Il buffer che osserva.",
+      "offset": "Dove iniziano i suoi numeri in ogni vertice.",
+      "array": "La memoria in cui vivono gli elementi.",
+      "count": "Quanti vertici descrivono i numeri.",
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica.",
+      "clone": "I suoi numeri, copiati fuori dal pacchetto in un attributo che li possiede."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "L’uno o l’altro tipo di attributo: proprietario della sua memoria o vista su una memoria interlacciata."
+  },
+  "VertexElements": {
+    "summary": "Gli elementi di un attributo di vertice, letti e scritti per componente.",
+    "members": {
+      "name": "Il nome con cui è noto un bersaglio di morph; vuoto per gli altri.",
+      "itemSize": "Quanti numeri appartengono a un vertice: 3 per una posizione.",
+      "normalized": "Se i numeri interi si leggono come valori tra 0 e 1.",
+      "array": "La memoria in cui vivono gli elementi.",
+      "count": "Quanti vertici descrivono i numeri.",
+      "stored": "Il numero `component` del vertice `index` così com’è memorizzato; un intero normalizzato non scalato.",
+      "getComponent": "Il numero `component` del vertice `index`, letto come il numero che rappresenta.",
+      "setComponent": "Scrive il numero `component` del vertice `index`.",
+      "getX": "Il primo numero del vertice `i`.",
+      "getY": "Il secondo numero del vertice `i`.",
+      "getZ": "Il terzo numero del vertice `i`.",
+      "getW": "Il quarto numero del vertice `i`.",
+      "setX": "Scrive il primo numero del vertice `i`.",
+      "setY": "Scrive il secondo numero del vertice `i`.",
+      "setZ": "Scrive il terzo numero del vertice `i`.",
+      "setW": "Scrive il quarto numero del vertice `i`.",
+      "setXY": "Scrive due numeri per il vertice `i`.",
+      "setXYZ": "Scrive tre numeri per il vertice `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Le tre macchine da cui partono i veicoli, per tipo.",
+    "members": {
+      "car": "Una Chevrolet Corvette C5: trazione posteriore, 0,32 N·m per chilogrammo, sei marce.",
+      "motorcycle": "Una Yamaha XJ900 con il suo pilota: 0,26 N·m per chilogrammo, sei marce.",
+      "tracked": "Un M1 Abrams: una turbina a gas, 0,083 N·m per chilogrammo, quattro marce."
+    }
+  },
+  "Vehicle": {
+    "summary": "Un veicolo: un corpo portato su ruote dal vincolo di veicolo di Jolt, con motore, cambio, differenziali, sospensioni e barre antirollio, creato da `vehicle.*` e aggiunto alla simulazione da `world.physics.add`.",
+    "description": "È un `VehicleDriver`: `world.controls.vehicle = car` lo guida.",
+    "parameters": {
+      "options": "Ciò che accetta `vehicle.*`: le ruote, e quanti valori della macchina si vuole (`VehicleSpec`).",
+      "options.wheels": "Le ruote: mesh, figlie del corpo, ciascuna posta al suo centro come poggia su un terreno piano, l'asse lungo la x del corpo. Raggio e larghezza si leggono dai suoi limiti. Il corpo guarda verso −z: le ruote anteriori sterzano.",
+      "options.torquePerKg": "Coppia massima del motore per chilogrammo del corpo, in N·m/kg.",
+      "options.idleRPM": "Il minimo del motore, in giri/min.",
+      "options.maxRPM": "La zona rossa del motore, in giri/min.",
+      "options.torqueCurve": "Fino a cinque punti `[rpm / maxRPM, coppia / picco]`, frazioni di regime crescenti.",
+      "options.gears": "Fino a sei rapporti in avanti, la prima per prima.",
+      "options.reverse": "Il rapporto della retromarcia.",
+      "options.finalDrive": "Il rapporto al ponte (la riduzione alla ruota motrice di un cingolato).",
+      "options.shiftUpRPM": "Il cambio sale di marcia oltre questo valore, in giri/min.",
+      "options.shiftDownRPM": "E scala sotto questo valore, in giri/min.",
+      "options.clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i cingoli senza frizione (il controller cingolato di Jolt).",
+      "options.suspensionFrequency": "Frequenza delle sospensioni, in Hz.",
+      "options.suspensionDamping": "Rapporto di smorzamento, da 0 (nessuno) a 1 (critico).",
+      "options.suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, m; più lunga dell'abbassamento che la frequenza delle sospensioni chiede sulla Terra, `9.81 / (2π suspensionFrequency)²`, altrimenti rifiutata: oltre, la scocca poggia sui tamponi.",
+      "options.antiRoll": "La rigidezza di ogni barra antirollio rispetto alle molle del suo asse; 0 è nessuna. Solo auto: rifiutato su una moto (le sue due ruote non condividono un asse) e su un veicolo cingolato (le sue ruote non portano barre).",
+      "options.turnRadius": "Il raggio di sterzata a fine corsa, in metri. Rifiutato su un veicolo cingolato, che sterza con i cingoli.",
+      "options.steerTime": "Secondi dal centro al fine corsa dello sterzo.",
+      "options.brakeGrip": "L'attrito a cui i freni bloccano le ruote.",
+      "options.drive": "Le ruote motrici di un'auto. Rifiutato su una moto (la ruota posteriore è motrice) e su un veicolo cingolato (la ruota più arretrata di ogni cingolo è motrice).",
+      "options.trackTurn": "La velocità del cingolo interno di un veicolo cingolato che sterza in movimento, rispetto a quello esterno; da fermo ruota sul posto, cingolo interno invertito, qualunque sia questo rapporto. Rifiutato su un’auto o una moto.",
+      "options.maxLean": "La piega massima di una moto, in radianti. Rifiutato su un’auto o un veicolo cingolato."
+    },
+    "members": {
+      "kind": "Che cos'è il veicolo.",
+      "body": "Il corpo che le ruote portano.",
+      "wheels": "Le ruote, figlie del corpo.",
+      "spec": "La macchina: quella del suo tipo (`VEHICLE_SPECS`), con le opzioni sopra.",
+      "input": "I pedali e il volante che riceve adesso.",
+      "speed": "Metri al secondo in avanti dopo l'ultimo passo, negativi all'indietro.",
+      "rpm": "I giri al minuto del motore dopo l'ultimo passo.",
+      "gear": "La marcia dopo l'ultimo passo: da 1 in su avanti, −1 retromarcia, 0 folle.",
+      "drive": "Riceve i pedali e il volante, ogni volta che un tasto li cambia, quando comincia a essere guidato, e tutto rilasciato quando smette di esserlo."
+    }
+  },
+  "VehicleKind": {
+    "summary": "I veicoli della fisica, ciascuno sul vincolo di veicolo di Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Ciò che accetta `vehicle.*`: le ruote, e quanti valori della macchina si vuole (`VehicleSpec`).",
+    "members": {
+      "wheels": "Le ruote: mesh, figlie del corpo, ciascuna posta al suo centro come poggia su un terreno piano, l'asse lungo la x del corpo. Raggio e larghezza si leggono dai suoi limiti. Il corpo guarda verso −z: le ruote anteriori sterzano."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Di cosa è fatto un veicolo: motore, cambio, sospensioni, sterzo e freni, ogni valore predefinito quello di una macchina vera (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Coppia massima del motore per chilogrammo del corpo, in N·m/kg.",
+      "idleRPM": "Il minimo del motore, in giri/min.",
+      "maxRPM": "La zona rossa del motore, in giri/min.",
+      "torqueCurve": "Fino a cinque punti `[rpm / maxRPM, coppia / picco]`, frazioni di regime crescenti.",
+      "gears": "Fino a sei rapporti in avanti, la prima per prima.",
+      "reverse": "Il rapporto della retromarcia.",
+      "finalDrive": "Il rapporto al ponte (la riduzione alla ruota motrice di un cingolato).",
+      "shiftUpRPM": "Il cambio sale di marcia oltre questo valore, in giri/min.",
+      "shiftDownRPM": "E scala sotto questo valore, in giri/min.",
+      "clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i cingoli senza frizione (il controller cingolato di Jolt).",
+      "suspensionFrequency": "Frequenza delle sospensioni, in Hz.",
+      "suspensionDamping": "Rapporto di smorzamento, da 0 (nessuno) a 1 (critico).",
+      "suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, m; più lunga dell'abbassamento che la frequenza delle sospensioni chiede sulla Terra, `9.81 / (2π suspensionFrequency)²`, altrimenti rifiutata: oltre, la scocca poggia sui tamponi.",
+      "antiRoll": "La rigidezza di ogni barra antirollio rispetto alle molle del suo asse; 0 è nessuna. Solo auto: rifiutato su una moto (le sue due ruote non condividono un asse) e su un veicolo cingolato (le sue ruote non portano barre).",
+      "turnRadius": "Il raggio di sterzata a fine corsa, in metri. Rifiutato su un veicolo cingolato, che sterza con i cingoli.",
+      "steerTime": "Secondi dal centro al fine corsa dello sterzo.",
+      "brakeGrip": "L'attrito a cui i freni bloccano le ruote.",
+      "drive": "Le ruote motrici di un'auto. Rifiutato su una moto (la ruota posteriore è motrice) e su un veicolo cingolato (la ruota più arretrata di ogni cingolo è motrice).",
+      "trackTurn": "La velocità del cingolo interno di un veicolo cingolato che sterza in movimento, rispetto a quello esterno; da fermo ruota sul posto, cingolo interno invertito, qualunque sia questo rapporto. Rifiutato su un’auto o una moto.",
+      "maxLean": "La piega massima di una moto, in radianti. Rifiutato su un’auto o un veicolo cingolato."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "La macchina con cui parte ogni tipo di veicolo.",
+    "members": {
+      "car": "Una Chevrolet Corvette C5: trazione posteriore, 0,32 N·m per chilogrammo, sei marce.",
+      "motorcycle": "Una Yamaha XJ900 con il suo pilota: 0,26 N·m per chilogrammo, sei marce.",
+      "tracked": "Un M1 Abrams: una turbina a gas, 0,083 N·m per chilogrammo, quattro marce."
+    }
+  },
+  "vehicle": {
+    "summary": "La famiglia `vehicle`: un corpo e le sue ruote, guidati da `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Tre ruote o più su due assi o più, le anteriori sterzanti, quelle di `drive` motrici.",
+      "motorcycle": "Due ruote, l'anteriore sterzante, la posteriore motrice; si tiene dritta da sola.",
+      "tracked": "Ruote su due cingoli, sinistro e destro, ciascuno mosso dalla sua ruota più arretrata; sterza rallentando un cingolo, e ruota sul posto da fermo."
+    }
+  },
+  "Sprite": {
+    "summary": "Un’immagine piatta sempre rivolta verso la camera: un quadrato di un’unità che ogni renderer ruota verso l’immagine mentre disegna, attorno alla posizione dello sprite.",
+    "description": "La sua dimensione è la sua scala nel mondo su `x` e `y`; la sua rotazione nel piano dell’immagine è la `rotation` del suo materiale; la sua rotazione propria non viene letta. Uno sprite non proietta ombra.",
+    "members": {
+      "isSprite": "Sempre `true`: distingue uno sprite da qualsiasi altra mesh.",
+      "center": "Il punto dell’immagine che poggia sulla posizione dello sprite: `(0.5, 0.5)` il suo centro, `(0, 0)` il suo angolo in basso a sinistra, `(0.5, 0)` il centro del suo bordo inferiore."
     }
   }
 }

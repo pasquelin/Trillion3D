@@ -21,7 +21,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   visible: number;
   selectedTriangles: number;
   submittedTriangles: number;
-  uncoveredTriangles: number;
   frustumRejected: number;
   lodLevel: number;
   frame: number;
@@ -129,7 +128,6 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     visible: 0,
     selectedTriangles: 0,
     submittedTriangles: 0,
-    uncoveredTriangles: 0,
     frustumRejected: 0,
     lodLevel: 0,
     frame: 0,

@@ -13,8 +13,8 @@ import type { PageRec } from '../../page/selection/selection.ts';
 test('an instance changed or removed leaves the model and the other instances as they are', () => {
   const geometryOf = () => {
     const geometry = new G.GraphGeometry();
-    geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(9), 3));
-    geometry.setIndex(new G.GraphAttribute(new Uint32Array(3), 1));
+    geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(9), 3));
+    geometry.setIndex(new G.BufferAttribute(new Uint32Array(3), 1));
     return geometry;
   };
   const record = (clusterId: string, placement?: object) =>

@@ -1,12 +1,7 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './selection.ts';
 import { bytesOf, compactDrawnPages } from '../../../../../tests/kit/gpu/globals.ts';
 import { readDagUniforms } from '../../../../../tests/kit/gpu/mockCompute.ts';
-import {
-  SELECTION_HEADER_WORDS,
-  residentBase,
-  residentBit,
-  writeTriangleTotals,
-} from './layout.ts';
+import { SELECTION_HEADER_WORDS, childBase, residentFlags, writeTriangleTotals } from './layout.ts';
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
 
@@ -87,18 +82,18 @@ export function mockDagDevice(
             return;
           }
           const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
-          // Residency lives as bits behind the cold records: the double rereads it through the
-          // shared decoder, like the shader, rather than at a rank copied here.
+          // The rule's residency lives as bits behind the cold records: the double rereads it
+          // through the shared decoder, like the shader, rather than at a rank copied here.
           const bits = new Uint32Array(
             packed.pageCones.buffer,
             packed.pageCones.byteOffset,
             packed.pageCones.length,
           );
-          const base = residentBase(packed.pageCount);
           const resident = residentCut
-            ? Uint32Array.from({ length: packed.pageCount }, (_, id) =>
-                residentBit(bits, base, id) ? 1 : 0,
-              )
+            ? {
+                ready: residentFlags(bits, packed.pageCount),
+                childReady: residentFlags(bits, packed.pageCount, childBase(packed.pageCount)),
+              }
             : undefined;
           const result = evaluateDagSelectionKernel(packed, uniforms, resident);
           const out = byBinding.get(DAG_BINDING.out)!.data;
@@ -107,7 +102,6 @@ export function mockDagDevice(
           ints[0] = result.pageIds.length;
           ints[1] = result.frustumRejected;
           ints[2] = result.lodLevel;
-          ints[3] = result.complete === false ? 2 : 0;
           // The totals `dagMask` writes: without them adoption reads an image with no triangles.
           writeTriangleTotals(ints, result);
           ints.set(result.pageIds, SELECTION_HEADER_WORDS);

@@ -3,6 +3,10 @@ import { backgroundRgb, sampleLinear, sampleMap, triangleAt } from '../math.ts';
 import { shadingNormal } from './shadingNormal.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
 import type { EngineCamera } from '../../camera/world.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
+
+/** The roughness floor every shading path clamps to, read here as a number. */
+const FLOOR = Number(ROUGHNESS_FLOOR);
 
 /** Fixed hemispheric lighting of the CPU path: normalised sun, sky and ground. Nothing here
  *  depends on the pixel, yet everything was still recomputed — `Math.hypot` and the ground colour
@@ -73,7 +77,7 @@ export function shadeLit(
     Hz = hz / hLen;
   const NdotH = Math.max(0, Nx * Hx + Ny * Hy + Nz * Hz);
   const VdotH = Math.max(0, Vx * Hx + Vy * Hy + Vz * Hz);
-  const alpha = Math.max(0.0525, roughness) ** 2;
+  const alpha = Math.max(FLOOR, roughness) ** 2;
   const alpha2 = alpha * alpha;
   const dDenom = NdotH * NdotH * (alpha2 - 1) + 1;
   const D = alpha2 / (Math.PI * dDenom * dDenom);

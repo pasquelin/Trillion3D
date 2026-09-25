@@ -2,7 +2,9 @@ import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts';
 import { residentProxyWgsl } from './nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
+import { SURFACE_RAY_WGSL } from './reflectWgsl.ts';
 import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
+import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64;
@@ -58,19 +60,7 @@ fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  let angle=index*GOLDEN_ANGLE+rotation;
  return vec3f(radius*cos(angle),radius*sin(angle),z);
 }
-/**
- * Radiance a ray brings back: nothing if it hits nothing, the hit texel otherwise. It is a
- * read, not a compute: the surface cache already holds the outgoing radiance of that face.
- */
-fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
- let hit=traceProxy(origin,direction,reach);
- if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
- // The face that counts is the one looking at the ray: the proxy is two-sided by construction.
- let face=select(0u,1u,dot(proxyNormal(hit.triangle),direction)>0.0);
- let texel=hit.triangle*2u+face;
- if(texel>=arrayLength(&surface)){return vec4f(0.0,0.0,0.0,hit.distance);}
- return vec4f(surface[texel].rgb,hit.distance);
-}
+${SURFACE_RAY_WGSL}
 /** Partial sums of a group: nine basis accumulators, four of distance, one of travel. */
 var<workgroup> partial:array<array<vec3f,${BOUNCE_WORKGROUP}>,13>;
 var<workgroup> partialTravelled:array<f32,${BOUNCE_WORKGROUP}>;
@@ -108,15 +98,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   let sample=rayRadiance(origin,d,reach);
   let span=sample.w;
   travelled+=span;
-  sums[0]+=sample.rgb*0.2820948;
-  sums[1]+=sample.rgb*0.4886025*d.x;
-  sums[2]+=sample.rgb*0.4886025*d.y;
-  sums[3]+=sample.rgb*0.4886025*d.z;
-  sums[4]+=sample.rgb*1.0925484*d.x*d.y;
-  sums[5]+=sample.rgb*1.0925484*d.y*d.z;
-  sums[6]+=sample.rgb*0.3153916*(3.0*d.z*d.z-1.0);
-  sums[7]+=sample.rgb*1.0925484*d.x*d.z;
-  sums[8]+=sample.rgb*0.5462742*(d.x*d.x-d.y*d.y);
+  ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
   let weight=abs(d);
   let positive=select(vec3f(0.0),weight,d>vec3f(0.0));
   sums[9]+=positive*span;

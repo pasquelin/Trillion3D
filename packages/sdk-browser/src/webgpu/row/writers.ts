@@ -1,5 +1,5 @@
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
-import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD, packedRowBase } from './pageRow.ts';
+import { ROW_ID_BASE_WORD, packedRowBase, restampHizSlot } from './pageRow.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createPageRowWriter } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
@@ -37,7 +37,7 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageRec[], write
       base = to * rowWords;
     rows.pageTableFloats!.copyWithin(base, from * rowWords, (from + 1) * rowWords);
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(to);
-    ints[base + ROW_HIZ_SLOT_WORD] = to;
+    restampHizSlot(ints, base, to);
     rows.packedRecs[to] = rows.packedRecs[from];
     rows.packedPositions[to] = rows.packedPositions[from];
     rows.packedPageIndex[to] = page;

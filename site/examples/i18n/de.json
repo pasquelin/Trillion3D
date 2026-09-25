@@ -1972,6 +1972,16 @@
       "Look for": "Achte auf"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Zieh an der Deckkraft: der Schatten der mittleren Scheibe folgt ihr, bei 0 verschwunden, bei 1 voll.",
+    "controls": {
+      "opacity": "Deckkraft",
+      "sunHeight": "Sonnenhöhe"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Deckkraft der mittleren Scheibe"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben, und auf dem Eis die Tasten loslassen, um zu rutschen.",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "Aufzug",
       "load": "Gewichte",
       "rope": "Seillauf"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W oder ↑ gibt Gas, S oder ↓ bremst und fährt dann rückwärts, A D oder ← → lenken, Leertaste zieht die Handbremse. Wähle im Panel das Auto, das Motorrad oder den Panzer.",
+    "controls": {
+      "vehicle": "Fahrzeug",
+      "reset": "Wieder auf die Räder stellen"
+    },
+    "readouts": {
+      "speed": "Tempo",
+      "gear": "Gang",
+      "rpm": "Motor (U/min)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "Sportwagen",
+        "motorcycle": "Motorrad",
+        "tracked": "Panzer"
+      }
+    },
+    "words": {
+      "credit": "Tal für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "Die Fahne hängt am Mast, und die Seile schwingen unter dem Balken. Mach die Fahne steif oder lass die Seile dehnen.",
+    "controls": {
+      "stiff": "Steife Fahne",
+      "stretch": "Seildehnung",
+      "again": "Nochmal",
+      "slowMotion": "Zeitlupe"
+    },
+    "readouts": {
+      "vertices": "Eckpunkte",
+      "step": "Schritt"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Lass weiche Volumen auf die Stufe fallen. Stell den Druck ihres Gases ein, oder 0 für den Standard.",
+    "controls": {
+      "pressure": "Druck (Pa)",
+      "drop": "Fallen lassen",
+      "again": "Nochmal",
+      "slowMotion": "Zeitlupe"
+    },
+    "readouts": {
+      "volumes": "Volumen",
+      "awake": "Wach"
     }
   }
 }

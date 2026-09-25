@@ -9,6 +9,13 @@ import {
 import type { JoltModule } from './joltModule.ts';
 import type { CharacterReport } from './characterDriver.ts';
 import { eventsAt, resultWords, type FromPhysics } from './protocol.ts';
+import { createSoftTick } from './softTick.ts';
+
+/** A copy of the vehicles' state after the last step, or `null` without a vehicle. */
+const vehicles = (jolt: JoltModule) => {
+  const words = jolt.vehicles();
+  return words.length ? words.slice() : null;
+};
 
 /**
  * One tick's results in the physics worker: the poses and events of every step it takes, written
@@ -25,6 +32,7 @@ export function createTickResults(
   const slotOf = new Int32Array(budget.bodies),
     stamp = new Uint32Array(budget.bodies).fill(0xffffffff),
     events = eventsAt(budget);
+  const soft = createSoftTick();
   let out: Uint32Array | null = null,
     outBuffer: ArrayBuffer | null = null,
     staging: Uint32Array | null = null;
@@ -77,6 +85,7 @@ export function createTickResults(
       to.set(fresh, events + eventCount * EVENT_WORDS);
       eventCount += fresh.length / EVENT_WORDS;
       dropped += jolt.dropped();
+      soft.gather(jolt.soft());
       report();
     },
     /** Whether one more step's events surely fit in the tick's results. */
@@ -84,8 +93,7 @@ export function createTickResults(
     /** Hands the tick's results to the page, `water` the water's clock after them and its epoch;
      *  false while it holds both buffers. */
     post(
-      steps: number,
-      stepMs: number,
+      { steps, stepMs, stepMaxMs }: { steps: number; stepMs: number; stepMaxMs: number },
       active: number,
       character: () => CharacterReport | null,
       water: { readonly time: number; readonly epoch: number },
@@ -106,8 +114,11 @@ export function createTickResults(
         water: water.time,
         waterEpoch: water.epoch,
         stepMs,
+        stepMaxMs,
         active,
         character: character(),
+        vehicles: vehicles(jolt),
+        soft: soft.take(),
       };
       send({ type: 'results', buffer: outBuffer, ...message }, [outBuffer]);
       out = outBuffer = null;

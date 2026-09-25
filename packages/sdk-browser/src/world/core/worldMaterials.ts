@@ -9,7 +9,17 @@ import { composesWithBackground } from '../../scene/materialBlending.ts';
 /** The parameters a session reads as values — a page-table row's colour and numbers, a host
  *  surface's uniforms — and so the only ones written in place: none of them changes a shader, a
  *  resolve class or which pass draws the surface. */
-const VALUES = new Set(['color', 'emissive', 'emissiveIntensity', 'metalness', 'roughness']);
+const VALUES = new Set([
+  'color',
+  'emissive',
+  'emissiveIntensity',
+  'metalness',
+  'roughness',
+  'dashSize',
+  'gapSize',
+  'scale',
+  'rotation',
+]);
 
 /** One parameter value as a key: a texture by identity and its three counters — its picture's
  *  `version` left out when `pictures` is false —, a colour or a vector by its numbers, anything
@@ -65,7 +75,8 @@ export function createWorldMaterials() {
   /** The entry each material object was last read into, at its version: a material read again
    *  unchanged is neither a new entry nor a fold, and its key is not built again. */
   const known = new WeakMap<Material, { version: number; entry: MaterialEntry }>();
-  const repainted = new Set<MaterialEntry>();
+  /** The entries repainted since the last take, each with whether its values were written. */
+  const repainted = new Map<MaterialEntry, boolean>();
   const counts = { duplicates: 0 };
   let ids = 0;
   /** Writes `material`'s values into its sole entry, when nothing but values changed. */
@@ -75,6 +86,8 @@ export function createWorldMaterials() {
     if (!opaque(material) || !opaque(entry.material)) return false;
     if (materialKey(material, false) !== materialKey(entry.material, false)) return false;
     for (const field of VALUES) {
+      // A field the kind does not declare — a dash on a mesh material — is never added to its copy.
+      if (!(field in material)) continue;
       const value = material[field];
       if (value instanceof Color) (entry.material[field] as Color).copy(value);
       else entry.material[field] = value;
@@ -91,7 +104,7 @@ export function createWorldMaterials() {
     if (!pictures && !repaintValues(material, entry)) return false;
     entries.delete(entry.key);
     entries.set((entry.key = key), entry);
-    repainted.add(entry);
+    repainted.set(entry, !pictures || !!repainted.get(entry));
     return true;
   };
   return {
@@ -115,9 +128,10 @@ export function createWorldMaterials() {
       known.set(material, { version: material.version, entry });
       return entry;
     },
-    /** The entries repainted since the last call, handed over once. */
+    /** The entries repainted since the last call, handed over once; `values` false when only
+     *  their textures moved — a picture, a sampling, a placement —, which no value reads. */
     takeRepainted() {
-      const taken = [...repainted];
+      const taken = [...repainted].map(([entry, values]) => ({ entry, values }));
       repainted.clear();
       return taken;
     },

@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "始终为 `true`:用来把缓冲属性和其他对象区分开来。",
       "type": "这些值最初是如何声明的;半精度浮点属性会以单精度保存。",
-      "normalized": "整数值是否被读作 0 到 1 之间的数值。",
       "version": "每次声明式写入都会递增:世界靠比较它来判断内容是否发生了变化。",
       "array": "数值本身。",
-      "itemSize": "属于一个顶点的数字个数:位置是 3。",
       "count": "这些数字描述了多少个顶点。",
-      "needsUpdate": "写入 `array` 之后设置 `attribute.needsUpdate = true`:世界会重新读取它。",
-      "getComponent": "顶点 `index` 的第 `component` 个数字。",
-      "getX": "顶点 `i` 的第一个数字。",
-      "getY": "顶点 `i` 的第二个数字。",
-      "getZ": "顶点 `i` 的第三个数字。",
-      "getW": "顶点 `i` 的第四个数字。",
-      "setXYZ": "为顶点 `i` 写入三个数字。",
-      "setXY": "为顶点 `i` 写入两个数字。",
-      "setX": "为顶点 `i` 写入第一个数字。",
-      "clone": "一个带有数值副本的新属性对象。"
+      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。",
+      "clone": "一个新属性,带有这些数字、其类型、归一化和名称的副本。",
+      "kind": "该属性拥有自己的缓冲区。",
+      "updateRanges": "自上次上传以来写入的 `array` 范围，单独发送。",
+      "addUpdateRange": "将从 `start` 起的 `count` 个数标记为已写入。",
+      "clearUpdateRanges": "上传后忘记已写入的范围。"
     }
   },
   "BufferNumbers": {
@@ -279,7 +273,7 @@
     "summary": "从 stdin 发出协作式中止请求,到强制终止之间的宽限期。"
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "分簇 BLEND 所需的外层缓存格式版本;源清单保留自己的格式版本。"
+    "summary": "分簇 BLEND 所需的外层缓存格式版本(`selectedNodes` 改为计数之前为 6);源清单保留自己的格式版本。"
   },
   "COLUMN_KIND": {
     "summary": "二进制清单中每一列的存储方式:小数、整数,还是原始字节。",
@@ -715,7 +709,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "每簇 DAG 误差的缓存标识:投影到组包围球上的组 QEM 误差。"
+    "summary": "按簇 DAG 误差的缓存标识：组在位置、法线和纹理坐标上的绝对 QEM 误差，限制在组的范围内；v1 缓存会被拒绝。"
   },
   "DEFAULT_SCOPE": {
     "summary": "未指定时模型被编译所采用的范围:按页流式加载。"
@@ -989,7 +983,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "此运行时所读取的缓存格式。",
-    "description": "格式 5 携带 `scene-tables.json`,即预处理场景据以核对的节点表和材质表;格式 3 和 4 没有这项产物,会因版本号被直接拒绝,而不是被半途读取。"
+    "description": "格式 5 加入了 `scene-tables.json`,即预处理场景据以核对的节点表和材质表;格式 7 将 `selectedNodes` 写为计数而非列表(#404)。更早的格式会因版本号被直接拒绝,而不是被半途读取。"
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "视锥体六个平面所对应的浮点数个数。"
@@ -1068,8 +1062,8 @@
       "transparentDrawCalls": "透射绘制调用数。",
       "transparentSubmittedTriangles": "已发送的透射三角形数。",
       "coverageReady": "完整的初始 GPU 后备方案是否可用;在没有此保证的后端上为 null。",
-      "coverageBudgetLimited": "在 GPU 页面预算范围内,所请求的细节程度无法与固定的后备方案共存。",
-      "budgetPixelError": "GPU 页面预算对裁切施加的屏幕误差下限,单位像素:所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。在没有页面预算概念的引擎上为 null。",
+      "coverageBudgetLimited": "所请求的细节程度需要的页面多于 GPU 页面预算所能容纳的数量:其余部分以更粗糙的细节绘制。",
+      "budgetPixelError": "仅限 WebGL2:其页面预算对裁切施加的屏幕误差下限,单位像素——所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。WebGPU 上不存在,在那里只有驻留状态会使图像变粗糙。在没有页面预算概念的引擎上为 null。",
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
@@ -1479,7 +1473,10 @@
       "array": "每个顶点的数值,依次紧密排列。",
       "stride": "每个顶点占用多少个数字。",
       "count": "它打包了多少个顶点。",
-      "attribute": "从这个打包结构中取出的某一个属性,作为它自己独立的浮点属性。"
+      "attribute": "从这个打包结构中取出的某一个属性,作为它自己独立的属性。",
+      "kind": "由多个属性共同查看的一块存储。",
+      "version": "由 `needsUpdate` 递增。",
+      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
     }
   },
   "JobProgress": {
@@ -1789,10 +1786,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -1852,10 +1851,12 @@
       "wireframe": "只绘制三角形的边。",
       "flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "size": "点材质中,点的大小。",
-      "sizeAttenuation": "点是否会随距离变小。",
-      "linewidth": "线的宽度。",
-      "dashSize": "一段虚线的长度。",
-      "gapSize": "两段虚线之间空隙的长度。",
+      "sizeAttenuation": "点和精灵是否随距离变小。",
+      "rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -2079,6 +2080,52 @@
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "中等梭织棉布，kg/m²：织物克重在 0.15 到 0.25 之间。",
+    "description": "布在任何质量下下落都一样；它压在自己的钉点和所碰到的东西上。体的外皮当作这样的布。"
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "声明值：体静止在地面上时塌陷到的平均截面的比例——对任何凸形状都是其面积的四分之一（柯西）——内部气体在那里承托它的重量。",
+    "description": "它的默认压力于是为 `4·m·g / (share·area)`：外皮为 `SOFT_AREAL_DENSITY` 时是 31 Pa。比例减半，压力加倍。它从不超过外皮在静止体积十分之一以内所能承受的最大值。"
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "10 mm 聚酰胺绳，kg/m：制造商表格给出 0.06 到 0.07。"
+  },
+  "SoftBodyCommon": {
+    "summary": "`obj.physics` 对软体接受的内容：它的顶点被逐个模拟。",
+    "description": "其材质与重力作用同刚体；没有角阻尼、形状、传感器、CCD 或碎片。",
+    "members": {
+      "damping": "其顶点速度每秒损失的比例，`dv/dt = −c·v`，0 及以上。",
+      "pins": "几何中被固定在原处的顶点索引：旗杆、绳钩。",
+      "mass": "千克，按每个顶点承担的面积（绳：长度）分配到顶点；省略时为每 m² `SOFT_AREAL_DENSITY`（绳：每 m `SOFT_LINEAR_DENSITY`）。",
+      "stretch": "边被拉时让步多少，m/N（刚度的倒数）：0 永不拉伸。",
+      "bend": "弯折时让步多少，rad/(N·m)（绳：m/N）；`Infinity` 自由弯折。"
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "软体的选项：布、绳，或带有其气体压力的体。"
+  },
+  "SoftBodyType": {
+    "summary": "软体：布（它的三角形，开放）、绳（它的顶点，每个与下一个相连）或体（它的封闭三角形，由内部气体撑起）。"
+  },
+  "SoftSettings": {
+    "summary": "读取后的软体选项：每个默认值都已填入。",
+    "members": {
+      "type": "它是什么。",
+      "pins": "几何中固定在原处的顶点。",
+      "mass": "千克，`undefined` 表示按默认密度。",
+      "stretch": "m/N。",
+      "bend": "rad/(N·m)，绳为 m/N。",
+      "pressure": "Pa；`undefined` 表示体的默认压力（`SOFT_FOOTPRINT`）。"
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "体的选项：由内部气体撑起的封闭网格。",
+    "members": {
+      "type": "体。",
+      "pressure": "静止时气体高于空气的压力，Pa；被挤压时随体积减小而升高（玻意耳定律）。三角形必须朝外。省略时为把体的重量压在其平均截面的 `SOFT_FOOTPRINT` 上的压力；若外皮能承受的最大值更小，则取该值。超过外皮在静止体积十分之一以内所能承受的最大值时被拒绝。"
+    }
+  },
   "TransformNode": {
     "summary": "通过参考实现的矩阵读取的场景节点，保存在引擎的变换树中。",
     "members": {
@@ -2269,10 +2316,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "一次 `cut` 返回的内容:写出的页面,以及它们被量化时所依据的位置网格。",
+    "summary": "一次 `cut` 返回的内容:写出的页面,以及它们被量化时所依据的网格。",
     "members": {
       "pages": "写出的页面。",
       "positionExponent": "位置网格的步长,以 2 的幂次表示。",
+      "uvExponent": "纹理坐标网格的步长,以 2 的幂次表示。",
       "maxPositionError": "该网格上的最大位置误差。"
     }
   },
@@ -3919,13 +3967,13 @@
     "members": {
       "geometryPoolCeiling": "一个世界可以请求的最大池:引擎的初始预算。",
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
-      "geometryPool": "为几何页面保留的 GPU 内存字节数；设置它以改变范围，限于 `gpu` 在阴影和纹理池之外剩下的部分。",
-      "texturePool": "为纹理页面保留的 GPU 内存字节数，在没有纹理池的引擎（WebGL2）上为 `null`；设置它以改变范围，限于 `gpu` 在阴影和几何池之外剩下的部分。",
+      "geometryPool": "为几何页面保留的 GPU 内存字节数；设置它以改变范围，限于 `gpu` 在阴影、反弹探针和纹理池之外剩下的部分。",
+      "texturePool": "为纹理页面保留的 GPU 内存字节数，在没有纹理池的引擎（WebGL2）上为 `null`；设置它以改变范围，限于 `gpu` 在阴影、反弹探针和几何池之外剩下的部分。",
       "physics": "物理的上限（物体、三角形、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。",
       "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。",
       "gpu": "世界可占用的 GPU 内存字节数（所有池合计）；设置后按分配规则（`split`）重新划分每个池。低于阴影池的总量会被拒绝（`GPU_BUDGET_UNDER_SHADOW_POOL`）。从不从机器读取。",
-      "cpu": "世界可占用的 CPU 内存字节数：先是阴影页表的主机镜像，再是已解码页面；在下一次加载场景时生效。不超过镜像的总量会被拒绝（`CPU_BUDGET_UNDER_SHADOW_MIRROR`）。从不从机器读取。",
-      "split": "两个总量的分配方式：阴影池取其最大值，其余一半给几何池、一半给纹理池，各自不超过上限；CPU 总量先给阴影表的主机镜像，其余由已解码页面缓存占用。这是单独设置某个池之前规则给出的值。"
+      "cpu": "世界可占用的 CPU 内存字节数：先是阴影页表的主机镜像，再是已解码页面、其清单表、传输队列和引擎的切分表的总和。修改立即生效：页面按最后使用顺序离开，直到装得下。不超过镜像的总量会被拒绝（`CPU_BUDGET_UNDER_SHADOW_MIRROR`）。从不从机器读取。",
+      "split": "两个总量的分配方式：阴影池和反弹探针取其最大值，其余一半给几何池、一半给纹理池，各自不超过上限；CPU 总量先给阴影表的主机镜像，其余全部由已解码页面缓存占用，当前会话在其中预留清单表、传输队列和引擎的切分表。这是单独设置某个池之前规则给出的值。"
     }
   },
   "world.diagnostic": {
@@ -4016,8 +4064,8 @@
       "transparentDrawCalls": "透射绘制调用数。",
       "transparentSubmittedTriangles": "已发送的透射三角形数。",
       "coverageReady": "完整的初始 GPU 后备方案是否可用;在没有此保证的后端上为 null。",
-      "coverageBudgetLimited": "在 GPU 页面预算范围内,所请求的细节程度无法与固定的后备方案共存。",
-      "budgetPixelError": "GPU 页面预算对裁切施加的屏幕误差下限,单位像素:所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。在没有页面预算概念的引擎上为 null。",
+      "coverageBudgetLimited": "所请求的细节程度需要的页面多于 GPU 页面预算所能容纳的数量:其余部分以更粗糙的细节绘制。",
+      "budgetPixelError": "仅限 WebGL2:其页面预算对裁切施加的屏幕误差下限,单位像素——所请求的细节程度能够满足时为 `0`,否则为图像实际绘制所采用的、更粗糙的阈值。WebGPU 上不存在,在那里只有驻留状态会使图像变粗糙。在没有页面预算概念的引擎上为 null。",
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
@@ -5624,10 +5672,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5662,10 +5712,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5700,10 +5752,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5738,10 +5792,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5776,10 +5832,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5814,10 +5872,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5852,10 +5912,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5890,10 +5952,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5928,10 +5992,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -5966,10 +6032,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -6004,10 +6072,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -6018,7 +6088,7 @@
     }
   },
   "material.lineDashed": {
-    "summary": "绘制虚线。",
+    "summary": "绘制虚线：沿线先画 `dashSize`，再留空 `gapSize`。",
     "parameters": {
       "parameters": "页面可以传给材质成员的内容;每个字段都是可选的。",
       "parameters.color": "基础颜色。",
@@ -6042,10 +6112,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -6056,7 +6128,7 @@
     }
   },
   "material.sprite": {
-    "summary": "一张始终面向摄像机的平面图片。",
+    "summary": "始终面向相机的平面图片（`object.sprite`），图片透明的地方就透明，按 `rotation` 在画面中旋转，除非 `sizeAttenuation` 为 false，否则远处会变小。",
     "parameters": {
       "parameters": "页面可以传给材质成员的内容;每个字段都是可选的。",
       "parameters.color": "基础颜色。",
@@ -6080,10 +6152,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -6118,10 +6192,12 @@
       "parameters.wireframe": "只绘制三角形的边。",
       "parameters.flatShading": "让每个三角形呈现单一的平面明暗,显示出各个小平面。",
       "parameters.size": "点材质中,点的大小。",
-      "parameters.sizeAttenuation": "点是否会随距离变小。",
-      "parameters.linewidth": "线的宽度。",
-      "parameters.dashSize": "一段虚线的长度。",
-      "parameters.gapSize": "两段虚线之间空隙的长度。",
+      "parameters.sizeAttenuation": "点和精灵是否随距离变小。",
+      "parameters.rotation": "精灵的图片在画面中转了多少，以弧度计，逆时针方向。",
+      "parameters.linewidth": "线的宽度，以 CSS 像素计，在任何距离都相同。",
+      "parameters.dashSize": "一段虚线的长度，沿线以世界单位计。",
+      "parameters.gapSize": "两段虚线之间空隙的长度，沿线以世界单位计。",
+      "parameters.scale": "沿虚线的距离被拉伸多少：2 会把虚线段和空隙都画成一半长。",
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
@@ -6250,9 +6326,9 @@
     }
   },
   "object.sprite": {
-    "summary": "一个朝向 `+z` 方向的单位正方形,属于精灵(sprite)这一类型。",
+    "summary": "无论相机朝向哪里都始终面向相机的平面图片：一个单位正方形，大小等于精灵的缩放，并按其材质的 `rotation` 在画面中旋转。",
     "parameters": {
-      "material": "这个正方形所显示的内容。"
+      "material": "正方形显示的内容：一个 `material.sprite`。"
     }
   },
   "orthographicProjection": {
@@ -6848,7 +6924,7 @@
       "renderOrder": "它在透明物体之间的绘制顺序。",
       "userData": "页面自己的数据，JSON 格式。",
       "children": "它下面的节点，按顺序。",
-      "mesh": "在 `geometries` 和 `materials` 中的序号，以及三角形的读取方式。",
+      "mesh": "在 `geometries` 和 `materials` 中的序号、三角形的读取方式，以及精灵的中心。",
       "light": "光源的类型、颜色、数值、朝向和探针系数。",
       "model": "编译好的模型，按它加载时的清单地址记录：从不内嵌。"
     }
@@ -6983,7 +7059,8 @@
       "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
       "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
       "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
-      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。",
+      "softVertices": "所有软体同时的顶点（布、绳、体）。每个顶点每步求解一次，并由页面读回，每步 12 字节。"
     }
   },
   "GRAVITY_PRESETS": {
@@ -7009,11 +7086,12 @@
     "summary": "一个对象的物理，即 `obj.physics` 所持有的：物体是什么、做什么的实时记录。",
     "description": "写入在下一步到达模拟；`velocity` 读取上一步留下的值。",
     "members": {
-      "type": "物体如何运动；重新赋值 `obj.physics` 来改变。",
+      "type": "物体如何运动，或它是哪种软体；重新赋值 `obj.physics` 来改变。",
       "shape": "声明的形状（若有）。",
       "sensor": "物体是否只报告接触。",
       "ccd": "连续碰撞是否开启。",
       "decorative": "物体是否为装饰碎片。",
+      "damping": "每秒自行损失的速度比例，线速度与角速度（`dv/dt = −c·v`）。",
       "velocity": "线速度，m/s，即上一步留下的值；写入它可抛出物体。",
       "asleep": "物体是否在睡眠：静止，直到被唤醒前不再模拟。",
       "mass": "质量，单位千克；`undefined` 取材质密度乘以体积。",
@@ -7023,7 +7101,9 @@
       "applyImpulse": "立即推动物体，经质心施加以 N·s 计的冲量；并唤醒它。",
       "wake": "唤醒物体，无论是否在睡眠。",
       "on": "在此物体发生接触事件时调用 `handler`。",
-      "listens": "是否设置了接触处理器。"
+      "listens": "是否设置了接触处理器。",
+      "soft": "软体的设置，每个默认值都已填入；刚体为 `null`。",
+      "vertices": "软体的顶点，即最后一次 tick 留下的样子：其几何的每个顶点 `x, y, z`，在几何自身的坐标系中；刚体为 `null`，在第一次 tick 之前也是。"
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7048,7 +7128,8 @@
       "ccd": "连续碰撞，用于可能穿过薄墙的小而快的物体。",
       "decorative": "碎片：只与静态世界碰撞，且只在范围内并可见时模拟。受 `budget.physics.decorative` 限制。",
       "friction": "覆盖材质的摩擦，0 及以上。",
-      "restitution": "覆盖材质的回弹，0 到 1。"
+      "restitution": "覆盖材质的回弹，0 到 1。",
+      "damping": "物体每秒自行损失多少速度，如空气和滚动所致：`dv/dt = −c·v`，0 及以上，线速度与角速度分开；0 则全部保留。创建时设定：要更改，请重新设置 `obj.physics`。"
     }
   },
   "PhysicsBudget": {
@@ -7061,7 +7142,8 @@
       "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
       "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
       "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
-      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。",
+      "softVertices": "所有软体同时的顶点（布、绳、体）。每个顶点每步求解一次，并由页面读回，每步 12 字节。"
     }
   },
   "PhysicsHost": {
@@ -7087,7 +7169,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "可赋给 `obj.physics` 的值。"
+    "summary": "`obj.physics` 可以设为什么：刚体，或软体（`SoftBodyOptions`）。"
   },
   "PhysicsShape": {
     "summary": "碰撞形状，当由几何体推断的形状不合适时使用。",
@@ -7139,6 +7221,7 @@
       "bodies": "模拟持有的物体。",
       "active": "最近一次 tick 后仍活动的物体。",
       "stepMs": "worker 每个固定步的毫秒数，最近一次 tick：worker 自己的时钟，从不与页面时钟相加。",
+      "stepMaxMs": "上一个 tick 中最慢固定步的 worker 毫秒数：平均值掩盖的慢步。",
       "mainMs": "物理在最近一帧占用的页面毫秒数（CPU 阶段 `physics`）。",
       "poses": "最近一次 tick 返回的姿态。",
       "events": "最近一次 tick 返回的接触事件。",
@@ -7199,25 +7282,6 @@
       "handbrake": "手刹是否拉起。"
     }
   },
-  "GraphArray": {
-    "summary": "属性持有的类型化数组。"
-  },
-  "GraphAttribute": {
-    "summary": "拥有自己存储的属性：每个顶点 `itemSize` 个数，依次排列。",
-    "members": {
-      "kind": "该属性拥有自己的缓冲区。",
-      "count": "顶点数。",
-      "version": "由 `needsUpdate` 递增。",
-      "array": "存储区域。",
-      "updateRanges": "自上次上传以来写入的 `array` 范围，单独发送。",
-      "addUpdateRange": "将从 `start` 起的 `count` 个数标记为已写入。",
-      "clearUpdateRanges": "上传后忘记已写入的范围。",
-      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
-    }
-  },
-  "GraphElements": {
-    "summary": "两种属性中的任一种。"
-  },
   "GraphGeometry": {
     "summary": "网格绘制的属性、为其建立索引的三角形列表、移动它们的变形目标，以及在其上计算的局部包围盒和包围球。",
     "members": {
@@ -7242,28 +7306,6 @@
       "toNonIndexed": "不用索引绘制相同三角形的几何体：每个角都是独立的顶点。",
       "computeBoundingBox": "计算覆盖所有顶点的局部包围盒。",
       "computeBoundingSphere": "计算局部包围球：以包围盒为中心，延伸到最远的顶点。"
-    }
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "查看交错缓冲区每个顶点 `offset` 处 `itemSize` 个数的属性。",
-    "members": {
-      "kind": "该属性查看一个共享缓冲区。",
-      "data": "它所查看的缓冲区。",
-      "offset": "它的数值在每个顶点中的起始位置。",
-      "array": "元素所在的存储。",
-      "count": "顶点数量。",
-      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "由多个属性共同查看的一块存储，每 `stride` 个数为一个顶点。",
-    "members": {
-      "kind": "由多个属性共同查看的一块存储。",
-      "count": "顶点数量。",
-      "version": "由 `needsUpdate` 递增。",
-      "array": "存储。",
-      "stride": "每个顶点的数值个数。",
-      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。"
     }
   },
   "GraphMesh": {
@@ -7435,6 +7477,150 @@
       "pulley": "一根绳从 `a` 绕过两个轮（`over`）垂到 `b`：一边下降，另一边就上升。",
       "gear": "两个按 `ratio` 一起转动的轮，各绕自己的销轴（`axis`、`axisB`），由各自的铰链固定（轮为其 `a`）；当 `ratio` 或 1 / `ratio` 为整数时，齿也保持创建时的相位。",
       "rackAndPinion": "绕 `axis` 转动的小齿轮 `a` 带动齿条 `b` 沿 `axisB` 移动，各由自己的铰链或滑动关节固定（物体为其 `a`），齿保持创建时的相位。"
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "查看交错缓冲区每个顶点 `offset` 处 `itemSize` 个数的属性。",
+    "members": {
+      "isInterleavedBufferAttribute": "始终为 `true`:用来把交错视图和其他对象区分开来。",
+      "kind": "该属性查看一个共享缓冲区。",
+      "data": "它所查看的缓冲区。",
+      "offset": "它的数值在每个顶点中的起始位置。",
+      "array": "元素所在的存储。",
+      "count": "这些数字描述了多少个顶点。",
+      "needsUpdate": "写入 `array` 后设 `needsUpdate = true`：读取方会重新上传。",
+      "clone": "它自己的数字,从打包结构中复制到一个拥有它们的属性里。"
+    }
+  },
+  "VertexAttribute": {
+    "summary": "两种属性中的任一种:拥有自己的存储,或查看一个交错存储。"
+  },
+  "VertexElements": {
+    "summary": "一个顶点属性的元素,按分量读写。",
+    "members": {
+      "name": "变形目标的名称;其他属性为空。",
+      "itemSize": "属于一个顶点的数字个数:位置是 3。",
+      "normalized": "整数值是否被读作 0 到 1 之间的数值。",
+      "array": "元素所在的存储。",
+      "count": "这些数字描述了多少个顶点。",
+      "stored": "顶点 `index` 的第 `component` 个数字,按存储原样;归一化整数不做缩放。",
+      "getComponent": "顶点 `index` 的第 `component` 个数字,按其代表的数值读取。",
+      "setComponent": "写入顶点 `index` 的第 `component` 个数字。",
+      "getX": "顶点 `i` 的第一个数字。",
+      "getY": "顶点 `i` 的第二个数字。",
+      "getZ": "顶点 `i` 的第三个数字。",
+      "getW": "顶点 `i` 的第四个数字。",
+      "setX": "为顶点 `i` 写入第一个数字。",
+      "setY": "为顶点 `i` 写入第二个数字。",
+      "setZ": "为顶点 `i` 写入第三个数字。",
+      "setW": "为顶点 `i` 写入第四个数字。",
+      "setXY": "为顶点 `i` 写入两个数字。",
+      "setXYZ": "为顶点 `i` 写入三个数字。"
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "车辆起步所用的三台机器，按类型。",
+    "members": {
+      "car": "雪佛兰科尔维特 C5：后轮驱动，每千克 0.32 N·m，六挡。",
+      "motorcycle": "雅马哈 XJ900 与骑手：每千克 0.26 N·m，六挡。",
+      "tracked": "M1 艾布拉姆斯：燃气轮机，每千克 0.083 N·m，四挡。"
+    }
+  },
+  "Vehicle": {
+    "summary": "车辆：由 Jolt 的车辆约束架在车轮上的车身，带发动机、变速箱、差速器、悬架和防倾杆，由 `vehicle.*` 创建，并由 `world.physics.add` 加入模拟。",
+    "description": "它是一个 `VehicleDriver`：`world.controls.vehicle = car` 就能驾驶它。",
+    "parameters": {
+      "options": "`vehicle.*` 接受的内容：车轮，以及任意数量的机器参数（`VehicleSpec`）。",
+      "options.wheels": "车轮：车身的子网格，每个放在它平地着地时的中心，轮轴沿车身的 x 轴。半径和宽度从其包围盒读取。车身朝向 −z：前面的车轮转向。",
+      "options.torquePerKg": "车身每千克的发动机峰值扭矩，N·m/kg。",
+      "options.idleRPM": "发动机怠速，转/分。",
+      "options.maxRPM": "发动机红线，转/分。",
+      "options.torqueCurve": "最多五个点 `[rpm / maxRPM, 扭矩 / 峰值]`，转速比例递增。",
+      "options.gears": "最多六个前进挡传动比，一挡在先。",
+      "options.reverse": "倒挡的传动比。",
+      "options.finalDrive": "主减速比（履带车辆为主动轮减速）。",
+      "options.shiftUpRPM": "高于此值时升挡，转/分。",
+      "options.shiftDownRPM": "低于此值时降挡，转/分。",
+      "options.clutch": "每 rad/s 打滑的离合器扭矩，N·m·s；仅限汽车和摩托车，履带车辆会被拒绝：其发动机不经离合器直接驱动履带（Jolt 的履带控制器）。",
+      "options.suspensionFrequency": "悬架频率，Hz。",
+      "options.suspensionDamping": "阻尼比，从 0（无）到 1（临界）。",
+      "options.suspensionTravel": "车轮从完全伸展到完全压缩的行程，m；须长于悬架频率在地球上要求的下沉量 `9.81 / (2π suspensionFrequency)²`，否则被拒绝：超过它，车身会压在限位块上。",
+      "options.antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。仅限汽车：摩托车（两个车轮不共用车轴）和履带车辆（车轮不带稳定杆）上会被拒绝。",
+      "options.turnRadius": "满舵时的转弯半径，米。履带车辆靠履带转向，会被拒绝。",
+      "options.steerTime": "从中位打到满舵的秒数。",
+      "options.brakeGrip": "刹车锁死车轮时的摩擦。",
+      "options.drive": "汽车的驱动轮。摩托车（后轮驱动）和履带车辆（每条履带最后一个轮驱动）上会被拒绝。",
+      "options.trackTurn": "履带车辆行驶中转向时内侧履带相对外侧的速度比；静止时无论此比值如何，它都会反转内侧履带原地转向。汽车或摩托车上会被拒绝。",
+      "options.maxLean": "摩托车的最大倾角，弧度。汽车或履带车辆上会被拒绝。"
+    },
+    "members": {
+      "kind": "车辆的类型。",
+      "body": "车轮承载的车身。",
+      "wheels": "车轮，车身的子节点。",
+      "spec": "机器：其类型自带的（`VEHICLE_SPECS`），选项覆盖其上。",
+      "input": "它此刻接收的踏板和方向盘。",
+      "speed": "上一步之后向前的速度（米/秒），后退为负。",
+      "rpm": "上一步之后发动机的每分钟转速。",
+      "gear": "上一步之后的挡位：1 及以上为前进，−1 为倒挡，0 为空挡。",
+      "drive": "每次按键改变踏板和方向盘时、开始被驾驶时接收它们，停止被驾驶时接收全部松开的状态。"
+    }
+  },
+  "VehicleKind": {
+    "summary": "物理的车辆，每种都基于 Jolt 的车辆约束。"
+  },
+  "VehicleOptions": {
+    "summary": "`vehicle.*` 接受的内容：车轮，以及任意数量的机器参数（`VehicleSpec`）。",
+    "members": {
+      "wheels": "车轮：车身的子网格，每个放在它平地着地时的中心，轮轴沿车身的 x 轴。半径和宽度从其包围盒读取。车身朝向 −z：前面的车轮转向。"
+    }
+  },
+  "VehicleSpec": {
+    "summary": "车辆由什么组成：发动机、变速箱、悬架、转向和刹车，每个默认值都来自一台真实的机器（`VEHICLE_SPECS`）。",
+    "members": {
+      "torquePerKg": "车身每千克的发动机峰值扭矩，N·m/kg。",
+      "idleRPM": "发动机怠速，转/分。",
+      "maxRPM": "发动机红线，转/分。",
+      "torqueCurve": "最多五个点 `[rpm / maxRPM, 扭矩 / 峰值]`，转速比例递增。",
+      "gears": "最多六个前进挡传动比，一挡在先。",
+      "reverse": "倒挡的传动比。",
+      "finalDrive": "主减速比（履带车辆为主动轮减速）。",
+      "shiftUpRPM": "高于此值时升挡，转/分。",
+      "shiftDownRPM": "低于此值时降挡，转/分。",
+      "clutch": "每 rad/s 打滑的离合器扭矩，N·m·s；仅限汽车和摩托车，履带车辆会被拒绝：其发动机不经离合器直接驱动履带（Jolt 的履带控制器）。",
+      "suspensionFrequency": "悬架频率，Hz。",
+      "suspensionDamping": "阻尼比，从 0（无）到 1（临界）。",
+      "suspensionTravel": "车轮从完全伸展到完全压缩的行程，m；须长于悬架频率在地球上要求的下沉量 `9.81 / (2π suspensionFrequency)²`，否则被拒绝：超过它，车身会压在限位块上。",
+      "antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。仅限汽车：摩托车（两个车轮不共用车轴）和履带车辆（车轮不带稳定杆）上会被拒绝。",
+      "turnRadius": "满舵时的转弯半径，米。履带车辆靠履带转向，会被拒绝。",
+      "steerTime": "从中位打到满舵的秒数。",
+      "brakeGrip": "刹车锁死车轮时的摩擦。",
+      "drive": "汽车的驱动轮。摩托车（后轮驱动）和履带车辆（每条履带最后一个轮驱动）上会被拒绝。",
+      "trackTurn": "履带车辆行驶中转向时内侧履带相对外侧的速度比；静止时无论此比值如何，它都会反转内侧履带原地转向。汽车或摩托车上会被拒绝。",
+      "maxLean": "摩托车的最大倾角，弧度。汽车或履带车辆上会被拒绝。"
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "每种载具起步时的机器。",
+    "members": {
+      "car": "雪佛兰科尔维特 C5：后轮驱动，每千克 0.32 N·m，六个挡位。",
+      "motorcycle": "雅马哈 XJ900 及其骑手：每千克 0.26 N·m，六个挡位。",
+      "tracked": "M1 艾布拉姆斯：燃气轮机，每千克 0.083 N·m，四个挡位。"
+    }
+  },
+  "vehicle": {
+    "summary": "`vehicle` 家族：由 `world.controls` `'vehicle'` 驾驶的车身及其车轮。",
+    "members": {
+      "car": "两根或以上车桥上的三个或以上车轮，前轮转向，`drive` 所指的车轮驱动。",
+      "motorcycle": "两个车轮，前轮转向，后轮驱动；它自己保持直立。",
+      "tracked": "装在左右两条履带上的车轮，每条履带由最后面的车轮驱动；减慢一条履带来转向，静止时原地转向。"
+    }
+  },
+  "Sprite": {
+    "summary": "始终面向相机的平面图片：每个渲染器在绘制时都会绕精灵的位置把它转向画面的单位正方形。",
+    "description": "它的大小是它在 `x` 和 `y` 上的世界缩放；它在画面平面中的旋转是其材质的 `rotation`；它自身的旋转不会被读取。精灵不投射阴影。",
+    "members": {
+      "isSprite": "始终为 `true`：把精灵与其他任何网格区分开。",
+      "center": "图片中落在精灵位置上的点：`(0.5, 0.5)` 是中间，`(0, 0)` 是左下角，`(0.5, 0)` 是下边的中点。"
     }
   }
 }
