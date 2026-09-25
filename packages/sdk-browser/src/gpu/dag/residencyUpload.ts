@@ -1,6 +1,7 @@
 import type { ResidencyChanges } from '../core/selection.ts';
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/residency/ranges.ts';
 import { childBase, residentBase, residentWords } from './layout.ts';
+import { grown } from '../../page/cut/sparseInts.ts';
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
 import { createDagReadiness } from './readiness.ts';
 
@@ -12,7 +13,8 @@ import { createDagReadiness } from './readiness.ts';
  * the top writes, not the pages. Returns their count.
  */
 export function updateResidencyBits(
-  next: ArrayLike<number>,
+  next: (page: number) => boolean,
+  pageCount: number,
   bits: Uint32Array,
   base: number,
   changes: ResidencyChanges | undefined,
@@ -24,21 +26,23 @@ export function updateResidencyBits(
     const word = j >>> 5,
       mask = 1 << (j & 31),
       current = bits[base + word];
-    if (((current & mask) !== 0) === !!next[j]) return;
-    bits[base + word] = next[j] ? current | mask : current & ~mask;
+    const value = next(j);
+    if (((current & mask) !== 0) === value) return;
+    bits[base + word] = value ? current | mask : current & ~mask;
     if (word === last) return;
     touched[count++] = word;
     last = word;
   };
   if (changes?.sorted) for (let i = 0; i < changes.count; i++) apply(changes.pages[i]);
-  else for (let j = 0; j < next.length; j++) apply(j);
+  else for (let j = 0; j < pageCount; j++) apply(j);
   return count;
 }
 
 /**
  * The kernel's residency, kept by difference: the pool's per-page residency goes in, the cut
  * rule's two bit sets and the nodes' open counts come out (`readiness.ts`), and only the word and
- * node ranges that changed are written. Returns whether anything did.
+ * node ranges that changed are written. Returns whether anything did. Its change lists grow to the
+ * largest change seen, never to the catalogue.
  */
 export function createDagResidencyUpload(resources: {
   device: GPUDevice;
@@ -56,12 +60,12 @@ export function createDagResidencyUpload(resources: {
     packed.pageCones.length,
   );
   /** Words or nodes the last apply changed, and the ranges that cover them. */
-  const touched = new Int32Array(Math.max(1, residentWords(pageCount), packed.nodeCount));
+  let touched = new Int32Array(8);
   const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
-  const changed = { pages: new Int32Array(Math.max(1, pageCount)), count: 0, sorted: true };
+  const changed = { pages: new Int32Array(8), count: 0, sorted: true };
   const sets = [
-    { values: readiness.ready, base: residentBase(pageCount) },
-    { values: readiness.childReady, base: childBase(pageCount) },
+    { values: readiness.isReady, base: residentBase(pageCount) },
+    { values: readiness.isChildReady, base: childBase(pageCount) },
   ];
   /** One write per contiguous range of the `count` sorted ranks of `touched`, `stride` words each
    *  from `base`: a thousand small writes are not worth the single one they replace. */
@@ -85,9 +89,27 @@ export function createDagResidencyUpload(resources: {
       );
     }
   };
+  // Nothing is resident yet: both bit sets and every node count are written whole, once, from the
+  // readiness's state with nothing resident; from then on only what moves is.
+  const words = new Int32Array(Math.max(1, residentWords(pageCount)));
+  for (const { values, base } of sets)
+    updateResidencyBits(values, pageCount, bits, base, undefined, words);
+  const whole = (target: GPUBuffer, source: Float32Array, from: number, words: number) =>
+    device.queue.writeBuffer(
+      target,
+      from * 4,
+      source.buffer as ArrayBuffer,
+      source.byteOffset + from * 4,
+      words * 4,
+    );
+  whole(pageCones, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount));
+  whole(nodes, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
   const apply = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
     const settled = readiness.apply(next, changes);
     if (!settled.pages.length && !settled.nodes.length) return false;
+    const most = Math.max(settled.pages.length, settled.nodes.length);
+    if (changed.pages.length < most) changed.pages = grown(changed.pages, most);
+    if (touched.length < most) touched = grown(touched, most);
     changed.pages.set(settled.pages);
     changed.count = settled.pages.length;
     for (const { values, base } of sets)
@@ -96,14 +118,15 @@ export function createDagResidencyUpload(resources: {
         packed.pageCones,
         base,
         1,
-        updateResidencyBits(values, bits, base, changed, touched),
+        updateResidencyBits(values, pageCount, bits, base, changed, touched),
       );
     touched.set(settled.nodes);
     upload(nodes, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length);
     return true;
   };
-  /** Bytes of the host tables: the readiness and this upload's change lists. */
-  const hostBytes =
-    readiness.hostBytes + touched.byteLength + ranges.byteLength + changed.pages.byteLength;
-  return Object.assign(apply, { hostBytes });
+  return Object.defineProperty(apply, 'hostBytes', {
+    /** Bytes of the host tables: the readiness and this upload's change lists. */
+    get: () =>
+      readiness.hostBytes + touched.byteLength + ranges.byteLength + changed.pages.byteLength,
+  }) as typeof apply & { readonly hostBytes: number };
 }

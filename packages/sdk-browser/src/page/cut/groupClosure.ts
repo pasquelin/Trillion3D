@@ -1,6 +1,7 @@
 import type { PageRec } from '../selection/selection.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import type { IdDelta } from '../../webgpu/cut/delta.ts';
+import { createSparseInts, grown } from './sparseInts.ts';
 
 /**
  * What the cache must hold for the cut to draw what it asks for: whole groups, closed upward.
@@ -18,95 +19,106 @@ import type { IdDelta } from '../../webgpu/cut/delta.ts';
  */
 export type GroupClosure = ReturnType<typeof createGroupClosure>;
 
+/**
+ * Every table is sparse (`./sparseInts.ts`): it holds the groups and pages the cut closes over,
+ * never the placements' catalogue (#483 rule 6). A placement's pages are packed contiguously from
+ * its first page's `packedIndex`, and a group is keyed by its first member's packed id, which no
+ * other group shares.
+ */
 export function createGroupClosure(
   roots: readonly ClusterRoot<PageRec>[],
-  packedPages: readonly PageRec[],
+  /** The packed catalogue `apply` and `closeOver` read ids in; `closeOverRecords` needs none. */
+  packedPages: readonly PageRec[] = [],
 ) {
-  const pageBase = new Int32Array(Math.max(1, roots.length)),
-    groupBase = new Int32Array(Math.max(1, roots.length));
-  let pages = 0,
-    groups = 0;
-  roots.forEach((root, r) => {
-    pageBase[r] = pages;
-    groupBase[r] = groups;
-    pages += root.pages.length;
-    groups += root.structure?.groupCount ?? 0;
-  });
-  const heldGroups = new Int32Array(Math.max(1, groups)),
-    heldPages = new Int32Array(Math.max(1, packedPages.length)),
-    /** Pages whose count moved in this difference, and whether each was held before it. */
-    touched: number[] = [],
-    before = new Uint8Array(Math.max(1, packedPages.length)),
-    seen = new Uint8Array(Math.max(1, packedPages.length));
-  const capacity = Math.max(1, packedPages.length);
+  /** Holders per group and per page, and the pages whose count moved in this difference with
+   *  whether each was held before it (1 no, 2 yes). */
+  const heldGroups = createSparseInts(),
+    heldPages = createSparseInts(),
+    seen = createSparseInts(),
+    touched: number[] = [];
   const delta = {
-    entered: new Int32Array(capacity),
-    exited: new Int32Array(capacity),
+    entered: new Int32Array(8),
+    exited: new Int32Array(8),
     enteredCount: 0,
     exitedCount: 0,
-    has: (id: number) => heldPages[id] > 0,
+    has: (id: number) => heldPages.get(id) > 0,
   };
-  /** Group stamps of one `closeOver` walk. */
-  const walked = new Uint32Array(Math.max(1, groups));
-  let walk = 0,
-    /** What a walk does: counts `step` on what it reaches, or hands each page to `visitor`. */
+  /** Groups one `closeOver` walk reached. */
+  const walked = createSparseInts();
+  let /** What a walk does: counts `step` on what it reaches, or hands each page to `visitor`. */
     step = 0,
-    visitor: ((id: number) => void) | undefined;
-  const touch = (id: number) => {
-    if (visitor) return visitor(id);
-    if (!seen[id]) {
-      seen[id] = 1;
-      before[id] = heldPages[id] > 0 ? 1 : 0;
+    visitor: ((id: number, rec: PageRec) => void) | undefined;
+  const baseOf = (r: number) => roots[r].pages[0]?.packedIndex ?? 0;
+  const touchId = (id: number, rec: PageRec) => {
+    if (visitor) return visitor(id, rec);
+    if (!seen.get(id)) {
+      seen.set(id, heldPages.get(id) > 0 ? 2 : 1);
       touched.push(id);
     }
-    heldPages[id] += step;
+    heldPages.add(id, step);
   };
+  const touch = (r: number, page: number) => touchId(baseOf(r) + page, roots[r].pages[page]);
   /** Group `g` of placement `r` and what it holds: its members, and each output's own group — the
    *  output itself when nothing replaces it. A counted group is walked when it is first held or
    *  last released; a visited one once per walk. */
   const reach = (r: number, g: number) => {
-    const at = groupBase[r] + g;
-    if (visitor) {
-      if (walked[at] === walk) return;
-      walked[at] = walk;
-    } else {
-      const was = heldGroups[at] > 0;
-      heldGroups[at] += step;
-      if (was === heldGroups[at] > 0) return;
-    }
     const s = roots[r].structure!,
-      base = pageBase[r];
-    for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++) touch(base + s.children[i]);
+      key = baseOf(r) + s.children[s.childOffsets[g]];
+    if (visitor) {
+      if (walked.set(key, 1)) return;
+    } else {
+      const count = heldGroups.add(key, step);
+      if (count - step > 0 === count > 0) return;
+    }
+    for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++) touch(r, s.children[i]);
     for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
       const output = s.outputs[i],
         owner = s.owners[output];
       if (owner >= 0) reach(r, owner);
-      else touch(base + output);
+      else touch(r, output);
     }
   };
-  /** Packed page `id` enters through its own group, or alone when nothing replaces it. */
-  const enter = (id: number) => {
-    const r = packedPages[id]?.placementIndex ?? -1,
-      structure = roots[r]?.structure,
-      owner = structure ? structure.owners[id - pageBase[r]] : -1;
+  /** A page enters through its own group, or alone when nothing replaces it. */
+  const enterAs = (id: number, rec: PageRec) => {
+    const r = rec.placementIndex ?? -1,
+      owner = r >= 0 ? (roots[r]?.structure?.owners[id - baseOf(r)] ?? -1) : -1;
     if (owner >= 0) reach(r, owner);
-    else touch(id);
+    else touchId(id, rec);
+  };
+  const enter = (id: number) => {
+    const rec = packedPages[id];
+    if (rec) enterAs(id, rec);
+  };
+  const endWalk = () => {
+    visitor = undefined;
+    walked.clear();
   };
   return {
     delta: delta as IdDelta,
-    /** Bytes of the tables above, sized by the placements' pages and groups: the CPU budget holds
-     *  them on WebGPU (`../../residency/memoryBudget.ts`). */
-    hostBytes: [heldGroups, heldPages, before, seen, delta.entered, delta.exited, walked].reduce(
-      (bytes, table) => bytes + table.byteLength,
-      0,
-    ),
+    /** Bytes of the tables above, sized by what the cut closes over: the CPU budget holds them on
+     *  WebGPU (`../../residency/memoryBudget.ts`). */
+    get hostBytes() {
+      return (
+        heldGroups.byteLength +
+        heldPages.byteLength +
+        seen.byteLength +
+        walked.byteLength +
+        delta.entered.byteLength +
+        delta.exited.byteLength
+      );
+    },
     /** Visits every page `ids` close over, themselves included, each group once per call:
-     *  what a list rebuilt whole asks for (`../residency/shadowTier.ts`). */
-    closeOver(ids: ArrayLike<number>, visit: (id: number) => void) {
-      walk++;
+     *  what a list rebuilt whole asks for (`../../webgpu/residency/shadowTier.ts`). */
+    closeOver(ids: ArrayLike<number>, visit: (id: number, rec: PageRec) => void) {
       visitor = visit;
       for (let i = 0; i < ids.length; i++) enter(ids[i]);
-      visitor = undefined;
+      endWalk();
+    },
+    /** The same, for records carrying their placement and packed index, without a catalogue. */
+    closeOverRecords(recs: readonly PageRec[], visit: (id: number, rec: PageRec) => void) {
+      visitor = visit;
+      for (const rec of recs) if (rec.packedIndex !== undefined) enterAs(rec.packedIndex, rec);
+      endWalk();
     },
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {
@@ -115,13 +127,17 @@ export function createGroupClosure(
       for (let i = 0; i < cut.enteredCount; i++) enter(cut.entered[i]);
       step = -1;
       for (let i = 0; i < cut.exitedCount; i++) enter(cut.exited[i]);
+      if (delta.entered.length < touched.length)
+        delta.entered = grown(delta.entered, touched.length);
+      if (delta.exited.length < touched.length) delta.exited = grown(delta.exited, touched.length);
       delta.enteredCount = delta.exitedCount = 0;
       for (const id of touched) {
-        seen[id] = 0;
-        const now = heldPages[id] > 0;
-        if (now && !before[id]) delta.entered[delta.enteredCount++] = id;
-        else if (!now && before[id]) delta.exited[delta.exitedCount++] = id;
+        const now = heldPages.get(id) > 0,
+          before = seen.get(id) === 2;
+        if (now && !before) delta.entered[delta.enteredCount++] = id;
+        else if (!now && before) delta.exited[delta.exitedCount++] = id;
       }
+      seen.clear();
       touched.length = 0;
     },
   };

@@ -9,12 +9,11 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 1. **Pick.** First count your open pull requests: at 3, take no issue and unblock them (red CI,
    conflict with `develop`, unanswered review) until you are back at 2. Below 3, first hold your
    open ones to AGENTS.md rule 11 (a coder resolves what `gh pr update-branch` cannot), or name in
-   your report the one that waits on the boss. Then the open issues of your domain labelled
-   `measure ko` or `audit ko`, then 🔴 critical ones (the children and To-do items of a programme
-   such as #483, in its order), then the oldest open one without `in progress` or `in review`
-   (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it; if
-   another lead took it meanwhile, pick again. Then `gh issue edit <n> --add-label "in progress"`
-   and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
+   your report the one that waits on the boss. Then the open issues of your domain in the order of
+   AGENTS.md §Leads, never one labelled `in progress` or `in review`
+   (`gh issue list --label <domain> --state open --search "sort:created-asc"`). Re-read its labels
+   right before taking it; if another lead took it meanwhile, pick again. Then
+   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
    comment `taken by lead <domain>: <item>` alone, and no step below labels the parent, since
    labels claim a whole issue; an item another lead's comment claims is taken.
 2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground

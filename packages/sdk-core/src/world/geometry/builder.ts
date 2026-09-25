@@ -102,3 +102,10 @@ export const normalize = (x: number, y: number, z: number): [number, number, num
   normalizeVector3(out);
   return out;
 };
+
+/** Stamps `geometry` with the family call that built it (`Geometry.recipe`): a saved scene
+ *  stores the call and builds the same shape again. */
+export function withRecipe(geometry: Geometry, type: string, args: ArrayLike<unknown>) {
+  geometry.recipe = { type, args: Array.from(args) };
+  return geometry;
+}

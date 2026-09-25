@@ -138,8 +138,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   const shadowTier = createShadowTier({
-    packedPages,
-    keyCount: tracking.keyCount,
     keyOf: tracking.keyOf,
     room,
     closeOver: closure.closeOver,
@@ -192,8 +190,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     shadowTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
-    /** Bytes of the cut's host tables — group closure and the rule's readiness — once prepared. */
-    hostTableBytes: () => closure.hostBytes + (rt.run.gpuSelection?.hostBytes ?? 0),
     ...publication,
   };
 }
