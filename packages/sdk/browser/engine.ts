@@ -121,6 +121,18 @@ export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts';
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts';
 export type { ShadowAtlasDigest } from '../../sdk-browser/src/gpu/shadow/digest.ts';
+export {
+  SOFT_AREAL_DENSITY,
+  SOFT_FOOTPRINT,
+  SOFT_LINEAR_DENSITY,
+} from '../../sdk-core/src/physics/soft.ts';
+export type {
+  SoftBodyCommon,
+  SoftBodyOptions,
+  SoftBodyType,
+  SoftSettings,
+  SoftVolumeOptions,
+} from '../../sdk-core/src/physics/soft.ts';
 export type { SurfaceBuffer, SurfaceCapture } from '../../sdk-browser/src/scene/surfaceBuffer.ts';
 export type { TelemetryReport } from '../../sdk-browser/src/diagnostic/telemetryTypes.ts';
 export type {
