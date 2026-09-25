@@ -87,11 +87,14 @@ function familySurface(family: GraphSurfaceFamily, material: Material, vertexCol
 }
 
 /** A dashed line's dash and gap along its distance (`lineDash`, `../../visibility/shader/lineWgsl.ts`),
- *  its `scale` folded in: the reference stretches the distance by it, the same as shortening both. */
+ *  its `scale` folded in: the reference stretches the distance by it, the same as shortening both.
+ *  A `scale` of zero or less stretches the reference's dash to infinity, a solid line: a dash of
+ *  zero, which `lineDash` keeps whole. */
 function writeDash(surface: GraphSurface, material: Material) {
   const scale = (material.scale as number | undefined) ?? 1;
-  surface.dashSize = ((material.dashSize as number | undefined) ?? 0) / scale;
-  surface.gapSize = ((material.gapSize as number | undefined) ?? 0) / scale;
+  const solid = !(scale > 0);
+  surface.dashSize = solid ? 0 : ((material.dashSize as number | undefined) ?? 0) / scale;
+  surface.gapSize = solid ? 0 : ((material.gapSize as number | undefined) ?? 0) / scale;
 }
 
 /**

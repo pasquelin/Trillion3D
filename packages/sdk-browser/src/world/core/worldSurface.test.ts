@@ -11,6 +11,7 @@ import { importHostSurface } from '../../host/surfaceImport.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
 import { hostSide } from '../../scene/materialSide.ts';
 import { LINE_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts';
+import { lineDash } from '../../visibility/shader/lineWgsl.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
@@ -163,7 +164,8 @@ test('a line surface carries its pixel width, both sides and one coplanar layer'
 });
 
 // #359: a dashed line's surface carries its dash and gap, its `scale` folded in, and a repaint
-// writes them again (#335); a solid line's surface carries none.
+// writes them again (#335); a solid line's surface carries none. At a `scale` of zero or less the
+// reference's dash is infinite, every pixel drawn: a dash of zero, the one `lineDash` keeps whole.
 test('a dashed line surface carries its dash and gap, and a repaint writes them', () => {
   const ink = material.lineDashed({ dashSize: 0.3, gapSize: 0.2, scale: 2 });
   const lines = hostSurface(ink, false, new Map(), true);
@@ -175,6 +177,11 @@ test('a dashed line surface carries its dash and gap, and a repaint writes them'
   Object.assign(ink, { dashSize: 1, gapSize: 0.5, scale: 1 });
   repaintHostSurface(lines, ink);
   assert.deepEqual([lines.dashSize, lines.gapSize], [1, 0.5]);
+  for (const scale of [0, -1]) {
+    repaintHostSurface(lines, Object.assign(ink, { scale }));
+    assert.deepEqual([lines.dashSize, lines.gapSize], [0, 0], `scale ${scale}`);
+    for (let at = 0; at < 2; at += 0.05) assert.ok(lineDash(at, Number(lines.dashSize), 0));
+  }
   const solid = hostSurface(material.line(), false, new Map(), true);
   assert.equal(solid.dashSize, undefined);
   repaintHostSurface(solid, material.line());
