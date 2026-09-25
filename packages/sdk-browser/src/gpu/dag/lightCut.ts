@@ -10,6 +10,7 @@ import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
 import { namedBufferEntries } from '../core/computeBindings.ts';
+import { shadowBatchWrites } from '../shadow/batchWrites.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagLightCut = ReturnType<typeof createDagLightCut>;
@@ -30,7 +31,7 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  * on screen (`../../page/cut/rule.ts`); the view says so, and its pages are drawn again once
  * residency changes (`lightCutRedraws.ts`).
  *
- * Its budget is fixed at creation, whatever the views a frame runs — at most the views the device's
+ * Its budget is fixed at creation, whatever the views a batch runs — at most the views the device's
  * dispatch and binding limits hold (`lightCutCapacity.ts`): the lists and queues are the
  * camera cut's — each list the whole catalogue, each queue every node, or one root per slot when
  * the slots outnumber the nodes —, and the per-primitive words one row per view. What several views
@@ -141,7 +142,7 @@ export function createDagLightCut(resources: DagResources) {
         const block = uniformData.subarray(v * DAG_VIEW_WORDS, (v + 1) * DAG_VIEW_WORDS);
         writeDagUniforms(block, packed, views[v].uniforms, residentCut, cutViews);
       }
-      device.queue.writeBuffer(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
+      shadowBatchWrites(device).write(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.
       if (frameWrites !== resources.frameWrites.count) {
         frameWrites = resources.frameWrites.count;

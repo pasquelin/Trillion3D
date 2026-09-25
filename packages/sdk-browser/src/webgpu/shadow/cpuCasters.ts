@@ -4,28 +4,39 @@ import { selectVisiblePages, type PageRec } from '../../page/selection/selection
 import { createSelectionResult } from '../../page/cut/state.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import { planImageShadows } from '../pages/render/encodeShadows.ts';
+import { forEachShadowBatch } from '../pages/render/encodeShadowBatches.ts';
+import { writeShadowPages } from './pages.ts';
 import type { ShadowRun } from './runs.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /**
- * The CPU cut's shadow casters: each redrawn face's pages, then the same as page-table rows at
- * their own place in one buffer, with one indirect command per face. Allocated at the first CPU
- * light cut, sized by the catalogue; the buffers grow to the next power of two a frame needs.
+ * The CPU cut's shadow casters: each redrawn face's pages, every batch's, then the same as
+ * page-table rows at their own place in one buffer, with one indirect command per face. Allocated
+ * at the first CPU light cut, sized by the catalogue; the buffers grow to the next power of two a
+ * frame needs.
  */
 export type CpuCasterLists = ReturnType<typeof createCpuCasterLists>;
 
+/** Usage of the lists' buffers, read when one is made: the GPU globals exist only then. */
+const storage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+
 function createCpuCasterLists(device: GPUDevice, pageCount: number) {
-  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   return {
     frame: -1,
-    source: device.createBuffer({ label: 'Trillion3D CPU light casters', size: 4, usage: storage }),
-    indirect: device.createBuffer({ size: MAX_SHADOW_REGIONS * 16, usage: storage }),
+    /** Faces of every batch of the frame, together. */
+    runs: 0,
+    source: device.createBuffer({
+      label: 'Trillion3D CPU light casters',
+      size: 4,
+      usage: storage(),
+    }),
+    indirect: device.createBuffer({ size: MAX_SHADOW_REGIONS * 16, usage: storage() }),
     bases: new Uint32Array(MAX_SHADOW_REGIONS),
     lengths: new Uint32Array(MAX_SHADOW_REGIONS),
     commands: new Uint32Array(MAX_SHADOW_REGIONS * 4),
     words: new Uint32Array(1),
-    shown: Array.from({ length: MAX_SHADOW_REGIONS }, () => [] as PageRec[]),
-    wanted: Array.from({ length: MAX_SHADOW_REGIONS }, () => [] as PageRec[]),
+    shown: [] as PageRec[][],
+    wanted: [] as PageRec[][],
     casters: [] as PageRec[],
     /** Per catalogue page: the frame that last marked it, and its row that frame. */
     marks: new Uint32Array(pageCount),
@@ -57,11 +68,26 @@ export function faceEngineCamera(run: ShadowRun, into: EngineCamera, viewport: n
   return into;
 }
 
+/** Room for `runs` faces: the per-face lists, and the offsets and commands that grow by doubling. */
+function holdRuns(lists: CpuCasterLists, device: GPUDevice, runs: number) {
+  while (lists.shown.length < runs) {
+    lists.shown.push([]);
+    lists.wanted.push([]);
+  }
+  if (lists.bases.length >= runs) return;
+  const size = 2 ** Math.ceil(Math.log2(runs));
+  lists.bases = new Uint32Array(size);
+  lists.lengths = new Uint32Array(size);
+  lists.commands = new Uint32Array(size * 4);
+  lists.indirect.destroy();
+  lists.indirect = device.createBuffer({ size: size * 16, usage: storage() });
+}
+
 /**
- * Under the CPU cut, the casters of each redrawn face are selected FROM THE LIGHT by that same
- * cut: the face's view, its texels, its redrawn pages, residency held, the cone off. Returns the
- * pages none of the camera's rows already draws — they take rows behind the camera's — and hands
- * what the faces asked for to the lower residency tier.
+ * Under the CPU cut, the casters of each redrawn face — every batch's the frame draws — are
+ * selected FROM THE LIGHT by that same cut: the face's view, its texels, its redrawn pages,
+ * residency held, the cone off. Returns the pages none of the camera's rows already draws — they
+ * take rows behind the camera's — and hands what the faces asked for to the lower residency tier.
  */
 export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
   const { lights, run, services, layout } = rt,
@@ -82,31 +108,38 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     const page = rows.pageIndexOf(rec);
     if (page !== undefined) marks[page] = stamp;
   }
-  for (let r = 0; r < runs.count; r++) {
-    const face = runs.list[r];
-    selectVisiblePages(
-      rt.setup.roots,
-      faceEngineCamera(face, camera, viewport),
-      {
-        pixelError: face.uniforms.pixelError,
-        viewport,
-        holdResident: true,
-        rootFallback: true,
-        isResident: services.poolHolds,
-        wanted: wanted[r],
-        result: lists.result,
-        light: face.pages,
-      },
-      shown[r],
-    );
-    for (const rec of shown[r]) {
-      const page = rows.pageIndexOf(rec);
-      if (page === undefined || marks[page] === stamp) continue;
-      marks[page] = stamp;
-      casters.push(rec);
+  lists.runs = 0;
+  forEachShadowBatch(rt, (from, to, runBase) => {
+    writeShadowPages(lights, lights.shadowSlots, cam.eye, lights.shadowPixelError, from, to);
+    holdRuns(lists, device, (lists.runs = runBase + runs.count));
+    for (let r = 0; r < runs.count; r++) {
+      const face = runs.list[r],
+        at = runBase + r;
+      selectVisiblePages(
+        rt.setup.roots,
+        faceEngineCamera(face, camera, viewport),
+        {
+          pixelError: face.uniforms.pixelError,
+          viewport,
+          holdResident: true,
+          rootFallback: true,
+          isResident: services.poolHolds,
+          wanted: wanted[at],
+          result: lists.result,
+          light: face.pages,
+        },
+        shown[at],
+      );
+      for (const rec of shown[at]) {
+        const page = rows.pageIndexOf(rec);
+        if (page === undefined || marks[page] === stamp) continue;
+        marks[page] = stamp;
+        casters.push(rec);
+      }
     }
-  }
-  services.shadowTier.offerPages(wanted, runs.count);
+    return true;
+  });
+  services.shadowTier.offerPages(wanted, lists.runs);
   return casters;
 }
 
@@ -117,10 +150,9 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
  */
 export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, run, layout } = rt,
-    { runs } = lights,
     { rows } = layout,
     lists = lights.cpuCasters;
-  if (!lists || lights.plannedFrame !== run.frame || !runs.count) return;
+  if (!lists || lights.plannedFrame !== run.frame || !lists.runs) return;
   const { marks, rowOf, shown, commands } = lists;
   // A second stamp, after the selection's: this frame's rows, by catalogue page.
   const stamp = ~run.frame >>> 0 || 1;
@@ -130,7 +162,7 @@ export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
     marks[page] = stamp;
   }
   let total = 0;
-  for (let r = 0; r < runs.count; r++) total += shown[r].length;
+  for (let r = 0; r < lists.runs; r++) total += shown[r].length;
   if (lists.words.length < total) {
     lists.words = new Uint32Array(1 << Math.ceil(Math.log2(total)));
     lists.source.destroy();
@@ -142,7 +174,7 @@ export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   const { words } = lists;
   let at = 0;
-  for (let r = 0; r < runs.count; r++) {
+  for (let r = 0; r < lists.runs; r++) {
     lists.bases[r] = at;
     for (const rec of shown[r]) {
       const page = rows.pageIndexOf(rec);
@@ -155,6 +187,6 @@ export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
     commands[r * 4 + 1] = lists.lengths[r];
   }
   if (at) device.queue.writeBuffer(lists.source, 0, words, 0, at);
-  device.queue.writeBuffer(lists.indirect, 0, commands, 0, runs.count * 4);
+  device.queue.writeBuffer(lists.indirect, 0, commands, 0, lists.runs * 4);
   lists.frame = run.frame;
 }

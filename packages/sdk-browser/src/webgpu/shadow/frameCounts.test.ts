@@ -1,7 +1,7 @@
 // The cumulative shadow page count the lesson and hosts read: it grows by what each frame drew,
-// nothing when the pass could not be encoded, and the sampled cull counts sum the device's own
-// instance counts. Also the hold: a representation change held until rest keeps the frame
-// rendering until a plan consumes it, or a frame that plans no shadow releases it to the list.
+// and the sampled cull counts sum the device's own instance counts. Also the hold: a
+// representation change held until rest keeps the frame rendering until a plan consumes it, or a
+// frame that plans no shadow releases it to the list.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -21,17 +21,13 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 installGpuGlobals();
 
-test('shadowPagesTotal accumulates drawn pages and skips a frame whose pass was refused', () => {
+test('shadowPagesTotal accumulates the pages each frame drew', () => {
   const lights = createWebgpuLightState(32);
   lights.shadowPages = 12;
-  lights.pagesByFrame[3] = 12;
-  noteShadowFrame(lights, 3, true);
-  assert.equal(lights.shadowPagesTotal, 12);
+  noteShadowFrame(lights);
   lights.shadowPages = 8;
-  lights.pagesByFrame[4] = 8;
-  noteShadowFrame(lights, 4, false);
-  assert.equal(lights.shadowPagesTotal, 12, 'a refused pass drew nothing');
-  assert.deepEqual([lights.shadowPages, lights.pagesByFrame[4]], [0, 0]);
+  noteShadowFrame(lights);
+  assert.equal(lights.shadowPagesTotal, 20);
 });
 
 test('the sampled cull counts sum the instance count of each region command', () => {
