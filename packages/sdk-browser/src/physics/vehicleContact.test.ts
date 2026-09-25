@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
+import { box, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import type { Rig } from './joints.fixture.ts';
+import { jointRig, type Rig } from './joints.fixture.ts';
 import { flatRig, placeVehicle } from './vehicles.fixture.ts';
 
 /** Jolt's penetration slop (`PhysicsSettings::mPenetrationSlop`, m): the overlap its contacts
@@ -119,4 +120,69 @@ test('a car made where a tank stands is pushed out of it, not under it', async (
   rig.run(120);
   assert.ok(inside('hull') <= SLOP, `out of its hull: ${inside('hull')}`);
   assert.ok(inside('gear') <= SLOP, `out of its running gear: ${inside('gear')}`);
+});
+
+/** What a ray from `from` along `along` meets first, passing through `ignore`: its object and
+ *  point, or `null`. */
+const meets = (rig: Rig, from: number[], along: number[], ignore?: Mesh) =>
+  rig.raycast(new Ray(new Vector3(...from), new Vector3(...along)), {
+    exact: true,
+    maxDistance: 100,
+    ignore,
+  });
+
+test('the running gear of a vehicle is solid, clear of flat ground, and goes when it stops being one', async () => {
+  const rig = await flatRig();
+  // Dropped half a metre: its suspension takes the landing at full bump.
+  const tank = placeVehicle(rig, 'tracked', {}, [0, 0.5, 0]);
+  const { size, wheels, width } = tank.machine;
+  const across = [1, 0, 0];
+  for (let s = 0; s < 120; s++) {
+    rig.run(1);
+    const low = await meets(rig, [-10, 0.01, 0], across);
+    assert.equal(low?.object, undefined, `clear of the ground at step ${s}: ${low?.point.x}`);
+  }
+  // Under its hull, over its wheels' footprint: solid out to its tracks' outer edges.
+  const under = () => rig.at(tank.body)[1] - size[1] / 2 - 0.05;
+  const gear = await meets(rig, [-10, under(), 0], across);
+  assert.equal(gear?.object, tank.body);
+  const edge = Math.max(...wheels.map(([x]) => Math.abs(x))) + width / 2;
+  assert.ok(Math.abs(gear!.point.x + edge) < 0.01, `to its tracks' edge: ${gear!.point.x}`);
+  rig.driven.delete(tank.vehicle);
+  rig.run(1);
+  assert.equal(await meets(rig, [-10, under(), 0], across), null, 'gone with the vehicle');
+});
+
+test('the running gear weighs nothing: a hit turns a vehicle as it turns one without gear', async () => {
+  /** A car in free fall struck on its side, ahead of its centre, above its gear by a 50 kg ball
+   *  at 10 m/s: its turn a second later. A travel of 0.4 m raises its wheels' lowest point above
+   *  its body's bottom, so it has no gear; at 0.2 m it has 0.18 m of it. */
+  const struck = async (suspensionTravel: number) => {
+    const rig = await jointRig([0, 0, 0]);
+    const car = placeVehicle(rig, 'car', { suspensionTravel });
+    const ball = new Mesh(sphere(0.1), new Material('meshStandard'));
+    ball.position.set(3, rig.at(car.body)[1] + 0.15, -0.6);
+    ball.physics = { mass: 50 };
+    rig.scene.add(ball);
+    rig.run(1);
+    rig.writer.velocity(ball.physics._index, [-10, 0, 0]);
+    rig.run(60);
+    return rig.turn(car.body);
+  };
+  const [plain, geared] = [await struck(0.4), await struck(0.2)];
+  assert.ok(Math.abs(plain[1]) > 0.02, `the hit turns it: ${plain}`);
+  for (let i = 0; i < 4; i++)
+    assert.ok(Math.abs(plain[i] - geared[i]) < 1e-3, `the same turn: ${plain} ${geared}`);
+});
+
+test('a ray told to ignore a vehicle passes through it to the ground', async () => {
+  const rig = await flatRig();
+  const tank = placeVehicle(rig, 'tracked');
+  rig.run(60);
+  const down = [0, -1, 0];
+  const top = await meets(rig, [0, 60, 0], down);
+  assert.equal(top?.object, tank.body);
+  const ground = await meets(rig, [0, 60, 0], down, tank.body);
+  assert.ok(ground && ground.object !== tank.body, 'the ground');
+  assert.ok(Math.abs(ground.point.y) < 1e-3, `at its top: ${ground.point.y}`);
 });

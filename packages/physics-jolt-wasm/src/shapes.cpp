@@ -1,4 +1,4 @@
-// The shapes an ADD command builds: primitives, shared by their dimensions, the hulls and
+// The shapes an ADD command builds: primitives (a cylinder may taper), shared by their dimensions, the hulls and
 // triangle meshes its data carries, the cooked shapes it names (`restore.cpp`) and compounds of
 // primitives (a hull-and-deck boat). Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
@@ -12,6 +12,7 @@
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
+#include <Jolt/Physics/Collision/Shape/TaperedCylinderShape.h>
 
 using namespace JPH;
 
@@ -36,6 +37,13 @@ RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
     shape = new BoxShape(Vec3(a, b, c), std::min(cDefaultConvexRadius, smallest * 0.5f));
   } else if (kind == SPHERE) shape = new SphereShape(a);
   else if (kind == CAPSULE) shape = new CapsuleShape(a, b);
+  // A cylinder whose bottom radius `c` is given and differs from its top's `b` tapers.
+  else if (c > 0 && c != b) {
+    float convex = std::min(cDefaultConvexRadius, std::min(a, std::min(b, c)) * 0.5f);
+    ShapeSettings::ShapeResult result = TaperedCylinderShapeSettings(a, b, c, convex).Create();
+    if (result.HasError()) return nullptr;
+    shape = result.Get();
+  }
   else shape = new CylinderShape(a, b, std::min(cDefaultConvexRadius, std::min(a, b) * 0.5f));
   cache.emplace(key, shape);
   return shape;
@@ -64,8 +72,9 @@ RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices
 RefConst<Shape> compoundShape(const uint32_t *data, uint32_t words) {
   StaticCompoundShapeSettings settings;
   for (const uint32_t *part = data; part + PART_WORDS <= data + words; part += PART_WORDS) {
-    if (part[0] > CYLINDER) return nullptr;
-    settings.AddShape(vec3(part + 4), quat(part + 7), primitive(part[0], f32(part + 1), f32(part + 2), f32(part + 3)));
+    RefConst<Shape> shape = part[0] > CYLINDER ? nullptr : primitive(part[0], f32(part + 1), f32(part + 2), f32(part + 3));
+    if (!shape) return nullptr;
+    settings.AddShape(vec3(part + 4), quat(part + 7), shape);
   }
   ShapeSettings::ShapeResult result = settings.Create();
   return result.HasError() ? nullptr : result.Get();
