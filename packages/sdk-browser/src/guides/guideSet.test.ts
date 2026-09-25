@@ -83,3 +83,18 @@ test('a helper is read as guides: its segments in its colour, placed where it st
   assert.equal(guides.add(grid).visible, true);
   assert.equal(guides.vertexCount, 24 + 12, 'three lines each way, two ends each');
 });
+
+test('re-placing a guide at the pose it holds moves nothing, so a held frame stays', () => {
+  let asked = 0;
+  const guides = createGuideSet(() => asked++);
+  const pose = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1];
+  const line = guides.lines({ positions: [0, 0, 0, 1, 0, 0] }).setTransform(pose);
+  const revision = guides.revision,
+    packed = guides.pack();
+  line.setTransform(pose).setTransform({ elements: Float32Array.from(pose) });
+  assert.equal(guides.revision, revision, 'the same matrix, as numbers or as a matrix');
+  assert.equal(guides.pack(), packed, 'nothing packed again');
+  line.setTransform([...pose.slice(0, 12), 5, 6, 8, 1]);
+  assert.equal(guides.revision, revision + 1, 'a moved guide still moves the revision');
+  assert.equal(asked, 3);
+});
