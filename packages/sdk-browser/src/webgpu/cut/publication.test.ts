@@ -38,6 +38,7 @@ function banc() {
   const residencySets = {
     applyCut: (delta: CutDelta) => (remue.coupe += compte(delta)),
     applyDrawn: (delta: CutDelta) => (remue.dessinee += compte(delta)),
+    hostBytes: 0,
   } as unknown as WebgpuResidencySets;
   const rt = {
     run,
@@ -53,10 +54,20 @@ function banc() {
       rows: { watchTouched: () => {} },
     },
   } as unknown as WebgpuPagesCore;
+  /** The two lower tiers, and every list handed to the tier ahead. */
+  const aheadOffers: number[][] = [];
+  const tiers = {
+    shadow: { hostBytes: 0 },
+    ahead: {
+      hostBytes: 0,
+      offerIds: (ids: ArrayLike<number>) => aheadOffers.push(Array.from(ids)),
+    },
+  };
   const publication = createWebgpuCutPublication(
     rt,
     residencySets,
     createGroupClosure([], packedPages),
+    { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
   );
   return {
     publication,
@@ -64,9 +75,26 @@ function banc() {
     packedPages,
     remue,
     shadowChanges,
+    tiers,
+    aheadOffers,
     resourceChanges: () => resourceChanges,
   };
 }
+
+test('the CPU cut, which sees no view ahead, empties the tier ahead', () => {
+  const { publication, packedPages, aheadOffers } = banc();
+  publication.adoptCpuCut(packedPages.slice(0, 2), packedPages.slice(0, 2));
+  assert.deepEqual(aheadOffers.at(-1), [], 'the last list ahead is empty');
+});
+
+test('both lower tiers count in the host tables', () => {
+  const { publication, tiers } = banc();
+  const before = publication.hostTableBytes();
+  assert.ok(Number.isFinite(before), `every table reads a size (${before})`);
+  tiers.shadow.hostBytes = 64;
+  tiers.ahead.hostBytes = 32;
+  assert.equal(publication.hostTableBytes(), before + 96);
+});
 
 test('a CPU-cut image only ages the lists once', () => {
   const { publication, run, packedPages } = banc();

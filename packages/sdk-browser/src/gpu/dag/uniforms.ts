@@ -1,5 +1,11 @@
-import type { PackedDag } from './types.ts';
-import { REQUEST_PRIORITY_MAX, requestPage, requestPriority } from './request.ts';
+import type { DagViewUniforms, PackedDag } from './types.ts';
+import {
+  REQUEST_AHEAD,
+  REQUEST_PRIORITY_MAX,
+  requestPage,
+  requestPriority,
+  requestRank,
+} from './request.ts';
 import {
   OUT_COUNT,
   OUT_FLAGS,
@@ -11,8 +17,9 @@ import {
   selectionListCap,
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
-import type { DagViewUniforms } from './types.ts';
 import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
+import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
+import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 
 /** Word of view 0's block that says what kind of view the cut serves (`shader/pagesWgsl.ts`). */
 export const VIEW_FLAGS_WORD = 54;
@@ -29,6 +36,7 @@ export type DagCutViews = { count: number; capacity: number; queueCap: number; a
 export type DagOutputScratch = {
   result: SelectionResult;
   drawable: number[];
+  ahead: number[];
   /** Counting-sort buckets, one per priority step. Fixed size, allocated once: ranking never
    *  returns anything to the garbage collector, whatever the sample size. */
   seaux: Uint32Array;
@@ -43,8 +51,21 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
     transparentTriangles: 0,
   },
   drawable: [],
+  ahead: [],
   seaux: new Uint32Array(REQUEST_PRIORITY_MAX + 1),
 });
+
+/** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
+ *  planes and view ahead, block 0 says it is there; a light view's short block never carries one. */
+function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagViewUniforms) {
+  const ahead = uniforms.ahead,
+    at = AHEAD_VIEW * DAG_VIEW_WORDS;
+  if (!ahead || uniforms.light || target.length < at + DAG_VIEW_WORDS) return;
+  target.copyWithin(at, 0, DAG_VIEW_WORDS);
+  target.set(ahead.planes, at);
+  target.set(ahead.view, at + 24);
+  ints[63] = 1;
+}
 
 /**
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). `views` says how many views the
@@ -88,6 +109,7 @@ export function writeDagUniforms(
   ints[62] = views?.queueCap ?? packed.nodeCount;
   const light = uniforms.light;
   ints[VIEW_FLAGS_WORD] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
+  writeAheadBlock(target, ints, uniforms);
   if (!light) return;
   ints[55] = light.rows;
   ints[56] = light.mask[0];
@@ -126,9 +148,8 @@ export function parseDagOutput(
   //
   // It is STABLE, and that is what makes it substitutable: at equal priority the order stays
   // that of the sample, exactly what the comparison sort it replaces returned.
-  pageIds.length = count;
   seaux.fill(0);
-  for (let i = 0; i < count; i++) seaux[requestPriority(ints[head + i])]++;
+  for (let i = 0; i < count; i++) seaux[requestRank(requestPriority(ints[head + i]))]++;
   // Prefix sum run from the HIGHEST priority to the lowest: the list comes out decreasing
   // without having to reverse it.
   let place = 0;
@@ -137,10 +158,19 @@ export function parseDagOutput(
     seaux[p] = place;
     place += tenus;
   }
+  // The view ahead's requests rank after every visible one: they go straight to their own list,
+  // which starts where the highest rank ahead does.
+  const ahead = scratch.ahead,
+    visible = seaux[REQUEST_AHEAD - 1];
+  pageIds.length = visible;
+  ahead.length = count - visible;
   for (let i = 0; i < count; i++) {
-    const word = ints[head + i];
-    pageIds[seaux[requestPriority(word)]++] = requestPage(word);
+    const word = ints[head + i],
+      at = seaux[requestRank(requestPriority(word))]++;
+    if (at < visible) pageIds[at] = requestPage(word);
+    else ahead[at - visible] = requestPage(word);
   }
+  result.aheadPageIds = ahead;
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
   // Totals the GPU holds: they describe the cut, not the list that reports it, so a truncated
