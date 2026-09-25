@@ -7,8 +7,8 @@ import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
- * by the GPU with the materials rule (mean in colour, weighted by alpha in the colour atlas, median
- * in alpha). Tiles are then copied into the pool, level by level.
+ * by the GPU with the materials rule (mean in colour, weighted by alpha where every reader takes
+ * alpha for coverage, median in alpha). Tiles are then copied into the pool, level by level.
  *
  * This is the path of a texture WITHOUT a cooked chain — one a host decoded itself, or a test
  * scene that gives its texels in memory. It costs the whole source every time a tile of that
@@ -34,9 +34,12 @@ export function createTileScratch(
     width: number;
     height: number;
     format: GPUTextureFormat;
-    /** The atlas the texture serves: the colour one weighs its mip colours by alpha, and names
-     *  the error a texture with neither texels nor a copyable image throws. */
+    /** The atlas the texture serves: it names the error a texture with neither texels nor a
+     *  copyable image throws. */
     atlas: 'color' | 'data';
+    /** Every reader takes the alpha for coverage (`collectWebgpuMaterialTextures`): the mips
+     *  weigh their colours by alpha, as the compiler's `Coverage` chain. */
+    coverage: boolean;
   },
 ): TileScratch {
   const { width, height, format } = options;
@@ -82,7 +85,7 @@ export function createTileScratch(
         [width, height],
       );
     }
-    const weighted = weighsColourByAlpha(options.atlas, map.premultiplyAlpha);
+    const weighted = weighsColourByAlpha(options.coverage, map.premultiplyAlpha);
     generateMaterialMips(device, texture, format, width, height, weighted);
   };
   fill();

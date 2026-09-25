@@ -66,12 +66,13 @@ const MIP_SHADER = `
  }`;
 
 /**
- * Whether a reduction weighs colours by alpha: in the colour atlas, as the compiler's `AtlasKind`
- * decides, and only while its texels hold straight alpha — a texture uploaded premultiplied
- * already carries the weight, and weighing it again would darken it.
+ * Whether a reduction weighs colours by alpha: only for a texture every reader of which takes its
+ * alpha for coverage, as the compiler's `AtlasKind::Coverage` — any other reader draws the RGB
+ * under alpha 0, which weighting would change —, and only while its texels hold straight alpha: a
+ * texture uploaded premultiplied already carries the weight, and weighing it again would darken it.
  */
-export function weighsColourByAlpha(atlas: 'color' | 'data', premultiplied: boolean) {
-  return atlas === 'color' && !premultiplied;
+export function weighsColourByAlpha(coverage: boolean, premultiplied: boolean) {
+  return coverage && !premultiplied;
 }
 
 function mipProgram(device: GPUDevice): MipProgram {

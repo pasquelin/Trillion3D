@@ -14,6 +14,8 @@ import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { GraphTexture } from '../../host/graph/graph.fixture.ts';
 
 type HostTexture = InstanceType<typeof GraphTexture>;
+/** A data-atlas texture: no reader takes its alpha for coverage. */
+const PLAIN_DATA = { atlas: 'data', coverage: false } as const;
 
 type Copy = {
   source: { source: unknown; flipY?: boolean };
@@ -35,13 +37,7 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
   const map = importHostTexture(
     page instanceof GraphTexture ? page : hostTexture(page, true, new Map()),
   );
-  createTileScratch(device, {
-    map,
-    width,
-    height,
-    format: 'rgba8unorm',
-    atlas: 'data',
-  });
+  createTileScratch(device, { map, width, height, format: 'rgba8unorm', ...PLAIN_DATA });
   return { copies, rows };
 }
 
@@ -137,7 +133,7 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     width: 1,
     height: 2,
     format: 'rgba8unorm',
-    atlas: 'data',
+    ...PLAIN_DATA,
   });
   for (let frame = 0; frame < 60; frame++) {
     pixels[4] = frame;
@@ -149,9 +145,10 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
   scratch.destroy();
 });
 
-// #42: the working texture's mips weigh their colours by alpha in the colour atlas only, and not
-// when the upload already premultiplied them — weighing twice would darken the borders again.
-test('a colour working texture reduces weighted by alpha unless uploaded premultiplied', () => {
+// #42: the working texture's mips weigh their colours by alpha only for a texture every reader
+// takes for coverage, and not when the upload already premultiplied them — weighing twice would
+// darken the borders again. A colour texture an opaque or emissive reader draws stays plain.
+test('a coverage working texture reduces weighted by alpha unless uploaded premultiplied', () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const weighted: unknown[] = [];
@@ -163,21 +160,16 @@ test('a colour working texture reduces weighted by alpha unless uploaded premult
       return create(descriptor);
     },
   });
-  const reduce = (atlas: 'color' | 'data', premultiplyAlpha: boolean) => {
+  const reduce = (coverage: boolean, premultiplyAlpha: boolean) => {
     const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 });
     host.premultiplyAlpha = premultiplyAlpha;
     const map = importHostTexture(host);
-    createTileScratch(device, {
-      map,
-      width: 1,
-      height: 2,
-      format: 'rgba8unorm',
-      atlas,
-    });
+    const size = { width: 1, height: 2 };
+    createTileScratch(device, { map, ...size, format: 'rgba8unorm', atlas: 'color', coverage });
   };
-  reduce('color', false);
-  reduce('color', true);
+  reduce(true, false);
+  reduce(true, true);
   assert.deepEqual(weighted, [1, 0], 'straight alpha weighted, premultiplied not');
-  reduce('data', false);
-  assert.equal(weighted.length, 2, 'the data atlas reuses the plain pipeline');
+  reduce(false, false);
+  assert.equal(weighted.length, 2, 'a colour texture not read as coverage reuses the plain one');
 });
