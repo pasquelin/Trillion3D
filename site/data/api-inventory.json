@@ -6238,7 +6238,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/softBodies.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsMatter"
     },
