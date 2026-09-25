@@ -31,7 +31,7 @@ pub(super) struct CompiledPrimitive {
     pub collision: Value,
 }
 
-pub(super) fn compile_primitive(
+pub(super) fn cook_primitive(
     inputs: &PrimitiveInputs<'_>,
     old: &usize,
     primitive: &usize,

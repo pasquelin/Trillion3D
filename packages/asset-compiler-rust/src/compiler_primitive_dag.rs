@@ -49,6 +49,19 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     (min, median, max)
 }
 
+/// Compiles one primitive of the source; a refusal names the glTF mesh and primitive it was raised
+/// in. Page ids restart at 0 in every primitive (`base_id`), so a page named alone is ambiguous.
+pub(super) fn compile_primitive(
+    inputs: &PrimitiveInputs<'_>,
+    mesh: &usize,
+    primitive: &usize,
+) -> Result<CompiledPrimitive> {
+    cook_primitive(inputs, mesh, primitive).map_err(|error| {
+        let message = format!("glTF mesh {mesh} primitive {primitive}: {}", error.message);
+        CompilerError::new(error.code, message)
+    })
+}
+
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
