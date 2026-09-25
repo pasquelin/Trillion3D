@@ -2729,12 +2729,12 @@
       {
         "name": "impulse",
         "type": "number",
-        "desc": "N·s: the approach speed along the normal times the pair's reduced mass, estimated before the solver runs; 0 on `leave`."
+        "desc": "N·s: the approach speed along the normal times the pair's reduced mass, estimated before the solver runs (a soft body's side: its mean velocity, and the mass of its vertices that touched); 0 on `leave`, and between a soft body and a sensor."
       },
       {
         "name": "point",
         "type": "{ x: number; y: number; z: number; }",
-        "desc": "The contact point, world frame; the origin on `leave`."
+        "desc": "The contact point, world frame (a soft body's: the mean of its vertices that touched, its centre for a sensor); the origin on `leave`."
       }
     ],
     "description": ""
@@ -4593,7 +4593,7 @@
       {
         "name": "drawnTriangles?",
         "type": "number | null | undefined",
-        "desc": "Triangles the CURRENT FRAME hands to the draw: its cluster cut, opaque and transparent of the hierarchy combined, minus the clusters without a resident page that `uncoveredTriangles` counts. Transparent meshes outside the hierarchy are not in it (`transparentSubmittedTriangles`), and occlusion reject is not subtracted (`hizRejectedTriangles`). Counted on the same pass as `uncoveredTriangles`, at cut adoption: no asynchronous GPU readback is waited for, so it is never `null` for lack of time, unlike `submittedTriangles`. Expected coverage relation on this sample: `selected − drawn − uncovered = 0`."
+        "desc": "Triangles the CURRENT FRAME hands to the draw: its cluster cut, opaque and transparent of the hierarchy combined. Transparent meshes outside the hierarchy are not in it (`transparentSubmittedTriangles`), and occlusion reject is not subtracted (`hizRejectedTriangles`). Counted at cut adoption: no asynchronous GPU readback is waited for, so it is never `null` for lack of time, unlike `submittedTriangles`."
       },
       {
         "name": "cpuSelectMs?",
@@ -12860,6 +12860,11 @@
         "name": "groups?",
         "type": "{ start: number; count: number; materialIndex: number; }[] | undefined",
         "desc": "Index ranges drawn with one material each."
+      },
+      {
+        "name": "owner?",
+        "type": "'host' | undefined",
+        "desc": "`'host'` for a loaded scene's vertices, read at their value (`Geometry._owner`); unset for the world's."
       }
     ],
     "description": ""
@@ -19673,7 +19678,7 @@
       {
         "name": "drawnTriangles?",
         "type": "number | null | undefined",
-        "desc": "Triangles the CURRENT FRAME hands to the draw: its cluster cut, opaque and transparent of the hierarchy combined, minus the clusters without a resident page that `uncoveredTriangles` counts. Transparent meshes outside the hierarchy are not in it (`transparentSubmittedTriangles`), and occlusion reject is not subtracted (`hizRejectedTriangles`). Counted on the same pass as `uncoveredTriangles`, at cut adoption: no asynchronous GPU readback is waited for, so it is never `null` for lack of time, unlike `submittedTriangles`. Expected coverage relation on this sample: `selected − drawn − uncovered = 0`."
+        "desc": "Triangles the CURRENT FRAME hands to the draw: its cluster cut, opaque and transparent of the hierarchy combined. Transparent meshes outside the hierarchy are not in it (`transparentSubmittedTriangles`), and occlusion reject is not subtracted (`hizRejectedTriangles`). Counted at cut adoption: no asynchronous GPU readback is waited for, so it is never `null` for lack of time, unlike `submittedTriangles`."
       },
       {
         "name": "cpuSelectMs?",

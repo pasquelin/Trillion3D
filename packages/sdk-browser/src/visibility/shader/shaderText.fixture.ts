@@ -4,7 +4,8 @@
  * in — declarations, compound assignments, one guarded return or assignment, arithmetic on
  * scalars, vectors and column-major matrices, column indexing, swizzles, `select`, `?:`,
  * `length`, `normalize`, `floor`, `cos`, `sin` and the vector constructors. The tests then measure
- * what the real text does, in WGSL and in GLSL, instead of a copy of its formula.
+ * what the real text does, in WGSL and in GLSL, instead of a copy of its formula. The cut rule's
+ * integer and boolean subset is read by `../../page/cut/wgslPredicate.fixture.ts`.
  */
 type Value = number | number[] | number[][] | boolean;
 

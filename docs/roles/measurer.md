@@ -3,12 +3,14 @@
 A background agent the CTO starts when `to measure` has work: "follow `docs/roles/measurer.md`".
 You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
 or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
-merge; your one commit is an example's thumbnail (step 6).
+merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 ## Loop
 
-1. **Queue.** `gh issue list --label "to measure" --state closed`. Take the one closed first.
-   Measuring never blocks anything: the issue is already closed, you only add to it. Empty queue: end with your report (the CTO starts you again), never measure something else.
+1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first (an issue a
+   `Part of` pull request leaves open is measured too). Measuring never blocks anything: you only
+   add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
+   (step 7), then end with your report (the CTO starts you again), never measure anything else.
 2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
 3. **Tree.** A worktree of your own on the merge commit:
    `git worktree add --detach .worktrees/measure-<n> <merge-sha>`, `pnpm install`, and
@@ -27,13 +29,19 @@ merge; your one commit is an example's thumbnail (step 6).
      a new issue (AGENTS.md rule 5): its lead takes #<n> again and closes it once fixed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
      never estimated, and reopens #<n> the same way.
-6. **Thumbnails.** When the merge adds an example, or takes one out of parking, and
-   `site/assets/examples/thumbnails/<id>.png` is missing: capture it on the merge commit
-   (`node scripts/docs-examples-thumbnails.ts <id>`), commit it alone on a branch
-   `<n>-thumbnail` from `origin/develop`, and open a pull request titled
-   `docs(examples): thumbnail of <id> (#<n>)` that names #<n> without closing it. The domain's
-   lead merges it.
-7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1.
+6. **Thumbnails.** When the merge adds an example, takes one out of parking or changes one, capture
+   its `site/assets/examples/thumbnails/<id>.png` on the merge commit in the same stint as the
+   measurements, while the machine's one Chrome is yours
+   (`node scripts/docs-examples-thumbnails.ts <id>`), and copy it to `.worktrees/logs/thumbnails/`.
+7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1. The stint's thumbnails, all
+   of them, go in one pull request at most, never one per thumbnail: a branch `<n>-thumbnails`
+   from `origin/develop` (`<n>` its first issue), titled `docs(examples): thumbnails (#<n>, …)`,
+   a body saying `Part of` each issue and "Thumbnail only" under `## Local review before push`.
+   The lead of a named issue names it ready.
+8. **Costs.** Once per stint, on the open world (`pasquelin/Trillion3D-openworld`, served at
+   `/openworld/`) at the screen's own resolution, rank the frame's ten largest CPU steps in ms from
+   the per-step profile (a GPU pass says where, never how much), add each as a To-do item on the
+   owning domain's open issue (none open: the report only), and list them in your report.
 
 ## Release
 

@@ -34,10 +34,12 @@ test('the root cover is the first thing a cold explorer asks for, and the only t
     next && next.length > 0 && !next.includes('bundle-roots'),
     'the detail follows the cover',
   );
+  // The cut the camera asked for, closed over its groups as the engine asks (#486): the leaves
+  // are drawn only once their group and every group above it are resident.
   assert.deepEqual(
     [...(next ?? [])].sort(),
-    ['bundle-leaves'],
-    'and it is the cut the camera asked for',
+    ['bundle-leaves', 'bundle-mid'],
+    'and it is the cut the camera asked for, whole groups',
   );
   backend.dispose();
   scene.geometry.dispose();
