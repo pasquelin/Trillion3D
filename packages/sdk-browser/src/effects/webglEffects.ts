@@ -167,5 +167,3 @@ export function createWebglEffects(gl: WebGL2RenderingContext) {
     },
   };
 }
-
-export type WebglEffects = ReturnType<typeof createWebglEffects>;

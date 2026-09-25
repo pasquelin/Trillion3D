@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Cách một bề mặt hòa trộn với thứ ở phía sau nó, theo tên gọi."
   },
+  "Bloom": {
+    "summary": "Ánh sáng tràn ra quanh những gì sáng chói, như một thấu kính làm lan tỏa nó.",
+    "description": "Dựa trên vật lý: nó chạy trên độ rọi tuyến tính của cảnh, trước tone mapping, không có ngưỡng, và bảo toàn năng lượng — quầng sáng là một bản sao làm mờ của ảnh được trộn vào, nên tổng ánh sáng vẫn như cũ.",
+    "parameters": {
+      "options": "Những gì một trang có thể truyền cho `effect.bloom`.",
+      "options.intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 (không) đến 1 (chỉ quầng sáng).",
+      "options.radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; 1 là bộ lọc đã công bố."
+    },
+    "members": {
+      "kind": "Đây là pass dựng sẵn nào.",
+      "stage": "Nó chạy trước hay sau tone mapping.",
+      "intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 đến 1.",
+      "radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; lớn hơn 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Những gì một trang có thể truyền cho `effect.bloom`.",
+    "members": {
+      "intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 (không) đến 1 (chỉ quầng sáng).",
+      "radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; 1 là bộ lọc đã công bố."
+    }
+  },
   "BounceBudget": {
     "summary": "Ngân sách dội lại, tính bằng mili giây.",
     "description": "Đặc tả yêu cầu một khoảng thời gian, không phải một số tia cố định: tốc độ khung hình giữ nguyên, trong khi ánh sáng hội tụ dần dần. Bộ máy nhận một thời lượng khung hình mục tiêu, đo dấu thời gian GPU từ chặng dội lại, và điều chỉnh động tỉ lệ khối lượng công việc được mã hóa tiếp theo. Việc điều chỉnh được làm mượt và giới hạn: tỉ lệ đó không bao giờ vượt quá 1 (các trần đã công bố vẫn là giới hạn trên nghiêm ngặt) và không bao giờ xuống dưới sàn (đảm bảo tiến độ hội tụ).",
@@ -849,6 +871,33 @@
     "summary": "Lược đồ JSON toàn diện ghi lại tài liệu mọi tùy chọn khởi tạo cho explorer của Trillion3D (MeasuredWorldOptions).",
     "description": "Cho phép các LLM hiểu, xác thực và tinh chỉnh cấu hình của bộ máy 3D."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: các pass có thứ tự được vẽ lên ảnh sau khử răng cưa theo thời gian và trước khi ảnh tới canvas.",
+    "description": "Các pass trước tone mapping đọc độ rọi tuyến tính, theo thứ tự được thêm vào; các pass sau đọc ảnh hiển thị, theo thứ tự của chúng. Một chuỗi rỗng không tốn gì: không pass, không bản sao, không đích.",
+    "members": {
+      "revision": "Đếm các thay đổi: ảnh được vẽ ở một phiên bản khác là đã cũ.",
+      "passes": "Các pass, theo thứ tự chúng chạy.",
+      "size": "Chuỗi chứa bao nhiêu pass.",
+      "add": "Đặt một pass vào chuỗi, ở cuối hoặc tại `index`. Mỗi pass chỉ thuộc một chuỗi tại một thời điểm.",
+      "remove": "Lấy một pass ra khỏi chuỗi; false nếu nó không có trong đó.",
+      "clear": "Lấy mọi pass ra: ảnh trở lại như khi không có chuỗi.",
+      "stage": "Các pass của một giai đoạn, theo thứ tự chuỗi: danh sách mà engine chạy. Được giữ từ thay đổi này sang thay đổi khác, để một khung hình không cấp phát gì."
+    }
+  },
+  "EffectKind": {
+    "summary": "Các pass dựng sẵn mà engine biết vẽ."
+  },
+  "EffectPass": {
+    "summary": "Một pass của chuỗi.",
+    "description": "Một pass cho biết nó là pass dựng sẵn nào và chạy ở đâu; các thiết lập của nó là thuộc tính mà việc ghi tới thế giới ngay lập tức, như của một nguồn sáng.",
+    "members": {
+      "kind": "Đây là pass dựng sẵn nào.",
+      "stage": "Nó chạy trước hay sau tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Vị trí của một pass so với đường cong hiển thị: trên độ rọi tuyến tính của cảnh, trước khi phơi sáng và đường cong đưa nó vào dải hiển thị, hoặc trên ảnh hiển thị mà chúng tạo ra."
+  },
   "EngineCamera": {
     "summary": "Camera của bộ máy: các con số của một khung hình, trong các bộ đệm sở hữu riêng được ghi lại tại chỗ.",
     "description": "Không có cấu trúc thư viện chủ nào vượt qua một chữ ký ở phía sau `readCameraWorld` (`world.ts`, bản dịch duy nhất từ một camera chủ).",
@@ -1359,7 +1408,8 @@
       "toneMapping": "Đường cong hiển thị mà cảnh đã chọn; ACES khi vắng mặt.",
       "framebuffer": "Nơi để vẽ; `null` cho màn hình.",
       "width": "Chiều rộng tính bằng điểm ảnh.",
-      "height": "Chiều cao tính bằng điểm ảnh."
+      "height": "Chiều cao tính bằng điểm ảnh.",
+      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ."
     }
   },
   "HostGeometry": {
@@ -4767,6 +4817,17 @@
   "edge": {
     "summary": "Hàm cạnh 2D (tích có hướng 2D)."
   },
+  "effect": {
+    "summary": "Họ `effect`: các pass mà `world.effects` vẽ lên ảnh."
+  },
+  "effect.bloom": {
+    "summary": "Quầng sáng quanh những gì sáng chói, trên ảnh tuyến tính trước tone mapping.",
+    "parameters": {
+      "options": "`intensity` và `radius`; các giá trị đã công bố khi vắng mặt.",
+      "options.intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 (không) đến 1 (chỉ quầng sáng).",
+      "options.radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; 1 là bộ lọc đã công bố."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Một độ rọi không có gì trong đó, sẵn sàng nhận các nguồn."
   },
@@ -6651,6 +6712,9 @@
   "world.temporalAntialiasing": {
     "summary": "Khử răng cưa theo thời gian: độ lệch dưới điểm ảnh được tích lũy qua các khung hình; bật theo mặc định.",
     "description": "Khi ghi, có hiệu lực từ khung hình kế tiếp, bỏ lịch sử, không mở lại phiên. Khi đọc, là điều hình ảnh mang: false trên WebGL2, và trong lúc chương trình biên dịch sau khi bật."
+  },
+  "world.effects": {
+    "summary": "Chuỗi hiệu ứng: các pass được vẽ lên ảnh (`effect`)."
   },
   "world.budget": {
     "summary": "Các bể bộ nhớ của thế giới, đọc và đặt theo byte.",

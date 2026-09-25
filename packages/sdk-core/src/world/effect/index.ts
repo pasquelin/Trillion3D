@@ -1,6 +1,6 @@
 import { Bloom, type BloomOptions } from './bloom.ts';
 
-export { Bloom, BLOOM_DEFAULTS, type BloomOptions } from './bloom.ts';
+export { Bloom, type BloomOptions } from './bloom.ts';
 export { EffectChain, EffectPass, type EffectKind, type EffectStage } from './chain.ts';
 
 /** The `effect` family: the passes `world.effects` draws over the image. */

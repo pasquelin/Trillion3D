@@ -152,8 +152,7 @@ export interface BackendContext {
   gpuCanvas?: HTMLCanvasElement; // a host canvas dedicated to this WebGPU backend
   /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */
   webglContext?: WebGL2RenderingContext;
-  /** Texture-tile bytes admitted per frame, and CPU milliseconds a frame's tile pass may spend
-   *  copying; the rest waits. */
+  /** Texture-tile bytes and tile-copy CPU milliseconds admitted per frame; the rest waits. */
   maxTextureTransferBytesPerFrame?: number;
   maxTextureUploadMsPerFrame?: number;
   /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
@@ -175,8 +174,7 @@ export interface BackendContext {
   sceneLighting?: Object3D;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
-  /** Identifiers of the lights the source file carried, in cache order; the host rereads them
-   *  via `explorer.importedLights()` to set or remove them one by one. */
+  /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar. Its
    *  budget: the step's target GPU milliseconds per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms)
