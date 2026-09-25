@@ -61,17 +61,13 @@ test('page fetches overlap while GPU uploads stay ordered', async () => {
   assert.notEqual(writes[0].offset, writes[1].offset);
 });
 test('storage binding size is rejected before buffer creation', () => {
-  Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
   assert.throws(
     () =>
       createGpuPageCache(
-        {
+        fakeDevice({
           limits: { maxBufferSize: 1024, maxStorageBufferBindingSize: 8 },
-          createBuffer: () => {
-            throw new Error('should not allocate');
-          },
-          queue: {},
-        } as unknown as GPUDevice,
+          refuse: () => 'throw',
+        }).device,
         { read: async () => new Uint8Array(4) },
         { pageBytes: 8, slots: 2 },
       ),

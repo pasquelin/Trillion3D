@@ -60,7 +60,7 @@ export function transmissionScene(glass = {}) {
       selectedTriangles: 6,
       selectedNodes: 0,
       totalNodes: 3,
-      errorModel: 'dag-group-qem-v1',
+      errorModel: 'dag-group-qem-v2',
       clusterStrategy: 'dag-groups',
       primitives: [
         primitive(opaque, 0, [page]),

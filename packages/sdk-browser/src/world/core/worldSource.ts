@@ -1,5 +1,6 @@
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
+  DAG_ERROR_MODEL,
   GEOMETRY_PAGE_CODEC,
   GEOMETRY_PAGE_FORMAT_VERSION,
   type ClusterManifest,
@@ -117,7 +118,7 @@ export function buildWorldSource(plan: WorldPlan) {
     status: 'ready',
     key: first?.metadata.key ?? 'world',
     scope: first?.metadata.scope ?? 'full',
-    errorModel: first?.metadata.errorModel ?? 'dag-group-qem-v1',
+    errorModel: first?.metadata.errorModel ?? DAG_ERROR_MODEL,
     clusterStrategy: first?.metadata.clusterStrategy ?? 'dag-groups',
     geometryPages: { formatVersion: GEOMETRY_PAGE_FORMAT_VERSION, codec: GEOMETRY_PAGE_CODEC },
     sourceTriangles: triangles,

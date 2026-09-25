@@ -2212,7 +2212,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/page-collection.ts",
-        "packages/sdk-browser/src/page/selection/template.ts"
+        "packages/sdk-browser/src/page/selection/template.ts",
+        "packages/sdk-browser/src/world/core/worldSource.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/base\".DAG_ERROR_MODEL"

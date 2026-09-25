@@ -166,10 +166,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       gate.resourcesChanged();
       sync();
     },
-    refreshMaterials() {
-      // The pages draw the repainted surfaces themselves; a vertex-coloured twin is a clone.
-      for (const [original, twin] of colorMaterials) colouredHostSurface(original, twin);
-      gate.sceneChanged();
+    refreshMaterials(values = true) {
+      // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
+      if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
+      (values ? gate.sceneChanged : gate.resourcesChanged)();
     },
     metrics() {
       return {

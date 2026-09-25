@@ -16,8 +16,11 @@ export const CUTOUT_SHEET_FILE = 'decoupes.json';
 export const CUTOUT_SHEET_VERSION = 1;
 /** Outer cache format required for clustered BLEND; source manifests keep their own format. */
 export const CLUSTERED_BLEND_FORMAT_VERSION = 6;
-/** Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere. */
-export const DAG_ERROR_MODEL = 'dag-group-qem-v1';
+/**
+ * Cache identity for per-cluster DAG errors: absolute group QEM error over positions, normals and
+ * texture coordinates, clamped to the group's extent; a v1 cache is refused.
+ */
+export const DAG_ERROR_MODEL = 'dag-group-qem-v2';
 /** The scope a model is compiled at when none is named: streamed in pages. */
 export const DEFAULT_SCOPE: AssetScope = 'slice';
 /** How a model is compiled: `'slice'` streams it in pages, `'full'` keeps it whole. */
