@@ -1,9 +1,9 @@
 import { createStreamingFetcher } from './fetch.ts';
 import { createStreamingQueue } from './queue.ts';
 import type { BackendDiagnostic } from '../backend/types.ts';
-
 import type { StreamContext, Job, StreamPage } from './types.ts';
 import { createStreamingCache } from './cache.ts';
+import { createIndexViews } from './indexView.ts';
 import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
 export type { StreamPage } from './types.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
@@ -84,8 +84,7 @@ export function createPageStreamer(
   };
   const { touch, evict, retain, retainRanks } = createStreamingCache(context);
   // A kept page the catalogue names at another size is another page: it leaves before the first read.
-  for (const [url, bytes] of cache)
-    if (catalog.has(url) && catalog.get(url)!.bytes !== bytes.byteLength) store.drop(url);
+  store.dropResized(catalog);
   const release = store.hold({ reservedBytes: tableBytes + maxTransferBytes, evict });
   evict();
   emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
@@ -100,16 +99,7 @@ export function createPageStreamer(
   }));
   const loadOne = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
-  const indexViews = new WeakMap<Uint8Array, Uint32Array>();
-  const asIndices = (bytes: Uint8Array) => {
-    if (bytes.byteLength % 4 !== 0) throw new Error('INVALID_INDEX_PAGE_SIZE');
-    let view = indexViews.get(bytes);
-    if (!view) {
-      view = new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
-      indexViews.set(bytes, view);
-    }
-    return view;
-  };
+  const asIndices = createIndexViews();
   return {
     get(url: string) {
       const array = cache.get(url);
