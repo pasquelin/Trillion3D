@@ -15,17 +15,14 @@ pub(super) fn cube_fixture() -> (PathBuf, Options) {
         bin.extend_from_slice(&value.to_le_bytes());
     }
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"cube.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":96},{"buffer":0,"byteOffset":96,"byteLength":144}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":8},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":36}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    gltf_fixture("cube", &gltf, &bin, 12)
+    gltf_fixture("cube", &gltf, &bin)
 }
-/// Writes `<tag>.gltf`, `<tag>.bin` and the manifest of a one-node scene into a scratch source
-/// folder, and returns it with the options every simplified fixture compiles with. The document's
-/// only buffer must name `<tag>.bin`.
-pub(super) fn gltf_fixture(
-    tag: &str,
-    gltf: &Value,
-    bin: &[u8],
-    triangles: usize,
-) -> (PathBuf, Options) {
+/// Writes `<tag>.gltf`, `<tag>.bin` and the manifest of a scene into a scratch source folder, its
+/// mesh nodes and triangles counted from the document as the compiler counts them, and returns it
+/// with the options every simplified fixture compiles with. The document's only buffer must name
+/// `<tag>.bin`.
+pub(super) fn gltf_fixture(tag: &str, gltf: &Value, bin: &[u8]) -> (PathBuf, Options) {
+    let (mesh_nodes, triangles) = source_stats(gltf).expect("source stats");
     let root = scratch("fixture", tag);
     let source = root.join("source");
     let cache = root.join("cache");
@@ -34,7 +31,16 @@ pub(super) fn gltf_fixture(
     let (gltf_name, bin_name) = (format!("{tag}.gltf"), format!("{tag}.bin"));
     fs::write(source.join(&gltf_name), &gltf_bytes).expect("gltf write");
     fs::write(source.join(&bin_name), bin).expect("bin write");
-    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":gltf_name,"sha256":hash(&gltf_bytes),"sidecars":[{"file":bin_name,"sha256":hash(bin)}],"trianglesAcrossNodes":triangles,"meshNodes":1}})).expect("manifest")).expect("manifest write");
+    let sidecars = [(bin_name, hash(bin))];
+    let manifest = runtime_manifest(
+        &gltf_name,
+        &hash(&gltf_bytes),
+        &sidecars,
+        mesh_nodes,
+        triangles,
+    );
+    let manifest_bytes = serde_json::to_vec(&manifest).expect("manifest");
+    fs::write(source.join("manifest.json"), manifest_bytes).expect("manifest write");
     (root, simplified_options(source, cache))
 }
 /// The one binary buffer of a glTF fixture being written, with its views and accessors.
@@ -127,7 +133,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
     let pos_bytes = positions.len() * 4;
     let index_bytes = indices.len() * 4;
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"grid.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":pos_bytes},{"buffer":0,"byteOffset":pos_bytes,"byteLength":index_bytes}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":positions.len()/3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":indices.len()}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    gltf_fixture("grid", &gltf, &bin, indices.len() / 3)
+    gltf_fixture("grid", &gltf, &bin)
 }
 pub(super) fn encode_glb(gltf: &Value, bin: &[u8]) -> Vec<u8> {
     let mut json = serde_json::to_vec(gltf).expect("json");
