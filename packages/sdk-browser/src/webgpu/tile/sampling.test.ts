@@ -122,17 +122,18 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
     'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample(slot,uv,ddx,ddy,sampled).w;}',
   );
   // Face-on, up to rounding, the footprint is not elongated: one tap at the isotropic level.
-  assert.match(SAMPLING_WGSL, /if\(ratio>1\.01\)\{\s*raw-=log2\(ratio\);\s*taps=/);
+  assert.match(SAMPLING_WGSL, /if\(ratio>1\.01\)\{\s*taps=/);
 });
 
-/** The shader's own ratio and taps lines, run on the CPU: WGSL's calls read as `Math`'s, `u32` as
- *  a truncation, the `u` of an unsigned literal dropped. */
-const tapsOf = (lx: number, ly: number, granted: number) => {
+/** The shader's own ratio, taps and level lines, run on the CPU — the taps, and how many levels
+ *  the read is lowered: WGSL's calls read as `Math`'s, `u32` as a truncation, the `u` of an
+ *  unsigned literal dropped. */
+const readOf = (lx: number, ly: number, granted: number) => {
   const line = (name: string) => {
     const found = SAMPLING_WGSL.match(new RegExp(`${name}=([^;]+);`));
     assert.ok(found, name);
     return found[1]
-      .replace(/\b(min|max|sqrt|ceil)\(/g, 'Math.$1(')
+      .replace(/\b(min|max|sqrt|ceil|log2)\(/g, 'Math.$1(')
       .replace(/\bu32\(/g, 'Math.trunc(')
       .replace(/\bf32\(/g, '(')
       .replace(/(\d)u\b/g, '$1');
@@ -141,9 +142,10 @@ const tapsOf = (lx: number, ly: number, granted: number) => {
     'lx',
     'ly',
     'granted',
-    `const ratio=${line('let ratio')};return ${line(';\\s*taps')};`,
-  )(lx, ly, granted) as number;
+    `const ratio=${line('let ratio')},taps=${line('\\n\\s*taps')};return [taps,${line('raw-')}];`,
+  )(lx, ly, granted) as [number, number];
 };
+const tapsOf = (lx: number, ly: number, granted: number) => readOf(lx, ly, granted)[0];
 
 // #443: a footprint stretched up to the grant is read with as many taps as it is stretched: 16
 // over 16 texels, never a cap below the grant; beyond the grant, the grant.
@@ -153,6 +155,18 @@ test('an anisotropic footprint takes as many taps as its ratio, up to the grant'
   assert.equal(tapsOf(64 * 64, 1, MAX_ANISOTROPY), MAX_ANISOTROPY);
   assert.equal(tapsOf(16 * 16, 1, 4), 4);
   assert.equal(tapsOf(2.5 * 2.5, 1, MAX_ANISOTROPY), 3);
+});
+
+// #443: the hardware rule (EXT_texture_filter_anisotropic): the level is log2(Pmax / N), N the taps
+// — the ratio rounded up —, so 2.5 × 2.5 texels read with 3 taps one log2(3) lower, not log2(2.5).
+test('an anisotropic read lowers its level by its taps, as the hardware rule', () => {
+  for (const [lx, granted, taps] of [
+    [2.5 * 2.5, MAX_ANISOTROPY, 3],
+    [12.5 * 12.5, MAX_ANISOTROPY, 13],
+    [64 * 64, MAX_ANISOTROPY, 16],
+    [16 * 16, 4, 4],
+  ])
+    assert.deepEqual(readOf(lx, 1, granted), [taps, Math.log2(taps)], `${lx} texels²`);
 });
 
 test('the affine part of the transform is carried, and flagged when it is not the identity', () => {
