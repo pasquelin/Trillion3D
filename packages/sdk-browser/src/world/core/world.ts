@@ -129,9 +129,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       live()?.setPixelError(value);
       invalidate();
     },
-    /** Light bounced off the surfaces, traced against the resident proxy; off by default. A
-     *  change is applied in place on a path that carries it, and taken by the next opening on
-     *  one that does not. */
+    /** Light bounced off the surfaces, traced against the resident proxy; off by default. Applied
+     *  in place on a path that carries it, taken by the next opening on one that does not. */
     get bounce() {
       return switches.bounce;
     },
@@ -147,6 +146,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     set temporalAntialiasing(on: boolean) {
       switches.temporalAntialiasing = on;
     },
+    /** Passes drawn over the image, in order (`effect`). */ effects: switches.held.effects,
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
     /** The world's memory pools, read and set in bytes, and the physics envelopes. */
     budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
