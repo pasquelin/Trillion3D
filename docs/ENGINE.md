@@ -184,8 +184,10 @@ frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, a
 the static layer once something moves. The atlas stops at the 8 192-texel side every WebGPU device
 offers (4 096 pages, 256 MiB), reached at 1920 × 1080; above it the pages past the pool wait,
 read at the coarser level meanwhile, and are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
-The table holds 2^20 words, 4 MiB (`shadowTableEntries`): sixteen suns or 128 point lights, and a
-light that finds no room is denied its shadow and counted (`shadowsDenied`).
+The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
+light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
+(`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`).
 
 - **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
@@ -442,6 +444,15 @@ Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
+On WebGPU a page enters the pool only after the pages it depends on, the clusters of the group
+that replaces it, read from the compiled group links (`webgpu/residency/admission.ts`): loading a
+wanted page or a shadow caster brings its missing dependencies first, each after its own, up to
+the pinned root cover. The bytes come first: the host's request for a page lists the missing
+bundles its bundle depends on (`streams.pages[].dependencies`, [FORMAT.md](FORMAT.md#cluster-dag))
+and keeps them retained with the cut, even when the parent is outside it. The compiler refuses a
+list that misses a parent's bundle or is not closed, so every page the pool walks has its bytes
+requested. Until they arrive, or when a dependency does not fit, the page is not loaded and stays
+drawn through its resident ancestor. Both tiers of the residency queue share this one path.
 Shared URLs occupy one slot across instances. Two counters say different things:
 
 | Field            | Meaning                                                                                         | Reported by          |

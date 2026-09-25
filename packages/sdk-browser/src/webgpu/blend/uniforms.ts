@@ -1,5 +1,5 @@
 import { viewProj } from '../pages/helpers.ts';
-import { pixelScaleOf } from '../../camera/pixelFootprint.ts';
+import { pixelFootprintOf } from '../../streaming/priority.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { writeBlendDiagnostic } from './diagnostic.ts';
 import { directTiles } from '../pages/render/encodeLights.ts';
@@ -78,7 +78,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   ints[24] = rt.vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
   // A pixel's world size per unit of distance — or its size, under an orthographic camera —:
   // the footprint the transparent surface reads its shadow level at.
-  packed[25] = eye ? pixelScaleOf(run.gate.cam.projection, rt.gpu.targetSize[1]) : 0;
+  packed[25] = eye ? pixelFootprintOf(run.gate.cam.projection, rt.gpu.targetSize[1]) : 0;
   // The size in pixels of the target both surface passes draw into: the vertex stage's facing test
   // measures a triangle's area against the rasteriser's snapping there (`facing.ts`).
   packed[26] = rt.gpu.targetSize[0];

@@ -4,6 +4,7 @@ import {
   PAGE_INDEX_MASK,
   PAGE_VALID,
   SHADOW_PAGE,
+  SHADOW_TABLE_ENTRIES,
   SUN_LEVELS,
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -30,8 +31,7 @@ const POISSON_16 = [
 
 /** Words of the request buffer: the count, the entries the shading asked for, then one bit per
  *  table entry — a page is listed once however many pixels read it. */
-export const SHADOW_REQUEST_WORDS =
-  1 + LIGHT_SETTINGS.shadowRequestCap + LIGHT_SETTINGS.shadowTableEntries / 32;
+export const SHADOW_REQUEST_WORDS = 1 + LIGHT_SETTINGS.shadowRequestCap + SHADOW_TABLE_ENTRIES / 32;
 
 /**
  * The shadow buffer as the GPU reads it: every slice's record (`SHADOW_RECORD_FLOATS`) — lamp
