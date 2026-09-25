@@ -124,3 +124,25 @@ test('a non-finite pose in the tables is refused at load (NON_FINITE_TRANSFORM)'
       error.details.nodeName === 'cible',
   );
 });
+
+// A partitioned scene places its cells' nodes on rows the replicas would share: refused (#404).
+test('a partitioned scene is not replicated', async (t) => {
+  serve(t);
+  const pointer = new URL('../../../../ten-thousand-objects/cache/native/full/manifest.json', bust);
+  const { url } = JSON.parse(await readFile(pointer, 'utf8')) as { url: string };
+  await assert.rejects(
+    () =>
+      loadPreparedScene(
+        { manifestUrl: '', textureSource: 'host', replicaCount: 4 },
+        plain,
+        'source.gltf',
+        new URL('./', new URL(url, pointer)).href,
+        'full',
+        false,
+        undefined,
+        () => {},
+        () => {},
+      ),
+    (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_SCENE_UPDATE',
+  );
+});

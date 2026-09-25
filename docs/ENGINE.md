@@ -124,8 +124,10 @@ to the capture target and the canvas in one pass.
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
 instead of one program that tests every feature per pixel. A class is the set of features the
 resolve would branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and
-normal maps, vertex normals, double-sidedness, tangents — an eleven-bit word carried by every page
-row. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
+normal maps, vertex normals, double-sidedness, tangents, filtered sampling, vertex colours — a
+thirteen-bit word carried by every page row. A vertex-coloured class multiplies the base colour by
+the page's `COLOR_0` when its material asks for vertex colours, as the transparent pass and the
+WebGL2 path do; geometry read as floats carries its colours at the tail of its UV buffer, which every page-geometry pass binds. A masked surface is cut at base map alpha times vertex alpha, as the reference cuts. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
 the `Trillion3D material depth` pass writes every pixel's class as an exact depth value, then one full-screen
 triangle per present class runs under `depthCompare: 'equal'`, so the hardware keeps that class's
 pixels and its fragment stage reads only the maps it has. The `material-classes-ready` diagnostic
@@ -187,7 +189,11 @@ read at the coarser level meanwhile, and are evicted least recently read first. 
 The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
-The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`).
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
+words, a change flag per word, and the pool's page records and eviction bitset at the largest pool,
+20.8 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes` and `shadowPoolHostBytes`, which
+a test checks against real allocations) — is the CPU total's first share, before the decoded-page
+cache (`splitMemoryBudget`).
 
 - **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
@@ -342,6 +348,36 @@ wall; where no level reaches, the term is zero. Against the compiler's path trac
 bounce is **off by default**: its stage costs about 1.1 ms, above the one-millisecond bar. Emission,
 transparency and specular are not bounced. `setLightingView('bounce')` outputs the indirect
 irradiance alone, the quantity `bench/runner/oracle.ts` compares.
+
+## Fog
+
+`scene.fog` is a term of the one lighting model, not a post effect: every program that lights a
+surface hands its lit colour `L` through the same law before the display chain — the opaque resolve
+(`lighting/deferred/shaders.ts`), the blended surfaces (`webgpu/blend/shader.ts`), the water
+composite and the WebGL2 program. The pixel reaches the eye as `mix(color, L, T)`, `color` the
+radiance the medium scatters toward the eye (exposed and tone-mapped like a surface's), `T` the
+transmittance over the distance `d` from the camera's position to the surface point:
+
+- linear, `{ color, near, far }`: `T = clamp((far − d) / (far − near), 0, 1)`;
+- exponential, `{ color, density }`: `T = exp(−density · d)`, a uniform medium (Beer-Lambert);
+- height fog, `{ color, density, heightFalloff, baseHeight }`: the density
+  `density · exp(−heightFalloff · (y − baseHeight))` integrated along the ray in closed form,
+  `τ = density · d · (ρ(eye) − ρ(P)) / (heightFalloff · Δy)`, the two densities' mean where the ratio
+  would lose its 32-bit precision (Wenzel, SIGGRAPH 2006; Quilez, "Better fog").
+
+One text of the law serves both languages (`lighting/fogShader.ts`). The fog travels with the
+environment (`SceneEnvironment.fog`, `packages/sdk-core/src/scene/core/fog.ts`): two `vec4`s behind
+the irradiance in the contract light buffer on WebGPU, `fogColor` and `fogLaw` uniforms on WebGL2,
+written only when the environment changes. The eye rides with the frame's view: `display.yzw` of the
+deferred view, `eye` of the blend view, the view space origin on WebGL2. With no fog the block's mode
+is zero and every program returns `L` untouched, one uniform branch per pixel. An unlit material
+(basic, matcap) is fogged like a lit one, its colour standing for `L`, as in the reference; a normal
+or depth material and the diagnostic views, the unlit view among them, are not. Fog is a view-ray
+term, not light transport: a change of fog alone leaves the bounce probes converged (the store's
+`transportEpoch`). A world writes the fog with the lights before the next frame,
+like exposure; a fog set again, or its colour written through its methods, is heard.
+`lighting/fogShader.test.ts` evaluates both shader texts against a numerical integration.
+Volumetric fog and light shafts belong to the lighting strategy below.
 
 ## Transparent surfaces
 
