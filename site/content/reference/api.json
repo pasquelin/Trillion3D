@@ -5934,7 +5934,7 @@
       {
         "name": "setTransform(matrix: ArrayLike<number> | { elements: ArrayLike<number>; })",
         "type": "GuideHandle",
-        "desc": "Places it: sixteen column-major numbers, or a matrix — `node.matrixWorld` follows a node."
+        "desc": "Places it: sixteen column-major numbers, or a matrix; a guide `add` drew then stops following its node."
       },
       {
         "name": "remove()",
@@ -5967,7 +5967,7 @@
       {
         "name": "width?",
         "type": "number | undefined",
-        "desc": "Width on the screen, in pixels."
+        "desc": "Width on the screen, in CSS pixels, as every line of the engine."
       }
     ],
     "description": ""
@@ -5995,7 +5995,7 @@
       {
         "name": "size?",
         "type": "number | undefined",
-        "desc": "Side of each square dot on the screen, in pixels."
+        "desc": "Side of each square dot on the screen, in CSS pixels."
       }
     ],
     "description": ""
@@ -6033,7 +6033,7 @@
       {
         "name": "add(object: Object3D, options?: { width?: number; size?: number; })",
         "type": "GuideHandle",
-        "desc": "Draws the line and point meshes of `object` — every `helper` builds them —, in their material colours, placed where the object stands now; its triangles are not guides and are skipped."
+        "desc": "Draws the line and point meshes of `object` — every `helper` builds them —, in their material colours; its triangles are not guides and are skipped. The guide follows the object — a light or camera helper, the node it shows — moved at each image where that node moved, never otherwise."
       },
       {
         "name": "clear()",

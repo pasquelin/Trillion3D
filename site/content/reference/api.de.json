@@ -2215,7 +2215,7 @@
     "members": {
       "visible": "Ob er gezeichnet wird; `setVisible` schreibt es.",
       "setVisible": "Zeigt oder verbirgt ihn; seine Eckpunkte zählen weiter gegen die Obergrenze.",
-      "setTransform": "Platziert ihn: sechzehn Zahlen spaltenweise oder eine Matrix — `node.matrixWorld` folgt einem Knoten.",
+      "setTransform": "Platziert ihn: sechzehn Zahlen spaltenweise oder eine Matrix; eine von `add` gezeichnete Hilfslinie folgt dann ihrem Knoten nicht mehr.",
       "remove": "Nimmt ihn aus der Welt, seine Eckpunkte werden freigegeben; ein zweiter Aufruf tut nichts."
     }
   },
@@ -2224,7 +2224,7 @@
     "members": {
       "positions": "Zwei Enden pro Segment, je drei Zahlen.",
       "color": "Ihre Farbe; standardmäßig weiß.",
-      "width": "Breite auf dem Bildschirm, in Pixeln."
+      "width": "Breite auf dem Bildschirm, in CSS-Pixeln, wie jede Linie der Engine."
     }
   },
   "GuidePoints": {
@@ -2232,7 +2232,7 @@
     "members": {
       "positions": "Drei Zahlen pro Punkt.",
       "color": "Ihre Farbe; standardmäßig weiß.",
-      "size": "Seitenlänge jedes quadratischen Punkts auf dem Bildschirm, in Pixeln."
+      "size": "Seitenlänge jedes quadratischen Punkts auf dem Bildschirm, in CSS-Pixeln."
     }
   },
   "Guides": {
@@ -2242,7 +2242,7 @@
       "vertexCount": "Jetzt gehaltene Eckpunkte, zwei pro Segment und einer pro Punkt, verborgene eingeschlossen.",
       "lines": "Zeichnet Liniensegmente mit je zwei Enden; über der Obergrenze abgelehnt (`GUIDE_CEILING`).",
       "points": "Zeichnet quadratische Punkte mit je einer Position; über der Obergrenze abgelehnt (`GUIDE_CEILING`).",
-      "add": "Zeichnet die Linien- und Punkt-Meshes von `object` — jeder `helper` baut solche —, in ihren Materialfarben, dort platziert, wo das Objekt jetzt steht; seine Dreiecke sind keine Hilfslinien und werden übersprungen.",
+      "add": "Zeichnet die Linien- und Punkt-Meshes von `object` — jeder `helper` baut solche —, in ihren Materialfarben; seine Dreiecke sind keine Hilfslinien und werden übersprungen. Die Hilfslinie folgt dem Objekt — bei einem Licht- oder Kamera-Helfer dem Knoten, den er zeigt — und wird in jedem Bild bewegt, in dem sich dieser Knoten bewegt hat, sonst nie.",
       "clear": "Entfernt alle Hilfslinien."
     }
   },
