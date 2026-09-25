@@ -2,12 +2,12 @@
 //! different formats and move on their own schedules; nothing may conflate them.
 use serde_json::Value;
 
-/// Cache format this compiler writes. Format 5 adds `scene-tables.json`, the node and material
-/// tables the prepared scene is described by: a reader checks the scene it builds against them, so
-/// a cache written before them carries no answer and is refused by its number, never half-read.
-pub const FORMAT_VERSION: u32 = 5;
-/// Outer cache format required for clustered BLEND.
-pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 6;
+/// Cache format this compiler writes. Format 5 added `scene-tables.json`, the node and material
+/// tables the prepared scene is described by; format 7 writes `selectedNodes` as a count, not a
+/// list (#404). A cache written before either is refused by its number, never half-read.
+pub const FORMAT_VERSION: u32 = 7;
+/// Outer cache format required for clustered BLEND: 6 before `selectedNodes` became a count.
+pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 8;
 /// Format of a prepared source manifest the compiler reads. An input format, not an output one.
 pub const SOURCE_FORMAT_VERSION: u32 = 1;
 
