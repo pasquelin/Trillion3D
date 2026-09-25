@@ -10,6 +10,12 @@ import type { JoltModule } from './joltModule.ts';
 import type { CharacterReport } from './characterDriver.ts';
 import { eventsAt, resultWords, type FromPhysics } from './protocol.ts';
 
+/** A copy of the vehicles' state after the last step, or `null` without a vehicle. */
+const vehicles = (jolt: JoltModule) => {
+  const words = jolt.vehicles();
+  return words.length ? words.slice() : null;
+};
+
 /**
  * One tick's results in the physics worker: the poses and events of every step it takes, written
  * straight into a free result buffer (`buffers`), or into a staging copy while the page holds
@@ -108,6 +114,7 @@ export function createTickResults(
         stepMs,
         active,
         character: character(),
+        vehicles: vehicles(jolt),
       };
       send({ type: 'results', buffer: outBuffer, ...message }, [outBuffer]);
       out = outBuffer = null;
