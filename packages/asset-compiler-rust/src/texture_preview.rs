@@ -42,11 +42,13 @@ pub use entry::{PreviewSource, TexturePreview};
 pub use levels::*;
 
 /// Section contract: moving level scale, order, reduction rule, color space,
-/// a block codec or the gate's bar requires incrementing this version and
-/// binary sidecar version carrying it. Version 3 is GPU rule and full chain,
-/// both atlases included; version 4 adds the gated block-compressed levels and
-/// tails.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 4;
+/// a block codec or the gate's bar requires incrementing this version, which
+/// names the folder of the baked levels, so no level of the old rule is served;
+/// the binary sidecar version moves with it when the entries' layout moves too.
+/// Version 3 is GPU rule and full chain, both atlases included; version 4 adds
+/// the gated block-compressed levels and tails; version 5 weighs the colours of
+/// the colour atlas by their alpha (#42), in the same layout.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 5;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout};
 pub use reduce::AtlasKind;
