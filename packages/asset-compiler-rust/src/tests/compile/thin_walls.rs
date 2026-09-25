@@ -7,15 +7,7 @@ use super::*;
 
 /// One node drawing every mesh as a primitive of its own material, positions and normals as `f32`.
 fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
-    let (mut bin, mut views, mut accessors, mut primitives) = (Vec::new(), vec![], vec![], vec![]);
-    let mut push = |bytes: Vec<u8>, accessor: Value| {
-        views.push(json!({"buffer":0,"byteOffset":bin.len(),"byteLength":bytes.len()}));
-        bin.extend(bytes);
-        let mut accessor = accessor;
-        accessor["bufferView"] = json!(views.len() - 1);
-        accessors.push(accessor);
-        accessors.len() - 1
-    };
+    let (mut buffer, mut primitives) = (GltfBuffer::default(), vec![]);
     let vec3 = |points: &[[f64; 3]]| -> Vec<u8> {
         points
             .iter()
@@ -31,16 +23,16 @@ fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
             hi.push(values.fold(f32::NEG_INFINITY, f32::max));
             (lo, hi)
         });
-        let position = push(
+        let position = buffer.push(
             vec3(&mesh.positions),
             json!({"componentType":5126,"type":"VEC3","count":count,"min":min,"max":max}),
         );
-        let normal = push(
+        let normal = buffer.push(
             vec3(&mesh.normals),
             json!({"componentType":5126,"type":"VEC3","count":count}),
         );
         let indices = mesh.indices.iter().flat_map(|v| v.to_le_bytes()).collect();
-        let index = push(
+        let index = buffer.push(
             indices,
             json!({"componentType":5125,"type":"SCALAR","count":mesh.indices.len()}),
         );
@@ -50,11 +42,11 @@ fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
         .iter()
         .map(|_| json!({"pbrMetallicRoughness":{"metallicFactor":0.0}}))
         .collect();
-    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":bin.len()}],
-        "bufferViews":views,"accessors":accessors,"meshes":[{"primitives":primitives}],"nodes":[{"mesh":0}],
+    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":buffer.bin.len()}],
+        "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":[{"primitives":primitives}],"nodes":[{"mesh":0}],
         "scenes":[{"nodes":[0]}],"scene":0,"materials":materials});
     let triangles = meshes.iter().map(|m| m.indices.len() / 3).sum();
-    gltf_fixture(tag, &gltf, &bin, triangles)
+    gltf_fixture(tag, &gltf, &buffer.bin, triangles)
 }
 
 /// The chalet cooked with simplification, without texture families: the cut is the subject.
