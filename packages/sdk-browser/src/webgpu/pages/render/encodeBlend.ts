@@ -163,8 +163,8 @@ export function encodeSurfaceLighting(
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
-  // image as-is when this image does not accumulate.
-  const composed = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
+  // lit image itself when this image does not accumulate.
+  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
   // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
   // pass stays the same, one colour target aside — that is what isolates presentation.
   const presentation =
@@ -172,6 +172,6 @@ export function encodeSurfaceLighting(
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;
-  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation, composed);
+  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation, accumulated);
   return !!presentation;
 }

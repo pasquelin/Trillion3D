@@ -74,9 +74,7 @@ export class ObjectPhysics {
 
   constructor(option: PhysicsOption) {
     this.soft = softOf(option);
-    const o = (
-      typeof option === 'string' ? { type: option } : this.soft ? {} : option
-    ) as PhysicsBodyOptions;
+    const o = (typeof option === 'string' ? { type: option } : option) as PhysicsBodyOptions;
     this.type = this.soft?.type ?? o.type ?? 'dynamic';
     this.shape = o.shape;
     this.sensor = o.sensor ?? false;
