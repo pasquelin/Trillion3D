@@ -132,7 +132,13 @@ fn main() -> std::io::Result<()> {
     let jolt = physics_cook(&output);
     println!("cargo:rustc-env=JOLT_COMMIT={jolt}");
     digest.update(jolt.as_bytes());
-    for source in ["cook/cook.cpp", "src/mesh.h"] {
+    for source in [
+        "cook/cook.cpp",
+        "src/blob.h",
+        "src/mesh.h",
+        "src/softSettings.h",
+        "src/words.h",
+    ] {
         digest.update(fs::read(Path::new(PHYSICS).join(source))?);
     }
     fs::write(

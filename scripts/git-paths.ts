@@ -1,4 +1,5 @@
-import { execFileSync, spawn } from 'node:child_process';
+import assert from 'node:assert/strict';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -42,4 +43,15 @@ export async function gitPaths(args: string[], cwd = process.cwd()): Promise<str
   })();
   await Promise.all([completion, output]);
   return paths;
+}
+
+/** Fails unless git tracks none of `paths` and its ignore rules name every one, on disk or not. */
+export function assertUntracked(paths: string[], cwd = process.cwd()): void {
+  assert.deepEqual(gitPathsSync(['ls-files', '-z', '--', ...paths], cwd), [], 'tracked');
+  const { stdout } = spawnSync('git', ['check-ignore', '--no-index', '--stdin', '-z'], {
+    cwd,
+    input: paths.join('\0'),
+    encoding: 'utf8',
+  });
+  assert.deepEqual(stdout.split('\0').filter(Boolean), paths, 'not ignored');
 }
