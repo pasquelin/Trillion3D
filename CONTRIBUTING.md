@@ -204,15 +204,17 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    depth —, then check correctness against the requirements above. Fix findings and run
    `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
    measuring queue runs it after the merge.
-4. Commit with a descriptive English message. Open a pull request targeting `develop`, using
+4. Commit with a descriptive English message. Open a draft pull request targeting `develop`, using
    `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` when it delivers every
    To-do item, `Part of #<issue>` otherwise (the remainder is a comment on the issue, which stays
    open). Describe what both
    local review passes found under "Local review before push". Replace `in progress` with `in review`.
 5. Obtain an independent review and resolve its findings before integration. The maintainer, or
-   whoever the maintainer entrusts with it, merges into `develop` once the review holds and
-   `validate` is green on a head up to date with `develop`; `main` moves only on the maintainer's
-   word. Never push directly to `develop` or `main`, or rewrite published history.
+   whoever the maintainer entrusts with it, merges into `develop` once the review holds, the pull
+   request is out of draft (`gh pr ready`, after which the body check asks for its Lead
+   verification) and `validate` is green on a head up to date with `develop`; `main` moves only
+   on the maintainer's word. Never push directly to `develop` or `main`, or rewrite published
+   history.
 6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
    an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
    against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
