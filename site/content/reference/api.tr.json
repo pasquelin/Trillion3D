@@ -2231,10 +2231,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Bir `cut`'ın döndürdüğü şey: sayfaları, ve kuantalandıkları pozisyon ızgarası.",
+    "summary": "Bir `cut`'ın döndürdüğü şey: sayfaları, ve kuantalandıkları ızgaralar.",
     "members": {
       "pages": "Yazılan sayfalar.",
       "positionExponent": "İkinin kuvveti olarak, pozisyonların ızgara adımı.",
+      "uvExponent": "İkinin kuvveti olarak, doku koordinatlarının ızgara adımı.",
       "maxPositionError": "O ızgaradaki en büyük pozisyon hatası."
     }
   },

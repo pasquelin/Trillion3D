@@ -7,6 +7,11 @@ const MAX_BITS = 24;
 /** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
 export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
+/** The finest grid exponent, never below `finest`, on which a `span` of values fits the field: at
+ *  most 2^23 steps, which rounding at both ends keeps under the 2^24 a page holds. */
+export const gridExponentFor = (span: number, finest: number) =>
+  span > 0 ? Math.max(finest, Math.ceil(Math.log2(span)) - (MAX_BITS - 1)) : finest;
+
 /** One attribute's cells on its grid: the bits and float minimum per component, the exponent
  *  that set the grid step, and the cells themselves (n components per vertex, row-major). */
 export interface QuantizedGrid {

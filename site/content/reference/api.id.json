@@ -2249,10 +2249,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Yang dikembalikan sebuah `cut`: halamannya, dan grid posisi tempat mereka dikuantisasi.",
+    "summary": "Yang dikembalikan sebuah `cut`: halamannya, dan grid tempat mereka dikuantisasi.",
     "members": {
       "pages": "Halaman yang ditulis.",
       "positionExponent": "Langkah grid posisi, sebagai pangkat dua.",
+      "uvExponent": "Langkah grid koordinat tekstur, sebagai pangkat dua.",
       "maxPositionError": "Galat posisi terbesar pada grid itu."
     }
   },
