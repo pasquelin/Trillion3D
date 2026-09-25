@@ -2522,6 +2522,19 @@
       "workers": "Quantos workers buscam e decodificam páginas de uma vez."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Como um leitor de páginas lê (`createPageStreamer`).",
+    "description": "Além das suas páginas, o seu cache reserva as tabelas do manifesto e a fila de transferência; cada membro tem um valor padrão.",
+    "members": {
+      "signal": "Cancela todas as leituras quando abortado.",
+      "workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
+      "maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
+      "onEvict": "Ouve cada página que sai do cache.",
+      "maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
+      "onDiagnostic": "Ouve cada passo de cada leitura.",
+      "maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PAN-ZOOM PLANAR, a visão plana: a câmera nunca gira.",
     "description": "Qualquer direção para a qual estava apontando quando o controlador foi feito é a direção que ela mantém, e todo gesto desliza a visão no plano para o qual a câmera aponta ou a move mais perto desse plano — uma planta, uma elevação, um mapa. Qualquer arraste desloca, a roda e um pinça dão zoom entre `minDistance` e `maxDistance`, e as setas do teclado deslocam por um passo fixo para um observador sem ponteiro. `rotateSpeed` é herdado do contrato de pivô e não faz nada aqui: não há rotação para acelerar. `enablePan` e `enableZoom` alternam os dois gestos que existem.",
@@ -4032,7 +4045,7 @@
       "texturePool": "Bytes de memória GPU reservados para páginas de textura, `null` num motor sem reservatório de texturas (WebGL2); defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras, das sondas de ressalto e do reservatório de geometria.",
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
-      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo do reservatório de sombras é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina.",
+      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo das três partes fixas — o reservatório de sombras, as sondas de ressalto e os alvos de efeitos — é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina.",
       "canvas": "O maior canvas que o mundo declara, em pixels do buffer de desenho: os alvos da cadeia de efeitos são reservados no seu tamanho (`split.effectTargets`); 3840 × 2160 por omissão, e o `gpu` por omissão só cresce dessa reserva. Defina-o para redistribuir cada reservatório pela regra. Um canvas desenhado maior continua a ser renderizado inteiro: os diagnósticos dizem `effect targets over budget` com os bytes além da reserva.",
       "cpu": "Bytes de memória CPU que o mundo pode ocupar: primeiro o espelho no host da tabela de páginas de sombra, depois as páginas decodificadas, suas tabelas de manifesto, sua fila de transferências e as tabelas de corte do motor juntas. Uma mudança se aplica na hora: as páginas saem por último uso até caberem. Um total que não excede o espelho é recusado (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca lido da máquina.",
       "split": "Como os dois totais são divididos: o reservatório de sombras e as sondas de ressalto no máximo, os alvos da cadeia de efeitos no `canvas` declarado, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o espelho no host da tabela de sombras, depois o cache de páginas decodificadas fica com o resto do total de CPU, inteiro, e dentro dele a sessão em curso reserva as suas tabelas de manifesto, a sua fila de transferências e as tabelas de corte do motor. O que a regra dá, antes de um reservatório definido sozinho."
@@ -4770,7 +4783,17 @@
   },
   "createPageStreamer": {
     "summary": "Leituras limitadas, priorizadas e deduplicadas.",
-    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la."
+    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la.",
+    "parameters": {
+      "options": "Como um leitor de páginas lê (`createPageStreamer`). Além das suas páginas, o seu cache reserva as tabelas do manifesto e a fila de transferência; cada membro tem um valor padrão.",
+      "options.signal": "Cancela todas as leituras quando abortado.",
+      "options.workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
+      "options.maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
+      "options.onEvict": "Ouve cada página que sai do cache.",
+      "options.maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
+      "options.onDiagnostic": "Ouve cada passo de cada leitura.",
+      "options.maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
+    }
   },
   "createPathGovernor": {
     "summary": "Um regulador."

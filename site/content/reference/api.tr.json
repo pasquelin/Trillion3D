@@ -2522,6 +2522,19 @@
       "workers": "Aynı anda kaç worker'ın sayfaları getirip çözdüğü."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Bir sayfa akışının nasıl okuduğu (`createPageStreamer`).",
+    "description": "Önbelleği, sayfalarının yanında bildirim tablolarını ve aktarım kuyruğunu ayırır; her üyenin varsayılan değeri vardır.",
+    "members": {
+      "signal": "İptal edildiğinde tüm okumaları durdurur.",
+      "workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
+      "maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
+      "onEvict": "Önbellekten çıkan her sayfayı duyar.",
+      "maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
+      "onDiagnostic": "Her okumanın her adımını duyar.",
+      "maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "DÜZLEMSEL KAYDIRMA-YAKINLAŞTIRMA, düz görünüm: kamera asla dönmez.",
     "description": "Kontrolcü yapıldığında hangi yöne bakıyorsa o yönü korur, ve her jest, kameranın baktığı düzlemde görünümü kaydırır ya da onu bu düzleme yaklaştırır — bir plan, bir kesit, bir harita. Herhangi bir sürükleme kaydırır, tekerlek ve bir sıkıştırma `minDistance` ile `maxDistance` arasında yakınlaştırır, ve ok tuşları, işaretçisi olmayan bir izleyici için sabit bir adımla kaydırır. `rotateSpeed`, pivot sözleşmesinden miras alınır ve burada hiçbir şey yapmaz: hızlandırılacak bir dönüş yoktur. `enablePan` ve `enableZoom`, var olan iki jesti açıp kapatır.",
@@ -4032,7 +4045,7 @@
       "texturePool": "Doku sayfaları için ayrılan GPU belleği baytı, doku havuzu olmayan bir motorda (WebGL2) `null`; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin, sekme sondalarının ve geometri havuzunun yanında bıraktığı kadarıyla.",
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
-      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
+      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Üç sabit payın — gölge havuzu, sekme sondaları ve efekt hedefleri — altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
       "canvas": "Dünyanın bildirdiği en büyük tuval, çizim arabelleğinin pikselleriyle: efekt zincirinin hedefleri onun boyutunda ayrılır (`split.effectTargets`); varsayılan 3840 × 2160'dır ve varsayılan `gpu` yalnızca bu rezerv kadar büyür. Her havuzu kurala göre yeniden dağıtmak için ayarlayın. Daha büyük çizilen bir tuval yine de bütünüyle çizilir: tanılama, rezervi aşan baytlarla `effect targets over budget` der.",
       "cpu": "Dünyanın tutabileceği CPU belleği baytı: önce gölge sayfa tablosunun ana makine yansısı, sonra çözülmüş sayfalar, manifest tabloları, aktarım kuyruğu ve motorun kesim tabloları birlikte. Bir değişiklik hemen uygulanır: sayfalar sığana kadar son kullanıma göre çıkar. Yansıyı aşmayan bir toplam reddedilir (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Asla makineden okunmaz.",
       "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu ve sekme sondaları en büyük hâlinde, efekt zincirinin hedefleri bildirilen `canvas` üzerinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
@@ -4770,7 +4783,17 @@
   },
   "createPageStreamer": {
     "summary": "Sınırlı, önceliklendirilmiş ve tekilleştirilmiş okumalar.",
-    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur."
+    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur.",
+    "parameters": {
+      "options": "Bir sayfa akışının nasıl okuduğu (`createPageStreamer`). Önbelleği, sayfalarının yanında bildirim tablolarını ve aktarım kuyruğunu ayırır; her üyenin varsayılan değeri vardır.",
+      "options.signal": "İptal edildiğinde tüm okumaları durdurur.",
+      "options.workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
+      "options.maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
+      "options.onEvict": "Önbellekten çıkan her sayfayı duyar.",
+      "options.maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
+      "options.onDiagnostic": "Her okumanın her adımını duyar.",
+      "options.maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Bir regülatör."
