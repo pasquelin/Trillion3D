@@ -7048,8 +7048,8 @@
     "summary": "Bir temasın dinleyicilerine verdiği: diğer nesne, itme ve dokunduğu yer.",
     "members": {
       "other": "Dokunulan nesne; sahneden çıkınca `null`.",
-      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir; `leave` üzerinde 0.",
-      "point": "Temas noktası, dünya çerçevesinde; `leave` üzerinde başlangıç noktası."
+      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir (yumuşak cisim tarafında: ortalama hızı ve dokunan köşelerinin kütlesi); `leave` üzerinde ve yumuşak cisim ile sensör arasında 0.",
+      "point": "Temas noktası, dünya çerçevesinde (yumuşak cisimde: dokunan köşelerinin ortalaması, sensör karşısında merkezi); `leave` üzerinde başlangıç noktası."
     }
   },
   "ContactEventName": {
