@@ -14,9 +14,10 @@ const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Textu
 };
 
 /** Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends
- *  weighing its colour by that alpha. */
+ *  weighing its colour by that alpha. A transmissive one tints what crosses it by its colour
+ *  whatever its alpha (`../water/compositeWgsl.ts`): it draws the colour under alpha 0. */
 const alphaIsCoverage = (mat: PageSurface) =>
-  mat.alphaTest > 0 || (mat.transparent && weighsByAlpha(mat.blending));
+  mat.alphaTest > 0 || (mat.transparent && !(mat.transmission > 0) && weighsByAlpha(mat.blending));
 
 /**
  * Census every colour and data texture once, in a stable slot order, and, per colour texture,
