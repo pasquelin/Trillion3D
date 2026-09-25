@@ -24,7 +24,7 @@ export const VUE: [number, number] = [128, 128];
 
 /** The case seen as a visibility-buffer page: a front face, two triangles, its matrix. */
 export function pageVisible(cas: Cas) {
-  const geometrie = new G.GraphGeometry();
+  const geometrie = new G.Geometry();
   geometrie.setAttribute('position', G.floatAttribute(cas.positions, 3));
   return {
     array: new Uint32Array(cas.indices),

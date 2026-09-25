@@ -1114,11 +1114,11 @@
     }
   },
   "Geometry": {
-    "summary": "Bentuknya saja: atribut per-vertex bernama, indeks segitiga opsional, grup material.",
+    "summary": "Hanya bentuknya: atribut per verteks bernama, indeks segitiga opsional, grup material, target morph yang menggerakkannya, dan rentang yang digambar.",
     "members": {
       "isGeometry": "Selalu `true`: membedakan sebuah geometri dari yang lain.",
       "type": "Jenis geometri itu, `'Geometry'`.",
-      "attributes": "Daftar per-vertex menurut namanya: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Daftar per verteks menurut nama: `position`, `normal`, `uv`, `color`; masing-masing memiliki angkanya sendiri atau membaca buffer berselang-seling.",
       "index": "Vertex mana yang membentuk setiap segitiga, tiga angka per segitiga; `null` membacanya berurutan.",
       "groups": "Rentang indeks yang digambar dengan `material[materialIndex]` saat sebuah mesh membawa beberapa.",
       "boundingBox": "Kotak di sekitar setiap vertex, setelah dihitung; `null` sampai saat itu.",
@@ -1133,8 +1133,8 @@
       "addGroup": "Menggambar `count` indeks dari `start` dengan nomor material `materialIndex` mesh itu.",
       "clearGroups": "Menghapus setiap grup material.",
       "computeVertexNormals": "Normal halus: setiap vertex merata-ratakan sisi yang berbagi dengannya, dibobot menurut luasnya.",
-      "computeBoundingBox": "Mengukur kotak di sekitar setiap vertex dan menyimpannya di `boundingBox`.",
-      "computeBoundingSphere": "Mengukur bola di sekitar setiap vertex dan menyimpannya di `boundingSphere`.",
+      "computeBoundingBox": "Mengukur kotak di sekitar setiap verteks dan setiap bentuk yang diberikan target morph, lalu menyimpannya di `boundingBox`.",
+      "computeBoundingSphere": "Mengukur bola yang berpusat pada kotak dan menjangkau verteks terjauh, di-morph atau tidak, lalu menyimpannya di `boundingSphere`.",
       "applyMatrix4": "Memindahkan setiap posisi, memutar setiap normal: geometrinya sendiri berubah, bukan sebuah pose.",
       "translate": "Memindahkan setiap vertex sebesar `(x, y, z)`.",
       "rotateX": "Memutar setiap vertex mengelilingi sumbu x, sebesar `angle` radian.",
@@ -1142,8 +1142,17 @@
       "rotateZ": "Memutar setiap vertex mengelilingi sumbu z, sebesar `angle` radian.",
       "scale": "Meregangkan setiap vertex sebesar `(x, y, z)`.",
       "center": "Memindahkan geometri agar kotaknya berpusat di titik asal.",
-      "clone": "Sebuah geometri baru dengan salinan setiap daftar.",
-      "dispose": "Melupakan pemegangnya: sebuah geometri yang dibuang tidak digambar siapa pun."
+      "clone": "Geometri baru dengan salinan setiap daftar, grup, rentang, data, dan batasnya, serta resep yang masih membangunnya.",
+      "dispose": "Mengembalikan geometri: menjalankan setiap kait pelepasan sekali, melupakan pemegangnya dan pohon raycast; geometri yang dilepas tidak digambar atau dikenai sinar oleh siapa pun.",
+      "kind": "Apa sumber dayanya, cara pembaca adegan membedakan sumber daya.",
+      "name": "Namanya.",
+      "morphAttributes": "Untuk setiap atribut yang di-morph, satu atribut per target morph.",
+      "morphTargetsRelative": "Benar bila target morph menyimpan perpindahan, bukan posisi.",
+      "drawRange": "Rentang indeks yang digambar.",
+      "userData": "Ruang bebas untuk data siapa pun yang membangun geometri.",
+      "released": "Dipanggil saat geometri dikembalikan: yang didengarkan salinan milik renderer.",
+      "getIndex": "Daftar segitiga, atau `null`.",
+      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut verteksnya sendiri."
     }
   },
   "GeometryPageDescriptor": {
@@ -1397,9 +1406,6 @@
       "width": "Lebar dalam piksel.",
       "height": "Tinggi dalam piksel."
     }
-  },
-  "HostGeometry": {
-    "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya."
   },
   "HostMaterial": {
     "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`."
@@ -7280,32 +7286,6 @@
       "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
       "handbrake": "Apakah rem tangan ditarik."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Atribut vertex-nya.",
-      "boundingBox": "Kotak lokal yang dihitung host.",
-      "kind": "Apa sumber daya ini.",
-      "name": "Namanya.",
-      "index": "Daftar segitiga, atau `null` untuk menggambar verteks secara berurutan.",
-      "morphAttributes": "Per atribut yang di-morph, satu atribut per target morph.",
-      "morphTargetsRelative": "Benar jika target morph menyimpan perpindahan, bukan posisi.",
-      "groups": "Rentang indeks yang masing-masing digambar dengan satu permukaan.",
-      "drawRange": "Rentang indeks yang digambar.",
-      "boundingSphere": "Bola lokal, setelah dihitung atau dideklarasikan.",
-      "userData": "Ruang bebas untuk data milik siapa pun yang membangun geometri.",
-      "getIndex": "Daftar segitiga.",
-      "setIndex": "Menetapkan daftar segitiga.",
-      "getAttribute": "Atribut dengan nama itu.",
-      "setAttribute": "Menamai sebuah atribut.",
-      "deleteAttribute": "Melupakan sebuah atribut.",
-      "hasAttribute": "Apakah ia memiliki atribut dengan nama itu.",
-      "clone": "Geometri yang menyimpan salinan setiap buffer, grup, rentang, dan batasnya.",
-      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut adalah verteks tersendiri.",
-      "computeBoundingBox": "Menghitung kotak lokal atas semua verteks.",
-      "computeBoundingSphere": "Menghitung bola lokal: berpusat pada kotak, menjangkau verteks terjauh."
-    },
-    "summary": "Atribut yang digambar sebuah mesh, daftar segitiga yang mengindeksnya, target morph yang menggerakkannya, serta kotak dan bola lokal yang dihitung atasnya."
   },
   "GraphNode": {
     "members": {

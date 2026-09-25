@@ -12,7 +12,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 // other instances as they are.
 test('an instance changed or removed leaves the model and the other instances as they are', () => {
   const geometryOf = () => {
-    const geometry = new G.GraphGeometry();
+    const geometry = new G.Geometry();
     geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(9), 3));
     geometry.setIndex(new G.BufferAttribute(new Uint32Array(3), 1));
     return geometry;
@@ -31,8 +31,8 @@ test('an instance changed or removed leaves the model and the other instances as
   const own = record('prim/0'),
     rowed = record('prim/1', {});
   const bytes = (geometry: unknown) =>
-    (geometry as G.GraphGeometry).index!.array.byteLength +
-    (geometry as G.GraphGeometry).attributes.position.array.byteLength;
+    (geometry as G.Geometry).index!.array.byteLength +
+    (geometry as G.Geometry).attributes.position.array.byteLength;
   const allPages = [own, rowed],
     byUrl = new Map([['p.bin', [own, rowed]]]),
     baseMaterials = new Map<PageRec, HostMaterial>([
@@ -90,7 +90,7 @@ test('an instance changed or removed leaves the model and the other instances as
   // Removing `a` gives back its copy and nothing the model or `b` draws.
   let disposed = 0;
   for (const geometry of [own.geometry, rowed.geometry, bOwn.geometry])
-    (geometry as unknown as G.GraphGeometry).released.add(() => disposed++);
+    (geometry as unknown as G.Geometry).released.add(() => disposed++);
   instances.removeInstance('a');
   assert.deepEqual(byUrl.get('p.bin'), [own, rowed, bOwn, bRowed]);
   assert.equal(disposed, 0, 'no geometry of the model or of `b` is freed');

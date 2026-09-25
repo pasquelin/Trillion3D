@@ -1106,11 +1106,11 @@
     }
   },
   "Geometry": {
-    "summary": "형태 그 자체: 이름이 붙은 정점별 속성, 선택적인 삼각형 인덱스, 재질 그룹.",
+    "summary": "형태만: 이름 붙은 정점별 속성, 선택적 삼각형 인덱스, 재질 그룹, 형태를 움직이는 모프 타깃, 그리는 범위.",
     "members": {
       "isGeometry": "항상 `true`: 지오메트리를 다른 무엇과도 구분한다.",
       "type": "지오메트리의 종류, `'Geometry'`.",
-      "attributes": "이름별 정점 목록: `position`, `normal`, `uv`, `color`.",
+      "attributes": "이름별 정점 목록: `position`, `normal`, `uv`, `color`. 각각 자기 숫자를 가지거나 인터리브 버퍼를 읽는다.",
       "index": "각 삼각형을 이루는 정점, 삼각형당 세 개의 숫자; `null`이면 순서대로 읽는다.",
       "groups": "메시가 여러 재질을 가질 때 `material[materialIndex]`로 그려지는 인덱스 범위.",
       "boundingBox": "계산된 후의, 모든 정점을 둘러싸는 박스; 계산 전에는 `null`.",
@@ -1125,8 +1125,8 @@
       "addGroup": "메시의 재질 번호 `materialIndex`로 `start`부터 `count`개의 인덱스를 그린다.",
       "clearGroups": "모든 재질 그룹을 제거한다.",
       "computeVertexNormals": "매끄러운 법선: 각 정점이 그것을 공유하는 면들을 면적으로 가중 평균한다.",
-      "computeBoundingBox": "모든 정점을 둘러싸는 박스를 계산해 `boundingBox`에 보관한다.",
-      "computeBoundingSphere": "모든 정점을 둘러싸는 구를 계산해 `boundingSphere`에 보관한다.",
+      "computeBoundingBox": "모든 정점과 모프 타깃이 주는 모든 형태를 감싸는 상자를 재어 `boundingBox`에 둔다.",
+      "computeBoundingSphere": "상자에 중심을 두고 모프 여부와 상관없이 가장 먼 정점까지 닿는 구를 재어 `boundingSphere`에 둔다.",
       "applyMatrix4": "모든 위치를 움직이고 모든 법선을 회전시킨다: 지오메트리 자체가 바뀌는 것이지 자세가 바뀌는 것이 아니다.",
       "translate": "모든 정점을 `(x, y, z)`만큼 이동시킨다.",
       "rotateX": "모든 정점을 x축 중심으로 `angle` 라디안 회전시킨다.",
@@ -1134,8 +1134,17 @@
       "rotateZ": "모든 정점을 z축 중심으로 `angle` 라디안 회전시킨다.",
       "scale": "모든 정점을 `(x, y, z)`만큼 확대·축소한다.",
       "center": "지오메트리를, 그 박스가 원점을 중심으로 하도록 옮긴다.",
-      "clone": "모든 목록의 복사본을 가진 새 지오메트리.",
-      "dispose": "소유자들을 잊는다: dispose된 지오메트리는 누구에게도 그려지지 않는다."
+      "clone": "모든 목록, 그룹, 범위, 데이터, 경계의 사본과 여전히 그것을 만드는 레시피를 가진 새 지오메트리.",
+      "dispose": "지오메트리를 돌려준다: 해제 훅을 각각 한 번 실행하고 보유자와 레이캐스트 트리를 잊는다. 해제된 지오메트리는 누구도 그리거나 광선을 쏘지 않는다.",
+      "kind": "리소스가 무엇인지. 장면을 읽는 쪽이 리소스를 구별하는 기준.",
+      "name": "이름.",
+      "morphAttributes": "모프되는 속성마다 모프 타깃 하나당 속성 하나.",
+      "morphTargetsRelative": "모프 타깃이 위치가 아니라 변위를 담으면 참.",
+      "drawRange": "그리는 인덱스 범위.",
+      "userData": "지오메트리를 만든 쪽의 데이터를 위한 자유 공간.",
+      "released": "지오메트리를 돌려줄 때 호출된다: 렌더러 자신의 사본이 듣는 것.",
+      "getIndex": "삼각형 목록, 또는 `null`.",
+      "toNonIndexed": "같은 삼각형을 인덱스 없이 그리는 지오메트리: 모든 모서리가 자기 정점을 가진다."
     }
   },
   "GeometryPageDescriptor": {
@@ -1389,9 +1398,6 @@
       "width": "너비, 픽셀 단위.",
       "height": "높이, 픽셀 단위."
     }
-  },
-  "HostGeometry": {
-    "summary": "호스트 지오메트리: 그 속성들과, 호스트가 그것들로부터 계산한 로컬 박스."
   },
   "HostMaterial": {
     "summary": "엔진이 읽는 형태의 호스트 재질: 모든 호스트 재질이 공유하는 표면 매개변수로, 경계에서 한 번만 엔진의 `VisMaterial`로 읽힌다; `side`만은 `sideOf`가 읽는다."
@@ -7279,32 +7285,6 @@
       "steer": "핸들, −1 왼쪽 끝에서 1 오른쪽 끝.",
       "handbrake": "핸드브레이크가 당겨졌는지 여부."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "그것의 정점 속성.",
-      "boundingBox": "호스트가 계산한 로컬 박스.",
-      "kind": "리소스가 무엇인지.",
-      "name": "그 이름.",
-      "index": "삼각형 목록, 또는 정점을 순서대로 그리려면 `null`.",
-      "morphAttributes": "모프되는 속성마다, 모프 타깃마다 속성 하나.",
-      "morphTargetsRelative": "모프 타깃이 위치가 아니라 변위를 담을 때 참.",
-      "groups": "각각 하나의 표면으로 그려지는 인덱스 범위.",
-      "drawRange": "그려지는 인덱스 범위.",
-      "boundingSphere": "계산되거나 선언된 뒤의 로컬 구.",
-      "userData": "지오메트리를 만든 쪽의 데이터를 위한 자유 공간.",
-      "getIndex": "삼각형 목록.",
-      "setIndex": "삼각형 목록을 설정합니다.",
-      "getAttribute": "그 이름의 속성.",
-      "setAttribute": "속성에 이름을 붙여 설정합니다.",
-      "deleteAttribute": "속성을 잊습니다.",
-      "hasAttribute": "그 이름의 속성이 있는지 여부.",
-      "clone": "모든 버퍼, 그룹, 범위, 경계의 복사본을 담은 지오메트리.",
-      "toNonIndexed": "같은 삼각형을 인덱스 없이 그리는 지오메트리: 모든 꼭짓점이 자기만의 정점입니다.",
-      "computeBoundingBox": "모든 정점에 걸친 로컬 박스를 계산합니다.",
-      "computeBoundingSphere": "로컬 구를 계산합니다: 박스를 중심으로, 가장 먼 정점까지."
-    },
-    "summary": "메시가 그리는 속성, 그것들을 인덱싱하는 삼각형 목록, 그것들을 움직이는 모프 타깃, 그리고 그 위에서 계산한 로컬 박스와 구."
   },
   "GraphNode": {
     "members": {

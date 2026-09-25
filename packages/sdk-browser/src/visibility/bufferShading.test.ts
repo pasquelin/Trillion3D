@@ -16,7 +16,7 @@ import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 
 test('the closer triangle wins the visibility id when two pages overlap', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 1, 1, -1, 1, 1, 1, 1], 3),
@@ -89,7 +89,7 @@ test('the second pass samples the source map at reconstructed UVs', () => {
 });
 
 test('UV derivatives come from the winning triangle, not a neighbour across a visbuffer seam', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, -1, 1, 0], 3),

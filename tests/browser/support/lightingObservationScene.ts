@@ -58,7 +58,7 @@ export function hostSource(scene: ExperimentScene) {
     const [ox, oy, oz] = surface.origin,
       [ux, uy, uz] = surface.u,
       [vx, vy, vz] = surface.v;
-    const geometry = new G.GraphGeometry();
+    const geometry = new G.Geometry();
     geometry.setAttribute(
       'position',
       G.floatAttribute(

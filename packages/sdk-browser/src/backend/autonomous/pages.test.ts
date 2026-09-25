@@ -42,7 +42,7 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     backend.dropPage?.('triangle-geometry.bin');
     backend.render(camera);
     const updated = backend.scene.children.find(G.isDrawnNode)!;
-    assert.equal(updated.geometry.getAttribute('position').getX(0), -0.25);
+    assert.equal(updated.geometry.getAttribute('position')!.getX(0), -0.25);
     assert.equal(backend.metrics().submittedTriangles, 2);
     backend.removeInstance?.('copy');
     backend.render(camera);

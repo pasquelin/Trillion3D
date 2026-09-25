@@ -27,7 +27,7 @@ function vertColor(uvs: Float32Array, id: number) {
 const floats = (write: FakeWrite) => new Float32Array(written(write).slice().buffer);
 
 function triangleGeometry(colour?: number[], itemSize = 3, uv = true) {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
   if (uv) geometry.setAttribute('uv', G.floatAttribute([0.25, 0.5, 1, 0, 0, 1], 2));
   if (colour) geometry.setAttribute('color', G.floatAttribute(colour, itemSize));
