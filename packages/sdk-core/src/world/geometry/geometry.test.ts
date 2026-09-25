@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Geometry, withRecipe } from './geometry.ts';
+import { Geometry } from './geometry.ts';
+import { withRecipe } from './builder.ts';
 import { drawnTriangles } from './drawn.ts';
 import { wireframe } from './lines.ts';
 import {
