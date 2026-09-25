@@ -41,7 +41,6 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
     height,
     format: 'rgba8unorm',
     atlas: 'data',
-    errorCode: 'NONE',
   });
   return { copies, rows };
 }
@@ -139,7 +138,6 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     height: 2,
     format: 'rgba8unorm',
     atlas: 'data',
-    errorCode: 'NONE',
   });
   for (let frame = 0; frame < 60; frame++) {
     pixels[4] = frame;
@@ -175,7 +173,6 @@ test('a colour working texture reduces weighted by alpha unless uploaded premult
       height: 2,
       format: 'rgba8unorm',
       atlas,
-      errorCode: 'NONE',
     });
   };
   reduce('color', false);
