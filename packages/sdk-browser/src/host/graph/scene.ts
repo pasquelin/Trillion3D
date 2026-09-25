@@ -14,4 +14,7 @@ export class GraphScene extends GraphNode {
   onBeforeRender = () => {};
   /** Called by the draw once it is done. */
   onAfterRender = () => {};
+  protected override blank(): this {
+    return new GraphScene() as this;
+  }
 }

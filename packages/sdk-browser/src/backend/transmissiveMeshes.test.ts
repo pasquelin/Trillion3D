@@ -17,7 +17,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
     roughness: 0,
   });
   const mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const pages = [
     { id: 0, url: '0', count: 3, min: [-1, -1, 0], max: [1, 1, 0], bytes: 12, sha256: 'x' },

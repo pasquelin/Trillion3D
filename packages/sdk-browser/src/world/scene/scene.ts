@@ -1,5 +1,4 @@
 import { meshes as objects } from '../../scene/meshes.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import { assertFiniteTransform } from '../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { pagesBounds, pagesLot } from './pagesBounds.ts';
@@ -19,6 +18,7 @@ import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';
 import type { ByteMeter } from '../../cluster/byteMeter.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** World matrix of a mesh at load, reused from mesh to mesh. */
 const monde = new Float64Array(MATRIX_VALUES);
@@ -33,7 +33,7 @@ function manquante(): never {
 
 /** Scene-bounds buffer, at the exact size of the compute that follows. */
 function sceneBoundsLot(
-  source: HostGraphNode,
+  source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   autonomous: boolean,
@@ -84,7 +84,7 @@ export async function loadPreparedScene(
   autonomous: boolean,
   signal: AbortSignal | undefined,
   diagnose: ExplorerEmitters['diagnose'],
-  registerSource: (source: HostGraphNode) => void,
+  registerSource: (source: Object3D) => void,
 ) {
   // The compute path the host asked for holds FROM LOAD: the governor receives it before the
   // first lot, and `configureExplorer` will tell it again without changing anything. Module

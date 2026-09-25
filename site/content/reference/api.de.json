@@ -644,6 +644,7 @@
       "top": "Oberer Rand der orthografischen Box.",
       "bottom": "Unterer Rand der orthografischen Box.",
       "projection": "`'perspective'` macht Fernes klein; `'orthographic'` behält alle Größen.",
+      "copy": "Übernimmt die Knotenwerte von `source` und, von einer Kamera, ihre Optik; die eigene `projection` bleibt.",
       "updateProjectionMatrix": "Für Seiten erhalten, die für ein Rendering-Backend geschrieben wurden, das sie braucht: jeder Optik-Schreibvorgang zeichnet bereits neu.",
       "rayThrough": "Der Weltstrahl durch einen Punkt des Bildes, in der eigenen Projektion der Engine (`engineCamera.ts`): vom Auge entlang der Blickrichtung bei einer perspektivischen Kamera, gerade in Blickrichtung aus dem Quader bei einer orthografischen. Seine Richtung ist ein Einheitsvektor.",
       "set": "Platziert das Auge bei `pose.position`, das zu `pose.target` schaut, mit dem angegebenen Sichtfeld."
@@ -2383,10 +2384,6 @@
   "HostGeometry": {
     "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat."
   },
-  "HostGraphNode": {
-    "summary": "Ein Knoten des Host-Graphen, so wie ihn ein Durchlauf sieht: seine Identität, seine lokale Pose, die Weltmatrix, die der Host für ihn aufgelöst hat, und seine Kette.",
-    "description": "Die Engine berechnet ihre EIGENEN Weltmatrizen aus den lokalen Posen (`../world/tree.ts`); `matrixWorld` wird dort gelesen, wo es die eigene Auflösung des HOSTS ist, die eine Grenze ihr zurückgibt. WARUM `HostPlaced` (`../resources.ts`) AUCH EINEN PLATZIERTEN KNOTEN BESCHREIBT. Die beiden sind keine Kopie: sie stützen sich auf die beiden unterschiedlichen Auflösungen, die ein Host bietet. `HostPlaced` verlangt `updateWorldMatrix(ancestors, descendants)` — die Kette EINES Knotens, das, was eine Platzierung und ein Sichtbarkeitsdurchlauf zurückgeben; dieses hier verlangt `updateMatrixWorld(force)` — den TEILBAUM unter einem Knoten, das, was ein Durchlauf, eine Grenzenvereinigung und eine Replikation in einem Aufruf auflösen. Ein Host, der nur eines der beiden bietet, erfüllt nur den Vertrag, dem er entspricht, also kann keines das andere ersetzen."
-  },
   "HostMaterial": {
     "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`."
   },
@@ -2395,9 +2392,6 @@
   },
   "HostMesh": {
     "summary": "Ein Host-Mesh, gehalten durch seine Identität: der Zeicheneintrag, die durchsichtige Tabelle und die Auswahlmengen benennen die Oberfläche, die der Host platziert hat."
-  },
-  "HostNode": {
-    "summary": "Ein Knoten des Host-Szenengraphen, gehalten durch seine Identität und die beiden Felder, die ein Durchlauf braucht."
   },
   "HostNodeMatrix": {
     "summary": "Dieselben sechzehn Fließkommazahlen, term-für-term VERÄNDERBAR: die Pose, die eine Grenze auf einen Host-Knoten oder eine Host-Kamera zurücksetzt, die sie wiederherstellt.",
@@ -2449,9 +2443,6 @@
   },
   "HostTexture": {
     "summary": "Eine Host-Textur: das vom Host dekodierte Bild und der von ihm deklarierte Abtastzustand, ebenfalls durch ihre Identität gehalten."
-  },
-  "HostTraversable": {
-    "summary": "Ein Host-Knoten, den die Engine durchläuft: der Teilbaum darunter, er zuerst, in der eigenen Reihenfolge des Hosts."
   },
   "HostVector": {
     "summary": "Drei Zahlen einer Pose, so wie der Host sie hält und eine Grenze sie zurücksetzt.",
@@ -2729,6 +2720,7 @@
       "height": "Höhe eines rechteckigen Lichts.",
       "radius": "Radius der strahlenden Kugel; `emitterRadius` in der Speicherung der Engine.",
       "kind": "Welche Art von Licht es ist: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Übernimmt die Knotenwerte von `source` und, von einem Licht, seine Zahlen, Farben, Koeffizienten und Ausrichtung; die eigene `kind` bleibt.",
       "needsUpdate": "`light.needsUpdate = true`, nachdem `sh` an Ort und Stelle geschrieben wurde: die Welt liest es erneut.",
       "lookAt": "Zielt mit dem Licht auf einen Weltpunkt: ein Richtungslicht oder ein Spot verschiebt dorthin sein `target` — seine Richtung ergibt sich daraus —, und der Knoten dreht sich ebenfalls, was ein Rechteck ausrichtet."
     }
@@ -4113,6 +4105,8 @@
       "remove": "Entfernt Kinder von diesem Knoten.",
       "destroy": "Gibt den Knoten und alles darunter sofort frei, statt erst bei ihrer Einsammlung.",
       "removeFromParent": "Entfernt den Knoten von seinem Elternteil.",
+      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt.",
       "clear": "Entfernt alle Kinder dieses Knotens.",
       "traverse": "Ruft `fn` für diesen Knoten und alle darunter auf.",
       "traverseVisible": "Ruft `fn` für jeden von hier aus sichtbaren Knoten auf.",
@@ -4125,11 +4119,7 @@
       "rotateY": "Dreht den Knoten um seine eigene y-Achse.",
       "rotateZ": "Dreht den Knoten um seine eigene z-Achse.",
       "translateOnAxis": "Verschiebt den Knoten entlang seiner eigenen `axis`.",
-      "getWorldPosition": "Wo der Knoten in der Welt steht.",
-      "getWorldQuaternion": "Wie der Knoten in der Welt gedreht ist.",
       "getWorldDirection": "In welche Richtung der Knoten in der Welt schaut.",
-      "localToWorld": "Ein Punkt aus dem Bezugssystem des Knotens, in der Welt.",
-      "worldToLocal": "Ein Punkt aus der Welt, im Bezugssystem des Knotens.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
     }
   },
@@ -4140,7 +4130,11 @@
       "matrixWorld": "Matrix in der Welt, so wie zuletzt zusammengesetzt (`updateMatrixWorld`), eine Sicht auf den Baum.",
       "matrixAutoUpdate": "Falsch, wenn `matrix` die Pose IST und nichts sie neu zusammensetzt.",
       "matrixWorldNeedsUpdate": "Gesetzt, wenn sich die lokale Matrix geändert hat und die Weltmatrix nicht gefolgt ist.",
-      "updateMatrixWorld": "Setzt die Matrix in der Welt dieses Knotens und seiner Nachkommen zusammen, wobei die des Elternteils unverändert übernommen wird."
+      "updateMatrixWorld": "Setzt die Matrix in der Welt dieses Knotens und seiner Nachkommen zusammen, wobei die des Elternteils unverändert übernommen wird.",
+      "getWorldPosition": "Wo der Knoten in der Welt steht.",
+      "getWorldQuaternion": "Wie der Knoten in der Welt gedreht ist.",
+      "localToWorld": "Ein Punkt aus dem Bezugssystem des Knotens, in der Welt.",
+      "worldToLocal": "Ein Punkt aus der Welt, im Bezugssystem des Knotens."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7177,14 +7171,9 @@
   "GraphNode": {
     "members": {
       "serial": "Die Nummer des Knotens, eindeutig in der Sitzung.",
-      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt.",
-      "parent": "Sein Elternteil.",
-      "children": "Die Knoten, die dieser hält, der Reihe nach.",
-      "traverse": "Der Teilbaum unter dem Knoten, er zuerst, in der eigenen Reihenfolge des Hosts.",
-      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
-      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt."
     },
-    "summary": "Ein Knoten des Graphen: sein Name, seine Pose, seine Weltmatrix, sein Elternteil und seine Kinder."
+    "summary": "Ein Knoten des Graphen: der Knoten des Kerns, unterschieden durch sein `kind`, kopiert durch das `clone` des Kerns."
   },
   "GraphSurface": {
     "members": {
@@ -7289,7 +7278,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Was ein Knoten des Graphen ist: ein bloßer Knoten, die Wurzel, eine Gruppe, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
+    "summary": "Was ein Knoten des Graphen ist: die Wurzel, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",

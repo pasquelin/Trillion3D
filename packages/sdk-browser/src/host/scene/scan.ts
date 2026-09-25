@@ -1,6 +1,7 @@
 import { copyElements, sameElements } from '../../math/matrixElements.ts';
-import type { HostGraphNode, HostLightNode } from './graphNodes.ts';
+import type { HostLightNode } from './graphNodes.ts';
 import { isLightNode, isPlacedLight } from '../graph/kinds.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** What a watch reports of a read: nothing, a value moved, or the set of read objects changed. */
 export type WatchVerdict = 0 | 'moved' | 'reshaped';
@@ -17,16 +18,16 @@ const finite = (value: number | undefined) => (Number.isFinite(value) ? (value a
  * per node, and a matrix set by hand is compared whole while the node is frozen.
  */
 export interface NodeState {
-  node: HostGraphNode;
+  node: Object3D;
   visible: boolean;
-  parent: HostGraphNode | null;
+  parent: Object3D | null;
   auto: boolean;
   matrix: Float64Array | null;
   light: LightState | null;
 }
 
 interface LightState {
-  target: HostGraphNode | undefined;
+  target: Object3D | undefined;
   values: Float64Array;
 }
 
@@ -57,7 +58,7 @@ function lightState(light: HostLightNode): LightState {
 }
 
 /** The node as it stands: the first read after it announces nothing. */
-export function snapshot(node: HostGraphNode): NodeState {
+export function snapshot(node: Object3D): NodeState {
   const lit: LightState | null = isLightNode(node) ? lightState(node) : null;
   return {
     node,
