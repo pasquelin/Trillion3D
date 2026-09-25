@@ -54,12 +54,26 @@ export function writeSpriteWords(
 /**
  * THE NEVER-CULLED MARK: true on a sprite that keeps its size on screen (mode −1). Its quad grows
  * with its view depth, so no fixed world bound holds it, and every cut and occlusion test lets it
- * through while it is placed — the CPU and GPU cuts (`ClusterRoot.unculled`), the Hi-Z verdict of
- * its row and of its transparent entries, a blend item's box, a WebGL2 scene copy —; the shadow
- * scene box leaves it out, since a sprite casts no shadow. The one test each of them reads.
+ * through while it is placed — the CPU and GPU camera cuts (`SPRITE_UNCULLED`), the Hi-Z verdict
+ * of its row and of its transparent entries, a blend item's box, a WebGL2 scene copy —. The one
+ * test each of them reads.
  */
 export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
   surface?.sprite?.sizeAttenuation === false;
+
+/** The root mark's bit on every sprite (`ClusterRoot.sprite`): a sprite casts no shadow, so the
+ *  CPU and GPU light cuts open no descent on it and the sun's scene box leaves it out. */
+const SPRITE_ROOT = 1;
+/** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
+export const SPRITE_UNCULLED = 2;
+
+/**
+ * THE SPRITE ROOT MARK: what a root carries of its surface, set once at collection and carried to
+ * every cut — `ClusterRoot.sprite`, `DagRoot.sprite`, `PackedDag.sprite`, then the GPU cut's frame
+ * word (`spriteOf`). 0 on any surface that draws no sprite.
+ */
+export const spriteMark = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
+  !surface?.sprite ? 0 : SPRITE_ROOT | (neverCulled(surface) ? SPRITE_UNCULLED : 0);
 
 /** `SPRITE_WGSL` on the CPU, statement for statement: the software raster's sprite corner. Both
  *  matrices are column-major; writes the point, `w` one, into `out` and returns it. */

@@ -10,7 +10,7 @@ import {
   type LightPages,
 } from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts';
-import { OPEN_PLANES } from '../../../page/cut/select.ts';
+import { OPEN_PLANES, openMark } from '../../../page/cut/select.ts';
 import { DAG_NODE_FLOATS } from '../types.ts';
 import {
   NODE_CEIL,
@@ -97,7 +97,7 @@ export function dagViewFrames(
     copyMatrix4(world, packed.worlds, 0, w * 16);
     const object = new Float64Array(24);
     frustumPlanesToLocal(object, uniforms.planes, world);
-    if (packed.unculled?.[w] && !uniforms.light) object.set(OPEN_PLANES);
+    if (openMark(packed.sprite?.[w], uniforms.light)) object.set(OPEN_PLANES);
     planes.push(object);
     multiplyMatrix4(viewMatrix, view, world);
     views.push(Array.from(viewMatrix));
