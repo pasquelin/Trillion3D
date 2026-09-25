@@ -141,17 +141,22 @@ export function createLightCutRedraws(
     reported(copied: boolean) {
       if (open) open.reported = copied;
     },
-    /** Residency the light cuts see changed: the drop is forgotten, and the pages that waited on
-     *  it are drawn again once the camera rests (`rest`). */
+    /** Residency the light cuts see changed: the pages that waited on it are drawn again, and the
+     *  drop forgotten, once the camera rests (`rest`). */
     residencyChanged() {
       moved = true;
-      limit.residencyChanged();
     },
-    /** The camera rests: what residency changed meanwhile is drawn again. */
+    /**
+     * The camera rests: what residency changed meanwhile is drawn again, and the views a batch
+     * draws in may grow back. Never before: under a moving camera residency changes every frame,
+     * and a limit reset each time made the batch that dropped drop again, its pages drawn short,
+     * withdrawn and drawn again frame after frame.
+     */
     rest() {
       if (!moved) return;
       moved = false;
       epoch++;
+      limit.residencyChanged();
       for (const page of waiting) again(page, false);
       waiting.clear();
     },
