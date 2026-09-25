@@ -1,8 +1,9 @@
 // A light cut over a small catalogue, on a device whose copies run as they are encoded. The GPU side
 // is the shader's contract, run on the buffers the host wrote: a cut resets the list unless its
-// uniform says append, the first view to want a caster in the frame lists it and every view raises
-// its best priority (`askedWord`), the frame's list then takes those best requests (`dagAskedBest`),
-// and a view whose caster is not resident draws coarser.
+// uniform says append, the first view to want a caster under the frame's stamp lists it and every
+// view raises its best priority (`askedWord`), the frame's list then takes those best requests
+// (`dagAskedBest`), and a view whose caster is not resident draws coarser. The encoder applies its
+// clears; the device's writes are applied by `run`, as they land before the batch.
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
 import { createDagLightCut } from './lightCut.ts';
@@ -13,6 +14,7 @@ import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.
 import { VIEW_FLAGS_WORD } from './uniforms.ts';
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
+import { ASKED_PRIORITY_BITS } from './askedStamp.ts';
 
 const CASTERS = 16;
 /** The pipeline of `dagAskedBest`: a dispatch under it runs the kernel's contract. */
@@ -69,7 +71,8 @@ export function lightCutFrame() {
   const work = buffers.find(({ label }) => label === 'Trillion3D light cut work')!;
   const { askedAt } = dagWorkLayout(1, cut.capacity, CASTERS);
   const out = () => new Uint32Array(output.getMappedRange()),
-    best = () => new Uint32Array(work.getMappedRange());
+    best = () => new Uint32Array(work.getMappedRange()),
+    priorityMask = (1 << ASKED_PRIORITY_BITS) - 1;
   /** `dagAskedBest`: each listed page takes its best request of the frame. */
   const askedBest = () => {
     const list = out(),
@@ -77,7 +80,7 @@ export function lightCutFrame() {
     for (let s = 0; s < Math.min(list[OUT_COUNT], CASTERS); s++) {
       const at = SELECTION_HEADER_WORDS + s;
       const page = requestPage(list[at]);
-      list[at] = packRequest(page, words[askedAt + page] - 1);
+      list[at] = packRequest(page, (words[askedAt + 1 + page] & priorityMask) - 1);
     }
   };
   /** The GPU running the cut just encoded, over a view that wants each `[caster, priority]` of
@@ -86,14 +89,20 @@ export function lightCutFrame() {
     const uniform = writes.findLast(({ buffer }) => buffer.size === DAG_UNIFORM_BYTES)!;
     const viewFlags = new Uint32Array(uniform.data.slice().buffer)[VIEW_FLAGS_WORD];
     const list = out(),
-      words = best();
+      words = best(),
+      stamp = writes.findLast(({ buffer }) => buffer === work);
+    if (stamp) words[askedAt] = new Uint32Array(stamp.data.slice().buffer)[0];
     if (viewFlags & VIEW_APPEND) list[OUT_FLAGS] &= LIST_FULL;
     else list[OUT_COUNT] = list[OUT_FLAGS] = 0;
     for (const [caster, priority] of asks) {
       if (!resident.has(caster)) list[OUT_FLAGS] |= 1 << COARSER_VIEWS;
-      const before = words[askedAt + caster];
-      words[askedAt + caster] = Math.max(before, priority + 1);
-      if (before) continue;
+      const at = askedAt + 1 + caster,
+        before = words[at];
+      words[at] = Math.max(
+        before,
+        ((words[askedAt] << ASKED_PRIORITY_BITS) | (priority + 1)) >>> 0,
+      );
+      if (before >>> ASKED_PRIORITY_BITS === words[askedAt]) continue;
       const slot = list[OUT_COUNT]++;
       if (slot < CASTERS) list[SELECTION_HEADER_WORDS + slot] = packRequest(caster, priority);
       else list[OUT_FLAGS] |= LIST_FULL;
@@ -121,5 +130,5 @@ export function lightCutFrame() {
     await cut.settled();
     return { flags, copies: report ? 1 : 0 };
   };
-  return { cut, frame };
+  return { cut, frame, words: best, askedAt };
 }
