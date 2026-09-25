@@ -27,11 +27,9 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
-// The court's paving stone, as the observatory's source paints it (linear RGB, escaped).
-const limestone = observatoryMaterials.find(([name]) => name === 'Warm limestone')?.[1] ?? [];
-const groundOfTheCourt = new RegExp(
-  `light\\.hemisphere\\(\\{[^}]*groundColor: \\[${limestone.slice(0, 3).join(', ').replaceAll('.', '\\.')}\\]`,
-);
+// #719: the sky a page loading the observatory adds, from the court's limestone in its source.
+const limestone = observatoryMaterials.find(([name]) => name === 'Warm limestone')![1].slice(0, 3);
+const observatorySky = `light.hemisphere({ color: '#a6c6ff', groundColor: [${limestone.join(', ')}], intensity: sun.intensity / 5 })`;
 await loadDictionary('fr');
 
 test('no Markdown page links an example parked until the engine draws it', () => {
@@ -86,11 +84,9 @@ test('every example is one standalone HTML file that imports the built engine', 
     // A scene built in code loads nothing; one that loads a compiled cache names a published one.
     const manifest = html.match(/scene\.load\('\.\.\/(assets\/[^']+)'\)/)?.[1];
     if (!manifest) continue;
-    // #719: a scene file carries no sky (`KHR_lights_punctual` has none), so a page loading the
-    // outdoor observatory adds one, lit from below by the court's limestone as the source paints
-    // it; with the file's sun alone, what the sun misses is pure black.
+    // #719: its scene file carries only a sun, so the page adds the sky.
     if (manifest.startsWith('assets/gallery/signature-architecture/'))
-      assert.match(html, groundOfTheCourt, entry.id);
+      assert.ok(html.includes(observatorySky), entry.id);
     await access(new URL(manifest, site));
     // A scene built around an imported model credits its author on the page, in its words.
     if (
