@@ -9,6 +9,13 @@ import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
+import {
+  HOST_BLENDING_ADDITIVE,
+  HOST_BLENDING_MULTIPLY,
+  HOST_BLENDING_NONE,
+  HOST_BLENDING_NORMAL,
+  HOST_BLENDING_SUBTRACTIVE,
+} from '../../host/surfaceConstants.ts';
 
 type Binding = Parameters<typeof bindClusterMaterial>[0];
 
@@ -64,10 +71,12 @@ test('A host recomposition of the UV transform reaches the next bind', () => {
   assert.equal(uploaded[0].value[6], 0.25, 'the offset the host composed is what the shader reads');
 });
 
-/** The value `bindClusterMaterial` gives the flag `name` for `material`. */
-const flagOf = (material: G.GraphSurface, name: string) => {
+/** The value `bindClusterMaterial` gives the flag `name` for `material`; `linear` binds the
+ *  effect chain's program. */
+const flagOf = (material: G.GraphSurface, name: string, linear = false) => {
   const flags = new Map<string, number>();
   const { binding } = recorder();
+  binding.linear = linear;
   (binding.uniforms as unknown as Record<string, unknown>).i1 = (
     _: number,
     flag: string,
@@ -103,4 +112,25 @@ test('A normal or depth material, and they alone, are never tone mapped (#365)',
   for (const family of ['lambert', 'phong', 'toon', 'matcap', 'basic'] as const)
     assert.equal(flagOf(new G.GraphSurface(family), 'toneMapped'), 1, family);
   assert.equal(flagOf(G.standardSurface(), 'toneMapped'), 1, 'standard');
+});
+
+test('Into the effect chain, a surface covers its pixel as the display path shows it (#349)', () => {
+  const transparent = (blending: number) =>
+    Object.assign(G.standardSurface({ opacity: 0.5 }), { transparent: true, blending });
+  assert.equal(flagOf(G.standardSurface(), 'covering', true), 1, 'opaque');
+  // A none-blended surface replaces what is behind it: the display path shows it whole.
+  assert.equal(flagOf(transparent(HOST_BLENDING_NONE), 'covering', true), 1, 'none');
+  assert.equal(flagOf(transparent(HOST_BLENDING_NORMAL), 'covering', true), 0, 'normal');
+  assert.equal(flagOf(transparent(HOST_BLENDING_ADDITIVE), 'covering', true), 0, 'additive');
+  // Multiply and subtractive filter the background the linear target does not hold: refused.
+  for (const [blending, mode] of [
+    [HOST_BLENDING_MULTIPLY, 'multiply'],
+    [HOST_BLENDING_SUBTRACTIVE, 'subtractive'],
+  ] as const) {
+    assert.throws(
+      () => flagOf(transparent(blending), 'covering', true),
+      new Error(`the WebGL2 effect chain cannot draw ${mode} blending`),
+    );
+    assert.equal(flagOf(transparent(blending), 'covering'), undefined, 'drawn without a chain');
+  }
 });

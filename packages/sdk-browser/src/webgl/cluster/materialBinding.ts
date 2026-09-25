@@ -1,6 +1,7 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { SURFACE_MODEL, shownAsIs } from '../../scene/surfaceModel.ts';
+import { blendingOf } from '../../scene/materialBlending.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
@@ -29,6 +30,21 @@ type Binding = {
   /** The effect chain's linear program (`CLUSTER_LINEAR_FRAGMENT`), which reads `covering`. */
   linear?: boolean;
 };
+
+/**
+ * Whether a surface drawn into the effect chain's linear target, whose alpha is coverage
+ * (`../../effects/webglOutput.ts`), covers its pixel whatever its alpha: an opaque one, and a
+ * transparent one that replaces what is behind it (`none`), as the display path shows it.
+ * Multiply and subtractive filter what the display target holds, the background included, which
+ * the linear target does not hold: they are refused by name, never drawn as another mode.
+ */
+function coversLinear(material: Material) {
+  if (!material.transparent) return true;
+  const mode = blendingOf(material.blending as number | undefined);
+  if (mode === 'multiply' || mode === 'subtractive')
+    throw new Error(`the WebGL2 effect chain cannot draw ${mode} blending`);
+  return mode === 'none';
+}
 
 /** Uploads one material's factors, maps and raster state; cached values are skipped. `side`
  *  names the faces of one pass of a two-sided transparent surface; undefined, the material's
@@ -67,9 +83,7 @@ export function bindClusterMaterial(
   uniforms.i1(15, 'hasVertexColor', material.vertexColors ? 1 : 0);
   // A debug view, a normal or depth surface, is output untouched (`shownAsIs`).
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped && !shownAsIs(mat.model) ? 1 : 0);
-  // An opaque surface covers its pixel whatever its alpha: the linear target of the effect chain
-  // reads alpha as coverage (`../../effects/webglEffects.ts`).
-  if (linear) uniforms.i1(47, 'covering', material.transparent ? 0 : 1);
+  if (linear) uniforms.i1(47, 'covering', coversLinear(material) ? 1 : 0);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&
