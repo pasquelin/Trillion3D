@@ -2,6 +2,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
+import { weighsByAlpha } from '../../scene/materialBlending.ts';
 
 /** Store a texture in an atlas if it is not already there, and return the slot it occupies.
  *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
@@ -12,14 +13,10 @@ const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Textu
   list.push(texture);
 };
 
-/**
- * Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends by
- * that alpha — `normal` and `additive` weigh the source colour by it, while `none`, `subtractive`
- * and `multiply` draw the colour under alpha 0 as it is (`../../scene/materialBlending.ts`).
- */
+/** Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends
+ *  weighing its colour by that alpha. */
 const alphaIsCoverage = (mat: PageSurface) =>
-  mat.alphaTest > 0 ||
-  (mat.transparent && (mat.blending === 'normal' || mat.blending === 'additive'));
+  mat.alphaTest > 0 || (mat.transparent && weighsByAlpha(mat.blending));
 
 /**
  * Census every colour and data texture once, in a stable slot order, and, per colour texture,
