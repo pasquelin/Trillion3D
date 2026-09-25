@@ -35,8 +35,14 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
   const map = importHostTexture(
     page instanceof GraphTexture ? page : hostTexture(page, true, new Map()),
   );
-  const plain = { errorCode: 'NONE', coverage: false };
-  createTileScratch(device, { map, width, height, format: 'rgba8unorm', ...plain });
+  createTileScratch(device, {
+    map,
+    width,
+    height,
+    format: 'rgba8unorm',
+    errorCode: 'NONE',
+    coverage: false,
+  });
   return { copies, rows };
 }
 
@@ -152,13 +158,13 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
   installGpuGlobals();
   // One device per case: the one reduction pipeline it builds says the rule the texture took.
   const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
-    const { device, pipelines } = mockGpu();
+    const { device, renderPipelines } = mockGpu();
     const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 });
     host.premultiplyAlpha = premultiplyAlpha;
     const map = importHostTexture(host);
     const size = { width: 1, height: 2, format: 'rgba8unorm' } as const;
     createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage });
-    return pipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
+    return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
   assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted');
   assert.deepEqual(rule(true, true), [0], 'uploaded premultiplied: plain');

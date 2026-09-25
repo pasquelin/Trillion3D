@@ -75,8 +75,9 @@ pub(super) fn one_image(
     // one chain baked instead of two identical ones.
     // Scanned only when a reader asks for coverage: an opaque image never exits early.
     let flat = readers.iter().any(|r| r.kind == AtlasKind::Coverage) && {
-        let first_alpha = decoded.pixels().next().map(|p| p[3]);
-        decoded.pixels().all(|p| Some(p[3]) == first_alpha)
+        let mut alphas = decoded.pixels().map(|p| p[3]);
+        let first = alphas.next();
+        alphas.all(|a| Some(a) == first)
     };
     let kind_of = |r: &AtlasTexture| if flat { r.kind.atlas() } else { r.kind };
     for kind in AtlasKind::ALL {

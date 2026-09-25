@@ -160,7 +160,7 @@ pub(super) fn stage_texture_previews(
             Err((reason, count)) => *skipped.entry(reason).or_default() += count,
         }
     }
-    previews.sort_by_key(|p| (p.texture, p.kind));
+    previews.sort_by_key(|p| (p.texture, p.kind.atlas()));
     gates.sort_by(|a, b| {
         (&a.sha256, a.kind, a.format.name()).cmp(&(&b.sha256, b.kind, b.format.name()))
     });
