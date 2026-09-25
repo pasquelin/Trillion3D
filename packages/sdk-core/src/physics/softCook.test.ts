@@ -6,7 +6,7 @@ import { fromArrays } from '../world/geometry/builder.ts';
 import { softBodyOf, softSettings, type SoftBodyOptions } from './soft.ts';
 
 /**
- * The records the compiler's cook writes (`physics_cook/soft_page_tests.rs`, which mirrors
+ * The records the compiler's cook writes (`physics_cook/soft_tests.rs`, which mirrors
  * `softBodyOf` in `soft_record.rs`), each `u32` word count, `f32` words, `u32` corner count,
  * `u32` corners, `f64` pressure.
  */

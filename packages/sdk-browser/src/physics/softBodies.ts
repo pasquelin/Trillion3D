@@ -6,9 +6,9 @@ import {
   softBodyOf,
   writeSoft,
   type CommandWriter,
+  type ObjectPhysics,
   type SoftBodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
-import type { ObjectPhysics } from '../../../sdk-core/src/physics/objectPhysics.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { type Bodied, type createPhysicsBodies } from './bodies.ts';
 
