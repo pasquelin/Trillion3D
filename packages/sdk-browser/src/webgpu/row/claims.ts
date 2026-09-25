@@ -20,6 +20,8 @@ export function createWebgpuRowClaims(pageCount: number) {
   let count = 0;
   return {
     pages,
+    /** Time an image grants to writing rows (`serveClaims`): this list's own clock. */
+    budget: createFrameBudget(ARRIVAL_BUDGET_MS),
     get count() {
       return count;
     },
@@ -50,14 +52,10 @@ export function createWebgpuRowClaims(pageCount: number) {
 export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
 
 /**
- * Time an image grants to writing rows: the arrival drain's ceiling (`ARRIVAL_BUDGET_MS`) and its one
- * budget (`FrameBudget`): the clock is reread after each row and the rest waits for the next image,
- * in the same order. At least one row always goes through, or a page would never be written.
- */
-const claimBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
-
-/**
- * Serves the queue in increasing page order up to the time budget. `release` says again whether the
+ * Serves the queue in increasing page order up to the time budget: the arrival drain's ceiling
+ * (`ARRIVAL_BUDGET_MS`) on its own `FrameBudget`, opened once per image — the clock is reread after
+ * each row and the rest waits for the next image, in the same order. At least one row always goes
+ * through, or a page would never be written. `release` says again whether the
  * page still claims a row — it may have left since it enrolled, and then leaves the queue costing
  * nothing —, `place` writes it and returns `false` when the table is full.
  *
@@ -73,7 +71,8 @@ export function serveClaims(
 ) {
   if (!claims.count) return 0;
   claims.sort();
-  claimBudget.open();
+  const budget = claims.budget;
+  budget.open();
   let served = 0,
     denied = 0;
   while (served < claims.count) {
@@ -84,8 +83,8 @@ export function serveClaims(
         break;
       }
       served++;
-      claimBudget.spend();
-      if (bounded && !claimBudget.admits()) break;
+      budget.spend();
+      if (bounded && !budget.admits()) break;
       continue;
     }
     served++;
