@@ -360,6 +360,22 @@
       "up": "HAUT"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Glissez pour regarder autour. Choisissez le brouillard, sa portée et sa couleur.",
+    "controls": {
+      "fog": "Brouillard",
+      "reach": "Portée",
+      "height": "Hauteur",
+      "colour": "Couleur"
+    },
+    "choices": {
+      "fog": {
+        "distance": "distance",
+        "thick": "épais",
+        "ground": "au sol"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Glisse pour regarder autour. Les perles glissent le long du tube.",
     "controls": {
