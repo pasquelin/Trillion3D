@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { asWebgpuDevice } from '../../../../../../tests/kit/gpu/webgpuDevice.ts';
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { quadBackend } from '../testScenes.fixture.ts';
 import { setWebgpuMemoryBudgets } from '../io/memory.ts';
 import { texturePoolFor } from '../../residency/memoryBudgets.ts';
@@ -63,7 +63,6 @@ test('a geometry pool refused even at its root cover at prepare is refused by na
 });
 
 test('the texture budget recorded mid-session is the one the device granted, not the one asked', async () => {
-  installGpuGlobals();
   const encoding = poolEncoding(undefined);
   const lanes = { ...laneCounts(), lossless: 20_000 };
   const poolFor = (bytes: number) =>
@@ -72,16 +71,11 @@ test('the texture budget recorded mid-session is the one the device granted, not
     wanted = poolFor(asked);
   const layerBytes = wanted.allocatedBytes / (2 * wanted.layers.color.lossless);
   // Room for two layers per atlas, not for what the budget asks.
-  const gpu = asWebgpuDevice({
+  const gpu = fakeDevice({
     limits: {},
-    createTexture: ({
-      size,
-    }: {
-      size: { width: number; height: number; depthOrArrayLayers: number };
-    }) => {
-      if (size.width * size.height * size.depthOrArrayLayers * 4 > 2 * layerBytes)
-        gpu.raise('Out of memory', { message: 'Out of memory' });
-      return { destroy() {}, createView: () => ({}) };
+    refuse: ({ size }) => {
+      const { width, height = 1, depthOrArrayLayers = 1 } = size as GPUExtent3DDict;
+      return width * height * depthOrArrayLayers * 4 > 2 * layerBytes ? 'oom' : undefined;
     },
   });
   const setup = {

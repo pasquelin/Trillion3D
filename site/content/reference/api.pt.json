@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue um atributo de buffer de qualquer outra coisa.",
       "type": "Como os valores foram declarados; um atributo de meia precisão é mantido em precisão float.",
-      "normalized": "Se números inteiros são lidos como valores entre 0 e 1.",
       "version": "Incrementado a cada escrita declarada: o que o mundo compara para ver se o conteúdo mudou.",
       "array": "Os próprios números.",
-      "itemSize": "Quantos números pertencem a um vértice: 3 para uma posição.",
       "count": "Quantos vértices os números descrevem.",
-      "needsUpdate": "`attribute.needsUpdate = true` depois de escrever `array`: o mundo o relê.",
-      "getComponent": "Número `component` do vértice `index`.",
-      "getX": "O primeiro número do vértice `i`.",
-      "getY": "O segundo número do vértice `i`.",
-      "getZ": "O terceiro número do vértice `i`.",
-      "getW": "O quarto número do vértice `i`.",
-      "setXYZ": "Escreve três números para o vértice `i`.",
-      "setXY": "Escreve dois números para o vértice `i`.",
-      "setX": "Escreve o primeiro número do vértice `i`.",
-      "clone": "Um novo atributo com uma cópia dos números."
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo.",
+      "clone": "Um novo atributo com uma cópia dos números, do seu tipo, da normalização e do nome.",
+      "kind": "O atributo possui o seu buffer.",
+      "updateRanges": "Intervalos de `array` escritos desde o último envio, enviados sozinhos.",
+      "addUpdateRange": "Marca `count` números escritos a partir de `start`.",
+      "clearUpdateRanges": "Esquece os intervalos escritos, depois de enviados."
     }
   },
   "BufferNumbers": {
@@ -715,7 +709,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identidade de cache para os erros de DAG por cluster: erro QEM do grupo projetado através da esfera do grupo."
+    "summary": "Identidade do cache para os erros do DAG por cluster: erro QEM absoluto do grupo sobre posições, normais e coordenadas de textura, limitado à extensão do grupo; um cache v1 é recusado."
   },
   "DEFAULT_SCOPE": {
     "summary": "O escopo em que um modelo é compilado quando nenhum é nomeado: transmitido em páginas."
@@ -1442,7 +1436,10 @@
       "array": "Os números de cada vértice, empacotados um após o outro.",
       "stride": "Quantos números cada vértice ocupa.",
       "count": "Quantos vértices ele empacota.",
-      "attribute": "Um atributo lido de dentro do pacote, como seu próprio atributo float."
+      "attribute": "Um atributo lido de dentro do pacote, como seu próprio atributo.",
+      "kind": "Um armazenamento que vários atributos observam.",
+      "version": "Incrementado por `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
     }
   },
   "JobProgress": {
@@ -7155,19 +7152,6 @@
       "handbrake": "Se o travão de mão está puxado."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Quantos vértices.",
-      "array": "O armazenamento.",
-      "kind": "O atributo possui o seu buffer.",
-      "version": "Incrementado por `needsUpdate`.",
-      "updateRanges": "Intervalos de `array` escritos desde o último envio, enviados sozinhos.",
-      "addUpdateRange": "Marca `count` números escritos a partir de `start`.",
-      "clearUpdateRanges": "Esquece os intervalos escritos, depois de enviados.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    },
-    "summary": "Um atributo que possui o seu armazenamento: `itemSize` números por vértice, um após o outro."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Seus atributos de vértice.",
@@ -7262,34 +7246,6 @@
       "rotation": "A rotação, em radianos."
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
-  },
-  "GraphArray": {
-    "summary": "Os arrays tipados que um atributo guarda."
-  },
-  "GraphElements": {
-    "summary": "Qualquer um dos dois tipos de atributo."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Um atributo que observa `itemSize` números em `offset` de cada vértice de um buffer intercalado.",
-    "members": {
-      "kind": "O atributo observa um buffer partilhado.",
-      "data": "O buffer que observa.",
-      "offset": "Onde os seus números começam em cada vértice.",
-      "array": "O armazenamento onde vivem os elementos.",
-      "count": "Quantos vértices.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Um armazenamento que vários atributos observam, um vértice a cada `stride` números.",
-    "members": {
-      "kind": "Um armazenamento que vários atributos observam.",
-      "count": "Quantos vértices.",
-      "version": "Incrementado por `needsUpdate`.",
-      "array": "O armazenamento.",
-      "stride": "Números por vértice.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    }
   },
   "GraphMesh": {
     "summary": "Um nó desenhado: uma geometria e a sua superfície, ou uma superfície por grupo da geometria.",
@@ -7391,6 +7347,142 @@
       "pulley": "Uma corda de `a` sobre duas rodas (`over`) até `b`: um sobe quando o outro desce.",
       "gear": "Duas rodas que giram juntas segundo `ratio`, cada uma em torno do próprio pino (`axis`, `axisB`) e presa pela sua dobradiça (a roda como seu `a`); quando `ratio` ou 1 / `ratio` é inteiro, os dentes também mantêm a fase em que foram feitos.",
       "rackAndPinion": "Um pinhão `a` girando em torno de `axis` move uma cremalheira `b` ao longo de `axisB`, cada um preso pela sua dobradiça ou corrediça (o corpo como seu `a`), os dentes mantidos na fase em que foram feitos."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Um atributo que observa `itemSize` números em `offset` de cada vértice de um buffer intercalado.",
+    "members": {
+      "isInterleavedBufferAttribute": "Sempre `true`: distingue uma vista intercalada de qualquer outra coisa.",
+      "kind": "O atributo observa um buffer partilhado.",
+      "data": "O buffer que observa.",
+      "offset": "Onde os seus números começam em cada vértice.",
+      "array": "O armazenamento onde vivem os elementos.",
+      "count": "Quantos vértices os números descrevem.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo.",
+      "clone": "Os seus próprios números, copiados para fora do pacote num atributo que os possui."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Qualquer um dos dois tipos de atributo: dono do seu armazenamento ou vista de um intercalado."
+  },
+  "VertexElements": {
+    "summary": "Os elementos de um atributo de vértice, lidos e escritos por componente.",
+    "members": {
+      "name": "O nome pelo qual um alvo de morph é conhecido; vazio para os outros.",
+      "itemSize": "Quantos números pertencem a um vértice: 3 para uma posição.",
+      "normalized": "Se números inteiros são lidos como valores entre 0 e 1.",
+      "array": "O armazenamento onde vivem os elementos.",
+      "count": "Quantos vértices os números descrevem.",
+      "stored": "Número `component` do vértice `index` tal como está armazenado; um inteiro normalizado sem escala.",
+      "getComponent": "Número `component` do vértice `index`, lido como o número que representa.",
+      "setComponent": "Escreve o número `component` do vértice `index`.",
+      "getX": "O primeiro número do vértice `i`.",
+      "getY": "O segundo número do vértice `i`.",
+      "getZ": "O terceiro número do vértice `i`.",
+      "getW": "O quarto número do vértice `i`.",
+      "setX": "Escreve o primeiro número do vértice `i`.",
+      "setY": "Escreve o segundo número do vértice `i`.",
+      "setZ": "Escreve o terceiro número do vértice `i`.",
+      "setW": "Escreve o quarto número do vértice `i`.",
+      "setXY": "Escreve dois números para o vértice `i`.",
+      "setXYZ": "Escreve três números para o vértice `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "As três máquinas de que partem os veículos, por tipo.",
+    "members": {
+      "car": "Um Chevrolet Corvette C5: tração traseira, 0,32 N·m por quilograma, seis marchas.",
+      "motorcycle": "Uma Yamaha XJ900 e seu piloto: 0,26 N·m por quilograma, seis marchas.",
+      "tracked": "Um M1 Abrams: uma turbina a gás, 0,083 N·m por quilograma, quatro marchas."
+    }
+  },
+  "Vehicle": {
+    "summary": "Um veículo: um corpo levado sobre rodas pela restrição de veículo do Jolt, com motor, câmbio, diferenciais, suspensão e barras estabilizadoras, criado por `vehicle.*` e adicionado à simulação por `world.physics.add`.",
+    "description": "É um `VehicleDriver`: `world.controls.vehicle = car` o dirige.",
+    "parameters": {
+      "options": "O que `vehicle.*` aceita: as rodas, e quantos valores da máquina quiser (`VehicleSpec`).",
+      "options.wheels": "As rodas: malhas, filhas do corpo, cada uma posta no seu centro como repousa em chão plano, o eixo ao longo do x do corpo. Raio e largura são lidos dos seus limites. O corpo olha para −z: as rodas dianteiras esterçam.",
+      "options.torquePerKg": "Torque máximo do motor por quilograma do corpo, em N·m/kg.",
+      "options.idleRPM": "A marcha lenta do motor, em rpm.",
+      "options.maxRPM": "A faixa vermelha do motor, em rpm.",
+      "options.torqueCurve": "Até cinco pontos `[rpm / maxRPM, torque / pico]`, frações de rotação crescentes.",
+      "options.gears": "Até seis relações para a frente, a primeira primeiro.",
+      "options.reverse": "A relação da marcha à ré.",
+      "options.finalDrive": "A relação do diferencial final (a redução da roda motriz de um veículo de esteiras).",
+      "options.shiftUpRPM": "O câmbio sobe de marcha acima disto, em rpm.",
+      "options.shiftDownRPM": "E reduz abaixo disto, em rpm.",
+      "options.clutch": "Torque da embreagem por rad/s de deslizamento, em N·m·s.",
+      "options.suspensionFrequency": "Frequência da suspensão, em Hz.",
+      "options.suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
+      "options.suspensionTravel": "Curso da roda da extensão total à compressão total, em metros.",
+      "options.antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
+      "options.turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "options.steerTime": "Segundos do centro ao batente da direção.",
+      "options.brakeGrip": "O atrito com que os freios travam as rodas.",
+      "options.drive": "As rodas motrizes de um carro.",
+      "options.trackTurn": "A velocidade da esteira interna de um veículo de esteiras ao virar, em relação à externa.",
+      "options.maxLean": "A maior inclinação de uma moto, em radianos."
+    },
+    "members": {
+      "kind": "O que o veículo é.",
+      "body": "O corpo que as rodas carregam.",
+      "wheels": "As rodas, filhas do corpo.",
+      "spec": "A máquina: a do seu tipo (`VEHICLE_SPECS`), com as opções por cima.",
+      "input": "Os pedais e o volante que recebe agora.",
+      "speed": "Metros por segundo para a frente após o último passo, negativo para trás.",
+      "rpm": "As rotações por minuto do motor após o último passo.",
+      "gear": "A marcha após o último passo: 1 ou mais para a frente, −1 ré, 0 ponto morto.",
+      "drive": "Recebe os pedais e o volante, a cada tecla que os muda, quando começa a ser dirigido, e tudo solto quando deixa de ser."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Os veículos da física, cada um sobre a restrição de veículo do Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "O que `vehicle.*` aceita: as rodas, e quantos valores da máquina quiser (`VehicleSpec`).",
+    "members": {
+      "wheels": "As rodas: malhas, filhas do corpo, cada uma posta no seu centro como repousa em chão plano, o eixo ao longo do x do corpo. Raio e largura são lidos dos seus limites. O corpo olha para −z: as rodas dianteiras esterçam."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Do que é feito um veículo: motor, câmbio, suspensão, direção e freios, cada padrão o de uma máquina real (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Torque máximo do motor por quilograma do corpo, em N·m/kg.",
+      "idleRPM": "A marcha lenta do motor, em rpm.",
+      "maxRPM": "A faixa vermelha do motor, em rpm.",
+      "torqueCurve": "Até cinco pontos `[rpm / maxRPM, torque / pico]`, frações de rotação crescentes.",
+      "gears": "Até seis relações para a frente, a primeira primeiro.",
+      "reverse": "A relação da marcha à ré.",
+      "finalDrive": "A relação do diferencial final (a redução da roda motriz de um veículo de esteiras).",
+      "shiftUpRPM": "O câmbio sobe de marcha acima disto, em rpm.",
+      "shiftDownRPM": "E reduz abaixo disto, em rpm.",
+      "clutch": "Torque da embreagem por rad/s de deslizamento, em N·m·s.",
+      "suspensionFrequency": "Frequência da suspensão, em Hz.",
+      "suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
+      "suspensionTravel": "Curso da roda da extensão total à compressão total, em metros.",
+      "antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
+      "turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "steerTime": "Segundos do centro ao batente da direção.",
+      "brakeGrip": "O atrito com que os freios travam as rodas.",
+      "drive": "As rodas motrizes de um carro.",
+      "trackTurn": "A velocidade da esteira interna de um veículo de esteiras ao virar, em relação à externa.",
+      "maxLean": "A maior inclinação de uma moto, em radianos."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "A máquina com que cada tipo de veículo começa.",
+    "members": {
+      "car": "Um Chevrolet Corvette C5: tração traseira, 0,32 N·m por quilograma, seis marchas.",
+      "motorcycle": "Uma Yamaha XJ900 e seu piloto: 0,26 N·m por quilograma, seis marchas.",
+      "tracked": "Um M1 Abrams: uma turbina a gás, 0,083 N·m por quilograma, quatro marchas."
+    }
+  },
+  "vehicle": {
+    "summary": "A família `vehicle`: um corpo e suas rodas, dirigidos por `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Três rodas ou mais em dois eixos ou mais, as dianteiras esterçam, as de `drive` são motrizes.",
+      "motorcycle": "Duas rodas, a dianteira esterça, a traseira é motriz; fica de pé sozinha.",
+      "tracked": "Rodas sobre duas esteiras, esquerda e direita, cada uma movida pela sua roda mais traseira; vira freando uma esteira, e gira no lugar quando parado."
     }
   }
 }
