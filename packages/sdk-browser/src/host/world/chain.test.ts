@@ -22,7 +22,7 @@ function chaineHostile() {
   petitEnfant.position.set(-0, 0.25, -7);
   petitEnfant.scale.set(0, 1e150, -3);
   enfant.add(petitEnfant);
-  const feuille = G.mesh(new G.GraphGeometry(), G.basicSurface());
+  const feuille = G.mesh(new G.Geometry(), G.basicSurface());
   feuille.position.set(2, -2, 2);
   feuille.quaternion.set(0.5, 0.5, 0.5, 0.5);
   petitEnfant.add(feuille);

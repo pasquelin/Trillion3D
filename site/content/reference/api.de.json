@@ -1747,7 +1747,7 @@
       "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
-      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectMs": "CPU-Zeit des Cluster-Schnitts dieses Bildes, gemessen allein um die Auswahl herum. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt.",
       "gpuSelectionFallback": "Wahr, wenn die Engine eine GPU-Auswahl hatte und sie aufgegeben hat: was seitdem gemessen wird, ist der CPU-Rückfallschnitt. Ein Rückfall sendet auch einmal die Diagnose `gpu-selection-fallback`; der Host kopiert sie unverändert, und sie fehlt bei einer Engine ohne GPU-Auswahl.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
@@ -1980,11 +1980,11 @@
     }
   },
   "Geometry": {
-    "summary": "Die reine Form: benannte Attribute pro Scheitelpunkt, ein optionaler Dreiecksindex, Materialgruppen.",
+    "summary": "Nur die Form: benannte Attribute pro Eckpunkt, ein optionaler Dreiecksindex, Materialgruppen, die Morph-Ziele, die sie bewegen, und der gezeichnete Bereich.",
     "members": {
       "isGeometry": "Immer `true`: unterscheidet eine Geometrie von allem anderen.",
       "type": "Die Art der Geometrie, `'Geometry'`.",
-      "attributes": "Die Listen pro Scheitelpunkt, nach Namen: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Die Listen pro Eckpunkt nach Namen: `position`, `normal`, `uv`, `color`; jede besitzt ihre Zahlen oder liest einen verschachtelten Puffer.",
       "index": "Welche Scheitelpunkte jedes Dreieck bilden, drei Zahlen pro Dreieck; `null` liest sie der Reihe nach.",
       "groups": "Indexbereiche, gezeichnet mit `material[materialIndex]`, wenn ein Mesh mehrere trägt.",
       "boundingBox": "Die Box um jeden Scheitelpunkt, sobald berechnet; `null` davor.",
@@ -1999,8 +1999,8 @@
       "addGroup": "Zeichnet `count` Indizes ab `start` mit dem Material Nummer `materialIndex` des Meshes.",
       "clearGroups": "Entfernt jede Materialgruppe.",
       "computeVertexNormals": "Glatte Normalen: jeder Scheitelpunkt mittelt die Flächen, die ihn teilen, gewichtet nach ihrer Fläche.",
-      "computeBoundingBox": "Misst die Box um jeden Scheitelpunkt und hält sie in `boundingBox`.",
-      "computeBoundingSphere": "Misst die Kugel um jeden Scheitelpunkt und hält sie in `boundingSphere`.",
+      "computeBoundingBox": "Misst den Quader um jeden Eckpunkt und jede Form, die ein Morph-Ziel ihr gibt, und behält ihn in `boundingBox`.",
+      "computeBoundingSphere": "Misst die Kugel, die auf dem Quader zentriert ist und den fernsten Eckpunkt, gemorpht oder nicht, erreicht, und behält sie in `boundingSphere`.",
       "applyMatrix4": "Verschiebt jede Position, dreht jede Normale: es ist die Geometrie, die sich ändert, keine Pose.",
       "translate": "Verschiebt jeden Scheitelpunkt um `(x, y, z)`.",
       "rotateX": "Dreht jeden Scheitelpunkt um die x-Achse, um `angle` Radiant.",
@@ -2008,8 +2008,17 @@
       "rotateZ": "Dreht jeden Scheitelpunkt um die z-Achse, um `angle` Radiant.",
       "scale": "Streckt jeden Scheitelpunkt um `(x, y, z)`.",
       "center": "Verschiebt die Geometrie, sodass ihre Box am Ursprung zentriert ist.",
-      "clone": "Eine neue Geometrie mit Kopien jeder Liste.",
-      "dispose": "Vergisst diejenigen, die sie halten: eine freigegebene Geometrie wird von niemandem gezeichnet."
+      "clone": "Eine neue Geometrie mit Kopien jeder Liste, ihren Gruppen, ihrem Bereich, ihren Daten und Grenzen und dem Rezept, das sie noch baut.",
+      "dispose": "Gibt die Geometrie zurück: führt jeden Freigabe-Hook einmal aus, vergisst ihre Halter und den Raycast-Baum; eine freigegebene Geometrie wird von niemandem gezeichnet oder getroffen.",
+      "kind": "Was die Ressource ist, woran ein Leser der Szene Ressourcen unterscheidet.",
+      "name": "Ihr Name.",
+      "morphAttributes": "Pro gemorphtem Attribut ein Attribut je Morph-Ziel.",
+      "morphTargetsRelative": "Wahr, wenn ein Morph-Ziel Verschiebungen statt Positionen enthält.",
+      "drawRange": "Der gezeichnete Bereich des Index.",
+      "userData": "Freier Platz für die Daten dessen, der die Geometrie gebaut hat.",
+      "released": "Aufgerufen, wenn die Geometrie zurückgegeben wird: worauf die eigene Kopie eines Renderers hört.",
+      "getIndex": "Die Dreiecksliste oder `null`.",
+      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Eckpunkt."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2414,9 +2423,6 @@
       "width": "Breite in Pixeln.",
       "height": "Höhe in Pixeln."
     }
-  },
-  "HostGeometry": {
-    "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat."
   },
   "HostMaterial": {
     "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`."
@@ -4148,7 +4154,7 @@
   "object.sprite": {
     "summary": "Ein flaches Bild, das immer zur Kamera zeigt, wohin sie auch schaut: ein Einheitsquadrat, groß wie die Skalierung des Sprites und im Bild gedreht um die `rotation` seines Materials.",
     "parameters": {
-      "material": "Was das Quadrat zeigt: ein `material.sprite`."
+      "material": "Was das Quadrat zeigt: ein `material.sprite`; jede andere Art wirft einen Fehler."
     }
   },
   "Object3D": {
@@ -5519,7 +5525,8 @@
       "pinned": "Immer gehaltene Pakete.",
       "bundleBytes": "Angestrebte Größe eines Pakets.",
       "pages": "Wie viele Pakete.",
-      "maxDependencies": "Größte Zahl von Abhängigkeiten eines Pakets: die Grenze, die der Compiler veröffentlicht."
+      "maxDependencies": "Längste geschlossene Abhängigkeitsliste eines Bündels.",
+      "dependencyBound": "Höchstzahl der Bündel mit den Eltern der Cluster eines Bündels, vor dem Packen festgelegt."
     }
   },
   "SlimStructure": {
@@ -5666,7 +5673,8 @@
       "pinned": "Immer gehaltene Pakete.",
       "bundleBytes": "Angestrebte Größe eines Pakets.",
       "pages": "Jedes Paket.",
-      "maxDependencies": "Größte Zahl von Abhängigkeiten eines Pakets, wie der Compiler sie veröffentlicht hat."
+      "maxDependencies": "Längste geschlossene Abhängigkeitsliste eines Bündels, wie der Compiler sie veröffentlicht hat.",
+      "dependencyBound": "Höchstzahl der Bündel mit den Eltern der Cluster eines Bündels, vor dem Packen festgelegt."
     }
   },
   "StreamPage": {
@@ -6606,7 +6614,7 @@
       "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
-      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectMs": "CPU-Zeit des Cluster-Schnitts dieses Bildes, gemessen allein um die Auswahl herum. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt.",
       "gpuSelectionFallback": "Wahr, wenn die Engine eine GPU-Auswahl hatte und sie aufgegeben hat: was seitdem gemessen wird, ist der CPU-Rückfallschnitt. Ein Rückfall sendet auch einmal die Diagnose `gpu-selection-fallback`; der Host kopiert sie unverändert, und sie fehlt bei einer Engine ohne GPU-Auswahl.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
@@ -7040,8 +7048,8 @@
     "summary": "Was ein Kontakt seinen Zuhörern gibt: das andere Objekt, den Impuls und den Berührungspunkt.",
     "members": {
       "other": "Das berührte Objekt; `null`, sobald es die Szene verlassen hat.",
-      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt; 0 bei `leave`.",
-      "point": "Der Kontaktpunkt im Weltrahmen; der Ursprung bei `leave`."
+      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt (auf der Seite eines weichen Körpers: seine mittlere Geschwindigkeit und die Masse seiner berührenden Vertices); 0 bei `leave` und zwischen einem weichen Körper und einem Sensor.",
+      "point": "Der Kontaktpunkt im Weltrahmen (bei einem weichen Körper: das Mittel seiner berührenden Vertices, vor einem Sensor sein Zentrum); der Ursprung bei `leave`."
     }
   },
   "ContactEventName": {
@@ -7279,32 +7287,6 @@
       "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
       "handbrake": "Ob die Handbremse gezogen ist."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Ihre Scheitelpunktattribute.",
-      "boundingBox": "Die vom Host berechnete lokale Box.",
-      "kind": "Was die Ressource ist.",
-      "name": "Ihr Name.",
-      "index": "Die Dreiecksliste, oder `null`, um die Vertices der Reihe nach zu zeichnen.",
-      "morphAttributes": "Pro verformtem Attribut ein Attribut pro Morph-Ziel.",
-      "morphTargetsRelative": "Wahr, wenn ein Morph-Ziel Verschiebungen statt Positionen hält.",
-      "groups": "Bereiche des Index, jeweils mit einer Oberfläche gezeichnet.",
-      "drawRange": "Der gezeichnete Bereich des Index.",
-      "boundingSphere": "Die lokale Kugel, sobald berechnet oder deklariert.",
-      "userData": "Freier Platz für die Daten dessen, der die Geometrie gebaut hat.",
-      "getIndex": "Die Dreiecksliste.",
-      "setIndex": "Setzt die Dreiecksliste.",
-      "getAttribute": "Das Attribut dieses Namens.",
-      "setAttribute": "Benennt ein Attribut.",
-      "deleteAttribute": "Vergisst ein Attribut.",
-      "hasAttribute": "Ob sie ein Attribut dieses Namens hat.",
-      "clone": "Eine Geometrie mit Kopien jedes Puffers, ihrer Gruppen, ihres Bereichs und ihrer Grenzen.",
-      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Vertex.",
-      "computeBoundingBox": "Berechnet die lokale Box über alle Vertices.",
-      "computeBoundingSphere": "Berechnet die lokale Kugel: auf der Box zentriert, bis zum entferntesten Vertex."
-    },
-    "summary": "Die Attribute, die ein Mesh zeichnet, die Dreiecksliste, über die sie indiziert werden, die Morph-Ziele, die sie bewegen, sowie die darüber berechnete lokale Box und Kugel."
   },
   "GraphNode": {
     "members": {
@@ -7615,10 +7597,11 @@
   },
   "Sprite": {
     "summary": "Ein flaches Bild, das immer zur Kamera zeigt: ein Einheitsquadrat, das jeder Renderer beim Zeichnen zum Bild dreht, um die Position des Sprites.",
-    "description": "Seine Größe ist seine Weltskalierung auf `x` und `y`; seine Drehung in der Bildebene ist die `rotation` seines Materials; seine eigene Drehung wird nicht gelesen. Ein Sprite wirft keinen Schatten.",
+    "description": "Seine Größe ist seine Weltskalierung auf `x` und `y`; seine Drehung in der Bildebene ist die `rotation` seines Materials; seine eigene Drehung wird nicht gelesen. Ein Sprite wirft keinen Schatten. Wie das `Sprite` der Referenz, das nur ein `SpriteMaterial` annimmt, trägt es nur ein `material.sprite`: jedes andere Material, übergeben oder zugewiesen, wirft einen `TypeError`, der seine Art nennt.",
     "members": {
       "isSprite": "Immer `true`: unterscheidet ein Sprite von jedem anderen Mesh.",
-      "center": "Der Punkt des Bildes, der auf der Position des Sprites liegt: `(0.5, 0.5)` seine Mitte, `(0, 0)` seine linke untere Ecke, `(0.5, 0)` die Mitte seiner unteren Kante."
+      "center": "Der Punkt des Bildes, der auf der Position des Sprites liegt: `(0.5, 0.5)` seine Mitte, `(0, 0)` seine linke untere Ecke, `(0.5, 0)` die Mitte seiner unteren Kante.",
+      "material": "Das `material.sprite` des Sprites; weise ein anderes zu, um es zu ändern."
     }
   }
 }

@@ -12,8 +12,8 @@
 import type { GraphAnyLight } from '../graph/kinds.ts';
 import type { GraphMesh } from '../graph/mesh.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { HostGraphGeometry } from './graphResources.ts';
 import type { HostBox } from '../resources.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** Three numbers of a pose, as the host stores them and a boundary sets them back. */
 export type HostVector = {
@@ -48,7 +48,7 @@ export type HostGraphMesh = GraphMesh;
 /** A node that bounds itself, or whose geometry does: the two boxes the bounds rule reads
  *  (`../world/bounds.ts`), the node's own winning over its geometry's as the reference does. */
 export type HostBoundedNode = Object3D & {
-  readonly geometry?: HostGraphGeometry;
+  readonly geometry?: Geometry;
   boundingBox?: HostBox | null;
   computeBoundingBox?(): void;
 };

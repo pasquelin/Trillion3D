@@ -15,10 +15,10 @@ import {
 import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import { threeGeometry, threeMaterials } from './fromGraph.ts';
 import { Group, type Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
 import type { GraphNodeKind } from '../../../packages/sdk-browser/src/host/graph/nodeKind.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 const cameras = new WeakMap<GraphCamera, THREE.PerspectiveCamera | THREE.OrthographicCamera>();
 
@@ -28,7 +28,7 @@ export function threeMeshCopy(mesh: {
   geometry: unknown;
   material: unknown;
 }): THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]> {
-  const geometry = threeGeometry(mesh.geometry as GraphGeometry),
+  const geometry = threeGeometry(mesh.geometry as Geometry),
     material = threeMaterials(mesh.material as HostMaterials);
   if (!isInstancedNode(mesh)) return new THREE.Mesh(geometry, material);
   const made = new THREE.InstancedMesh(geometry, material, mesh.instanceMatrix.count);

@@ -1069,7 +1069,7 @@
       "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
-      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
+      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
       "gpuSelectionFallback": "当引擎原本拥有 GPU 选择结果却将其放弃时为 true:此后测量到的就是回退用的 CPU 裁切。发生回退时还会发出一次 `gpu-selection-fallback` 诊断信息,宿主会原样复制它;在没有 GPU 选择功能的引擎上不存在该字段。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
@@ -1106,11 +1106,11 @@
     }
   },
   "Geometry": {
-    "summary": "纯粹的形状本身:具名的逐顶点属性、可选的三角形索引、材质分组。",
+    "summary": "只有形状：命名的逐顶点属性、可选的三角形索引、材质组、使其变化的变形目标，以及绘制的范围。",
     "members": {
       "isGeometry": "始终为 `true`:用来把几何体和其他对象区分开来。",
       "type": "该几何体的种类,`'Geometry'`。",
-      "attributes": "按名称组织的逐顶点列表:`position`、`normal`、`uv`、`color`。",
+      "attributes": "按名称的逐顶点列表：`position`、`normal`、`uv`、`color`；每个列表拥有自己的数字，或读取一个交错缓冲区。",
       "index": "构成每个三角形的顶点,每个三角形三个数字;`null` 表示按顺序读取。",
       "groups": "当一个网格携带多种材质时,用 `material[materialIndex]` 绘制的索引范围。",
       "boundingBox": "计算之后得到的、包住每个顶点的包围盒;计算之前为 `null`。",
@@ -1125,8 +1125,8 @@
       "addGroup": "使用网格的材质编号 `materialIndex`,从 `start` 开始绘制 `count` 个索引。",
       "clearGroups": "移除所有材质分组。",
       "computeVertexNormals": "平滑法线:每个顶点按面积加权,对共享它的各个面求平均。",
-      "computeBoundingBox": "计算包住每个顶点的包围盒,并保存到 `boundingBox`。",
-      "computeBoundingSphere": "计算包住每个顶点的包围球,并保存到 `boundingSphere`。",
+      "computeBoundingBox": "测量包住每个顶点以及变形目标赋予它的每个形状的盒子，并保存在 `boundingBox` 中。",
+      "computeBoundingSphere": "测量以盒子为中心、到达最远顶点（无论是否变形）的球，并保存在 `boundingSphere` 中。",
       "applyMatrix4": "移动每一个位置,旋转每一个法线:改变的是几何体本身,而不是它的姿态。",
       "translate": "把每个顶点平移 `(x, y, z)`。",
       "rotateX": "把每个顶点绕 x 轴旋转 `angle` 弧度。",
@@ -1134,8 +1134,17 @@
       "rotateZ": "把每个顶点绕 z 轴旋转 `angle` 弧度。",
       "scale": "把每个顶点按 `(x, y, z)` 缩放。",
       "center": "移动这个几何体,使其包围盒以原点为中心。",
-      "clone": "一个新的几何体,包含每个列表的副本。",
-      "dispose": "释放持有者:被释放的几何体不会再被任何东西绘制。"
+      "clone": "一个新的几何体，带有每个列表、其组、范围、数据和边界的副本，以及仍能构建它的配方。",
+      "dispose": "归还几何体：每个释放钩子只运行一次，忘记持有者和射线树；已释放的几何体没有人绘制，也没有射线命中。",
+      "kind": "资源是什么，场景的读者据此区分资源。",
+      "name": "它的名字。",
+      "morphAttributes": "每个变形属性，每个变形目标一个属性。",
+      "morphTargetsRelative": "当变形目标保存的是位移而不是位置时为真。",
+      "drawRange": "绘制的索引范围。",
+      "userData": "供构建几何体者存放数据的自由空间。",
+      "released": "几何体被归还时调用：渲染器自己的副本所监听的内容。",
+      "getIndex": "三角形列表，或 `null`。",
+      "toNonIndexed": "绘制相同三角形但不带索引的几何体：每个角都是自己的顶点。"
     }
   },
   "GeometryPageDescriptor": {
@@ -1389,9 +1398,6 @@
       "width": "宽度,单位像素。",
       "height": "高度,单位像素。"
     }
-  },
-  "HostGeometry": {
-    "summary": "一个宿主几何体:它的属性,以及宿主基于这些属性计算出的局部包围盒。"
   },
   "HostMaterial": {
     "summary": "引擎读取到的宿主材质:所有宿主材质共有的表面参数,在边界处一次性读入引擎的 `VisMaterial`;只有 `side` 单独由 `sideOf` 读取。"
@@ -3195,7 +3201,8 @@
       "pinned": "始终保留的资源包。",
       "bundleBytes": "目标资源包大小。",
       "pages": "资源包的数量。",
-      "maxDependencies": "一个包的最大依赖数：编译器公布的上限。"
+      "maxDependencies": "包最长的闭合依赖列表。",
+      "dependencyBound": "一个包中簇的父簇所在包的最大数量，在打包前确定。"
     }
   },
   "SlimStructure": {
@@ -3300,7 +3307,8 @@
       "pinned": "始终保留的资源包。",
       "bundleBytes": "目标资源包大小。",
       "pages": "全部资源包。",
-      "maxDependencies": "一个包的最大依赖数，与编译器公布的一致。"
+      "maxDependencies": "包最长的闭合依赖列表，与编译器发布的一致。",
+      "dependencyBound": "一个包中簇的父簇所在包的最大数量，在打包前确定。"
     }
   },
   "StreamPage": {
@@ -4070,7 +4078,7 @@
       "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
-      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
+      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
       "gpuSelectionFallback": "当引擎原本拥有 GPU 选择结果却将其放弃时为 true:此后测量到的就是回退用的 CPU 裁切。发生回退时还会发出一次 `gpu-selection-fallback` 诊断信息,宿主会原样复制它;在没有 GPU 选择功能的引擎上不存在该字段。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
@@ -6326,7 +6334,7 @@
   "object.sprite": {
     "summary": "无论相机朝向哪里都始终面向相机的平面图片：一个单位正方形，大小等于精灵的缩放，并按其材质的 `rotation` 在画面中旋转。",
     "parameters": {
-      "material": "正方形显示的内容：一个 `material.sprite`。"
+      "material": "正方形显示的内容：一个 `material.sprite`；其他种类会抛出错误。"
     }
   },
   "orthographicProjection": {
@@ -7040,8 +7048,8 @@
     "summary": "接触交给监听者的内容：另一个对象、冲量和接触点。",
     "members": {
       "other": "被接触的物体；离开场景后为 `null`。",
-      "impulse": "N·s：沿法线的接近速度乘以这对物体的约化质量，在求解器运行前估算；`leave` 时为 0。",
-      "point": "接触点，世界坐标系；`leave` 时为原点。"
+      "impulse": "N·s：沿法线的接近速度乘以这对物体的约化质量，在求解器运行前估算（软体一侧：其平均速度与接触顶点的质量）；`leave` 时以及软体与传感器之间为 0。",
+      "point": "接触点，世界坐标系（软体：接触顶点的平均位置，对传感器则为其中心）；`leave` 时为原点。"
     }
   },
   "ContactEventName": {
@@ -7278,32 +7286,6 @@
       "brake": "刹车踏板，0 到 1。",
       "steer": "方向盘，−1 左打到底到 1 右打到底。",
       "handbrake": "手刹是否拉起。"
-    }
-  },
-  "GraphGeometry": {
-    "summary": "网格绘制的属性、为其建立索引的三角形列表、移动它们的变形目标，以及在其上计算的局部包围盒和包围球。",
-    "members": {
-      "kind": "资源是什么。",
-      "name": "它的名称。",
-      "index": "三角形列表，或为 `null` 以按顺序绘制顶点。",
-      "attributes": "它的顶点属性。",
-      "morphAttributes": "每个变形属性，每个变形目标一个属性。",
-      "morphTargetsRelative": "变形目标保存位移而非位置时为真。",
-      "groups": "各自以一个表面绘制的索引范围。",
-      "drawRange": "所绘制的索引范围。",
-      "boundingBox": "宿主计算出的局部包围盒。",
-      "boundingSphere": "局部包围球，计算或声明之后。",
-      "userData": "供构建该几何体者存放数据的自由空间。",
-      "getIndex": "三角形列表。",
-      "setIndex": "设置三角形列表。",
-      "getAttribute": "该名称的属性。",
-      "setAttribute": "按名称设置一个属性。",
-      "deleteAttribute": "忘记一个属性。",
-      "hasAttribute": "是否有该名称的属性。",
-      "clone": "持有每个缓冲区、其分组、范围和边界副本的几何体。",
-      "toNonIndexed": "不用索引绘制相同三角形的几何体：每个角都是独立的顶点。",
-      "computeBoundingBox": "计算覆盖所有顶点的局部包围盒。",
-      "computeBoundingSphere": "计算局部包围球：以包围盒为中心，延伸到最远的顶点。"
     }
   },
   "GraphMesh": {
@@ -7615,10 +7597,11 @@
   },
   "Sprite": {
     "summary": "始终面向相机的平面图片：每个渲染器在绘制时都会绕精灵的位置把它转向画面的单位正方形。",
-    "description": "它的大小是它在 `x` 和 `y` 上的世界缩放；它在画面平面中的旋转是其材质的 `rotation`；它自身的旋转不会被读取。精灵不投射阴影。",
+    "description": "它的大小是它在 `x` 和 `y` 上的世界缩放；它在画面平面中的旋转是其材质的 `rotation`；它自身的旋转不会被读取。精灵不投射阴影。与只接受 `SpriteMaterial` 的参考实现 `Sprite` 一样，它只使用 `material.sprite`：传入或设置任何其他材质，都会抛出一个说明其种类的 `TypeError`。",
     "members": {
       "isSprite": "始终为 `true`：把精灵与其他任何网格区分开。",
-      "center": "图片中落在精灵位置上的点：`(0.5, 0.5)` 是中间，`(0, 0)` 是左下角，`(0.5, 0)` 是下边的中点。"
+      "center": "图片中落在精灵位置上的点：`(0.5, 0.5)` 是中间，`(0, 0)` 是左下角，`(0.5, 0)` 是下边的中点。",
+      "material": "精灵的 `material.sprite`；设置另一个即可更换。"
     }
   }
 }

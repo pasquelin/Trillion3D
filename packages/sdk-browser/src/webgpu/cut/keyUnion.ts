@@ -1,5 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DenseKeySet } from './denseKeys.ts';
+import { createSparseInts } from '../../page/cut/sparseInts.ts';
 
 /**
  * The union of several sources of page keys, held from one image to the next. A source holds a key at
@@ -17,7 +18,8 @@ export function createKeyUnion(options: {
   onUnlisted?: (key: number) => void;
 }) {
   const { members, keyCount, covered, onListed, onUnlisted } = options;
-  const refs = new Int32Array(Math.max(1, keyCount));
+  /** Holders per key, only for the keys held: the union follows the view, not the catalogue. */
+  const refs = createSparseInts();
   let coveredCount = 0;
   if (covered) for (let key = 0; key < keyCount; key++) if (covered[key]) coveredCount++;
   return {
@@ -26,14 +28,18 @@ export function createKeyUnion(options: {
     get size() {
       return coveredCount + members.count;
     },
+    /** Bytes of the holder counts and of `members`. */
+    get byteLength() {
+      return refs.byteLength + members.byteLength;
+    },
     retain(key: number, page?: PageRec) {
-      if (refs[key]++ > 0 || covered?.[key]) return;
+      if (refs.add(key, 1) > 1 || covered?.[key]) return;
       members.add(key, page);
       onListed?.(key, page);
     },
     release(key: number) {
-      if (refs[key] <= 0) return;
-      if (--refs[key] > 0 || covered?.[key]) return;
+      if (refs.get(key) <= 0) return;
+      if (refs.add(key, -1) > 0 || covered?.[key]) return;
       members.remove(key);
       onUnlisted?.(key);
     },

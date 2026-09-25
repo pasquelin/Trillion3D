@@ -20,18 +20,18 @@ import type { PlacementRows } from '../../placement/rows.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphMesh } from '../../host/graph/mesh.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** The geometry of drawn triangles, under the attribute names a mesh reads. A sprite's quad is
  *  bounded as its pages are (`runtimePrimitive.ts`): by the cube and ball of its radius about its
  *  origin, which hold it whichever way the rasters turn it. */
 function hostGeometry(drawn: DrawnTriangles) {
-  const geometry = new GraphGeometry();
+  const geometry = new Geometry();
   geometry.setAttribute('position', new BufferAttribute(drawn.positions, 3));
   geometry.setAttribute('normal', new BufferAttribute(drawn.normals, 3));
   if (drawn.uvs) geometry.setAttribute('uv', new BufferAttribute(drawn.uvs, 2));
@@ -65,7 +65,7 @@ export function buildWorldMirror(input: MirrorInput) {
     Object3D,
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
-  const geometries = new Map<Cut, GraphGeometry>(),
+  const geometries = new Map<Cut, Geometry>(),
     // One surface per material, and a second one when the material asks for vertex colours and
     // is worn by geometries with and without them: the material decides, as in the reference
     // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
