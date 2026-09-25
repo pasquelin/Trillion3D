@@ -80,7 +80,9 @@ export async function startServer({
     mounts,
     headers: { 'cache-control': 'no-store', ...(isolation ? ISOLATION : {}) },
     transform: (file) =>
-      TYPESCRIPT.test(file) ? stripTypes(readFileSync(file, 'utf8'), file) : undefined,
+      TYPESCRIPT.test(file)
+        ? { type: contentType('.js'), text: stripTypes(readFileSync(file, 'utf8'), file) }
+        : undefined,
     answer: (req, res, url) => {
       if (req.method === 'POST' && url.pathname === '/capture')
         return takeCapture(req, url, captures, res);

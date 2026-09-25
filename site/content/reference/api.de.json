@@ -5444,7 +5444,7 @@
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
       "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
-      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltenen Boxen kommen sofort in die Liste.",
+      "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
       "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: ein bewegtes Objekt macht jede Seite der Lichter ungültig, die es berührt. Standardmäßig aktiv.",
       "pageInvalidation": "Ob ein bewegtes Objekt nur die Seiten ungültig macht, die seine Box bedeckt.",
       "plan": "Plant ein Bild: macht ungültig, was sich bewegt hat, liest den letzten Bericht, lässt jede zu zeichnende Seite zu.",

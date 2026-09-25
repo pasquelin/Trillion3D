@@ -3140,7 +3140,7 @@
       "representationChanged": "同一世界的另一精度：其包围盒等待相机停下。",
       "resting": "上一次规划时相机静止：其视图与再前一次规划相同。",
       "deferredChanges": "当表示变化在等待相机停下时为真。",
-      "releaseDeferred": "本帧不规划任何阴影：保留的包围盒立即进入列表。",
+      "releaseDeferred": "本帧不规划任何阴影：保留的并集立即进入列表。",
       "setPageInvalidation": "关闭逐页失效：移动的物体使其触及的光源的每一页失效。默认开启。",
       "pageInvalidation": "移动的物体是否只使其包围盒覆盖的页失效。",
       "plan": "规划一帧：使移动过的内容失效，读取最新报告，接纳每一个要绘制的页。",

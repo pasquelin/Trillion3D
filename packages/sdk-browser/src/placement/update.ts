@@ -8,6 +8,11 @@ import {
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PlacementRows } from './rows.ts';
 
+/** What a pose did to a placement: nothing, a move of one already moving, a first move. */
+export const MOVE_NONE = 0,
+  MOVE_MOVING = 1,
+  MOVE_PROMOTED = 2;
+
 /** A root that reads a row, and its rank among the roots the cut walks. */
 type RowRoot<T> = { root: ClusterRoot<T>; rank: number };
 
@@ -38,18 +43,22 @@ export const forgetRowRoots = (roots: readonly object[]) => {
   indexes.delete(roots);
 };
 
-/** What rows the owner wrote changed: the box they left and entered, as one union. */
+/** What one root's move changed: the box it left and entered, as one union, and its two corners. */
 const moved = new Float64Array(BOX_VALUES),
-  movedMin = [0, 0, 0],
-  movedMax = [0, 0, 0];
+  movedMin = moved.subarray(0, 3),
+  movedMax = moved.subarray(3, 6);
 
 /**
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
  * box, reprojected from its local box, and its parked flag, which `park` hands to a GPU cut when
  * the engine has one; `posed` hears the rank of every root the rows pose, with the pose it now
- * has when only its pose may have changed; `follow` names each root that reads a written row.
- * Returns the box the change touched, where it was and where it now is, or `null` when no drawn
+ * has and whether its row was taken or parked — a move whatever its pose —, and says whether it
+ * moved (`MOVE_*`); `follow` names each root that reads a written row. `touched` hears, root by
+ * root, the box each moved or flipped root left and entered, and whether it was moving already: a
+ * row of the range left where it stands — a pose written again unchanged, a row between two
+ * written ones — touches nothing, and two roots far apart are two boxes, never the room between
+ * them (as far as the plan's box list holds them apart, `changes.ts`). Returns whether a drawn
  * root moved: a still scene pays nothing downstream.
  */
 export function followPlacementRows<T>(
@@ -58,11 +67,12 @@ export function followPlacementRows<T>(
   from: number,
   to: number,
   park?: (rank: number, parked: boolean) => void,
-  posed?: (rank: number, world?: ArrayLike<number>) => void,
+  posed?: (rank: number, world: ArrayLike<number>, forced: boolean) => number,
   follow?: (rank: number) => void,
+  touched?: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
 ) {
   const list = rowRoots(roots, rows);
-  boxEmpty(moved, 0);
+  let any = false;
   const last = Math.min(to, rows.capacity - 1);
   for (let index = Math.max(0, from); index <= last; index++) {
     const entry = list[index];
@@ -71,7 +81,8 @@ export function followPlacementRows<T>(
     const parked = rows.live[index] === 0 || !!root.hidden,
       flipped = parked !== !!root.parked;
     // A row taken or parked moved, whatever its pose; otherwise its pose says whether it moved.
-    posed?.(rank, flipped ? undefined : root.world.elements);
+    const move = posed ? posed(rank, root.world.elements, flipped) : MOVE_PROMOTED;
+    boxEmpty(moved, 0);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
     if (flipped) {
       root.parked = parked;
@@ -81,11 +92,10 @@ export function followPlacementRows<T>(
     if (root.worldBox && root.localBox)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1);
+    // Its rows and box follow the row all the same; only a move stales shadow pages.
+    if (move === MOVE_NONE || boxIsEmpty(moved, 0)) continue;
+    any = true;
+    touched?.(movedMin, movedMax, move === MOVE_MOVING);
   }
-  if (boxIsEmpty(moved, 0)) return null;
-  for (let axis = 0; axis < 3; axis++) {
-    movedMin[axis] = moved[axis];
-    movedMax[axis] = moved[axis + 3];
-  }
-  return { min: movedMin, max: movedMax };
+  return any;
 }

@@ -117,7 +117,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
-    readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
+    readSceneProxy: createSceneProxyReader(metadata.proxy, base, options.pageCache, signal),
     // The reader exists as soon as the cache declares texture chains, whatever the host asked of
     // the loader: the engine reads the levels the compiler baked and regenerates none it could
     // have read instead. What `textureSource` still decides is whether the LOADER opens the
