@@ -61,13 +61,15 @@ function held(pixel: (px: number, py: number) => number) {
 
 /** The hard cut at the sample, and the exact coverage of the pixel around it (16×16 points). */
 const hard = (alpha: Field) => (px: number, py: number) => +(alpha(px, py) >= THRESHOLD);
-const coverage = (alpha: Field) => (px: number, py: number) => {
+const coverage = (alpha: Field) => {
   const cut = hard(alpha);
-  let inside = 0;
-  for (let i = 0; i < SUB; i++)
-    for (let j = 0; j < SUB; j++)
-      inside += cut(px - 0.5 + (i + 0.5) / SUB, py - 0.5 + (j + 0.5) / SUB);
-  return inside / (SUB * SUB);
+  return (px: number, py: number) => {
+    let inside = 0;
+    for (let i = 0; i < SUB; i++)
+      for (let j = 0; j < SUB; j++)
+        inside += cut(px - 0.5 + (i + 0.5) / SUB, py - 0.5 + (j + 0.5) / SUB);
+    return inside / (SUB * SUB);
+  };
 };
 
 /** A leaf edge across the frame, slanted. */
