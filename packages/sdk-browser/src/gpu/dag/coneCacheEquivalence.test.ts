@@ -65,7 +65,11 @@ test('camera far from everything: every page is outside the frustum, the cache s
   cam.lookAt(2e6, 0, 0);
   cam.updateMatrixWorld();
   const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);
-  const result = assertSameSelection(dag, uniforms, ruleResidency(dag, new Uint32Array(dag.pageCount)));
+  const result = assertSameSelection(
+    dag,
+    uniforms,
+    ruleResidency(dag, new Uint32Array(dag.pageCount)),
+  );
   assert.equal(result.frustumRejected, dag.pageCount);
   assert.equal(result.pageIds.length, 0);
 });

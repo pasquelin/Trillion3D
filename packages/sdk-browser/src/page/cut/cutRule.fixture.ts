@@ -56,7 +56,7 @@ export function ruleDag(leaves = 64, leafError = 0.002) {
   for (let depth = 0; level.length > 2; depth++) {
     const shift = depth % 2 ? 2 : 0,
       next: number[] = [];
-    for (let at = 0; at < level.length; ) {
+    for (let at = 0; at < level.length;) {
       const size = at === 0 && shift ? shift : Math.min(4, level.length - at);
       const members = level.slice(at, at + size);
       at += size;
