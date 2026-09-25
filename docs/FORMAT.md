@@ -240,7 +240,8 @@ parent, summed over the parents and never past every placement, bounds each mesh
 the reach, the cells' size and the parents' count, not by the world or where its parents stand.
 Parents moved together never run the rows short, so they never reopen the session nor leave a
 placement undrawn (CONTRIBUTING.md §Streaming rule 10). Nothing grows under a drawing engine: a
-camera whose reach later outgrows the rows, or a parent scaled below its stretch at opening, asks
+camera whose reach later outgrows the rows, or a parent scaled down or stretched more unevenly
+than at opening (moved, turned or scaled up, it holds), asks
 the session's owner, once, to open it again sized for them (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
