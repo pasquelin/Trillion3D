@@ -2,7 +2,7 @@
 // cutting, at each step, the velocity across the tangent where the body stands; but a body leaves
 // each step along the tangent of the point it started from, so on a bend the cut takes the share
 // 1 − cos dθ of its speed, dθ = v·dt / R the step's turn: v²·dt / R² of its kinetic energy per
-// second, 2 % a second at 20 m/s on a 13 m loop at 60 Hz, and half as much at twice the rate.
+// second, 4 % a second at 20 m/s on a 13 m loop at 60 Hz, and half as much at twice the rate.
 // After each step, the body's velocity is turned from the tangent it was held along to the one
 // where it now stands, its speed kept: the bend turns the body and takes nothing from it.
 #include "joints.h"
