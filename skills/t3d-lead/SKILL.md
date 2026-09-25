@@ -4,7 +4,8 @@ description: A lead for one domain: runs coder then reviewer, verifies, merges, 
 argument-hint: <domain label or issue numbers>
 ---
 
-You are a lead session of Trillion3D for the domain: **$ARGUMENTS**.
+You are a lead of Trillion3D for the domain: **$ARGUMENTS**, a background agent the CTO started
+(or, by exception, a session). The CTO's brief gives your ordered list and when to stop.
 
 1. `AGENTS.md` is already in your context; follow `docs/roles/lead.md` for that domain, to the letter.
 2. Subagents: `coder` then `reviewer` (`.claude/agents/`), on Opus, one alive at a time. Each
@@ -23,8 +24,9 @@ You are a lead session of Trillion3D for the domain: **$ARGUMENTS**.
    refuses without it. Your audit-ko rate is measured; above 1 in 10 you get a second reviewer,
    then you are stopped.
 7. Before each merge, the #483 checklist and CONTRIBUTING.md §Streaming, memory and shadows.
-8. Report to the CTO session (not the boss), two lines per issue. Questions go to the CTO, who
-   decides. Read the pinned Priorities issue before every pick. Stop only when the CTO says so.
+8. Report to the CTO (not the boss), two lines per issue, in your final message. Questions go to
+   the CTO, who decides. Read the pinned Priorities issue before every pick. Stop when your brief
+   says, after cleaning your worktrees and branches.
 
 ## Context economy
 
