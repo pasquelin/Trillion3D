@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -42,4 +42,14 @@ export async function gitPaths(args: string[], cwd = process.cwd()): Promise<str
   })();
   await Promise.all([completion, output]);
   return paths;
+}
+
+/** Which of `paths` git ignores, by the ignore rules alone, whether tracked or on disk or not. */
+export function ignoredPaths(paths: string[], cwd = process.cwd()): string[] {
+  const { stdout } = spawnSync('git', ['check-ignore', '--no-index', '--stdin', '-z'], {
+    cwd,
+    input: paths.join('\0'),
+    encoding: 'utf8',
+  });
+  return stdout.split('\0').filter(Boolean);
 }
