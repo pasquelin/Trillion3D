@@ -113,7 +113,7 @@ for (const side of ['reference', 'engine'] as const) {
       `at least ${ANISOTROPY_GAIN} more expected`,
   );
 }
-// #443: the grazing fixtures against their supersampled ground truth — the witness is not the
+// #443: the grazing fixtures against their ground truth — the witness is not the
 // truth: the engine within the fixture's tolerance and no farther from it than the witness.
 for (const { name, truth } of result.results) {
   if (!truth) continue;
