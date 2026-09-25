@@ -4795,6 +4795,9 @@
     "summary": "L’atlas que sert un aperçu : couleur (`rgba8unorm-srgb`, couleur de base et émission) ou données (`rgba8unorm`, métal-rugosité, normale, occlusion).",
     "description": "Une même texture peut avoir une entrée pour chacun."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Une chaîne de l’atlas de couleur, pour une texture dont chaque lecteur prend l’alpha pour une couverture (la couleur de base des matériaux MASK ou BLEND seulement) : la seule chaîne dont les couleurs sont pondérées par l’alpha, nommée à part de la chaîne ordinaire (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "L’atlas de données : images de métal-rugosité, de normales et d’occlusion."
   },
@@ -6049,7 +6052,7 @@
       "sourceKind": "0 quand les octets venaient d’une uri d’image, 1 quand ils venaient de sourceBufferView.",
       "sourceBufferView": "Vue de tampon de la scène préparée, ou -1 pour une source uri.",
       "sha256": "SHA-256 des octets source décodés.",
-      "atlas": "L’atlas que sert cette entrée : PREVIEW_ATLAS_COLOR ou PREVIEW_ATLAS_DATA.",
+      "atlas": "La chaîne que porte cette entrée : PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, échantillonnée dans l’atlas de couleur.",
       "firstLevel": "Indice du premier niveau porté dans la chaîne de mips de la source ; 0 quand elle tient déjà sous PREVIEW_BASE et que le fichier annexe porte donc toute sa résolution.",
       "bakedLevels": "Niveaux cuits en fichiers dans le cache, de 0 à bakedLevels - 1 ; firstLevel quand la chaîne est complète, 0 quand rien n’a été écrit et que le moteur charge l’image source.",
       "levels": "Niveaux portés dans l’ordre, du plus fin à 1×1, chacun une vue sur les octets du fichier annexe.",

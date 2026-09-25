@@ -2249,6 +2249,9 @@
     "summary": "Atlas mà một bản xem trước phục vụ: màu (`rgba8unorm-srgb`, màu nền và phát sáng) hoặc dữ liệu (`rgba8unorm`, kim loại-độ nhám, pháp tuyến, occlusion).",
     "description": "Cùng một kết cấu có thể có một mục cho mỗi loại."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Một chuỗi của atlas màu, dành cho texture mà mọi nơi đọc đều coi alpha của nó là độ phủ (chỉ màu nền của vật liệu MASK hoặc BLEND): chuỗi duy nhất có màu được lấy trọng số theo alpha, đặt tên riêng với chuỗi thường (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "Atlas dữ liệu: các bản đồ kim loại-độ nhám, pháp tuyến và occlusion."
   },
@@ -3694,7 +3697,7 @@
       "sourceKind": "0 khi các byte đến từ một uri hình ảnh, 1 khi chúng đến từ sourceBufferView.",
       "sourceBufferView": "View bộ đệm của cảnh đã chuẩn bị, hoặc -1 cho một nguồn uri.",
       "sha256": "SHA-256 của các byte nguồn đã giải mã.",
-      "atlas": "Atlas mà mục này phục vụ: PREVIEW_ATLAS_COLOR hoặc PREVIEW_ATLAS_DATA.",
+      "atlas": "Chuỗi mà mục này mang: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, hoặc PREVIEW_ATLAS_COVERAGE, được lấy mẫu trong atlas màu.",
       "firstLevel": "Chỉ số của mức đầu tiên được mang trong chuỗi mip của nguồn; 0 khi nó đã vừa dưới PREVIEW_BASE và do đó tệp phụ mang theo toàn bộ độ phân giải của nó.",
       "bakedLevels": "Các mức được nướng thành tệp trong bộ nhớ đệm, từ 0 đến bakedLevels - 1; firstLevel khi chuỗi hoàn chỉnh, 0 khi không có gì được ghi và bộ máy tải hình ảnh nguồn.",
       "levels": "Các mức được mang theo thứ tự, từ mịn nhất đến 1x1, mỗi mức là một view trên các byte của tệp phụ.",
