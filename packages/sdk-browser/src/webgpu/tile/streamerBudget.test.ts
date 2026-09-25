@@ -5,59 +5,24 @@ import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './streamer.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
 import { levelSize, tileLayout } from '../../texture/tiles.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-
-installGpuGlobals();
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** Milliseconds each fake copy costs on the test's own clock — the budget is read on it — and
  *  what the shadows that follow the landed colour tiles cost after the last copy. */
 const COPY_MS = 2,
   FOLLOW_MS = 1;
 
-/** A dummy device: copies advance the clock by `COPY_MS`, readback buffers give back what the
- *  test wrote. */
+/** The device of the pass: each image copy costs `COPY_MS` on the test's clock, and each colour
+ *  signal `FOLLOW_MS` after it; a readback buffer gives back what the test wrote in it. */
 function tileDevice() {
-  const staging: Array<{ label?: string; data: Uint8Array }> = [];
-  let copies = 0,
-    clock = 0;
-  const device = {
-    createTexture: () => ({ createView: () => ({}), destroy() {}, format: 'rgba8unorm' }),
-    createBuffer: ({ size, label }: { size: number; label?: string }) => {
-      const buffer = {
-        label,
-        data: new Uint8Array(size),
-        destroy() {},
-        mapAsync: async () => {},
-        getMappedRange() {
-          return this.data.buffer;
-        },
-        unmap() {},
-      };
-      staging.push(buffer);
-      return buffer;
-    },
-    createCommandEncoder: () => ({
-      copyBufferToBuffer() {},
-      clearBuffer() {},
-      copyTextureToTexture() {},
-      finish: () => ({}),
-    }),
-    queue: {
-      writeTexture() {},
-      writeBuffer() {},
-      submit() {},
-      copyExternalImageToTexture() {
-        copies++;
-        clock += COPY_MS;
-      },
-    },
-  };
+  const { device, buffers, imageCopies } = fakeDevice();
+  let follows = 0;
   return {
-    device: device as never,
-    staging,
-    copies: () => copies,
-    now: () => clock,
-    follow: () => void (clock += FOLLOW_MS),
+    device,
+    staging: buffers,
+    copies: () => imageCopies.length,
+    now: () => imageCopies.length * COPY_MS + follows * FOLLOW_MS,
+    follow: () => void follows++,
   };
 }
 
@@ -104,13 +69,12 @@ function streamer(budgetMs: number) {
   textures.prepare();
   /** Image feedback that names every streamed tile, heaviest first: the next pass takes it. */
   const feed = async () => {
-    const encoder = device as unknown as { createCommandEncoder: () => GPUCommandEncoder };
-    textures.feedback.encode(encoder.createCommandEncoder());
+    textures.feedback.encode(device.createCommandEncoder());
     const readback = staging.filter((b) =>
       b.label?.startsWith('Trillion3D texture feedback readback'),
     );
     for (const buffer of readback)
-      new Uint32Array(buffer.data.buffer).set([5, 4, 3, 2, 1].slice(0, layout.entries));
+      new Uint32Array(buffer.getMappedRange()).set([5, 4, 3, 2, 1].slice(0, layout.entries));
     textures.feedback.submitted();
     await textures.settled();
   };

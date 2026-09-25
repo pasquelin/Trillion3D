@@ -8,6 +8,7 @@ import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { orderBlendPasses } from './order.ts';
 import { createWebgpuBlendState } from './state.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,
@@ -100,11 +101,9 @@ function joue(items: ReturnType<typeof item>[]) {
   } as unknown as WebgpuPagesRuntime;
   // The lighting of the image, resolved once as `encodeBlend` does before any pass.
   blendState.lighting = blendLightResources(rt);
-  drawBlendPass(
-    rt,
-    { createBindGroup: () => ({}) } as unknown as GPUDevice,
-    { beginRenderPass: () => pass } as unknown as GPUCommandEncoder,
-  );
+  drawBlendPass(rt, fakeDevice().device, {
+    beginRenderPass: () => pass,
+  } as unknown as GPUCommandEncoder);
   return { pipelines, draws, calls: rt.run.blendDrawCalls };
 }
 

@@ -117,8 +117,8 @@ test('a glass wears a physical surface the WebGL2 program draws as a transmissiv
   const surface = hostSurface(glass, false, new Map());
   assert.equal(surface.family, 'physical');
   const attributes = {
-    position: new G.GraphAttribute(new Float32Array(9), 3),
-    normal: new G.GraphAttribute(new Float32Array(9), 3),
+    position: new G.BufferAttribute(new Float32Array(9), 3),
+    normal: new G.BufferAttribute(new Float32Array(9), 3),
   } as unknown as HostAttributes;
   assert.equal(clusterMaterialReason(surface, attributes, true), undefined);
   assert.match(String(clusterMaterialReason(surface, attributes)), /scene copy/);

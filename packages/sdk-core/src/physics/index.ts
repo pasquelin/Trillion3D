@@ -19,3 +19,12 @@ export {
   type JointOptions,
   type SixDofAxis,
 } from './joint.ts';
+export * from './vehicleLayout.ts';
+export {
+  Vehicle,
+  vehicle,
+  type VehicleInput,
+  type VehicleKind,
+  type VehicleOptions,
+} from './vehicle.ts';
+export { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts';

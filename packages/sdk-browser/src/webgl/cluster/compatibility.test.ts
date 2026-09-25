@@ -6,7 +6,7 @@ import { validateClusterMeshes } from './validation.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
 
-const position = new G.GraphAttribute(new Float32Array(9), 3);
+const position = new G.BufferAttribute(new Float32Array(9), 3);
 const NO_COPIES = { plain: [], blended: [], transmissive: [] };
 // A stand-in image: these tests never rasterize a texture, only its presence is read
 // (`!texture.image`), so a placeholder typed as the DOM's texture-source union is enough.
@@ -35,7 +35,7 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
   assert.equal(
     clusterMaterialReason(material, {
       position,
-      normal: new G.GraphAttribute(new Float32Array(9), 3),
+      normal: new G.BufferAttribute(new Float32Array(9), 3),
     }),
     undefined,
   );
@@ -55,8 +55,8 @@ test('a normal-mapped material needs no tangent attribute: the shader rebuilds t
   assert.equal(
     clusterMaterialReason(material, {
       position,
-      normal: new G.GraphAttribute(new Float32Array(9), 3),
-      uv: new G.GraphAttribute(new Float32Array(6), 2),
+      normal: new G.BufferAttribute(new Float32Array(9), 3),
+      uv: new G.BufferAttribute(new Float32Array(6), 2),
     }),
     undefined,
   );
@@ -68,7 +68,7 @@ test('a texture selecting UV1 is refused when geometry has only UV0', () => {
   assert.match(
     clusterMaterialReason(material, {
       position,
-      uv: new G.GraphAttribute(new Float32Array(6), 2),
+      uv: new G.BufferAttribute(new Float32Array(6), 2),
     })!,
     /no UV1 attribute/,
   );
@@ -77,7 +77,7 @@ test('a texture selecting UV1 is refused when geometry has only UV0', () => {
 test('one material is validated against every distinct geometry attribute set', () => {
   const material = G.basicSurface({ map: fakeTexture() });
   (material.map as G.GraphTexture).channel = 1;
-  const uv = new G.GraphAttribute(new Float32Array(6), 2);
+  const uv = new G.BufferAttribute(new Float32Array(6), 2);
   assert.throws(
     () =>
       validateClusterMeshes(
@@ -122,7 +122,7 @@ test('a mutation of a two-sided transparent material is read at the draw, never 
 });
 
 test('a transmissive physical material is a scene copy of the transmission pass, never a cluster', () => {
-  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const normal = new G.BufferAttribute(new Float32Array(9), 3);
   const glass = G.physicalSurface({ transmission: 1, ior: 1.5, thickness: 0.1 });
   assert.match(clusterMaterialReason(glass, { position, normal })!, /drawn as a scene copy/);
   assert.equal(clusterMaterialReason(glass, { position, normal }, true), undefined);
@@ -141,7 +141,7 @@ test('a transmissive physical material is a scene copy of the transmission pass,
 });
 
 test('a transmissive copy mutated into another physical extension is refused before drawing', () => {
-  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const normal = new G.BufferAttribute(new Float32Array(9), 3);
   const glass = G.physicalSurface({ transmission: 1 });
   const copy = { material: glass, geometry: { attributes: { position, normal } } } as never;
   const copies = { ...NO_COPIES, transmissive: [copy] };
@@ -159,7 +159,7 @@ test('a transmissive copy mutated into another physical extension is refused bef
 // The gate no longer compares against the host library's own class to find a shader hook: it
 // asks whether the material reaches a compile hook other than the one it inherits.
 test('a compile hook the host installed is refused, the empty one it inherits is not', () => {
-  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const normal = new G.BufferAttribute(new Float32Array(9), 3);
   const material = G.standardSurface();
   assert.equal(clusterMaterialReason(material, { position, normal }), undefined);
   material.onBeforeCompile = () => {};
@@ -168,7 +168,7 @@ test('a compile hook the host installed is refused, the empty one it inherits is
 
 // #346: every named mode reaches the draw; a mode no path draws is refused by name.
 test('a named blending is admitted, an unnamed one and a transmissive non-normal one are refused', () => {
-  const normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const normal = new G.BufferAttribute(new Float32Array(9), 3);
   for (const mode of ['none', 'normal', 'additive', 'subtractive', 'multiply'] as const)
     assert.equal(
       clusterMaterialReason(G.basicSurface({ transparent: true, blending: hostBlending(mode) }), {
