@@ -1,17 +1,13 @@
 // The ground truth of a grazing material fixture (#443): the view the renderers draw, cast on the
-// CPU from each pixel's centre into the fixture's square and the square behind it. Along the axis
-// the map is minified — the pixel's texture footprint, the screen axis that spans more texels, on
-// the tangent the exact derivatives lay at the pixel's centre, as a sampler reads it —
-// `SAMPLES` reads of the base level are averaged in linear light, bilinear across it as a
-// magnification reads; the alpha cutoff then applies once, to that filtered alpha, as a pixel's
-// alpha test does. No mip level and no footprint cap: what a perfect anisotropic sampler returns,
-// the reference both engines are judged against. A magnified axis is never averaged: that would
-// be antialiasing, which no sampler does.
+// CPU from each pixel's centre into the fixture's square and the square behind it. Along the
+// pixel's minified axis — the screen axis spanning more texels, on the tangent its exact
+// derivatives lay, as a sampler reads it — `SAMPLES` bilinear reads of the base level are averaged
+// in linear light, then the alpha cutoff applies once: a perfect anisotropic read, no mip level,
+// no footprint cap. A magnified footprint is one read: averaging it would be antialiasing.
 //
-// A renderer's gap to it is counted as the measurer counts one (#443): pixels farther than one
-// 8-bit level on a channel. A pixel a silhouette crosses is not counted: the renderers draw it
-// with one sample, and which surface it shows is geometry. Pure: served to the harness page
-// (`materialTruth.ts`) and run in Node by its unit test.
+// A gap to it counts pixels farther than one 8-bit level on a channel (#443), silhouettes aside:
+// renderers draw them with one sample, and which surface shows is geometry. Pure: served to the
+// harness page (`materialTruth.ts`) and run in Node by its unit test.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts';
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
@@ -36,10 +32,7 @@ interface TruthMap {
 }
 
 /** A square facing +z in its own frame, of half-side `half`, placed in the world by `place`. */
-interface TruthSquare {
-  place: Matrix4;
-  half: number;
-}
+type TruthSquare = { place: Matrix4; half: number };
 
 /** One fixture's view: a white unlit square wearing `map`, over the square `behind` of its colour
  *  when it declares one, over `clear` elsewhere. */
@@ -55,10 +48,7 @@ export interface TruthView {
 }
 
 /** The truth, a bottom-left RGBA8 image, and the pixels a silhouette crosses (1). */
-export interface Truth {
-  rgba: Uint8Array;
-  edge: Uint8Array;
-}
+export type Truth = { rgba: Uint8Array; edge: Uint8Array };
 
 /** A renderer's gap to the truth: pixels farther than the level allowed, and the largest gap. */
 export type TruthGap = { pixels: number; max: number };
@@ -151,9 +141,8 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
       let colour: ArrayLike<number> | undefined;
       if (surface === 1) {
         const [u, v] = onMap(at.x * toUv + 0.5, at.y * toUv + 0.5, 1);
-        // The pixel's footprint on the map, one pixel along each screen axis, on the tangent at
-        // its centre as a sampler's derivatives lay it — the curve a pixel's edges trace departs
-        // from it, and no sampler follows that curve.
+        // The footprint, one pixel along each screen axis on the tangent at the centre, as a
+        // sampler's derivatives lay it: no sampler follows the curve the pixel's edges trace.
         const step = 2 * halfPixel * toUv,
           across = onMap(slope[0] * step, slope[1] * step, 0),
           up = onMap(slope[2] * step, slope[3] * step, 0);
