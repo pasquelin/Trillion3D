@@ -926,7 +926,8 @@
       "PHYSICS_FAILED": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 삼각형, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했습니다(`PHYSICS_FAILED`): `world.physics.error`에 있습니다.",
       "PHYSICS_FORMAT": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "PHYSICS_OFF": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다."
+      "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다.",
+      "GUIDE_CEILING": "`world.guides` 호출이 `GUIDE_VERTEX_CEILING`보다 많은 정점을 보유하게 되어, 아무것도 추가되지 않았습니다."
     }
   },
   "EngineProfiler": {
@@ -1227,6 +1228,42 @@
     "members": {
       "isGroup": "항상 `true`: 그룹을 구분한다.",
       "type": "노드의 종류, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "페이지가 그린 가이드 묶음; 각 설정자는 핸들을 돌려줍니다.",
+    "members": {
+      "visible": "그려지는지 여부; `setVisible`이 씁니다.",
+      "setVisible": "보이거나 숨깁니다; 정점은 계속 한도에 포함됩니다.",
+      "setTransform": "배치합니다: 열 우선 16개의 숫자 또는 행렬 — `node.matrixWorld`로 노드를 따라갑니다.",
+      "remove": "월드에서 빼고 정점을 돌려줍니다; 두 번째 호출은 아무것도 하지 않습니다."
+    }
+  },
+  "GuideLines": {
+    "summary": "그릴 선분.",
+    "members": {
+      "positions": "선분마다 두 끝점, 각각 세 개의 숫자.",
+      "color": "색; 기본값은 흰색.",
+      "width": "화면에서의 너비, 픽셀 단위."
+    }
+  },
+  "GuidePoints": {
+    "summary": "그릴 점.",
+    "members": {
+      "positions": "점마다 세 개의 숫자.",
+      "color": "색; 기본값은 흰색.",
+      "size": "화면에서 각 정사각형 점의 한 변, 픽셀 단위."
+    }
+  },
+  "Guides": {
+    "summary": "페이지가 그리는 한 월드의 가이드: `world.guides`.",
+    "members": {
+      "ceiling": "가이드가 함께 보유하는 최대 정점 수 (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "지금 보유한 정점, 선분마다 2개와 점마다 1개, 숨긴 가이드 포함.",
+      "lines": "선분을 그립니다, 각각 두 끝점; 한도를 넘으면 거부됩니다 (`GUIDE_CEILING`).",
+      "points": "정사각형 점을 그립니다, 각각 한 위치; 한도를 넘으면 거부됩니다 (`GUIDE_CEILING`).",
+      "add": "`object`의 선과 점 메시 — 모든 `helper`가 이를 만듭니다 — 를 재질 색으로, 객체가 지금 서 있는 곳에 그립니다; 삼각형은 가이드가 아니므로 건너뜁니다.",
+      "clear": "모든 가이드를 제거합니다."
     }
   },
   "HALF_PI": {
@@ -3949,6 +3986,9 @@
       "error": "마지막 세션을 열 수 없었던 이유를 이름 있는 엔진 오류로 나타냅니다. 그 `code`는 `EngineError`에 문서화된 코드 중 하나(WebGPU가 장치를 잃었을 때는 `WEBGPU_LOST`)이거나, 고유 코드가 없는 이유에는 `SESSION_OPEN_FAILED`입니다. 문서화된 코드의 `EngineError`는 던져진 오류 그 자체이고, 그 밖의 오류는 변환되며 이때 던져진 오류는 `details.cause`에 있습니다. 각 열기가 시작될 때부터, 그리고 아무것도 시도하지 않을 때 `null`입니다.",
       "modes": "현재 렌더러가 제공하는 모든 뷰 모드."
     }
+  },
+  "world.guides": {
+    "summary": "이미지 위에 그려지는 선, 점, 도우미 (`Guides`)."
   },
   "world.onFrame": {
     "summary": "매 프레임 전에, 그 프레임의 시각과 함께 함수를 실행한다.",
@@ -7033,6 +7073,10 @@
       "mars": "화성의 중력.",
       "none": "중력 없음."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "한 월드의 가이드가 함께 보유하는 최대 정점 수: 선분마다 2개, 점마다 1개.",
+    "description": "도출이 아니라 선언된 값: 페이지가 무엇을 요청하든 패스가 올리는 단 하나의 인스턴스 버퍼를 64 Ki × 32 바이트 = 2 MiB로 제한합니다 — 16 000개 선의 그리드는 들어가지만, 스캔한 도시의 점 구름은 들어가지 않으며 그것은 장면에 속합니다."
   },
   "GravityInput": {
     "summary": "중력: 프리셋 이름, 또는 m/s² 단위 벡터."

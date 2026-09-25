@@ -4,6 +4,8 @@ import type { RenderBackend } from '../../backend/types.ts';
 import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { createBackendPresenter } from './composeSurface.ts';
 import { createHeldFrame } from './heldFrame.ts';
+import { createWebglGuideDraw } from '../../guides/guideGl.ts';
+import type { GuideSet } from '../../guides/guideSet.ts';
 import type { SceneColour } from '../../webgl/cluster/lights.ts';
 import {
   bindWebglTarget,
@@ -16,10 +18,17 @@ import {
  * knows how an engine's image reaches either. It binds the destination, then copies the surface
  * an engine presented on its own canvas, or clears with the engine's background and asks the
  * engine to draw its whole image there, keeping the copy of the last complete frame that spares
- * a redraw. Nothing here belongs to a rendering library.
+ * a redraw. The page's `guides` are drawn over what the engine drew, before that copy is kept; a
+ * change to them spares no redraw. Nothing here belongs to a rendering library.
  */
-export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCamera) {
+export function createFrameComposer(
+  gl: WebGL2RenderingContext,
+  camera: HostCamera,
+  guides?: GuideSet,
+) {
   const heldFrame = createHeldFrame(gl);
+  const guideDraw = createWebglGuideDraw(gl);
+  let guidesDrawn = guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
   const drawCamera = createHostDrawCamera();
   const output: HostDrawOutput = {
@@ -49,7 +58,14 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
   const compose = (backend: RenderBackend, target: WebglRenderTarget | null, reuse = true) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
-    if (reuse && backend.frameHeld === true && !target && heldFrame.holds(width, height)) {
+    const guidesHeld = !guides || guides.revision === guidesDrawn;
+    if (
+      reuse &&
+      guidesHeld &&
+      backend.frameHeld === true &&
+      !target &&
+      heldFrame.holds(width, height)
+    ) {
       heldFrame.present();
       return;
     }
@@ -65,11 +81,16 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
     output.height = height;
     clear(backend.scene.background as SceneColour);
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
+    if (guides) {
+      guidesDrawn = guides.revision;
+      guideDraw.draw(guides, drawCamera, output);
+    }
     if (!target) heldFrame.keep(width, height);
   };
   compose.dispose = () => {
     present.dispose();
     heldFrame.dispose();
+    guideDraw.dispose();
   };
   return compose;
 }

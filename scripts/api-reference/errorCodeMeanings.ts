@@ -39,4 +39,6 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
     "A compiled model's cooked physics (`physics.json`) is of another format, or was cooked by another Jolt than the engine's (`PHYSICS_FORMAT`): compile it again. An exact raycast was asked with the physics off (`PHYSICS_OFF`).",
   NO_VEHICLE:
     "`world.controls.kind` was set to `'vehicle'` while `world.controls.vehicle` is `null`: there is nothing to drive.",
+  GUIDE_CEILING:
+    'A `world.guides` call would hold more vertices than `GUIDE_VERTEX_CEILING`; nothing of it was added.',
 };

@@ -123,6 +123,8 @@ export interface MeasuredWorldOptions {
    *  as under `'host'` (`resolveTextureSource`). */
   textureSource?: 'host' | 'cache';
   sceneLighting?: Object3D;
+  /** Lines and points drawn over the image, held by the world (`world.guides`). */
+  guides?: import('../../guides/guideSet.ts').GuideSet;
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */
