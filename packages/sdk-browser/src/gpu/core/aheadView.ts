@@ -5,6 +5,7 @@ import {
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts';
 import { PREFETCH_HORIZON_MS } from '../../backend/common.ts';
+import { sameElements } from '../../math/matrixElements.ts';
 import type { CameraMotion } from '../../camera/world.ts';
 import type { EngineCamera } from '../../camera/engineCamera.ts';
 
@@ -71,7 +72,7 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
 
 export function sameAheadView(a?: AheadView | null, b?: AheadView | null) {
   if (!a || !b) return !a === !b;
-  for (let i = 0; i < 16; i++) if (a.view[i] !== b.view[i]) return false;
+  if (!sameElements(a.view, b.view)) return false;
   for (let i = 0; i < a.planes.length; i++) if (a.planes[i] !== b.planes[i]) return false;
   return true;
 }

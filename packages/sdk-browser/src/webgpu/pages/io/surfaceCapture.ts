@@ -8,6 +8,7 @@ import { collectPendingUrls } from '../../../page/selection/selection.ts';
 import { awaitedPages } from '../../row/pageSlots.ts';
 import { viewProj } from '../helpers.ts';
 import { resetHizHistory } from './drops.ts';
+import { restartCameraMotion } from '../../../camera/motion.ts';
 import type { HostCamera } from '../../../camera/world.ts';
 import {
   drawResidentCut,
@@ -140,8 +141,7 @@ export async function captureSurfaceView(
     viewport[1] = options.height;
     run.diagnostic = 'beauty';
     resetHizHistory(run);
-    run.motion.last = undefined;
-    run.motion.lastMs = undefined;
+    restartCameraMotion(run.motion);
     renderForCapture(rt, camera, aspect);
     await drawResidentCut(rt, gpuDevice, {
       admitted: () => {

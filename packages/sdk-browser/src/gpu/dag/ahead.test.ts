@@ -12,7 +12,7 @@ import {
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { readCameraMotion, type CameraMotion } from '../../camera/motion.ts';
+import { readCameraMotion, restartCameraMotion, type CameraMotion } from '../../camera/motion.ts';
 import { PREFETCH_HORIZON_MS } from '../../backend/common.ts';
 
 const SPEED = 40,
@@ -101,4 +101,21 @@ test('a still camera whose way back is only rounded to unit length does not turn
   readCameraMotion(cam, motion, 16);
   assert.equal(motion.turn, 0);
   assert.equal(cameraSelectionUniforms(cam, 1, [512, 512], undefined, motion).ahead, null);
+});
+
+test('a capture from another camera leaves the main camera still once its motion is restored', () => {
+  // The captures save the motion as a shallow copy, restart it, draw their own camera, restore it
+  // (`../../webgpu/pages/io/surfaceCapture.ts`): the main camera must not read the capture's turn.
+  const main = cameraAt(0),
+    motion: CameraMotion = {};
+  readCameraMotion(main, motion, 0);
+  readCameraMotion(main, motion, 16);
+  const saved = { ...motion };
+  restartCameraMotion(motion);
+  readCameraMotion(cameraAt(0, 0.6), motion, 32);
+  readCameraMotion(cameraAt(0, 0.6), motion, 48);
+  Object.assign(motion, saved);
+  readCameraMotion(main, motion, 64);
+  assert.equal(motion.turn, 0);
+  assert.equal(cameraSelectionUniforms(main, 1, [512, 512], undefined, motion).ahead, null);
 });

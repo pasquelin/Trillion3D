@@ -5,7 +5,7 @@ import type { SelectionResult } from '../../core/selection.ts';
 import type { DagViewUniforms } from '../types.ts';
 import { dagViewFrames } from './math.ts';
 import { AHEAD_LEAF, dagOracleDescent } from './descent.ts';
-import { quantizeRequestPriority, requestRank } from '../request.ts';
+import { quantizeRequestPriority } from '../request.ts';
 import { createDagOraclePredicates } from './predicates.ts';
 import type { CutRuleAt } from './predicates.ts';
 
@@ -130,9 +130,7 @@ export function evaluateDagSelectionKernel(
     drawablePageIds.push(i);
   }
   // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU.
-  const rangs = pageIds
-    .map((_, i) => i)
-    .sort((a, b) => requestRank(priorites[b]) - requestRank(priorites[a]));
+  const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
   const aheadRanks = aheadIds
     .map((_, i) => i)
     .sort((a, b) => aheadPriorities[b] - aheadPriorities[a]);

@@ -1,4 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
+import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
 
 /**
  * Pages that claim the write of a row record and have not yet received it.
@@ -48,11 +50,11 @@ export function createWebgpuRowClaims(pageCount: number) {
 export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
 
 /**
- * Time an image grants to writing rows. Same ceiling, same rule as the arrival drain: the clock is
- * reread after each row and the rest waits for the next image, in the same order. At least one row
- * always goes through, or a page would never be written.
+ * Time an image grants to writing rows: the arrival drain's ceiling (`ARRIVAL_BUDGET_MS`) and its one
+ * budget (`FrameBudget`): the clock is reread after each row and the rest waits for the next image,
+ * in the same order. At least one row always goes through, or a page would never be written.
  */
-const CLAIM_BUDGET_MS = 2;
+const claimBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
 
 /**
  * Serves the queue in increasing page order up to the time budget. `release` says again whether the
@@ -71,7 +73,7 @@ export function serveClaims(
 ) {
   if (!claims.count) return 0;
   claims.sort();
-  const started = performance.now();
+  claimBudget.open();
   let served = 0,
     denied = 0;
   while (served < claims.count) {
@@ -82,7 +84,8 @@ export function serveClaims(
         break;
       }
       served++;
-      if (bounded && performance.now() - started >= CLAIM_BUDGET_MS) break;
+      claimBudget.spend();
+      if (bounded && !claimBudget.admits()) break;
       continue;
     }
     served++;

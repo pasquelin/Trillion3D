@@ -23,9 +23,10 @@
  */
 const REQUEST_PAGE_BITS = 22;
 export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
-export const REQUEST_PRIORITY_MAX = 1023;
-/** The priority bit of a request ahead of the camera. */
-export const REQUEST_AHEAD = 512;
+/** The whole priority field: the ten bits above the page. */
+export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1;
+/** The priority bit of a request ahead of the camera: the field's top bit. */
+export const REQUEST_AHEAD = (REQUEST_PRIORITY_MAX + 1) >> 1;
 /** The highest error step of either tier. */
 export const REQUEST_STEP_MAX = REQUEST_AHEAD - 1;
 /** Quantization step: eight steps per error doubling, over sixty-four doublings. */

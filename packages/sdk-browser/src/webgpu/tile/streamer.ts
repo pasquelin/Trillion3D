@@ -1,6 +1,7 @@
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { AtlasLanes, PoolEncoding } from '../../texture/blockFormats.ts';
 import { createWebgpuTileAtlas, type TileTexture } from './atlas.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createWebgpuTileFeedback } from './feedback.ts';
 import { createTileSources } from './sources.ts';
 import { createWebgpuTileReduce } from './reduce.ts';
@@ -46,7 +47,8 @@ export function createWebgpuTileStreamer(options: {
   onColorChanged: (slots: ReadonlySet<number> | -1) => void;
 }) {
   const { device, encoding } = options,
-    now = options.now ?? (() => performance.now());
+    now = options.now ?? (() => performance.now()),
+    budget = createFrameBudget(options.budgetMs, now);
   /** Colour textures a pump served or evicted a tile of: named once each, however many tiles. */
   const colorChanged = new Set<number>();
   const color = createWebgpuTileAtlas(device, {
@@ -103,6 +105,7 @@ export function createWebgpuTileStreamer(options: {
      */
     pump(frame: number, unbounded = false) {
       const started = now();
+      budget.open();
       let served = 0,
         waiting = 0,
         bytes = 0,
@@ -128,8 +131,8 @@ export function createWebgpuTileStreamer(options: {
           served++;
           bytes += request.atlas.poolOf(request.key.slot).tileBytes;
           if (request.atlas === color) colorChanged.add(request.key.slot);
-          stop =
-            !unbounded && (bytes >= options.budgetBytes || now() - started >= options.budgetMs);
+          budget.spend();
+          stop = !unbounded && (bytes >= options.budgetBytes || !budget.admits());
         }
       }
       if (encoder) device.queue.submit([encoder.finish()]);
