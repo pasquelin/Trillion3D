@@ -13,8 +13,6 @@ export function createGpuTiming(
   device: GPUDevice,
   options: { sampleEveryFrames?: number; onSample: (sample: GpuTimingSample) => void },
 ) {
-  const maxPasses = TIMED_PASSES,
-    queryCount = QUERY_COUNT;
   const sampleEveryFrames = Math.max(1, Math.floor(options.sampleEveryFrames ?? 60));
   let enabled = !!device.features?.has('timestamp-query'),
     disposed = false,
@@ -70,7 +68,7 @@ export function createGpuTiming(
           return encoder;
         }
         try {
-          resources ??= createTimingResources(device, queryCount);
+          resources ??= createTimingResources(device, QUERY_COUNT);
         } catch (error) {
           enabled = false;
           destroy();
@@ -97,7 +95,7 @@ export function createGpuTiming(
         return encoder;
       }
       const part: TimingPart = { slot: state.parts.size, base: -1, names: [], resolved: false };
-      const wrapper = instrumentTimingEncoder(encoder, part, state, resources!, queryCount);
+      const wrapper = instrumentTimingEncoder(encoder, part, state, resources!, QUERY_COUNT);
       state.parts.set(wrapper, part);
       return wrapper;
     },
@@ -110,12 +108,14 @@ export function createGpuTiming(
       const { entries, truncated } = collected;
       unresolvedParts += collected.unresolvedParts;
       if (!entries.length || !resources) return;
-      const staging = resources.read;
+      const staging = resources.read,
+        used = state.cursor * 8;
       pending = (async () => {
         try {
-          await staging.mapAsync(GPUMapMode.READ);
+          // Only the timestamps the image wrote are mapped.
+          await staging.mapAsync(GPUMapMode.READ, 0, used);
           if (disposed) return;
-          const values = new BigUint64Array(staging.getMappedRange());
+          const values = new BigUint64Array(staging.getMappedRange(0, used));
           const { sample, invalidSamples: invalid } = summarizeTimestamps(
             entries,
             values,
@@ -173,9 +173,9 @@ export function createGpuTiming(
         skippedFrames: { ...skippedFrames },
         pending: pending ? 1 : 0,
         maxPending: 1,
-        maxPasses,
+        maxPasses: TIMED_PASSES,
         maxParts: PARTS,
-        queryCount,
+        queryCount: QUERY_COUNT,
       };
     },
     dispose() {

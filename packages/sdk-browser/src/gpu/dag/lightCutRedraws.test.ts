@@ -27,7 +27,9 @@ function redrawsWith(flag: { value: number }) {
     return again;
   };
   const frame = async (pages: number[], reported = true, views?: number[]) => {
-    redraws.encode(encoder, pages, views ?? pages.map(() => 0), pages.length, reported)?.(true);
+    const settle = redraws.encode(encoder, pages, views ?? pages.map(() => 0), pages.length);
+    redraws.reported(reported);
+    settle?.(true);
     await redraws.settled();
     return taken();
   };
@@ -41,7 +43,7 @@ test('the pages of a frame that dropped work are drawn again, in fewer views unt
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder, frame } = redrawsWith(flag);
   assert.equal(
-    redraws.encode(encoder, [], [], 0, true),
+    redraws.encode(encoder, [], [], 0),
     undefined,
     'a frame without pages copies nothing',
   );
@@ -109,7 +111,9 @@ test('only the pages of a frame that dropped work are withdrawn until they are r
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder } = redrawsWith(flag);
   const drawn = async (page: number, reported: boolean) => {
-    redraws.encode(encoder, [page], [0], 1, reported)?.(true);
+    const settle = redraws.encode(encoder, [page], [0], 1);
+    redraws.reported(reported);
+    settle?.(true);
     await redraws.settled();
     const seen: [number, boolean][] = [];
     redraws.takeRedraw((again, withdraw) => seen.push([again, withdraw]));
@@ -131,10 +135,11 @@ test('the flag slots are made once, for the most batches a frame draws, and neve
   );
   const settles = [];
   for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++) {
-    const settle = redraws.encode(encoder, [0], [0], 1, true);
+    const settle = redraws.encode(encoder, [0], [0], 1);
     for (let batch = 1; batch < MAX_SHADOW_BATCHES; batch++)
-      assert.equal(redraws.encode(encoder, [batch], [0], 1, true), undefined, 'same slot');
+      assert.equal(redraws.encode(encoder, [batch], [0], 1), undefined, 'same slot');
     assert.ok(settle, 'the first batch opens the frame');
+    redraws.reported(true);
     settle(true);
     settles.push(settle);
   }
@@ -149,8 +154,8 @@ test('the flag slots are made once, for the most batches a frame draws, and neve
 test('a frame that finds every flag slot still read draws its pages again, withdrawn', () => {
   const { redraws, encoder } = redrawsWith({ value: 0 });
   for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++)
-    redraws.encode(encoder, [frame], [0], 1, true)!(true);
-  assert.equal(redraws.encode(encoder, [40, 41], [0, 0], 2, true), undefined);
+    redraws.encode(encoder, [frame], [0], 1)!(true);
+  assert.equal(redraws.encode(encoder, [40, 41], [0, 0], 2), undefined);
   const seen: [number, boolean][] = [];
   redraws.takeRedraw((page, withdraw) => seen.push([page, withdraw]));
   assert.deepEqual(seen, [

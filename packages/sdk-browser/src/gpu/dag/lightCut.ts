@@ -161,7 +161,9 @@ export function createDagLightCut(resources: DagResources) {
     encodeReports(encoder: GPUCommandEncoder) {
       if (!listed) return undefined;
       listed = false;
-      return reports.encodeReadback(encoder);
+      const settle = reports.encodeReadback(encoder);
+      redraws.reported(settle !== undefined);
+      return settle;
     },
     /** Its requests, read back after submission (`lightCutReports.ts`). */
     reports,

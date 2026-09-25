@@ -12,7 +12,8 @@ import { createDagLightCut } from './lightCut.ts';
 import { FRAME_VEC4 } from './types.ts';
 import { OUT_COUNT, OUT_FLAGS, SELECTION_HEADER_WORDS } from './layout.ts';
 import { packRequest } from './request.ts';
-import { COARSER_VIEWS, DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
+import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.ts';
+import { VIEW_FLAGS_WORD } from './uniforms.ts';
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
 
 const CASTERS = 16;
@@ -61,15 +62,15 @@ function lightCutFrame() {
   /** The GPU running the cut just encoded, over the view of `caster`, against `resident`. */
   const run = (caster: number, resident: Set<number>) => {
     const uniform = writes.findLast(({ buffer }) => buffer.size === DAG_UNIFORM_BYTES)!;
-    const viewFlags = new Uint32Array(uniform.data.slice().buffer)[54];
+    const viewFlags = new Uint32Array(uniform.data.slice().buffer)[VIEW_FLAGS_WORD];
     const out = new Uint32Array(output.getMappedRange());
-    if (viewFlags & VIEW_APPEND) out[OUT_FLAGS] &= 1;
+    if (viewFlags & VIEW_APPEND) out[OUT_FLAGS] &= LIST_FULL;
     else out[OUT_COUNT] = out[OUT_FLAGS] = 0;
     if (resident.has(caster)) return viewFlags;
     out[OUT_FLAGS] |= 1 << COARSER_VIEWS;
     const slot = out[OUT_COUNT]++;
     if (slot < CASTERS) out[SELECTION_HEADER_WORDS + slot] = packRequest(caster, 1);
-    else out[OUT_FLAGS] |= 1;
+    else out[OUT_FLAGS] |= LIST_FULL;
     return viewFlags;
   };
   const views = [{ uniforms: sunRun(64).uniforms }];
@@ -77,19 +78,17 @@ function lightCutFrame() {
    *  view flags, whether each batch's requests will be read, and how many report copies ran. */
   const frame = async (pages: number[], resident: Set<number>) => {
     const settles: Array<(submitted: boolean) => void> = [],
-      flags: number[] = [],
-      reported: boolean[] = [];
+      flags: number[] = [];
     for (const page of pages) {
       cut.encode(encoder, views, 1);
       flags.push(run(page, resident));
-      reported.push(cut.reports.hasRoom);
-      const settle = cut.redraws.encode(encoder, [page], [0], 1, cut.reports.hasRoom);
+      const settle = cut.redraws.encode(encoder, [page], [0], 1);
       if (settle) settles.push(settle);
     }
     const report = cut.encodeReports(encoder);
     for (const settle of [report, ...settles]) settle?.(true);
     await cut.settled();
-    return { flags, reported, copies: report ? 1 : 0 };
+    return { flags, copies: report ? 1 : 0 };
   };
   return { cut, frame };
 }
@@ -97,13 +96,12 @@ function lightCutFrame() {
 test("a frame of many batches reads back every batch's requests in one copy", async () => {
   const { cut, frame } = lightCutFrame();
   const pages = [0, 1, 2, 3, 4, 5, 6, 7];
-  const { flags, reported, copies } = await frame(pages, new Set());
+  const { flags, copies } = await frame(pages, new Set());
   assert.equal(flags[0] & VIEW_APPEND, 0, 'the first cut starts the list');
   assert.ok(
     flags.slice(1).every((word) => (word & VIEW_APPEND) !== 0),
     'every later cut appends to it',
   );
-  assert.ok(reported.every(Boolean), 'every batch is reported');
   assert.equal(copies, 1, 'one copy for the frame');
   assert.deepEqual(
     cut.reports.takeRequests()?.sort((a, b) => a - b),
