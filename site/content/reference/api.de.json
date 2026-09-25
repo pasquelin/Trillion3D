@@ -761,7 +761,7 @@
     "description": "Was die öffentliche API zurückgibt, ist eine dieser Kopien: ein Host, der in die erhaltene Kopie schreibt, ändert nichts in der Engine, und ein Host, der ein bereits gesendetes Licht ändert, ändert ebenfalls nichts — die Speicherung hat ihre eigene Kopie beim Eingang geprüft. Die Kopie wird dort erstellt, wo der Host liest, nie auf dem Bildpfad: die Backends lesen den gehaltenen Datensatz und den angeordneten Puffer, und kopieren nichts."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Erforderliches externes Cache-Format für BLEND in Clustern; Quellmanifeste behalten ihr eigenes Format."
+    "summary": "Erforderliches externes Cache-Format für BLEND in Clustern (6, bevor `selectedNodes` eine Anzahl wurde); Quellmanifeste behalten ihr eigenes Format."
   },
   "clusterErrorAtDepth": {
     "summary": "Derselbe projizierte Fehler, wenn die Entfernung des Zentrums zur Sichtachse und seine Tiefe (Sicht-−z) bereits bekannt sind: ein Knoten, der Boden und Decke auf derselben Kugel festlegt, teilt sich seine Tiefe."
@@ -1694,7 +1694,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Cache-Format, das diese Engine liest.",
-    "description": "Format 5 trägt `scene-tables.json`, die Knoten- und Materialtabellen, gegen die die vorbereitete Szene geprüft wird; die Formate 3 und 4 haben dieses Produkt nicht und werden anhand ihrer Nummer abgelehnt, statt halb gelesen zu werden."
+    "description": "Format 5 hat `scene-tables.json` hinzugefügt, die Knoten- und Materialtabellen, gegen die die vorbereitete Szene geprüft wird; Format 7 trägt `selectedNodes` als Anzahl, nicht als Liste (#404). Ältere Formate werden anhand ihrer Nummer abgelehnt, statt halb gelesen zu werden."
   },
   "FrameInfo": {
     "summary": "Was ein Bild-Hook erhält: die Sekunden seit dem letzten Bild und seit dem Start der Welt.",

@@ -761,7 +761,7 @@
     "description": "Ciò che restituisce l'API pubblica è una di queste copie: un host che scrive nella copia ricevuta non cambia nulla nel motore, e un host che modifica una luce già inviata non cambia nulla nemmeno — la memorizzazione ha verificato la propria copia in ingresso. La copia viene fatta dove l'host legge, mai sul percorso dell'immagine: i backend leggono il record mantenuto e il buffer disposto, e non copiano nulla."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Formato di cache esterna richiesto per il BLEND in cluster; i manifesti sorgente mantengono il proprio formato."
+    "summary": "Formato di cache esterna richiesto per il BLEND in cluster (6 prima che `selectedNodes` diventasse un conteggio); i manifesti sorgente mantengono il proprio formato."
   },
   "clusterErrorAtDepth": {
     "summary": "Lo stesso errore proiettato quando la distanza del centro dall'asse di vista e la sua profondità (−z della vista) sono già note: un nodo che fissa pavimento e soffitto sulla stessa sfera condivide la sua profondità."
@@ -1694,7 +1694,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Formato di cache letto da questo motore.",
-    "description": "Il formato 5 porta `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; i formati 3 e 4 non hanno questo prodotto e vengono rifiutati in base al loro numero piuttosto che letti a metà."
+    "description": "Il formato 5 ha aggiunto `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; il formato 7 porta `selectedNodes` come conteggio, non come lista (#404). I formati precedenti vengono rifiutati in base al loro numero piuttosto che letti a metà."
   },
   "FrameInfo": {
     "summary": "Ciò che riceve un hook di fotogramma: i secondi dall'ultimo fotogramma e dall'inizio del mondo.",
