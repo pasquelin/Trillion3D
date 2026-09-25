@@ -2016,6 +2016,8 @@
       "remove": "Tira filhos deste nó.",
       "destroy": "Liberta o nó e tudo abaixo dele agora, em vez de quando forem recolhidos.",
       "removeFromParent": "Tira o nó de seu pai.",
+      "clone": "Um nó do mesmo tipo com os mesmos valores; os seus filhos também copiados salvo indicação em contrário.",
+      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário.",
       "clear": "Tira todo filho deste nó.",
       "traverse": "Chama `fn` neste nó e em todos abaixo dele.",
       "traverseVisible": "Chama `fn` em cada nó visível a partir daqui para baixo.",
@@ -2028,11 +2030,7 @@
       "rotateY": "Gira o nó ao redor de seu próprio eixo y.",
       "rotateZ": "Gira o nó ao redor de seu próprio eixo z.",
       "translateOnAxis": "Move o nó ao longo de seu próprio `axis`.",
-      "getWorldPosition": "Onde o nó está no mundo.",
-      "getWorldQuaternion": "Como o nó está girado no mundo.",
       "getWorldDirection": "Para onde o nó aponta no mundo.",
-      "localToWorld": "Um ponto do referencial do nó, no mundo.",
-      "worldToLocal": "Um ponto do mundo, no referencial do nó.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum."
     }
   },
@@ -2043,7 +2041,11 @@
       "matrixWorld": "Matriz de mundo como composta pela última vez (`updateMatrixWorld`), uma view da árvore.",
       "matrixAutoUpdate": "Falso quando `matrix` É a pose e nada a recompõe.",
       "matrixWorldNeedsUpdate": "Ativado quando a matriz local mudou e a matriz do mundo não a acompanhou.",
-      "updateMatrixWorld": "Compõe a matriz de mundo deste nó e a de seus descendentes, tomando a do pai como está."
+      "updateMatrixWorld": "Compõe a matriz de mundo deste nó e a de seus descendentes, tomando a do pai como está.",
+      "getWorldPosition": "Onde o nó está no mundo.",
+      "getWorldQuaternion": "Como o nó está girado no mundo.",
+      "localToWorld": "Um ponto do referencial do nó, no mundo.",
+      "worldToLocal": "Um ponto do mundo, no referencial do nó."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7158,11 +7160,9 @@
   "GraphNode": {
     "members": {
       "serial": "O número do nó, único na sessão.",
-      "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue.",
-      "clone": "Um nó do mesmo tipo com os mesmos valores; os seus filhos também copiados salvo indicação em contrário.",
-      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
+      "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue."
     },
-    "summary": "Um nó do grafo: o seu nome, a sua pose, a sua matriz do mundo, o seu pai e os seus filhos."
+    "summary": "Um nó do grafo: o nó do núcleo, distinguido pelo seu `kind`, copiado pelo `clone` do núcleo."
   },
   "GraphSurface": {
     "members": {

@@ -2034,6 +2034,8 @@
       "remove": "Melepas anak dari node ini.",
       "destroy": "Membebaskan simpul dan semua di bawahnya sekarang, bukan saat dikumpulkan.",
       "removeFromParent": "Melepas node itu dari induknya.",
+      "clone": "Node dengan jenis dan nilai yang sama; anak-anaknya ikut disalin kecuali diminta tidak.",
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak.",
       "clear": "Melepas setiap anak dari node ini.",
       "traverse": "Memanggil `fn` pada node ini dan semua di bawahnya.",
       "traverseVisible": "Memanggil `fn` pada setiap node terlihat dari sini ke bawah.",
@@ -2046,11 +2048,7 @@
       "rotateY": "Memutar node mengelilingi sumbu y-nya sendiri.",
       "rotateZ": "Memutar node mengelilingi sumbu z-nya sendiri.",
       "translateOnAxis": "Menggerakkan node sepanjang `axis`-nya sendiri.",
-      "getWorldPosition": "Tempat node itu berdiri di dunia.",
-      "getWorldQuaternion": "Bagaimana node itu diputar di dunia.",
       "getWorldDirection": "Arah node itu menghadap di dunia.",
-      "localToWorld": "Sebuah titik kerangka node itu, di dunia.",
-      "worldToLocal": "Sebuah titik dunia, di kerangka node itu.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
     }
   },
@@ -2061,7 +2059,11 @@
       "matrixWorld": "Matriks dunia seperti terakhir disusun (`updateMatrixWorld`), sebuah view pohon itu.",
       "matrixAutoUpdate": "Salah (false) ketika `matrix` ADALAH pose dan tidak ada yang menyusunnya ulang.",
       "matrixWorldNeedsUpdate": "Ditetapkan bila matriks lokal berubah dan matriks dunia belum mengikutinya.",
-      "updateMatrixWorld": "Menyusun matriks dunia node ini dan keturunannya, milik induknya diambil apa adanya."
+      "updateMatrixWorld": "Menyusun matriks dunia node ini dan keturunannya, milik induknya diambil apa adanya.",
+      "getWorldPosition": "Tempat node itu berdiri di dunia.",
+      "getWorldQuaternion": "Bagaimana node itu diputar di dunia.",
+      "localToWorld": "Sebuah titik kerangka node itu, di dunia.",
+      "worldToLocal": "Sebuah titik dunia, di kerangka node itu."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7159,11 +7161,9 @@
   "GraphNode": {
     "members": {
       "serial": "Nomor node, unik dalam sesi.",
-      "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya.",
-      "clone": "Node dengan jenis dan nilai yang sama; anak-anaknya ikut disalin kecuali diminta tidak.",
-      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
+      "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya."
     },
-    "summary": "Node graf: namanya, posenya, matriks dunianya, induknya, dan anak-anaknya."
+    "summary": "Sebuah simpul graf: simpul inti, dibedakan oleh `kind`-nya, disalin oleh `clone` milik inti."
   },
   "GraphSurface": {
     "members": {
