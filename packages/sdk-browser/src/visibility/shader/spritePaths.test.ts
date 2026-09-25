@@ -48,6 +48,7 @@ test('every WebGPU raster turns a sprite page, the shadow vertex stage is as bef
       ' if(page.sprite.y!=0.0){return uni.viewProj*pageSprite(page,pagePosition(page,h,vertex));}\n let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);',
     ),
   );
+  // The one text, not a name some pass declares its own way: the name sweep proves only a name.
   for (const shader of [rasterSource(4, 16), VIS_SHADER, SHADE_SHADER])
     assert.ok(shader.includes(PAGE_SCREEN_WGSL));
   assert.ok(rasterSource(4, 16).includes('let ca=pageClip(vp,page,h,ia);'));
