@@ -105,7 +105,7 @@ export const SITE_STEPS: readonly SiteStep[] = [
     name: 'caches',
     reads: scenes.map(({ directory }) => `${directory}/source`),
     writes: scenes.map((scene) => `${scene.directory}/${cacheOf(scene)}`),
-    run: () => compileSiteCaches(false),
+    run: () => compileSiteCaches(false, true),
   },
   {
     name: 'styles',

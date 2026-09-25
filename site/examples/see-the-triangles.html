@@ -47,40 +47,18 @@
       import { controls, readout, language } from '../runtime/kit.js';
 
       const lit = (world) => {
-        world.scene.add(
-          light.directional({
-            intensity: 3.5,
-            color: '#ffeedd',
-            position: [12, 14, 8],
-            castShadow: true,
-          }),
-        );
-        world.scene.add(
-          light.directional({ intensity: 0.8, color: '#8ca6e6', position: [-14, 4, 10] }),
-        );
+        world.scene.add(light.directional({ intensity: 3.5, color: '#ffeedd', position: [12, 14, 8], castShadow: true }));
+        world.scene.add(light.directional({ intensity: 0.8, color: '#8ca6e6', position: [-14, 4, 10] }));
       };
-      // `?model=terrain-tiles` opens a terrain cooked tile by tile instead, the open world's path,
+      // `?model=terrain-tiles` opens instead a terrain cooked tile by tile, the open world's path,
       // and `?model=terrain-tiles-none` its exact cook: a stretched triangle shows at once here.
-      const cook = { 'terrain-tiles': 'cache', 'terrain-tiles-none': 'cache-none' }[
-        new URLSearchParams(location.search).get('model')
-      ];
-      const open = (w) =>
-        cook
-          ? w.scene.load(`../assets/examples/terrain-tiles/${cook}/native/full/manifest.json`)
-          : w.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
-      const [eye, target] = cook
-        ? [
-            [-160, 260, 920],
-            [384, 40, 384],
-          ]
-        : [
-            [0.36, 0.34, 0.64],
-            [0, 0.25, 0],
-          ];
+      const cook = { 'terrain-tiles': 'cache', 'terrain-tiles-none': 'cache-none' }[new URLSearchParams(location.search).get('model')];
+      const manifest = cook ? `../assets/examples/terrain-tiles/${cook}/native/full/manifest.json` : '../assets/examples/bust/cache/native/full/manifest.json';
+      const [eye, target] = cook ? [[-160, 260, 920], [384, 40, 384]] : [[0.36, 0.34, 0.64], [0, 0.25, 0]];
 
       // The scanned bust, drawn as its triangles: each one its own colour.
       const world = createWorld('view', { controls: 'orbit' });
-      await open(world);
+      await world.scene.load(manifest);
       lit(world);
       world.camera.position.set(...eye);
       world.camera.lookAt(...target);
@@ -90,31 +68,26 @@
       let beauty = null;
       async function openBeauty() {
         beauty = createWorld('beauty');
-        await open(beauty);
+        await beauty.scene.load(manifest);
         lit(beauty);
       }
 
       // `world.diagnostic.mode` swaps the image for a view of the engine's own work;
       // `world.pixelError` is how many pixels a coarser version may be off before a finer one
       // is drawn: 0 draws the exact triangles, more draws fewer and bigger ones.
-      controls(
-        {
-          view: ['triangles', 'clusters', 'lod', 'pages', 'beauty'],
-          pixelError: [0, 16, 0, 0.5],
-          sideBySide: false,
-        },
-        (values) => {
-          world.diagnostic.mode = values.view;
-          world.pixelError = values.pixelError;
-          document.body.classList.toggle('split', values.sideBySide);
-          if (values.sideBySide && !beauty) openBeauty();
-          if (beauty) beauty.pixelError = values.pixelError;
-          world.invalidate();
-        },
-        world,
-      );
-      const triangles = readout('trianglesDrawn'),
-        pages = readout('pagesMemory');
+      controls({
+        view: ['triangles', 'clusters', 'lod', 'pages', 'beauty'],
+        pixelError: [0, 16, 0, 0.5],
+        sideBySide: false,
+      }, (values) => {
+        world.diagnostic.mode = values.view;
+        world.pixelError = values.pixelError;
+        document.body.classList.toggle('split', values.sideBySide);
+        if (values.sideBySide && !beauty) openBeauty();
+        if (beauty) beauty.pixelError = values.pixelError;
+        world.invalidate();
+      }, world);
+      const triangles = readout('trianglesDrawn'), pages = readout('pagesMemory');
       world.onFrame(({ metrics }) => {
         triangles(metrics.selectedTriangles?.toLocaleString(language()) ?? '?');
         pages(String(metrics.residentPages ?? '?'));
