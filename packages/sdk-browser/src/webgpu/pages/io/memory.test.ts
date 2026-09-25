@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { asWebgpuDevice } from '../../../../../../tests/kit/gpu/webgpuDevice.ts';
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { camera, quadBackend } from '../testScenes.fixture.ts';
 import { setWebgpuMemoryBudgets } from './memory.ts';
 import { geometryPoolFor } from '../../../residency/pools.ts';
@@ -56,7 +56,7 @@ test('a setting above the session ceiling is brought back to the ceiling, and th
     cap: 4,
     geometryPool: { slots: 2 },
     texturePool: { layers: 1 },
-    gpuDevice: { limits: {} },
+    gpuDevice: fakeDevice({ limits: {} }).device,
     geometryPoolFor: (budgetBytes: number) =>
       geometryPoolFor({
         budgetBytes,
@@ -127,13 +127,9 @@ test('a texture budget set before prepare is kept and drawn by prepare, the repo
 // Out of memory absorbed: a pool the device refuses is drawn smaller, the pool in place replaced
 // only by one it grants, a diagnostic names the pool and the bytes, and nothing reaches the page.
 test('a geometry pool the device refuses mid-session shrinks, and the session goes on', async () => {
-  installGpuGlobals();
-  const gpu = asWebgpuDevice({
+  const gpu = fakeDevice({
     limits: {},
-    createBuffer: ({ size }: { size: number }) => {
-      if (size > 16) gpu.raise('Out of memory', { message: 'Out of memory' });
-      return { destroy() {} };
-    },
+    refuse: ({ size }) => ((size as number) > 16 ? 'oom' : undefined),
   });
   const resized: number[] = [],
     diagnostics: Array<[string, Record<string, unknown>]> = [];

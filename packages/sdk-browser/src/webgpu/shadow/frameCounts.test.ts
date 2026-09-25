@@ -17,6 +17,7 @@ import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 installGpuGlobals();
 
@@ -129,29 +130,22 @@ test('pages a plan left pending hold nothing once the view is unlit or the light
 });
 
 /**
- * A device reduced to the sample: a readback buffer whose mapping resolves only when the test
- * says so, and whose mapped range carries the given words.
+ * The device of the sample: its readback mapping resolves only when the test says so, and its
+ * mapped range carries the given words.
  */
 function samplingDevice(words: Uint32Array) {
   let mapped!: () => void;
   const mapping = new Promise<void>((resolve) => {
     mapped = resolve;
   });
-  const device = {
-    createBuffer: () => ({
-      destroy() {},
-      mapAsync: () => mapping,
-      getMappedRange: () => words.buffer,
-      unmap() {},
-    }),
-  } as unknown as GPUDevice;
-  const encoder = { copyBufferToBuffer() {} } as unknown as GPUCommandEncoder;
-  return { device, encoder, mapped };
+  const { device, buffers } = fakeDevice({ mapping });
+  const counts = createGpuShadowCullCounts(device);
+  new Uint32Array(buffers[0]!.getMappedRange()).set(words);
+  return { counts, encoder: device.createCommandEncoder(), mapped };
 }
 
 test('a sampled cull count is named by the frame it describes, only once it has returned', async () => {
-  const { device, encoder, mapped } = samplingDevice(new Uint32Array([32768, 22, 0, 0]));
-  const counts = createGpuShadowCullCounts(device);
+  const { counts, encoder, mapped } = samplingDevice(new Uint32Array([32768, 22, 0, 0]));
   const indirect = {} as GPUBuffer;
   assert.equal(counts.counts(), undefined, 'nothing until a sample has returned');
   counts.sample(encoder, indirect, 1, 40);
