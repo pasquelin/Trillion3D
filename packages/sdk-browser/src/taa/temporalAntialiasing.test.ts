@@ -41,7 +41,7 @@ test('each history is a colour and its as-is share, written together and counted
   const { device, textures, renderPipelines } = fakeDevice();
   const temporal = await createTemporalAntialiasing(device, []);
   assert.deepEqual(
-    renderPipelines.at(-1)!.fragment!.targets!.map((target) => target!.format),
+    [...renderPipelines.at(-1)!.fragment!.targets].map((target) => target!.format),
     ['rgba16float', 'r8unorm'],
   );
   temporal.resize(8, 4);
