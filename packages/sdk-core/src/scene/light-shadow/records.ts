@@ -48,7 +48,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     },
     dropPages,
     free,
-    /** The first free slice, or −1 when every published slice is taken. */
+    /** The first free slice: there is one per light the store accepts (`MAX_SHADOW_SLICES`). */
     claim() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
         if (!taken[slice]) {
@@ -59,15 +59,13 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
         }
       return -1;
     },
-    /** Gives `slice` the table range a light of kind `rank` needs; false when none fits. */
+    /** Gives `slice` the table range a light of kind `rank` needs, inside its own span. */
     fit(slice: number, rank: number) {
-      if (kind[slice] === rank && table.baseOf(slice) >= 0) return true;
+      if (kind[slice] === rank && table.baseOf(slice) >= 0) return;
       dropPages(slice);
       kind[slice] = rank;
       last[slice] = null;
-      if (table.claim(slice, tableEntriesOf(rank))) return true;
-      free(slice);
-      return false;
+      table.claim(slice, tableEntriesOf(rank));
     },
     /** True when the light is new, or moved or changed shape since its last plan (`sameShadowShape`):
      *  an intensity or a colour is no move. Notes it. */
