@@ -904,10 +904,11 @@ the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is r
 `world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
-- GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
-  in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
-  each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
-  a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below
+- GPU: the shadow pool first, at its largest (the largest screen's side, its static layer and its
+  transmittance layer), then the bounce probes at their largest; the rest in two halves, geometry
+  and textures, each capped at its ceiling. At the defaults the split gives each pool its own
+  default, so a page that sets nothing sees no change. The shadows and the probes never shrink: a
+  total under the two is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below
   512 MiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the

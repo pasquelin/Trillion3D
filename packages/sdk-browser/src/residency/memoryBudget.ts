@@ -48,8 +48,8 @@ const checkTotal = (bytes: number, name: string) => {
  *   static layer and its transmittance layer take on the largest screen, with the page table and
  *   the other fixed shadow buffers; then the bounce probe cascades at their largest
  *   (`BOUNCE_PROBE_BYTES`); the rest in two halves, the geometry pool and the texture pool, each
- *   no larger than its ceiling. The shadows never shrink: a total under the shadow pool is
- *   refused by name. A total that leaves the other two less than their floors — the
+ *   no larger than its ceiling. The shadows and the probes never shrink: a total under the two
+ *   is refused by name. A total that leaves the other two less than their floors — the
  *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
  *   screen; the decoded-page cache takes the rest (`pageCache.ts`), the session's manifest tables
@@ -63,7 +63,7 @@ const checkTotal = (bytes: number, name: string) => {
 export function splitMemoryBudget(gpu: number, cpu: number) {
   checkTotal(gpu, 'INVALID_GPU_BUDGET');
   checkTotal(cpu, 'INVALID_CPU_BUDGET');
-  if (gpu < SHADOW_POOL_BYTES) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
+  if (gpu < SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
   if (cpu <= SHADOW_HOST_BYTES) throw new Error('CPU_BUDGET_UNDER_SHADOW_MIRROR');
   const half = Math.floor((gpu - SHADOW_POOL_BYTES - BOUNCE_PROBE_BYTES) / 2);
   return {

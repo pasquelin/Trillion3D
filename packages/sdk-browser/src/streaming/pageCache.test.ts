@@ -105,6 +105,18 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
   assert.deepEqual([...cache.pages.keys()], ['b.bin']);
 });
 
+test("the engine's tables come out of the kept cache's total, beside the manifest and the queue", async () => {
+  const urls = ['a.bin', 'b.bin', 'c.bin'];
+  const { pages } = await servedPages(urls);
+  const cache = createPageCache(manifestTableBytes(pages) + TRANSFER + 3 * 12);
+  const streamer = open(pages, cache);
+  await streamer.request(urls);
+  streamer.retain(['a.bin']);
+  streamer.reserve(20);
+  assert.deepEqual([...cache.pages.keys()], ['a.bin'], 'twenty bytes reserved leave room for one');
+  streamer.dispose();
+});
+
 test("a streamer's own cache leaves with it; a kept one stays, minus pages the catalogue resized", async () => {
   const { pages } = await servedPages(['a.bin', 'b.bin']);
   const own = open(pages, undefined as never);

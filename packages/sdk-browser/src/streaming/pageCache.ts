@@ -36,8 +36,8 @@ const checkBytes = (bytes: number) => {
  *
  * The total is shared by a fixed rule: the session reading through it reserves its manifest
  * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
- * streamer's `reserve`), and the pages hold the rest (`budgetBytes`). A total set lower applies at once: pages leave by last use until they fit,
- * save those the session pins.
+ * streamer's `reserve`), and the pages hold the rest (`budgetBytes`). A total set lower applies at
+ * once: pages leave by last use until they fit, save those the session pins.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
@@ -70,7 +70,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get bytes() {
       return bytes;
     },
-    /** The CPU total: pages, manifest tables and transfer queue together. */
+    /** The CPU total: pages, manifest tables, transfer queue and engine tables together. */
     get cpuBytes() {
       return total;
     },
