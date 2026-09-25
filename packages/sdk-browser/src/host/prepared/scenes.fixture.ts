@@ -2,20 +2,21 @@
  *  disk, and a graph walked into the fields a reader compares — whole, as the reference renderer
  *  reads it, or by shape, as the engine reads it, whichever library built it. */ import { type TestContext } from 'node:test';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { glob, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import * as K from './sceneKinds.fixture.ts';
-import { COOKED_SCENES } from '../../../../../scripts/site-caches.ts';
+import { inSceneCaches } from '../../../../../tests/kit/scenes/caches.ts';
 
 const repository = new URL('../../../../../', import.meta.url);
 
-/** Every compiled scene cache (`scripts/site-caches.ts`): the key folder its pointer names. */
+/** Every compiled scene cache: the key folder its pointer names. */
 export async function caches() {
   const found: URL[] = [];
-  for (const { directory } of Object.values(COOKED_SCENES)) {
-    const pointer = new URL(`${directory}/cache/native/full/manifest.json`, repository);
+  const cwd = fileURLToPath(repository);
+  for await (const file of glob(inSceneCaches('manifest.json'), { cwd })) {
+    const pointer = new URL(file, repository);
     const { url } = JSON.parse(await readFile(pointer, 'utf8')) as { url: string };
     found.push(new URL('./', new URL(url, pointer)));
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { glob, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { readCookedPhysics } from '../../packages/sdk-core/src/physics/cooked.ts';
-import { COOKED_SCENES } from '../../scripts/site-caches.ts';
+import { inSceneCaches } from '../kit/scenes/caches.ts';
 
 const root = new URL('../../', import.meta.url);
 
@@ -11,11 +11,9 @@ const root = new URL('../../', import.meta.url);
 // an older format is refused at load (`PHYSICS_FORMAT`); the compiler that bumps the format is
 // newer than every cache, so `scripts/site-caches.ts` compiles them all again before this runs.
 test('every compiled physics.json is in the format the engine reads', async () => {
-  const patterns = Object.values(COOKED_SCENES).map(
-    ({ directory }) => `${directory}/cache/native/full/*/physics.json`,
-  );
   const files: string[] = [];
-  for await (const file of glob(patterns, { cwd: fileURLToPath(root) })) files.push(file);
+  const cwd = fileURLToPath(root);
+  for await (const file of glob(inSceneCaches('*/physics.json'), { cwd })) files.push(file);
   assert.ok(files.length > 0, 'the site ships cooked physics');
   const refused: string[] = [];
   for (const file of files) {

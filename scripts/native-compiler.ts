@@ -15,11 +15,10 @@ export const TRIANGLE_BUDGET = '150000';
 export const nativeCompiler = () => currentCompilerExecutable();
 
 /** The compiler a cook runs, refused when it is not built. */
-export function requireNativeCompiler(): string {
+export function requireNativeCompiler(): void {
   const compiler = nativeCompiler();
   if (!existsSync(compiler))
     throw new Error(`native compiler absent: ${compiler} — run \`pnpm run build:native\``);
-  return compiler;
 }
 
 /** One `full` compile of `source` into `cache`, both relative to `cwd`. */
