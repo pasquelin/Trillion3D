@@ -181,18 +181,3 @@ export function directLightTimings(sample: GpuPassTimings | null | undefined) {
     gpuLightingMs: totals.get('lighting') ?? null,
   };
 }
-
-/**
- * GPU duration of drawing a frame's shadow pages, or `null`: the Shadows stage and the light cuts
- * that select the pages' casters, which run only for the pages a frame draws and grow with them.
- * That is what the shadow budget spends its milliseconds on.
- */
-export function shadowPagesGpuMs(sample: GpuPassTimings | null | undefined) {
-  const totals = gpuStageTotals(sample),
-    pages = totals.get('shadows'),
-    casters = totals.get('shadowCasters');
-  // An unmeasured pass voids the sum, never a partial one; a stage the frame did not run is zero.
-  if (pages === null || casters === null || (pages === undefined && casters === undefined))
-    return null;
-  return (pages ?? 0) + (casters ?? 0);
-}

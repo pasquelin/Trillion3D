@@ -1,6 +1,7 @@
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import type { DrawnLog } from '../dag/types.ts';
+import { shadowBatchWrites } from './batchWrites.ts';
 
 /** What the light cull reads beside the cut's log: spheres, mobility words, draw records, and the
  *  page → row map with the pass prelude that refreshes it (`../draw/lightRows.ts`). */
@@ -98,9 +99,9 @@ export async function createShadowLightCull(device: GPUDevice, targets: CullTarg
       uniData[4] = rows;
       uniData[5] = from.blendFirst;
       uniData[6] = from.blendEnd;
-      device.queue.writeBuffer(uniforms, 0, uniData);
+      shadowBatchWrites(device).write(uniforms, 0, uniData);
       argData[1] = regions;
-      device.queue.writeBuffer(args, 0, argData);
+      shadowBatchWrites(device).write(args, 0, argData);
       encoder.copyBufferToBuffer(log.work, log.groupsWord * 4, args, 0, 4);
       const pass = encoder.beginComputePass({ label: 'Trillion3D shadow cull' });
       from.refreshRows(pass);
