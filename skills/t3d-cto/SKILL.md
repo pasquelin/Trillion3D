@@ -13,6 +13,10 @@ below that says to tell him: never a running account of agent events.
 
 ## At start (each morning)
 
+0. **Rules up to date.** Your checkout may date from an older `develop`, and so may the
+   `AGENTS.md` in your context: bring the checkout up to `origin/develop` (`git merge --ff-only
+origin/develop`, or the app's sync tool), then re-read `AGENTS.md` and `docs/roles/cto.md`.
+   Every prompt tells its session to do the same first.
 1. **State.** Read the last handover comment on #483 (`docs/roles/cto.md` step 6), then the open
    PRs and the open issues by domain: `measure ko` / `audit ko`, then by priority label.
 2. **Give the boss one prompt per session, first thing.** Before anything else, write one prompt
