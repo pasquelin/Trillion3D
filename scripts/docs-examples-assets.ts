@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
-import { rm } from 'node:fs/promises';
 import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
-import { compileFullCache, nativeCompiler } from './native-compiler.ts';
+import { nativeCompiler } from './native-compiler.ts';
+import { COOKED_SCENES, compileCache } from './site-caches.ts';
 
 /**
  * Writes the sources of the example scenes, under `site/assets/examples/<scene>/source` — an
@@ -21,15 +21,4 @@ if (!sourceOnly) nativeCompiler();
 await writeModelScenes(examples, resolve(examples, 'models'), names);
 if (sourceOnly) process.exit(0);
 
-for (const name of names) {
-  const directory = resolve(examples, name);
-  await rm(resolve(directory, 'cache'), { recursive: true, force: true });
-  // The source folder holds one glTF or the OBJ files to merge.
-  compileFullCache({
-    cwd: directory,
-    source: 'source',
-    simplification: 'qem-endpoints',
-    stdio: ['ignore', 'ignore', 'inherit'],
-  });
-  await rm(resolve(directory, 'cache/native/.lock'), { force: true });
-}
+for (const name of names) compileCache(COOKED_SCENES[name]);
