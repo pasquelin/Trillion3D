@@ -77,7 +77,7 @@ export const readLimits = (page: Page, sdkUrl: string): Promise<LimitsRecord> =>
 
 const yes = (value: boolean) => (value ? 'yes' : 'no');
 
-/** The probe in `resume.md`: capabilities, then the WebGPU limits the adapter raises. */
+/** The probe in `resume.md`: capabilities, then the adapter's WebGPU limits beyond the default. */
 export function limitsLines(probe: LimitsRecord | undefined) {
   if (!probe) return [];
   // A failed probe is said, never fatal: the run it rides with goes on.
@@ -92,7 +92,7 @@ export function limitsLines(probe: LimitsRecord | undefined) {
       ? `- WebGL2: half-float colour ${yes(webgl2.halfFloatColor)}, float colour ${yes(webgl2.floatColor)}, EXT_disjoint_timer_query_webgl2 ${yes(webgl2.timerQuery)}`
       : '- WebGL2: unavailable',
     webgpu
-      ? `- WebGPU: timestamp-query ${yes(webgpu.timestampQuery)}, ${raised.length} of ${webgpu.limits.length} limits above the default`
+      ? `- WebGPU: timestamp-query ${yes(webgpu.timestampQuery)}, ${raised.length} of ${webgpu.limits.length} limits beyond the default`
       : '- WebGPU: unavailable',
     '',
     ...(raised.length

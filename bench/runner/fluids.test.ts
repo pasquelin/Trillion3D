@@ -36,7 +36,7 @@ test('the report reads the shape the probe returns', () => {
   assert.deepEqual(probe.webgl2, { halfFloatColor: false, floatColor: true, timerQuery: true });
   assert.equal(probe.webgpu?.timestampQuery, true);
   const lines = limitsLines(probe);
-  assert.ok(lines.includes('- WebGPU: timestamp-query yes, 1 of 2 limits above the default'));
+  assert.ok(lines.includes('- WebGPU: timestamp-query yes, 1 of 2 limits beyond the default'));
   assert.ok(lines.includes('| maxStorageBufferBindingSize | 134217728 | 4294967292 |'));
   assert.ok(
     lines.includes(
@@ -49,7 +49,7 @@ test('the report reads the shape the probe returns', () => {
     defaults: {},
   });
   assert.ok(
-    limitsLines(refused).includes('- WebGPU: timestamp-query no, 0 of 1 limits above the default'),
+    limitsLines(refused).includes('- WebGPU: timestamp-query no, 0 of 1 limits beyond the default'),
   );
   assert.equal(limitsLines({ failed: 'lost' })[2], 'Probe failed: lost', 'a failed probe is said');
   const none = limitsLines(limitsOf(null, null));

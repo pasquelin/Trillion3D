@@ -121,7 +121,7 @@ export async function measureFluids({
     // is reread each frame, the session that holds it starting after the first frames.
     const stats = () => world.physics.stats;
     for (let wait = 0; stats().bodies < scene.bodies.length || !stats().active; wait++) {
-      if (wait > 1800)
+      if (wait > 1800 || world.physics.error)
         throw new Error(
           `${stats().bodies} bodies, ${stats().active} awake: ${world.physics.error}`,
         );
@@ -137,6 +137,8 @@ export async function measureFluids({
       physicsMainMs: [] as number[],
     };
     let previous: number | null = null;
+    // A WebGPU device lost mid-run reopens the session without an event on the canvas.
+    const sessions = world.diagnostic.sessions;
     for (let i = 0; i < warmup + frames; i++) {
       const now = await nextFrame();
       flicker(i);
@@ -158,6 +160,8 @@ export async function measureFluids({
     }
     const shot = await sdk.capture.buffer(world, { width, height });
     await posterCapture(captureFile, shot.data, shot.width, shot.height);
+    if (world.diagnostic.sessions !== sessions)
+      lost.push(`session reopened: ${world.diagnostic.error?.code ?? 'device lost'}`);
     const size = { width: canvas.width, height: canvas.height, dpr: devicePixelRatio };
     // A context lost mid-run that threw nothing still voids the numbers: the row says so.
     return { ...result, bodies: stats().bodies, size, lost };
