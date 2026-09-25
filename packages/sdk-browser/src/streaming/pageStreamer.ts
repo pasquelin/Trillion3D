@@ -3,7 +3,7 @@ import { createStreamingQueue } from './queue.ts';
 import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './types.ts';
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
-import { createPageCache, manifestTableBytes } from './pageCache.ts';
+import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -11,13 +11,16 @@ import { createPageCache, manifestTableBytes } from './pageCache.ts';
 export const createPageStreamer = (
   pages: readonly StreamPage[],
   base: string,
-  options?: Omit<PageStreamerOptions, 'cache'>,
+  options?: PageStreamerOptions,
 ) => createPageStreamerWith(pages, base, options);
-/** `createPageStreamer` reading through `options.cache`, the page cache a world keeps. */
+/** `createPageStreamer` reading through `options.cache`, the decoded-page cache a world keeps
+ *  across sessions: off its CPU total, the streamer reserves its manifest tables, its transfer
+ *  queue and the engine's tables (`reserve`), and leaves the pages to the next session. Without
+ *  it, the streamer's own cache of `maxCachedBytes` is emptied at dispose. */
 export function createPageStreamerWith(
   pages: readonly StreamPage[],
   base: string,
-  options: PageStreamerOptions = {},
+  options: PageStreamerOptions & { cache?: PageCache } = {},
 ) {
   const { cache: kept, signal, maxPages, onEvict, onDiagnostic, maxCachedBytes } = options;
   const { workerCount = 8, maxTransferBytes = 8 * 1024 * 1024 } = options;
@@ -81,8 +84,8 @@ export function createPageStreamerWith(
     abortError,
   };
   const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
-  // A kept page read under this name as another file leaves before the first read.
-  store.dropForeign(catalog, base);
+  // A kept page held under this name as another file leaves before the first read.
+  store.dropForeign(catalog);
   const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
   const release = store.hold({ reserved, evict });
   if (kept) evict();

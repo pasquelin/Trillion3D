@@ -19,19 +19,6 @@ export const manifestTableBytes = (pages: Iterable<{ url: string }>) => {
   return bytes;
 };
 
-/** What a file is cached as: its absolute address and its fingerprint. A name alone is not one:
- *  another scene, another base or the same folder cooked again may reuse it at the same size. */
-export const cacheIdentity = (address: string, sha256: string) => `${address}#${sha256}`;
-
-/** What a page was read as (`cacheIdentity`), its parts kept apart: a session under the same
- *  base compares two strings, and resolves the address only under another. */
-export type PageIdentity = { base: string; address: string; sha256: string };
-export const pageIdentity = (url: string, base: string, sha256: string): PageIdentity => ({
-  base,
-  address: new URL(url, base).href,
-  sha256,
-});
-
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
  *  and how it evicts — past its pins and its transfers — when the total shrinks. */
 type Holder = { reserved(): number; evict(): void };
@@ -56,8 +43,8 @@ const checkBytes = (bytes: number) => {
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
-  /** What each page was read as, by its url. */
-  const identities = new Map<string, PageIdentity>();
+  /** The fingerprint each page's bytes were verified against when read: they leave with them. */
+  const fingerprints = new WeakMap<Uint8Array, string>();
   /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
    *  cancellation that is the cache's, not a session's. */
   let slot:
@@ -75,7 +62,6 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     if (!held) return;
     bytes -= held.byteLength;
     pages.delete(url);
-    identities.delete(url);
   };
   /** Pages leave by last use until they fit: through the session in place, which keeps its pins
    *  and its transfers, or all of them evictable when none reads. */
@@ -108,29 +94,24 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get budgetBytes() {
       return Math.max(0, total - cache.reservedBytes);
     },
-    /** Puts `array` as the most recently used page at `url`; `identity` when it was just read. */
-    touch(url: string, array: Uint8Array, identity?: PageIdentity) {
-      const held = pages.get(url);
-      if (held) bytes -= held.byteLength;
-      pages.delete(url);
+    /** Puts `array` as the most recently used page at `url`; `sha256` when it was just read and
+     *  verified. */
+    touch(url: string, array: Uint8Array, sha256?: string) {
+      drop(url);
       pages.set(url, array);
       bytes += array.byteLength;
-      // Other bytes with no identity are no file read under it: the next session drops them.
-      if (identity) identities.set(url, identity);
-      else if (held !== array) identities.delete(url);
+      if (sha256) fingerprints.set(array, sha256);
     },
     drop,
-    /** Drops every page read as another file than the one `catalog` names at its url under
-     *  `base`, so a session is never served another scene's page under the same name. */
-    dropForeign(catalog: ReadonlyMap<string, { sha256: string }>, base: string) {
-      for (const url of pages.keys()) {
-        const page = catalog.get(url),
-          held = identities.get(url);
-        if (!page) continue;
-        const same =
-          held?.sha256 === page.sha256 &&
-          (held.base === base || held.address === new URL(url, base).href);
-        if (!same) drop(url);
+    /** Drops every page held as other bytes than the file `catalog` names at its url: another
+     *  fingerprint or another size, or bytes never verified against one. A name alone is not a
+     *  file: another scene, another base or the same folder cooked again may reuse it at the same
+     *  size. The same fingerprint is the same bytes, verified at read, under any base. */
+    dropForeign(catalog: ReadonlyMap<string, { bytes: number; sha256: string }>) {
+      for (const [url, held] of pages) {
+        const page = catalog.get(url);
+        if (page && (fingerprints.get(held) !== page.sha256 || held.byteLength !== page.bytes))
+          drop(url);
       }
     },
     /**
@@ -181,7 +162,6 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear();
-      identities.clear();
       release(true);
       bytes = 0;
     },
