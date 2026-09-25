@@ -4,9 +4,8 @@
 // partition once the pass comes back on the same targets.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as G from '../../../host/graph/graph.fixture.ts';
 import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
-import { QUAD_MANIFEST, triangleGeometry } from '../../../backend/pagesBackendScenes.fixture.ts';
+import { QUAD_MANIFEST } from '../../../backend/pagesBackendScenes.fixture.ts';
 import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts';
@@ -21,36 +20,8 @@ import { disposeWebgpuPages } from '../io/metrics.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
 import { renderWebgpuPages } from './render.ts';
 import { flushWebgpuPages } from './flush.ts';
-import { rootPage, twoPrimitives } from '../testScenes.fixture.ts';
+import { cameraAt, twoPlacesScene } from '../twoPlaces.fixture.ts';
 import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts';
-
-/** Two meshes of distinct pipeline bins, twenty units apart: a camera sees both, or the second alone. */
-function twoPlaces() {
-  const geoA = triangleGeometry([-1, -1, 0, 1, -1, 0, 1, 1, 0]),
-    geoB = triangleGeometry([20, -1, 0, 22, -1, 0, 22, 1, 0]);
-  const front = G.basicSurface({ color: 0xff0000, side: G.FRONT_SIDE }),
-    both = G.basicSurface({ color: 0x00ff00, side: G.DOUBLE_SIDE });
-  const meshA = G.mesh(geoA, front),
-    meshB = G.mesh(geoB, both),
-    source = new G.Group();
-  source.add(meshA, meshB);
-  const pages = twoPrimitives(
-    meshA,
-    meshB,
-    rootPage('0', [-1, -1, 0], [1, 1, 0]),
-    rootPage('1', [20, -1, 0], [22, 1, 0]),
-  );
-  const dispose = () => [geoA, geoB, front, both].forEach((item) => item.dispose());
-  return { source, ...pages, dispose };
-}
-
-function lookAt(x: number, z: number) {
-  const cam = G.perspectiveCamera(55, 1, 0.1, 100);
-  cam.position.set(x, 0, z);
-  cam.lookAt(x, 0, 0);
-  cam.updateMatrixWorld();
-  return cam;
-}
 
 type Runtime = ReturnType<typeof createWebgpuPagesRuntime>;
 
@@ -61,7 +32,7 @@ type Runtime = ReturnType<typeof createWebgpuPagesRuntime>;
  */
 async function changeRowUnderFallback(watch: (rt: Runtime) => void, check: (rt: Runtime) => void) {
   installGpuGlobals();
-  const scene = twoPlaces();
+  const scene = twoPlacesScene();
   const metadata: ClusterManifest = { ...QUAD_MANIFEST, ...scene.metadata, ...MANIFEST_IDENTITY };
   const collected = collectClusterPages(scene.source, metadata, scene.indices, scene.associations);
   const gpu = mockGpu({ packed: packDagSelection(collected.roots) });
@@ -72,8 +43,8 @@ async function changeRowUnderFallback(watch: (rt: Runtime) => void, check: (rt: 
     maxResidentPages: 2,
     viewport: [32, 32],
   });
-  const both = lookAt(10, 30),
-    second = lookAt(21, 5);
+  const both = cameraAt(10, 30),
+    second = cameraAt(21, 5);
   try {
     await prepareWebgpuBackend(rt, gpu.device);
     // The CPU cut names the rows the camera sees: a narrower view moves a page to another row.
@@ -102,7 +73,7 @@ async function changeRowUnderFallback(watch: (rt: Runtime) => void, check: (rt: 
     // The visibility pass comes back on the same targets; the view steps, or the previous image
     // would be held.
     rt.vis.visView = view;
-    renderWebgpuPages(rt, lookAt(21, 5.01));
+    renderWebgpuPages(rt, cameraAt(21, 5.01));
     await flushWebgpuPages(rt);
     assert.equal(rows.packedCount, 1);
     check(rt);
