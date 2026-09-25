@@ -58,13 +58,13 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
 });
 
 test('both WebGPU rasters hand the interpolated vertex alpha to the cutout; shadows pass one', () => {
-  assert.ok(VIS_SHADER.includes('@location(3) alpha:f32,}'));
+  assert.ok(VIS_SHADER.includes('@location(2) tc:vec3f,}'), 'one interpolant with the UV');
   assert.equal(
-    VIS_SHADER.split('if((page.flags&128u)!=0u){out.alpha=pageMaskAlpha(page,h,id);}').length,
+    VIS_SHADER.split('if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}').length,
     3,
     'both vertex stages',
   );
-  assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.uv,in.alpha,').length, 3);
+  assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,in.tc.z,').length, 3);
   const small = rasterSource(4, 16);
   assert.ok(small.includes('ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));'));
   assert.ok(small.includes('u:array<vec3f,4>'), 'the near clip carries it');
