@@ -1,4 +1,3 @@
-import type { SceneLight } from '../../scene/light/contracts.ts';
 import { Object3D } from '../object/object3d.ts';
 import { Color, type ColorInput } from '../math/color.ts';
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts';
@@ -121,6 +120,19 @@ export class Light extends Object3D {
   protected override blank(): this {
     return new Light(this.kind) as this;
   }
+  /** Takes `source`'s node values and, from a light, its numbers, colours, coefficients and aim;
+   *  its own `kind` stays. */
+  override copy(source: Object3D, recursive = true) {
+    super.copy(source, recursive);
+    if (!(source instanceof Light)) return this;
+    (this as { _values: Light['_values'] })._values = { ...source._values };
+    this.color.copy(source.color);
+    this.groundColor.copy(source.groundColor);
+    this.sh = source.sh && [...source.sh];
+    this.target.position.copy(source.target.position);
+    this._link?.content(this);
+    return this;
+  }
   /** `light.needsUpdate = true` after writing `sh` in place: the world reads it again. */
   set needsUpdate(_value: boolean) {
     this._link?.content(this);
@@ -149,31 +161,6 @@ for (const name of NUMBERS)
       this._link?.content(this);
     },
   });
-
-/**
- * The node of a lamp the engine's store describes — a light the source file carried — which a
- * page then edits, moves or removes like one of its own: same kind, colour, intensity, range and
- * cone, its target one unit along its direction.
- */
-export function lightFromRecord(record: SceneLight): Light {
-  const along = record.direction ?? [0, -1, 0];
-  const at = record.position ?? [-along[0], -along[1], -along[2]];
-  const node = new Light(record.kind === 'rect' ? 'rectArea' : record.kind, {
-    width: record.size?.[0],
-    height: record.size?.[1],
-    color: record.color,
-    intensity: record.intensity,
-    castShadow: record.castsShadow,
-    position: at,
-    target: [at[0] + along[0], at[1] + along[1], at[2] + along[2]],
-    distance: record.range,
-    angle: record.coneAngle,
-    penumbra: record.penumbra,
-    radius: record.emitterRadius,
-  });
-  node.name = record.id;
-  return node;
-}
 
 /** A member building one kind of light. */
 const kind = (name: string) => (p?: LightParameters) => new Light(name, p);

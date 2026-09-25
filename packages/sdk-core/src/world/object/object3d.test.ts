@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { Group, Object3D } from './object3d.ts';
 import { Light } from '../light/light.ts';
 import { Camera } from '../camera/camera.ts';
+import { Mesh } from './mesh.ts';
+import { cloneObject } from './clone.ts';
 
 // Re-deriving Euler angles from the quaternion would swap (0, y, 0) past ±90° for the equivalent
 // (π, π − y, π); a later one-axis write would then keep x = z = π and turn the node another way.
@@ -52,4 +54,20 @@ test('a clone keeps its class: a group with its name and fields, a light, a came
   assert.ok(spot instanceof Light && spot.kind === 'spot' && spot.type === 'spotLight');
   const eye = new Camera('orthographic').clone();
   assert.ok(eye instanceof Camera && eye.projection === 'orthographic');
+});
+
+test("a clone keeps a light's values, a camera's optics, and shares a mesh's content", () => {
+  const lamp = new Light('point', { color: 0xff0000, intensity: 5, distance: 9, sh: [1, 2] });
+  lamp.target.position.set(0, 0, -4);
+  for (const copy of [lamp.clone(), cloneObject(lamp)!]) {
+    assert.ok(copy.color.getHex() === 0xff0000 && copy.intensity === 5 && copy.distance === 9);
+    assert.ok(copy._values !== lamp._values && copy.sh !== lamp.sh && copy.sh?.[1] === 2);
+    assert.equal(copy.target.position.z, -4, 'its aim');
+  }
+  const eye = new Camera('perspective', { fov: 20, near: 3 }).clone();
+  assert.ok(eye.fov === 20 && eye.near === 3, 'its optics');
+  const lines = new Mesh(undefined, undefined, 'lineSegments');
+  const twin = lines.clone();
+  assert.ok(twin.geometry === lines.geometry && twin.material === lines.material, 'shared');
+  assert.equal(twin.primitive, 'lineSegments');
 });
