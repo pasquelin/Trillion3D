@@ -4148,7 +4148,7 @@
   "object.sprite": {
     "summary": "Una imagen plana que siempre mira a la cámara, mire donde mire: un cuadrado de una unidad, del tamaño de la escala del sprite y girado en la imagen por la `rotation` de su material.",
     "parameters": {
-      "material": "Lo que muestra el cuadrado: un `material.sprite`."
+      "material": "Lo que muestra el cuadrado: un `material.sprite`; cualquier otro tipo lanza un error."
     }
   },
   "Object3D": {
@@ -7615,10 +7615,11 @@
   },
   "Sprite": {
     "summary": "Una imagen plana que siempre mira a la cámara: un cuadrado de una unidad que cada renderizador gira hacia la imagen al dibujar, alrededor de la posición del sprite.",
-    "description": "Su tamaño es su escala en el mundo en `x` e `y`; su giro en el plano de la imagen es la `rotation` de su material; su propia rotación no se lee. Un sprite no proyecta sombra.",
+    "description": "Su tamaño es su escala en el mundo en `x` e `y`; su giro en el plano de la imagen es la `rotation` de su material; su propia rotación no se lee. Un sprite no proyecta sombra. Como el `Sprite` de la referencia, que solo acepta un `SpriteMaterial`, solo lleva un `material.sprite`: cualquier otro material, dado o asignado, lanza un `TypeError` que nombra su tipo.",
     "members": {
       "isSprite": "Siempre `true`: distingue un sprite de cualquier otra malla.",
-      "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior."
+      "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior.",
+      "material": "El `material.sprite` del sprite; asigna otro para cambiarlo."
     }
   }
 }

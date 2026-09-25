@@ -15028,9 +15028,14 @@
         "name": "center",
         "type": "Vector2",
         "desc": "The point of the picture that sits on the sprite's position: `(0.5, 0.5)` its middle, `(0, 0)` its bottom-left corner, `(0.5, 0)` the middle of its bottom edge."
+      },
+      {
+        "name": "material",
+        "type": "Material | Material[]",
+        "desc": "The sprite's `material.sprite`; set another to change it."
       }
     ],
-    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow."
+    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow. Like the reference's `Sprite`, which takes only a `SpriteMaterial`, it wears only a `material.sprite`: any other material, given or set, throws a `TypeError` that names its kind."
   },
   {
     "id": "StablePreview",
@@ -31896,7 +31901,7 @@
       {
         "name": "material?",
         "type": "Material",
-        "desc": "What the square shows: a `material.sprite`."
+        "desc": "What the square shows: a `material.sprite`; any other kind throws."
       }
     ],
     "returns": {
