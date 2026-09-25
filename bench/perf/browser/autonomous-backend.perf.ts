@@ -17,6 +17,7 @@ interface Monde {
   allPages: PageRec[];
   shown: PageRec[];
   desired: PageRec[];
+  requested: PageRec[];
 }
 
 function monde(total: number, depart: number): Monde {
@@ -45,7 +46,7 @@ function monde(total: number, depart: number): Monde {
       depthLayer: 0,
       attributes: geometrie.attributes,
     });
-  return { scene, allPages, shown: [], desired: [] };
+  return { scene, allPages, shown: [], desired: [], requested: [] };
 }
 
 const empreinte = (m: Monde, triangles: number) => ({
@@ -128,7 +129,10 @@ await stress({
       modifiedPages: new Set(),
     }).sync(),
   extremes: [
-    { name: 'empty', input: { scene: new GraphScene(), allPages: [], shown: [], desired: [] } },
+    {
+      name: 'empty',
+      input: { scene: new GraphScene(), allPages: [], shown: [], desired: [], requested: [] },
+    },
   ],
 });
 

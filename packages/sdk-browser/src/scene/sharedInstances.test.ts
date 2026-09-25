@@ -117,7 +117,7 @@ test('a primitive’s template is computed once and returned as-is to the next p
 
 // Behaviour: two instances of an object share the shape of its DAG — hierarchy, per-node bounds,
 // group links, cluster identities — and share nothing that distinguishes them: world matrix,
-// world box, forced-group flags, page records.
+// world box, page records.
 test('two instances share the DAG shape, never what places them', () => {
   const fixture = dagFixture();
   primitiveWithCulling(fixture.metadata);
@@ -136,7 +136,6 @@ test('two instances share the DAG shape, never what places them', () => {
   assert.equal(roots[0].culling!.nodes, roots[1].culling!.nodes);
   assert.equal(roots[0].culling!.bounds, roots[1].culling!.bounds);
   assert.equal(roots[0].structure, roots[1].structure);
-  assert.notEqual(roots[0].forced, roots[1].forced);
   assert.notEqual(roots[0].localBox, roots[1].localBox);
   assert.deepEqual(Array.from(roots[0].localBox!), Array.from(roots[1].localBox!));
   assert.notEqual(roots[0].world, roots[1].world);

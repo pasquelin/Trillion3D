@@ -3,7 +3,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 /**
  * A lower residency tier: pages a cut asked for below the camera's own — the casters the light cuts
  * want, or the pages ahead of the camera (#488) —, in their order — highest replacement error first
- * — each with the groups it closes over (`../cut/groupClosure.ts`), without repeats, and no longer
+ * — each with the groups it closes over (`../../page/cut/groupClosure.ts`), without repeats, and no longer
  * than the pool. The camera's tier is served first and pinned; a lower one only fills what the
  * camera leaves (`residentEnsurer.ts`).
  *
