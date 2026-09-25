@@ -872,7 +872,7 @@ as `world.budget.split`:
   in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
   each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
   a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
-- CPU: the shadow page table's host mirror first (20.5 MiB, fixed whatever the screen), then the
+- CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
   decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
