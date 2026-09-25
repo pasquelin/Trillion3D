@@ -12,11 +12,11 @@ import {
 } from '../../placement/rows.ts';
 import { EngineError, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { CellNode } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { GraphNode } from '../../host/graph/node.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
 import { hostLocalInto } from '../../host/world/matrices.ts';
 
-const scratch = new GraphNode();
+const scratch = new Object3D();
 
 /** The local matrix the engine composes for a cell node's declared pose, as for a host node. */
 export function rowLocal(node: CellNode) {

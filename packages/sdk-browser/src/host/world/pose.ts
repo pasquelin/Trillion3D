@@ -1,4 +1,3 @@
-import type { HostGraphNode } from '../scene/graphNodes.ts';
 import {
   NODE_AUTO_UPDATE,
   markNodeWorldNeedsUpdate,
@@ -9,6 +8,7 @@ import {
   setNodeScale,
   type TransformTree,
 } from '../../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * ENTRY of a host local pose into the engine's transform tree.
@@ -37,7 +37,7 @@ function sameMatrixBits(held: Float64Array, now: ArrayLike<number>) {
  * Local pose of the host `node` into the tree node of rank `rank`. Returns true when something
  * was written, hence when the subtree under that node will be recomputed by the next pass.
  */
-export function pushHostPose(tree: TransformTree, rank: number, node: HostGraphNode) {
+export function pushHostPose(tree: TransformTree, rank: number, node: Object3D) {
   const auto = node.matrixAutoUpdate;
   let moved = false;
   if (auto !== ((tree.flags[rank] & NODE_AUTO_UPDATE) !== 0)) {

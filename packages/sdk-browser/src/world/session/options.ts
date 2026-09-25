@@ -1,4 +1,3 @@
-import type { HostTraversable } from '../../host/resources.ts';
 import type {
   AssetScope,
   CameraPose,
@@ -9,6 +8,7 @@ import type {
 import type { ComparisonLayout } from '../../measurement/comparison.ts';
 import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from '../../backend/types.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** A named view of a scene a page can jump to. */
 export type PointOfInterest = {
@@ -119,7 +119,7 @@ export interface MeasuredWorldOptions {
    *  reads those levels; where one of them samples the host images, the session reads them
    *  as under `'host'` (`resolveTextureSource`). */
   textureSource?: 'host' | 'cache';
-  sceneLighting?: HostTraversable;
+  sceneLighting?: Object3D;
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */

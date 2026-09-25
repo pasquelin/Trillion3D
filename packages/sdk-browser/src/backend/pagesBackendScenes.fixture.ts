@@ -37,7 +37,7 @@ export function quadScene(material: G.GraphSurface = G.basicSurface()) {
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   const mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   return { geometry, material, mesh, source };
 }
@@ -113,7 +113,7 @@ export function fanScene() {
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 0, 3, 4]));
   const material = G.basicSurface({ transparent: true, side: G.DOUBLE_SIDE }),
     mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const indices = new Map([
     ['0', new Uint32Array([0, 1, 2])],

@@ -44,7 +44,7 @@ const videMetadata: ClusterManifest = {
   primitives: [],
 };
 const videScene: ChargementScene = {
-  source: new G.GraphGroup(),
+  source: new G.Group(),
   associations: new Map(),
   metadata: videMetadata,
   indices: new Map(),
