@@ -24,15 +24,6 @@ export const MAX_SHADOW_POOL_SIDE = shadowPoolSide(Infinity, Infinity);
 const MAX_POOL_PAGES = MAX_SHADOW_POOL_SIDE ** 2;
 /** Batches one frame draws at most: the largest pool's pages, in full batches. */
 export const MAX_SHADOW_BATCHES = Math.ceil(MAX_POOL_PAGES / MAX_SHADOW_PAGES);
-/**
- * Batches a frame draws while the camera moves: the fixed page budget of the shadow raster, one
- * batch of `MAX_SHADOW_PAGES` — the ceiling #512 drew a frame at, a count of pages, never a time
- * read off the machine. A moving camera maps pages faster the more pixels the screen has; past
- * the budget they wait, the coarsest first and the oldest before them (`admit.ts`), read meanwhile
- * at the coarser level they fall back to. The first frame the camera rests draws the whole list:
- * the still image is the one every page drawn gives.
- */
-export const SHADOW_BATCHES_MOVING = 1;
 /** Light views, one per face a batch draws, of one frame's batches together. */
 export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * DAG_MAX_VIEWS;
 /** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`). */
