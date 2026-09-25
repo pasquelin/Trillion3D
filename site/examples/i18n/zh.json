@@ -2031,5 +2031,19 @@
       "joints": "关节",
       "broken": "已断"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "调整机械的速度，升起升降台，往桶里丢重物把配重拉上去。",
+    "controls": {
+      "speed": "机械速度 (rad/s)",
+      "raiseLift": "升起升降台",
+      "addWeight": "丢一个重物",
+      "emptyBucket": "清空水桶"
+    },
+    "readouts": {
+      "lift": "升降台",
+      "load": "重物",
+      "rope": "绳子走过"
+    }
   }
 }

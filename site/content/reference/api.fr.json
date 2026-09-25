@@ -2795,7 +2795,6 @@
       "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de tranche. C’est ce qui ferme la couture entre deux faces d’une lumière ponctuelle et retire l’acné rasante ; il est en texels et non en mètres pour rester proportionnel à la résolution qu’a obtenue la lumière.",
       "shadowPagesPerFrame": "Pages d’ombre dessinées au plus par image : le plafond des tampons, jamais un réglage de qualité. Le budget en millisecondes s’arrête presque toujours avant ; ce plafond n’est qu’une borne ultime, et la seule limite d’un appareil sans horloge GPU.",
       "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSide`).",
-      "shadowTableEntries": "Entrées de la table des pages d’ombre, un mot par page virtuelle : un tampon fixe de 4 Mio. Elle loge seize soleils ou 128 lampes ponctuelles ; une lumière qui n’y trouve pas de place n’a pas d’ombre, et elle est comptée.",
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
       "sunLevels": "Niveaux du clipmap d’une lumière directionnelle. Le niveau `L` a des texels de `2^L` mètres, et un pixel lit le niveau dont le texel est au plus son empreinte : seize niveaux couvrent un rapport lointain/proche de 2^15. Au-delà du dernier niveau, l’ombre lointaine prend le relais.",
       "sunLevelPages": "Pages par côté de la fenêtre d’un niveau du clipmap autour de la caméra. C’est une capacité, pas un réglage : chaque pixel lit sa propre densité tant que `height / tan(halfFovY)` reste sous `sunLevelPages · shadowPage / 2` = 4096 (un écran 4K à 55° de champ vertical) ; au-delà, les pixels du bord lisent le niveau suivant, à densité moitié."
@@ -5338,6 +5337,10 @@
   "Side": {
     "summary": "Quelles faces dessine un matériau : `'front'`, `'back'` ou `'double'`."
   },
+  "SixDofAxis": {
+    "summary": "Les axes d’une liaison à six degrés de liberté : glisser le long de `x`, `y`, `z` et tourner autour.",
+    "description": "`x` suit l’`axis` de la liaison, `y` est aussi proche du haut du monde qu’il peut l’être en lui restant perpendiculaire."
+  },
   "sideOf": {
     "summary": "Le côté que déclare un matériau de l’hôte, lu une fois à la frontière dans l’énumération propre au moteur."
   },
@@ -7319,20 +7322,27 @@
     "description": "Elle tient tant que les deux corps sont simulés, et jusqu’à ce qu’elle rompe.",
     "parameters": {
       "options": "Ce qu’accepte `joint.*`. Points et axes sont dans le monde, lus quand la liaison est créée pour la première fois.",
-      "options.anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance sur `a`.",
-      "options.anchorB": "Le bout d’une distance sur `b`.",
-      "options.axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône.",
-      "options.limits": "Charnière, glissière, distance et cône : jusqu’où elle bouge. Une distance garde par défaut sa longueur.",
-      "options.spring": "Charnière, glissière et distance : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
-      "options.motor": "Charnière et glissière : un moteur, modifiable à tout moment par `joint.motor`.",
-      "options.breakForce": "Newtons de traction au-delà desquels la liaison rompt ; absent, jamais."
+      "options.anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance ou de la corde d’une poulie sur `a`.",
+      "options.anchorB": "Le bout d’une distance ou de la corde d’une poulie sur `b`.",
+      "options.axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône ou d’une rotule à torsion, le `x` d’une liaison à six degrés de liberté, l’axe d’un engrenage ou d’un pignon (`a`).",
+      "options.axisB": "L’axe d’un engrenage sur `b`, le rail d’une crémaillère (`b`).",
+      "options.limits": "Charnière, glissière, distance, cône, rotule à torsion et poulie : jusqu’où elle bouge. Une distance garde par défaut sa longueur, la corde d’une poulie va de 0 à sa longueur.",
+      "options.axes": "Les axes d’une liaison à six degrés de liberté qui bougent, librement (`'free'`) ou dans des limites ; les autres sont bloqués.",
+      "options.spring": "Charnière, glissière, distance et six degrés de liberté : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
+      "options.motor": "Charnière, glissière, rotule à torsion (sa torsion), six degrés de liberté et chemin : un moteur, modifiable à tout moment par `joint.motor`.",
+      "options.path": "La voie d’un chemin : au moins deux points, ceux de `b` (ou du monde) tels qu’ils sont à la création ; `a` part du point de la voie le plus proche d’`anchor`.",
+      "options.loop": "La voie d’un chemin se referme sur elle-même.",
+      "options.follow": "Le `a` d’un chemin tourne avec la voie, comme un wagon, plutôt que librement, comme une perle.",
+      "options.over": "Les deux roues d’une poulie, dans le monde : la corde de `a` monte jusqu’à la première, celle de `b` jusqu’à la seconde.",
+      "options.ratio": "Pour un engrenage, les tours de `b` par tour de `a` (les dents de `a` sur celles de `b`), en sens inverse ; pour un pignon, les radians par mètre de crémaillère, 1 / son rayon ; pour une poulie, les mètres de corde de `b` par mètre de celle de `a`.",
+      "options.breakForce": "Newtons de traction au-delà desquels la liaison rompt (N·m de couple entre les dents d’un engrenage ou d’une crémaillère) ; absent, jamais."
     },
     "members": {
       "kind": "Ce qu’est la liaison.",
       "a": "Le premier corps.",
       "b": "Le second corps, ou `null` pour le monde.",
       "options": "Ce avec quoi elle a été créée.",
-      "motor": "Le moteur, d’une charnière ou d’une glissière ; `null` la laisse tourner ou glisser librement.",
+      "motor": "Le moteur d’une charnière, d’une glissière, d’une rotule à torsion, d’une liaison à six degrés de liberté ou d’un chemin ; `null` la laisse bouger librement.",
       "broken": "Si elle a rompu : tirée au-delà de sa `breakForce`. Une liaison rompue ne tient plus rien.",
       "on": "Appelle `handler` quand la liaison rompt."
     }
@@ -7341,31 +7351,40 @@
     "summary": "Les liaisons entre corps, chacune une contrainte de Jolt."
   },
   "JointLimits": {
-    "summary": "Jusqu’où une liaison peut bouger : en radians pour une charnière, en mètres pour une glissière ou une distance, le demi-angle du cône (`max`) pour un cône.",
+    "summary": "Jusqu’où une liaison peut bouger : en radians pour une charnière ou une rotation, en mètres pour une glissière, une distance ou la corde d’une poulie, le demi-angle du cône (`max`) pour un cône.",
     "members": {
-      "min": "Celle d’une charnière de −π à 0, celle d’une glissière 0 ou moins.",
-      "max": "Celle d’une charnière de 0 à π, celle d’une glissière 0 ou plus."
+      "min": "Celle d’une charnière de −π à 0, celle d’une glissière 0 ou moins ; la torsion d’une rotule à torsion à partir de −π.",
+      "max": "Celle d’une charnière de 0 à π, celle d’une glissière 0 ou plus ; la torsion d’une rotule à torsion jusqu’à π.",
+      "swing": "Le cône d’une rotule à torsion : jusqu’où son `axis` oscille, un demi-angle jusqu’à π."
     }
   },
   "JointMotor": {
-    "summary": "Le moteur d’une charnière ou d’une glissière : il entraîne la liaison vers une vitesse ou une position.",
+    "summary": "Le moteur d’une liaison : il l’entraîne vers une vitesse ou une position.",
     "members": {
-      "mode": "`'velocity'` : rad/s ou m/s ; `'position'` : radians ou mètres depuis la pose où la liaison a été créée.",
+      "mode": "`'velocity'` : rad/s ou m/s ; `'position'` : radians ou mètres depuis la pose où la liaison a été créée — pour un chemin, le point le long de lui (1.5 : à mi-chemin entre son deuxième et son troisième).",
       "target": "La vitesse ou la position à atteindre.",
-      "maxForce": "N·m pour une charnière, N pour une glissière ; absent, sans borne."
+      "maxForce": "N·m pour une rotation, N pour un glissement ; absent, sans borne.",
+      "axis": "L’axe qu’il entraîne, pour une liaison à six degrés de liberté."
     }
   },
   "JointOptions": {
     "summary": "Ce qu’accepte `joint.*`.",
     "description": "Points et axes sont dans le monde, lus quand la liaison est créée pour la première fois.",
     "members": {
-      "anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance sur `a`.",
-      "anchorB": "Le bout d’une distance sur `b`.",
-      "axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône.",
-      "limits": "Charnière, glissière, distance et cône : jusqu’où elle bouge. Une distance garde par défaut sa longueur.",
-      "spring": "Charnière, glissière et distance : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
-      "motor": "Charnière et glissière : un moteur, modifiable à tout moment par `joint.motor`.",
-      "breakForce": "Newtons de traction au-delà desquels la liaison rompt ; absent, jamais."
+      "anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance ou de la corde d’une poulie sur `a`.",
+      "anchorB": "Le bout d’une distance ou de la corde d’une poulie sur `b`.",
+      "axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône ou d’une rotule à torsion, le `x` d’une liaison à six degrés de liberté, l’axe d’un engrenage ou d’un pignon (`a`).",
+      "axisB": "L’axe d’un engrenage sur `b`, le rail d’une crémaillère (`b`).",
+      "limits": "Charnière, glissière, distance, cône, rotule à torsion et poulie : jusqu’où elle bouge. Une distance garde par défaut sa longueur, la corde d’une poulie va de 0 à sa longueur.",
+      "axes": "Les axes d’une liaison à six degrés de liberté qui bougent, librement (`'free'`) ou dans des limites ; les autres sont bloqués.",
+      "spring": "Charnière, glissière, distance et six degrés de liberté : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
+      "motor": "Charnière, glissière, rotule à torsion (sa torsion), six degrés de liberté et chemin : un moteur, modifiable à tout moment par `joint.motor`.",
+      "path": "La voie d’un chemin : au moins deux points, ceux de `b` (ou du monde) tels qu’ils sont à la création ; `a` part du point de la voie le plus proche d’`anchor`.",
+      "loop": "La voie d’un chemin se referme sur elle-même.",
+      "follow": "Le `a` d’un chemin tourne avec la voie, comme un wagon, plutôt que librement, comme une perle.",
+      "over": "Les deux roues d’une poulie, dans le monde : la corde de `a` monte jusqu’à la première, celle de `b` jusqu’à la seconde.",
+      "ratio": "Pour un engrenage, les tours de `b` par tour de `a` (les dents de `a` sur celles de `b`), en sens inverse ; pour un pignon, les radians par mètre de crémaillère, 1 / son rayon ; pour une poulie, les mètres de corde de `b` par mètre de celle de `a`.",
+      "breakForce": "Newtons de traction au-delà desquels la liaison rompt (N·m de couple entre les dents d’un engrenage ou d’une crémaillère) ; absent, jamais."
     }
   },
   "joint": {
@@ -7376,7 +7395,13 @@
       "hinge": "Un axe en `anchor` le long de `axis` : une porte, une roue. `limits` en radians.",
       "slider": "Un rail le long de `axis` : un tiroir, un piston. `limits` en mètres.",
       "distance": "Garde `anchor` sur `a` et `anchorB` sur `b` à leur distance, ou dans `limits`.",
-      "cone": "Une rotule dont l’`axis` oscille dans un cône de demi-angle `limits.max`."
+      "cone": "Une rotule dont l’`axis` oscille dans un cône de demi-angle `limits.max`.",
+      "swingTwist": "Une épaule : `axis` oscille dans un cône de demi-angle `limits.swing` et se tord sur lui-même entre `limits.min` et `max` ; son moteur entraîne la torsion.",
+      "sixDof": "Six axes, chacun bloqué, libre ou limité (`axes`) : toute liaison entre les autres.",
+      "path": "`a` court le long d’une voie lisse passant par `path`, fixée à `b` ou au monde : des montagnes russes.",
+      "pulley": "Une corde de `a` passant sur deux roues (`over`) jusqu’à `b` : l’un monte quand l’autre descend.",
+      "gear": "Deux roues qui tournent ensemble selon `ratio`, chacune autour de son axe (`axis`, `axisB`) et tenue par sa charnière (la roue en est le `a`) ; quand `ratio` ou 1 / `ratio` est entier, leurs dents gardent aussi la phase où elles ont été faites.",
+      "rackAndPinion": "Un pignon `a` qui tourne autour d’`axis` entraîne une crémaillère `b` le long d’`axisB`, chacun tenu par sa charnière ou sa glissière (le corps en est le `a`), leurs dents gardées dans la phase où elles ont été faites."
     }
   }
 }
