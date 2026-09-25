@@ -61,7 +61,7 @@ export const normalOffset = (texel: number, cosine: number) =>
 const tangent = (cosine: number) => Math.sqrt(1 - cosine * cosine) / cosine;
 /** The bias, in metres: along the normal, then toward the light — this branch's, and develop's
  *  before #456 (1.5 texel/max(cos, 0.2); 2 cm + 8 cm·tan, at most 0.5 m), for the proof. */
-export type Bias = (texel: number, cosine: number) => number[];
+export type Bias = (texel: number, cosine: number) => [number, number];
 export const BIAS: Bias = (texel, c) => [normalOffset(texel, c), depthMargin(texel, tangent(c))];
 export const DEVELOP_BIAS: Bias = (texel, c) => [
   (1.5 * texel) / Math.max(c, 0.2),
