@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Lecturas acotadas, por prioridad y sin duplicado.",
-    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola."
+    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola.",
+    "parameters": {
+      "options": "Cómo lee un lector de páginas (`createPageStreamer`). Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+      "options.signal": "Cancela todas las lecturas una vez abortado.",
+      "options.workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
+      "options.maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
+      "options.onEvict": "Escucha cada página que sale de la caché.",
+      "options.maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
+      "options.onDiagnostic": "Escucha cada paso de cada lectura.",
+      "options.maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
+    }
   },
   "createPathGovernor": {
     "summary": "Un regulador."
@@ -4622,6 +4632,19 @@
       "workers": "Cuántos trabajadores recuperan y decodifican páginas a la vez."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Cómo lee un lector de páginas (`createPageStreamer`).",
+    "description": "Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+    "members": {
+      "signal": "Cancela todas las lecturas una vez abortado.",
+      "workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
+      "maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
+      "onEvict": "Escucha cada página que sale de la caché.",
+      "maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
+      "onDiagnostic": "Escucha cada paso de cada lectura.",
+      "maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PANORÁMICA Y ZOOM PLANOS, la vista plana: la cámara nunca gira.",
     "description": "La dirección hacia la que apuntaba cuando se creó el controlador es la que conserva, y cada gesto hace deslizar la vista en el plano que mira la cámara o la acerca a ese plano — un plano, una elevación, un mapa. Cualquier arrastre desplaza, la rueda y el pellizco hacen zoom entre `minDistance` y `maxDistance`, y las flechas desplazan un paso fijo para quien no tiene puntero. `rotateSpeed` viene del contrato de pivote y no hace nada aquí: no hay rotación que acelerar. `enablePan` y `enableZoom` activan o desactivan los dos gestos que existen.",
@@ -6565,7 +6588,7 @@
       "texturePool": "Bytes de memoria GPU reservados para páginas de textura, `null` en un motor sin depósito de texturas (WebGL2); ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras, las sondas de rebote y el depósito de geometría.",
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
-      "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Un total por debajo del depósito de sombras se rechaza (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca se lee de la máquina.",
+      "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Un total por debajo de las tres partes fijas —el depósito de sombras, las sondas de rebote y los destinos de efectos— se rechaza (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca se lee de la máquina.",
       "canvas": "El lienzo más grande que declara el mundo, en píxeles del búfer de dibujo: los destinos de la cadena de efectos se reservan a su tamaño (`split.effectTargets`); 3840 × 2160 por defecto, y el `gpu` por defecto solo crece en esa reserva. Ajústalo para repartir de nuevo cada depósito según la regla. Un lienzo dibujado más grande se sigue renderizando entero: los diagnósticos dicen `effect targets over budget` con los bytes que pasan de la reserva.",
       "cpu": "Bytes de memoria CPU que puede ocupar el mundo: primero el espejo en el host de la tabla de páginas de sombras, luego las páginas decodificadas, sus tablas de manifiesto, su cola de transferencias y las tablas de corte del motor juntas. Un cambio se aplica al instante: las páginas salen por último uso hasta caber. Un total que no supera el espejo se rechaza (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca se lee de la máquina.",
       "split": "Cómo se reparten los dos totales: el depósito de sombras y las sondas de rebote a su máximo, los destinos de la cadena de efectos en el `canvas` declarado, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; el espejo en el host de la tabla de sombras, luego la caché de páginas decodificadas toma el resto del total de CPU, entero, y dentro de él la sesión en curso reserva sus tablas de manifiesto, su cola de transferencias y las tablas de corte del motor. Lo que da la regla, antes de ajustar un depósito por separado."

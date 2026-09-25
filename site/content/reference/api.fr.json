@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Lectures bornées, par priorité et sans doublon.",
-    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant."
+    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant.",
+    "parameters": {
+      "options": "Comment un flux de pages lit (`createPageStreamer`). À côté de ses pages, son cache réserve ses tables de manifeste et sa file de transfert ; chaque membre a une valeur par défaut.",
+      "options.signal": "Annule toutes les lectures une fois interrompu.",
+      "options.workerCount": "Lectures menées en même temps ; 8 par défaut.",
+      "options.maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
+      "options.onEvict": "Entend chaque page qui quitte le cache.",
+      "options.maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
+      "options.onDiagnostic": "Entend chaque étape de chaque lecture.",
+      "options.maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
+    }
   },
   "createPathGovernor": {
     "summary": "Un régulateur."
@@ -4630,6 +4640,19 @@
       "workers": "Combien de travailleurs récupèrent et décodent des pages à la fois."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Comment un flux de pages lit (`createPageStreamer`).",
+    "description": "À côté de ses pages, son cache réserve ses tables de manifeste et sa file de transfert ; chaque membre a une valeur par défaut.",
+    "members": {
+      "signal": "Annule toutes les lectures une fois interrompu.",
+      "workerCount": "Lectures menées en même temps ; 8 par défaut.",
+      "maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
+      "onEvict": "Entend chaque page qui quitte le cache.",
+      "maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
+      "onDiagnostic": "Entend chaque étape de chaque lecture.",
+      "maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PANORAMIQUE ET ZOOM À PLAT, la vue plane : la caméra ne tourne jamais.",
     "description": "La direction vers laquelle elle pointait quand le contrôleur a été créé est celle qu’elle garde, et chaque geste fait glisser la vue dans le plan que regarde la caméra ou la rapproche de ce plan — un plan, une élévation, une carte. Tout glissé fait défiler, la molette et le pincement zooment entre `minDistance` et `maxDistance`, et les flèches font défiler d’un pas fixe pour qui n’a pas de pointeur. `rotateSpeed` vient du contrat à pivot et ne fait rien ici : il n’y a pas de rotation à accélérer. `enablePan` et `enableZoom` allument ou éteignent les deux gestes qui existent.",
@@ -6573,7 +6596,7 @@
       "texturePool": "Octets de mémoire GPU gardés pour les pages de texture, `null` sur un moteur sans réservoir de textures (WebGL2) ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres, des sondes de rebond et du réservoir de géométrie.",
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
-      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous le réservoir d’ombres est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
+      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous les trois parts fixes — le réservoir d’ombres, les sondes de rebond et les cibles d’effets — est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
       "canvas": "Le plus grand canvas que le monde déclare, en pixels du tampon de dessin : les cibles de la chaîne d’effets sont réservées à sa taille (`split.effectTargets`) ; 3840 × 2160 par défaut, et le `gpu` par défaut ne grandit que de cette réserve. Règle-le pour redistribuer chaque réservoir par la règle. Un canvas dessiné plus grand est quand même rendu en entier : les diagnostics disent `effect targets over budget` avec les octets au-delà de la réserve.",
       "cpu": "Octets de mémoire CPU que le monde peut tenir : d’abord le miroir hôte de la table des pages d’ombre, puis les pages décodées, leurs tables de manifeste, leur file de transferts et les tables de coupe du moteur ensemble. Un changement s’applique aussitôt : les pages partent par dernier usage jusqu’à tenir. Un total qui ne dépasse pas le miroir est refusé (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Jamais lu sur la machine.",
       "split": "Le partage des deux totaux : le réservoir d’ombres et les sondes de rebond à leur maximum, les cibles de la chaîne d’effets sur le `canvas` déclaré, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU, tout entier, et la session en place y réserve ses tables de manifeste, sa file de transferts et les tables de coupe du moteur. Ce que donne la règle, avant un réservoir réglé seul."
