@@ -89,9 +89,15 @@ export function staticServer(options: StaticOptions = {}): Server {
     if (answer?.(request, response, url)) return;
     const mount = mounts.find(({ prefix }) => url.pathname.startsWith(prefix));
     if (!mount) return reply(response, 404);
-    serveFile(mount.dir, url.pathname.slice(mount.prefix.length), response, options).catch(() => {
-      if (!response.headersSent) reply(response, 404);
-    });
+    serveFile(mount.dir, url.pathname.slice(mount.prefix.length), response, options).catch(
+      (error: NodeJS.ErrnoException) => {
+        // A missing file is an ordinary 404; anything else (a transform that throws, a file it
+        // may not read) is still a 404, but said, so the page's failed import has its cause.
+        if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR')
+          console.error(`static server: ${url.pathname}:`, error);
+        if (!response.headersSent) reply(response, 404);
+      },
+    );
   });
 }
 
@@ -99,7 +105,11 @@ export function staticServer(options: StaticOptions = {}): Server {
 export function listen(server: Server, port = 0): Promise<number> {
   return new Promise((ready, reject) => {
     server.once('error', reject);
-    // A server bound to an IP address has an `AddressInfo`, never a pipe name.
-    server.listen(port, '127.0.0.1', () => ready((server.address() as AddressInfo).port));
+    server.listen(port, '127.0.0.1', () => {
+      // Only a failure to listen rejects; a later server error is not swallowed here.
+      server.off('error', reject);
+      // A server bound to an IP address has an `AddressInfo`, never a pipe name.
+      ready((server.address() as AddressInfo).port);
+    });
   });
 }
