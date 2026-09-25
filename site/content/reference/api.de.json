@@ -4146,7 +4146,7 @@
   },
   "SOFT_FOOTPRINT": {
     "summary": "Festgelegt: der Anteil seines mittleren Querschnitts — ein Viertel seiner Fläche, für jede konvexe Form (Cauchy) —, auf den ein ruhendes Volumen am Boden absinkt, wobei sein Gas dort sein Gewicht trägt.",
-    "description": "Sein Standarddruck ist dann `4·m·g / (share·area)`: 31 Pa für eine Haut von `SOFT_AREAL_DENSITY`. Halber Anteil, doppelter Druck. Ein Druck weit über dem seines Gewichts bläht es über seine Ruheform hinaus: Jeder Schritt verschiebt einen Eckpunkt um `pressure·dt² / (kg/m²)`, mehr als seine Kanten dann halten."
+    "description": "Sein Standarddruck ist dann `4·m·g / (share·area)`: 31 Pa für eine Haut von `SOFT_AREAL_DENSITY`. Halber Anteil, doppelter Druck. Er übersteigt nie das Höchste, was seine Haut innerhalb eines Zehntels seines Ruhevolumens hält."
   },
   "SOFT_LINEAR_DENSITY": {
     "summary": "Ein 10-mm-Polyamidseil, kg/m: Herstellertabellen geben 0,06 bis 0,07 an."
@@ -4181,7 +4181,7 @@
     "summary": "Die Optionen eines Volumens: ein geschlossenes Netz, vom Gas darin gehalten.",
     "members": {
       "type": "Ein Volumen.",
-      "pressure": "Der Druck des Gases über dem der Luft in Ruhe, Pa; zusammengedrückt steigt er, wenn das Volumen sinkt (Boyle-Gesetz). Die Dreiecke müssen nach außen zeigen. Weggelassen, der Druck, der das Gewicht des Volumens auf `SOFT_FOOTPRINT` seines mittleren Querschnitts legt."
+      "pressure": "Der Druck des Gases über dem der Luft in Ruhe, Pa; zusammengedrückt steigt er, wenn das Volumen sinkt (Boyle-Gesetz). Die Dreiecke müssen nach außen zeigen. Weggelassen, der Druck, der das Gewicht des Volumens auf `SOFT_FOOTPRINT` seines mittleren Querschnitts legt, oder das Höchste, was seine Haut hält, wenn weniger. Abgelehnt über dem Höchsten, was seine Haut innerhalb eines Zehntels seines Ruhevolumens hält."
     }
   },
   "TransformNode": {

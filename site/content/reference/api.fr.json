@@ -4154,7 +4154,7 @@
   },
   "SOFT_FOOTPRINT": {
     "summary": "Déclarée : la part de sa section moyenne — un quart de son aire, pour toute forme convexe (Cauchy) — sur laquelle un volume au repos sur le sol s’affaisse, son gaz y pressant son poids.",
-    "description": "Sa pression par défaut est alors `4·m·g / (share·area)` : 31 Pa pour une peau de `SOFT_AREAL_DENSITY`. Moitié de part, double pression. Une pression très au-dessus de celle de son poids le gonfle au-delà de sa forme de repos : chaque pas déplace un sommet de `pressure·dt² / (kg/m²)`, plus que ses arêtes ne retiennent alors."
+    "description": "Sa pression par défaut est alors `4·m·g / (share·area)` : 31 Pa pour une peau de `SOFT_AREAL_DENSITY`. Moitié de part, double pression. Elle ne dépasse jamais le plus que sa peau retient à un dixième près de son volume de repos."
   },
   "SOFT_LINEAR_DENSITY": {
     "summary": "Une corde polyamide de 10 mm, kg/m : les tables des fabricants donnent 0,06 à 0,07."
@@ -4189,7 +4189,7 @@
     "summary": "Les options d’un volume : un maillage fermé tenu par le gaz dedans.",
     "members": {
       "type": "Un volume.",
-      "pressure": "La pression du gaz au-dessus de celle de l’air au repos, Pa ; pressé, elle monte quand le volume baisse (loi de Boyle). Les triangles doivent regarder vers l’extérieur. Omise, la pression qui pose le poids du volume sur `SOFT_FOOTPRINT` de sa section moyenne."
+      "pressure": "La pression du gaz au-dessus de celle de l’air au repos, Pa ; pressé, elle monte quand le volume baisse (loi de Boyle). Les triangles doivent regarder vers l’extérieur. Omise, la pression qui pose le poids du volume sur `SOFT_FOOTPRINT` de sa section moyenne, ou le plus que sa peau retient s’il est moindre. Refusée au-delà du plus que sa peau retient à un dixième près de son volume de repos."
     }
   },
   "TransformNode": {
