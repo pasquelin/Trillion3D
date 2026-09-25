@@ -19,9 +19,11 @@ disagreement is reported to the maintainer.
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
 5. **Only the CTO opens issues**, with the writer role, and only when the boss asks for one or in
-   an extreme case (a 🔴 critical defect no open issue covers). Existing issues come first: a new
-   need joins an open issue (a To-do item or a comment), and over any seven days opened stays
-   below closed. No other agent opens one, not even to split an issue. What a pull request does
+   an extreme case (a 🔴 critical defect no issue covers; a closed issue that covers it is
+   reopened instead), then tells the boss. Existing issues come first: a new need joins an open
+   issue (a To-do item or a comment), and over any seven days the issues the CTO opens and reopens
+   stay fewer than those closed as completed. A boss's request is never refused for the balance.
+   No other agent opens one, not even to split an issue. What a pull request does
    not deliver stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the
    issue stays open. A regression reopens the measured issue with `measure ko`; a finding reopens
    the audited issue with `audit ko`. A defect found on the way is one line in your report to the
