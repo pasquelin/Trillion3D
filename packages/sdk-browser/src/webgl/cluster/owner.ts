@@ -23,7 +23,6 @@ export class WebglClusterOwner {
     this.renderer = this.display = new WebglClusterRenderer(this.context);
     this.censused = false;
   };
-  /** Whether the maps' readers hold the scene's census; a restored context takes a new one. */
   censused = false;
   /** Files every mesh, hidden ones too — WebGPU's census at prepare (#42) —; a later one at bind. */
   census(meshes: readonly { material: HostMaterials }[]) {

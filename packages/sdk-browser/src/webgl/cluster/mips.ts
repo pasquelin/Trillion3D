@@ -18,15 +18,15 @@ void main(){
  ivec2 p=ivec2(gl_FragCoord.xy)*2;ivec2 hi=extent-1;
  vec4 s0=texelFetch(source,min(p,hi),0);vec4 s1=texelFetch(source,min(p+ivec2(1,0),hi),0);
  vec4 s2=texelFetch(source,min(p+ivec2(0,1),hi),0);vec4 s3=texelFetch(source,min(p+ivec2(1,1),hi),0);
- vec4 mean=(s0+s1+s2+s3)*0.25;
+ vec4 mean=(s0+s1+s2+s3)*0.25;vec4 a=vec4(s0.a,s1.a,s2.a,s3.a);
  float u=min(max(s0.a,s1.a),max(s2.a,s3.a));float v=max(min(s0.a,s1.a),min(s2.a,s3.a));
- vec4 a=vec4(s0.a,s1.a,s2.a,s3.a);
  vec3 byAlpha=(s0.rgb*s0.a+s1.rgb*s1.a+s2.rgb*s2.a+s3.rgb*s3.a)/dot(a,vec4(1.0));
  color=vec4(weighted&&any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,(u+v)*0.5);
 }`;
 
 /** A texture as the reducer reads it: its GL name, its format and size. */
 type Chain = { texture: WebGLTexture; format: number; width: number; height: number };
+type Scratch = Omit<Chain, 'format'> & { used?: boolean };
 
 /** The reduction's program, its uniforms, its two framebuffers and its empty vertex array. */
 function buildReducer(gl: WebGL2RenderingContext) {
@@ -53,9 +53,9 @@ export class WebglMipReducer {
   private built: ReturnType<typeof buildReducer> | undefined;
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
-  /** Per format, the copy of the level above, at the largest size seen (`extent` clamps): kept
-   *  while a chain is refilled in place — a live picture —, returned after any other reduction. */
-  private scratches = new Map<number, { texture: WebGLTexture; width: number; height: number }>();
+  /** Per format, the copy of the level above, at the largest size seen (`extent` clamps); `used`
+   *  since the last `trim`, which returns the others: a live picture's stays. */
+  private scratches = new Map<number, Scratch>();
   private drop(format: number) {
     const held = this.scratches.get(format);
     if (held) this.gl.deleteTexture(held.texture);
@@ -65,9 +65,8 @@ export class WebglMipReducer {
     this.gl = gl;
   }
   /** Builds levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
-   *  one above, `weighted` or not; `allocate`: a new size or chain, and `release` returns the
-   *  scratch — kept only for a picture refilled in place. */
-  reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean, release = allocate) {
+   *  one above, `weighted` or not; `allocate`: a new size or chain. */
+  reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean) {
     const gl = this.gl,
       { texture, format, width, height } = chain;
     const levels = mipLevelCountFor(width, height);
@@ -96,6 +95,7 @@ export class WebglMipReducer {
       gl.texImage2D(gl.TEXTURE_2D, 0, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     } else gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
+    scratch.used = true;
     setFullscreenPassState(gl);
     gl.useProgram(built.program);
     gl.uniform1i(built.source, unit);
@@ -121,8 +121,6 @@ export class WebglMipReducer {
     }
     attach(0, null);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    if (release) this.drop(format);
-    if (!drawable && !allocate) gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, saved.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, saved.draw);
     gl.bindVertexArray(saved.vertexArray);
@@ -131,13 +129,18 @@ export class WebglMipReducer {
     gl.colorMask(saved.mask[0], saved.mask[1], saved.mask[2], saved.mask[3]);
     FULLSCREEN_DISABLED.forEach((name, i) => saved.toggles[i] && gl.enable(gl[name]));
   }
+  /** A new image: returns each scratch no reduction used since the last one. */
+  trim() {
+    for (const [format, scratch] of this.scratches)
+      if (scratch.used) scratch.used = false;
+      else this.drop(format);
+  }
   /** Whether both framebuffers hold a level of `format`, asked once per format. */
   private check(format: number) {
     const gl = this.gl,
       complete = (target: number) => gl.checkFramebufferStatus(target) === gl.FRAMEBUFFER_COMPLETE;
-    const drawable = complete(gl.DRAW_FRAMEBUFFER) && complete(gl.READ_FRAMEBUFFER);
-    this.drawable.set(format, drawable);
-    return drawable;
+    this.drawable.set(format, complete(gl.DRAW_FRAMEBUFFER) && complete(gl.READ_FRAMEBUFFER));
+    return this.drawable.get(format)!;
   }
   dispose() {
     const { gl, built } = this;
