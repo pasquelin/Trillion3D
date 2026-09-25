@@ -1,6 +1,7 @@
 import {
   CommandWriter,
   FLAG,
+  GENERATION_SHIFT,
   SOFT_STATE_WORDS,
   softBodyOf,
   writeSoft,
@@ -13,10 +14,17 @@ import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { body, startModule, type Module } from './module.fixture.ts';
 
+/** Generation 1 of an engine id. */
+const GENERATION = 1 << GENERATION_SHIFT;
+/** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
+export const FLOOR = GENERATION,
+  CLOTH = 1 | GENERATION,
+  BOX = 2 | GENERATION;
+
 /** A box of `mass` kg and 0.2 m in slot 2, its centre at `y`, with `flags`. */
 export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
   const writer = new CommandWriter();
-  writer.add({ ...body(2 | (1 << 24), 2, y, 0.1, flags), mass });
+  writer.add({ ...body(BOX, 2, y, 0.1, flags), mass });
   jolt.step(writer.take(), 0);
 }
 
@@ -29,7 +37,7 @@ export async function softWorld(quaternion = [0, 0, 0, 1]) {
   const jolt = await startModule();
   const writer = new CommandWriter();
   writer.gravity([0, -9.81, 0]);
-  writer.add({ ...body(1 << 24, 0, -1, 1), size: [20, 1, 20], quaternion });
+  writer.add({ ...body(FLOOR, 0, -1, 1), size: [20, 1, 20], quaternion });
   jolt.step(writer.take(), 0);
   return jolt;
 }
@@ -46,7 +54,7 @@ export function addSoft(
   const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
   const writer = new CommandWriter();
   writeSoft(writer, {
-    ...{ id: 1 | (1 << 24), position, quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
+    ...{ id: CLOTH, position, quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
     ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
     ...{ settings, record, ...words },
   });

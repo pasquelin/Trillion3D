@@ -13,7 +13,8 @@
  * a mass of 0 held in place (a pin); then `indexCount` triangle corners. A body with no triangle
  * is a rope: each vertex joined to the next. A cooked body (`physics.json`) carries neither: its
  * `byteCount` bytes follow, its `SoftBodySharedSettings` in Jolt's binary state padded to whole
- * words, already scaled and holding its compliances. A soft body is removed as any body (REMOVE).
+ * words, already scaled and holding its compliances. A soft body is removed as any body (REMOVE)
+ * and teleported with its vertices, their simulation kept (TELEPORT).
  */
 export const SOFT_WORDS = 22;
 export const SOFT_VERTEX_WORDS = 4;
