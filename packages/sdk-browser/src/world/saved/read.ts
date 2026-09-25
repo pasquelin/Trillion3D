@@ -45,9 +45,10 @@ function readGeometry(saved: SavedGeometry): Geometry {
   const g = new Geometry();
   for (const [name, a] of Object.entries(saved.attributes ?? {})) {
     const Typed = TYPED[a.type] ?? Float32Array;
-    const attribute = new BufferAttribute(new Typed(a.array) as never, a.itemSize);
-    attribute.normalized = a.normalized;
-    g.setAttribute(name, attribute);
+    g.setAttribute(
+      name,
+      new BufferAttribute(new Typed(a.array) as never, a.itemSize, a.normalized),
+    );
   }
   if (saved.index) g.setIndex(saved.index);
   for (const group of saved.groups ?? []) g.addGroup(group.start, group.count, group.materialIndex);
