@@ -45,7 +45,7 @@ const MACHINES: Record<
 };
 
 /** The released pedals and wheel. */
-export const RELEASED: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
+const RELEASED: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
 
 /**
  * A rig on flat stone 2 km wide, with one vehicle of `kind` resting on its wheels at the middle,
