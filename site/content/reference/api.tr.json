@@ -2055,7 +2055,9 @@
   },
   "SoftBodyCommon": {
     "summary": "`obj.physics`'in bir yumuşak cisim için kabul ettiği: köşeleri tek tek simüle edilir.",
+    "description": "Maddesi ve çekimi katı bir cisminki gibi; açısal sönüm, şekil, sensör, CCD veya enkaz yok.",
     "members": {
+      "damping": "Köşelerinin hızından saniyede kaybedilen pay, `dv/dt = −c·v`, 0 ve üzeri.",
       "pins": "Geometrinin yerinde tutulan köşelerinin indisleri: bir bayrağın direği, bir halatın kancası.",
       "mass": "Kilogram, her köşenin taşıdığı alana (halatta: uzunluğa) göre köşelere dağıtılır; verilmezse m² başına `SOFT_AREAL_DENSITY` (halatta m başına `SOFT_LINEAR_DENSITY`).",
       "stretch": "Bir kenar çekildiğinde ne kadar esner, m/N (sertliğinin tersi): 0 hiç uzamaz.",

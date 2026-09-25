@@ -2073,7 +2073,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Những gì `obj.physics` nhận cho một vật mềm: các đỉnh được mô phỏng từng cái một.",
+    "description": "Vật chất và lực kéo như của một vật rắn; không có giảm chấn góc, hình dạng, cảm biến, CCD hay mảnh vụn.",
     "members": {
+      "damping": "Phần tốc độ của các đỉnh mất đi mỗi giây, `dv/dt = −c·v`, từ 0 trở lên.",
       "pins": "Chỉ số các đỉnh của hình học được giữ nguyên chỗ: cán cờ, móc dây.",
       "mass": "Kilôgam, chia cho các đỉnh theo diện tích (dây: chiều dài) mà mỗi đỉnh mang; nếu bỏ qua, `SOFT_AREAL_DENSITY` mỗi m² (dây: `SOFT_LINEAR_DENSITY` mỗi m).",
       "stretch": "Một cạnh chịu giãn bao nhiêu khi bị kéo, m/N (nghịch đảo độ cứng): 0 không bao giờ giãn.",
