@@ -4,7 +4,7 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import { coarseQuadScene } from '../testOccluder.fixture.ts';
-import { camera } from '../testScenes.fixture.ts';
+import { camera, disposeQuadRun } from '../testScenes.fixture.ts';
 
 // #487: `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
 // the float geometry of what no page covers, a one-vertex placeholder at least. The pool is drawn
@@ -31,11 +31,14 @@ async function stream(
   backend: ReturnType<typeof budgetedQuad>['backend'],
   each: (metrics: ReturnType<typeof backend.metrics>) => void,
 ) {
-  let resident = -1;
-  for (let round = 0; round < 8 && backend.metrics().residentPages !== resident; round++) {
+  let before = -1,
     resident = backend.metrics().residentPages;
+  for (let round = 0; round < 8 && resident !== before; round++) {
+    before = resident;
     backend.render(camera());
-    each(backend.metrics());
+    const metrics = backend.metrics();
+    each(metrics);
+    resident = metrics.residentPages;
     await backend.flush();
   }
   return resident;
@@ -74,9 +77,7 @@ test('the geometry held never passes the declared pool, at prepare and mid-sessi
       await backend.prepare();
       streamed = Math.max(streamed, await stream(backend, assertBounded(budget, floor)));
     } finally {
-      backend.dispose();
-      fixture.geometry.dispose();
-      fixture.material.dispose();
+      disposeQuadRun(backend, fixture);
     }
   }
   assert.ok(streamed > 1, 'pages streamed in beside the root cover');
@@ -90,8 +91,6 @@ test('the geometry held never passes the declared pool, at prepare and mid-sessi
       await stream(backend, assertBounded(budget, floor));
     }
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });

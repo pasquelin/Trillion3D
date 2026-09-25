@@ -14,7 +14,15 @@ import {
   textureProbe,
 } from '../../residency/poolGrants.ts';
 import type { TexturePool } from '../../residency/memoryBudgets.ts';
-import { geometryPoolDrawer } from '../prepare/cache.ts';
+import { vertexBytesOf } from './metrics.ts';
+
+/**
+ * The geometry pool the session's rule draws for a budget, less the vertex buffers the session
+ * holds outside its slots (`vertexBytesOf`): `geometryAllocationBytes` counts both, so both are
+ * paid from the one budget and never sum past it, the budget recorded staying the one declared.
+ */
+export const geometryPoolDrawer = (rt: WebgpuPagesRuntime) => (budgetBytes: number) =>
+  rt.setup.geometryPoolFor(budgetBytes, vertexBytesOf(rt.gpu, rt.vis));
 
 /**
  * Changes memory pools mid-session, like the reference's variables — but without emptying what they
@@ -73,8 +81,6 @@ export async function setWebgpuMemoryBudgets(
     }
   }
   if (budgets.geometryPoolBytes !== undefined) {
-    // The vertex buffers held beside the slots are geometry too: the pool is drawn from what the
-    // budget leaves them, the budget recorded staying the one declared.
     const bytes = budgets.geometryPoolBytes,
       draw = geometryPoolDrawer(rt);
     let pool: GeometryPool | undefined = draw(bytes);
