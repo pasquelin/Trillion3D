@@ -205,9 +205,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
    measuring queue runs it after the merge.
 4. Commit with a descriptive English message. Open a draft pull request targeting `develop`, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` when it delivers every
-   To-do item, `Part of #<issue>` otherwise (the remainder is a comment on the issue, which stays
-   open). Describe what both
+   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`: it delivers every To-do item of its issue (AGENTS.md rule 5). Describe what both
    local review passes found under "Local review before push". Replace `in progress` with `in review`.
 5. Obtain an independent review and resolve its findings before integration. The maintainer, or
    whoever the maintainer entrusts with it, merges into `develop` once the review holds, the pull

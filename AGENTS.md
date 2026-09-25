@@ -24,8 +24,7 @@ disagreement is reported to the maintainer.
    instead), and tells the boss. Existing issues come first: a new need is a To-do item or a
    comment on an open issue. Over any seven days the CTO opens and reopens fewer issues than are
    closed as completed; a boss's request or an extreme case overrides that balance. No other agent
-   opens an issue, not even to split one. What a pull request does not deliver stays in its issue:
-   the PR says `Part of #n`, the rest is a comment on #n, the issue stays open. A regression
+   opens an issue, not even to split one. **One pull request, one issue**: a pull request says `Closes #n` and delivers every To-do item of #n; an issue too big for one pull request is split by the CTO into issues that each fit one, before a lead takes it. A regression
    reopens the measured issue with `measure ko`, a finding the audited one with `audit ko`; a
    defect found on the way is one line in your report to the CTO.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
@@ -43,9 +42,7 @@ disagreement is reported to the maintainer.
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
-11. **Small, short-lived pull requests.** One step of an issue per pull request, about 500
-    hand-written lines at most (generated files excluded); larger work becomes the next `Part of`
-    PR. A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
+11. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more goes back to the CTO to be split (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
     on the same files, and keeps it open one hour at most: that is the limit, not a trigger. The
     CTO merges pull requests oldest first: a younger ready PR waits until every older one is
     merged or abandoned.
@@ -99,8 +96,7 @@ finish, nothing new starts) so no work is cut midway.
   unanswered review). A ready pull request waits only on the CTO's merge; `docs/roles/lead.md`
   step 1 says when it still holds back a new coder.
 - **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
-  working on its children: the order is kept, and each merge passes its checklist. A new step
-  is a To-do item of the parent, worked as `Part of #parent`, never a child issue of its own.
+  working on its children: the order is kept, and each merge passes its checklist. Each step is a child issue of the parent, closed by its own pull request.
 
 ## Labels: the only channel between sessions
 
