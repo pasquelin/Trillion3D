@@ -33,13 +33,13 @@ export function createObservatory() {
     plinthTop = pavingTop + plinth[1];
   for (const side of [-1, 1]) {
     const x = side * 4 * paving.pitch;
-    for (const z of [-6, -2, 2, 6]) {
+    for (const z of [-3, -1, 1, 3].map((stone) => stone * paving.pitch)) {
       w.block(0, [x, pavingTop + plinth[1] / 2, z], plinth);
       w.turned(1, [x, plinthTop, z], 0.46, 4.4, 16);
       w.block(1, [x, 5.1, z], [1.25, 0.28, 1.25]);
       w.turned(3, [x, plinthTop, z], 0.52, 0.16, 0, 32);
     }
-    for (const z of [-4, 0, 4]) {
+    for (const z of [-2, 0, 2].map((stone) => stone * paving.pitch)) {
       // The arch lies in the depth plane; its tapered voussoirs remain a curved LOD witness.
       w.patch(0, 64, 8, (u, v) => {
         const a = u * Math.PI,
