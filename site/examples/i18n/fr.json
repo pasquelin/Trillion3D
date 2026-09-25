@@ -360,6 +360,22 @@
       "up": "HAUT"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Glissez pour regarder autour. Choisissez le brouillard, sa portée et sa couleur.",
+    "controls": {
+      "fog": "Brouillard",
+      "reach": "Portée",
+      "height": "Hauteur",
+      "colour": "Couleur"
+    },
+    "choices": {
+      "fog": {
+        "distance": "distance",
+        "thick": "épais",
+        "ground": "au sol"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Glisse pour regarder autour. Les perles glissent le long du tube.",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Appuie sur Jouer, puis cours avec W A S D et saute avec Espace.",
+    "banner": "Appuie sur Jouer, puis cours avec W A S D et saute avec Espace. Lâche tôt : sur la pierre, tu glisses un peu avant de t’arrêter.",
     "controls": {
       "keys": "Le contrôle de personnage du moteur : le Jouer du menu capture la souris pour regarder, W A S D pour courir (Z Q S D en AZERTY), Maj pour sprinter, Espace pour sauter, Échap libère la souris. La page ajoute R pour recommencer la course, M pour couper le son.",
       "look": "Regard",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} orbes · R pour recommencer",
       "muted": "M son coupé",
       "sound": "M son"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "Regarde la barre se remplir pendant que le monde arrive. Appuie sur Recharger pour le revoir dès le premier octet.",
+    "controls": {
+      "loadAgain": "Recharger"
+    },
+    "readouts": {
+      "phase": "Étape",
+      "bytes": "Octets",
+      "pages": "Premières pages"
+    },
+    "words": {
+      "credit": "Avenue d’urnes modelée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md",
+      "bytes": "lecture des octets",
+      "manifest": "manifeste lu",
+      "tables": "tables de la scène lues",
+      "resources": "fichiers de la scène",
+      "pages": "premières pages",
+      "ready": "prêt"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses.",
+    "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses, et lâchez les touches sur la glace pour glisser.",
     "controls": {
       "pushStrength": "Force de poussée (N)",
       "platformSpeed": "Vitesse de la plateforme",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "Liaisons",
       "broken": "Rompues"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Changez la vitesse du mécanisme, montez l’ascenseur et lâchez des poids dans le seau pour soulever le contrepoids.",
+    "controls": {
+      "speed": "Vitesse du mécanisme (rad/s)",
+      "raiseLift": "Monter l’ascenseur",
+      "addWeight": "Lâcher un poids",
+      "emptyBucket": "Vider le seau"
+    },
+    "readouts": {
+      "lift": "Ascenseur",
+      "load": "Poids",
+      "rope": "Corde déroulée"
     }
   }
 }

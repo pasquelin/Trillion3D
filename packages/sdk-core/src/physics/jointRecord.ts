@@ -8,7 +8,10 @@ export interface JointRecord {
   frameA: readonly number[];
   frameB: readonly number[];
   /** `limit min, limit max, spring frequency, spring damping`. */ limits: readonly number[];
-  /** `MOTOR` mode, target and max force (0: no bound). */
-  motor: { mode: number; target: number; maxForce: number };
+  /** `MOTOR` mode, target, max force (0: no bound) and a six-DOF's axis (0 to 5). */
+  motor: { mode: number; target: number; maxForce: number; axis: number };
   /** Newtons past which it breaks; 0 never. */ breakForce: number;
+  /** The kind's own words (`layout.ts` JOINT): an advanced joint's swing, axes, track, wheels or
+   *  ratio; none for the others. */
+  extra: readonly number[];
 }

@@ -626,7 +626,8 @@
           "<code>anchor</code> वह जगह है जहाँ पिंड जुड़ते हैं और <code>axis</code> कील या पटरी की दिशा; दोनों दुनिया में हैं और जोड़ बनते समय पढ़े जाते हैं।",
           "<code>limits</code> जोड़ को रोकता है: कब्ज़े के लिए रेडियन, पटरी के लिए मीटर। <code>spring</code> रुकावट को नरम बनाता है।",
           "<code>motor</code> कब्ज़े या पटरी को किसी गति या स्थिति तक चलाता है। <code>joint.motor</code> को कभी भी बदलें।",
-          "<code>breakForce</code> न्यूटन में वह खिंचाव है जिसके पार जोड़ टूट जाता है: <code>joint.broken</code> true हो जाता है और <code>joint.on('break', …)</code> बुलाया जाता है।"
+          "<code>breakForce</code> न्यूटन में वह खिंचाव है जिसके पार जोड़ टूट जाता है: <code>joint.broken</code> true हो जाता है और <code>joint.on('break', …)</code> बुलाया जाता है।",
+          "उन्नत जोड़ गतियों को आपस में बाँधते हैं: <code>joint.gear(a, b, { ratio })</code> कब्ज़ों पर लगे दो पहियों को एक गियर-माला की तरह घुमाता है, <code>joint.rackAndPinion</code> घुमाव को खिसकने में बदलता है, <code>joint.pulley(a, b, { over })</code> एक रस्सी पर दो बोझ लटकाता है, <code>joint.path(a, b, { path })</code> डिब्बे को उसकी पटरी पर रखता है, और <code>swingTwist</code> व <code>sixDof</code> कंधे और आपके अपने जोड़ बनाते हैं।"
         ],
         "tryIt": "दरवाज़ा और दराज़ खोलें, फिर पत्थर पुल पर गिराएँ। पुल की मज़बूती घटाकर उसे फिर बनाएँ: वह अपने ही भार से टूट जाएगा।"
       },
@@ -1401,6 +1402,7 @@
       "observatory-streamed": "स्ट्रीम किए गए क्लस्टर",
       "memory-on-a-budget": "मेमोरी बजट",
       "detail-by-pixel-error": "पिक्सेल त्रुटि से डिटेल",
+      "watch-a-world-load": "एक दुनिया को लोड होते देखो",
       "ten-thousand-objects": "दस हज़ार ऑब्जेक्ट",
       "compressed-textures": "संपीड़ित textures",
       "what-hides-what": "क्या क्या छुपाता है",
@@ -1495,6 +1497,7 @@
       "soft-bodies": "मुलायम वस्तुएँ",
       "rolling-on-terrain": "इलाके पर लुढ़कना",
       "hinges-and-joints": "कब्ज़े और जोड़",
+      "gears-and-pulleys": "गियर और घिरनियाँ",
       "walk-with-collisions": "टकराव के साथ चलना",
       "drive-a-car": "कार चलाना",
       "a-room-in-vr": "VR में एक कमरा",
@@ -1508,8 +1511,8 @@
       "a-walker-among-balls": "गेंदों के बीच चलने वाला"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU पर प्रति-वर्टेक्स रंग",
       "dashed-lines": "टूटी-फूटी रेखाएँ",
+      "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "thick-lines": "चौड़ी रेखाएँ",
       "a-line-that-draws-itself": "ज्यामिति ड्रॉ रेंज",
       "shapes-from-an-svg": "SVG पथ इंपोर्ट",
@@ -1522,9 +1525,6 @@
       "a-capped-section": "क्लिपिंग तल: स्टेंसिल कैप",
       "decals-on-a-surface": "चयन (रेकास्ट)",
       "sculpt-a-sphere": "चयन (रेकास्ट)",
-      "a-video-on-a-screen": "लाइव वीडियो textures",
-      "the-webcam-as-a-texture": "लाइव वीडियो textures",
-      "four-ways-to-blend": "हर ब्लेंडिंग मोड",
       "avif-textures": "अन्य सोर्स इम्पोर्टर: AVIF इमेज",
       "object-space-normals": "ऑब्जेक्ट-स्पेस नॉर्मल मैप",
       "a-bumpy-surface": "बम्प, डिस्प्लेसमेंट और पैरालैक्स मैप",
@@ -1595,7 +1595,6 @@
       "a-medical-scan": "वॉल्यूम रेंडरिंग",
       "a-city-from-3d-tiles": "3D Tiles इनपुट",
       "rendering-in-a-worker": "OffscreenCanvas worker रेंडरिंग",
-      "a-video-panorama": "लाइव वीडियो textures",
       "an-atmospheric-sky": "आकाश मॉडल",
       "chrome-in-a-room": "एनवायरनमेंट लाइटिंग (IBL)",
       "lit-by-an-hdr-image": "एनवायरनमेंट लाइटिंग (IBL)",
@@ -1611,8 +1610,6 @@
       "reflections-from-the-screen": "स्क्रीन-स्पेस परावर्तन",
       "an-ocean": "texture में रेंडर: पानी का परावर्तन और अपवर्तन",
       "a-raging-sea": "कस्टम शेडर सामग्री",
-      "a-town-in-the-fog": "कोहरा",
-      "fog-on-the-ground": "कोहरा: ऊँचाई कोहरा",
       "fog-that-scatters-light": "वॉल्यूमेट्रिक कोहरा और प्रकाश किरणें",
       "a-cloud-in-a-box": "वॉल्यूम रेंडरिंग",
       "a-fire-in-a-volume": "वॉल्यूम रेंडरिंग",

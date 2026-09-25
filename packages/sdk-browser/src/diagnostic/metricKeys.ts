@@ -68,6 +68,7 @@ export const BACKEND_METRIC_KEYS = [
   'textureLevelsDecoded',
   'textureLevelCacheBytes',
   'textureScratchBuilds',
+  'textureLiveBytes',
   'lightsActive',
   'lightsSampled',
   'shadowsUpdated',
@@ -86,6 +87,8 @@ export const BACKEND_METRIC_KEYS = [
   'shadowWaitMs',
   'gpuLightListsMs',
   'gpuShadowsMs',
+  'gpuShadowCullMs',
+  'gpuShadowRasterMs',
   'gpuLightingMs',
 ] as const;
 

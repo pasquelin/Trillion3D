@@ -3,7 +3,7 @@ import { createRenderEncoder } from '../pages/render/encoder.ts';
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from '../../visibility/buffer.ts';
 import { UNIFORM_STRIDE } from '../blend/uniforms.ts';
-import { ROW_INDEX_WORDS } from '../row/pageRow.ts';
+import { ROW_INDEX_WORDS, ROW_LINE_WIDTH_WORD } from '../row/pageRow.ts';
 import { FALLBACK_CLUSTER_PAGE, FALLBACK_WIREFRAME } from '../pages/prepare/shaders.ts';
 import {
   bindGroupFor,
@@ -20,7 +20,8 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, run } = rt,
     { rows } = rt.layout,
     { uniformPacked, uniformBuffer } = gpu,
-    [width, height] = gpu.targetSize;
+    [width, height] = gpu.targetSize,
+    pixelRatio = rt.setup.pixelRatio();
   const packedInts = new Uint32Array(
     uniformPacked.buffer,
     uniformPacked.byteOffset,
@@ -44,6 +45,11 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
       (run.diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) |
       (rec.geometryPage ? FALLBACK_CLUSTER_PAGE : 0);
     packedInts[base + 39] = clusterHash(rec.clusterId);
+    // A line page widens on screen like in every raster (`lineClip`); zero draws triangles.
+    uniformPacked[base + 40] = rows.pageTableFloats![row * fallbackWords + ROW_LINE_WIDTH_WORD];
+    uniformPacked[base + 41] = pixelRatio;
+    uniformPacked[base + 42] = width;
+    uniformPacked[base + 43] = height;
   }
   if (rows.packedCount && uniformBuffer)
     device.queue.writeBuffer(

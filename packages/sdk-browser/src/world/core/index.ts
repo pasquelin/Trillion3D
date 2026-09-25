@@ -19,6 +19,7 @@ export type {
 } from '../saved/format.ts';
 export type { WorldFrameMetrics } from './worldFrames.ts';
 export { Scene } from './scene.ts';
+export type { Fog } from './sceneFog.ts';
 export { LoadedModel } from './loadedModel.ts';
 export type { ModelRecord } from './loadedModel.ts';
 export type { WorldControls } from './worldCamera.ts';

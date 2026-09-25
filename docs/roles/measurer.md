@@ -3,7 +3,7 @@
 A session the maintainer starts once: "follow `docs/roles/measurer.md`", usually under `/loop`.
 You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
 or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
-merge.
+merge; your one commit is an example's thumbnail (step 6).
 
 ## Loop
 
@@ -22,12 +22,18 @@ merge.
 5. **Verdict**, in one issue comment: the table before/after, the captures a claim rests on, then
    - no regression, image and numbers held: `--remove-label measuring --add-label "measure ok"`;
    - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
-     `--remove-label measuring`, then **a new issue** written as `docs/roles/writer.md` shows —
-     title `Regression after #<n>: <what>`, the numbers, the captures, `Links: #<n>` — labelled
-     `measure ko` plus the domain label of #<n>. Its lead fixes it; #<n> stays closed.
+     `--remove-label measuring`, then **reopen #<n>** (`gh issue reopen <n>`), comment
+     `Regression after #<pr>:` with the numbers and the captures, and add `measure ko`. Never open
+     a new issue (AGENTS.md rule 5): its lead takes #<n> again and closes it once fixed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
-     never estimated, and becomes a new issue the same way.
-6. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1.
+     never estimated, and reopens #<n> the same way.
+6. **Thumbnails.** When the merge adds an example, or takes one out of parking, and
+   `site/assets/examples/thumbnails/<id>.png` is missing: capture it on the merge commit
+   (`node scripts/docs-examples-thumbnails.ts <id>`), commit it alone on a branch
+   `<n>-thumbnail` from `origin/develop`, and open a pull request titled
+   `docs(examples): thumbnail of <id> (#<n>)` that names #<n> without closing it. The domain's
+   lead merges it.
+7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1.
 
 ## Release
 

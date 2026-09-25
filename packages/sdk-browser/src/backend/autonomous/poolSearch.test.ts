@@ -81,7 +81,7 @@ test('a refinement holds the ancestors it replaces beside their pages, then come
 
 test('a public scene whose coarsest cut overflows a small pool holds the threshold, and lets it go', () => {
   // Seen from inside its bounds, the scene refines pages whose parent reaches the near plane at
-  // every threshold: at 256 KiB, no threshold brings its cut under the 34 slots.
+  // every threshold: in a pool of one slot per root page, no threshold brings its cut under it.
   const scene = publicScene(fileURLToPath(new URL(SCENE, import.meta.url)));
   const { pool, image, frame, drawn } = mount(512 * 1024 * 1024, { ...scene, rootFallback: true });
   const sequence = (bytes: number, images = 16) => {
@@ -102,7 +102,7 @@ test('a public scene whose coarsest cut overflows a small pool holds the thresho
     largest = Math.max(...pages.map((page) => scene.bytes(page.url))),
     roots = pages.filter((page) => page.parentError == null).length,
     fits = (drawn() + roots) * largest;
-  const small = sequence(256 * 1024),
+  const small = sequence(roots * largest),
     top = small[0];
   assert.ok(top > 1 && small.every((threshold) => threshold === top), `${small}`);
   assert.equal(pool.clamp, 'root-cover', 'limited by what no threshold coarsens');

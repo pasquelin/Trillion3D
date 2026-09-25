@@ -64,9 +64,7 @@
     {
       "id": "colours-on-the-vertices",
       "theme": "geometry",
-      "file": "examples/colours-on-the-vertices.html",
-      "status": "waiting-engine",
-      "issue": 347
+      "file": "examples/colours-on-the-vertices.html"
     },
     {
       "id": "uvs-of-every-shape",
@@ -275,23 +273,17 @@
     {
       "id": "a-video-on-a-screen",
       "theme": "materials",
-      "file": "examples/a-video-on-a-screen.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/a-video-on-a-screen.html"
     },
     {
       "id": "the-webcam-as-a-texture",
       "theme": "materials",
-      "file": "examples/the-webcam-as-a-texture.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/the-webcam-as-a-texture.html"
     },
     {
       "id": "four-ways-to-blend",
       "theme": "materials",
-      "file": "examples/four-ways-to-blend.html",
-      "status": "waiting-engine",
-      "issue": 346
+      "file": "examples/four-ways-to-blend.html"
     },
     {
       "id": "toon-shading",
@@ -927,6 +919,11 @@
       "file": "examples/detail-by-pixel-error.html"
     },
     {
+      "id": "watch-a-world-load",
+      "theme": "streaming",
+      "file": "examples/watch-a-world-load.html"
+    },
+    {
       "id": "ten-thousand-objects",
       "theme": "streaming",
       "file": "examples/ten-thousand-objects.html"
@@ -981,9 +978,7 @@
     {
       "id": "a-video-panorama",
       "theme": "environment",
-      "file": "examples/a-video-panorama.html",
-      "status": "waiting-engine",
-      "issue": 362
+      "file": "examples/a-video-panorama.html"
     },
     {
       "id": "an-atmospheric-sky",
@@ -1078,14 +1073,13 @@
     {
       "id": "a-town-in-the-fog",
       "theme": "environment",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-town-in-the-fog.html"
     },
     {
       "id": "fog-on-the-ground",
       "theme": "environment",
       "file": "",
-      "status": "needs-engine"
+      "status": "buildable"
     },
     {
       "id": "fog-that-scatters-light",
@@ -1434,7 +1428,9 @@
     {
       "id": "floating-crates",
       "theme": "physics",
-      "file": "examples/floating-crates.html"
+      "file": "examples/floating-crates.html",
+      "status": "waiting-engine",
+      "issue": 573
     },
     {
       "id": "ten-thousand-bodies",
@@ -1473,6 +1469,11 @@
       "id": "hinges-and-joints",
       "theme": "physics",
       "file": "examples/hinges-and-joints.html"
+    },
+    {
+      "id": "gears-and-pulleys",
+      "theme": "physics",
+      "file": "examples/gears-and-pulleys.html"
     },
     {
       "id": "walk-with-collisions",

@@ -7,8 +7,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { GraphNode } from './node.ts';
-import { GraphGroup, GraphInstancedMesh, GraphMesh } from './mesh.ts';
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { GraphInstancedMesh, GraphMesh } from './mesh.ts';
 import { GraphCamera } from './camera.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
 import { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } from './attributes.ts';
@@ -18,7 +18,7 @@ import { GraphTexture } from './texture.ts';
 import { hookHostNode } from '../scene/hooks.ts';
 
 test('a posed chain resolves to the reference world matrices, aim and decomposition included', () => {
-  const [a, b, c] = [new GraphGroup(), new GraphNode(), new GraphCamera({ fov: 47, aspect: 1.6 })];
+  const [a, b, c] = [new Group(), new Object3D(), new GraphCamera({ fov: 47, aspect: 1.6 })];
   const [ta, tb, tc] = [
     new THREE.Group(),
     new THREE.Object3D(),
@@ -45,17 +45,28 @@ test('a posed chain resolves to the reference world matrices, aim and decomposit
     q,
     new THREE.Vector3(-2, 1.5, 0.25),
   );
-  const [n, tn] = [new GraphNode(), new THREE.Object3D()];
+  const [n, tn] = [new Object3D(), new THREE.Object3D()];
   n.applyMatrix4({ elements: m.elements });
   tn.applyMatrix4(m);
-  const numbers = (node: GraphNode | THREE.Object3D) =>
+  const numbers = (node: Object3D | THREE.Object3D) =>
     [node.position, node.quaternion, node.scale].flatMap((v) => [v.x, v.y, v.z]);
   assert.deepEqual(numbers(n), numbers(tn));
   assert.equal(n.quaternion.w, tn.quaternion.w);
 });
 
+test('a rotation premultiplied by another turns as the reference product', () => {
+  const [q, p] = [new Object3D().quaternion, new Object3D().quaternion];
+  const tq = new THREE.Quaternion(0.1, 0.7, -0.2, 0.6).normalize();
+  const tp = new THREE.Quaternion(-0.4, 0.3, 0.8, 0.2).normalize();
+  q.copy(tq);
+  p.copy(tp);
+  q.premultiply(p);
+  tq.premultiply(tp);
+  assert.deepEqual([q.x, q.y, q.z, q.w], tq.toArray());
+});
+
 test('angles and quaternion follow each other, and a watch hears either face', () => {
-  const node = new GraphNode(),
+  const node = new Object3D(),
     reference = new THREE.Object3D();
   node.rotation.set(0.3, -1.1, 2.4);
   reference.rotation.set(0.3, -1.1, 2.4);

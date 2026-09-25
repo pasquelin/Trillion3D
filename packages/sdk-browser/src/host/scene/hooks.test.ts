@@ -12,7 +12,7 @@ import type { WriteRevision } from './hookCore.ts';
 const mark = (): WriteRevision => ({ revision: 0 });
 
 function hooked() {
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   const mesh = G.mesh();
   parent.add(mesh);
   const revision = mark();
@@ -52,7 +52,7 @@ test('a vector the host kept from before the hook still drives the node, and is 
   hookHostNode(mesh, revision);
   kept.x = 5;
   kept.fromArray([5, 6, 7]);
-  assert.equal(revision.revision, 3, 'each write through the kept object bumps');
+  assert.equal(revision.revision, 2, 'each write through the kept object bumps');
   assert.deepEqual(G.xyz(mesh.position), [5, 6, 7], 'the node reads what was written');
   assert.deepEqual(G.xyz(kept), [5, 6, 7], 'and the kept object reads the node');
 });
@@ -112,6 +112,6 @@ test('the hooked fields read back what was written, for the host and for the ref
   mesh.updateMatrix();
   twin.updateMatrix();
   assert.deepEqual(mesh.matrix.elements, twin.matrix.elements, 'the same composed matrix');
-  assert.ok(mesh.position instanceof G.GraphVector);
+  assert.ok(mesh.position instanceof G.Vector3);
   assert.deepEqual(G.xyz(mesh.clone().position), [1, 2, 3], 'a clone copies through the accessors');
 });

@@ -360,6 +360,22 @@
       "up": "ARRIBA"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Arrastra para mirar alrededor. Elige la niebla, su alcance y su color.",
+    "controls": {
+      "fog": "Niebla",
+      "reach": "Alcance",
+      "height": "Altura",
+      "colour": "Color"
+    },
+    "choices": {
+      "fog": {
+        "distance": "distancia",
+        "thick": "espesa",
+        "ground": "a ras de suelo"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Arrastra para mirar alrededor. Las cuentas viajan por el tubo.",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Pulsa Jugar, luego corre con W A S D y salta con Espacio.",
+    "banner": "Pulsa Jugar, luego corre con W A S D y salta con Espacio. Suelta pronto: sobre la piedra te deslizas un poco antes de parar.",
     "controls": {
       "keys": "El control de personaje del motor: Jugar en el menú captura el ratón para mirar, W A S D para correr (Z Q S D en AZERTY), Mayús para esprintar, Espacio para saltar, Esc libera el ratón. La página añade R para correr otra vez, M para silenciar.",
       "look": "Mirar",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} orbes · R para correr otra vez",
       "muted": "M silencio",
       "sound": "M sonido"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "Mira cómo se llena la barra mientras llega el mundo. Pulsa Cargar de nuevo para verlo desde el primer byte.",
+    "controls": {
+      "loadAgain": "Cargar de nuevo"
+    },
+    "readouts": {
+      "phase": "Paso",
+      "bytes": "Bytes",
+      "pages": "Primeras páginas"
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md",
+      "bytes": "leyendo bytes",
+      "manifest": "manifiesto leído",
+      "tables": "tablas de la escena leídas",
+      "resources": "archivos de la escena",
+      "pages": "primeras páginas",
+      "ready": "listo"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas.",
+    "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas y suelta las teclas sobre el hielo para deslizarte.",
     "controls": {
       "pushStrength": "Fuerza de empuje (N)",
       "platformSpeed": "Velocidad de la plataforma",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "Uniones",
       "broken": "Rotas"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Cambia la velocidad del mecanismo, sube el ascensor y echa pesos en el cubo para levantar el contrapeso.",
+    "controls": {
+      "speed": "Velocidad del mecanismo (rad/s)",
+      "raiseLift": "Subir el ascensor",
+      "addWeight": "Soltar un peso",
+      "emptyBucket": "Vaciar el cubo"
+    },
+    "readouts": {
+      "lift": "Ascensor",
+      "load": "Pesos",
+      "rope": "Cuerda recorrida"
     }
   }
 }

@@ -218,6 +218,7 @@
       "observatory-streamed": "Потоковые кластеры",
       "memory-on-a-budget": "Бюджет памяти",
       "detail-by-pixel-error": "Детализация по пиксельной ошибке",
+      "watch-a-world-load": "Смотреть, как загружается мир",
       "ten-thousand-objects": "Десять тысяч объектов",
       "compressed-textures": "Сжатые текстуры",
       "what-hides-what": "Что скрывает что",
@@ -312,6 +313,7 @@
       "soft-bodies": "Мягкие тела",
       "rolling-on-terrain": "Катимся по рельефу",
       "hinges-and-joints": "Шарниры и соединения",
+      "gears-and-pulleys": "Шестерни и блоки",
       "walk-with-collisions": "Ходьба со столкновениями",
       "drive-a-car": "Управляем машиной",
       "a-room-in-vr": "Комната в VR",
@@ -325,8 +327,8 @@
       "a-walker-among-balls": "Ходок среди мячей"
     },
     "missing": {
-      "colours-on-the-vertices": "цвета по вершинам в WebGPU",
       "dashed-lines": "пунктирные линии",
+      "floating-crates": "геометрия, перезаписываемая в каждом кадре",
       "thick-lines": "широкие линии",
       "a-line-that-draws-itself": "диапазон отрисовки геометрии",
       "shapes-from-an-svg": "импорт путей SVG",
@@ -339,9 +341,6 @@
       "a-capped-section": "плоскости отсечения: крышки через трафарет",
       "decals-on-a-surface": "выбор лучом (raycast)",
       "sculpt-a-sphere": "выбор лучом (raycast)",
-      "a-video-on-a-screen": "текстуры живого видео",
-      "the-webcam-as-a-texture": "текстуры живого видео",
-      "four-ways-to-blend": "все режимы смешивания",
       "avif-textures": "другие импортёры: изображения AVIF",
       "object-space-normals": "карты нормалей в пространстве объекта",
       "a-bumpy-surface": "карты рельефа, смещения и параллакса",
@@ -412,7 +411,6 @@
       "a-medical-scan": "объёмный рендер",
       "a-city-from-3d-tiles": "загрузка 3D Tiles",
       "rendering-in-a-worker": "рендер в воркере (OffscreenCanvas)",
-      "a-video-panorama": "текстуры живого видео",
       "an-atmospheric-sky": "модель неба",
       "chrome-in-a-room": "освещение окружением (IBL)",
       "lit-by-an-hdr-image": "освещение окружением (IBL)",
@@ -428,8 +426,6 @@
       "reflections-from-the-screen": "отражения в экранном пространстве",
       "an-ocean": "рендер в текстуру: отражение и преломление воды",
       "a-raging-sea": "материалы со своим шейдером",
-      "a-town-in-the-fog": "туман",
-      "fog-on-the-ground": "туман: туман по высоте",
       "fog-that-scatters-light": "объёмный туман и лучи света",
       "a-cloud-in-a-box": "объёмный рендер",
       "a-fire-in-a-volume": "объёмный рендер",
@@ -1081,7 +1077,8 @@
           "<code>anchor</code> — точка, где соединяются тела, а <code>axis</code> — направление оси или направляющей; оба в мировых координатах и читаются при создании соединения.",
           "<code>limits</code> останавливает соединение: радианы для петли, метры для направляющей. <code>spring</code> делает упор мягким.",
           "<code>motor</code> доводит петлю или направляющую до скорости или положения. Меняйте <code>joint.motor</code> в любой момент.",
-          "<code>breakForce</code> — усилие в ньютонах, после которого соединение рвётся: <code>joint.broken</code> становится true, и вызывается <code>joint.on('break', …)</code>."
+          "<code>breakForce</code> — усилие в ньютонах, после которого соединение рвётся: <code>joint.broken</code> становится true, и вызывается <code>joint.on('break', …)</code>.",
+          "Продвинутые соединения связывают движения: <code>joint.gear(a, b, { ratio })</code> вращает два колеса на петлях как одну передачу, <code>joint.rackAndPinion</code> превращает вращение в скольжение, <code>joint.pulley(a, b, { over })</code> вешает два груза на одну верёвку, <code>joint.path(a, b, { path })</code> держит вагонетку на колее, а <code>swingTwist</code> и <code>sixDof</code> делают плечи и свои соединения."
         ],
         "tryIt": "Откройте дверь и ящик, затем сбросьте камень на мост. Уменьшите прочность моста и постройте его заново: он сломается под собственным весом."
       },

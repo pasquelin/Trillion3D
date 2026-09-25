@@ -7,8 +7,6 @@ import {
   createExactPagesRequestData,
   createExactPagesResidency,
   DEFAULT_CLEAR_COLOR,
-  baseCapabilities,
-  CONTRACT_LIGHTS_UNSUPPORTED,
   contractLightingApi,
   installLighting,
   graphBackground,
@@ -20,6 +18,7 @@ import {
   type BackendFactory,
   type CameraMotion,
 } from './engine.ts';
+import { baseCapabilities, CONTRACT_LIGHTS_UNSUPPORTED } from '../capabilities.ts';
 import { createExactPagesMetrics } from './metrics.ts';
 import { createExactPagesAttachment, disposePageGeometry, pageIndexBuffers } from './attachment.ts';
 import { createExactPagesMaterials } from './materials.ts';

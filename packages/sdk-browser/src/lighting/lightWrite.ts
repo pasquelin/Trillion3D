@@ -90,7 +90,9 @@ function writeRect(light: GraphRectLight, source: SceneLight) {
   const [bx, by, bz] = [-normal[0], -normal[1], -normal[2]];
   // The basis (across, up, back), columns of a rotation: up = back × across.
   const [ux, uy, uz] = [by * az - bz * ay, bz * ax - bx * az, bx * ay - by * ax];
-  light.quaternion.setFromRotationMatrix([ax, ay, az, 0, ux, uy, uz, 0, bx, by, bz, 0, 0, 0, 0, 1]);
+  light.quaternion.setFromRotationMatrix({
+    elements: [ax, ay, az, 0, ux, uy, uz, 0, bx, by, bz, 0, 0, 0, 0, 1],
+  });
   [light.width, light.height] = source.size!;
   light.distance = source.range!;
 }

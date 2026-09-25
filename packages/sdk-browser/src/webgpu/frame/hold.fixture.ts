@@ -1,7 +1,7 @@
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
-import { CPU_STEP_NAMES } from '../pages/render/cpuSteps.ts';
+import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -40,7 +40,6 @@ export function settledRt() {
     blendSubmittedTriangles: 0,
     blendFrustumRejected: 0,
     occluderSignature: 0,
-    budgetPixelError: 0,
   };
   const rows = {
     rowsChanged: false,
