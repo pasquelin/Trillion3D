@@ -7750,6 +7750,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/gpu/shadow/batchBudget.ts",
         "packages/sdk-browser/src/gpu/shadow/cull.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeShadowBatches.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/casters.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
         "packages/sdk-browser/src/webgpu/shadow/regions.test.ts",
