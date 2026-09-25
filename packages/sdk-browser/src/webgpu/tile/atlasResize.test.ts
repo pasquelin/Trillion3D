@@ -49,7 +49,7 @@ test('shrinking the pool keeps surviving layers in one copy, slot for slot, and 
   assert.equal(destroyed(), 1, 'the old pool is destroyed');
   assert.equal(evicted, 5, 'the five tiles of the vanished layer: nothing free for them');
   assert.equal(atlas.pools[0].resident, TILES_PER_LAYER);
-  assert.deepEqual(copies, [
+  assert.deepEqual(copies(), [
     { from: undefined, to: undefined, size: [POOL_LAYER_SIDE, POOL_LAYER_SIDE, 1] },
   ]);
   // Survivors have not moved: the first streamed tile is still served, slot 2.
@@ -83,8 +83,8 @@ test('a tile from a vanished layer is moved into a free slot — queues first �
   assert.equal(result.pool.resident, 4);
   // Queue first (slot 0), then the most looked-at (slot 1), then the old one (slot 2).
   assert.deepEqual(calls, ['tail 1 → 0,0,0', 'tile 7 → 1,0,0', 'tile 6 → 2,0,0']);
-  assert.equal(copies.length, 1 + 3, 'the shared layer, then one cell per moved tile');
-  assert.deepEqual(copies[1], {
+  assert.equal(copies().length, 1 + 3, 'the shared layer, then one cell per moved tile');
+  assert.deepEqual(copies()[1], {
     // Slot 950 = layer 1, row 1, column 20.
     from: [20 * TILE_PITCH, TILE_PITCH, 1],
     to: [0, 0, 0],
@@ -115,7 +115,7 @@ test('growing the pool keeps the resident count, and a pool full for the view re
   assert.equal(atlas.roomFor(0, 12), true);
   assert.equal(atlas.resize(gpu, lossless(2)).evicted, 0, 'growing evicts nothing');
   assert.equal(atlas.pools[0].resident, TILES_PER_LAYER, 'the count survives adoption');
-  assert.equal(copies.length, 1);
+  assert.equal(copies().length, 1);
   assert.equal(atlas.roomFor(0, 11), true, 'a free layer');
 });
 

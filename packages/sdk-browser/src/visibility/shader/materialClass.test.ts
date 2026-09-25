@@ -15,7 +15,7 @@ import {
   FLAG_MASK,
   SHADE_SHADER,
 } from '../buffer.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts';
 import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts';
 import { createWebgpuShadePipelines } from '../../webgpu/visibility/pipelines.ts';
@@ -93,19 +93,12 @@ test('the resolve trusts the raster that kept the pixel: no second cutout', () =
 });
 
 test('the resolve compiles one pipeline per class under equal depth, after the depth export', async () => {
-  installGpuGlobals();
-  const pipelines: Array<{
+  const { device, renderPipelines } = fakeDevice();
+  const pipelines = renderPipelines as unknown as Array<{
     vertex: { constants?: Record<string, number> };
     fragment: { entryPoint: string; constants?: Record<string, number>; targets: unknown[] };
     depthStencil: { depthCompare: string; depthWriteEnabled: boolean; format: string };
-  }> = [];
-  const device = {
-    createBindGroupLayout: (desc: unknown) => desc,
-    createPipelineLayout: () => ({}),
-    createRenderPipeline: (desc: (typeof pipelines)[number]) => (pipelines.push(desc), desc),
-    pushErrorScope() {},
-    popErrorScope: async () => null,
-  } as unknown as GPUDevice;
+  }>;
   const made = await createWebgpuShadePipelines(device, {} as GPUShaderModule, [0, 5]);
   assert.equal(pipelines.length, 3);
   const [depth, first, second] = pipelines;
@@ -123,7 +116,7 @@ test('the resolve compiles one pipeline per class under equal depth, after the d
     assert.equal(pipeline.depthStencil.depthCompare, 'equal');
     assert.equal(pipeline.depthStencil.depthWriteEnabled, false);
     assert.equal(pipeline.depthStencil.format, depth.depthStencil.format);
-    assert.equal(made.shadePipelines.get(key), pipeline);
+    assert.equal(made.shadePipelines.get(key), pipeline as unknown as GPURenderPipeline);
   }
 });
 
