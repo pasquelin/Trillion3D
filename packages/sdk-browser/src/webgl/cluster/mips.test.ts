@@ -9,9 +9,7 @@ import { WebglClusterTextures } from './textures.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { createSceneDraw } from './sceneDraw.ts';
-import { createTestContext } from '../core/testContext.fixture.ts';
-import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
+import { drawSceneOnce, texturedTriangle } from './sceneFrame.fixture.ts';
 
 /** A WebGL2 context that records level-0 uploads, box filters, draws and the reduction's rule. */
 function context() {
@@ -78,23 +76,13 @@ test('a chain is reduced by the coverage rule of the surfaces the frame draws', 
 // census reads it: a hidden opaque reader keeps the chain of a drawn masked one plain.
 test('a hidden mesh still reads its map for the mip rule', () => {
   const map = new G.GraphTexture({ width: 4, height: 4 } as TexImageSource);
-  const geometry = new G.Geometry().setIndex([0, 1, 2]);
-  for (const name of ['position', 'normal', 'uv'])
-    geometry.setAttribute(name, G.floatAttribute(new Float32Array(9), name === 'uv' ? 2 : 3));
+  const geometry = texturedTriangle();
   const hidden = G.mesh(geometry, G.standardSurface({ map }));
   hidden.visible = false;
   const scene = new G.GraphScene();
   scene.add(G.mesh(geometry, G.standardSurface({ map, alphaTest: 0.5 })), hidden);
-  // The mip reducer saves the viewport and the colour mask it restores.
-  const answer = (name: string) =>
-    name === 'COLOR_WRITEMASK' ? [true, true, true, true] : new Int32Array([0, 0, 8, 4]);
-  const context = createTestContext({ answers: { getParameter: answer } });
-  const draw = createSceneDraw(context.gl, scene);
-  draw.render({} as HostCamera);
-  const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
-  draw.drawHostGeometry(createHostDrawCamera(), output);
+  const context = drawSceneOnce(scene);
   const weighted = ([at]: unknown[]) => (at as { uniform: string }).uniform === 'weighted';
   const rules = context.of('uniform1i').filter(weighted);
   assert.deepEqual(rules, [[{ uniform: 'weighted' }, 0]], 'plain: the hidden reader is opaque');
-  draw.dispose();
 });
