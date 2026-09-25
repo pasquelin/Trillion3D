@@ -24,7 +24,7 @@ import { dirname, join, resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
-import { serverPort, startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
+import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { readBounds } from './page.ts';
 import { imageDiff, resume } from './summary.ts';
 import { benchLights } from './lamps.ts';
@@ -88,13 +88,12 @@ async function main() {
   };
 
   await recordInputs(report, sides);
-  const server = await startServer({
+  const { server, port } = await startServer({
     port: settings.port,
     mounts,
     captures,
     isolation: settings.isolation,
   });
-  const port = serverPort(server);
   report.settings = { ...settings, port };
   // Fresh browser per series, closed immediately after. A large scene leaves several hundred MB
   // in Chromium GPU process; closing page does not release them, causing 3rd series to fail
