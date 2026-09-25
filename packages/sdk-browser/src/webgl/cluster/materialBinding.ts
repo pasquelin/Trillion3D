@@ -89,6 +89,7 @@ export function bindClusterMaterial(
     mat.roughnessMap === mat.metalnessMap &&
     mat.roughnessMap.channel === mat.metalnessMap.channel;
   let mapMask = 0;
+  textures.file(material);
   for (let unit = 0; unit < MAPS.length; unit++) {
     const texture = MAPS[unit] === 'aoMap' ? aoMap : mat[MAPS[unit]];
     if (texture) mapMask |= 1 << unit;
@@ -97,6 +98,7 @@ export function bindClusterMaterial(
       sharedMetalRough && unit === 2 ? undefined : texture,
       texture?.colorSpace === 'srgb',
       unit === 3 ? [128, 128, 255, 255] : undefined,
+      MAPS[unit] === 'map' || MAPS[unit] === 'emissiveMap',
     );
     if (!texture || (sharedMetalRough && unit === 2)) continue;
     matrices.set(MAP_UNIFORMS[unit], texture.transform);

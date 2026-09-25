@@ -37,7 +37,7 @@ export type {
   DiagnosticObserver,
 } from '../../sdk-browser/src/diagnostic/channel.ts';
 export { createGpuPageCache, httpPageSource } from '../../sdk-browser/src/gpu/page/pages.ts';
-export { createPageStreamer } from '../../sdk-browser/src/streaming/pages.ts';
+export { createPageStreamer } from '../../sdk-browser/src/streaming/pageStreamer.ts';
 export type { DecodedGeometryPage } from '../../sdk-browser/src/page/decode/geometryPage.ts';
 export {
   DEFAULT_PHYSICS_BUDGET,
@@ -109,7 +109,11 @@ export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.
 export type { HostDrawCamera, HostCamera } from '../../sdk-browser/src/camera/world.ts';
 export type { HostDrawOutput } from '../../sdk-browser/src/webgl/core/renderTarget.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
-export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
+export type {
+  HostRetentionDelta,
+  PageStreamerOptions,
+  StreamPage,
+} from '../../sdk-browser/src/streaming/types.ts';
 export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
 export type {
