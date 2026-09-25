@@ -78,59 +78,16 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       dropped: 'hi-z',
     });
   }
-  let rasterPipelines;
+  vis.visModule = visModule;
   try {
     if (!vis.gpuHiz || !vis.visBindGroupLayout) throw new Error('HIZ_UNAVAILABLE');
-    rasterPipelines = await createWebgpuVisibilityRasterPipelines(
-      gpuDevice,
-      visModule,
-      vis.visBindGroupLayout,
-      true,
-      variant,
-    );
+    await prepareVisRaster(rt, gpuDevice, true);
   } catch (error) {
     if (isCancelled(rt.signal)) throw error;
     diag.diagnosticFailure('hiz-pipeline-fallback', error);
     dropGpuHiz(rt);
-    rasterPipelines = await createWebgpuVisibilityRasterPipelines(
-      gpuDevice,
-      visModule,
-      vis.visBindGroupLayout!,
-      false,
-      variant,
-    );
+    await prepareVisRaster(rt, gpuDevice, false);
   }
-  ({
-    visPipelineBack: vis.visPipelineBack,
-    visPipelineBackCw: vis.visPipelineBackCw,
-    visPipelineNone: vis.visPipelineNone,
-    visPipelineFront: vis.visPipelineFront,
-    visPipelineFrontCw: vis.visPipelineFrontCw,
-    visHizRestBack: vis.visHizRestBack,
-    visHizRestNone: vis.visHizRestNone,
-    visHizRestFront: vis.visHizRestFront,
-  } = rasterPipelines);
-  vis.visLayerPipelines.length = 0;
-  if (vis.drawLayerSlots > 1)
-    try {
-      vis.visLayerPipelines = await createWebgpuCoplanarLayerPipelines(
-        gpuDevice,
-        visModule,
-        vis.visBindGroupLayout!,
-        !!vis.gpuHiz && !!vis.visHizRestBack,
-        vis.drawLayerSlots,
-        variant,
-      );
-      diag.engineDiagnostic('coplanar-layers-ready', 'Coplanar layers ready', {
-        layers: vis.drawLayerSlots - 1,
-        pipelines: vis.visLayerPipelines.length,
-        biasUnitsPerLayer: depthLayerUnits(1),
-      });
-    } catch (error) {
-      diag.diagnosticFailure('coplanar-layer-pipelines-failed', error);
-      vis.visLayerPipelines = [];
-      vis.drawLayerSlots = 1;
-    }
   // The resolve classes of the scene are known here, from the same fields its rows will carry:
   // one pipeline each, and the material-depth export they all test against.
   const classes = sceneMaterialClasses(rt.setup.allPages, vis.geometryBlocks, vis);
@@ -197,4 +154,43 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   // The transparent occlusion test comes last: it borrows the pyramid, the partition uniform and
   // the compaction verdict buffer, and does not exist without the three.
   await prepareTransparentOcclusion(rt, gpuDevice);
+}
+
+/** The visibility raster pipelines and those of the coplanar layers, with Hi-Z or without: a Hi-Z
+ *  dropped for the frame targets (`targetGrant.ts`) has them made again without it, since its pass
+ *  then writes one target fewer. */
+export async function prepareVisRaster(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, hiz: boolean) {
+  const { vis, diag } = rt,
+    variant = rt.context?.diagnosticGpuVariant;
+  Object.assign(
+    vis,
+    await createWebgpuVisibilityRasterPipelines(
+      gpuDevice,
+      vis.visModule!,
+      vis.visBindGroupLayout!,
+      hiz,
+      variant,
+    ),
+  );
+  vis.visLayerPipelines.length = 0;
+  if (vis.drawLayerSlots > 1)
+    try {
+      vis.visLayerPipelines = await createWebgpuCoplanarLayerPipelines(
+        gpuDevice,
+        vis.visModule!,
+        vis.visBindGroupLayout!,
+        hiz,
+        vis.drawLayerSlots,
+        variant,
+      );
+      diag.engineDiagnostic('coplanar-layers-ready', 'Coplanar layers ready', {
+        layers: vis.drawLayerSlots - 1,
+        pipelines: vis.visLayerPipelines.length,
+        biasUnitsPerLayer: depthLayerUnits(1),
+      });
+    } catch (error) {
+      diag.diagnosticFailure('coplanar-layer-pipelines-failed', error);
+      vis.visLayerPipelines = [];
+      vis.drawLayerSlots = 1;
+    }
 }
