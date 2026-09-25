@@ -38,21 +38,12 @@ jobs:
       deploy: ${{ steps.plan.outputs.deploy }}
       floor: ${{ steps.plan.outputs.floor }}
     steps:
-      # The scene caches are compiled here, by the native compiler, which links the pinned Jolt.
+      # A deploying run compiles the scene caches, with the native compiler that links the pinned
+      # Jolt; a pull request builds the site without them.
       - uses: actions/checkout@v7
         with:
-          submodules: true
+          submodules: ${{ github.event_name != 'pull_request' }}
       - uses: ./.github/actions/node
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: packages/asset-compiler-rust
-      - run: pnpm run build:native
-      # The one published report is no file of git: `bench/runner/publishReport.ts` stages it and
-      # the release `report` holds it (bench/runner/README.md, "Published reports").
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release download report --pattern report.tar.gz --output - | tar -xz -C site/reports
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of
       # site/ (sources .ts/.tsx excluded) and writes index.html, robots.txt and the report.html
@@ -66,6 +57,14 @@ jobs:
           statics=$(git ls-files -- site/examples site/assets site/data site/reports | grep -cEv '\.tsx?$')
           echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
           echo "floor=$((statics + 3))" >> "$GITHUB_OUTPUT"
+      - if: steps.plan.outputs.deploy == 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.plan.outputs.deploy == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/asset-compiler-rust
+      - if: steps.plan.outputs.deploy == 'true'
+        run: pnpm run build:native && pnpm run compile:caches
       # Styles, demo maths, browser engine, workers, portal, API files, scene caches and statics;
       # `--published` adds the audience measurement, which no local or proof build carries.
       - run: node scripts/docs-build.ts --published
