@@ -87,16 +87,17 @@ export function deferredLayoutEntries(
 
 export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
   const fragment = GPUShaderStage.FRAGMENT;
-  return {
-    lighting: device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) }),
-    // The image composed, the view, and the surface flags a depth view is told apart by.
-    composition: device.createBindGroupLayout({
+  const composition = (share: GPUTextureSampleType) =>
+    device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
         { binding: 1, visibility: fragment, buffer: { type: 'uniform' } },
-        { binding: 2, visibility: fragment, texture: { sampleType: 'uint' } },
+        { binding: 2, visibility: fragment, texture: { sampleType: share } },
       ],
-    }),
+    });
+  return {
+    lighting: device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) }),
+    composition: { still: composition('uint'), accumulated: composition('unfilterable-float') },
   };
 }
 

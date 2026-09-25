@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADER,
+  COMPOSE_SHADERS,
   DIRECT_LIGHTING_SHADER,
   UNLIT_LIGHTING_SHADER,
 } from './deferred/shaders.ts';
@@ -23,18 +23,17 @@ test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.
       shader,
       /return vec4f\(fogged\(lit\+ambient\+emissive\.rgb.*,P,view\.display\.yzw\),1\.0\);/,
     );
-  // An unlit or matcap surface (flag 1) is fogged; a diagnostic, normal (flag 3) or depth one
-  // (its own flag, 6) is not.
+  // An unlit or matcap surface (flag 1) is fogged; a diagnostic, normal or depth one (flag 3) is not.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
-    assert.match(shader, /if\(flag==3u\|\|flag==6u\)\{return vec4f\(base\.rgb,1\.0\);\}/);
+    assert.match(shader, /if\(flag==3u\)\{return vec4f\(base\.rgb,1\.0\);\}/);
     assert.match(
       shader,
       /if\(flag==1u\)\{return vec4f\(fogged\(base\.rgb,P,view\.display\.yzw\),1\.0\);\}/,
     );
   }
-  assert.match(SURFACE_SHADE, /select\(select\(3u,6u,model==5u\),1u,model==4u\)/);
+  assert.match(SURFACE_SHADE, /select\(3u,1u,model==4u\)/);
   assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogged/);
-  assert.doesNotMatch(COMPOSE_SHADER, /fogged/);
+  for (const shader of Object.values(COMPOSE_SHADERS)) assert.doesNotMatch(shader, /fogged/);
 });
 
 test('blended and water surfaces, lit or unlit, are fogged from the eye of the blend view', () => {
@@ -56,5 +55,5 @@ test('the WebGL2 program fogs every surface before its display curve, a depth or
   assert.ok(fogAt > 0);
   // A depth material's ramp is written over the fogged colour.
   assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(depthShaded)rgb='));
-  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(toneMapped&&!depthShaded)rgb=toneMap(rgb);'));
+  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(toneMapped)rgb=toneMap(rgb);'));
 });
