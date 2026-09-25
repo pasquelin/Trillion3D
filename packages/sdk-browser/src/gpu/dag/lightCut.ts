@@ -8,6 +8,8 @@ import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
+import { DAG_BINDING } from './shader/bindings.ts';
+import { namedBufferEntries } from '../core/computeBindings.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagLightCut = ReturnType<typeof createDagLightCut>;
@@ -78,8 +80,6 @@ export function createDagLightCut(resources: DagResources) {
     size: DAG_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const bound = [resources.clusters, resources.nodes, uniforms, flags, output, work];
-  bound.push(resources.worlds, frames, resources.pageCones);
   const light = { views: 0, queueCap };
   const view: DagView = {
     ...resources,
@@ -94,7 +94,17 @@ export function createDagLightCut(resources: DagResources) {
     drawnGroupsOffset: layout.drawnGroups * 4,
     bindGroup: device.createBindGroup({
       layout: resources.layout,
-      entries: bound.map((buffer, binding) => ({ binding, resource: { buffer } })),
+      entries: namedBufferEntries(DAG_BINDING, {
+        clusters: { buffer: resources.clusters },
+        nodes: { buffer: resources.nodes },
+        views: { buffer: uniforms },
+        flags: { buffer: flags },
+        out: { buffer: output },
+        work: { buffer: work },
+        worlds: { buffer: resources.worlds },
+        frames: { buffer: frames },
+        cold: { buffer: resources.pageCones },
+      }),
     }),
     repeat: null,
     light,

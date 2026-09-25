@@ -90,8 +90,7 @@ export function createTickResults(
     /** Hands the tick's results to the page, `water` the water's clock after them and its epoch;
      *  false while it holds both buffers. */
     post(
-      steps: number,
-      stepMs: number,
+      { steps, stepMs, stepMaxMs }: { steps: number; stepMs: number; stepMaxMs: number },
       active: number,
       character: () => CharacterReport | null,
       water: { readonly time: number; readonly epoch: number },
@@ -112,6 +111,7 @@ export function createTickResults(
         water: water.time,
         waterEpoch: water.epoch,
         stepMs,
+        stepMaxMs,
         active,
         character: character(),
         vehicles: vehicles(jolt),

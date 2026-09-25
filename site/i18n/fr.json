@@ -324,10 +324,10 @@
       "controllers-in-vr": "Manettes en VR",
       "ar-on-the-table": "AR sur la table",
       "shadows-case-by-case": "Les ombres, cas par cas",
+      "shadows-through-see-through-panes": "Des ombres à travers des vitres",
       "a-walker-among-balls": "Un marcheur parmi les balles"
     },
     "missing": {
-      "dashed-lines": "lignes pointillées",
       "floating-crates": "géométrie réécrite à chaque image",
       "thick-lines": "lignes épaisses",
       "a-line-that-draws-itself": "plage de dessin d’une géométrie",

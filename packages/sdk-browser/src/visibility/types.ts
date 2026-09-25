@@ -57,9 +57,11 @@ export const FLAG_LIT = 1,
   FLAG_TRANSMISSIVE = 16384,
   /** The material reads its vertex colours and the geometry carries some: the base colour is
    *  multiplied by the interpolated vertex colour, as the forward path does. */
-  FLAG_HAS_COLOR = 32768;
-// Bit 65536 is free: it carried wrap of a single map, which each texture's header now carries
-// (`wrapModes.ts`).
+  FLAG_HAS_COLOR = 32768,
+  /** A shadow-only row of a blended cluster (`../webgpu/row/blendCasters.ts`): it writes no
+   *  depth, only the transmittance of its coverage (`PageInfo.blendCoverage`,
+   *  `../gpu/shadow/transmittance.ts`). */
+  FLAG_BLEND_CASTER = 65536;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
@@ -102,6 +104,10 @@ export type VisMaterial = {
   /** Width in CSS pixels the rasters widen a line quad to (`shader/lineWgsl.ts`); absent or
    *  zero on a surface that draws triangles. */
   lineWidth?: number;
+  /** A dashed line's dash and gap along the line, in world units (`shader/lineWgsl.ts`,
+   *  `lineDash`); absent on any other surface. */
+  dashSize?: number;
+  gapSize?: number;
 };
 
 export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };

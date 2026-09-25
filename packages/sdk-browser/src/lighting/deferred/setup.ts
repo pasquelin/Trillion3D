@@ -9,6 +9,8 @@ import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
+import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
+import { SHADOW_TRANSMITTANCE_FORMAT } from '../../gpu/shadow/transmittance.ts';
 
 /**
  * Substitute of the resident proxy: a header of zeros and four words behind it. Presence
@@ -50,6 +52,16 @@ export function deferredLayoutEntries(
       // counted frame. That is what lets the blend pass bind it too. Writable here, where the
       // counters are written; the water composite, which only traces, declares it read-only.
       { binding: SUN_FAR_PROXY_BINDING, visibility: GPUShaderStage.FRAGMENT, buffer: proxy },
+      {
+        binding: CONTRACT_SHADOW_BINDINGS.transmittance,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float' },
+      },
+      {
+        binding: CONTRACT_SHADOW_BINDINGS.translucentDepth,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'depth' },
+      },
     );
   // The shadow pages the resolve reads, recorded for the scheduler: only the opaque resolve asks.
   if (direct && marks)
@@ -58,12 +70,17 @@ export function deferredLayoutEntries(
       visibility: GPUShaderStage.FRAGMENT,
       buffer: { type: 'storage' },
     });
-  // Probe grid and their coefficients: bound only by the bounce program, so a session
-  // without bounce keeps exactly the previous layout.
+  // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
+  // bounce program, so a session without bounce keeps exactly the previous layout.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      {
+        binding: BOUNCE_SURFACE_BINDING,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'read-only-storage' },
+      },
     );
   return entries;
 }
@@ -85,13 +102,11 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
 }
 
 /**
- * Contract substitute resources: an empty tile list, shadow records that hold no light and an
- * empty page table, a request buffer nothing reads back, a one-texel pool, and a probe grid at
- * zero. A device that refuses the real atlas thus keeps valid
- * bindings, and the light simply stays without shadow instead of failing the frame; a frame
- * without bounce reads a grid whose probe count is zero, hence an indirect irradiance of
- * exactly zero. The blend pass borrows the same substitutes: one definition of what an
- * absent resource is worth.
+ * Contract substitute resources: an empty tile list, shadow records with no light and an empty
+ * page table, a request buffer nothing reads, a one-texel pool (the translucent depth too) and
+ * transmittance layer, a probe grid at zero and an empty surface cache. A device that refuses
+ * the real atlas keeps valid bindings, the light simply unshadowed; a frame without bounce reads
+ * zero probes, hence zero indirect light. The blend pass borrows the same substitutes.
  */
 export function createDeferredPlaceholders(device: GPUDevice) {
   const tiles = device.createBuffer({
@@ -117,6 +132,13 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     format: 'depth32float',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
   });
+  // One texel: the shadow read tells it from a real layer by its size, and never reads it.
+  const transmittance = device.createTexture({
+    label: 'Trillion3D empty shadow transmittance',
+    size: [1, 1, 1],
+    format: SHADOW_TRANSMITTANCE_FORMAT,
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  });
   // Shadow-atlas comparison is the engine's: reversed depth, hence `greater`.
   const sampler = device.createSampler({
     label: 'Trillion3D shadow comparison',
@@ -138,6 +160,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
+  // One texel of zero: the water composite binds it while bounce is off, and reads none.
+  const surfaceCache = device.createBuffer({
+    label: 'Trillion3D empty bounce surface cache',
+    size: 16,
+    usage: GPUBufferUsage.STORAGE,
+  });
   // The absent proxy: a header of zeros, which the shader reads as a tree with no node and as
   // an absent distant shadow. Both lighting passes bind the same one, so a session without
   // proxy renders exactly the same image on opaque and on blend.
@@ -151,17 +179,21 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     slices,
     requests,
     atlasView: atlas.createView(),
+    transmittanceView: transmittance.createView(),
     sampler,
     bounceGrid,
     probes,
+    surfaceCache,
     proxy,
     dispose() {
       tiles.destroy();
       slices.destroy();
       requests.destroy();
       atlas.destroy();
+      transmittance.destroy();
       bounceGrid.destroy();
       probes.destroy();
+      surfaceCache.destroy();
       proxy.destroy();
     },
   };
