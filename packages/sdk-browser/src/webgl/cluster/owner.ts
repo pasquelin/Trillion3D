@@ -23,13 +23,10 @@ export class WebglClusterOwner {
     this.renderer = this.display = new WebglClusterRenderer(this.context);
     this.censused = false;
   };
-  /** Whether the maps' readers hold the scene's census; a restored context starts a new one. */
+  /** Whether the maps' readers hold the scene's census; a restored context takes a new one. */
   censused = false;
-  /**
-   * The scene's census of mip readers (#42): every mesh it holds, hidden ones included, filed
-   * once — the census WebGPU takes at prepare over the same meshes, so a hidden opaque reader
-   * keeps a map plain on both paths. A mesh drawn later is filed at its first bind.
-   */
+  /** Files every mesh the scene holds, hidden ones too, as WebGPU's census at prepare (#42): a
+   *  hidden opaque reader keeps a map plain on both paths. A later mesh is filed at its bind. */
   census(meshes: readonly { material: HostMaterials }[]) {
     for (const { material } of meshes) this.display.textures.file(material);
     this.censused = true;
