@@ -35,6 +35,9 @@ const checkBudget = (bytes: number, name: string) => {
 /** A texture budget refused by name before any pool is drawn from it. */
 export const checkTexturePoolBudget = (bytes: number) =>
   checkBudget(bytes, 'INVALID_TEXTURE_POOL_BUDGET');
+/** A geometry budget refused by name before any pool is drawn from it. */
+export const checkGeometryPoolBudget = (bytes: number) =>
+  checkBudget(bytes, 'INVALID_GEOMETRY_POOL_BUDGET');
 
 /**
  * Geometry page-pool slots for a budget in bytes — `r.Nanite.Streaming.
@@ -55,7 +58,7 @@ export function geometryPoolFor(options: {
   limits?: Parameters<typeof pageBufferCap>[0];
 }): GeometryPool {
   const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options;
-  checkBudget(budgetBytes, 'INVALID_GEOMETRY_POOL_BUDGET');
+  checkGeometryPoolBudget(budgetBytes);
   const floor = Math.max(1, options.rootPages);
   let slots = Math.floor(budgetBytes / pageBytes),
     clamp: PoolClamp = null;
