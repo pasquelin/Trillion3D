@@ -120,6 +120,7 @@ test('check-pr-body: the untouched template is refused, a filled one accepted', 
     '- Simplification pass:\n- Correctness review:',
     '- `/simplify`: nothing to change\n- `/code-review`: one fix',
   );
+  assert.notEqual(tooled, verified);
   assert.match(problem(tooled), /no "Simplification pass:" line/);
 });
 
