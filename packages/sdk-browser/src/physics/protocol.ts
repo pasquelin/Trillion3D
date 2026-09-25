@@ -70,6 +70,8 @@ export interface PhysicsResults {
   active: number;
   /** The character after the tick, when it has one and it stepped. */
   character: CharacterReport | null;
+  /** The vehicles after the tick's last step (`vehicleLayout.ts`), or `null` without one. */
+  vehicles: Uint32Array | null;
 }
 
 /**
