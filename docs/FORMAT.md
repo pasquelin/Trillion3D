@@ -213,9 +213,9 @@ instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a 
 row at the world matrix the engine composes for a child of its parent — the same bits a host node
 there would carry, proven against the host loader on `site/assets/examples/ten-thousand-objects`
 (`host/prepared/partition.test.ts`) — and gives it back, parked, when its cell leaves. A page may
-move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's box is
-that parent's box under its current matrix (`boxes.ts`), so the cell is read where its placements
-stand. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
+move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's boxes are
+its parents' boxes under their current matrices (`boxes.ts`), so the cell is read where its
+placements stand, at the distance of its nearest box. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
 diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
 The error target does not shorten it: nothing coarser stands for a cell that is not read (the
 proxy of #23), so an object dropped below the target would be missing from the image, not
@@ -226,14 +226,22 @@ nothing else. Then, before every frame, cells within the reach are
 asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
 leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
 never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
-— one request queue — and placed within the arrival budget (`ARRIVAL_BUDGET_MS`), one cell at
-least per frame. The rows are sized once, when a session opens and before its engines read them,
-for every placement its camera's reach can hold at once (`residentRows`): two cells held together
-are within `2 × 1.5 × reach` of each other, so the largest sum of `meshes` over the cells that close
-to any one cell bounds each mesh's rows — set by the reach and the cells' size, not by the world.
-Nothing grows under a drawing engine: a camera whose reach later outgrows the rows, or parents
-moved so close together that a cell is short of them, asks the session's owner, once, to open it
-again sized for that reach and where the cells stand (the world does). A session no owner
+— one request queue — and placed within the frame's one integration budget, the arrival queue's
+(`ARRIVAL_BUDGET_MS`, `FrameBudget`): its clock starts once per frame, the cells spend from it
+first and the page arrivals drain the rest; the first integration of a frame always goes through.
+The rows are sized once, when a session opens and before its engines read them, for every
+placement its camera's reach can hold at once **wherever the page moves the core parents**
+(`sizing.ts`). A held cell has a box within `1.5 × reach` of the eye; the boxes one parent carries
+move together, so those held at once are close in that parent's own frame — centres within
+`(2 × 1.5 × reach + √3 · most · (r₁ + r₂)) / least`, `r` the radius around a box and `least`,
+`most` how far the parent stretches the root's frame (the root's own boxes: a gap within
+`2 × 1.5 × reach`). The largest sum of `meshes` over the cells that close to any one box of a
+parent, summed over the parents and never past every placement, bounds each mesh's rows — set by
+the reach, the cells' size and the parents' count, not by the world or where its parents stand.
+Parents moved together never run the rows short, so they never reopen the session nor leave a
+placement undrawn (CONTRIBUTING.md §Streaming rule 10). Nothing grows under a drawing engine: a
+camera whose reach later outgrows the rows, or a parent scaled below its stretch at opening, asks
+the session's owner, once, to open it again sized for them (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
 asked for within reach are read and placed. A partitioned scene is not
