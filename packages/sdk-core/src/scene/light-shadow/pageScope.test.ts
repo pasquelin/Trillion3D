@@ -10,6 +10,7 @@ import { writeSunSquare } from './sunFaces.ts';
 import { SHADOW_CULL_FLOATS } from './faces.ts';
 import { PAGE_MAPPED, sunFloorLevel, sunPageMetres } from './virtual.ts';
 import { SUN, planFrame, report, sunPages } from './lightShadow.fixture.ts';
+import { dotVector3 } from '../../math/primitives/vector.ts';
 
 /** A sun planned once, its floor drawn: the tests' scene. */
 function sunScene() {
@@ -47,7 +48,7 @@ test('a receiver off screen asks for no page: only what the view reads is mapped
  *  runs it (`packages/sdk-browser/src/gpu/shadow/cullShader.ts`, `keepCaster`). */
 function keeps(volume: Float32Array, center: number[], radius: number) {
   const delta = [0, 1, 2].map((a) => center[a] - volume[a]);
-  const dot = (at: number) => Math.abs(delta.reduce((sum, d, a) => sum + d * volume[at + a], 0));
+  const dot = (at: number) => Math.abs(dotVector3(delta, volume, 0, at));
   const gaps = [dot(8) - volume[11], dot(12) - volume[15], dot(4) - volume[3]];
   return gaps.reduce((sum, gap) => sum + Math.max(0, gap) ** 2, 0) <= radius * radius;
 }

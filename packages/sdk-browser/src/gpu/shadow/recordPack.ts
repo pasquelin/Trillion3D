@@ -12,8 +12,7 @@ import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 
 /** Pages one GPU batch draws: the size of the per-batch buffers. A frame at rest draws every page
- *  it marks, in as many batches as that takes; a moving one draws `SHADOW_BATCHES_MOVING`
- *  (`../../webgpu/pages/render/encodeShadowBatches.ts`). */
+ *  it marks, in as many batches as that takes; a moving one, one batch (`admit.ts`, `frameEnd`). */
 export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
 /** Regions at most in a batch: a page draws its static layer and its moving casters, two at most. */
 export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
