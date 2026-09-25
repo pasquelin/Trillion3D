@@ -123,8 +123,8 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
 /** Whether `geometry` reads `attribute` as its stored numbers, a normalised integer unscaled: a
  *  list a world geometry owns, as the world has always drawn, edged and turned it. A host
  *  geometry's lists are read at the value they stand for, as the host always read them, and so
- *  is a view of an interleaved buffer, as `readPoints` and `spanBox` read it. The drawn positions,
- *  the box and a moved position list are read as stored for every owner, as on develop. */
+ *  is a view of an interleaved buffer, as `readPoints` and `spanBox` read it. Not asked for the drawn
+ *  positions, the box or a moved position list: an owned one is read as stored for every owner. */
 export const readsStored = (
   geometry: Pick<Geometry, '_owner'>,
   attribute: VertexAttribute,

@@ -1,7 +1,7 @@
 /** A geometry's vertices moved by a matrix: what `Geometry.applyMatrix4` writes in place. */
 import type { Matrix4 } from '../math/matrix4.ts';
 import type { Geometry } from './geometry.ts';
-import { readsStored } from './bounds.ts';
+import { readComponent, readsStored } from './bounds.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { transformPointsBatch } from '../../math/batch/points.ts';
 import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
@@ -27,15 +27,13 @@ export function transformVertices(geometry: Pick<Geometry, 'attributes' | '_owne
   if (normal) {
     const n = normalMatrix3(new Float64Array(9), m.elements),
       v = new Float64Array(3),
-      stored = readsStored(geometry, normal);
-    const read = (i: number, c: number) =>
-      stored ? normal.stored(i, c) : normal.getComponent(i, c);
+      stored = readsStored(geometry, normal),
+      read = (i: number, c: number) => readComponent(geometry, normal, i, c);
     for (let i = 0; i < normal.count; i++) {
       applyMatrix3Vector3(v, n, read(i, 0), read(i, 1), read(i, 2));
       normalizeVector3(v);
-      for (let c = 0; c < 3; c++)
-        if (stored) normal.array[i * normal.itemSize + c] = v[c];
-        else normal.setComponent(i, c, v[c]);
+      if (stored) normal.array.set(v, i * normal.itemSize);
+      else normal.setXYZ(i, v[0], v[1], v[2]);
     }
   }
 }

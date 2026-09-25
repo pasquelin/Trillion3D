@@ -117,7 +117,6 @@ test('a normalised position gives its edges as stored in a world geometry, at it
         ),
       ).attributes.position.array,
     );
-  // prettier-ignore
   const world = [0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 0];
   const host = [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
   assert.deepEqual(lines('world', wireframe), world);
