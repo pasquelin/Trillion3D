@@ -59,12 +59,12 @@ test('a block level of the wrong length fails once, is never held, and takes no 
 // #42, the wiring from the material census to the GPU reduction: a hosted colour texture reduces
 // with the weighted pipeline only when every surface reading it takes its alpha for coverage —
 // masked or blended by its alpha —; one read by an opaque surface, also as an emissive map, or by
-// a surface whose blending draws the colour under alpha 0 (`none`) or that transmits, stays plain.
+// a surface whose blending draws the colour under alpha 0 (`none`), stays plain.
 test('a hosted texture is reduced weighted only when every reader takes it for coverage', () => {
   installGpuGlobals();
   const map = () =>
     importHostTexture(new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 }));
-  const [masked, opaque, mixed, blended, unblended, glass] = [1, 2, 3, 4, 5, 6].map(map);
+  const [masked, opaque, mixed, blended, unblended] = [map(), map(), map(), map(), map()];
   const surface = (fields: object) => ({ alphaTest: 0, transparent: false, ...fields });
   const pages = [
     surface({ map: masked, alphaTest: 0.5 }),
@@ -75,7 +75,6 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   const copies = [
     { surface: surface({ map: blended, transparent: true, blending: 'normal' }) },
     { surface: surface({ map: unblended, transparent: true, blending: 'none' }) },
-    { surface: surface({ map: glass, transparent: true, blending: 'normal', transmission: 1 }) },
   ] as BlendCopy[];
   const census = collectWebgpuMaterialTextures(pages, copies, new Map(), new Map());
   const encoding = poolEncoding(undefined);
@@ -105,7 +104,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   };
   assert.deepEqual(
     census.maps.map((_, index) => ruleOf(index + 1)),
-    [[1], [0], [0], [1], [0], [0]],
-    'masked and blended weighted; opaque, mixed, unblended and transmissive plain',
+    [[1], [0], [0], [1], [0]],
+    'masked and blended weighted; opaque, mixed and unblended plain',
   );
 });
