@@ -12,7 +12,7 @@ Fundamental principles and architecture of Trillion3D:
 
 2. Temporal Antialiasing (TAA):
    - The engine uses a fullscreen TAA pass with Halton(2,3) sub-pixel jitter and reprojection accumulation.
-   - \`temporalAntialiasing: true\` (default) eliminates geometric shimmering and reconstructs stippled masked textures.
+   - \`temporalAntialiasing: true\` (default) eliminates geometric shimmering and antialiases the edges of masked (alpha-tested) textures.
    - Disable TAA (\`false\`) strictly for pixel-exact differential benchmarks or raw rasterization measurement.
 
 3. Dynamic Lighting and Shadows (Lumen-class):
