@@ -19,8 +19,10 @@ function context() {
         MAX_TEXTURE_MAX_ANISOTROPY_EXT: 0x84ff,
       }),
       getParameter: () => 16,
+      getShaderParameter: () => true,
+      getProgramParameter: () => true,
       createTexture: () => (calls.created++, {}),
-      texImage2D: () => void calls.uploads++,
+      texImage2D: (_target: number, level: number) => void (level === 0 && calls.uploads++),
       texSubImage2D: () => void calls.inPlace++,
       texParameteri: () => void calls.parameters++,
       texParameterf: (_target: number, name: number, value: number) => {

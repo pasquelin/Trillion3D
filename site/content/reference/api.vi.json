@@ -3222,7 +3222,7 @@
       "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
       "resting": "Camera đứng yên ở lần lập kế hoạch cuối: góc nhìn của nó giống lần trước đó.",
       "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
-      "releaseDeferred": "Khung không lập kế hoạch bóng nào: các hộp đang giữ vào danh sách ngay.",
+      "releaseDeferred": "Khung không lập kế hoạch bóng nào: phần hợp đang giữ vào danh sách ngay.",
       "setPageInvalidation": "Tắt vô hiệu hóa theo trang: một vật chuyển động làm cũ mọi trang của các đèn nó chạm vào. Bật theo mặc định.",
       "pageInvalidation": "Liệu một vật chuyển động chỉ làm cũ các trang mà hộp của nó phủ.",
       "plan": "Lập kế hoạch một khung hình: làm cũ những gì đã di chuyển, đọc báo cáo mới nhất, nhận mọi trang cần vẽ.",

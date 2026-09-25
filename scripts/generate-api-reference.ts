@@ -14,6 +14,9 @@ export const API_FILES = {
   inventory: 'site/data/api-inventory.json',
 } as const;
 
+/** The source files the two are read from: the declarations, the consumers, the generators. */
+export const API_SOURCES = /\.(?:[cm]?[jt]sx?)$/;
+
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 
 const modified = (file: string) => statSync(join(ROOT, file), { throwIfNoEntry: false })?.mtimeMs;
@@ -22,7 +25,7 @@ const modified = (file: string) => statSync(join(ROOT, file), { throwIfNoEntry: 
  *  read, the consumers the inventory names, their generators. */
 function current(): boolean {
   const since = Math.min(...Object.values(API_FILES).map((file) => modified(file) ?? 0));
-  const sources = (repositoryFiles() ?? []).filter((file) => /\.(?:[cm]?[jt]sx?)$/.test(file));
+  const sources = (repositoryFiles() ?? []).filter((file) => API_SOURCES.test(file));
   return since > 0 && sources.every((file) => (modified(file) ?? 0) <= since);
 }
 
