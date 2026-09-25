@@ -7,16 +7,16 @@ export const buildRenderPipeline = (device: GPUDevice, descriptor: GPURenderPipe
     ? device.createRenderPipelineAsync(descriptor)
     : Promise.resolve(device.createRenderPipeline(descriptor));
 
-/** A fullscreen-triangle pipeline on one bind group layout, at the colour targets given. */
+/** A fullscreen-triangle pipeline on one bind group layout or one per group, at the targets given. */
 export function makeFullscreenPipeline(
   device: GPUDevice,
   module: GPUShaderModule,
-  bind: GPUBindGroupLayout,
+  bind: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
   entryPoint: string,
   targets: GPUColorTargetState[],
 ) {
   return buildRenderPipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bind] }),
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bind].flat() }),
     vertex: { module, entryPoint: 'fullscreen' },
     fragment: { module, entryPoint, targets },
     primitive: { topology: 'triangle-list' },

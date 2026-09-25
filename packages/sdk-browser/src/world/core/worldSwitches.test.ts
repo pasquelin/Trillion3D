@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import type { MeasuredWorld } from '../session/explorer.ts';
 import { sessionOptions } from './worldOptions.ts';
 import { worldSwitches } from './worldSwitches.ts';
+import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
 /** An open session that records the switches written into it. */
 function session(draws = true) {
@@ -53,4 +54,24 @@ test('temporal antialiasing reads false on WebGL2 and as the session draws it', 
   assert.equal(switches.temporalAntialiasing, false, 'WebGL2 has none');
   runtime.explorer = session(false).explorer;
   assert.equal(switches.temporalAntialiasing, false);
+});
+
+// #349: `world.effects` is one chain for the world's life, handed to every session it opens; a
+// change of it asks for a frame, and reopens nothing.
+test('the effect chain is given to every session, and a change of it asks for a frame', () => {
+  let renewed = 0,
+    invalidated = 0;
+  const runtime = { explorer: null as MeasuredWorld | null, renew: () => void renewed++ };
+  const switches = worldSwitches(
+    {},
+    () => runtime,
+    { renderer: 'webgpu' },
+    () => void invalidated++,
+  );
+  const chain = switches.held.effects;
+  assert.equal(sessionOptions({}, switches.held).effects, chain);
+  chain.add(effect.bloom());
+  (chain.passes[0] as ReturnType<typeof effect.bloom>).radius = 2;
+  assert.equal(sessionOptions({}, switches.held).effects, chain, 'the same chain on reopen');
+  assert.deepEqual([invalidated, renewed], [2, 0]);
 });
