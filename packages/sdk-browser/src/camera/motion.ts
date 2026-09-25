@@ -24,10 +24,19 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
   if (motion.last && motion.lastBack && motion.lastMs != null) {
     const dt = Math.max((now - motion.lastMs) / 1000, 1e-4);
     for (let axis = 0; axis < 3; axis++) velocity[axis] = (eye[axis] - motion.last[axis]) / dt;
-    // The view's third row is the unit way back: the angle between two of them is the turn.
+    // The view's third row is the unit way back: the angle between two of them is the turn. Read
+    // from their cross and dot products, which is exactly zero for the same way back — its unit
+    // length is only rounded, so an arc cosine would read a still camera as turning.
     const back = motion.lastBack,
-      cos = back[0] * view[2] + back[1] * view[6] + back[2] * view[10];
-    motion.turn = Math.acos(Math.min(1, Math.max(-1, cos))) / dt;
+      x = view[2],
+      y = view[6],
+      z = view[10];
+    const sin = Math.hypot(
+      back[1] * z - back[2] * y,
+      back[2] * x - back[0] * z,
+      back[0] * y - back[1] * x,
+    );
+    motion.turn = Math.atan2(sin, back[0] * x + back[1] * y + back[2] * z) / dt;
   }
   (motion.last ??= new Float64Array(3)).set(eye);
   const back = (motion.lastBack ??= new Float64Array(3));

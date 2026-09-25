@@ -35,6 +35,11 @@ export function createLowerTier(options: {
   };
   return {
     pages,
+    /** Bytes of the tier's tables, read in constant time: its keys, and one 8-byte slot per entry
+     *  of its two lists — bounded by the pool, never the catalogue (#483 rule 6). */
+    get hostBytes() {
+      return named.byteLength + (pages.length + ids.length) * 8;
+    },
     /** True when the last report names this key: a page this tier still wants. */
     has: (key: number) => named.has(key),
     /** A GPU cut's requests: page indices of the packed catalogue. */

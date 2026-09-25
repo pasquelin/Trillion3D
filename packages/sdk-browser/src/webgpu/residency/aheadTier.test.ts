@@ -35,7 +35,7 @@ function banc(slots: number, visible: string[], ahead: string[]) {
   // Readback ids: the camera's pages first, then the ones ahead (`../cut/adoption.ts`).
   const offerAhead = (count: number) =>
     tier.offerIds(next.slice(0, count).map((_, i) => camera.length + i));
-  return { camera, next, tracking, cache, order, want, ensure, offerAhead };
+  return { camera, next, tracking, cache, order, want, ensure, offerAhead, tier };
 }
 
 test('every visible page is admitted before any page ahead, which never evicts one', async () => {
@@ -50,6 +50,16 @@ test('every visible page is admitted before any page ahead, which never evicts o
   b.want([v3]);
   await b.ensure(b.camera, 2, 2);
   assert.ok(b.cache.resident.has('v3') && !b.cache.resident.has('a0'));
+});
+
+test('the tier ahead holds tables for its last report only', () => {
+  const b = banc(8, [], ['a0', 'a1', 'a2', 'a3', 'a4', 'a5']);
+  const empty = b.tier.hostBytes;
+  b.offerAhead(6);
+  const moving = b.tier.hostBytes;
+  assert.ok(moving > empty, `a report's pages are counted (${empty} then ${moving} bytes)`);
+  b.offerAhead(0);
+  assert.ok(b.tier.hostBytes < moving, 'an empty report lets them go');
 });
 
 test('after a stop, the pending set drains to full detail', async () => {
