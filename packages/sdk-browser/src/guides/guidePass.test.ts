@@ -7,7 +7,7 @@ import { createGuideSet } from './guideSet.ts';
 import { createWebgpuGuidePass } from './guidePass.ts';
 import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
-import { GUIDE_UNIFORM_FLOATS, REVERSED_NEAR_PLANE, writeGuideView } from './guideShaders.ts';
+import { GUIDE_UNIFORM_FLOATS, writeGuideView } from './guideShaders.ts';
 import {
   encodeWebgpuGuides,
   guidesMoved,
@@ -62,12 +62,12 @@ test('a world that shows no guide builds nothing and encodes no pass', () => {
   const guides = createGuideSet(),
     pass = createWebgpuGuidePass(device);
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     false,
   );
   guides.lines({ positions: [0, 0, 0, 1, 0, 0] }).setVisible(false);
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     false,
   );
   for (const name of ['createRenderPipeline', 'createBuffer', 'writeBuffer', 'beginRenderPass'])
@@ -80,7 +80,7 @@ test('guides draw over the display target, depth read and never written', () => 
     pass = createWebgpuGuidePass(device);
   guides.lines({ positions: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0] });
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     true,
   );
   const [pipeline] = of('createRenderPipeline')[0] as [GPURenderPipelineDescriptor];
@@ -94,12 +94,12 @@ test('guides draw over the display target, depth read and never written', () => 
   const [group] = of('createBindGroup')[0] as [GPUBindGroupDescriptor];
   assert.equal([...group.entries][1]?.resource, depth, 'the scene depth, read in the shader');
   assert.deepEqual(of('draw')[0], [6, 2], 'one quad per segment');
-  pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]);
+  pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]);
   assert.equal(of('createRenderPipeline').length, 1, 'built once');
   assert.equal(of('createBuffer').length, 2, 'uniform and instances, uploaded once');
   assert.equal(of('createBindGroup').length, 1, 'the same depth view keeps its group');
   const resized = { depth: 'resized' } as unknown as GPUTextureView;
-  pass.encode(encoder, guides, color, resized, { viewProjection: unjittered }, [8, 4], [0, 0]);
+  pass.encode(encoder, guides, color, resized, { viewProjection: unjittered }, [8, 4], 1, [0, 0]);
   const [again] = of('createBindGroup')[1] as [GPUBindGroupDescriptor];
   assert.equal([...again.entries][1]?.resource, resized, 'a resized depth is bound anew');
 });
@@ -119,6 +119,7 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
       temporal: { frame: { active: true, viewProjection: jittered, jitter: [0.25, -0.125] } },
     },
     run: { gpuDrawCalls: 0 },
+    setup: { pixelRatio: () => 2 },
   } as never as Parameters<typeof guidesShown>[0];
   guides.points({ positions: [0, 0, -2] });
   assert.equal(guidesMoved(rt), true, 'a change the last image did not draw');
@@ -134,10 +135,14 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
     [0, 0, 0],
     8,
     4,
-    REVERSED_NEAR_PLANE,
+    2,
     [0.25, -0.125],
   );
-  assert.deepEqual([...(view[2] as Float32Array)], [...expected], 'with the jitter of the depth');
+  assert.deepEqual(
+    [...(view[2] as Float32Array)],
+    [...expected],
+    "with the jitter of the depth, at the host's pixel ratio",
+  );
   const [descriptor] = of('beginRenderPass')[0] as [GPURenderPassDescriptor];
   assert.notEqual([...descriptor.colorAttachments][0]?.view, hdr, 'never the image history reads');
   assert.equal(rt.run.gpuDrawCalls, 1);

@@ -34,9 +34,14 @@ test('guides are drawn over the image, before it is kept, depth tested and unwri
   const { gl, of, names, calls } = createTestContext();
   const guides = createGuideSet();
   guides.lines({ positions: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0], width: 2 });
-  const compose = createFrameComposer(gl, camera, { guides });
+  const compose = createFrameComposer(gl, camera, { guides, pixelRatio: () => 2 });
   compose(engine().backend, null);
   assert.deepEqual(of('drawArraysInstanced')[0], ['TRIANGLES', 0, 6, 2]);
+  assert.deepEqual(
+    of('uniform1f').filter(([at]) => (at as { uniform: string }).uniform === 'pixelRatio'),
+    [[{ uniform: 'pixelRatio' }, 2]],
+    "a guide's CSS width scaled by the host's pixel ratio, as every line of the engine",
+  );
   assert.ok(names().lastIndexOf('drawArraysInstanced') < names().lastIndexOf('blitFramebuffer'));
   assert.deepEqual(of('depthFunc').at(-1), ['LEQUAL'], "the host projection's forward depth");
   assert.deepEqual(of('depthMask').slice(-2), [[false], [true]], 'no depth written, mask restored');

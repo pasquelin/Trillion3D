@@ -1,13 +1,17 @@
 /**
  * Runs a function of a shader (`lineWgsl.ts`: `lineClip`, `lineDash`; `spriteWgsl.ts`:
- * `spriteAt`) on the CPU: a small reader of the few statements and expressions they are written
- * in — declarations, compound assignments, one guarded return or assignment, arithmetic on
- * scalars, vectors and column-major matrices, column indexing, swizzles, `select`, `?:`,
- * `length`, `normalize`, `floor`, `cos`, `sin` and the vector constructors. The tests then measure
+ * `spriteAt`; `../../guides/guideShaders.ts`: `guideCorner`) on the CPU: a small reader of the
+ * few statements and expressions they are written in — declarations, compound assignments, one
+ * guarded return or assignment, arithmetic on scalars, vectors and column-major matrices, column
+ * indexing, swizzles, `select`, `?:`, `length`, `normalize`, `floor`, `cos`, `sin`, the vector
+ * constructors and the functions of other texts a caller names. The tests then measure
  * what the real text does, in WGSL and in GLSL, instead of a copy of its formula. The cut rule's
  * integer and boolean subset is read by `../../page/cut/wgslPredicate.fixture.ts`.
  */
 type Value = number | number[] | number[][] | boolean;
+type Call = (...args: Value[]) => Value;
+/** A run's arguments, its locals and the functions a caller named (`runShaderText`). */
+type Scope = Record<string, Value | Call>;
 
 const TOKEN = /\s*(\d+\.?\d*|[A-Za-z_]\w*|&&|\|\||==|!=|<=|>=|[-+*/(),.<>?:![\]])/y;
 
@@ -35,7 +39,7 @@ const product = (m: number[][], v: number[]) =>
   m[0].map((_, row) => m.reduce((sum, column, c) => sum + column[row] * v[c], 0));
 const isMatrix = (v: Value): v is number[][] => Array.isArray(v) && Array.isArray(v[0]);
 const AXES = 'xyzw';
-const CALLS: Record<string, (...args: Value[]) => Value> = {
+const CALLS: Record<string, Call> = {
   select: (a, b, c) => (c ? b : a),
   length: (v) => Math.hypot(...(v as number[])),
   normalize: (v) => (v as number[]).map((x) => x / Math.hypot(...(v as number[]))),
@@ -46,7 +50,7 @@ const CALLS: Record<string, (...args: Value[]) => Value> = {
 const vector = (...args: Value[]) => args.flat() as number[];
 
 /** Evaluates one expression of the shader text over the named values. */
-function evaluate(text: string, scope: Record<string, Value>): Value {
+function evaluate(text: string, scope: Scope): Value {
   const list = tokens(text);
   let at = 0;
   const peek = () => list[at],
@@ -118,7 +122,7 @@ function evaluate(text: string, scope: Record<string, Value>): Value {
     if (/^\d/.test(token)) return Number(token);
     if (peek() !== '(') {
       if (!(token in scope)) throw new Error(`unknown name ${token}`);
-      return scope[token];
+      return scope[token] as Value;
     }
     take('(');
     const args: Value[] = [];
@@ -127,7 +131,7 @@ function evaluate(text: string, scope: Record<string, Value>): Value {
       if (peek() === ',') take();
     }
     take(')');
-    return (CALLS[token] ?? vector)(...args);
+    return ((scope[token] as Call | undefined) ?? CALLS[token] ?? vector)(...args);
   };
   const value = level(0);
   if (at !== list.length) throw new Error(`unread tokens in ${text}`);
@@ -149,7 +153,7 @@ function topLevel(text: string) {
 }
 
 /** Runs one declaration or assignment — `a*=b` included — into `scope`. */
-function assign(statement: string, scope: Record<string, Value>) {
+function assign(statement: string, scope: Scope) {
   const declared = statement.replace(/^(let|var|float|vec[234])\s+/, '');
   for (const part of topLevel(declared)) {
     const [name, ...expression] = part.split('=');
@@ -161,8 +165,9 @@ function assign(statement: string, scope: Record<string, Value>) {
 }
 
 /** The function `source` declares, run on its arguments: `lineClip` returns a clip position,
- *  `lineDash` whether the pixel is drawn, `spriteAt` a sprite's corner. */
-export function runShaderText<Result = number[]>(source: string) {
+ *  `lineDash` whether the pixel is drawn, `spriteAt` a sprite's corner, `guideCorner` a guide's
+ *  through the `lineClip` of `calls`. */
+export function runShaderText<Result = number[]>(source: string, calls: Scope = {}) {
   const open = source.indexOf('{');
   const params = topLevel(source.slice(source.indexOf('(') + 1, source.indexOf(')')));
   const names = params.map((p) => p.trim().split(/[\s:]+/)[p.includes(':') ? 0 : 1]);
@@ -172,7 +177,7 @@ export function runShaderText<Result = number[]>(source: string) {
     .map((s) => s.trim())
     .filter((s) => s && s !== '}');
   return (...args: Value[]): Result => {
-    const scope: Record<string, Value> = {};
+    const scope: Scope = { ...calls };
     names.forEach((name, i) => (scope[name] = args[i]));
     for (const statement of statements) {
       const guarded = statement.match(/^if\((.*)\)\{?return (.*?)\}?$/);

@@ -6,7 +6,6 @@ import type { HostDrawOutput } from '../webgl/core/renderTarget.ts';
 import type { GuideSet } from './guideSet.ts';
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts';
 import {
-  FORWARD_NEAR_PLANE,
   GUIDE_GLSL_FRAGMENT,
   GUIDE_GLSL_VERTEX,
   GUIDE_UNIFORM_FLOATS,
@@ -18,10 +17,10 @@ const STRIDE = GUIDE_INSTANCE_FLOATS * 4;
 /**
  * The WebGL2 guide draw: the same program as the WebGPU pass (`guideShaders.ts`), drawn into the
  * framebuffer the host composed the engine's image in, tested against the depth that image left,
- * with the host projection's forward depth. Built on the first frame that shows a guide, rebuilt
+ * with the host projection's forward depth, at the host's `pixelRatio`, read each frame. Built on the first frame that shows a guide, rebuilt
  * after a lost context; the path has no temporal accumulation, so nothing else is kept out.
  */
-export function createWebglGuideDraw(gl: WebGL2RenderingContext) {
+export function createWebglGuideDraw(gl: WebGL2RenderingContext, pixelRatio: () => number) {
   const view = new Float32Array(GUIDE_UNIFORM_FLOATS),
     screen = new Float64Array(16);
   let uploaded: unknown;
@@ -53,7 +52,7 @@ export function createWebglGuideDraw(gl: WebGL2RenderingContext) {
         buffer,
         matrix: at('matrix'),
         viewport: at('viewport'),
-        near: at('nearPlane'),
+        pixelRatio: at('pixelRatio'),
       };
     },
     ({ program, vao, buffer }) => {
@@ -72,7 +71,7 @@ export function createWebglGuideDraw(gl: WebGL2RenderingContext) {
       const live = bound.current();
       if (!live) return false;
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
-      writeGuideView(view, screen, packed.anchor, width, height, FORWARD_NEAR_PLANE);
+      writeGuideView(view, screen, packed.anchor, width, height, pixelRatio());
       gl.bindFramebuffer(gl.FRAMEBUFFER, output.framebuffer);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
@@ -83,7 +82,7 @@ export function createWebglGuideDraw(gl: WebGL2RenderingContext) {
       }
       gl.uniformMatrix4fv(live.matrix, false, view.subarray(0, 16));
       gl.uniform4fv(live.viewport, view.subarray(16, 20));
-      gl.uniform4fv(live.near, view.subarray(20, 24));
+      gl.uniform1f(live.pixelRatio, view[20]);
       gl.viewport(0, 0, width, height);
       gl.disable(gl.BLEND);
       gl.disable(gl.CULL_FACE);
