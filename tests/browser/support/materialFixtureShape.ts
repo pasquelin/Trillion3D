@@ -43,8 +43,8 @@ export interface Fixture {
   tangents?: boolean;
   /** The reference then the renderer read against it, `WITNESS_PAIR` when absent. */
   pair?: readonly [Renderer, Renderer];
-  /** Measured against its ground truth (#443, `groundTruth.ts`): the pixels over one
-   *  level the engine may show there — CONTRIBUTING's 0 px, 4 on a masked cut-out —, `null`
-   *  when both gaps are only reported. */
+  /** Measured against its ground truth (#443, `groundTruth.ts`): the pixels over one level the
+   *  engine may show there beyond the witness's — CONTRIBUTING's 0 px, 4 on a masked cut-out —,
+   *  `null` when both gaps are only reported. */
   truth?: number | null;
 }
