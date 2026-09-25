@@ -137,7 +137,8 @@ const SURFACE_FIELDS = (
 ).split(' ');
 const NODE_FIELDS =
   'name visible frustumCulled renderOrder castShadow receiveShadow matrixAutoUpdate';
-/** The fields of a texture the engine reads (`../resources.ts`, the admission gate). */
+/** The fields of a texture the loader sets: those the engine reads (`../resources.ts`, the
+ *  admission gate), and `generateMipmaps`, the host's own. */
 const TEXTURE_FIELDS = (
   'name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
   'generateMipmaps colorSpace matrixAutoUpdate mapping image'
