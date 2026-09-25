@@ -34,10 +34,10 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    `develop` (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
    (`gh pr checks <pr> --watch`), then name it ready to the CTO, who merges it (AGENTS.md
    §Roles). A red check, or a point of "Before merge" missed, goes back to step 3.
-5. **Hand over.** `gh issue edit <n> --remove-label "in review"`, add `to measure` for an engine
-   batch (`packages/`, compiler, format, shaders, a published number) or an example whose
-   thumbnail is missing or out of date, then `gh issue close <n>` unless the pull request says
-   `Part of #<n>`.
+5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add `to
+   measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or an
+   example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
+   request says `Part of #<n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
