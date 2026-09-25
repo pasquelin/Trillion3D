@@ -249,9 +249,10 @@ cache (`splitMemoryBudget`).
   stale for its moving casters or for detail, waits its turn like any page, so an object that
   keeps moving never starves the finer pages. The floor covers all the light reaches, so it needs
   no report to know what the view will read: a sun asks every frame for the floor pages its view
-  reaches — the camera brings new ones in without any pose —, and a new, moved or reshaped lamp for
-  the floor of each face until a report written at its current pose comes back, as if the latest
-  report named them: a report from a past pose names only the faces that pose's receivers read.
+  reaches — the camera brings new ones in without any pose —, and a moved or reshaped lamp, until a
+  report written at its current pose comes back, for the floor of each face the latest report
+  named — the faces its receivers read: a face nobody reads costs no light view, so the read faces
+  keep their floor within the view limit —; a lamp no report has read yet, for every face's floor.
   So a pixel that falls back past a withdrawn page reads a current floor. When the frame's floors
   exceed the page cap or span more views than the light cut holds, those held back go first the
   next frame, and meanwhile their face reads no shadow — never one at a past pose. A new light

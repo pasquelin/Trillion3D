@@ -2,9 +2,10 @@ import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import { SHADOW_TABLE_ENTRIES as ENTRIES, SHADOW_TABLE_STRIDE as STRIDE } from './virtual.ts';
 
 /** Host bytes a table over `poolPages` pages allocates: a word and a change flag per entry, a
- *  base and a size per slice, four changed words per pool page. `hostBytes` counts the arrays. */
+ *  base, a size and a claim epoch per slice, four changed words per pool page. `hostBytes`
+ *  counts the arrays. */
 export function shadowTableHostBytes(poolPages: number) {
-  return ENTRIES * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4) + poolPages * 4 * 4;
+  return ENTRIES * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4 + 4) + poolPages * 4 * 4;
 }
 
 /**
@@ -21,7 +22,8 @@ export function createShadowTable(poolPages: number) {
   const changedCap = poolPages * 4;
   const words = new Uint32Array(ENTRIES);
   const base = new Int32Array(MAX_SHADOW_SLICES).fill(-1),
-    size = new Int32Array(MAX_SHADOW_SLICES);
+    size = new Int32Array(MAX_SHADOW_SLICES),
+    claimedAt = new Int32Array(MAX_SHADOW_SLICES);
   const queued = new Uint8Array(ENTRIES),
     changed = new Int32Array(changedCap);
   let changedCount = 0,
@@ -44,7 +46,10 @@ export function createShadowTable(poolPages: number) {
     words,
     /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
     get hostBytes() {
-      return [words, base, size, queued, changed].reduce((sum, a) => sum + a.byteLength, 0);
+      return [words, base, size, claimedAt, queued, changed].reduce(
+        (sum, a) => sum + a.byteLength,
+        0,
+      );
     },
     get entries() {
       return ENTRIES;
@@ -58,12 +63,14 @@ export function createShadowTable(poolPages: number) {
       return version;
     },
     baseOf: (slice: number) => base[slice],
+    /** The layout epoch `slice`'s range was claimed at: a report of an earlier one never read it. */
+    claimedAt: (slice: number) => claimedAt[slice],
     /** Claims `count` words, at most `SHADOW_TABLE_STRIDE`, at the start of `slice`'s span. */
     claim(slice: number, count: number) {
       if (base[slice] >= 0 && size[slice] === count) return;
       base[slice] = slice * STRIDE;
       size[slice] = count;
-      layoutEpoch++;
+      claimedAt[slice] = ++layoutEpoch;
     },
     /** Frees the range of `slice`; its words must already be unmapped by the caller. */
     release(slice: number) {
@@ -104,6 +111,7 @@ export function createShadowTable(poolPages: number) {
       words.fill(0);
       base.fill(-1);
       size.fill(0);
+      claimedAt.fill(0);
       queued.fill(0);
       changedCount = 0;
       whole = true;
