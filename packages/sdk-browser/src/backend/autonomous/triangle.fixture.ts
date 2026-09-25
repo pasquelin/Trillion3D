@@ -3,12 +3,17 @@ import { pagedManifest } from './geometryPages.fixture.ts';
 import { autonomousPagesBackend } from './pages.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import type { BackendContext } from '../types.ts';
 
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
- *  placed by `link`, wearing `material` (a basic double-sided surface by default). */
+ *  placed by `link`, wearing `material` (a basic double-sided surface by default), under the page
+ *  `ceiling` (a host ceiling of two pages by default). */
 export function triangleBackend(
   link: { placements?: PlacementRows } = {},
   material: G.GraphSurface = G.basicSurface({ side: G.DOUBLE_SIDE }),
+  ceiling: Pick<BackendContext, 'maxResidentPages' | 'residentPagesDefault'> = {
+    maxResidentPages: 2,
+  },
 ) {
   const position = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
   const geometry = new G.Geometry();
@@ -58,7 +63,7 @@ export function triangleBackend(
     indices: new Map(),
     associations: new Map([[mesh, { meshes: 0, primitives: 0, ...link }]]),
     readGeometryPage: paged.readGeometryPage,
-    maxResidentPages: 2,
+    ...ceiling,
   });
   const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 5;
