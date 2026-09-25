@@ -11,7 +11,7 @@ export async function routeThree(target: Page | BrowserContext): Promise<void> {
     const file = route.request().url().slice(THREE_CDN.length);
     await route.fulfill({
       contentType: 'text/javascript',
-      body: await readFile(resolve(import.meta.dirname, '../../../node_modules/three', file)),
+      body: await readFile(resolve(import.meta.dirname, '../node_modules/three', file)),
     });
   });
 }

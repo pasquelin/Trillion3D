@@ -11,6 +11,7 @@ import {
   type RequestRecord,
 } from './installed-package-server.ts';
 import { installedWorkerRequests, runInstalledWorkers } from './installed-package-workers.ts';
+import { listen } from './static-server.ts';
 
 export async function runInstalledBrowser({
   root,
@@ -35,30 +36,25 @@ export async function runInstalledBrowser({
 }): Promise<InstalledBrowserProof> {
   const requests: RequestRecord[] = [];
   const server = installedServer(root, html, requests, allowNodeModules);
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve());
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('browser proof server unavailable');
+  const port = await listen(server);
   let browser: Browser | undefined;
   const errors: string[] = [];
   try {
     browser = await launchChrome({ headless: true });
     const page = await browser.newPage({ viewport: { width: 480, height: 320 } });
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(`http://127.0.0.1:${address.port}/`);
+    await page.goto(`http://127.0.0.1:${port}/`);
     const result = await page.evaluate(evaluateInstalledPage, {
       moduleName,
       manifestUrl,
-      replayUrl: `http://localhost:${address.port}${replayUrl}`,
+      replayUrl: `http://localhost:${port}${replayUrl}`,
       commonWorkerPath,
     });
     const { geometryUrl } = result;
     const workers = await page.evaluate(runInstalledWorkers, {
       pageUrl: geometryUrl,
-      decodeWorkerUrl: `http://127.0.0.1:${address.port}${decodeWorkerPath}`,
-      integrationWorkerUrl: `http://127.0.0.1:${address.port}${integrationWorkerPath}`,
+      decodeWorkerUrl: `http://127.0.0.1:${port}${decodeWorkerPath}`,
+      integrationWorkerUrl: `http://127.0.0.1:${port}${integrationWorkerPath}`,
       requests: installedWorkerRequests(),
     });
     return installedBrowserResult({
