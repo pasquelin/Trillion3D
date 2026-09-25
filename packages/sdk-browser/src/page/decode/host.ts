@@ -69,7 +69,7 @@ function refuse(answer: PageDecodeAnswer): never {
 }
 /** A view's buffer, without a copy when the view covers it as an integer — what every cache
  *  page does — and a copy otherwise: the task reads an `ArrayBuffer`, never a leftover shared buffer. */
-function ownBuffer(bytes: Uint8Array) {
+export function ownBuffer(bytes: Uint8Array) {
   return (
     bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
       ? bytes.buffer
