@@ -59,8 +59,12 @@ impl Role {
             Self::Occlusion => material.get("occlusionTexture"),
         }
     }
-    fn kind(self) -> AtlasKind {
+    /// The chain the role asks for: a colour role whose alpha the shader reads —
+    /// the base colour of a MASK or BLEND material, `channels` says it — takes
+    /// that alpha for coverage.
+    fn kind(self, opaque: bool) -> AtlasKind {
         match self {
+            Self::BaseColor | Self::Emissive if self.channels(opaque)[3] => AtlasKind::Coverage,
             Self::BaseColor | Self::Emissive => AtlasKind::Color,
             _ => AtlasKind::Data,
         }
@@ -88,7 +92,9 @@ const ROLES: [Role; 5] = [
 /// emissive in the colour atlas; metal-roughness, normal and occlusion in the
 /// data atlas. The base colour of a cutout material and the emissive of another
 /// are one entry: the atlas does not know the binding, and neither does the mip
-/// chain — the entry reads both roles' channels and every cutoff.
+/// chain — the entry reads both roles' channels and every cutoff. Its chain is
+/// `Coverage` only while every reader asks for it: one opaque or emissive reader
+/// and it is the plain `Color` chain, which draws that reader as before.
 pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<AtlasTexture>> {
     let Some(materials) = g.get("materials").and_then(Value::as_array) else {
         return Ok(Vec::new());
@@ -99,6 +105,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
             continue;
         };
         let mode = material.get("alphaMode").and_then(Value::as_str);
+        let opaque = mode.is_none_or(|m| m == "OPAQUE");
         let cutoff = (mode == Some("MASK")).then(|| {
             material
                 .get("alphaCutoff")
@@ -109,15 +116,21 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
             };
+            let kind = role.kind(opaque);
+            let atlas = kind.atlas();
             let entry = wanted
-                .entry((texture, role.kind()))
+                .entry((texture, atlas))
                 .or_insert_with(|| AtlasTexture {
                     texture,
-                    kind: role.kind(),
+                    kind,
                     channels: [false; 4],
                     normal_only: true,
                     cutoffs: Vec::new(),
                 });
+            // Readers that disagree on coverage share the plain chain.
+            if entry.kind != kind {
+                entry.kind = atlas;
+            }
             let cutoffs: Vec<f32> = cutoff
                 .filter(|_| role == Role::BaseColor)
                 .into_iter()
@@ -125,7 +138,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
             absorb(
                 &mut entry.channels,
                 &mut entry.cutoffs,
-                role.channels(mode.is_none_or(|m| m == "OPAQUE")),
+                role.channels(opaque),
                 &cutoffs,
             );
             entry.normal_only &= role == Role::Normal;

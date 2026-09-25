@@ -6,7 +6,7 @@
 //! needing 256 px had to load and decode 2048², residence could
 //! not keep up with screen. Here, every level exists: tail in sidecar,
 //! RGBA8; levels above are lossless PNGs in cache, one file per level,
-//! addressed by source byte hash and atlas (`textures/<sha>/<srgb|linear>-<k>.png`),
+//! addressed by source byte hash and chain (`textures/<sha>/<srgb|linear|srgb-coverage>-<k>.png`),
 //! shared across scenes sharing image, never rewritten if present. Beside each
 //! PNG, when a quality gate lets it, the same level block-compressed in the
 //! families the cook asked for — the BC family for desktop cards, ASTC for
@@ -42,13 +42,12 @@ pub use entry::{PreviewSource, TexturePreview};
 pub use levels::*;
 
 /// Section contract: moving level scale, order, reduction rule, color space,
-/// a block codec or the gate's bar requires incrementing this version, which
-/// names the folder of the baked levels, so no level of the old rule is served;
-/// the binary sidecar version moves with it when the entries' layout moves too.
-/// Version 3 is GPU rule and full chain, both atlases included; version 4 adds
-/// the gated block-compressed levels and tails; version 5 weighs the colours of
-/// the colour atlas by their alpha (#42), in the same layout.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 5;
+/// a block codec or the gate's bar requires incrementing this version and
+/// binary sidecar version carrying it. Version 3 is GPU rule and full chain,
+/// both atlases included; version 4 adds the gated block-compressed levels and
+/// tails. A new chain under a name of its own moves no existing file and needs
+/// no increment: the `Coverage` chain (#42) is one.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 4;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout};
 pub use reduce::AtlasKind;
