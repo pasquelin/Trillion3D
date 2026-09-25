@@ -1,8 +1,9 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
-import { generateMaterialMips, mipLevelCountFor } from '../../texture/mips.ts';
-import { mipsWeighByAlpha } from '../../texture/coverage.ts';
+import { generateMaterialMips } from '../../texture/mips.ts';
+import { mipLevelCountFor } from '../../texture/tiles.ts';
+import type { CoverageReaders } from '../../texture/coverage.ts';
 import { writeRgba } from './write.ts';
 import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 
@@ -25,6 +26,8 @@ export type TileScratch = {
   bytes: number;
   /** Writes the source's current picture again, mips included: what a live texture keeps. */
   fill(): void;
+  /** Builds its mips again from the picture it holds, under its readers' rule now (#42). */
+  reduce(): void;
   destroy(): void;
 };
 
@@ -36,9 +39,9 @@ export function createTileScratch(
     height: number;
     format: GPUTextureFormat;
     errorCode: string;
-    /** Whether every reader takes the alpha for coverage now, read at each fill
-     *  (`CoverageReaders`): the mips then weigh their colours by alpha (`mipsWeighByAlpha`). */
-    coverage: () => boolean;
+    /** The colour census's readers, asked at each reduction whether the mips weigh their colours
+     *  by alpha; none for a data texture. */
+    coverage?: CoverageReaders;
   },
 ): TileScratch {
   const { width, height, format } = options;
@@ -80,7 +83,10 @@ export function createTileScratch(
         [width, height],
       );
     }
-    const weighted = mipsWeighByAlpha(map, options.coverage());
+    reduce();
+  };
+  const reduce = () => {
+    const weighted = options.coverage?.weighs(options.map) ?? false;
     generateMaterialMips(device, texture, format, width, height, weighted);
   };
   fill();
@@ -88,6 +94,7 @@ export function createTileScratch(
     texture,
     bytes: textureBytesOf(descriptor) ?? 0,
     fill,
+    reduce,
     destroy: () => texture.destroy(),
   };
 }

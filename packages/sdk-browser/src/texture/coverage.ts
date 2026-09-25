@@ -8,40 +8,40 @@ import { weighsByAlpha } from '../scene/materialBlending.ts';
 const alphaIsCoverage = (mat: PageSurface) =>
   mat.alphaTest > 0 || (mat.transparent && !(mat.transmission > 0) && weighsByAlpha(mat.blending));
 
-/** Whether a texture's mip chain weighs its colours by alpha — the compiler's `Coverage` chain
- *  (#42) —: every reader takes its alpha for coverage, and its texels were not uploaded
- *  premultiplied, which already carry the weight: weighing twice would darken them. */
-export const mipsWeighByAlpha = (texture: Texture, coverage: boolean) =>
-  coverage && !texture.premultiplyAlpha;
-
 /**
- * The readers of each colour texture, and whether EVERY one takes its alpha for coverage — the map
- * of a masked or alpha-blended surface, never an emissive map: the decision `collect.rs` takes for
- * the compiler's `Coverage` chain (#42), shared by both GPU paths. The answer is read NOW, from the
- * surfaces as the host declares them (`refreshSurface`): a host switches a surface between opaque
- * and masked without a new prepare, and the chain follows.
+ * The readers of the colour textures, and whether each texture's mip chain weighs its colours by
+ * alpha — the compiler's `Coverage` chain (#42), shared by both GPU paths: EVERY reader takes its
+ * alpha for coverage — the map of a masked or alpha-blended surface, never an emissive map, the
+ * decision `collect.rs` takes —, and its texels were not uploaded premultiplied, which already
+ * carry the weight: weighing twice would darken them. A host switches a surface between opaque
+ * and masked without a new prepare: `follow` rereads the readers as the host declares them now.
  */
 export class CoverageReaders {
-  /** Per colour texture, the surfaces that wear it as their map; `null` once one wears it as its
-   *  emissive map, which never reads its alpha. */
-  private readers = new Map<Texture, PageSurface[] | null>();
+  private surfaces: PageSurface[] = [];
+  /** Per colour texture, whether every reader filed so far takes its alpha for coverage. */
+  private rules = new Map<Texture, boolean>();
   /** Files a surface's colour maps. */
   read(surface: PageSurface) {
-    const { map, emissiveMap } = surface;
-    if (map) {
-      const list = this.readers.get(map);
-      if (list) list.push(surface);
-      else if (list === undefined) this.readers.set(map, [surface]);
-    }
-    if (emissiveMap) this.readers.set(emissiveMap, null);
+    this.surfaces.push(surface);
+    this.file(surface);
   }
-  /** True when every reader of `texture` takes its alpha for coverage now; false for one no
-   *  surface wears as its map. */
-  coverage(texture: Texture) {
-    const list = this.readers.get(texture);
-    return !!list && list.every((surface) => alphaIsCoverage(refreshSurface(surface)));
+  /** Rereads every reader once, as the host declares it now (`refreshSurface`). */
+  follow() {
+    this.rules.clear();
+    for (const surface of this.surfaces) this.file(refreshSurface(surface));
+  }
+  /** True when `texture`'s chain weighs its colours by alpha; false for one no surface wears as
+   *  its map. */
+  weighs(texture: Texture) {
+    return !!this.rules.get(texture) && !texture.premultiplyAlpha;
   }
   clear() {
-    this.readers.clear();
+    this.surfaces.length = 0;
+    this.rules.clear();
+  }
+  private file(surface: PageSurface) {
+    const { map, emissiveMap } = surface;
+    if (map) this.rules.set(map, (this.rules.get(map) ?? true) && alphaIsCoverage(surface));
+    if (emissiveMap) this.rules.set(emissiveMap, false);
   }
 }

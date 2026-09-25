@@ -4,7 +4,9 @@ import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts'
 import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
-import { WebglMipChains } from './mips.ts';
+import { meshSurface } from '../../page/surface.ts';
+import { CoverageReaders } from '../../texture/coverage.ts';
+import { WebglMipReducer } from './mips.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
@@ -45,10 +47,12 @@ export class WebglClusterTextures {
   /** The device's anisotropy ceiling, read once. */
   private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
-  private mips: WebglMipChains;
+  private mips: WebglMipReducer;
+  /** The frame's readers of each colour map: whether its chain weighs by alpha (#42). */
+  private readers = new CoverageReaders();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
-    this.mips = new WebglMipChains(gl);
+    this.mips = new WebglMipReducer(gl);
     this.anisotropy = gl.getExtension('EXT_texture_filter_anisotropic') as Anisotropy | null;
     if (this.anisotropy)
       this.maxAnisotropy = gl.getParameter(
@@ -97,8 +101,9 @@ export class WebglClusterTextures {
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, record.texture);
       }
-      const sampling = record.sampling !== texture.sampling,
-        rule = record.weighted !== undefined && record.weighted !== this.mips.weighs(texture);
+      const weighted = color && this.readers.weighs(texture),
+        sampling = record.sampling !== texture.sampling,
+        rule = record.weighted !== undefined && record.weighted !== weighted;
       // `setSampler` and the chain write the texture bound on the ACTIVE unit: select it even
       // when the texture is already bound there, or they land on another unit's texture.
       if (sampling || rule) gl.activeTexture(gl.TEXTURE0 + unit);
@@ -106,7 +111,7 @@ export class WebglClusterTextures {
         record.sampling = texture.sampling;
         this.setSampler(texture);
       }
-      if (rule) this.chain(unit, texture, record, false);
+      if (rule) this.mips.reduce(unit, record, weighted, false);
     }
     this.bound[unit] = record.texture;
   }
@@ -155,17 +160,11 @@ export class WebglClusterTextures {
       height,
       format,
     };
+    const weighted = color && this.readers.weighs(texture);
     if (texture.generateMipmaps)
-      this.chain(unit, texture, record, !inPlace || held?.weighted === undefined);
+      this.mips.reduce(unit, record, weighted, !inPlace || held?.weighted === undefined);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
-  }
-  /** The mip chain of the record's texture, bound on the active `unit`, under the rule its
-   *  readers take in this frame — the WebGPU chain's (`WebglMipChains`, #42). */
-  private chain(unit: number, texture: Texture, record: TextureRecord, allocate: boolean) {
-    record.weighted = this.mips.weighs(texture);
-    const { format, width, height } = record;
-    this.mips.reduce(unit, record.texture, format, [width, height], record.weighted, allocate);
   }
   /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
    *  the rule the WebGPU path shares (`grantedAnisotropy`). */
@@ -183,10 +182,11 @@ export class WebglClusterTextures {
       );
   }
   /** A new frame: the host's texture units are unknown, and the readers of the colour maps are
-   *  the surfaces it draws. */
-  beginFrame(materials: Iterable<HostMaterials>) {
+   *  the surfaces of every mesh it holds, drawn or culled — the rule never follows the view. */
+  beginFrame(meshes: readonly (readonly { material: HostMaterials }[])[]) {
     this.bound.length = 0;
-    this.mips.follow(materials);
+    this.readers.clear();
+    for (const list of meshes) for (const mesh of list) this.readers.read(meshSurface(mesh));
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);

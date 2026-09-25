@@ -1,9 +1,5 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
-
-/** Full mip chain length for a texture of the given size. */
-export function mipLevelCountFor(width: number, height: number) {
-  return 1 + Math.floor(Math.log2(Math.max(width, height)));
-}
+import { mipLevelCountFor } from './tiles.ts';
 
 /**
  * Layout and reduction program, built ONCE per device, per format and per colour rule.

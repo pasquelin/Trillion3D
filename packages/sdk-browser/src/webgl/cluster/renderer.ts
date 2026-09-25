@@ -159,7 +159,7 @@ export class WebglClusterRenderer {
     // The host's texture units are unknown at frame start, the backdrop pass touches only its own;
     // each record is brought up to its host texture at its first binding of the image, its chain
     // to the rule of the surfaces the image draws.
-    this.textures.beginFrame(this.validatedMaterials.keys());
+    this.textures.beginFrame([meshes, diagnosticMeshes, copies]);
     this.instanced = undefined;
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
