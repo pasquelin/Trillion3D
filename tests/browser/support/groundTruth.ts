@@ -53,27 +53,6 @@ export type Truth = { rgba: Uint8Array; edge: Uint8Array };
 /** A renderer's gap to the truth: pixels farther than the level allowed, and the largest gap. */
 export type TruthGap = { pixels: number; max: number };
 
-/** Adds `w` times the linear RGBA of the map at `(u, v)` into `out`, bilinear and repeated
- *  as the CPU mirror of the samplers reads it (`wrapLinear`). */
-function bilinear(
-  map: TruthMap,
-  linear: Float32Array,
-  u: number,
-  v: number,
-  w: number,
-  out: Float64Array,
-) {
-  const [x0, x1, wx] = wrapLinear(u, map.width, 'repeat'),
-    [y0, y1, wy] = wrapLinear(v, map.height, 'repeat');
-  const r0 = y0 * map.width * 4,
-    r1 = y1 * map.width * 4;
-  for (let k = 0; k < 4; k++)
-    out[k] +=
-      w *
-      ((1 - wy) * ((1 - wx) * linear[r0 + x0 * 4 + k] + wx * linear[r0 + x1 * 4 + k]) +
-        wy * ((1 - wx) * linear[r1 + x0 * 4 + k] + wx * linear[r1 + x1 * 4 + k]));
-}
-
 /** A square's plane seen from the screen: the inverse of its projection, a homography built once.
  *  The function writes into `at` the plane point under NDC `(x, y)`, into `slope` its derivatives
  *  along NDC x then y — exact, as the engine's (`uvGradients`) —, and says whether it lies on the
@@ -121,6 +100,19 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
     halfPixel = 1 / size,
     // The square's plane point to its UV, `(p / half + 1) / 2`: this much per plane unit.
     toUv = 1 / (2 * square.half);
+  /** Adds `w` times the linear RGBA of the map at `(u, v)` into `sum`, bilinear and repeated as
+   *  the CPU mirror of the samplers reads it (`wrapLinear`). */
+  const bilinear = (u: number, v: number, w: number) => {
+    const [x0, x1, wx] = wrapLinear(u, map.width, 'repeat'),
+      [y0, y1, wy] = wrapLinear(v, map.height, 'repeat');
+    const r0 = y0 * map.width * 4,
+      r1 = y1 * map.width * 4;
+    for (let k = 0; k < 4; k++)
+      sum[k] +=
+        w *
+        ((1 - wy) * ((1 - wx) * linear[r0 + x0 * 4 + k] + wx * linear[r0 + x1 * 4 + k]) +
+          wy * ((1 - wx) * linear[r1 + x0 * 4 + k] + wx * linear[r1 + x1 * 4 + k]));
+  };
   const truth: Truth = { rgba: new Uint8Array(size * size * 4), edge: new Uint8Array(size * size) };
   /** The surface the geometry shows at `(x, y)`: 1 the square, 2 the one behind, 0 none. */
   const surfaceAt = (x: number, y: number) =>
@@ -153,7 +145,7 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
         sum.fill(0);
         for (let s = 0; s < reads; s++) {
           const t = (s + 0.5) / reads - 0.5;
-          bilinear(map, linear, u + du * t, v + dv * t, 1 / reads, sum);
+          bilinear(u + du * t, v + dv * t, 1 / reads);
         }
         if (sum[3] >= view.alphaTest) colour = sum;
       }

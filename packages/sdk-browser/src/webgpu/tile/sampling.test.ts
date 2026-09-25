@@ -121,13 +121,11 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
     maskAlphaWgsl(false),
     'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample(slot,uv,ddx,ddy,sampled).w;}',
   );
-  // Face-on, up to rounding, the footprint is not elongated: one tap at the isotropic level.
-  assert.match(SAMPLING_WGSL, /if\(ratio>1\.01\)\{\s*taps=/);
 });
 
 /** The shader's own ratio, taps and level lines, run on the CPU — the taps, and how many levels
  *  the read is lowered: WGSL's calls read as `Math`'s, `u32` as a truncation, the `u` of an
- *  unsigned literal dropped. */
+ *  unsigned literal dropped, `select` a ternary. */
 const readOf = (lx: number, ly: number, granted: number) => {
   const line = (name: string) => {
     const found = SAMPLING_WGSL.match(new RegExp(`${name}=([^;]+);`));
@@ -142,7 +140,7 @@ const readOf = (lx: number, ly: number, granted: number) => {
     'lx',
     'ly',
     'granted',
-    `const ratio=${line('let ratio')},taps=${line('\\n\\s*taps')};return [taps,${line('raw-')}];`,
+    `const select=(f,t,c)=>c?t:f,ratio=${line('let ratio')},taps=${line('\\n\\s*taps')};return [taps,${line('raw-')}];`,
   )(lx, ly, granted) as [number, number];
 };
 
@@ -153,6 +151,7 @@ test('an anisotropic read takes its ratio in taps, up to the grant, its level sh
   for (const [lx, ly, granted, taps] of [
     [16 * 16, 1, MAX_ANISOTROPY, 16],
     [1, 12 * 12, MAX_ANISOTROPY, 12],
+    [1.005 * 1.005, 1, MAX_ANISOTROPY, 1],
     [64 * 64, 1, MAX_ANISOTROPY, 16],
     [16 * 16, 1, 4, 4],
     [2.5 * 2.5, 1, MAX_ANISOTROPY, 3],
