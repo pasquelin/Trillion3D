@@ -327,7 +327,6 @@
       "a-walker-among-balls": "Ходок среди мячей"
     },
     "missing": {
-      "dashed-lines": "пунктирные линии",
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",
       "thick-lines": "широкие линии",
       "a-line-that-draws-itself": "диапазон отрисовки геометрии",
