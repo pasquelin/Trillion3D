@@ -273,7 +273,7 @@
     "summary": "stdin üzerindeki kooperatif bir iptal isteği ile sert bir sonlandırma arasındaki tolerans süresi."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Kümelenmiş BLEND için gereken dış önbellek formatı; kaynak manifestolar kendi formatlarını korur."
+    "summary": "Kümelenmiş BLEND için gereken dış önbellek formatı (`selectedNodes` bir sayıya dönüşmeden önce 6); kaynak manifestolar kendi formatlarını korur."
   },
   "COLUMN_KIND": {
     "summary": "İkili manifestonun her sütununun nasıl saklandığı: ondalıklar, tam sayılar ya da baytlar.",
@@ -982,7 +982,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Bu çalışma zamanının okuduğu önbellek formatı.",
-    "description": "Format 5, hazırlanan sahnenin karşı kontrol edildiği düğüm ve malzeme tablolarını, `scene-tables.json`'ı taşır; 3 ve 4 formatlarının böyle bir ürünü yoktur ve yarım okunmak yerine numaralarıyla reddedilirler."
+    "description": "Format 5, hazırlanan sahnenin karşı kontrol edildiği düğüm ve malzeme tablolarını, `scene-tables.json`'ı ekledi; format 7 `selectedNodes`'u liste değil sayı olarak taşır (#404). Daha eski formatlar yarım okunmak yerine numaralarıyla reddedilir."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Bir frustum'un altı düzlemi için float sayısı."
