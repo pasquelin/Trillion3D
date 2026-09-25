@@ -5,7 +5,7 @@ import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
 import { BLOOM_UNIFORM_BYTES, BLOOM_UNIFORM_STRIDE, BLOOM_WGSL } from './bloomWgsl.ts';
 
 /** Label of every bloom pass: where it shows in a GPU capture. */
-export const BLOOM_PASS = 'Trillion3D bloom';
+const BLOOM_PASS = 'Trillion3D bloom';
 const FORMAT: GPUTextureFormat = 'rgba16float';
 type Size = readonly [number, number];
 

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EffectChain } from './chain.ts';
-import { BLOOM_DEFAULTS, effect } from './index.ts';
+import { effect } from './index.ts';
 
 test('passes run in the order they were added, or at the index given', () => {
   const chain = new EffectChain();
@@ -52,7 +52,7 @@ test('a pass belongs to one chain; an index outside the chain and a foreign pass
 
 test('bloom takes the published defaults and refuses a blend outside [0, 1] or a spread of 0', () => {
   const bloom = effect.bloom();
-  assert.deepEqual([bloom.intensity, bloom.radius], [BLOOM_DEFAULTS.intensity, 1]);
+  assert.deepEqual([bloom.intensity, bloom.radius], [0.04, 1], 'Jimenez 2014');
   assert.equal(bloom.stage, 'before-tone-mapping');
   assert.deepEqual([effect.bloom({ intensity: 1, radius: 3 }).radius], [3]);
   assert.throws(() => effect.bloom({ intensity: 1.5 }), /BLOOM_INTENSITY/);

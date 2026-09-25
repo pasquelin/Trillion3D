@@ -34,7 +34,7 @@ export type {
   ToneMapping,
   Wrap,
 } from '../../sdk-core/src/world/constants/index.ts';
-export { Bloom, BLOOM_DEFAULTS } from '../../sdk-core/src/world/effect/bloom.ts';
+export { Bloom } from '../../sdk-core/src/world/effect/bloom.ts';
 export type { BloomOptions } from '../../sdk-core/src/world/effect/bloom.ts';
 export { Box3 } from '../../sdk-core/src/world/math/box3.ts';
 export type { BoundedNode } from '../../sdk-core/src/world/math/box3.ts';

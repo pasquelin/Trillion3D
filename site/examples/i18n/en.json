@@ -115,6 +115,14 @@
       "takes": "takes"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Drag to look around. Turn the glow off to see the lamps without it, or widen it.",
+    "controls": {
+      "glow": "Glow",
+      "intensity": "Intensity",
+      "radius": "Spread"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Drag to look around. Swing the lantern and watch the light move.",
     "controls": {

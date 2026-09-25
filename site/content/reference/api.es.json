@@ -291,6 +291,28 @@
   "Blending": {
     "summary": "Cómo se mezcla una superficie con lo que hay detrás, por su nombre."
   },
+  "Bloom": {
+    "summary": "Luz que se desborda alrededor de lo brillante, como la esparce una lente.",
+    "description": "De base física: actúa sobre la radiancia lineal de la escena, antes del tone mapping, sin umbral, y conserva la energía — el resplandor es una copia difuminada de la imagen mezclada con ella, así que la luz total sigue siendo la misma.",
+    "parameters": {
+      "options": "Lo que una página puede pasar a `effect.bloom`.",
+      "options.intensity": "Parte de la imagen sustituida por su resplandor, de 0 (nada) a 1 (solo el resplandor).",
+      "options.radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; 1 es el filtro publicado."
+    },
+    "members": {
+      "kind": "Qué pasada integrada es.",
+      "stage": "Si se ejecuta antes o después del tone mapping.",
+      "intensity": "Parte de la imagen sustituida por su resplandor, de 0 a 1.",
+      "radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; mayor que 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Lo que una página puede pasar a `effect.bloom`.",
+    "members": {
+      "intensity": "Parte de la imagen sustituida por su resplandor, de 0 (nada) a 1 (solo el resplandor).",
+      "radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; 1 es el filtro publicado."
+    }
+  },
   "blocksAcross": {
     "summary": "Bloques a lo largo de `texels`, el último completado por el borde cuando el lado no es un múltiplo."
   },
@@ -1479,6 +1501,17 @@
   "edge": {
     "summary": "Función de arista 2D (producto vectorial 2D)."
   },
+  "effect": {
+    "summary": "La familia `effect`: las pasadas que `world.effects` dibuja sobre la imagen."
+  },
+  "effect.bloom": {
+    "summary": "Un resplandor alrededor de lo brillante, sobre la imagen lineal antes del tone mapping.",
+    "parameters": {
+      "options": "`intensity` y `radius`; los valores publicados si faltan.",
+      "options.intensity": "Parte de la imagen sustituida por su resplandor, de 0 (nada) a 1 (solo el resplandor).",
+      "options.radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; 1 es el filtro publicado."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Una irradiancia vacía, lista para recibir fuentes."
   },
@@ -1624,6 +1657,33 @@
   "EXPLORER_OPTIONS_SCHEMA": {
     "summary": "Esquema JSON completo que documenta todas las opciones de inicio del explorador Trillion3D (MeasuredWorldOptions).",
     "description": "Permite a los LLM comprender, verificar y ajustar la configuración del motor 3D."
+  },
+  "EffectChain": {
+    "summary": "`world.effects`: las pasadas ordenadas que se dibujan sobre la imagen tras el antialiasing temporal y antes de que llegue al canvas.",
+    "description": "Las pasadas anteriores al tone mapping leen la radiancia lineal, en el orden en que se añadieron; las posteriores leen la imagen mostrada, en el suyo. Una cadena vacía no cuesta nada: ninguna pasada, ninguna copia, ningún destino.",
+    "members": {
+      "revision": "Cuenta los cambios: una imagen dibujada en otra revisión está desfasada.",
+      "passes": "Las pasadas, en el orden en que se ejecutan.",
+      "size": "Cuántas pasadas contiene la cadena.",
+      "add": "Pone una pasada en la cadena, al final o en `index`. Una pasada pertenece a una sola cadena a la vez.",
+      "remove": "Saca una pasada de la cadena; false si no estaba en ella.",
+      "clear": "Saca todas las pasadas: la imagen vuelve a ser la de sin cadena.",
+      "stage": "Las pasadas de una etapa, en el orden de la cadena: la lista que ejecuta un motor. Se conserva de un cambio a otro, para que un fotograma no reserve nada."
+    }
+  },
+  "EffectKind": {
+    "summary": "Las pasadas integradas que un motor sabe dibujar."
+  },
+  "EffectPass": {
+    "summary": "Una pasada de la cadena.",
+    "description": "Una pasada dice qué pasada integrada es y dónde se ejecuta; sus ajustes son propiedades cuya escritura llega al mundo en el acto, como los de una luz.",
+    "members": {
+      "kind": "Qué pasada integrada es.",
+      "stage": "Si se ejecuta antes o después del tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Dónde se sitúa una pasada respecto a la curva de visualización: sobre la radiancia lineal de la escena, antes de que la exposición y la curva la lleven al rango de visualización, o sobre la imagen mostrada que produjeron."
   },
   "exportLightingGltf": {
     "summary": "glTF y un búfer binario separado en little-endian; los adaptadores gestionan el guardado."
@@ -2376,7 +2436,8 @@
       "toneMapping": "La curva de visualización elegida por la escena; ACES si falta.",
       "framebuffer": "Dónde dibujar; `null` para la pantalla.",
       "width": "Ancho en píxeles.",
-      "height": "Alto en píxeles."
+      "height": "Alto en píxeles.",
+      "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura."
     }
   },
   "HostGeometry": {
@@ -6384,6 +6445,9 @@
   "world.temporalAntialiasing": {
     "summary": "Antialiasing temporal: desplazamiento subpíxel acumulado entre imágenes; activado por defecto.",
     "description": "Al escribirlo, surte efecto en la imagen siguiente, se descarta el historial, sin reabrir la sesión. Al leerlo, es lo que lleva la imagen: false en WebGL2, y mientras el programa se compila tras activarlo."
+  },
+  "world.effects": {
+    "summary": "La cadena de efectos: pasadas dibujadas sobre la imagen (`effect`)."
   },
   "world.budget": {
     "summary": "Las reservas de memoria del mundo, leídas y ajustadas en bytes.",

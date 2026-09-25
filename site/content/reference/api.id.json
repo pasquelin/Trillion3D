@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Bagaimana sebuah permukaan bercampur dengan yang ada di baliknya, menurut namanya."
   },
+  "Bloom": {
+    "summary": "Cahaya yang meluber di sekitar sesuatu yang terang, seperti lensa menyebarkannya.",
+    "description": "Berbasis fisika: bekerja pada radiansi linear adegan, sebelum tone mapping, tanpa ambang, dan menjaga energi — pendarnya adalah salinan gambar yang dikaburkan lalu dicampurkan, sehingga total cahaya tetap sama.",
+    "parameters": {
+      "options": "Apa yang dapat diberikan halaman kepada `effect.bloom`.",
+      "options.intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 (tidak ada) hingga 1 (hanya pendar).",
+      "options.radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; 1 adalah filter yang diterbitkan."
+    },
+    "members": {
+      "kind": "Pass bawaan yang mana ini.",
+      "stage": "Apakah berjalan sebelum atau sesudah tone mapping.",
+      "intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 hingga 1.",
+      "radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; di atas 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Apa yang dapat diberikan halaman kepada `effect.bloom`.",
+    "members": {
+      "intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 (tidak ada) hingga 1 (hanya pendar).",
+      "radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; 1 adalah filter yang diterbitkan."
+    }
+  },
   "BounceBudget": {
     "summary": "Anggaran pantulan dalam milidetik.",
     "description": "Spesifikasi mengharuskan sebuah durasi waktu, bukan jumlah sinar tetap: laju bingkai tetap konstan, sementara cahaya berkonvergensi secara bertahap. Mesin menerima durasi bingkai target, mengukur stempel waktu GPU dari tahap pantulan, dan secara dinamis menyesuaikan pecahan beban kerja yang dikodekan berikutnya. Penyesuaian dihaluskan dan dibatasi: pecahannya tidak pernah melebihi 1 (batas atas yang dipublikasikan tetap batas tegas) dan tidak pernah turun di bawah batas bawah (menjamin kemajuan konvergensi).",
@@ -849,6 +871,33 @@
     "summary": "Skema JSON menyeluruh yang mendokumentasikan semua opsi inisialisasi untuk explorer Trillion3D (MeasuredWorldOptions).",
     "description": "Memungkinkan LLM memahami, memvalidasi, dan menyetel konfigurasi mesin 3D."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: pass berurutan yang digambar di atas gambar setelah antialiasing temporal dan sebelum gambar mencapai canvas.",
+    "description": "Pass sebelum tone mapping membaca radiansi linear, sesuai urutan penambahannya; pass sesudahnya membaca gambar yang ditampilkan, sesuai urutannya. Rantai kosong tidak memakan apa pun: tanpa pass, tanpa salinan, tanpa target.",
+    "members": {
+      "revision": "Menghitung perubahan: gambar yang digambar pada revisi lain sudah usang.",
+      "passes": "Pass-pass, sesuai urutan jalannya.",
+      "size": "Berapa banyak pass dalam rantai.",
+      "add": "Memasukkan pass ke rantai, di akhir atau di `index`. Satu pass hanya milik satu rantai pada satu waktu.",
+      "remove": "Mengeluarkan pass dari rantai; false jika tidak ada di dalamnya.",
+      "clear": "Mengeluarkan semua pass: gambar kembali seperti tanpa rantai.",
+      "stage": "Pass dari satu tahap, sesuai urutan rantai: daftar yang dijalankan mesin. Disimpan dari perubahan ke perubahan, sehingga satu bingkai tidak mengalokasikan apa pun."
+    }
+  },
+  "EffectKind": {
+    "summary": "Pass bawaan yang dapat digambar mesin."
+  },
+  "EffectPass": {
+    "summary": "Satu pass dari rantai.",
+    "description": "Sebuah pass menyatakan pass bawaan mana dirinya dan di mana ia berjalan; pengaturannya adalah properti yang penulisannya langsung sampai ke dunia, seperti milik cahaya.",
+    "members": {
+      "kind": "Pass bawaan yang mana ini.",
+      "stage": "Apakah berjalan sebelum atau sesudah tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Posisi pass terhadap kurva tampilan: pada radiansi linear adegan, sebelum eksposur dan kurva membawanya ke rentang tampilan, atau pada gambar tampilan yang mereka hasilkan."
+  },
   "EngineCamera": {
     "summary": "Kamera mesin: angka-angka sebuah bingkai, dalam buffer milik sendiri yang ditulis ulang di tempat.",
     "description": "Tidak ada struktur pustaka host yang menyeberang sebuah signature setelah `readCameraWorld` (`world.ts`, satu-satunya terjemahan dari sebuah kamera host).",
@@ -1359,7 +1408,8 @@
       "toneMapping": "Kurva tampilan yang dipilih scene; ACES saat tidak ada.",
       "framebuffer": "Tempat menggambar; `null` untuk layar.",
       "width": "Lebar dalam piksel.",
-      "height": "Tinggi dalam piksel."
+      "height": "Tinggi dalam piksel.",
+      "linear": "Radiansi linear, tanpa kurva dan tanpa pengodean, di atas hitam transparan: masukan rantai efek, yang alfanya adalah cakupan."
     }
   },
   "HostGeometry": {
@@ -4767,6 +4817,17 @@
   "edge": {
     "summary": "Fungsi tepi 2D (hasil kali silang 2D)."
   },
+  "effect": {
+    "summary": "Keluarga `effect`: pass yang digambar `world.effects` di atas gambar."
+  },
+  "effect.bloom": {
+    "summary": "Pendar di sekitar sesuatu yang terang, pada gambar linear sebelum tone mapping.",
+    "parameters": {
+      "options": "`intensity` dan `radius`; nilai yang diterbitkan jika tidak diberikan.",
+      "options.intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 (tidak ada) hingga 1 (hanya pendar).",
+      "options.radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; 1 adalah filter yang diterbitkan."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Sebuah iradiansi yang kosong, siap menerima sumber."
   },
@@ -6651,6 +6712,9 @@
   "world.temporalAntialiasing": {
     "summary": "Antialiasing temporal: pergeseran subpiksel yang diakumulasi antarbingkai; aktif secara bawaan.",
     "description": "Saat ditulis, berlaku pada bingkai berikutnya, riwayat dibuang, tanpa membuka ulang sesi. Saat dibaca, itulah yang dibawa gambar: false di WebGL2, dan selama program dikompilasi setelah diaktifkan."
+  },
+  "world.effects": {
+    "summary": "Rantai efek: pass yang digambar di atas gambar (`effect`)."
   },
   "world.budget": {
     "summary": "Kolam memori dunia, dibaca dan diatur dalam byte.",

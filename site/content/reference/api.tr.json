@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Bir yüzeyin arkasındakiyle adına göre nasıl karıştığı."
   },
+  "Bloom": {
+    "summary": "Parlak olanın çevresine taşan ışık; bir merceğin yaydığı gibi.",
+    "description": "Fiziksel temelli: sahnenin doğrusal ışıma değeri üzerinde, ton eşlemeden önce, eşiksiz çalışır ve enerjiyi korur — parıltı, görüntünün bulanıklaştırılmış bir kopyasının ona karıştırılmasıdır; bu yüzden toplam ışık aynı kalır.",
+    "parameters": {
+      "options": "Bir sayfanın `effect.bloom`’a verebileceği şey.",
+      "options.intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "options.radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    },
+    "members": {
+      "kind": "Bunun hangi yerleşik geçiş olduğu.",
+      "stage": "Ton eşlemeden önce mi sonra mı çalıştığı.",
+      "intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 ile 1 arası.",
+      "radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 0’dan büyük."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Bir sayfanın `effect.bloom`’a verebileceği şey.",
+    "members": {
+      "intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    }
+  },
   "BounceBudget": {
     "summary": "Milisaniye cinsinden yansıma bütçesi.",
     "description": "Belirtim, sabit bir ışın sayısı değil bir zaman süresi zorunlu kılar: ışık kademeli olarak yakınsarken kare hızı sabit kalır. Motor bir hedef kare süresi alır, yansıma geçişinden GPU zaman damgalarını ölçer ve bir sonraki kodlanacak iş yükü payını dinamik olarak ayarlar. Ayarlama yumuşatılmış ve sınırlıdır: pay asla 1'i aşmaz (yayımlanmış tavanlar katı üst sınır olarak kalır) ve asla tabanın altına düşmez (yakınsama ilerlemesini garanti eder).",
@@ -842,6 +864,33 @@
     "summary": "Trillion3D gezgininin (MeasuredWorldOptions) tüm başlatma seçeneklerini belgeleyen kapsamlı JSON Şeması.",
     "description": "LLM'lerin 3D motor yapılandırmasını anlamasını, doğrulamasını ve ayarlamasını sağlar."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: zamansal kenar yumuşatmadan sonra ve görüntü canvas’a ulaşmadan önce görüntünün üzerine çizilen sıralı geçişler.",
+    "description": "Ton eşlemeden önceki geçişler doğrusal ışımayı eklendikleri sırayla okur; sonrakiler gösterilen görüntüyü kendi sıralarıyla okur. Boş bir zincir hiçbir şeye mal olmaz: geçiş yok, kopya yok, hedef yok.",
+    "members": {
+      "revision": "Değişiklikleri sayar: başka bir revizyonda çizilmiş görüntü eskimiştir.",
+      "passes": "Geçişler, çalıştıkları sırayla.",
+      "size": "Zincirin kaç geçiş tuttuğu.",
+      "add": "Zincire bir geçiş koyar, sona ya da `index` konumuna. Bir geçiş aynı anda tek bir zincire aittir.",
+      "remove": "Bir geçişi zincirden çıkarır; içinde değilse false.",
+      "clear": "Tüm geçişleri çıkarır: görüntü yeniden zincirsiz hâline döner.",
+      "stage": "Bir aşamanın geçişleri, zincir sırasıyla: bir motorun çalıştırdığı liste. Değişiklikten değişikliğe tutulur, böylece bir kare hiçbir şey ayırmaz."
+    }
+  },
+  "EffectKind": {
+    "summary": "Bir motorun çizebildiği yerleşik geçişler."
+  },
+  "EffectPass": {
+    "summary": "Zincirin bir geçişi.",
+    "description": "Bir geçiş hangi yerleşik geçiş olduğunu ve nerede çalıştığını söyler; ayarları, yazıldığında dünyaya hemen ulaşan özelliklerdir, bir ışığınkiler gibi.",
+    "members": {
+      "kind": "Bunun hangi yerleşik geçiş olduğu.",
+      "stage": "Ton eşlemeden önce mi sonra mı çalıştığı."
+    }
+  },
+  "EffectStage": {
+    "summary": "Bir geçişin görüntü eğrisine göre yeri: pozlama ve eğri onu görüntü aralığına getirmeden önce sahnenin doğrusal ışıması üzerinde ya da onların ürettiği gösterilen görüntü üzerinde."
+  },
   "EngineCamera": {
     "summary": "Motor kamerası: yerinde yeniden yazılan kendi tamponlarındaki bir karenin sayıları.",
     "description": "`readCameraWorld`'ün (`world.ts`, bir host kamerasından tek çeviri) alt akışındaki hiçbir imzaya host kütüphanesi yapısı geçmez.",
@@ -1351,7 +1400,8 @@
       "toneMapping": "Sahnenin seçtiği ekran eğrisi; yoksa ACES.",
       "framebuffer": "Nereye çizileceği; ekran için `null`.",
       "width": "Piksel cinsinden genişlik.",
-      "height": "Piksel cinsinden yükseklik."
+      "height": "Piksel cinsinden yükseklik.",
+      "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
     }
   },
   "HostGeometry": {
@@ -3877,6 +3927,9 @@
     "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
     "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
   },
+  "world.effects": {
+    "summary": "Efekt zinciri: görüntünün üzerine çizilen geçişler (`effect`)."
+  },
   "world.budget": {
     "summary": "Dünyanın bellek havuzları, bayt cinsinden okunur ve ayarlanır.",
     "members": {
@@ -4770,6 +4823,17 @@
   },
   "edge": {
     "summary": "2D kenar fonksiyonu (2D çapraz çarpım)."
+  },
+  "effect": {
+    "summary": "`effect` ailesi: `world.effects`’in görüntünün üzerine çizdiği geçişler."
+  },
+  "effect.bloom": {
+    "summary": "Parlak olanın çevresinde bir parıltı, ton eşlemeden önce doğrusal görüntü üzerinde.",
+    "parameters": {
+      "options": "`intensity` ve `radius`; verilmezse yayımlanmış değerler.",
+      "options.intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "options.radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    }
   },
   "emptyIrradiance": {
     "summary": "İçinde hiçbir şey olmayan, kaynak almaya hazır bir ışınım."

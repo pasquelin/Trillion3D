@@ -521,17 +521,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".Bloom"
     },
     {
-      "name": "BLOOM_DEFAULTS",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/src/world/effect/bloom.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".BLOOM_DEFAULTS"
-    },
-    {
       "name": "BloomOptions",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/world/effect/bloom.ts",
@@ -931,6 +920,7 @@
         "packages/sdk-browser/src/host/prepared/accessors.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/prepared/graph.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/linearOutput.test.ts",
         "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
@@ -2696,7 +2686,12 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/webgpuEffects.test.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.test.ts",
+        "packages/sdk-browser/src/world/core/worldSwitches.test.ts",
+        "packages/sdk-browser/src/world/render/composeEffects.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/effect/index\".effect"
     },
@@ -2708,8 +2703,11 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/webgpu/frame/hold.fixture.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.test.ts",
         "packages/sdk-browser/src/world/core/worldSwitches.ts",
-        "packages/sdk-browser/src/world/render/compose.ts"
+        "packages/sdk-browser/src/world/render/compose.ts",
+        "packages/sdk-browser/src/world/render/composeEffects.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectChain"

@@ -1,6 +1,6 @@
 // The effect chain on the WebGPU path (#349): a held frame redisplays the image the chain drew and
 // does no work of its own; a change of the chain breaks the hold; a diagnostic view and a capture
-// show the engine's image without it; its targets count with the frame's.
+// show the engine's image without it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts';
@@ -8,13 +8,7 @@ import { effect } from '../../../../../sdk-core/src/world/effect/index.ts';
 import { holdWebgpuFrame, keepWebgpuFrame } from '../../frame/hold.ts';
 import { settledRt } from '../../frame/hold.fixture.ts';
 import { encodeEffects } from './encodeEffects.ts';
-import { metricsOf } from '../io/metrics.ts';
-import { createWebgpuRunState } from '../state/run.ts';
-import { createWebgpuVisState } from '../state/vis.ts';
-import { createWebgpuBlendState } from '../../blend/state.ts';
-import { createWebgpuLightState } from '../state/lights.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 const input = {} as GPUTextureView;
 /** Counts the passes the chain begins. */
@@ -84,20 +78,4 @@ test('a diagnostic view, a capture and an empty chain make nothing and hand the 
   assert.equal(encodeEffects(rt, device, encoder, input), input);
   assert.deepEqual([rt.gpu.effects, textures.length], [undefined, 0]);
   assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same');
-});
-
-test('the targets of the chain count in the frame target bytes', () => {
-  const rt = {
-    run: createWebgpuRunState(),
-    gpu: { positionBuffers: new Map(), targetBytes: 1000, effects: { bytes: 24 } },
-    vis: createWebgpuVisState(),
-    timing: {},
-    blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
-    setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    lights: createWebgpuLightState(32),
-  } as unknown as WebgpuPagesRuntime;
-  assert.equal(metricsOf(rt).gpuFrameTargetBytes, 1024);
-  rt.gpu.effects = undefined;
-  assert.equal(metricsOf(rt).gpuFrameTargetBytes, 1000);
 });

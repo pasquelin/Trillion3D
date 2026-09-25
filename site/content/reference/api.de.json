@@ -291,6 +291,28 @@
   "Blending": {
     "summary": "Wie sich eine Oberfläche mit dem mischt, was dahinter ist, nach ihrem Namen."
   },
+  "Bloom": {
+    "summary": "Licht, das um Helles herum überläuft, wie eine Linse es streut.",
+    "description": "Physikalisch basiert: Es wirkt auf die lineare Strahldichte der Szene, vor dem Tone Mapping, ohne Schwelle, und erhält die Energie — der Schein ist eine weichgezeichnete Kopie des Bildes, die eingemischt wird, sodass das gesamte Licht gleich bleibt.",
+    "parameters": {
+      "options": "Was eine Seite an `effect.bloom` übergeben kann.",
+      "options.intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "options.radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    },
+    "members": {
+      "kind": "Welcher eingebaute Durchgang das ist.",
+      "stage": "Ob er vor oder nach dem Tone Mapping läuft.",
+      "intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 bis 1.",
+      "radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; über 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Was eine Seite an `effect.bloom` übergeben kann.",
+    "members": {
+      "intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    }
+  },
   "blocksAcross": {
     "summary": "Blöcke entlang `texels`, der letzte durch den Rand ergänzt, wenn die Seite kein Vielfaches ist."
   },
@@ -1479,6 +1501,17 @@
   "edge": {
     "summary": "2D-Kantenfunktion (2D-Kreuzprodukt)."
   },
+  "effect": {
+    "summary": "Die Familie `effect`: die Durchgänge, die `world.effects` über das Bild zeichnet."
+  },
+  "effect.bloom": {
+    "summary": "Ein Schein um Helles, auf dem linearen Bild vor dem Tone Mapping.",
+    "parameters": {
+      "options": "`intensity` und `radius`; ohne Angabe die veröffentlichten Werte.",
+      "options.intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "options.radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Eine leere Bestrahlungsstärke, bereit, Quellen zu empfangen."
   },
@@ -1624,6 +1657,33 @@
   "EXPLORER_OPTIONS_SCHEMA": {
     "summary": "Vollständiges JSON-Schema, das alle Startoptionen des Trillion3D-Explorers dokumentiert (MeasuredWorldOptions).",
     "description": "Ermöglicht LLMs, die Konfiguration der 3D-Engine zu verstehen, zu prüfen und einzustellen."
+  },
+  "EffectChain": {
+    "summary": "`world.effects`: die geordneten Durchgänge, die nach dem temporalen Antialiasing über das Bild gezeichnet werden, bevor es den Canvas erreicht.",
+    "description": "Die Durchgänge vor dem Tone Mapping lesen die lineare Strahldichte, in der Reihenfolge, in der sie hinzugefügt wurden; die danach lesen das angezeigte Bild, in ihrer. Eine leere Kette kostet nichts: kein Durchgang, keine Kopie, kein Ziel.",
+    "members": {
+      "revision": "Zählt die Änderungen: Ein Bild, das bei einer anderen Revision gezeichnet wurde, ist veraltet.",
+      "passes": "Die Durchgänge, in der Reihenfolge, in der sie laufen.",
+      "size": "Wie viele Durchgänge die Kette enthält.",
+      "add": "Fügt einen Durchgang in die Kette ein, am Ende oder bei `index`. Ein Durchgang gehört jeweils zu einer Kette.",
+      "remove": "Nimmt einen Durchgang aus der Kette; false, wenn er nicht darin war.",
+      "clear": "Nimmt alle Durchgänge heraus: Das Bild ist wieder das ohne Kette.",
+      "stage": "Die Durchgänge einer Stufe, in Kettenreihenfolge: die Liste, die eine Engine ausführt. Von Änderung zu Änderung behalten, damit ein Bild nichts alloziert."
+    }
+  },
+  "EffectKind": {
+    "summary": "Die eingebauten Durchgänge, die eine Engine zeichnen kann."
+  },
+  "EffectPass": {
+    "summary": "Ein Durchgang der Kette.",
+    "description": "Ein Durchgang sagt, welcher eingebaute er ist und wo er läuft; seine Einstellungen sind Eigenschaften, deren Schreiben die Welt sofort erreicht, wie bei einem Licht.",
+    "members": {
+      "kind": "Welcher eingebaute Durchgang das ist.",
+      "stage": "Ob er vor oder nach dem Tone Mapping läuft."
+    }
+  },
+  "EffectStage": {
+    "summary": "Wo ein Durchgang relativ zur Anzeigekurve sitzt: auf der linearen Strahldichte der Szene, bevor Belichtung und Kurve sie in den Anzeigebereich bringen, oder auf dem angezeigten Bild, das sie erzeugt haben."
   },
   "exportLightingGltf": {
     "summary": "glTF und ein getrennter binärer Puffer in Little-Endian; die Adapter übernehmen das Speichern."
@@ -2376,7 +2436,8 @@
       "toneMapping": "Die von der Szene gewählte Anzeigekurve; ACES, wenn sie fehlt.",
       "framebuffer": "Wohin gezeichnet wird; `null` für den Bildschirm.",
       "width": "Breite in Pixeln.",
-      "height": "Höhe in Pixeln."
+      "height": "Höhe in Pixeln.",
+      "linear": "Lineare Strahldichte, weder durch die Kurve gebracht noch kodiert, über transparentem Schwarz: die Eingabe der Effektkette, deren Alpha die Abdeckung ist."
     }
   },
   "HostGeometry": {
@@ -6384,6 +6445,9 @@
   "world.temporalAntialiasing": {
     "summary": "Zeitliche Kantenglättung: Subpixel-Versatz, über Bilder hinweg akkumuliert; standardmäßig an.",
     "description": "Geschrieben, wirkt sie ab dem nächsten Bild, der Verlauf wird verworfen, keine Sitzung neu geöffnet. Gelesen, ist sie das, was das Bild trägt: false unter WebGL2 und solange das Programm nach dem Einschalten kompiliert."
+  },
+  "world.effects": {
+    "summary": "Die Effektkette: Durchgänge, die über das Bild gezeichnet werden (`effect`)."
   },
   "world.budget": {
     "summary": "Die Speicherreservoirs der Welt, in Bytes gelesen und eingestellt.",

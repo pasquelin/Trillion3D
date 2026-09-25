@@ -159,6 +159,41 @@ surface capture and a diagnostic view render unjittered and unaccumulated. The p
 means nothing on tile-based GPUs; its cost is read as an envelope difference with
 `temporalAntialiasing: false`.
 
+## Effect chain
+
+`world.effects` (`EffectChain`, `packages/sdk-core/src/world/effect/`) is one ordered list of passes
+drawn over the image after the temporal resolve and before presentation. Each pass declares its
+stage: `before-tone-mapping` passes read the linear radiance, in chain order; `after-tone-mapping`
+passes will read the display image (none ships yet). The chain is one object for the world's life,
+shared by reference with every session; a change of the chain or of a pass's setting counts one
+revision and asks for a frame.
+
+- **WebGPU** (`webgpu/pages/render/encodeEffects.ts`, `effects/webgpuEffects.ts`): between
+  `encodeTaaPass` and the composition, which tone-maps whatever view it is handed. Each pass writes a
+  full-size `rgba16float` target, two in turn at most. The programs compile in the background on the
+  first frame with a pass; until then the image is drawn without the chain and is not settled.
+- **WebGL2** (`world/render/compose.ts`, `effects/webglEffects.ts`): with a pass, the composer asks the
+  engine for linear radiance (`HostDrawOutput.linear`: no curve, no sRGB transfer, alpha as coverage
+  over transparent black) into a half-float target with depth, runs the passes, then one output
+  program applies the scene's curve and the sRGB transfer over the background, as the WebGPU
+  composition does. A context that cannot render half floats draws without the chain.
+
+Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
+frame is composed call for call as without one; a held frame redisplays the image the chain drew and
+runs no pass, a changed chain breaks the hold; targets are made at the first frame with a pass, fixed
+at the image size, freed when the chain empties, and counted in `gpuFrameTargetBytes` (on WebGL2,
+which counts no other target, the chain's alone). A diagnostic view and an off-screen capture show
+the engine's image without the chain.
+
+**Bloom** (`effect.bloom`, `effects/bloomFilter.ts`) is the physically based one of Jimenez
+(SIGGRAPH 2014): six half-size levels at most (a declared value, the publication's), filtered down
+with the 13-tap filter, summed back up with a 3×3 tent of `radius` texels, then blended:
+`image × (1 − intensity) + Σlevels / levels × intensity`. Every filter is normalised, so each level
+carries the image's mean radiance: with no threshold, the total energy is conserved (CPU oracle,
+`effects/bloom.fixture.ts`). The WGSL and GLSL programs are generated from one tap table and read
+back against the oracle. Bytes: 8 per texel of each level, about a third of the image. Cost per
+pass: measured on the frame envelope, not by its own timestamp.
+
 ## Direct lighting
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light

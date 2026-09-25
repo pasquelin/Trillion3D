@@ -191,29 +191,6 @@
     "description": ""
   },
   {
-    "id": "BLOOM_DEFAULTS",
-    "module": "packages/sdk-core/src/world/effect/bloom.ts",
-    "exports": ["BLOOM_DEFAULTS"],
-    "section": "effect",
-    "kind": "Constant",
-    "title": "BLOOM_DEFAULTS",
-    "signature": "const BLOOM_DEFAULTS",
-    "summary": "The published defaults (Jimenez, \"Next Generation Post Processing in Call of Duty: Advanced Warfare\", SIGGRAPH 2014): a 4 % blend of the glow and a one-texel tent.",
-    "members": [
-      {
-        "name": "intensity",
-        "type": "0.04",
-        "desc": ""
-      },
-      {
-        "name": "radius",
-        "type": "1",
-        "desc": ""
-      }
-    ],
-    "description": "Neither is read from a scene; both are the page's to change."
-  },
-  {
     "id": "BOUNCE_PROBES_PER_FRAME",
     "module": "packages/sdk-core/src/bounce/contracts.ts",
     "exports": ["BOUNCE_PROBES_PER_FRAME"],
@@ -19069,7 +19046,7 @@
     "kind": "Constant",
     "title": "world.effects",
     "signature": "world.effects: EffectChain",
-    "summary": "Passes drawn over the image, in order (`effect`).",
+    "summary": "The effect chain: passes drawn over the image (`effect`).",
     "description": ""
   },
   {

@@ -445,7 +445,6 @@
       "sound-in-space": "positional audio",
       "tone-mapping-compared": "tone-mapping operator choice",
       "a-first-post-effect": "post-processing chain",
-      "a-glow-around-lights": "post-processing chain: bloom",
       "glow-on-chosen-objects": "post-processing chain: selective bloom",
       "depth-of-field": "post-processing chain: depth of field",
       "motion-blur": "post-processing chain: motion blur",
