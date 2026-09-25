@@ -6,10 +6,9 @@ import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
 import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
 /** The page streamer (`pages.ts`) reading through `kept`, the decoded-page cache its owner keeps
- *  across sessions: the streamer reserves its manifest tables and its transfer queue off the cache's
- *  CPU total, drops what the catalogue no longer names at that size, and leaves the pages there when
- *  it is disposed, for the next session. Without `kept`, a cache of its own holds `ownBytes` of
- *  pages (`DEFAULT_CACHED_BYTES` by default) beside what it reserves, and empties at dispose. */
+ *  across sessions: off its CPU total, the streamer reserves its manifest tables, transfer queue
+ *  and the engine's tables (`reserve`), drops what the catalogue names at another size, and leaves
+ *  the pages to the next session. Without `kept`, its own holds `ownBytes`, emptied at dispose. */
 export function createPageStreamerWith(
   kept: PageCache | undefined,
   pages: readonly StreamPage[],
@@ -84,14 +83,8 @@ export function createPageStreamerWith(
   const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
   // A kept page the catalogue names at another size is another page: it leaves before the first read.
   store.dropResized(catalog);
-  // The engine's own tables (`reserve`) come out of the pages' share, beside the manifest tables
-  // and the transfer queue.
-  const release = store.hold({
-    get reservedBytes() {
-      return tableBytes + maxTransferBytes + state.reservedBytes;
-    },
-    evict,
-  });
+  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes;
+  const release = store.hold({ reserved, evict });
   if (kept) evict();
   else store.resize(store.cpuBytes + store.reservedBytes);
   emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
@@ -175,9 +168,8 @@ export function createPageStreamerWith(
         resident: cache.size,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
-        /** CPU bytes the streamer holds: manifest tables, transfers in flight, cached pages. */
+        /** CPU bytes the streamer holds (manifest tables, transfers, pages) of `cpuBudgetBytes`. */
         cpuBytes: tableBytes + state.activeBytes + store.bytes,
-        /** The CPU total those count against. */
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         failed: failures.size,
