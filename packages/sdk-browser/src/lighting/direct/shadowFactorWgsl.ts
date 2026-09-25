@@ -22,9 +22,12 @@ import {
  * of a sun and the unshadowed answer of a lamp past their last level only answer before a light's
  * first request report.
  *
- * The receiver moves along its normal by a fraction of the level's texel, and its reference by a
- * depth margin from that texel and its depth's slope in the map (`shadowDepthMargin`). A point
- * light reads the face its offset point lies in, so that point always projects inside that face.
+ * The receiver's plane must not shade itself over the PCF's reach: its depth's slope across the
+ * map is covered, in texels of the level read, by a depth margin up to a slope of 1
+ * (`shadowDepthMargin`), and past it by moving the receiver along its normal
+ * (`shadowNormalOffset`). Both are bounded by the reach: a caster a few texels away always keeps
+ * its shadow. A point light reads the face its offset point lies in, so that point always
+ * projects inside that face.
  */
 export const SHADOW_FACTOR_WGSL = `
 const SUN_LEVEL_COUNT:i32=${SUN_LEVELS};
@@ -53,7 +56,7 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
   let page=texel*SHADOW_PAGE;
   let slot=shadowRing(level,SUN_LEVEL_COUNT);
   let origin=sunOrigin(index,slot);
-  let Q=P+N*texel*SHADOW_NORMAL_TEXELS;
+  let Q=P+N*shadowNormalOffset(texel,cosine);
   // Relative to the window's first page, whose world offset is exact in single precision.
   let t=vec2f(dot(Q,right)-f32(origin.x)*page,-dot(Q,up)-f32(origin.y)*page)/texel;
   let map=ShadowMap(u32(info.w)+u32(slot)*SUN_LEVEL_WORDS,1u,SUN_WINDOW_PAGES,origin.x,origin.y);
@@ -80,7 +83,7 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
   let pages=LAMP_PAGE_COUNT>>mip;
   let side=f32(pages)*SHADOW_PAGE;
   let texel=texel0*exp2(f32(mip));
-  let Q=P+N*texel*SHADOW_NORMAL_TEXELS;
+  let Q=P+N*shadowNormalOffset(texel,cosine);
   let d=Q-light.positionRange.xyz;
   let face=select(0u,pointFaceOf(d),u32(info.x)==${POINT_FACES}u);
   let m=shadows.records[index].faces[face];
@@ -94,10 +97,10 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
   // The receiver's axial depth, clip.w, changes across the face by sin(N, axis)·cos²(ray, axis)
-  // over the incidence cosine; brought to depth by k/clip.w², the cos² leaves k/|d|².
+  // over the incidence cosine: tan(incidence) on the axis.
   let facing=dot(N,vec3f(m[0].w,m[1].w,m[2].w));
-  let slope=sqrt(max(1.0-facing*facing,0.0))/cosine;
-  return shadowPcf(map,t,ndc.z+shadowDepthMargin(texel,slope)*k/dot(d,d),home,word,side);
+  let slope=sqrt(max(1.0-facing*facing,0.0))*clip.w*clip.w/(dot(d,d)*cosine);
+  return shadowPcf(map,t,ndc.z+shadowDepthMargin(texel,slope)*k/(clip.w*clip.w),home,word,side);
  }
  return 1.0;
 }
