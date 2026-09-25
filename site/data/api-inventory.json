@@ -3133,6 +3133,7 @@
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/page/cut/state.ts",
         "packages/sdk-browser/src/webgl/cluster/copyCulling.ts",
@@ -3191,6 +3192,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/page/cut/select.ts"
       ],
       "disposition": "retained",
@@ -3221,6 +3223,7 @@
         "bench/perf/browser/support/volumeFrustumPlaneCases.ts",
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "tests/browser/probes/inverseTransposeCases.ts"
       ],
       "disposition": "retained",
@@ -5132,6 +5135,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/partition/uniform.ts",
         "packages/sdk-browser/src/taa/frame.ts"
       ],
@@ -5371,6 +5375,7 @@
         "packages/sdk-browser/src/backend/autonomous/instancePose.ts",
         "packages/sdk-browser/src/camera/renderOrigin.test.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
         "packages/sdk-browser/src/guides/guideObject.ts",
