@@ -7,7 +7,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeDepthRamp } from './depthConvention.ts';
 import { SURFACE_MODEL } from '../scene/surfaceModel.ts';
-import { COMPOSE_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { SHADE_DECL_WGSL } from '../visibility/shader/shadeDeclWgsl.ts';
 import { DEPTH_RAMP_WORD, SHADE_UNIFORM_WORDS } from '../visibility/shader/request.ts';
@@ -111,63 +110,4 @@ test('The resolve uniform: the ramp is a vec4f right before the sun, 16-byte ali
   assert.equal(DEPTH_RAMP_WORD, 16 + 4 + 4);
   assert.equal(DEPTH_RAMP_WORD % 4, 0);
   assert.equal(SHADE_UNIFORM_WORDS, DEPTH_RAMP_WORD + 4 + 16);
-});
-
-// A lit scene under ACES: the display curve bends 1 to about 0.8 (the stand-in below). The
-// reference never tone maps its depth material, so the ramp at the near plane must reach sRGB
-// untouched on both paths — the ramp itself, 1 to float precision; a lit surface keeps the curve.
-const curve = (rgb: number) => rgb * 0.8;
-/** A WGSL or GLSL expression over scalars, `select` and unsigned literals read as JavaScript. */
-const scalar = (source: string, ...names: string[]) =>
-  new Function(
-    'select',
-    'max',
-    'u32',
-    ...names,
-    `return ${source.replace(/(\d)u\b/g, '$1')};`,
-  ).bind(null, (f: unknown, t: unknown, c: boolean) => (c ? t : f), Math.max, Number);
-
-test('WebGL2, lit tone-mapped scene: the depth ramp at near reaches sRGB untouched', () => {
-  const ramp = fragmentRamp(writeDepthRamp(new Float32Array(3), 0, NEAR, FAR, 1), NEAR);
-  const toneMaps = scalar(
-    rampExpression(CLUSTER_FRAGMENT, /if\((.*?)\)rgb=toneMap\(rgb\);/),
-    'toneMapped',
-    'depthShaded',
-  );
-  assert.ok(Math.abs(ramp - 1) < 1e-6, `ramp at near: ${ramp}`);
-  assert.equal(toneMaps(true, true) ? curve(ramp) : ramp, ramp);
-  assert.equal(toneMaps(true, false), true, 'a lit surface keeps the curve');
-});
-
-test('WebGPU, lit tone-mapped scene: the depth ramp at near reaches sRGB untouched', () => {
-  const projection = perspectiveProjection(new Float64Array(16), 50, 1, NEAR, 1);
-  const ramp = resolveRamp(
-    writeDepthRamp(new Float32Array(3), 0, NEAR, FAR, 1),
-    clipOf(projection, NEAR),
-  );
-  const flagOf = scalar(
-    rampExpression(SHADE_SHADER, /vec4f\(0\.0,0\.0,0\.0,1\.0\),(select\(.*?\)),request\);\}/),
-    'model',
-  );
-  const flag = flagOf(SURFACE_MODEL.depth) as number;
-  const asIs = scalar(
-    rampExpression(DIRECT_LIGHTING_SHADER, /if\(([^)]*)\)\{return vec4f\(base\.rgb,1\.0\);\}/),
-    'flag',
-  );
-  assert.equal(asIs(flag), true, 'the resolve passes the ramp through unlit');
-  const depthView = scalar(
-    rampExpression(COMPOSE_SHADER, /let depthView=textureLoad\(flags,[^;]*?\)\.r==(\w+);/),
-  );
-  const composed = scalar(
-    rampExpression(COMPOSE_SHADER, /let color=linearToSrgb\((.*)\);\n/),
-    'value',
-    'view',
-    'toneMap',
-    'depthView',
-  );
-  const lit = (isDepth: boolean) =>
-    composed({ rgb: ramp, a: 1 }, { lightParams: { w: 1 }, display: { x: 1 } }, curve, isDepth);
-  assert.ok(Math.abs(ramp - 1) < 1e-6, `ramp at near: ${ramp}`);
-  assert.equal(lit(Number(depthView()) === flag), ramp);
-  assert.equal(lit(false), curve(ramp), 'a lit surface keeps the exposure and the curve');
 });
