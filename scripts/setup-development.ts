@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { linkLocalFiles } from './local-files.ts';
+import { linkSkills } from './skills-link.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -29,6 +30,12 @@ try {
   // settings and graph artefacts (#157). It gets a link to the ones the primary
   // worktree has, so a batch is written where its rules are readable.
   const primary = primaryWorktree();
+  // Every clone runs the company the same way: its tracked skills and agents are aliased into the
+  // local `.claude/` of the primary checkout, which linked worktrees then share.
+  if (primary !== undefined && resolve(primary) === root) {
+    const skills = linkSkills(root);
+    if (skills.length) console.log(`Company skills linked: ${skills.length}`);
+  }
   if (primary !== undefined) {
     const linked = linkLocalFiles(root, primary);
     if (linked.length) console.log(`Local files linked from ${primary}: ${linked.join(', ')}`);

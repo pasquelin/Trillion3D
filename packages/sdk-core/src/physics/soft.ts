@@ -1,5 +1,6 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
+import { readPoints } from '../world/geometry/bounds.ts';
 import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts';
 import type { PhysicsBodyOptions, PhysicsOption } from './options.ts';
 import { SOFT_VERTEX_WORDS } from './softLayout.ts';
@@ -132,7 +133,7 @@ type Scale = { x: number; y: number; z: number };
  * and a volume's pressure.
  */
 export function softBodyOf(geometry: Geometry, scale: Scale, settings: SoftSettings): SoftRecord {
-  const source = geometry.getAttribute('position')?.array ?? new Float32Array(0);
+  const source = Float32Array.from(readPoints(geometry.getAttribute('position')));
   const count = source.length / 3;
   const map = new Uint32Array(count);
   const at = new Map<string, number>();

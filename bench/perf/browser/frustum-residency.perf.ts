@@ -82,13 +82,15 @@ function hote(nombre: number) {
     bootstrapUrls: new Set(pages.slice(0, Math.min(200, nombre)).map((r) => r.url)),
     modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
     shown: pages.slice(0, Math.floor(nombre * 0.4)),
-    desired: pages,
+    // What the image asks for holds one record per page (`requests.ts`).
+    requested: [...new Map(pages.map((rec) => [rec.url, rec])).values()],
     geometryStore: createAutonomousGeometry({
       scene: new GraphScene(),
       allPages: [],
       bootstrap: [],
       shown: [],
       desired: [],
+      requested: [],
       byUrl: new Map(),
       descriptors: new Map(),
       baseMaterials: new Map(),

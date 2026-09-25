@@ -1063,7 +1063,6 @@
       "transparentSubmittedTriangles": "전송된 투과 삼각형 수.",
       "coverageReady": "완전한 초기 GPU 대체 수단을 사용할 수 있는지 여부; 이 보장이 없는 백엔드에서는 null.",
       "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산에 들어가는 것보다 많은 페이지를 요구한다: 나머지는 더 거칠게 그려진다.",
-      "budgetPixelError": "WebGL2 전용: 그 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위 — 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. WebGPU에는 없으며, 그곳에서는 상주 여부만이 이미지를 거칠게 한다. 페이지 예산이 없는 엔진에서는 null.",
       "frameHeld": "그 프레임이 유지되었을 때 true: 씬도, 뷰도, 리소스도 움직이지 않았고, 대기 중인 비동기 작업도 없었으며, 어떤 CPU 단계도 실행되지 않았다. 표시되는 픽셀은 원본 프레임의 것과 비트 단위로 정확히 같다. 유지된 프레임이 실제로 한 일은 있는 그대로 공개되며, 마지막 완전한 렌더링에서 복사되는 일은 결코 없다: `drawCalls`, `triangles`, `submittedTriangles`, `totalSubmittedTriangles`는 현재 값만 세고, 단계별 CPU/GPU 시간은 그 단계가 실행되지 않았으면 0, 아무것도 측정하지 않았으면 `null`이다. 엔진의 이미지가 대조 어댑터가 그리는 씬일 경우, 이 프레임에서 그 어댑터가 제출한 것을 센다 — 유지된 프레임에서는 아무것도 없다. 유지된 프레임이 실제로 **보여주는** 것은 그것이 다시 표시하는 컷에 의해 계속 설명된다: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel`, `residentPages`는 원본 프레임의 값이다, 같은 컷이기 때문이다. 프레임을 유지하지 않는 엔진에는 이 항목이 없다.",
       "streamingError": "끈질기게 남는 로딩 오류; 실패한 URL은 세 번 시도한 뒤 익스플로러 재로드를 필요로 한다.",
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
@@ -1107,11 +1106,11 @@
     }
   },
   "Geometry": {
-    "summary": "형태 그 자체: 이름이 붙은 정점별 속성, 선택적인 삼각형 인덱스, 재질 그룹.",
+    "summary": "형태만: 이름 붙은 정점별 속성, 선택적 삼각형 인덱스, 재질 그룹, 형태를 움직이는 모프 타깃, 그리는 범위.",
     "members": {
       "isGeometry": "항상 `true`: 지오메트리를 다른 무엇과도 구분한다.",
       "type": "지오메트리의 종류, `'Geometry'`.",
-      "attributes": "이름별 정점 목록: `position`, `normal`, `uv`, `color`.",
+      "attributes": "이름별 정점 목록: `position`, `normal`, `uv`, `color`. 각각 자기 숫자를 가지거나 인터리브 버퍼를 읽는다.",
       "index": "각 삼각형을 이루는 정점, 삼각형당 세 개의 숫자; `null`이면 순서대로 읽는다.",
       "groups": "메시가 여러 재질을 가질 때 `material[materialIndex]`로 그려지는 인덱스 범위.",
       "boundingBox": "계산된 후의, 모든 정점을 둘러싸는 박스; 계산 전에는 `null`.",
@@ -1126,8 +1125,8 @@
       "addGroup": "메시의 재질 번호 `materialIndex`로 `start`부터 `count`개의 인덱스를 그린다.",
       "clearGroups": "모든 재질 그룹을 제거한다.",
       "computeVertexNormals": "매끄러운 법선: 각 정점이 그것을 공유하는 면들을 면적으로 가중 평균한다.",
-      "computeBoundingBox": "모든 정점을 둘러싸는 박스를 계산해 `boundingBox`에 보관한다.",
-      "computeBoundingSphere": "모든 정점을 둘러싸는 구를 계산해 `boundingSphere`에 보관한다.",
+      "computeBoundingBox": "모든 정점과 모프 타깃이 주는 모든 형태를 감싸는 상자를 재어 `boundingBox`에 둔다.",
+      "computeBoundingSphere": "상자에 중심을 두고 모프 여부와 상관없이 가장 먼 정점까지 닿는 구를 재어 `boundingSphere`에 둔다.",
       "applyMatrix4": "모든 위치를 움직이고 모든 법선을 회전시킨다: 지오메트리 자체가 바뀌는 것이지 자세가 바뀌는 것이 아니다.",
       "translate": "모든 정점을 `(x, y, z)`만큼 이동시킨다.",
       "rotateX": "모든 정점을 x축 중심으로 `angle` 라디안 회전시킨다.",
@@ -1135,8 +1134,17 @@
       "rotateZ": "모든 정점을 z축 중심으로 `angle` 라디안 회전시킨다.",
       "scale": "모든 정점을 `(x, y, z)`만큼 확대·축소한다.",
       "center": "지오메트리를, 그 박스가 원점을 중심으로 하도록 옮긴다.",
-      "clone": "모든 목록의 복사본을 가진 새 지오메트리.",
-      "dispose": "소유자들을 잊는다: dispose된 지오메트리는 누구에게도 그려지지 않는다."
+      "clone": "모든 목록, 그룹, 범위, 데이터, 경계의 사본과 여전히 그것을 만드는 레시피를 가진 새 지오메트리.",
+      "dispose": "지오메트리를 돌려준다: 해제 훅을 각각 한 번 실행하고 보유자와 레이캐스트 트리를 잊는다. 해제된 지오메트리는 누구도 그리거나 광선을 쏘지 않는다.",
+      "kind": "리소스가 무엇인지. 장면을 읽는 쪽이 리소스를 구별하는 기준.",
+      "name": "이름.",
+      "morphAttributes": "모프되는 속성마다 모프 타깃 하나당 속성 하나.",
+      "morphTargetsRelative": "모프 타깃이 위치가 아니라 변위를 담으면 참.",
+      "drawRange": "그리는 인덱스 범위.",
+      "userData": "지오메트리를 만든 쪽의 데이터를 위한 자유 공간.",
+      "released": "지오메트리를 돌려줄 때 호출된다: 렌더러 자신의 사본이 듣는 것.",
+      "getIndex": "삼각형 목록, 또는 `null`.",
+      "toNonIndexed": "같은 삼각형을 인덱스 없이 그리는 지오메트리: 모든 모서리가 자기 정점을 가진다."
     }
   },
   "GeometryPageDescriptor": {
@@ -1390,9 +1398,6 @@
       "width": "너비, 픽셀 단위.",
       "height": "높이, 픽셀 단위."
     }
-  },
-  "HostGeometry": {
-    "summary": "호스트 지오메트리: 그 속성들과, 호스트가 그것들로부터 계산한 로컬 박스."
   },
   "HostMaterial": {
     "summary": "엔진이 읽는 형태의 호스트 재질: 모든 호스트 재질이 공유하는 표면 매개변수로, 경계에서 한 번만 엔진의 `VisMaterial`로 읽힌다; `side`만은 `sideOf`가 읽는다."
@@ -4059,7 +4064,6 @@
       "transparentSubmittedTriangles": "전송된 투과 삼각형 수.",
       "coverageReady": "완전한 초기 GPU 대체 수단을 사용할 수 있는지 여부; 이 보장이 없는 백엔드에서는 null.",
       "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산에 들어가는 것보다 많은 페이지를 요구한다: 나머지는 더 거칠게 그려진다.",
-      "budgetPixelError": "WebGL2 전용: 그 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위 — 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. WebGPU에는 없으며, 그곳에서는 상주 여부만이 이미지를 거칠게 한다. 페이지 예산이 없는 엔진에서는 null.",
       "frameHeld": "그 프레임이 유지되었을 때 true: 씬도, 뷰도, 리소스도 움직이지 않았고, 대기 중인 비동기 작업도 없었으며, 어떤 CPU 단계도 실행되지 않았다. 표시되는 픽셀은 원본 프레임의 것과 비트 단위로 정확히 같다. 유지된 프레임이 실제로 한 일은 있는 그대로 공개되며, 마지막 완전한 렌더링에서 복사되는 일은 결코 없다: `drawCalls`, `triangles`, `submittedTriangles`, `totalSubmittedTriangles`는 현재 값만 세고, 단계별 CPU/GPU 시간은 그 단계가 실행되지 않았으면 0, 아무것도 측정하지 않았으면 `null`이다. 엔진의 이미지가 대조 어댑터가 그리는 씬일 경우, 이 프레임에서 그 어댑터가 제출한 것을 센다 — 유지된 프레임에서는 아무것도 없다. 유지된 프레임이 실제로 **보여주는** 것은 그것이 다시 표시하는 컷에 의해 계속 설명된다: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel`, `residentPages`는 원본 프레임의 값이다, 같은 컷이기 때문이다. 프레임을 유지하지 않는 엔진에는 이 항목이 없다.",
       "streamingError": "끈질기게 남는 로딩 오류; 실패한 URL은 세 번 시도한 뒤 익스플로러 재로드를 필요로 한다.",
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
@@ -6322,7 +6326,7 @@
   "object.sprite": {
     "summary": "카메라가 어디를 보든 항상 카메라를 바라보는 평평한 그림: 스프라이트의 스케일만큼 크고 재질의 `rotation`만큼 이미지 안에서 돌아간 단위 정사각형.",
     "parameters": {
-      "material": "정사각형이 보여 주는 것: `material.sprite`."
+      "material": "정사각형이 보여 주는 것: `material.sprite`. 다른 종류는 오류를 던집니다."
     }
   },
   "orthographicProjection": {
@@ -7276,32 +7280,6 @@
       "handbrake": "핸드브레이크가 당겨졌는지 여부."
     }
   },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "그것의 정점 속성.",
-      "boundingBox": "호스트가 계산한 로컬 박스.",
-      "kind": "리소스가 무엇인지.",
-      "name": "그 이름.",
-      "index": "삼각형 목록, 또는 정점을 순서대로 그리려면 `null`.",
-      "morphAttributes": "모프되는 속성마다, 모프 타깃마다 속성 하나.",
-      "morphTargetsRelative": "모프 타깃이 위치가 아니라 변위를 담을 때 참.",
-      "groups": "각각 하나의 표면으로 그려지는 인덱스 범위.",
-      "drawRange": "그려지는 인덱스 범위.",
-      "boundingSphere": "계산되거나 선언된 뒤의 로컬 구.",
-      "userData": "지오메트리를 만든 쪽의 데이터를 위한 자유 공간.",
-      "getIndex": "삼각형 목록.",
-      "setIndex": "삼각형 목록을 설정합니다.",
-      "getAttribute": "그 이름의 속성.",
-      "setAttribute": "속성에 이름을 붙여 설정합니다.",
-      "deleteAttribute": "속성을 잊습니다.",
-      "hasAttribute": "그 이름의 속성이 있는지 여부.",
-      "clone": "모든 버퍼, 그룹, 범위, 경계의 복사본을 담은 지오메트리.",
-      "toNonIndexed": "같은 삼각형을 인덱스 없이 그리는 지오메트리: 모든 꼭짓점이 자기만의 정점입니다.",
-      "computeBoundingBox": "모든 정점에 걸친 로컬 박스를 계산합니다.",
-      "computeBoundingSphere": "로컬 구를 계산합니다: 박스를 중심으로, 가장 먼 정점까지."
-    },
-    "summary": "메시가 그리는 속성, 그것들을 인덱싱하는 삼각형 목록, 그것들을 움직이는 모프 타깃, 그리고 그 위에서 계산한 로컬 박스와 구."
-  },
   "GraphNode": {
     "members": {
       "serial": "세션에서 고유한 노드 번호.",
@@ -7611,10 +7589,11 @@
   },
   "Sprite": {
     "summary": "항상 카메라를 바라보는 평평한 그림: 모든 렌더러가 그릴 때 스프라이트의 위치를 중심으로 이미지 쪽으로 돌리는 단위 정사각형.",
-    "description": "크기는 `x`와 `y`의 월드 스케일이다. 이미지 평면에서의 회전은 재질의 `rotation`이다. 자기 자신의 회전은 읽지 않는다. 스프라이트는 그림자를 드리우지 않는다.",
+    "description": "크기는 `x`와 `y`의 월드 스케일이다. 이미지 평면에서의 회전은 재질의 `rotation`이다. 자기 자신의 회전은 읽지 않는다. 스프라이트는 그림자를 드리우지 않는다. `SpriteMaterial`만 받는 레퍼런스의 `Sprite`처럼 `material.sprite`만 입습니다. 다른 재질을 넘기거나 설정하면 그 종류를 밝히는 `TypeError`를 던집니다.",
     "members": {
       "isSprite": "항상 `true`: 스프라이트를 다른 모든 메시와 구별한다.",
-      "center": "스프라이트의 위치에 놓이는 그림의 점: `(0.5, 0.5)`는 가운데, `(0, 0)`은 왼쪽 아래 모서리, `(0.5, 0)`은 아래 가장자리의 가운데."
+      "center": "스프라이트의 위치에 놓이는 그림의 점: `(0.5, 0.5)`는 가운데, `(0, 0)`은 왼쪽 아래 모서리, `(0.5, 0)`은 아래 가장자리의 가운데.",
+      "material": "스프라이트의 `material.sprite`입니다. 다른 것을 설정하면 바뀝니다."
     }
   }
 }

@@ -1,6 +1,7 @@
 import { DAG_NODE_FLOATS } from '../types.ts';
 import { dagNodeFloor, dagNodeVerdict } from './math.ts';
 import { NODE_FIRST_CHILD } from '../packNodes.ts';
+import { castsNoShadow } from '../../../page/cut/select.ts';
 import type { dagViewFrames } from './math.ts';
 
 /**
@@ -16,15 +17,23 @@ import type { dagViewFrames } from './math.ts';
  * Split from `oracle.ts`: it is a whole step, it has its own WGSL mirror.
  */
 export function dagOracleDescent(
-  packed: { nodeCount: number; worldCount: number; nodes: Float32Array; rootNodes: Uint32Array },
+  packed: {
+    nodeCount: number;
+    worldCount: number;
+    nodes: Float32Array;
+    rootNodes: Uint32Array;
+    sprite?: Uint8Array;
+  },
   frames: ReturnType<typeof dagViewFrames>,
 ) {
   const { nodes } = packed,
     nodeInts = new Uint32Array(nodes.buffer);
   const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
   const frontier: number[] = [];
+  // A light's cut opens no descent on a sprite (`castsNoShadow`, `spriteOf` in the shader).
   for (let w = 0; w < packed.worldCount; w++)
-    if (packed.rootNodes[w] !== 0xffffffff) frontier.push(packed.rootNodes[w]);
+    if (packed.rootNodes[w] !== 0xffffffff && !castsNoShadow(packed.sprite?.[w], frames.light))
+      frontier.push(packed.rootNodes[w]);
   while (frontier.length) {
     const n = frontier.pop() as number;
     const children = dagNodeVerdict(frames, nodes, nodeInts, n);

@@ -13,7 +13,7 @@ import { quadRootsContext, frontCamera } from '../../backend/pagesBackendScenes.
 
 function graphe() {
   const source = new G.Group();
-  const mesh = G.mesh(new G.GraphGeometry(), G.basicSurface());
+  const mesh = G.mesh(new G.Geometry(), G.basicSurface());
   const lampe = G.pointLight(0xffffff, 1);
   const soleil = G.directionalLight(0xffffff, 1);
   source.add(mesh, lampe, soleil);

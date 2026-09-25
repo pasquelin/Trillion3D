@@ -2,7 +2,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutDelta } from './delta.ts';
 import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
-import type { GroupClosure } from './groupClosure.ts';
+import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
@@ -35,7 +35,7 @@ export function createWebgpuCutPublication(
   // only a copy of it, and only when the image adopts the readback that produced it.
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
-  // What the cache is asked for is the cut closed over its groups (`groupClosure.ts`); what the
+  // What the cache is asked for is the cut closed over its groups (`../../page/cut/groupClosure.ts`); what the
   // image waits for is the part of it the pool accepted.
   const cutPending = createCutPending(packedPages, closure.delta, residencySets.accepts);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken

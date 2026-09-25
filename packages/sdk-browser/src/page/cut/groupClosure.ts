@@ -1,11 +1,11 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { ClusterRoot } from '../../page/selection/types.ts';
-import type { IdDelta } from './delta.ts';
+import type { PageRec } from '../selection/selection.ts';
+import type { ClusterRoot } from '../selection/types.ts';
+import type { IdDelta } from '../../webgpu/cut/delta.ts';
 
 /**
  * What the cache must hold for the cut to draw what it asks for: whole groups, closed upward.
  *
- * The cut rule reads residency by group (`../../page/cut/readiness.ts`): a cluster is drawn once
+ * The cut rule reads residency by group (`./readiness.ts`): a cluster is drawn once
  * every cluster of its group is resident and so, up to the roots, is every group that replaces
  * its outputs. A cut that asked only for the clusters it draws would leave the group-mates a view
  * never keeps — past the frustum, behind the cone — outside the cache, and its surface drawn one
@@ -95,7 +95,7 @@ export function createGroupClosure(
   return {
     delta: delta as IdDelta,
     /** Bytes of the tables above, sized by the placements' pages and groups: the CPU budget holds
-     *  them (`../../residency/memoryBudget.ts`). */
+     *  them on WebGPU (`../../residency/memoryBudget.ts`). */
     hostBytes: [heldGroups, heldPages, before, seen, delta.entered, delta.exited, walked].reduce(
       (bytes, table) => bytes + table.byteLength,
       0,

@@ -23,9 +23,9 @@ export function quad(
   min: number[],
   max: number[],
   clusterId: string,
-): { page: VisPage & HizPage; geometry: G.GraphGeometry } {
+): { page: VisPage & HizPage; geometry: G.Geometry } {
   const z = (min[2] + max[2]) * 0.5;
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute(

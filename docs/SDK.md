@@ -688,6 +688,17 @@ classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` 
 `GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
 `InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
 
+The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexAttribute`.
+`morphAttributes` lists one attribute per morph target for each morphed attribute, and
+`morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
+and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
+every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
+and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
+centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
+index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
+bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
+hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
@@ -974,12 +985,11 @@ their floors (the root cover, one texture layer per lane), which they never go b
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
-What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU the pages that do not
-fit stay out and their surface is drawn by its nearest resident ancestor, on WebGL2 the cut raises
-its screen error until the cover fits, and a texture tile shows its coarser level. The frame metrics
-say so — `coverageBudgetLimited`, `budgetPixelError` (WebGL2: the threshold the image is drawn at,
-`0` when the requested detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
-is too small for that view). A value that cannot be held as given is brought to what can be, and
+What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU and WebGL2 alike the
+pages that do not fit stay out and their surface is drawn by its nearest resident ancestor, the
+finest detail given up first, and a texture tile shows its coarser level. The frame metrics say so
+— `coverageBudgetLimited`, `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count
+says the pool is too small for that view). A value that cannot be held as given is brought to what can be, and
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`. What is refused, by name, is only this:
 
@@ -1106,7 +1116,9 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
   cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
   `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
-  `quaternion` in the object's frame; its scale must be the same on all axes. A dynamic
+  `quaternion` in the object's frame; its scale must be the same on all axes. A declared
+  `{ type: 'cylinder', halfHeight, radius, radiusBottom }` tapers from its top's `radius` to
+  `radiusBottom`, as `geometry.cylinder(radiusTop, radiusBottom, height)` draws it. A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
   teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
@@ -1167,7 +1179,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   radius and width are read from its bounds, and the simulation turns, steers and lifts it on its
   suspension every tick. As Jolt's own vehicle samples build theirs, the body's centre of mass is
   lowered to the bottom of its shape, midway between its wheels, and given back when the vehicle
-  leaves. The body faces −z: the forward wheels steer. A car has three wheels or
+  leaves. Its running gear is solid: a box over the wheels' footprint, from the body's bottom down
+  to their lowest point raised by the suspension's travel, joins its shape while it is a vehicle,
+  so another body never slips under it among its wheels, which Jolt only casts; its mass and
+  inertia stay its own shape's. The body faces −z: the forward wheels steer. A car has three wheels or
   more, one differential per driven axle (`drive: 'front' | 'rear' | 'all'`) and the handbrake on
   its rear wheels; a motorcycle two, driven at the rear, and it leans into a turn; a tracked
   vehicle two or more a side, each track driven by its rearmost wheel, steered by slowing one
@@ -1241,8 +1256,9 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
   `capsule` with `halfHeight` and `radius`) sweeps that shape instead; `maxDistance` defaults to
-  `camera.far`. Without these options `world.raycast` answers at once, from the scene's own
-  geometry, a model on its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
+  `camera.far`; `ignore` names a body the ray or shape passes through, the asker's own. Without
+  `exact` or `shape`, `world.raycast` answers at once, from the scene's own geometry, a model on
+  its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
 - **Character.** With physics on, `world.controls` `'character'` is the physics' own character
   (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 

@@ -115,21 +115,24 @@ function drawLines(surface: GraphSurface, material: Material) {
   surface.polygonOffsetUnits = -depthLayerUnits(LINE_DEPTH_LAYER);
 }
 
-/** A sprite's turn in the image and whether it shrinks with distance (`spriteWgsl.ts`), as its
- *  material says them: the reference's `rotation` and `sizeAttenuation`, 0 and true by default. */
-function writeSprite(surface: GraphSurface, material: Material) {
+/** A sprite's turn in the image, as its material says it: the reference's `rotation`, 0 by
+ *  default. A value, so a repaint writes it again. */
+function writeSpriteTurn(surface: GraphSurface, material: Material) {
   surface.rotation = (material.rotation as number | undefined) ?? 0;
-  surface.sizeAttenuation = material.sizeAttenuation !== false;
 }
 
 /**
  * The raster state of a surface that draws a sprite's quad (`drawnSprite`), which every raster
- * turns to face the camera (`../../visibility/shader/spriteWgsl.ts`): its turn and its size rule,
- * and both sides in one pass — a quad turned toward the camera has no back to cull.
+ * turns to face the camera (`../../visibility/shader/spriteWgsl.ts`): its turn, its size rule —
+ * the reference's `sizeAttenuation`, true by default —, and both sides in one pass — a quad turned
+ * toward the camera has no back to cull. The size rule is written here only: it sets the sprite's
+ * root mark, taken once when the session collects its roots (`spriteMark`), so a material that
+ * changes it is a new entry and a new session, never a repaint (`worldMaterials.ts`).
  */
 function drawSprite(surface: GraphSurface, material: Material) {
   surface.sprite = true;
-  writeSprite(surface, material);
+  writeSpriteTurn(surface, material);
+  surface.sizeAttenuation = material.sizeAttenuation !== false;
   surface.side = hostSide('double');
 }
 
@@ -167,7 +170,7 @@ export function hostSurface(
 
 /**
  * Writes a material's value fields — colour, glow, metalness, roughness, a dashed line's dash and
- * gap, a sprite's turn and size rule — and its maps' sampling
+ * gap, a sprite's turn — and its maps' sampling
  * into the surface built for it, as `hostSurface` wrote them, and bumps the surface's version:
  * every reader of the surface (`page/surface.ts`) takes them at its next read, nothing built again
  * (#335). A map whose version moved sends its picture again; one whose placement alone moved is
@@ -183,6 +186,6 @@ export function repaintHostSurface(surface: GraphSurface, material: Material) {
   if (typeof surface.metalness === 'number') surface.metalness = material.metalness;
   if (typeof surface.roughness === 'number') surface.roughness = material.roughness;
   if (typeof surface.dashSize === 'number') writeDash(surface, material);
-  if (surface.sprite === true) writeSprite(surface, material);
+  if (surface.sprite === true) writeSpriteTurn(surface, material);
   surface.needsUpdate = true;
 }

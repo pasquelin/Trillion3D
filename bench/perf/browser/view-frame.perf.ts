@@ -1,6 +1,5 @@
 // what a frame used to rebuild for no reason.
 import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
-import { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
@@ -18,6 +17,7 @@ import {
   referenceAttachments,
   referenceUpdateInstance,
 } from '../../oracles/browser/view-frame.ts';
+import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 const DUMMY_TEXTURE = {} as GPUTexture;
 const buildSurfaces = (): SurfaceBuffer => {
@@ -64,9 +64,9 @@ for (let i = 0; i < 2000; i++) imagesSurfaces.push(petite);
 const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande];
 
 /** Fields the instance displacement never reads: shared across every fixture record/root. */
-const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
+const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
-const emptyMesh = () => new GraphMesh(new GraphGeometry(), []);
+const emptyMesh = () => new GraphMesh(new Geometry(), []);
 const pageOf = (matrix: G.Matrix4, mesh?: GraphMesh): PageRec => ({
   id: 0,
   url: '',

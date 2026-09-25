@@ -1,5 +1,6 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
+import { readPoints } from '../world/geometry/bounds.ts';
 import type { CompoundPart } from './commands.ts';
 import { SHAPE } from './layout.ts';
 import type { PhysicsPart, PhysicsShape, PhysicsType } from './options.ts';
@@ -21,7 +22,7 @@ const same = (a: number, b: number) => Math.abs(a - b) <= 1e-6 * Math.max(1, Mat
 
 /** The geometry's positions scaled into the body's frame. */
 function scaledVertices(geometry: Geometry, scale: Scale) {
-  const source = geometry.getAttribute('position')?.array ?? new Float32Array(0);
+  const source = readPoints(geometry.getAttribute('position'));
   const vertices = new Float32Array(source.length);
   for (let i = 0; i < source.length; i += 3) {
     vertices[i] = source[i] * scale.x;
@@ -51,15 +52,22 @@ function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
   }
   if (declared.type === 'sphere' && round && same(x, y))
     return { shape: SHAPE.sphere, size: [declared.radius * x, 0, 0], triangles: 0 };
-  if (
-    (declared.type === 'capsule' && round && same(x, y)) ||
-    (declared.type === 'cylinder' && round)
-  )
+  if (declared.type === 'capsule' && round && same(x, y))
     return {
-      shape: declared.type === 'capsule' ? SHAPE.capsule : SHAPE.cylinder,
+      shape: SHAPE.capsule,
       size: [declared.halfHeight * y, declared.radius * x, 0],
       triangles: 0,
     };
+  // A bottom radius only when it differs from the top's: the module tapers a cylinder given one.
+  if (declared.type === 'cylinder' && round) {
+    const bottom = declared.radiusBottom ?? declared.radius;
+    const tapered = same(bottom, declared.radius) ? 0 : bottom * x;
+    return {
+      shape: SHAPE.cylinder,
+      size: [declared.halfHeight * y, declared.radius * x, tapered],
+      triangles: 0,
+    };
+  }
   return null;
 }
 
