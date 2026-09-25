@@ -70,6 +70,36 @@ test('a node hidden before the first frame is not drawn by it', async () => {
   }
 });
 
+// A video's frame on the WebGL2 path (#362): the next draw uploads it in place; a refresh of a
+// picture alone lets the held image go and walks no scene, where a value written walks it.
+test('a picture-only refresh releases the held image and walks no scene', async () => {
+  const { backend, camera, geometry, material, mesh, source } = triangleBackend();
+  let reads = 0;
+  for (const node of [source, mesh]) {
+    let visible = node.visible;
+    Object.defineProperty(node, 'visible', {
+      get: () => (reads++, visible),
+      set: (next: boolean) => (visible = next),
+    });
+  }
+  const frame = () => ((reads = 0), backend.render(camera), { held: backend.frameHeld, reads });
+  try {
+    await backend.prepare();
+    frame();
+    frame();
+    const held = frame();
+    assert.equal(held.held, true, 'a still scene is held');
+    backend.refreshMaterials!(false);
+    assert.deepEqual(frame(), { held: false, reads: held.reads }, 'a picture: no walk');
+    backend.refreshMaterials!(true);
+    assert.ok(frame().reads > held.reads, 'a value walks the scene again');
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
+
 test('the blended copy of a hidden node is not drawn, and is drawn again once shown', async () => {
   const glass = G.physicalSurface({ transmission: 1, thickness: 0.02, roughness: 0 });
   const { backend, camera, geometry, material, mesh, source } = triangleBackend({}, glass);
