@@ -49,13 +49,14 @@ test('each level is drawn from a copy of the level above, never from the texture
   const gl = context();
   const { map, binder } = masked(gl.gl);
   binder.bind(0, map, true, undefined, true);
+  (map as { version: number }).version++; // a live picture: refilled in place, drawn over again
+  binder.bind(0, map, true, undefined, true);
   const draws = gl.draws();
   const levels = draws.map((draw) => draw[2]);
-  assert.deepEqual(levels, [1, 2]);
+  assert.deepEqual(levels, [1, 2, 1, 2]);
   assert.ok(draws.every(([sampled, target]) => sampled && sampled !== target));
-  assert.deepEqual([gl.of('copyTexSubImage2D').length, gl.of('generateMipmap').length], [2, 1]);
-  // The box chain first, drawn over: a refused draw leaves it, never a null level (alpha 0).
-  assert.ok(gl.names().indexOf('generateMipmap') < gl.names().indexOf('drawArrays'));
+  assert.deepEqual([gl.of('copyTexSubImage2D').length, gl.of('generateMipmap').length], [4, 1]);
+  assert.ok(gl.names().indexOf('generateMipmap') < gl.names().indexOf('drawArrays'), 'box first');
   assert.deepEqual(gl.of('texImage2D').filter((args) => args[1] !== 0).length, 0);
 });
 
@@ -83,12 +84,12 @@ test('a chain follows the coverage rule of its readers, switched after its image
   binder.file(G.standardSurface({ map: host }));
   image();
   assert.deepEqual(gl.rules(), [1, 0, 1, 1, 0, 0], 'masked, opaque, masked, an opaque reader');
+  (binder.beginFrame(), binder.beginFrame());
   const held = gl.of('createTexture').length - gl.of('deleteTexture').length;
-  assert.equal(held, 3, 'three chains, no scratch kept after a switched rule: no live picture');
+  assert.equal(held, 3, 'three chains, the scratches returned after an image with no reduction');
 });
 
-// The readers are filed once — the scene's census at its first draw, hidden meshes included, as
-// WebGPU's at prepare — and reread once per image, never rebuilt from every mesh each frame.
+// Filed once — the census at the first draw, hidden meshes too —, reread per drawn map and image.
 test('a still scene files each surface once across frames, a hidden opaque one included', (t) => {
   const read = t.mock.method(CoverageReaders.prototype, 'read');
   const follow = t.mock.method(CoverageReaders.prototype, 'follow');

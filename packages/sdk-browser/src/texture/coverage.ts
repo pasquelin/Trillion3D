@@ -16,9 +16,9 @@ export class CoverageReaders {
   /** Per colour texture, its readers filed — as a base or emissive map — and whether every one
    *  takes its alpha for coverage. */
   private readers = new Map<Texture, { surfaces: Set<PageSurface>; rule: boolean }>();
-  /** Files a surface's colour maps, once however many meshes wear it; false when already filed. */
-  read(surface: PageSurface) {
-    if (this.filed.has(surface)) return false;
+  /** Files a surface's colour maps once — `again`: its maps moved —; false when already filed. */
+  read(surface: PageSurface, again = false) {
+    if (this.filed.has(surface) && !again) return false;
     this.filed.add(surface);
     this.file(surface);
     return true;
