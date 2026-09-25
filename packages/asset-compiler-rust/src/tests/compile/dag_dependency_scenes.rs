@@ -107,7 +107,7 @@ fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
     let document: Value =
         serde_json::from_slice(&fs::read(source.join(gltf)).expect("gltf")).expect("json");
     let bin = fs::read(source.join(format!("{tag}.bin"))).expect("bin");
-    let (root, mut options) = gltf_fixture(tag, &document, &bin, 0);
+    let (root, mut options) = gltf_fixture(tag, &document, &bin);
     options.texture_formats = Vec::new();
     let result = compile(&options, |_| {}).expect("compile");
     let past_roots = result["primitives"]
