@@ -368,6 +368,7 @@
       "top": "Cạnh trên của hộp trực giao.",
       "bottom": "Cạnh dưới của hộp trực giao.",
       "projection": "`'perspective'` làm vật ở xa nhỏ lại; `'orthographic'` giữ nguyên mọi kích thước.",
+      "copy": "Lấy các giá trị nút của `source` và, từ một camera, quang học của nó; `projection` riêng vẫn giữ.",
       "updateProjectionMatrix": "Được giữ lại cho các trang được viết dựa trên một bộ kết xuất cần đến nó: mọi lần ghi quang học đã tự vẽ lại rồi.",
       "rayThrough": "Tia trong thế giới đi qua một điểm của hình ảnh, theo đúng phép chiếu của bộ máy (`engineCamera.ts`): từ mắt dọc theo hướng nhìn với camera phối cảnh, thẳng theo hướng nhìn từ hộp với camera trực giao. Hướng của nó là một vectơ đơn vị.",
       "set": "Đặt con mắt tại `pose.position`, nhìn về `pose.target`, ở trường nhìn mà nó nêu tên."
@@ -1610,6 +1611,7 @@
       "height": "Chiều cao của một nguồn sáng hình chữ nhật.",
       "radius": "Bán kính của hình cầu phát sáng; `emitterRadius` trong kho lưu trữ của bộ máy.",
       "kind": "Đây là loại nguồn sáng nào: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Lấy các giá trị nút của `source` và, từ một đèn, các số, màu, hệ số và hướng ngắm của nó; `kind` riêng vẫn giữ.",
       "needsUpdate": "`light.needsUpdate = true` sau khi ghi `sh` tại chỗ: thế giới đọc lại nó.",
       "lookAt": "Nhắm nguồn sáng vào một điểm trong thế giới: một nguồn sáng định hướng hoặc spot di chuyển `target` của nó đến đó — hướng của nó được đọc từ đó —, và node cũng xoay theo, đây chính là hướng mà một hình chữ nhật hướng mặt tới."
     }
