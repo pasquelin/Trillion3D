@@ -5,7 +5,7 @@ import { assertSourceReproduced, publishedManifest } from './docs/gallery-scene.
 import { mountainTerrain, terrainHeight } from './docs/mountain-terrain/model.ts';
 import { writeMountainTerrain } from './docs/mountain-terrain/write.ts';
 const root = resolve(import.meta.dirname, '..'),
-  published = resolve(root, 'site/assets/gallery/offline/terrain');
+  published = resolve(root, 'tests/fixtures/scenes/mountain-terrain');
 
 test('mountain terrain is deterministic with deep relief, strata, and a river', () => {
   const first = mountainTerrain(),
