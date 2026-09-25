@@ -16,8 +16,6 @@ export interface BlendRowMap {
   pin(page: number, row: number): void;
 }
 
-export type BlendCasterRows = ReturnType<typeof createBlendCasterRows>;
-
 /**
  * The shadow casters of the blended clusters, WITHOUT a visibility row.
  *

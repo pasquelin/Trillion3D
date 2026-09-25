@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
+import { blendFixture } from '../../page/selection/blend.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
 import { FLAG_BLEND_CASTER, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
@@ -14,24 +15,9 @@ import { createWebgpuRowSync } from './sync.ts';
 import { createWebgpuRowCommit } from './commit.ts';
 
 const STRIDE = PAGE_INFO_STRIDE / 4;
-const cluster = (url: string) => ({
-  id: 0,
-  url,
-  count: 3,
-  bytes: 12,
-  sha256: url,
-  min: [-1, -1, 0],
-  max: [1, 1, 0],
-  role: 'exact' as const,
-  start: 0,
-  level: 0,
-  lodError: 0,
-  sphere: [0, 0, 0, 1.5],
-  parentError: null,
-  parentSphere: null,
-  group: null,
-  source: null,
-});
+/** One level-0 root cluster, the blend fixture's first, at the address `url`. */
+const [template] = blendFixture().metadata.primitives[0].pages;
+const cluster = (url: string) => ({ ...template, url, sha256: url });
 
 /** One opaque triangle, then one blended at `opacity`: the catalogue pages, placed. */
 function catalogue(opacity: number, blended = true) {
