@@ -21,9 +21,10 @@ import { benchLights } from './lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs, recordCuts } from './report/evidence.ts';
 import { runSerie } from './series.ts';
-import { FLUIDS_SCENE } from './scene.ts';
-import { FLUIDS_BOUNDS, fluidsLines, runFluids } from './fluids.ts';
+import { readsCache } from './scene.ts';
+import { fluidsLines, runFluids } from './fluids.ts';
 import { limitsLines, readLimits } from './limits.ts';
+import type { Side } from './sideOptions.ts';
 import type { Report, RunContext, Serie } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
@@ -49,10 +50,12 @@ async function main() {
   options.applySceneFlag(flags);
   const sides = rawSides.map((side) => options.equipSide(side, flags, settings));
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
-  // Measured scene is from named caches; without any, benchmark reference scene; fluids, none.
-  const fluids = flags.get('scene') === FLUIDS_SCENE;
-  const scene = fluids ? FLUIDS_SCENE : options.sceneOf(sides.find((side) => side.cache)?.cache);
-  const MANIFEST = options.assetsManifest(scene, !fluids && sides.some((side) => !side.cache));
+  // Measured scene is from named caches; without any, benchmark reference scene.
+  const scene = options.sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
+  const MANIFEST = options.assetsManifest(
+    scene,
+    sides.some((side) => !side.cache),
+  );
   CTX.MANIFEST = MANIFEST;
   for (const side of sides) {
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST;
@@ -114,24 +117,23 @@ async function main() {
     }
   };
   try {
-    // The browser limits, with every run.
     report.limits = await onFreshPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])));
-    // The fluids scene has its own box and camera: it plays no view of the cache poses.
-    report.bounds = fluids
-      ? FLUIDS_BOUNDS
-      : await onFreshPage((page) =>
-          page.evaluate(readBounds, {
-            sdkUrl: options.sdkEntryUrl(sides[0]),
-            manifestUrl: sides[0].manifestUrl ?? MANIFEST,
-          }),
-        );
-    if (fluids) report.fluids = await runFluids(sides, onFreshPage, settings, OUT, captures);
+    if (!readsCache(scene)) {
+      report.fluids = await runFluids(sides, onFreshPage, settings, OUT, captures);
+      return await publish(report, sides);
+    }
+    report.bounds = await onFreshPage((page) =>
+      page.evaluate(readBounds, {
+        sdkUrl: options.sdkEntryUrl(sides[0]),
+        manifestUrl: sides[0].manifestUrl ?? MANIFEST,
+      }),
+    );
     const bounds = report.bounds;
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
     report.lampes = CTX.lights ? CTX.lights.resume : null;
     for (const pixelError of settings.pixelErrors)
-      for (const view of fluids ? [] : views) {
+      for (const view of views) {
         const index = options.VIEWS[view].index;
         const pose = options.poseAt(bounds, index);
         // Moving camera: one pose per measured frame along benchmark trajectory.
@@ -175,7 +177,11 @@ async function main() {
   } finally {
     await new Promise((done) => server.close(done));
   }
+  await publish(report, sides);
+}
 
+/** Writes `mesure.json` and `resume.md`, and says where. */
+async function publish(report: Report, sides: Side[]) {
   report.finishedAt = new Date().toISOString();
   recordCuts(report, sides, OUT);
   await writeFile(join(OUT, 'mesure.json'), JSON.stringify(report, null, 1));
