@@ -4,6 +4,7 @@ import { awaitedPages } from '../../row/pageSlots.ts';
 import { withClosure } from '../../../page/selection/bundleDependencies.ts';
 import { rasterVisibilityIds, shadeVisibility } from '../../../visibility/buffer.ts';
 import { renderWebgpuPages } from '../render/render.ts';
+import { frameTargetsAwaited } from '../prepare/targetGrant.ts';
 import { defaultEngineCamera } from '../../../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -57,7 +58,9 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (capture.capturedPixels && capture.capturedRevision === run.imageRevision)
     return capture.capturedPixels;
-  if (!gpu.presenter || !gpuDevice || !gpu.colorTexture || capture.capturing)
+  // Targets not granted yet hold no image: presenting them would blank the canvas.
+  const busy = capture.capturing || frameTargetsAwaited(rt);
+  if (!gpu.presenter || !gpuDevice || !gpu.colorTexture || busy)
     throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
   const encoder = gpuDevice.createCommandEncoder();
   gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);

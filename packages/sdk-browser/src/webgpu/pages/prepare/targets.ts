@@ -4,7 +4,7 @@ import {
   createSurfaceBuffer,
   frameTargetBytes,
 } from '../../../scene/surfaceBuffer.ts';
-import { dropGpuHiz } from '../io/drops.ts';
+import { dropGpuHiz, dropVis } from '../io/drops.ts';
 import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -58,6 +58,7 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
     texture?.destroy();
   gpu.colorTexture = gpu.depthTexture = gpu.hdrTexture = gpu.feedbackTexture = undefined;
   gpu.colorView = gpu.depthView = gpu.hdrView = gpu.feedbackView = undefined;
+  gpu.targetBytes = 0;
   vis.visTexture = vis.materialDepthTexture = undefined;
   vis.visView = vis.materialDepthView = undefined;
   disposeBackdrop(gpu);
@@ -117,7 +118,10 @@ export function makeTargets(
     );
     vis.materialDepthView = vis.materialDepthTexture.createView();
   } catch (error) {
+    // The visibility buffer leaves the session, as when its pipeline fails: the targets then fit,
+    // and the pages draw with the fallback pass instead of asking the device again every frame.
     diag.diagnosticFailure('visibility-target-failed', error);
+    dropVis(rt);
   }
   if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height)) dropGpuHiz(rt);
   const allocation = {
