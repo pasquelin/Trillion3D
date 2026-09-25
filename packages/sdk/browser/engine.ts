@@ -114,6 +114,7 @@ export type {
   SixDofAxis,
 } from '../../sdk-core/src/physics/jointOptions.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
+export type { PageCacheHolder } from '../../sdk-browser/src/streaming/pageCache.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';

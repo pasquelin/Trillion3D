@@ -4275,6 +4275,13 @@
   "pageCarriesClusterError": {
     "summary": "Un cluster qui porte sa propre bande d’erreur à l’écran n’a pas besoin de hiérarchie : le choix est un test à plat par page."
   },
+  "PageCacheHolder": {
+    "summary": "L’emprise d’une session sur le cache : ce qu’elle réserve sur le total, et comment elle évince — hors de ses pages épinglées et de ses transferts — quand le total baisse.",
+    "members": {
+      "reservedBytes": "Octets que la session réserve sur le total : ses tables de manifeste et sa file de transferts.",
+      "evict": "Évince des pages par dernier usage jusqu’à ce qu’elles tiennent, hors des pages épinglées et des transferts de la session."
+    }
+  },
   "PageCutPage": {
     "summary": "Une page qu’a écrite un `cut` : ses octets d’index et de géométrie, leurs empreintes, et son descripteur.",
     "members": {

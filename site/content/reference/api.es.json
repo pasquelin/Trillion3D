@@ -4267,6 +4267,13 @@
   "pageCarriesClusterError": {
     "summary": "Un clúster que lleva su propia banda de error en pantalla no necesita jerarquía: la elección es una prueba plana por página."
   },
+  "PageCacheHolder": {
+    "summary": "La reserva de una sesión sobre la caché: lo que aparta del total y cómo desaloja — sin tocar sus páginas fijadas ni sus transferencias — cuando el total baja.",
+    "members": {
+      "reservedBytes": "Bytes que la sesión aparta del total: sus tablas de manifiesto y su cola de transferencias.",
+      "evict": "Desaloja páginas por último uso hasta que quepan, sin tocar las páginas fijadas ni las transferencias de la sesión."
+    }
+  },
   "PageCutPage": {
     "summary": "Una página escrita por un `cut`: sus bytes de índice y de geometría, sus huellas, y su descriptor.",
     "members": {

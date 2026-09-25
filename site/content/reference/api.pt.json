@@ -2210,6 +2210,13 @@
       "depthLayer": "Camada de profundidade coplanar, 0 para cada cluster que o compilador deixou intacto. Um cluster da camada n desenha com um viés de profundidade de n passos de camada inteiros, o que decide o vencedor entre duas superfícies opacas que compartilham exatamente um plano. Ausente e 0 significam a mesma coisa: o desenho intocado."
     }
   },
+  "PageCacheHolder": {
+    "summary": "A reserva de uma sessão sobre o cache: o que ela separa do total e como remove — sem tocar nas páginas fixadas e nas transferências — quando o total diminui.",
+    "members": {
+      "reservedBytes": "Bytes que a sessão separa do total: suas tabelas de manifesto e sua fila de transferências.",
+      "evict": "Remove páginas por último uso até caberem, sem tocar nas páginas fixadas e nas transferências da sessão."
+    }
+  },
   "PageCutPage": {
     "summary": "Uma página que um `cut` escreveu: seus bytes de índice e geometria, seus digests, e seu descritor.",
     "members": {

@@ -2228,6 +2228,13 @@
       "depthLayer": "Lớp độ sâu đồng phẳng, bằng 0 cho mọi cụm mà trình biên dịch để nguyên. Một cụm ở lớp n được vẽ với độ lệch chuẩn về độ sâu bằng n bước lớp đầy đủ, đó là thứ quyết định người thắng giữa hai bề mặt không trong suốt chia sẻ đúng một mặt phẳng. Vắng mặt và bằng 0 có nghĩa như nhau: bản vẽ không bị động chạm."
     }
   },
+  "PageCacheHolder": {
+    "summary": "Phần giữ của một phiên trên bộ đệm: phần nó dành riêng khỏi tổng, và cách nó loại bỏ — bỏ qua các trang được ghim và các lần truyền — khi tổng giảm.",
+    "members": {
+      "reservedBytes": "Số byte phiên dành riêng khỏi tổng: các bảng manifest và hàng đợi truyền của nó.",
+      "evict": "Loại bỏ trang theo lần dùng cuối cho đến khi vừa, bỏ qua các trang được ghim và các lần truyền của phiên."
+    }
+  },
   "PageCutPage": {
     "summary": "Một trang mà một `cut` đã ghi: các byte chỉ số và hình học của nó, khối tóm tắt của chúng, và bộ mô tả của nó.",
     "members": {
