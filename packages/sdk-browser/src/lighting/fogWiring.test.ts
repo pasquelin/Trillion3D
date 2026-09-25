@@ -48,8 +48,9 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   assert.equal(BLEND_VIEW_SIZE, 128);
 });
 
-test('the WebGL2 program fogs every surface before its display curve, a depth one excepted', () => {
-  const fogAt = CLUSTER_FRAGMENT.indexOf('\nrgb=fogged(rgb);');
+test('the WebGL2 program fogs every surface before its display curve, a depth or diagnostic one excepted', () => {
+  // A diagnostic view's surface declares itself fog-free (`materialBinding.test.ts`).
+  const fogAt = CLUSTER_FRAGMENT.indexOf('\nif(!fogFree)rgb=fogged(rgb);');
   assert.ok(fogAt > 0);
   // A depth material's ramp is written over the fogged colour.
   assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(depthShaded)rgb='));
