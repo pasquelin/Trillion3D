@@ -4,6 +4,7 @@ import { WebglClusterRenderer } from './renderer.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
+import type { HostMaterials } from '../../host/resources.ts';
 
 /**
  * The one draw owner of a session's paged clusters, diagnostic pages and scene copies. A draw
@@ -20,7 +21,14 @@ export class WebglClusterOwner {
   private restored = () => {
     this.release();
     this.renderer = this.display = new WebglClusterRenderer(this.context);
+    this.censused = false;
   };
+  censused = false;
+  /** Files every mesh, hidden ones too — WebGPU's census at prepare (#42) —; a later one at bind. */
+  census(meshes: readonly { material: HostMaterials }[]) {
+    for (const { material } of meshes) this.display.textures.file(material);
+    this.censused = true;
+  }
   constructor(context: WebGL2RenderingContext) {
     this.context = context;
     this.renderer = this.display = new WebglClusterRenderer(context);
