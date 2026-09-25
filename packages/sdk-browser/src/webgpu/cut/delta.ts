@@ -1,4 +1,5 @@
 import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.ts';
+import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
 
 /**
  * Published difference, and what can be asked of it.
@@ -13,6 +14,8 @@ export type CutDelta = {
   /** Ids that entered and left since the previous cut, and their count. */
   readonly entered: Int32Array;
   readonly exited: Int32Array;
+  /** Bytes of the tables behind the difference. */
+  readonly hostBytes: number;
   readonly enteredCount: number;
   readonly exitedCount: number;
   /** Ids the cut holds. */
@@ -51,27 +54,27 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * the difference omits it: no record list is then built, and the shown list costs only its own
  * length.
  *
- * Nothing is allocated once the scene is known, and nothing is called per page: membership is an
- * epoch mark read on a typed array — the shown-list epoch for dedup, that of the previous shown
- * list for entry —, exits are read on the previously held list, and a frame that adopts the shown
- * list it already holds writes nothing at all.
+ * Every table follows the cut, never the catalogue (#483 rule 6): membership is an epoch mark held
+ * in a sparse map (`../../page/cut/sparseInts.ts`) for the ids the cut holds — the shown-list epoch
+ * for dedup, that of the previous shown list for entry —, an id that leaves loses its mark, and the
+ * lists grow to the longest cut seen, then are rewritten in place. Exits are read on the previously
+ * held list, and a frame that adopts the shown list it already holds writes nothing at all.
  *
  * The GPU cut arrives there by its ids (`apply`), the CPU cut by its records (`adoptRecords`): one
  * contract, and readers do not know which one decides.
  */
 export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
-  const capacity = Math.max(1, packedPages.length);
-  /** Epoch of the shown list where the id was last held. */
-  const mark = new Int32Array(capacity).fill(-1);
-  const entered = new Int32Array(capacity),
-    exited = new Int32Array(capacity);
-  /** Ids held by the previous shown list and by the current one: two swapped buffers, never
-   *  reallocated, because exits are read on the old one while the new one is written. */
-  let kept = new Int32Array(capacity),
-    keptNext = new Int32Array(capacity);
+  const catalogue = packedPages.length;
+  /** Epoch of the shown list where the id was last held; an id held by neither list has none. */
+  const mark = createSparseInts();
+  /** Ids held by the previous shown list and by the current one: two swapped buffers, grown and
+   *  never shrunk, because exits are read on the old one while the new one is written. */
+  let kept = new Int32Array(8),
+    keptNext = new Int32Array(8);
   /** Id sequence the last shown list published, to compare it as-is. */
-  const published = new Int32Array(capacity);
-  let epoch = 0,
+  let published = new Int32Array(8);
+  // Epochs start at 1: an id without a mark reads 0, never a current or previous epoch.
+  let epoch = 1,
     keptCount = 0,
     publishedCount = -1;
   /**
@@ -80,7 +83,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
    * the held list, nor the records — when a new shown list republishes the same cut.
    */
   const samePublished = (ids: readonly number[]) => {
-    if (ids.length !== publishedCount || ids.length > capacity) return false;
+    if (ids.length !== publishedCount) return false;
     for (let i = 0; i < ids.length; i++) if (published[i] !== ids[i]) return false;
     return true;
   };
@@ -100,24 +103,27 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     if (samePublished(ids)) return hold();
     const previous = epoch;
     epoch++;
+    if (published.length < ids.length) published = grown(published, ids.length);
+    if (keptNext.length < ids.length) keptNext = grown(keptNext, ids.length);
+    if (state.entered.length < ids.length) state.entered = grown(state.entered, ids.length);
+    if (state.exited.length < keptCount) state.exited = grown(state.exited, keptCount);
+    const { entered, exited } = state;
     let enteredCount = 0,
       exitedCount = 0;
-    // A sequence longer than the catalogue is not kept: it is declared changed.
-    let same = ids.length === publishedCount && ids.length <= capacity;
-    publishedCount = ids.length <= capacity ? ids.length : -1;
+    let same = ids.length === publishedCount;
+    publishedCount = ids.length;
     let keptNow = 0;
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i];
-      if (i < capacity && published[i] !== id) {
+      if (published[i] !== id) {
         published[i] = id;
         same = false;
       }
-      if (id < 0 || id >= capacity) continue;
-      const seen = mark[id];
-      if (seen === epoch) continue;
+      if (id < 0 || id >= catalogue) continue;
       const rec = packedPages[id];
       if (!rec) continue;
-      mark[id] = epoch;
+      const seen = mark.set(id, epoch);
+      if (seen === epoch) continue;
       if (pages) pages[keptNow] = rec;
       keptNext[keptNow++] = id;
       if (seen !== previous) entered[enteredCount++] = id;
@@ -125,7 +131,10 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     if (pages) pages.length = keptNow;
     for (let i = 0; i < keptCount; i++) {
       const id = kept[i];
-      if (mark[id] !== epoch) exited[exitedCount++] = id;
+      if (mark.get(id) !== epoch) {
+        exited[exitedCount++] = id;
+        mark.set(id, 0);
+      }
     }
     const swap = kept;
     kept = keptNext;
@@ -137,13 +146,24 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     state.changed = !same;
   };
   const state = {
-    entered,
-    exited,
+    entered: new Int32Array(8),
+    exited: new Int32Array(8),
     enteredCount: 0,
     exitedCount: 0,
     count: 0,
     changed: true,
-    has: (id: number) => id >= 0 && id < capacity && mark[id] === epoch,
+    has: (id: number) => mark.get(id) === epoch,
+    /** Bytes of the marks and the lists, all sized by the longest cut seen. */
+    get hostBytes() {
+      return (
+        mark.byteLength +
+        kept.byteLength +
+        keptNext.byteLength +
+        published.byteLength +
+        state.entered.byteLength +
+        state.exited.byteLength
+      );
+    },
     hold,
     apply,
     adoptRecords(records: readonly PageRec[]) {

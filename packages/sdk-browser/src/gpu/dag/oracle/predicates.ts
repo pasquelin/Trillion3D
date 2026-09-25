@@ -20,6 +20,16 @@ import {
 } from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { dagScratch, projectedError } from './math.ts';
 import { drawsCluster } from '../../../page/cut/rule.ts';
+
+/** The cut rule as the oracle applies it on page `page`: `drawsCluster`'s operands, then the page. */
+export type CutRuleAt = (
+  resident: boolean,
+  parentPixels: number,
+  ownPixels: number,
+  childResident: boolean,
+  threshold: number,
+  page: number,
+) => boolean;
 import type { MatrixElements } from '../../../math/matrixElements.ts';
 
 type PredicateContext = {
@@ -38,8 +48,9 @@ type PredicateContext = {
   /** A light's cut: casters write both faces, no cone rejects them, and a box must reach one
    *  of the face's redrawn pages (`DagViewUniforms.light`). */
   light?: LightPages;
-  /** The cut rule applied: `drawsCluster`, or its WGSL text run in Node by the rule's tests. */
-  rule?: typeof drawsCluster;
+  /** The cut rule applied: `drawsCluster`, or the kernel's WGSL call site run in Node by the
+   *  rule's tests, which reads the page's residency itself. */
+  rule?: CutRuleAt;
 };
 
 /** The scratch world under the host-matrix shape the cone test reads. */
@@ -92,6 +103,6 @@ export function createDagOraclePredicates(context: PredicateContext) {
   /** The cut rule (`../../../page/cut/rule.ts`) on page `index`, under the residency given. */
   const rule = context.rule ?? drawsCluster;
   const draws = (index: number, threshold: number, ready: boolean, childReady: boolean) =>
-    rule(ready, bandPixels(index, 1), bandPixels(index, 0), childReady, threshold);
+    rule(ready, bandPixels(index, 1), bandPixels(index, 0), childReady, threshold, index);
   return { coneRejects, visible, bandPixels, draws };
 }

@@ -9,7 +9,6 @@ function world() {
   const w = scene();
   const tier = createShadowTier({
     packedPages: w.packed,
-    keyCount: w.tracking.keyCount,
     keyOf: w.tracking.keyOf,
     room: () => 64,
     closeOver: createGroupClosure([], w.packed).closeOver,

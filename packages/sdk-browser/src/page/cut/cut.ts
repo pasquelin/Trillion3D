@@ -111,7 +111,6 @@ export function selectVisiblePages<T extends PageRecord>(
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.light = undefined;
-  state.flatReady = state.flatChildReady = undefined;
-  state.flatOpen = undefined;
+  state.flatHeld = undefined;
   return result;
 }

@@ -13,7 +13,11 @@ const dag = ruleDag(64),
 const roots = [0, 1].map((placement) => ({
   world: dag.world,
   structure: s,
-  pages: dag.pages.map((page) => ({ ...page, placementIndex: placement })),
+  pages: dag.pages.map((page, p) => ({
+    ...page,
+    placementIndex: placement,
+    packedIndex: placement * dag.pages.length + p,
+  })),
 })) as unknown as ClusterRoot<PageRec>[];
 const packed = roots.flatMap((root) => root.pages);
 const n = dag.pages.length;
@@ -88,7 +92,31 @@ test('a page leaving as its group-mate joins lets nothing go in between', () => 
   assert.equal(closure.delta.enteredCount + closure.delta.exitedCount, 0, 'the same closure');
 });
 
-test('the closure counts its host tables: fourteen bytes a placed page, eight a placed group', () => {
+test('the second placement closes over its own pages, at its packed ids', () => {
   const closure = createGroupClosure(roots, packed);
-  assert.equal(closure.hostBytes, 14 * packed.length + 8 * 2 * s.groupCount);
+  const leaf = dag.pages.findIndex((p) => p.level === 0);
+  closure.apply(cutDelta([n + leaf]));
+  const held = [...closure.delta.entered.subarray(0, closure.delta.enteredCount)];
+  assert.deepEqual(new Set(held.map((id) => id - n)), expected(leaf));
+  const visited: PageRec[] = [];
+  closure.closeOverRecords([roots[1].pages[leaf]], (_, rec) => visited.push(rec));
+  assert.deepEqual(
+    new Set(visited),
+    new Set([...expected(leaf)].map((p) => roots[1].pages[p])),
+    'records close over the same pages, without a catalogue',
+  );
+});
+
+test('the closure holds what the cut closes over, and nothing once the cut has left', () => {
+  const closure = createGroupClosure(roots, packed);
+  assert.equal(closure.hostBytes, 64, 'two empty difference lists');
+  const leaves = dag.pages.map((_, p) => p).filter((p) => dag.pages[p].level === 0);
+  closure.apply(cutDelta(leaves));
+  const held = closure.hostBytes;
+  closure.apply(cutDelta([], leaves));
+  const left = closure.hostBytes;
+  assert.ok(left < held, 'the counts leave with the cut; only scratch sized by it stays');
+  closure.apply(cutDelta(leaves));
+  closure.apply(cutDelta([], leaves));
+  assert.equal(closure.hostBytes, left, 'the same cut again grows nothing');
 });
