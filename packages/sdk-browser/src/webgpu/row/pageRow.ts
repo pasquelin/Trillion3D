@@ -16,9 +16,17 @@ import {
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
 import { blendCoverage } from '../../gpu/shadow/transmittance.ts';
+import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
+/** The Hi-Z slot of a row never culled (`neverCulled`): none, which every reader of the verdict
+ *  draws unjudged (`HIZ_REJECTED_WGSL`, `rowVerdict`). */
+export const NO_HIZ_SLOT = 0xffffffff;
+/** Stamps rank `row` as the Hi-Z slot of the row at `base`, unless the row has none. */
+export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
+  if (ints[base + ROW_HIZ_SLOT_WORD] !== NO_HIZ_SLOT) ints[base + ROW_HIZ_SLOT_WORD] = row;
+}
 /** Row words of the colour map's atlas slot and of the material flags: what the shadow pass
  *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
 export const ROW_MAP_LAYER_WORD = 22,
@@ -29,6 +37,8 @@ export const ROW_BLEND_COVERAGE_WORD = 57;
 export const ROW_LINE_WIDTH_WORD = 61;
 /** Row words of a dashed line's dash and gap (`PageInfo.dash`, `lineDash`); zero on any other row. */
 export const ROW_DASH_WORD = 28;
+/** Row words of a sprite's turn and size rule (`PageInfo.sprite`, `spriteAt`); zero on any other row. */
+export const ROW_SPRITE_WORD = 36;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */
@@ -100,12 +110,14 @@ export function createPageRowWriter(resources: PageRowResources) {
     floats[base + ROW_DASH_WORD + 1] = mat.gapSize ?? 0;
     ints[base + 30] = constants.hashOf(rec.clusterId);
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
-    // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image.
-    ints[base + ROW_HIZ_SLOT_WORD] = row;
+    // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image. A
+    // row never culled reads none.
+    ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;
     ints[base + 34] = maps.normal;
     floats[base + 35] = mat.normalScale;
+    writeSpriteWords(floats, base + ROW_SPRITE_WORD, mat.sprite);
     ints[base + 42] = maps.ao;
     floats[base + 43] = mat.aoIntensity;
     ints[base + 46] = maps.emissive;
