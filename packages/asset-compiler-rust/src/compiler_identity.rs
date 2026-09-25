@@ -104,9 +104,10 @@ mod tests {
     }
 
     // Behaviour: the page codec is linked into the compiler: its sources are hashed as the
-    // compiler's own, so a codec edit moves the key (#558). Read from the list the build hashed.
+    // compiler's own, so a codec edit moves the key (#558). So does the cargo configuration, whose
+    // C++ flags change what meshoptimizer simplifies to (#415). Read from the list the build hashed.
     #[test]
-    fn the_build_hashes_the_page_codec() {
+    fn the_build_hashes_the_page_codec_and_the_cpp_flags() {
         let inputs: Vec<&str> =
             include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
                 .lines()
@@ -114,6 +115,7 @@ mod tests {
         for input in [
             "../page-codec-wasm/src/lib.rs",
             "../page-codec-wasm/Cargo.toml",
+            "../../.cargo/config.toml",
         ] {
             assert!(inputs.contains(&input), "{input} is not hashed");
         }

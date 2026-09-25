@@ -2,13 +2,11 @@ import type { PackedDag } from './types.ts';
 import { REQUEST_PRIORITY_MAX, requestPage, requestPriority } from './request.ts';
 import {
   OUT_COUNT,
-  OUT_DRAWN_TRIANGLES,
   OUT_FLAGS,
   OUT_FRUSTUM_REJECTED,
   OUT_LOD_LEVEL,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
-  OUT_UNCOVERED_TRIANGLES,
   SELECTION_HEADER_WORDS,
   selectionListCap,
 } from './layout.ts';
@@ -38,7 +36,6 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
     lodLevel: 0,
     selectedTriangles: 0,
     drawnTriangles: 0,
-    uncoveredTriangles: 0,
     transparentTriangles: 0,
   },
   drawable: [],
@@ -146,8 +143,8 @@ export function parseDagOutput(
   // sample still returns them correctly (`shader/totalsWgsl.ts`).
   result.selectedTriangles = ints[OUT_SELECTED_TRIANGLES] ?? 0;
   result.transparentTriangles = ints[OUT_TRANSPARENT_TRIANGLES] ?? 0;
-  result.drawnTriangles = ints[OUT_DRAWN_TRIANGLES] ?? 0;
-  result.uncoveredTriangles = ints[OUT_UNCOVERED_TRIANGLES] ?? 0;
+  // The rule draws what it selects: one counter, published under both names.
+  result.drawnTriangles = result.selectedTriangles;
   // Bit 1: the cut did not fit under the sample cap. This is not a GPU fault — the kernels ran,
   // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
   // it must take it for the whole cut.

@@ -79,8 +79,8 @@ export function worldBudget(
       rebalance();
     },
     /** Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the
-     *  decoded pages, taken by the next scene load. A total not above the mirror is refused
-     *  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine. */
+     *  decoded pages and the engine's cut tables, taken by the next scene load. A total not above
+     *  the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine. */
     get cpu() {
       return pools.cpu ?? DEFAULT_CPU_BUDGET;
     },

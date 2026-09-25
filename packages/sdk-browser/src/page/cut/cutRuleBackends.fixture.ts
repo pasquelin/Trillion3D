@@ -9,6 +9,8 @@ import { createEngineCamera, writeEngineCamera } from '../../camera/engineCamera
 import { ruleResidency } from '../../gpu/dag/readiness.fixture.ts';
 import type { RuleDag } from './cutRule.fixture.ts';
 import { dagNodeFloor, dagViewFrames } from '../../gpu/dag/oracle/math.ts';
+import { CUT_RULE_WGSL, type drawsCluster } from './rule.ts';
+import { wgslPredicate } from './wgslPredicate.fixture.ts';
 
 export type CutBackend = (resident: Uint8Array) => { drawn: number[]; wanted: number[] };
 
@@ -34,7 +36,7 @@ function stripCamera(dag: RuleDag) {
 }
 
 /** The kernel uniforms of the strip camera, the packing's worlds brought to its render frame. */
-function stripUniforms(dag: RuleDag, threshold: number) {
+export function stripUniforms(dag: RuleDag, threshold: number) {
   const root = {
     world: dag.world,
     pages: dag.pages,
@@ -48,14 +50,22 @@ function stripUniforms(dag: RuleDag, threshold: number) {
 }
 
 /** The GPU kernel's CPU model (`../../gpu/dag/oracle/oracle.ts`), on the residency its host
- *  derives and uploads (`../../gpu/dag/readiness.ts`). */
-export function oracleBackend(dag: RuleDag, threshold: number): CutBackend {
+ *  derives and uploads (`../../gpu/dag/readiness.ts`), deciding with `rule`. */
+function kernelBackend(dag: RuleDag, threshold: number, rule?: typeof drawsCluster): CutBackend {
   const { packed, uniforms } = stripUniforms(dag, threshold);
   return (resident) => {
-    const result = evaluateDagSelectionKernel(packed, uniforms, ruleResidency(packed, resident));
+    const residency = ruleResidency(packed, resident);
+    const result = evaluateDagSelectionKernel(packed, uniforms, residency, false, rule);
     return { drawn: result.drawablePageIds ?? [], wanted: result.pageIds };
   };
 }
+
+/** The kernel's CPU model with the TypeScript rule. */
+export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(dag, threshold);
+
+/** The same model deciding with the kernel's own WGSL text (`CUT_RULE_WGSL`), run in Node. */
+export const wgslBackend = (dag: RuleDag, threshold: number, source = CUT_RULE_WGSL) =>
+  kernelBackend(dag, threshold, wgslPredicate(source, 'drawsCluster') as typeof drawsCluster);
 
 /** The pages whose leaf node top-down pruning drops on its floor at full residency: none of them is
  *  a candidate unless the rule opens its node. */

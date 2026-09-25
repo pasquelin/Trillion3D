@@ -94,6 +94,12 @@ export function createGroupClosure(
   };
   return {
     delta: delta as IdDelta,
+    /** Bytes of the tables above, sized by the placements' pages and groups: the CPU budget holds
+     *  them (`../../residency/memoryBudget.ts`). */
+    hostBytes: [heldGroups, heldPages, before, seen, delta.entered, delta.exited, walked].reduce(
+      (bytes, table) => bytes + table.byteLength,
+      0,
+    ),
     /** Visits every page `ids` close over, themselves included, each group once per call:
      *  what a list rebuilt whole asks for (`../residency/shadowTier.ts`). */
     closeOver(ids: ArrayLike<number>, visit: (id: number) => void) {
