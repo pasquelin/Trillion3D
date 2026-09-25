@@ -294,17 +294,14 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   equals; a page the latest report named is never evicted, and coarse levels are served first.
   Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
   pixels asked for, and keep their early depth reject.
-- **Every stale page the image reads is listed in the frame that marks it, the coarsest first, and
-  drawn in that frame at rest** (#489, #525). While the camera moves, a frame draws its lights'
-  floors, which lead the list, and one batch's pages past them — the shadow raster's fixed budget,
-  a count of pages, never a time read off the machine (`admit.ts`, `end`) — and the rest waits,
-  the oldest first, read meanwhile at the coarser current level it falls back to; a stale page
-  whose depth is wrong is never read. The first frame the camera rests draws every page left, so
-  the still image is the one every page drawn gives. Otherwise the cost is held by caching — a
-  page is drawn again only when what it holds changed. The frame draws its pages in as many
-  batches as the per-batch buffers take (`shadowPagesPerBatch`, 24 pages, in the views one light
-  cut runs at once), all in its one command buffer, each batch's buffer writes landing in command
-  order (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
+- **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
+  per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
+  floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
+  held by caching — a page is drawn again only when what it holds changed —, never by deferring a
+  page and showing a coarse or stale one as current. The frame draws its pages in as many batches as the per-batch buffers
+  take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs at once), all in its one
+  command buffer, each batch's buffer writes landing in command order
+  (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
   add is sized once from the largest pool, never grown, and counted in the memory budget
   (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
   (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The staging of every batch but the first
