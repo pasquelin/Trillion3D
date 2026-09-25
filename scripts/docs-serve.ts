@@ -1,11 +1,13 @@
 /** Serve one built site tree with production paths and no framework dependency. */
 import { pathToFileURL } from 'node:url';
 import { buildSite, SITE_OUTPUT } from './docs/site.ts';
-import { listen, staticServer } from './static-server.ts';
+import { listen, staticServer, type StaticOptions } from './static-server.ts';
 
-/** A static server over `root`: the built site by default, any site-shaped tree otherwise. */
-export function createDocsServer(root = SITE_OUTPUT) {
+/** A static server over `root`: the built site by default, any site-shaped tree otherwise;
+ *  `answer` takes a request first (the development server's, `docs-dev.ts`). */
+export function createDocsServer(root = SITE_OUTPUT, answer?: StaticOptions['answer']) {
   return staticServer({
+    answer,
     mounts: [{ prefix: '/', dir: root }],
     headers: {
       'Cache-Control': 'no-store',
