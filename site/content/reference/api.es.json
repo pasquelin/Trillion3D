@@ -4168,7 +4168,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Lo que `obj.physics` acepta para un cuerpo blando: sus vértices se simulan uno a uno.",
+    "description": "Su materia y su tirón como los de un cuerpo rígido; sin amortiguación angular, forma, sensor, CCD ni escombros.",
     "members": {
+      "damping": "La parte de la velocidad de sus vértices perdida por segundo, `dv/dt = −c·v`, 0 o más.",
       "pins": "Índices de los vértices de la geometría que se sostienen donde están: el mástil de una bandera, el gancho de una cuerda.",
       "mass": "Kilogramos, repartidos entre los vértices según el área (una cuerda: la longitud) que sostiene cada uno; si se omite, `SOFT_AREAL_DENSITY` por m² (una cuerda: `SOFT_LINEAR_DENSITY` por m).",
       "stretch": "Cuánto cede una arista al tirar de ella, m/N (la inversa de su rigidez): 0 nunca se estira.",
