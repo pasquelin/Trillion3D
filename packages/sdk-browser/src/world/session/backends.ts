@@ -194,7 +194,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   }
   if (preload !== 'all') indices.clear();
   if (!backends.length) throw new Error('No backend');
-  // The engines' own scene-sized tables come out of the same CPU share as the decoded pages.
-  streamer.reserve(backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0));
+  // The engines' host tables, which follow the view, come out of the decoded pages' CPU share.
+  streamer.reserve(() => backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0));
   return { viewport, context };
 }
