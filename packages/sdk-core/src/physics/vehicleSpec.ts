@@ -1,4 +1,4 @@
-/**
+/*
  * THE VEHICLES A BODY STARTS AS: three real machines, every number read from them or declared as
  * a game's choice, never tuned on a scene. The engine's torque is given per kilogram of the body
  * and the brakes' from its weight, so a body of any mass drives as the machine does. The tyre slip
@@ -53,6 +53,9 @@
  * - TRACK TURN 0.6, a game's choice, declared (Jolt's tank sample): steering slows the inner track
  *   to 0.6 of the outer; below 1 m/s the tracks turn opposite ways, a pivot turn.
  */
+
+/** What a vehicle is made of: its engine, gearbox, suspension, steering and brakes, every
+ *  default a real machine's (`VEHICLE_SPECS`). */
 export interface VehicleSpec {
   /** Engine peak torque per kilogram of the body, N·m/kg. */ torquePerKg: number;
   /** The engine's idle, rpm. */ idleRPM: number;
@@ -104,59 +107,68 @@ const CAR_GEARS = [2.66, 1.78, 1.3, 1.0, 0.74, 0.5];
 const BIKE_GEARS = [2.27, 1.63, 1.3, 1.09, 0.96, 0.88];
 const TRACK_GEARS = [4, 3, 2, 1];
 
+/** The machine each kind of vehicle starts as. */
+interface VehicleSpecs {
+  /** A Chevrolet Corvette C5: rear-wheel drive, 0.32 N·m per kilogram, six gears. */
+  car: VehicleSpec;
+  /** A Yamaha XJ900 and its rider: 0.26 N·m per kilogram, six gears. */
+  motorcycle: VehicleSpec;
+  /** An M1 Abrams: a gas turbine, 0.083 N·m per kilogram, four gears. */
+  tracked: VehicleSpec;
+}
+
 /** The three machines a vehicle starts as, by kind. */
-export const VEHICLE_SPECS: Readonly<Record<'car' | 'motorcycle' | 'tracked', VehicleSpec>> =
-  Object.freeze({
-    car: Object.freeze<VehicleSpec>({
-      ...COMMON,
-      torquePerKg: 475 / 1470,
-      idleRPM: 700,
-      maxRPM: 6000,
-      torqueCurve: [
-        [0, 0.8],
-        [0.25, 0.86],
-        [4400 / 6000, 1],
-        [1, 0.91],
-      ],
-      gears: CAR_GEARS,
-      reverse: 2.9,
-      finalDrive: 3.42,
-      ...shifts(5600, 6000, CAR_GEARS),
-      suspensionFrequency: 1.5,
-      suspensionTravel: 0.2,
-    }),
-    motorcycle: Object.freeze<VehicleSpec>({
-      ...COMMON,
-      torquePerKg: 84 / (239 + 80),
-      idleRPM: 1100,
-      maxRPM: 9500,
-      torqueCurve: [
-        [0, 0.6],
-        [7000 / 9500, 1],
-        [1, 0.9],
-      ],
-      gears: BIKE_GEARS,
-      reverse: 4,
-      finalDrive: (1.93 * 40) / 16,
-      ...shifts(9000, 9500, BIKE_GEARS),
-      clutch: 2,
-      suspensionFrequency: 2,
-      suspensionTravel: 0.13,
-    }),
-    tracked: Object.freeze<VehicleSpec>({
-      ...COMMON,
-      torquePerKg: 5090 / 61300,
-      idleRPM: 500,
-      maxRPM: 4000,
-      torqueCurve: [
-        [0, 1],
-        [1, 0.5],
-      ],
-      gears: TRACK_GEARS,
-      reverse: 4,
-      finalDrive: 6,
-      ...shifts(4000, 4000, TRACK_GEARS),
-      suspensionFrequency: 1,
-      suspensionTravel: 0.3,
-    }),
-  });
+export const VEHICLE_SPECS: Readonly<VehicleSpecs> = Object.freeze({
+  car: Object.freeze<VehicleSpec>({
+    ...COMMON,
+    torquePerKg: 475 / 1470,
+    idleRPM: 700,
+    maxRPM: 6000,
+    torqueCurve: [
+      [0, 0.8],
+      [0.25, 0.86],
+      [4400 / 6000, 1],
+      [1, 0.91],
+    ],
+    gears: CAR_GEARS,
+    reverse: 2.9,
+    finalDrive: 3.42,
+    ...shifts(5600, 6000, CAR_GEARS),
+    suspensionFrequency: 1.5,
+    suspensionTravel: 0.2,
+  }),
+  motorcycle: Object.freeze<VehicleSpec>({
+    ...COMMON,
+    torquePerKg: 84 / (239 + 80),
+    idleRPM: 1100,
+    maxRPM: 9500,
+    torqueCurve: [
+      [0, 0.6],
+      [7000 / 9500, 1],
+      [1, 0.9],
+    ],
+    gears: BIKE_GEARS,
+    reverse: 4,
+    finalDrive: (1.93 * 40) / 16,
+    ...shifts(9000, 9500, BIKE_GEARS),
+    clutch: 2,
+    suspensionFrequency: 2,
+    suspensionTravel: 0.13,
+  }),
+  tracked: Object.freeze<VehicleSpec>({
+    ...COMMON,
+    torquePerKg: 5090 / 61300,
+    idleRPM: 500,
+    maxRPM: 4000,
+    torqueCurve: [
+      [0, 1],
+      [1, 0.5],
+    ],
+    gears: TRACK_GEARS,
+    reverse: 4,
+    finalDrive: 6,
+    ...shifts(4000, 4000, TRACK_GEARS),
+    suspensionFrequency: 1,
+    suspensionTravel: 0.3,
+  }),
+});

@@ -2029,5 +2029,27 @@
       "load": "Pesi",
       "rope": "Fune scorsa"
     }
+  },
+  "drive-a-car": {
+    "banner": "W o ↑ accelera, S o ↓ frena e poi va in retromarcia, A D o ← → sterzano, Spazio tira il freno a mano. Scegli l'auto, la moto o il carro armato nel pannello.",
+    "controls": {
+      "vehicle": "Veicolo",
+      "reset": "Rimetti sulle ruote"
+    },
+    "readouts": {
+      "speed": "Velocità",
+      "gear": "Marcia",
+      "rpm": "Motore (giri/min)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "auto sportiva",
+        "motorcycle": "moto",
+        "tracked": "carro armato"
+      }
+    },
+    "words": {
+      "credit": "Valle modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
   }
 }

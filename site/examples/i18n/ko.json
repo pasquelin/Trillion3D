@@ -2029,5 +2029,27 @@
       "load": "추",
       "rope": "줄 이동"
     }
+  },
+  "drive-a-car": {
+    "banner": "W 또는 ↑ 가속, S 또는 ↓ 브레이크 후 후진, A D 또는 ← → 조향, 스페이스는 핸드브레이크. 패널에서 자동차, 오토바이, 탱크를 고르세요.",
+    "controls": {
+      "vehicle": "차량",
+      "reset": "바퀴 위로 되돌리기"
+    },
+    "readouts": {
+      "speed": "속도",
+      "gear": "기어",
+      "rpm": "엔진 (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "스포츠카",
+        "motorcycle": "오토바이",
+        "tracked": "탱크"
+      }
+    },
+    "words": {
+      "credit": "이 예제를 위해 코드로 만든 계곡, CC0 — assets/examples/CREDITS.md 참고"
+    }
   }
 }
