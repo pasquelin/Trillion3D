@@ -4369,7 +4369,7 @@
     "kind": "Type",
     "title": "Fog",
     "signature": "type Fog = | (Omit<SceneLinearFog, 'color'> & { color: Color })\n  | (Omit<SceneExponentialFog, 'color'> & { color: Color })",
-    "summary": "Fog over every lit surface: linear from `near` to `far`, or thickening with distance by `density`, thinning out with height above `baseHeight` when `heightFalloff` is set.",
+    "summary": "Fog over every surface: linear from `near` to `far`, or thickening with distance by `density`, thinning out with height above `baseHeight` when `heightFalloff` is set.",
     "description": "The colour is light the fog scatters toward the eye, exposed and tone-mapped like a surface's."
   },
   {
@@ -13062,7 +13062,7 @@
       {
         "name": "fog",
         "type": "Fog | null",
-        "desc": "Fog over every lit surface, opaque and transparent, on both renderers; `null`, the default, for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`, distances from the camera; `{ color, density }` thickens by `density` per unit of distance; add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the next frame: a new fog set here, or its colour written through its methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range — `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`)."
+        "desc": "Fog over every surface, opaque and transparent, on both renderers; `null`, the default, for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`, distances from the camera; `{ color, density }` thickens by `density` per unit of distance; add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the next frame: a new fog set here, or its colour written through its methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range — `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`)."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
@@ -13110,7 +13110,7 @@
       {
         "name": "fog?",
         "type": "SceneFog | undefined",
-        "desc": "Distance or height fog over every lit surface (`SceneFog`); absent, none."
+        "desc": "Distance or height fog over every surface (`SceneFog`); absent, none."
       }
     ],
     "description": ""
@@ -13286,6 +13286,11 @@
         "name": "epoch",
         "type": "number",
         "desc": "Bumped when the set of lights changes."
+      },
+      {
+        "name": "transportEpoch",
+        "type": "number",
+        "desc": "Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not light transport, so what caches transported light (the bounce probes) keeps it."
       },
       {
         "name": "environment",
@@ -15137,7 +15142,7 @@
       {
         "name": "flags",
         "type": "GPUTexture",
-        "desc": "0 background, 1 unlit, 2 reads, 3 display-space diagnostic."
+        "desc": "0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view."
       },
       {
         "name": "views()",

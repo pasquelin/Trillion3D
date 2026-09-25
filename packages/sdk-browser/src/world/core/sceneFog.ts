@@ -5,7 +5,7 @@ import type {
   SceneLinearFog,
 } from '../../../../sdk-core/src/scene/core/fog.ts';
 
-/** Fog over every lit surface: linear from `near` to `far`, or thickening with distance by
+/** Fog over every surface: linear from `near` to `far`, or thickening with distance by
  *  `density`, thinning out with height above `baseHeight` when `heightFalloff` is set. The
  *  colour is light the fog scatters toward the eye, exposed and tone-mapped like a surface's. */
 export type Fog =

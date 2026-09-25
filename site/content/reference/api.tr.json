@@ -1020,7 +1020,7 @@
     }
   },
   "Fog": {
-    "summary": "Aydınlatılan her yüzeyin üzerinde sis: `near` ile `far` arasında doğrusal, ya da `density` ile uzaklıkla koyulaşan ve `heightFalloff` verildiğinde `baseHeight` üzerinde yükseldikçe incelen.",
+    "summary": "Her yüzeyin üzerinde sis: `near` ile `far` arasında doğrusal, ya da `density` ile uzaklıkla koyulaşan ve `heightFalloff` verildiğinde `baseHeight` üzerinde yükseldikçe incelen.",
     "description": "Renk, sisin göze doğru saçtığı ışıktır; bir yüzeyinki gibi pozlanır ve görüntü eğrisinden geçer."
   },
   "FrameInfo": {
@@ -2769,7 +2769,7 @@
       "isScene": "Her zaman `true`: sahne kökünü başka herhangi bir nesneden ayırır.",
       "environment": "Parlak yüzeylerin yansıttığı çevrenin bir resmi; hiçbiri için `null`.",
       "background": "Her nesnenin arkasındaki görüntüyü dolduran şey: bir renk ya da varsayılan için `null`. Bir değişiklik oturum korunarak sonraki karede görünür: burada atanan yeni bir renk ya da mevcut rengin yöntemleriyle (`set`, `setRGB`, `setHex`, `setHSL`...) yazılması. `.r`, `.g` veya `.b` alanına doğrudan yazma algılanmaz: ardından `background` değerini yeniden atayın. Bir resim ya da `getHex` içermeyen herhangi bir değer reddedilir (`UNSUPPORTED_SCENE_UPDATE`): hiçbir yol onu çizmez.",
-      "fog": "Aydınlatılan her yüzeyin üzerinde sis, opak ya da saydam, iki çizicide de; varsayılan `null` sis yok demektir, bedelsiz. `{ color, near, far }` nesneleri `near` ile `far` arasında `color` rengine eritir, kameradan uzaklıklar; `{ color, density }` uzaklık birimi başına `density` kadar koyulaşır; `heightFalloff` (ve varsayılanı 0 olan `baseHeight`) ekleyin, sis yere çöker ve `baseHeight` üzerinde incelir — yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür. Bir değişiklik sonraki karede görünür: burada verilen yeni bir sis ya da yöntemleriyle yazılan rengi. `near`, `far`, `density`... alanlarına doğrudan yazmak duyulmaz: ardından `fog` alanını yeniden verin. Aralık dışı bir sis — `far` değeri `near` değerinin ötesinde değilse, negatif bir yoğunluk — reddedilir (`INVALID_SCENE_ENVIRONMENT`).",
+      "fog": "Her yüzeyin üzerinde sis, opak ya da saydam, iki çizicide de; varsayılan `null` sis yok demektir, bedelsiz. `{ color, near, far }` nesneleri `near` ile `far` arasında `color` rengine eritir, kameradan uzaklıklar; `{ color, density }` uzaklık birimi başına `density` kadar koyulaşır; `heightFalloff` (ve varsayılanı 0 olan `baseHeight`) ekleyin, sis yere çöker ve `baseHeight` üzerinde incelir — yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür. Bir değişiklik sonraki karede görünür: burada verilen yeni bir sis ya da yöntemleriyle yazılan rengi. `near`, `far`, `density`... alanlarına doğrudan yazmak duyulmaz: ardından `fog` alanını yeniden verin. Aralık dışı bir sis — `far` değeri `near` değerinin ötesinde değilse, negatif bir yoğunluk — reddedilir (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Derlenmiş bir modeli — manifesto URL'sini — yükler ve bu sahneye ekler.",
       "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
       "fromJSON": "Sahnenin içeriğini `toJSON` ile kaydedilmiş bir sahneyle değiştirir, `helper` işaretleri korunur; modelleri yüklenince tamamlanır. Başka bir biçim ya da sürüm reddedilir (`UNSUPPORTED_SCENE_FORMAT`). Biri okunurken yapılan çağrılar sırayla, birbiri ardına çalışır, her biri öncekinin bıraktığı üzerinde: iki kaydedilmiş sahne asla karışmaz."
@@ -2781,7 +2781,7 @@
       "exposure": "Eğriden önce uygulanan, doğrusal parlaklığın çarpanı.",
       "toneMapping": "Ekran eğrisi; yoksa `DEFAULT_TONE_MAPPING`.",
       "irradiance": "Her yönden gelen ışınım, 27 sayı olarak: dokuz katsayı, her biri bir RGB üçlüsü, bant sırasında sabit, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Yoksa, ya da hepsi sıfırsa, bildirilen lambalar dışında hiçbir şey bir yüzeyi aydınlatmaz.",
-      "fog": "Aydınlatılan her yüzeyin üzerinde uzaklık ya da yükseklik sisi (`SceneFog`); yoksa sis yok."
+      "fog": "Her yüzeyin üzerinde uzaklık ya da yükseklik sisi (`SceneFog`); yoksa sis yok."
     }
   },
   "SceneExponentialFog": {
@@ -2826,6 +2826,7 @@
       "ids": "Her slotun ışık adı.",
       "count": "Kaç ışık.",
       "epoch": "Işık kümesi değiştiğinde artırılır.",
+      "transportEpoch": "Epoch ile birlikte artar, yalnızca sisin değişmesi dışında: sis ışık taşınımının değil, bakış ışınının bir terimidir, bu yüzden taşınan ışığı önbelleğe alan (sekme sondaları) onu korur.",
       "environment": "Sahnenin ortamı.",
       "lightingView": "Host'un istediği görünüm, olduğu gibi: hiçbir şey istemediği sürece `auto`.",
       "unlit": "Görselin ışık olmadan, ham albedo olarak çıkması gerektiğinde doğru. Bu, hiçbir ışık bildirilmediği sürece varsayılan davranıştır: kaynağı olmayan bir sahnenin aydınlatacak hiçbir şeyi yoktur, ve siyah bir görsel hiçbir geometri benchmark'ına yardımcı olmazdı. Bir ışık var olur olmaz, gerçek aydınlatma devralır — host açıkça tanı görünümünü istemedikçe.",
@@ -3254,7 +3255,7 @@
       "baseMetal": "RGB temel renk, A metaliklik.",
       "normalRough": "XYZ dünya normali, A pürüzlülük.",
       "emissiveAo": "RGB emissive, A ortam gizlenmesi.",
-      "flags": "0 arka plan, 1 ışıksız, 2 okumalar, 3 ekran-uzayı tanısı.",
+      "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü.",
       "views": "GPU doku görünümleri.",
       "dispose": "Serbest bırakır."
     }

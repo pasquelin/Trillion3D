@@ -50,7 +50,7 @@ export interface SceneEnvironment {
    * Absent, or all zero, nothing lights a surface but the declared lamps.
    */
   irradiance?: readonly number[];
-  /** Distance or height fog over every lit surface (`SceneFog`); absent, none. */
+  /** Distance or height fog over every surface (`SceneFog`); absent, none. */
   fog?: SceneFog;
 }
 

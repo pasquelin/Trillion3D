@@ -11,7 +11,7 @@ export class GraphScene extends GraphNode {
   override readonly kind = 'scene' as const;
   /** What the frame is cleared with; `null` clears to black. */
   background: Color | null = null;
-  /** The contract's fog over every lit surface (`../../lighting/contractLights.ts`); `null`, none. */
+  /** The contract's fog over every drawn surface (`../../lighting/contractLights.ts`); `null`, none. */
   fog: SceneFog | null = null;
   /** Called by the draw before it reads the graph. */
   onBeforeRender = () => {};

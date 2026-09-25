@@ -141,11 +141,8 @@ test('linear fog: untouched before near, half-way between, the fog colour alone 
     [3, 2, 106],
     [3, 2, 300],
   ]);
-  close(
-    wgslFogged(fog, RGB, [3, 2, 56], eye),
-    RGB.map((v, i) => (v + COLOR[i]) / 2),
-    'half',
-  );
+  const half = RGB.map((v, i) => (v + COLOR[i]) / 2);
+  close(wgslFogged(fog, RGB, [3, 2, 56], eye), half, 'half');
   close(glslFogged(fog, RGB, [3, 2, 300], eye), COLOR, 'far');
 });
 
@@ -185,6 +182,9 @@ test('height fog: the integrated density, looking level, up and down, from above
       [300, 1, 0],
     ],
   );
+  // Deep inside a steep fog, far below its base: the densities pass the cap, the fog stays total.
+  const deep = [-99, -100, -101].map((y): V3 => [5, y, 3]);
+  lawHolds({ ...fog, heightFalloff: 1 }, [0, -100, 0], deep);
 });
 
 test('no fog: both shaders hand the lit colour back as it is, the block all zero', () => {

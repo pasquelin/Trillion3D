@@ -33,6 +33,27 @@ test('a fog changed stales the frame; the same fog set again does not', () => {
   assert.equal(store.epoch, epoch + 2);
 });
 
+test('a change of fog alone leaves light transport, and the bounce probes, as they were', () => {
+  const store = createSceneLightStore();
+  store.setEnvironment({ exposure: 1 });
+  const transport = store.transportEpoch;
+  store.setEnvironment({ exposure: 1, fog: { color: GREY, density: 0.1 } });
+  store.setEnvironment({ exposure: 1, fog: { color: GREY, near: 3, far: 30 } });
+  store.setEnvironment({ exposure: 1 });
+  assert.equal(store.transportEpoch, transport);
+  store.setEnvironment({ exposure: 1, irradiance: Array(27).fill(0.1) });
+  assert.equal(store.transportEpoch, transport + 1);
+  store.add({
+    id: 'sun',
+    kind: 'directional',
+    direction: [0, -1, 0],
+    color: [1, 1, 1],
+    intensity: 1,
+    castsShadow: false,
+  });
+  assert.equal(store.transportEpoch, transport + 2);
+});
+
 test('a fog out of range is refused by name', () => {
   const refused = (fog: unknown) =>
     assert.throws(() => validateSceneFog(fog as never), { code: 'INVALID_SCENE_ENVIRONMENT' });

@@ -362,8 +362,11 @@ environment (`SceneEnvironment.fog`, `packages/sdk-core/src/scene/core/fog.ts`):
 the irradiance in the contract light buffer on WebGPU, `fogColor` and `fogLaw` uniforms on WebGL2,
 written only when the environment changes. The eye rides with the frame's view: `display.yzw` of the
 deferred view, `eye` of the blend view, the view space origin on WebGL2. With no fog the block's mode
-is zero and every program returns `L` untouched, one uniform branch per lit pixel. Unlit materials
-and the unlit view are not fogged. A world writes the fog with the lights before the next frame,
+is zero and every program returns `L` untouched, one uniform branch per pixel. An unlit material
+(basic, matcap) is fogged like a lit one, its colour standing for `L`, as in the reference; a normal
+or depth material and the diagnostic views, the unlit view among them, are not. Fog is a view-ray
+term, not light transport: a change of fog alone leaves the bounce probes converged (the store's
+`transportEpoch`). A world writes the fog with the lights before the next frame,
 like exposure; a fog set again, or its colour written through its methods, is heard.
 `lighting/fogShader.test.ts` evaluates both shader texts against a numerical integration.
 Volumetric fog and light shafts belong to the lighting strategy below.

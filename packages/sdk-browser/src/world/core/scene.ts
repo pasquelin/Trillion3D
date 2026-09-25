@@ -77,7 +77,7 @@ export class Scene extends Object3D {
     if (value) listen(value, this.recoloured);
     this.recoloured();
   }
-  /** Fog over every lit surface, opaque and transparent, on both renderers; `null`, the default,
+  /** Fog over every surface, opaque and transparent, on both renderers; `null`, the default,
    *  for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`,
    *  distances from the camera; `{ color, density }` thickens by `density` per unit of distance;
    *  add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out
