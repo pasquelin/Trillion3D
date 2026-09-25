@@ -838,7 +838,6 @@
       "residency": "常驻与流式加载",
       "residentPages": "常驻页数",
       "requestedPages": "请求的页数",
-      "budgetThreshold": "预算阈值",
       "texturesPending": "等待中的纹理",
       "texturesEvicted": "被淘汰的纹理",
       "gpuAllocations": "被追踪的 GPU 分配",

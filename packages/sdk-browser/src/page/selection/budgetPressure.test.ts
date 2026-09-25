@@ -5,7 +5,7 @@ import { collectClusterPages, rootCoverage, selectVisiblePages } from './selecti
 import { dagFixture, wideCamera } from './dag.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
-test('budget pressure down to the pinned roots still publishes a complete, coarser cut', () => {
+test('budget pressure down to the pinned roots still draws the surface once, by the root', () => {
   const cam = wideCamera(),
     viewport: [number, number] = [1280, 720];
   const fixture = dagFixture();
@@ -15,28 +15,17 @@ test('budget pressure down to the pinned roots still publishes a complete, coars
     fixture.indices,
     fixture.associations,
   );
-  // A budget below the finest cut answers with the next coarser complete cover, at its own threshold.
-  const tight = selectVisiblePages(roots, cameraMoteur(cam), {
-    pixelError: 0,
-    viewport,
-    holdResident: true,
-    pageBudget: 3,
-  });
-  assert.deepEqual(tight.shown.map((page) => page.url).sort(), ['mid-left', 'mid-right']);
-  assert.ok(tight.pixelError > 0);
-  assert.equal(tight.complete, true);
   // Budget pressure evicted every intermediate level: only the pinned roots are resident. The cut
-  // published must still cover the surface once rather than report an incomplete frame.
+  // rule draws the nearest resident ancestor of what is missing: the root, once.
   const pinned = new Set(rootCoverage(roots).map((page) => page.url));
   assert.deepEqual([...pinned], ['root']);
   const starved = selectVisiblePages(roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport,
     holdResident: true,
-    rootFallback: true,
     isResident: (rec) => pinned.has(rec.url),
   });
-  assert.equal(starved.complete, true, 'the pinned root cover leaves no hole');
+  assert.equal(starved.complete, false, 'the requested cut is not resident');
   assert.deepEqual(
     starved.shown.map((page) => page.url),
     ['root'],
