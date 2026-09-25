@@ -90,7 +90,7 @@ export function lightCutFrame() {
     const viewFlags = new Uint32Array(uniform.data.slice().buffer)[VIEW_FLAGS_WORD];
     const list = out(),
       words = best(),
-      stamp = writes.findLast(({ buffer }) => buffer === work);
+      stamp = writes.findLast(({ buffer }) => (buffer as unknown) === work);
     if (stamp) words[askedAt] = new Uint32Array(stamp.data.slice().buffer)[0];
     if (viewFlags & VIEW_APPEND) list[OUT_FLAGS] &= LIST_FULL;
     else list[OUT_COUNT] = list[OUT_FLAGS] = 0;
