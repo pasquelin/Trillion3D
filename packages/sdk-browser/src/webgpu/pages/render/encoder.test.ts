@@ -26,7 +26,7 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
     await backend.prepare();
     // Rig nobody else walks: the local host camera stays at the origin, only the rig carries the
     // translation. The traced pose must follow the rig, not the camera's local pose.
-    const rig = new G.GraphNode();
+    const rig = new G.Object3D();
     rig.position.set(7, -1, 4);
     const hostCamera = G.perspectiveCamera(55, 1, 0.1, 100);
     rig.add(hostCamera);

@@ -12,12 +12,12 @@ import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts';
 import { sceneDocument } from '../../scene/tables.ts';
 import { bakedImageUrls } from '../../texture/skip.ts';
 import type { HostTexture } from '../resources.ts';
-import type { HostGraphNode } from '../scene/graphNodes.ts';
 import { preparedGeometries } from './geometry.ts';
 import { preparedGraph } from './graph.ts';
 import { imageAddress, preparedImages } from './images.ts';
 import { preparedMaterials } from './materials.ts';
 import { preparedTextures, type TextureRanks } from './textures.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 type Inputs = {
   tables: PreparedSceneTables;
@@ -67,7 +67,7 @@ export async function buildPreparedScene(inputs: Inputs) {
     materialOf: preparedMaterials(tables.materials, slot),
   });
   signal?.throwIfAborted();
-  const source: HostGraphNode = scene;
+  const source: Object3D = scene;
   const associations: BackendContext['associations'] = meshes;
   const textureIndices: Map<HostTexture, number> = ranks;
   return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed };

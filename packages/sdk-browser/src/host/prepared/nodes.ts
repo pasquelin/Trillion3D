@@ -12,7 +12,7 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { GraphCamera } from '../graph/camera.ts';
 import { GraphLight } from '../graph/light.ts';
 import { type GraphMesh } from '../graph/mesh.ts';
-import { type GraphNode } from '../graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** The characters a node name may not hold, which the loader drops: the ones a path to an
  *  animated property is written with. */
@@ -78,7 +78,7 @@ export function weigh(mesh: GraphMesh, weights: readonly number[] | null) {
 /** Sets `node`'s pose from the one declared: a matrix decomposed, or translation, rotation and
  *  scale as they are. */
 export function pose(
-  node: GraphNode,
+  node: Object3D,
   declared: Pick<TableNode, 'matrix' | 'translation' | 'rotation' | 'scale'>,
 ) {
   if (declared.matrix) node.applyMatrix4({ elements: declared.matrix });

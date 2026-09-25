@@ -7,7 +7,7 @@
  */
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { GraphMesh } from '../graph/mesh.ts';
-import type { GraphNode } from '../graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { HostBox } from '../resources.ts';
 import { placedMesh, type PlacedMesh, type RowLink } from '../../scene/partition/rows.ts';
 
@@ -15,9 +15,9 @@ import { placedMesh, type PlacedMesh, type RowLink } from '../../scene/partition
  *  their links recorded in `ranks`; `parts` gives the primitive meshes built for a rank. */
 export function placedMeshes(
   partition: TablePartition | null,
-  scene: GraphNode,
-  ranks: Map<GraphNode, RowLink>,
-  parts: (rank: number) => readonly GraphNode[],
+  scene: Object3D,
+  ranks: Map<Object3D, RowLink>,
+  parts: (rank: number) => readonly Object3D[],
 ) {
   const placed = new Map<number, PlacedMesh>();
   if (!partition) return placed;

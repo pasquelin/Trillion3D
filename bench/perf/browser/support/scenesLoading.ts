@@ -87,7 +87,7 @@ export function manifesteEtScene({
   seed = 4201,
 }: { primitives?: number; pages?: number; triangles?: number; seed?: number } = {}) {
   const alea = graine(seed);
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>();
   const indices = new Map<string, Uint32Array>();
   const liste: LoadedPrimitive[] = [];

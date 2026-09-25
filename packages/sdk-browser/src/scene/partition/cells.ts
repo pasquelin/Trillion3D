@@ -17,19 +17,19 @@ import {
   type TablePartition,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import type { GraphNode } from '../../host/graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { createCellBoxes } from './boxes.ts';
 import { holdsEvery, inCellFrame, planCells, residentRows } from './plan.ts';
 import { capacityOf, releaseRow, rowLocal, rowsFree, sizeRows, takeRow } from './rows.ts';
 import type { PlacedMesh, RowLink } from './rows.ts';
 
-type Placement = { mesh: PlacedMesh; row: number; parent: GraphNode; local: Float64Array };
+type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array };
 type Inputs = {
   partition: TablePartition;
   /** The folder the tables were read from. */ base: string;
-  /** The prepared scene's root: where the tables hang a cell node. */ root: GraphNode;
-  /** The host node of each core rank. */ parents: readonly GraphNode[];
+  /** The prepared scene's root: where the tables hang a cell node. */ root: Object3D;
+  /** The host node of each core rank. */ parents: readonly Object3D[];
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
 };
 
@@ -42,14 +42,14 @@ export function createPartitionCells(inputs: Inputs) {
   const boxes = createCellBoxes(partition.cells, root, parents);
   const held = new Map<number, Placement[]>();
   /** The world matrix each parent in use had when its rows were written. */
-  const worlds = new Map<GraphNode, Float64Array>();
+  const worlds = new Map<Object3D, Float64Array>();
   const touched = new Map<RowLink, { from: number; to: number }>();
   let waiting = 0,
     short = false;
   /** The reach, in the cells' frame, the rows are sized for (∞: all); the largest a frame asked. */
   let sized = 0,
     wanted = 0;
-  const worldOf = (node: GraphNode) => {
+  const worldOf = (node: Object3D) => {
     let world = worlds.get(node);
     if (!world) worlds.set(node, (world = hostWorldChainInto(new Float64Array(16), node)));
     return world;
