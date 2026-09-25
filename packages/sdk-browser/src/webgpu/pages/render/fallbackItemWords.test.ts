@@ -20,6 +20,7 @@ import { fallbackToCpuCut } from '../io/drops.ts';
 import { renderWebgpuPages } from './render.ts';
 import { flushWebgpuPages } from './flush.ts';
 import { rootPage, twoPrimitives } from '../testScenes.fixture.ts';
+import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts';
 
 /** Two meshes of distinct pipeline bins, twenty units apart: a camera sees both, or the second alone. */
 function twoPlaces() {
@@ -52,16 +53,12 @@ function lookAt(x: number, z: number) {
 test('#198: a row changed under the fallback draw reaches the visibility pass', async () => {
   installGpuGlobals();
   const scene = twoPlaces();
-  const collected = collectClusterPages(
-    scene.source,
-    scene.metadata,
-    scene.indices,
-    scene.associations,
-  );
+  const metadata: ClusterManifest = { ...QUAD_MANIFEST, ...scene.metadata, ...MANIFEST_IDENTITY };
+  const collected = collectClusterPages(scene.source, metadata, scene.indices, scene.associations);
   const gpu = mockGpu({ packed: packDagSelection(collected.roots) });
   const rt = createWebgpuPagesRuntime({
     ...scene,
-    metadata: { ...QUAD_MANIFEST, ...scene.metadata, ...MANIFEST_IDENTITY },
+    metadata,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
     viewport: [32, 32],
@@ -95,7 +92,7 @@ test('#198: a row changed under the fallback draw reaches the visibility pass', 
     const firstPage = rows.packedPageIndex[0];
     // The fallback draw: the second mesh alone, so row 0 changes occupant.
     rt.vis.visView = undefined;
-    for (let frame = 0; frame < 4 && rows.packedCount !== 1; frame++) {
+    for (let frame = 0; frame < 4 && rt.layout.rows.packedCount !== 1; frame++) {
       renderWebgpuPages(rt, second);
       await flushWebgpuPages(rt);
     }
