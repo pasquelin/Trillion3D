@@ -118,9 +118,9 @@ test('path carry: a step visits the path joints alone, whatever the other joints
   const anchor = rig.cube(0, 0, 6);
   for (let i = 0; i < 40; i++) rig.wanted.add(joint.point(anchor, null));
   const perStep = () => {
-    const before = rig.pathVisits();
+    const before = rig.visits.path();
     rig.run(1);
-    return rig.pathVisits() - before;
+    return rig.visits.path() - before;
   };
   assert.equal(perStep(), 0, 'forty plain joints and no path: no path visit');
   const { made } = held(rig, RING, true);
