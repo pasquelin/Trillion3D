@@ -3,8 +3,8 @@
 # short-lived pull requests). Paths marked `linguist-generated` or `linguist-vendored` in
 # .gitattributes are left out, as the base marks them (a pull request cannot exempt its own
 # files), and binary files count no line. The whole repository is counted, from any folder.
-# Usage: check-pr-size.sh [base]  (default $TRILLION3D_BASE_REF, as check:changed, else
-# origin/develop; the CI passes the base of its merge commit).
+# Usage: check-pr-size.sh [base]  (default $TRILLION3D_BASE_REF, the variable check:changed
+# reads, else a freshly fetched origin/develop; the CI passes the base of its merge commit).
 set -eu
 limit=600
 base=${1:-${TRILLION3D_BASE_REF:-origin/develop}}
