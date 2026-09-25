@@ -11476,8 +11476,8 @@
     "section": "types",
     "kind": "Type",
     "title": "PhysicsPrimitive",
-    "signature": "type PhysicsPrimitive = | { type: 'box'; halfExtents: readonly [number, number, number] }\n  | { type: 'sphere'; radius: number }\n  | { type: 'capsule'; halfHeight: number; radius: number }\n  | { type: 'cylinder'; halfHeight: number; radius: number }",
-    "summary": "An exact primitive: its sizes in the object's own frame.",
+    "signature": "type PhysicsPrimitive",
+    "summary": "An exact primitive: its sizes in the object's own frame (a cylinder tapers from its top's `radius` to a `radiusBottom` that differs, as `geometry.cylinder` draws one).",
     "description": ""
   },
   {
