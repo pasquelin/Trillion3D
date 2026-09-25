@@ -1077,7 +1077,9 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
   its motor drives. `joint.path(a, b, { path, loop, follow })` runs `a` along a smooth track
   through the points of `path` (at least two, fixed to `b` or the world), turning with it unless
   `follow` is `false`; its motor drives `a` at a speed along the track, or to a point of it (1.5:
-  halfway between the second and the third). `joint.pulley(a, b, { over, ratio })` hangs `a` and
+  halfway between the second and the third). A track fixed in the world does no work: its bends
+  turn `a` without slowing it, and a body with no damping keeps its energy along it to within one
+  step of gravity's work. `joint.pulley(a, b, { over, ratio })` hangs `a` and
   `b` on one rope over two wheels in the world, the rope from 0 up to its length unless `limits`
   says otherwise. `joint.gear(a, b, { axis, axisB, ratio })` turns `b` `ratio` times per turn of
   `a` (the teeth of `a` over those of `b`), the other way round; `joint.rackAndPinion(pinion,
