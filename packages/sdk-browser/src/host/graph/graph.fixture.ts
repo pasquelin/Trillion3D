@@ -55,9 +55,12 @@ export type SurfaceParameters = Record<string, unknown>;
 /** The depth test that passes only strictly nearer. */
 export const DEPTH_LESS = 2;
 
+/** An empty geometry of the host's, as a loaded scene's is (`Geometry._owner`). */
+const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as const });
+
 /** A drawn node: an empty geometry and an unlit surface unless given. */
 export const mesh = (
-  geometry: Geometry = new Geometry(),
+  geometry: Geometry = hostGeometry(),
   material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
 ) => new GraphMesh(geometry, material);
 
@@ -124,7 +127,7 @@ export function canvasTexture(canvas: unknown) {
  * floats per vertex, a 16- or 32-bit triangle list, and its groups.
  */
 function graphGeometry(source: Geometry) {
-  const geometry = new Geometry();
+  const geometry = hostGeometry();
   for (const [name, attribute] of Object.entries(source.attributes))
     geometry.setAttribute(name, floatAttribute(attribute.array, attribute.itemSize));
   if (source.index) geometry.setIndex(indices(Array.from(source.index.array)));

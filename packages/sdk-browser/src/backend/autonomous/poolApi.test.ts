@@ -62,6 +62,15 @@ test('the floor counts the root cover and the replaced pages, read again only on
   assert.equal(floor.bytes(), 9 * 4 + 12 + 3 * 4 + 12 + 60 * 4 + 12);
 });
 
+test('a replaced page moves the cover, not the placements the requests lay out', () => {
+  const floor = createHeldFloor({ bootstrap: [], modifiedPages: new Set(), byUrl: new Map() });
+  const read = () => [floor.revision, floor.placements];
+  floor.changed();
+  assert.deepEqual(read(), [1, 0], 'prepare or a replaced page: the pool reads it, no layout');
+  floor.placed();
+  assert.deepEqual(read(), [2, 1], 'an instance or grown rows: both');
+});
+
 test('the floor counts every geometry the store counts: copies sharing their arrays included', () => {
   // Two records of one page, as the store builds them from one decoded page: two geometries on
   // the same arrays, each uploaded on its own; and an instance's clone of the first.

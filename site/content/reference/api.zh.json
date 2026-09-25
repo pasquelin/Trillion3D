@@ -1069,7 +1069,7 @@
       "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
-      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
+      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
       "gpuSelectionFallback": "当引擎原本拥有 GPU 选择结果却将其放弃时为 true:此后测量到的就是回退用的 CPU 裁切。发生回退时还会发出一次 `gpu-selection-fallback` 诊断信息,宿主会原样复制它;在没有 GPU 选择功能的引擎上不存在该字段。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
@@ -4078,7 +4078,7 @@
       "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
-      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合,减去 `uncoveredTriangles` 所统计的、没有常驻页面的簇。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时与 `uncoveredTriangles` 于同一遍计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。本次采样预期满足的覆盖关系:`selected − drawn − uncovered = 0`。",
+      "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
       "gpuSelectionFallback": "当引擎原本拥有 GPU 选择结果却将其放弃时为 true:此后测量到的就是回退用的 CPU 裁切。发生回退时还会发出一次 `gpu-selection-fallback` 诊断信息,宿主会原样复制它;在没有 GPU 选择功能的引擎上不存在该字段。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
@@ -6906,7 +6906,8 @@
       "recipe": "家族成员，以及构建形状时用的每个参数。",
       "attributes": "每个逐顶点列表，在没有调用能重新构建形状时使用。",
       "index": "哪些顶点组成每个三角形。",
-      "groups": "索引范围，每段用一种材质绘制。"
+      "groups": "索引范围，每段用一种材质绘制。",
+      "owner": "已加载场景的顶点为 `'host'`，按其值读取（`Geometry._owner`）；世界的顶点不设置。"
     }
   },
   "SavedMaterial": {
@@ -7048,8 +7049,8 @@
     "summary": "接触交给监听者的内容：另一个对象、冲量和接触点。",
     "members": {
       "other": "被接触的物体；离开场景后为 `null`。",
-      "impulse": "N·s：沿法线的接近速度乘以这对物体的约化质量，在求解器运行前估算；`leave` 时为 0。",
-      "point": "接触点，世界坐标系；`leave` 时为原点。"
+      "impulse": "N·s：沿法线的接近速度乘以这对物体的约化质量，在求解器运行前估算（软体一侧：其平均速度与接触顶点的质量）；`leave` 时以及软体与传感器之间为 0。",
+      "point": "接触点，世界坐标系（软体：接触顶点的平均位置，对传感器则为其中心）；`leave` 时为原点。"
     }
   },
   "ContactEventName": {
