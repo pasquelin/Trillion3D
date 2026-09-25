@@ -32,15 +32,19 @@ export const FRAMED_MEASUREMENT_TAG =
   `<script>if (self === top) { const tag = document.createElement('script'); ` +
   `tag.src = '${LOADER}'; tag.dataset.ga = '${MEASUREMENT_ID}'; document.head.append(tag); }</script>`;
 
-/**
- * `html` with `tag` before its `</head>`, indented one step inside it; `html` unchanged when it has
- * no head to carry one, since a fragment is not a page and failing a build over one would stop
- * the site for a file no browser loads. What guarantees the real pages are covered is the
- * test walking the served tree, not this function.
- */
-export function withMeasurement(html: string, tag = MEASUREMENT_TAG): string {
-  if (html.includes('consent.v1.js')) return html;
+/** `html` with `tag` before its `</head>`, indented one step inside it; `html` unchanged when it
+ *  has no head to carry one. */
+export function inHead(html: string, tag: string): string {
   const close = /^([ \t]*)<\/head>/m.exec(html);
   if (!close) return html;
-  return html.replace(close[0], `${close[1]}  ${tag}\n${close[0]}`);
+  // A function, so a `$` in `tag` is never read as a replacement pattern.
+  return html.replace(close[0], () => `${close[1]}  ${tag}\n${close[0]}`);
 }
+
+/**
+ * `html` with the measurement `tag` in its head, once; a fragment is left as it is, since it is not
+ * a page and failing a build over one would stop the site for a file no browser loads. What
+ * guarantees the real pages are covered is the test walking the served tree, not this function.
+ */
+export const withMeasurement = (html: string, tag = MEASUREMENT_TAG): string =>
+  html.includes('consent.v1.js') ? html : inHead(html, tag);
