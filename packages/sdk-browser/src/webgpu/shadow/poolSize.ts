@@ -59,13 +59,15 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
   grant.done = granting.then(
     (granted) => {
       if (!granted) {
-        // Never silent: the image loses its shadows, and the page is told so by name.
-        if (!run.lost && !rt.signal.aborted)
-          diag.engineDiagnostic('shadows-off', 'The device refused the smallest shadow pool', {
-            kind: 'warning',
-            reason: 'gpu-out-of-memory',
-            requestedBytes: shadowAtlasBytes(wanted),
-          });
+        // Never silent: the image loses its shadows, and the page is told so by name, in the
+        // diagnostic and in every frame's shadow report (`unavailable`).
+        if (run.lost || rt.signal.aborted) return;
+        lights.shadowReason = 'shadow pool refused by the device';
+        diag.engineDiagnostic('shadows-off', 'The device refused the smallest shadow pool', {
+          kind: 'warning',
+          reason: 'gpu-out-of-memory',
+          requestedBytes: shadowAtlasBytes(wanted),
+        });
         return;
       }
       // A session closed, or a device lost, while the device answered keeps nothing.
