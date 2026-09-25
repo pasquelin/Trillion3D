@@ -9,6 +9,7 @@ import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
+import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 
 /**
  * Substitute of the resident proxy: a header of zeros and four words behind it. Presence
@@ -58,12 +59,17 @@ export function deferredLayoutEntries(
       visibility: GPUShaderStage.FRAGMENT,
       buffer: { type: 'storage' },
     });
-  // Probe grid and their coefficients: bound only by the bounce program, so a session
-  // without bounce keeps exactly the previous layout.
+  // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
+  // bounce program, so a session without bounce keeps exactly the previous layout.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      {
+        binding: BOUNCE_SURFACE_BINDING,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'read-only-storage' },
+      },
     );
   return entries;
 }
@@ -138,6 +144,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
+  // One texel of zero: the water composite binds it while bounce is off, and reads none.
+  const surfaceCache = device.createBuffer({
+    label: 'Trillion3D empty bounce surface cache',
+    size: 16,
+    usage: GPUBufferUsage.STORAGE,
+  });
   // The absent proxy: a header of zeros, which the shader reads as a tree with no node and as
   // an absent distant shadow. Both lighting passes bind the same one, so a session without
   // proxy renders exactly the same image on opaque and on blend.
@@ -154,6 +166,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     sampler,
     bounceGrid,
     probes,
+    surfaceCache,
     proxy,
     dispose() {
       tiles.destroy();
@@ -162,6 +175,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       atlas.destroy();
       bounceGrid.destroy();
       probes.destroy();
+      surfaceCache.destroy();
       proxy.destroy();
     },
   };
