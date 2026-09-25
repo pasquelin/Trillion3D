@@ -67,12 +67,13 @@ export function take<T extends PageRecord>(
     s.frustumRejected++;
     return;
   }
-  const ready = !s.flatReady || s.flatReady[index] === 1;
+  const held = s.flatHeld,
+    ready = !held || held.isReady(index);
   // Settled: every cluster under the node meets the threshold and its parent does not.
   let wanted = true,
     drawn = ready;
   if (!settled) {
-    const childReady = !s.flatChildReady || s.flatChildReady[index] === 1,
+    const childReady = !held || held.isChildReady(index),
       pixels = selectionScratch.pixels,
       t = s.pixelError;
     if (exact) pixelsAtZero(rec, pixels);

@@ -24,7 +24,7 @@ function engine(held = false) {
 
 test('a world without guides composes as before: no program, no draw', () => {
   const { gl, of } = createTestContext();
-  const compose = createFrameComposer(gl, camera, createGuideSet());
+  const compose = createFrameComposer(gl, camera, { guides: createGuideSet() });
   compose(engine().backend, null);
   assert.equal(of('createProgram').length, 0);
   assert.equal(of('drawArraysInstanced').length, 0);
@@ -34,7 +34,7 @@ test('guides are drawn over the image, before it is kept, depth tested and unwri
   const { gl, of, names, calls } = createTestContext();
   const guides = createGuideSet();
   guides.lines({ positions: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0], width: 2 });
-  const compose = createFrameComposer(gl, camera, guides);
+  const compose = createFrameComposer(gl, camera, { guides });
   compose(engine().backend, null);
   assert.deepEqual(of('drawArraysInstanced')[0], ['TRIANGLES', 0, 6, 2]);
   assert.ok(names().lastIndexOf('drawArraysInstanced') < names().lastIndexOf('blitFramebuffer'));
@@ -49,7 +49,7 @@ test('guides are drawn over the image, before it is kept, depth tested and unwri
 test('a held frame is put back while the guides stand, redrawn once they change', () => {
   const { gl } = createTestContext();
   const guides = createGuideSet();
-  const compose = createFrameComposer(gl, camera, guides);
+  const compose = createFrameComposer(gl, camera, { guides });
   const first = engine();
   compose(first.backend, null);
   const held = engine(true);

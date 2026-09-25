@@ -446,7 +446,6 @@
       "sound-in-space": "位置音频",
       "tone-mapping-compared": "色调映射算子的选择",
       "a-first-post-effect": "后期处理链",
-      "a-glow-around-lights": "后期处理:泛光(bloom)",
       "glow-on-chosen-objects": "后期处理:选择性泛光",
       "depth-of-field": "后期处理:景深",
       "motion-blur": "后期处理:运动模糊",

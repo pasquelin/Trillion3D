@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer, serverPort } from '../../kit/server/staticServer.ts';
+import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
@@ -20,9 +20,7 @@ declare global {
 const root = resolve(import.meta.dirname, '../../..');
 const output = measureOutput('observatory');
 await mkdir(output, { recursive: true });
-const server = await startServer({
-  port: 0,
-  captures: new Map(),
+const { server, port } = await startServer({
   mounts: [...sdkMounts(root), { prefix: '/site/', dir: resolve(root, 'site') }],
 });
 const browser = await launchChrome({ headless: true });
@@ -33,7 +31,7 @@ try {
     deviceScaleFactor: 2,
   });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${serverPort(server)}`);
+  await page.goto(`http://127.0.0.1:${port}`);
   await openGalleryScene(page, {
     id: 'observatory',
     width: 800,

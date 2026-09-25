@@ -70,14 +70,6 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       default: false,
       description: 'Enables dynamic adaptation of LOD error threshold based on scene workload.',
     },
-    shadowBudgetMs: {
-      type: 'number',
-      default: 1.0,
-      minimum: 0.1,
-      maximum: 16.0,
-      description:
-        'GPU time budget allocated per frame for redrawing virtual shadow map pages (in milliseconds). Default 1.0 ms.',
-    },
     shadowPageInvalidation: {
       type: 'boolean',
       default: true,

@@ -3,8 +3,6 @@
 // the same thing in every proof that claims it — the capability is removed where the engine reads
 // it, `navigator.gpu`, and nothing else about the context changes.
 import type { Browser, Page } from 'playwright';
-import type { Server } from 'node:http';
-import { serverPort } from '../../kit/server/staticServer.ts';
 import type { runDefaultBackendCase } from './defaultBackendCase.ts';
 
 declare global {
@@ -23,7 +21,7 @@ export const machineLabel = (webgpu: boolean) => (webgpu ? 'webgpu' : 'webgl2-on
 
 export async function openMachine(input: {
   browser: Browser;
-  server: Server;
+  port: number;
   /** False removes `navigator.gpu`, so no adapter and no device can be obtained. */
   webgpu: boolean;
   /** Page errors are collected here; a proof asserts the list is empty. */
@@ -39,7 +37,7 @@ export async function openMachine(input: {
     });
   const page: Page = await context.newPage();
   page.on('pageerror', (error) => input.errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${serverPort(input.server)}`);
+  await page.goto(`http://127.0.0.1:${input.port}`);
   await page.evaluate(async (url) => {
     window.sdk = await import(url);
   }, '/sdk/witnesses/measurement.js');

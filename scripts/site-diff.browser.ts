@@ -11,9 +11,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Browser, Page } from 'playwright';
-import { routeThree } from '../tests/kit/server/threeRoute.ts';
+import { routeThree } from './three-route.ts';
 import { launchChrome } from '../bench/runner/chrome.ts';
-import { createDocsServer, listen } from './docs-serve.ts';
+import { createDocsServer } from './docs-serve.ts';
+import { listen } from './static-server.ts';
 import { readyExampleIds } from '../site/app/examples/list.ts';
 import { entriesIn } from '../site/app/portal/data.ts';
 import { entryRoute, routeHref } from '../site/app/portal/routes.ts';

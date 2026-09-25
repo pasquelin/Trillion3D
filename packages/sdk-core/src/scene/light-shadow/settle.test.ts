@@ -1,7 +1,7 @@
-// Issue #25: 8 lights + sun, two identical runs. The pose barrier drains the shadow queue; the
-// 1 ms budget is for the measured loop. A GPU timestamp arriving during the drain — and a tile
-// that invalidates every page, like `shadowsFollowTextures` — left pages pending and made the A/A
-// witness diverge (0 / 1,392 / 6,278 px).
+// Issue #25: 8 lights + sun, two identical runs. The pose barrier drains the shadow pages until a
+// report proves the image reads only drawn pages; a tile that invalidates every page, like
+// `shadowsFollowTextures`, once left pages pending and made the A/A witness diverge (0 / 1,392 /
+// 6,278 px). Every frame now draws every page it marks (#489): nothing is left pending.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
@@ -29,7 +29,7 @@ function pointLight(id: string, castsShadow: boolean): SceneLight {
 
 function scene(points: number, sun: boolean, shadows: boolean) {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   if (sun) store.add({ ...SUN, castsShadow: shadows });
   for (let i = 0; i < points; i++) store.add(pointLight(`l${i}`, shadows));
   planFrame(plan, store, 0);
@@ -64,10 +64,8 @@ test('no lights: the shadow queue stays empty', () => {
   assert.equal(plan.counts.pendingPages, 0);
 });
 
-test('sun only: the queue drains even after an expensive GPU sample', () => {
-  const setup = scene(0, true, true);
-  setup.plan.budget.observe(1, 1);
-  assert.notEqual(drain(setup, 0), null);
+test('sun only: the pages drain', () => {
+  assert.notEqual(drain(scene(0, true, true), 0), null);
 });
 
 test('8 lights with shadows off: nothing to drain', () => {
@@ -76,37 +74,21 @@ test('8 lights with shadows off: nothing to drain', () => {
   assert.equal(setup.plan.counts.pendingPages, 0);
 });
 
-test('8 lights + sun, tight budget and a tile that invalidates everything: the floors drain', () => {
+test('8 lights + sun and a tile that invalidates everything: every frame leaves nothing pending', () => {
   const setup = scene(8, true, true);
-  setup.plan.budget.observe(1, 1);
-  // One page a frame, but 49 of the 50 pages read are floors: drawn whatever the budget.
-  assert.notEqual(drain(setup, 8), null);
-});
-
-test('same scene, budget suspended: the queue drains despite invalidations', () => {
-  const setup = scene(8, true, true);
-  setup.plan.budget.observe(1, 1);
-  setup.plan.budget.suspend();
-  const frames = drain(setup, 8);
-  assert.notEqual(frames, null);
-  assert.ok((frames as number) < DRAIN);
-});
-
-test('two different GPU samples, budget suspended: the queue drains in both cases', () => {
-  const leftover = [];
-  for (const cost of [1, 8]) {
-    const setup = scene(8, true, true);
-    setup.plan.budget.observe(cost, 1);
-    setup.plan.budget.suspend();
-    leftover.push(drain(setup, 8) === null ? setup.plan.counts.pendingPages : 0);
+  const { store, plan, read } = setup;
+  for (let frame = 1; frame < 24; frame++) {
+    if (frame > 2 && frame % 8 === 0) plan.worldChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
+    cycle(plan, store, frame, read);
+    assert.equal(plan.counts.pendingPages, 0, `frame ${frame}`);
   }
-  assert.deepEqual(leftover, [0, 0]);
+  assert.ok(plan.settled(store), 'a report proves the image reads only drawn pages');
 });
 
 /** A point light over a pool of 4 × 4 pages, planned once; `face` at mip 2 is 64 pages. */
 function smallPool() {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 4);
+  const plan = createShadowPlan(4);
   store.add(pointLight('lamp', true));
   planFrame(plan, store, 0);
   return { store, plan, fine: lampPages(plan, store.sliceOf(0), 0, 2) };

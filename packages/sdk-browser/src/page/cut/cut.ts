@@ -31,6 +31,9 @@ export function selectVisiblePages<T extends PageRecord>(
     viewport?: [number, number];
     holdResident?: boolean;
     isResident?: (page: T) => boolean;
+    /** Cuts of one stamp (`nextResidencyStamp`) answer residency alike: nothing loads or leaves
+     *  between them, and each root's readiness is read at the first (`./held.ts`). */
+    residencyStamp?: number;
     wanted?: T[];
     result?: SelectionResult<T>;
     /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
@@ -57,6 +60,7 @@ export function selectVisiblePages<T extends PageRecord>(
   // The residency rule depends only on the request: stating it here takes two re-reads of the
   // state and one indirect call out of the per-cluster loop, without touching the answer.
   state.residentMode = residentModeOf(hold, options.isResident);
+  state.residencyStamp = options.residencyStamp ?? 0;
   state.pixelError = options.pixelError ?? 0;
   state.cameraStretch = maxStretch(cam.view);
   state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD;
@@ -112,7 +116,6 @@ export function selectVisiblePages<T extends PageRecord>(
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.light = undefined;
-  state.flatReady = state.flatChildReady = undefined;
-  state.flatOpen = undefined;
+  state.flatHeld = undefined;
   return result;
 }

@@ -12,7 +12,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  *  records the side it was sized at, and what the frame was told. */
 function session(viewport: [number, number], limit = Infinity) {
   const lights = createWebgpuLightState(shadowPoolSide(300, 150));
-  lights.plan.setBudgetMs(3);
+  lights.plan.setPageInvalidation(false);
   const sized: number[] = [],
     said: Array<[string, Record<string, unknown>]> = [];
   let texture: object | undefined,
@@ -90,7 +90,7 @@ test('the shadow pool is sized by the first frame on the canvas, not by the canv
   await s.size();
   assert.deepEqual(s.sized, [51]);
   assert.equal(s.lights.plan.pool.side, 51, 'the plan follows the atlas');
-  assert.equal(s.lights.plan.budget.budgetMs, 3, "the host's budget is kept");
+  assert.equal(s.lights.plan.pageInvalidation, false, "the host's setting is kept");
   assert.equal(s.changed, 1, 'the granted pool is a new resource: the next frame is drawn');
   viewport[0] = 3840;
   viewport[1] = 2160;

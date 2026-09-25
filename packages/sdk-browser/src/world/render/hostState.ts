@@ -85,7 +85,13 @@ export function createExplorerHostState(
   const gl = webglSurface?.context;
   const composition = gl
     ? {
-        compose: createFrameComposer(gl, camera, options.guides),
+        compose: createFrameComposer(gl, camera, {
+          effects: options.effects && {
+            chain: options.effects,
+            shown: () => state.diagnostic === 'beauty',
+          },
+          guides: options.guides,
+        }),
         compositor: createComparisonCompositor(gl),
       }
     : {
@@ -93,7 +99,7 @@ export function createExplorerHostState(
           () => {
             throw new Error('The direct GPU path has no host composer');
           },
-          { dispose() {} },
+          { dispose() {}, effectBytes: () => 0 },
         ),
         compositor: undefined,
       };
