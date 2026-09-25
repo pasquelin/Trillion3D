@@ -1,8 +1,9 @@
-// A blank page served from this repository in system Chrome — the harness mounts, then the
-// repository itself, whose files the page modules import by relative path —, for a proof or a
+// A blank page served from this repository in system Chrome — the harness mounts, `dist/`,
+// `tests/`, `scripts/` and the engine sources the page modules import by relative path —, for a proof or a
 // fixture that imports its module in the page and runs it there. Nothing outside the repository
 // is read; the browser and the server are closed whatever `use` does.
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { resolveMounts } from '../../../bench/runner/options.ts';
@@ -15,7 +16,13 @@ export async function withRepoPage<T>(
   headless: boolean,
   use: (page: Page) => Promise<T>,
 ): Promise<T> {
-  const mounts = [...resolveMounts(root, []), { prefix: '/', dir: root }];
+  const mounts = [
+    ...resolveMounts(root, []),
+    { prefix: '/dist/', dir: resolve(root, 'dist') },
+    { prefix: '/tests/', dir: resolve(root, 'tests') },
+    { prefix: '/scripts/', dir: resolve(root, 'scripts') },
+    { prefix: '/packages/', dir: resolve(root, 'packages') },
+  ];
   const { server, port } = await startServer({ mounts });
   const browser = await launchChrome({ headless }).catch((error: unknown) => {
     server.close();

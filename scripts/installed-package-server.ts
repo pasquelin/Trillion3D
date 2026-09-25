@@ -21,7 +21,8 @@ export function installedServer(
     answer: (_request, response, { pathname }) => {
       if (pathname === '/') return reply(response, 200, contentType('.html'), html);
       if (pathname === '/favicon.ico') return reply(response, 204);
-      response.once('finish', () => requests.push({ path: pathname, status: response.statusCode }));
+      // `close`, not `finish`: a response cut short never finishes, and must still be evidence.
+      response.once('close', () => requests.push({ path: pathname, status: response.statusCode }));
       return false;
     },
   });
