@@ -1,18 +1,18 @@
 import { checked, corruptObject } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
-import { cacheIdentity } from './pageCache.ts';
+import { pageIdentity, type PageIdentity } from './pageCache.ts';
 import type { StreamContext } from './types.ts';
 
 export function createStreamingFetcher(
   context: StreamContext,
-  touch: (url: string, bytes: Uint8Array, identity: string) => void,
+  touch: (url: string, bytes: Uint8Array, identity: PageIdentity) => void,
 ) {
   const { catalog, cache, base, abort, onDiagnostic, emit, failures, state } = context;
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
     const page = catalog.get(url);
     if (!page) throw new Error('Unknown page ' + url);
     const combined = AbortSignal.any([abort.signal, jobSignal]),
-      address = new URL(url, base).href;
+      identity = pageIdentity(url, base, page.sha256);
     let cause: unknown;
     for (let attempt = 1; attempt <= 3; attempt++) {
       combined.throwIfAborted();
@@ -32,7 +32,7 @@ export function createStreamingFetcher(
           expectedBytes: page.bytes,
         }));
         // One request per attempt: this loop is the retry, and it says so page by page.
-        let buffer = await (await checked(address, combined, 1)).arrayBuffer();
+        let buffer = await (await checked(identity.address, combined, 1)).arrayBuffer();
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;
@@ -79,7 +79,7 @@ export function createStreamingFetcher(
         }
         combined.throwIfAborted();
         const array = new Uint8Array(buffer);
-        touch(url, array, cacheIdentity(address, page.sha256));
+        touch(url, array, identity);
         state.bytesRead += byteLength;
         state.loaded++;
         emit('page-attempt-end', 'Page read attempt succeeded', () => ({
