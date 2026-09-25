@@ -7,7 +7,7 @@ import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs
 import { extname, relative, resolve } from 'node:path';
 import { API_FILES, API_SOURCES, generateApiFiles } from '../generate-api-reference.ts';
 import { gitPathsSync } from '../git-paths.ts';
-import { COOKED_SCENES, compileSiteCaches } from '../site-caches.ts';
+import { cacheOf, COOKED_SCENES, compileSiteCaches } from '../site-caches.ts';
 import { buildFlags } from './build-flags.ts';
 import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
@@ -104,7 +104,7 @@ export const SITE_STEPS: readonly SiteStep[] = [
   {
     name: 'caches',
     reads: scenes.map(({ directory }) => `${directory}/source`),
-    writes: scenes.map(({ directory }) => `${directory}/cache`),
+    writes: scenes.map((scene) => `${scene.directory}/${cacheOf(scene)}`),
     run: () => compileSiteCaches(false),
   },
   {
