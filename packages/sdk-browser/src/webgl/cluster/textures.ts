@@ -5,7 +5,6 @@ import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
-import { firstMaterial } from '../../scene/materialSide.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 import { WebglMipReducer } from './mips.ts';
 
@@ -52,7 +51,6 @@ export class WebglClusterTextures {
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
   private readers = new CoverageReaders();
-  private declarations = new WeakMap<object, number>();
   /** The colour maps drawn this image, their readers reread: work bounded by the view. */
   private followed = new Set<Texture>();
   constructor(gl: WebGL2RenderingContext) {
@@ -155,7 +153,7 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    const allocate = !inPlace || held?.weighted === undefined;
+    const allocate = !inPlace || !held?.weighted;
     if (texture.generateMipmaps)
       this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
@@ -178,10 +176,7 @@ export class WebglClusterTextures {
   }
   /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite. */
   file(material: HostMaterials) {
-    const version = firstMaterial(material)?.version ?? 0;
-    if (this.declarations.get(material) === version) return;
-    this.declarations.set(material, version);
-    this.readers.read(surfaceOf(material), true);
+    this.readers.read(surfaceOf(material));
   }
   /** A new image: units unknown, drawn maps' readers reread at first bind, idle scratches out. */
   beginFrame() {
