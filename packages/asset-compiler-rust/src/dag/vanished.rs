@@ -68,13 +68,13 @@ pub(super) fn vanished_error(
     extents: &[f64],
 ) -> f64 {
     let alive: HashSet<u32> = kept.iter().map(|&v| weld[v as usize]).collect();
-    let removed: Vec<u32> = parts(source, weld)
-        .into_iter()
-        .filter(|part| !part.iter().any(|&v| alive.contains(&weld[v as usize])))
-        .flatten()
-        .collect();
-    let extent = removed
-        .iter()
-        .fold(0.0_f64, |e, &v| e.max(extents[v as usize]));
+    let (mut extent, mut removed) = (0.0_f64, Vec::new());
+    for part in parts(source, weld) {
+        if !part.iter().any(|&v| alive.contains(&weld[v as usize])) {
+            // A part of `source` lies within one source part: its corners share one extent.
+            extent = extent.max(extents[part[0] as usize]);
+            removed.extend(part);
+        }
+    }
     extent.max(one_sided_distance(positions, &removed, kept))
 }
