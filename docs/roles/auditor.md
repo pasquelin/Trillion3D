@@ -29,7 +29,7 @@ rule 2).
 4. **Verdict.**
    - Clean: `gh pr edit <pr> --add-label audited`.
    - A defect: **reopen the audited issue**, never open a new one. `gh issue reopen <n>`, a
-     comment `Audit of #<pr>:` with one line per finding (file:line, what is wrong, which rule),
+     comment `Audit of #<pr>: <cause>` (AGENTS.md §Labels) with one line per finding (file:line, what is wrong, which rule),
      and `gh issue edit <n> --add-label "audit ko"`; it keeps its other labels. When the pull
      request closed several issues, reopen the one each finding concerns. Then
      `gh pr edit <pr> --add-label audited`. The domain's lead takes #<n> again, removes
