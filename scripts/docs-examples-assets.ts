@@ -21,4 +21,7 @@ if (!sourceOnly) nativeCompiler();
 await writeModelScenes(examples, resolve(examples, 'models'), names);
 if (sourceOnly) process.exit(0);
 
-for (const name of names) compileCache(COOKED_SCENES[name]);
+// Every cache of a rewritten source: the terrain tiles' exact cook with their simplified one.
+const directories = new Set(names.map((name) => COOKED_SCENES[name].directory));
+for (const scene of Object.values(COOKED_SCENES))
+  if (directories.has(scene.directory)) compileCache(scene);
