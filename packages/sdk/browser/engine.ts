@@ -101,22 +101,16 @@ export type {
   HostMaterial,
   HostMaterials,
   HostMesh,
-  HostNode,
   HostPoint,
   HostScene,
   HostTexture,
-  HostTraversable,
 } from '../../sdk-browser/src/host/resources.ts';
 export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.ts';
 export type { HostDrawCamera, HostCamera } from '../../sdk-browser/src/camera/world.ts';
 export type { HostDrawOutput } from '../../sdk-browser/src/webgl/core/renderTarget.ts';
-export type {
-  HostGraphNode,
-  HostRotation,
-  HostVector,
-} from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
 export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
+export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
 export type {
   JointKind,
