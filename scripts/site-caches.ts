@@ -5,7 +5,7 @@
  * cache is kept while its stamp names its compile options and is newer than its source and its
  * compiler; the regenerators rewrite source and cache.
  */
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { firstNewer } from '../packages/sdk-node/src/compiler/freshness.mts';
@@ -56,10 +56,14 @@ export const COOKED_SCENES: Record<string, CookedScene> = {
 export const sourceOf = ({ directory }: CookedScene, root = ROOT) =>
   resolve(root, directory, 'source');
 
-/** Written beside a compiled cache: the options it was compiled with. */
+/** Written beside a compiled cache: the options it was compiled with and the source files it
+ *  read, so a file removed or renamed since, which no timestamp shows, makes it stale. */
 const STAMP = 'cache/compiled-with.json';
-const stampOf = ({ source, simplification = 'none' }: CookedScene) =>
-  JSON.stringify({ source, simplification, budget: TRIANGLE_BUDGET });
+const stampOf = (scene: CookedScene, root = ROOT) => {
+  const { source, simplification = 'none' } = scene;
+  const files = readdirSync(sourceOf(scene, root), { recursive: true }).map(String).sort();
+  return JSON.stringify({ source, simplification, budget: TRIANGLE_BUDGET, files });
+};
 
 /** When the compiler was built, or null when there is none to compare with. */
 function compilerTime(): number | null {
@@ -84,7 +88,7 @@ export function compileCache(scene: CookedScene): void {
  *  its source or than the compiler built at `compiled`. */
 export function isStale(scene: CookedScene, root = ROOT, compiled = compilerTime()): boolean {
   const stamp = resolve(root, scene.directory, STAMP);
-  if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== stampOf(scene)) return true;
+  if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== stampOf(scene, root)) return true;
   const since = statSync(stamp).mtimeMs;
   return (compiled ?? 0) > since || firstNewer(sourceOf(scene, root), since) !== null;
 }
@@ -92,7 +96,8 @@ export function isStale(scene: CookedScene, root = ROOT, compiled = compilerTime
 /** Compiles every stale cache. Without a compiler, a `required` run throws; another names what it
  *  left and goes on, for a caller that may read none of them. */
 export function compileSiteCaches(required = true): void {
-  const stale = Object.values(COOKED_SCENES).filter((scene) => isStale(scene));
+  const compiled = compilerTime();
+  const stale = Object.values(COOKED_SCENES).filter((scene) => isStale(scene, ROOT, compiled));
   if (!stale.length) return;
   try {
     requireNativeCompiler();
