@@ -23,9 +23,19 @@ namespace {
 std::unordered_map<uint32_t, RefConst<Shape>> restored;
 std::vector<uint32_t> queries, hits;
 
-/// Words of one query (`kind, origin x, y, z, travel x, y, z, a, b, c`) and one hit (`engine id,
-/// fraction, point x, y, z, normal x, y, z`); layout.ts CAST_WORDS / HIT_WORDS.
-constexpr uint32_t CAST_WORDS = 10, HIT_WORDS = 8, MISS = 0xFFFFFFFFu;
+/// Words of one query (`kind, origin x, y, z, travel x, y, z, a, b, c, ignored`) and one hit
+/// (`engine id, fraction, point x, y, z, normal x, y, z`); layout.ts CAST_WORDS / HIT_WORDS.
+constexpr uint32_t CAST_WORDS = 11, HIT_WORDS = 8, MISS = 0xFFFFFFFFu;
+
+/// Every body but the one whose engine id a query names: the body it passes through.
+class IgnoredBody : public BodyFilter {
+public:
+  explicit IgnoredBody(uint32_t engine) : engine(engine) {}
+  bool ShouldCollideLocked(const Body &body) const override { return uint32_t(body.GetUserData()) != engine; }
+
+private:
+  uint32_t engine;
+};
 
 void writeHit(uint32_t *out, const BodyID &id, float fraction, RVec3 point, Vec3 normal) {
   BodyLockRead lock(world().system->GetBodyLockInterfaceNoLock(), id);
@@ -40,10 +50,11 @@ void cast(const uint32_t *q, uint32_t *out) {
   const NarrowPhaseQuery &query = world().system->GetNarrowPhaseQuery();
   RVec3 origin(vec3(q + 1));
   Vec3 travel = vec3(q + 4);
+  IgnoredBody ignored(q[10]);
   if (q[0] == 0) {
     RRayCast ray(origin, travel);
     RayCastResult hit;
-    if (!query.CastRay(ray, hit)) return;
+    if (!query.CastRay(ray, hit, {}, {}, ignored)) return;
     BodyLockRead lock(world().system->GetBodyLockInterfaceNoLock(), hit.mBodyID);
     if (!lock.Succeeded()) return;
     RVec3 point = ray.GetPointOnRay(hit.mFraction);
@@ -57,7 +68,7 @@ void cast(const uint32_t *q, uint32_t *out) {
   RShapeCast sweep(shape, Vec3::sOne(), RMat44::sTranslation(origin), travel);
   ShapeCastSettings settings;
   ClosestHitCollisionCollector<CastShapeCollector> closest;
-  query.CastShape(sweep, settings, origin, closest);
+  query.CastShape(sweep, settings, origin, closest, {}, {}, ignored);
   if (!closest.HadHit()) return;
   const ShapeCastResult &hit = closest.mHit;
   writeHit(out, hit.mBodyID2, hit.mFraction, origin + hit.mContactPointOn2, -hit.mPenetrationAxis.NormalizedOr(Vec3::sZero()));

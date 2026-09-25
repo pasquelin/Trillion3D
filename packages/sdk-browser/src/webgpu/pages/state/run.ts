@@ -100,7 +100,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   ranksHeld: { epoch: number; cut: number; limited: boolean };
   /** URL sets of an image: filled then emptied, never reallocated. */
   requestedScratch: Set<string>;
-  transitionScratch: Set<string>;
   /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
    *  held-image witness. See `../../../frame/gateCore.ts`. */
   gate: FrameGateCore;
@@ -185,7 +184,6 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     urlsHeld: { epoch: -1, cut: -1, limited: false },
     ranksHeld: { epoch: -1, cut: -1, limited: false },
     requestedScratch: new Set<string>(),
-    transitionScratch: new Set<string>(),
     gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),
     frameHeld: false,
     textureConverging: false,

@@ -1,13 +1,6 @@
 import { errorFloorAt, projectedErrorAt, viewDepth, viewLateral } from '../selection/projection.ts';
 import type { PageRecord, SelectionState } from './state.ts';
-import {
-  ALL_SOURCED,
-  OWN_CEIL,
-  OWN_FLOOR,
-  OWN_SPHERE,
-  PARENT_FLOOR,
-  PARENT_SPHERE,
-} from './bounds.ts';
+import { OWN_CEIL, OWN_FLOOR, OWN_SPHERE, PARENT_FLOOR, PARENT_SPHERE } from './bounds.ts';
 
 /**
  * Cut decision of a whole subtree: -1 reject, 1 accept, 0 undecided.
@@ -83,7 +76,7 @@ function floorAboveZero(values: Float64Array, error: number, radiusAt: number) {
 /**
  * `nodeDecision` when the threshold is zero, without projecting anything.
  *
- * Same identity as `cutSelectsAtZero`: a projected error is never negative, so "> 0" equals
+ * Same identity as `pixelsAtZero`: a projected error is never negative, so "> 0" equals
  * "≠ 0", and both bounds return zero only on a null error — or, for the floor, on a missing
  * sphere, which certifies nothing. The ceiling, for its part, only goes under zero if it is
  * zero. A node's decisions at a null threshold therefore depend neither on the camera nor on
@@ -102,25 +95,12 @@ export function nodeDecisionAtZero(values: Float64Array, at: number) {
   return floorAboveZero(values, values[at + PARENT_FLOOR], at + PARENT_SPHERE + 3) ? 1 : 0;
 }
 
-/**
- * Decision of a subtree for the current pass: -1 reject, 1 accept, 0 undecided.
- *
- * The caller only calls it, under fallback by forcing, on a subtree that no forced group
- * touches. There, `forced[source]` and `forced[group]` are false everywhere, and
- * `drawnUnderForcing` reads "own error under the threshold, replacement above" — word for word
- * `cutSelects`, so both node bounds decide identically — with one exception: a cluster nothing
- * produced is drawn whatever its own error. Reject, which rests only on that error, therefore
- * also requires the whole subtree to have a producing group; accept, which rests only on the
- * own ceiling and the replacement floor, has nothing more to ask.
- */
+/** Decision of a subtree for the current pass: -1 reject, 1 accept, 0 undecided. */
 export function subtreeDecision<T extends PageRecord>(
   s: SelectionState<T>,
   values: Float64Array,
   at: number,
   exact: boolean,
-  forcing: boolean,
 ) {
-  const decision = exact ? nodeDecisionAtZero(values, at) : nodeDecision(s, values, at);
-  if (decision < 0 && forcing && values[at + ALL_SOURCED] === 0) return 0;
-  return decision;
+  return exact ? nodeDecisionAtZero(values, at) : nodeDecision(s, values, at);
 }

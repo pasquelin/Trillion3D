@@ -14,7 +14,7 @@ function sum(pages: readonly PageRec[]) {
   return total;
 }
 
-test('returned triangle sums are those of the returned arrays, fallback included', () => {
+test('returned triangle sums are those of the returned arrays, stand-ins included', () => {
   const fixture = dagFixture();
   const { roots, allPages } = collectClusterPages(
     fixture.source,
@@ -23,65 +23,34 @@ test('returned triangle sums are those of the returned arrays, fallback included
     fixture.associations,
   );
   const cam = wideCamera();
-  // Every resident subset: the requested cut, the one that can be shown, forced-group
-  // fallbacks and the emergency cover all go through this product.
+  // Every resident subset: the requested cut and the one the cut rule draws in its place both go
+  // through this product.
   let vus = 0,
     replis = 0;
-  for (let mask = 0; mask < 1 << allPages.length; mask += 7)
-    for (const pixelError of [0, 0.5, 4])
-      for (const rootFallback of [false, true]) {
-        const wanted: PageRec[] = [];
-        const result = selectVisiblePages(roots, cameraMoteur(cam), {
-          pixelError,
-          viewport: [1280, 720],
-          holdResident: true,
-          rootFallback,
-          isResident: (page) => ((mask >> allPages.indexOf(page)) & 1) === 1,
-          wanted,
-        });
-        vus++;
-        if (result.shown.length !== result.wanted.length) replis++;
-        assert.ok(
-          Object.is(result.displayedTriangles, sum(result.shown)),
-          `displayed triangles, mask ${mask}, threshold ${pixelError}`,
-        );
-        assert.ok(
-          Object.is(
-            result.selectedTriangles,
-            result.wanted.length ? sum(result.wanted) : sum(result.shown),
-          ),
-          `requested triangles, mask ${mask}, threshold ${pixelError}`,
-        );
-      }
+  for (let mask = 0; mask < 1 << allPages.length; mask += 3)
+    for (const pixelError of [0, 0.5, 4]) {
+      const wanted: PageRec[] = [];
+      const result = selectVisiblePages(roots, cameraMoteur(cam), {
+        pixelError,
+        viewport: [1280, 720],
+        holdResident: true,
+        isResident: (page) => ((mask >> allPages.indexOf(page)) & 1) === 1,
+        wanted,
+      });
+      vus++;
+      if (result.shown.length !== result.wanted.length) replis++;
+      assert.ok(
+        Object.is(result.displayedTriangles, sum(result.shown)),
+        `displayed triangles, mask ${mask}, threshold ${pixelError}`,
+      );
+      assert.ok(
+        Object.is(
+          result.selectedTriangles,
+          result.wanted.length ? sum(result.wanted) : sum(result.shown),
+        ),
+        `requested triangles, mask ${mask}, threshold ${pixelError}`,
+      );
+    }
   assert.ok(vus > 100, `only ${vus} cuts`);
   assert.ok(replis > 0, 'no cut where `shown` and `wanted` diverge');
-});
-
-test('the page budget does not skew the sums of the kept pass', () => {
-  const fixture = dagFixture();
-  const { roots } = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
-  );
-  const cam = wideCamera();
-  for (const pageBudget of [1, 2, 3, 5, 8]) {
-    const wanted: PageRec[] = [];
-    const result = selectVisiblePages(roots, cameraMoteur(cam), {
-      pixelError: 0,
-      viewport: [1280, 720],
-      holdResident: true,
-      pageBudget,
-      wanted,
-    });
-    assert.ok(Object.is(result.displayedTriangles, sum(result.shown)), `budget ${pageBudget}`);
-    assert.ok(
-      Object.is(
-        result.selectedTriangles,
-        result.wanted.length ? sum(result.wanted) : sum(result.shown),
-      ),
-      `budget ${pageBudget}, requested`,
-    );
-  }
 });

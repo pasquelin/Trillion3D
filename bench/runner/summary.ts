@@ -73,8 +73,7 @@ function rows(report: Report) {
           `| ${num(r.uncoveredTriangles)} | ${oui(r.repliSelectionGpu)} ` +
           `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)}) ` +
           `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
-          `| ${num(r.budgetPages.demande)} requested, ${num(r.budgetPages.residentes)} resident, ` +
-          `${num(r.budgetPages.seuilBudget)} px ` +
+          `| ${num(r.budgetPages.demande)} requested, ${num(r.budgetPages.residentes)} resident ` +
           `| ${mo(r.geometrieOctets)} |`,
       );
     }

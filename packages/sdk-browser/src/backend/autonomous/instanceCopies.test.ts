@@ -45,6 +45,7 @@ test('an instance changed or removed leaves the model and the other instances as
     bootstrap: [],
     shown: [],
     desired: [],
+    requested: [],
     byUrl,
     descriptors: new Map(),
     baseMaterials,
