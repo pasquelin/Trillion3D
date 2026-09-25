@@ -115,6 +115,14 @@
       "takes": "取る"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "ドラッグで見回せます。グローを切ってランプだけを見るか、広げてみましょう。",
+    "controls": {
+      "glow": "グロー",
+      "intensity": "強さ",
+      "radius": "広がり"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "ドラッグして見回そう。ランタンをゆらして光が動くのを見よう。",
     "controls": {

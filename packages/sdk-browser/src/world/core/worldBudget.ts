@@ -5,9 +5,11 @@ import type { WorldRenderer } from '../capability/worldReady.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
 import {
+  DEFAULT_BUDGET_CANVAS,
   DEFAULT_CPU_BUDGET,
-  DEFAULT_GPU_BUDGET,
+  defaultGpuBudget,
   splitMemoryBudget,
+  type BudgetCanvas,
 } from '../../residency/memoryBudget.ts';
 import { raycastTreeBudget } from '../../../../sdk-core/src/world/object/raycastTrees.ts';
 import {
@@ -16,7 +18,7 @@ import {
   type PageCache,
 } from '../../streaming/pageCache.ts';
 
-/** The pools a page asks for, and the two totals, kept to open every later session with them; and
+/** The pools a page asks for, the two totals and the declared canvas, kept to open every later session with them; and
  *  the world's decoded-page cache, which every session reads through — one reopened, on a device
  *  granted after a loss or on a changed scene, fetches nothing it holds. */
 export type Pools = {
@@ -24,15 +26,18 @@ export type Pools = {
   texturePool?: number;
   gpu?: number;
   cpu?: number;
+  canvas?: BudgetCanvas;
   readonly pageCache: PageCache;
 };
 
 /** A world's pools, none asked yet, and its page cache at its share of the default CPU total. */
 export const worldPools = (): Pools => ({ pageCache: createPageCache(DEFAULT_CACHED_BYTES) });
 
+/** The GPU total as asked, else the default total of the declared canvas. */
+const gpuOf = (pools: Pools) => pools.gpu ?? defaultGpuBudget(pools.canvas);
 /** The split of the totals as asked, the defaults for those not set. */
-const splitOf = (pools: Pools) =>
-  splitMemoryBudget(pools.gpu ?? DEFAULT_GPU_BUDGET, pools.cpu ?? DEFAULT_CPU_BUDGET);
+const splitOf = (pools: Pools, gpu = gpuOf(pools), canvas = pools.canvas) =>
+  splitMemoryBudget(gpu, pools.cpu ?? DEFAULT_CPU_BUDGET, canvas);
 
 /** What a session opens with: the pools as asked, and the world's page cache. */
 export const sessionPools = (pools: Pools) => ({
@@ -70,12 +75,18 @@ export function worldBudget(
   // What the last frame published, `null` or `undefined` when it held no such pool.
   const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   const split = () => splitOf(pools);
-  /** What the GPU total leaves a pool beside the shadows, the bounce probes and the other pool
-   *  as asked. */
+  /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
-    const shares = split();
-    const left = (pools.gpu ?? DEFAULT_GPU_BUDGET) - shares.shadowPool - shares.bounceProbes;
+    const { shadowPool, bounceProbes, effectTargets, ...shares } = split();
+    const left = gpuOf(pools) - shadowPool - bounceProbes - effectTargets;
     return Math.max(1, Math.min(ceiling, left - (pools[other] ?? shares[other])));
+  };
+  /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */
+  const redraw = (gpu: number, canvas = pools.canvas) => {
+    const shares = splitOf(pools, gpu, canvas);
+    pools.geometryPool = shares.geometryPool;
+    pools.texturePool = shares.texturePool;
+    rebalance();
   };
   return {
     /** The physics envelopes (bodies, triangles, decorative bodies, memory), read once when the
@@ -85,14 +96,24 @@ export function worldBudget(
      *  by the split rule (`split`). A total under the shadow pool is refused
      *  (`GPU_BUDGET_UNDER_SHADOW_POOL`). Never read from the machine. */
     get gpu() {
-      return pools.gpu ?? DEFAULT_GPU_BUDGET;
+      return gpuOf(pools);
     },
     set gpu(bytes: number) {
-      const shares = splitMemoryBudget(bytes, pools.cpu ?? DEFAULT_CPU_BUDGET);
+      redraw(bytes);
       pools.gpu = bytes;
-      pools.geometryPool = shares.geometryPool;
-      pools.texturePool = shares.texturePool;
-      rebalance();
+    },
+    /** The largest canvas the world declares, in pixels of the drawing buffer: the effect chain's
+     *  targets are reserved at its size (`split.effectTargets`); 3840 × 2160 by default, and the
+     *  default `gpu` grows by that reserve only. Set it to redraw every pool by the split. A canvas
+     *  drawn larger still renders whole: the diagnostics say `effect targets over budget` with the
+     *  bytes past the reserve. */
+    get canvas(): BudgetCanvas {
+      return pools.canvas ?? DEFAULT_BUDGET_CANVAS;
+    },
+    set canvas({ width, height }: BudgetCanvas) {
+      const canvas = Object.freeze({ width, height });
+      redraw(pools.gpu ?? defaultGpuBudget(canvas), canvas);
+      pools.canvas = canvas;
     },
     /** Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the
      *  decoded pages, their manifest tables, their transfer queue and the engine's cut tables
@@ -103,13 +124,13 @@ export function worldBudget(
       return pools.cpu ?? DEFAULT_CPU_BUDGET;
     },
     set cpu(bytes: number) {
-      const { pageCache } = splitMemoryBudget(pools.gpu ?? DEFAULT_GPU_BUDGET, bytes);
+      const { pageCache } = splitMemoryBudget(gpuOf(pools), bytes, pools.canvas);
       pools.cpu = bytes;
       pools.pageCache.resize(pageCache);
     },
-    /** How the two totals are shared: the shadow pool and the bounce probes at their largest,
-     *  then half each to the geometry and texture pools, capped at their ceilings; the shadow
-     *  table's host mirror, then the decoded-page cache takes the whole rest of the CPU total,
+    /** How the two totals are shared: the shadow pool and the bounce probes at their largest, the
+     *  effect chain's targets on the declared `canvas`, then half each to the geometry and texture
+     *  pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the whole rest of the CPU total,
      *  within which the session in place reserves its manifest tables, its transfer queue and the
      *  engine's cut tables. What the rule gives, before a pool set on its own. */
     get split() {
