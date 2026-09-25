@@ -1,8 +1,10 @@
-//! A coarse level never destroys a part (#484): the root cover — what `memory-on-a-budget` draws
-//! at its smallest budget — holds every part of the model, and every root face lies on the model.
-//! On `signature-architecture`, the roots had lost the paving, the plinths, the arcades' roofs and
-//! columns, and a fan of faces turned from the light filled every arch opening. The cook refuses
-//! a parent error below a child's, so a cook that passes keeps its errors monotone.
+//! A part leaves the DAG only where the error covers it (#484): in every cut the runtime may draw,
+//! the root cover — what `memory-on-a-budget` draws at its smallest budget — included, a part of
+//! the model none of whose vertices the cut names is no wider than the cut's error, and every root
+//! face lies within twice its error of the model. On `signature-architecture`, the roots dropped
+//! walls up to 32 m across at 21.8 m of error, and a fan of faces turned from the light filled
+//! every arch opening. The cook refuses a parent error below a child's, so a cook that passes
+//! keeps its errors monotone.
 use super::chalet_fixture::{push_box, push_log};
 use super::dag_dependency_scenes::cook_site_scene;
 use super::silhouette::{page_indices, Mesh};
@@ -10,15 +12,17 @@ use super::thin_walls::mesh_fixture;
 use super::*;
 use crate::dag::bounds::bounding_sphere;
 use crate::dag::clusters::weld_positions;
-use crate::dag::vanished::parts;
+use crate::dag::parts;
 use crate::physics_cook::hausdorff::one_sided_distance;
 use std::collections::HashSet;
 
-/// The root cover's defects against the source it was cooked from, one line each: a part none of
-/// whose vertices a root page names, and a root page with a face farther from the source than
-/// twice its error — the error is the simplifier's, a distance to the planes of the faces it
-/// replaced, which the distance to the triangles themselves may exceed on a curved part.
-fn root_cover_defects(
+/// The cuts' defects against the source they were cooked from, one line each: a part missing from
+/// a cut and wider than its error; a root page with a face farther from the source than twice its
+/// error — the error is the simplifier's, a distance to the planes of the faces it replaced, which
+/// the distance to the triangles themselves may exceed on a curved part, and a fan closing an
+/// arch's opening lies as far off as the opening is wide; and a report whose root triangles per
+/// level do not add up to the root cover's.
+fn extent_defects(
     objects: &Path,
     primitive: &Value,
     positions: &[f32],
@@ -26,67 +30,84 @@ fn root_cover_defects(
 ) -> Vec<String> {
     let index = &primitive["primitive"];
     let mut defects = Vec::new();
-    let mut named = HashSet::new();
     let pages = primitive["pages"].as_array().expect("pages");
-    for page in pages.iter().filter(|page| page["parentError"].is_null()) {
-        let drawn = page_indices(objects, page);
-        let error = page["lodError"].as_f64().expect("error");
-        let off = one_sided_distance(positions, &drawn, indices);
-        if off > 2.0 * error + 1e-6 {
-            let id = &page["id"];
-            defects.push(format!(
-                "primitive {index}, root page {id}: a face lies {off:.3} m off the model, error {error:.3} m"
-            ));
+    let drawn: Vec<Vec<u32>> = pages
+        .iter()
+        .map(|page| page_indices(objects, page))
+        .collect();
+    let error = |page: &Value, key: &str| page[key].as_f64().unwrap_or(f64::INFINITY);
+    let mut root_triangles = 0;
+    for (page, drawn) in pages.iter().zip(&drawn) {
+        if page["parentError"].is_null() {
+            root_triangles += drawn.len() / 3;
+            let (off, lod) = (
+                one_sided_distance(positions, drawn, indices),
+                error(page, "lodError"),
+            );
+            if off > 2.0 * lod + 1e-6 {
+                let id = &page["id"];
+                defects.push(format!(
+                    "primitive {index}, root page {id}: a face lies {off:.3} m off the model, error {lod:.3} m"
+                ));
+            }
         }
-        named.extend(drawn);
     }
-    for part in parts(indices, &weld_positions(positions, indices)) {
-        if !part.iter().any(|v| named.contains(v)) {
+    let levels = primitive["dag"]["levels"].as_array().expect("levels");
+    let reported: u64 = levels
+        .iter()
+        .filter_map(|l| l["rootTriangles"].as_u64())
+        .sum();
+    if reported != root_triangles as u64 {
+        defects.push(format!(
+            "primitive {index}: the report counts {reported} root triangles, the roots draw {root_triangles}"
+        ));
+    }
+    let parts: Vec<(Vec<u32>, [f64; 4])> = parts(indices, &weld_positions(positions, indices))
+        .into_iter()
+        .map(|part| {
             let sphere = bounding_sphere(positions, &part);
-            defects.push(format!(
-                "primitive {index}: the part around {:.2?}, {:.2} m across, is not in the root cover",
-                &sphere[..3],
-                2.0 * sphere[3]
-            ));
+            (part, sphere)
+        })
+        .collect();
+    let mut thresholds: Vec<f64> = pages.iter().map(|page| error(page, "lodError")).collect();
+    thresholds.sort_by(f64::total_cmp);
+    thresholds.dedup();
+    for t in thresholds {
+        let named: HashSet<u32> = pages
+            .iter()
+            .zip(&drawn)
+            .filter(|(page, _)| error(page, "lodError") <= t && t < error(page, "parentError"))
+            .flat_map(|(_, drawn)| drawn.iter().copied())
+            .collect();
+        for (part, sphere) in &parts {
+            if 2.0 * sphere[3] > t + 1e-6 && !part.iter().any(|v| named.contains(v)) {
+                defects.push(format!(
+                    "primitive {index}: the part around {:.2?}, {:.2} m across, left the cut at error {t:.3} m",
+                    &sphere[..3],
+                    2.0 * sphere[3]
+                ));
+            }
         }
     }
     defects
 }
 
-/// One glTF accessor of four-byte components, decoded.
-fn read<T>(gltf: &Value, bin: &[u8], accessor: &Value, decode: fn([u8; 4]) -> T) -> Vec<T> {
-    let accessor = &gltf["accessors"][accessor.as_u64().expect("accessor") as usize];
-    let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("view") as usize];
-    let offset = view["byteOffset"].as_u64().unwrap_or(0) as usize
-        + accessor["byteOffset"].as_u64().unwrap_or(0) as usize;
-    let width = if accessor["type"] == "VEC3" { 3 } else { 1 };
-    let count = accessor["count"].as_u64().expect("count") as usize * width;
-    let bytes = &bin[offset..offset + count * 4];
-    bytes
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|b| decode(*b))
-        .collect()
-}
-
 #[test]
-fn the_root_cover_of_signature_architecture_holds_every_part_on_the_model() {
+fn no_part_of_signature_architecture_leaves_a_cut_under_its_extent() {
     let folder = "site/assets/gallery/signature-architecture/source";
-    let (root, options, gltf, bin, result) = cook_site_scene(folder, "geometry.gltf", "geometry");
-    let objects = options.cache.join("native/objects");
+    let scene = cook_site_scene(folder, "geometry.gltf", "geometry");
+    let (gltf, bin, objects) = (&scene.gltf, scene.bin.as_slice(), &scene.objects);
+    let read = |id: &Value| accessor(gltf, bin, id.as_u64().expect("accessor") as usize, None);
     let mut defects = Vec::new();
-    for primitive in result["primitives"].as_array().expect("primitives") {
+    for primitive in scene.result["primitives"].as_array().expect("primitives") {
         let index = primitive["primitive"].as_u64().expect("primitive") as usize;
         let written = &gltf["meshes"][0]["primitives"][index];
-        let position = &written["attributes"]["POSITION"];
-        let positions = read(&gltf, &bin, position, f32::from_le_bytes);
-        let indices = read(&gltf, &bin, &written["indices"], u32::from_le_bytes);
-        defects.extend(root_cover_defects(
-            &objects, primitive, &positions, &indices,
-        ));
+        let positions = read(&written["attributes"]["POSITION"]).and_then(|a| a.collect_f32());
+        let indices = read(&written["indices"]).and_then(|a| a.collect_u32());
+        let (positions, indices) = (positions.expect("positions"), indices.expect("indices"));
+        defects.extend(extent_defects(objects, primitive, &positions, &indices));
     }
-    let _ = fs::remove_dir_all(root);
+    let _ = fs::remove_dir_all(&scene.root);
     assert!(defects.is_empty(), "{defects:#?}");
 }
 
@@ -105,7 +126,7 @@ fn arcade() -> Mesh {
 }
 
 #[test]
-fn the_root_cover_of_an_arcade_keeps_every_column() {
+fn no_column_of_an_arcade_leaves_a_cut_under_its_extent() {
     let mesh = arcade();
     let (root, mut options) = mesh_fixture("arcade", std::slice::from_ref(&mesh));
     options.texture_formats = Vec::new();
@@ -113,7 +134,7 @@ fn the_root_cover_of_an_arcade_keeps_every_column() {
     let objects = options.cache.join("native/objects");
     let positions: Vec<f32> = mesh.positions.iter().flatten().map(|&v| v as f32).collect();
     let primitive = &result["primitives"][0];
-    let defects = root_cover_defects(&objects, primitive, &positions, &mesh.indices);
+    let defects = extent_defects(&objects, primitive, &positions, &mesh.indices);
     let top = primitive["pages"].as_array().expect("pages").iter();
     let top = top.filter_map(|page| page["level"].as_u64()).max();
     let _ = fs::remove_dir_all(root);

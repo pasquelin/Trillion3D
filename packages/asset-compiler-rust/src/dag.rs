@@ -123,6 +123,8 @@ struct GroupReductionInput<'a> {
     exact: &'a [u32],
     /// Canonical vertex by position and every texture set: seams, diagnosis, normal copies.
     weld_seam: &'a [u32],
+    /// Per vertex, the extent of its part in the source (`vanished::part_extents`).
+    extents: &'a [f64],
 }
 pub const CULLING_BRANCHING: usize = 8;
 pub const CULLING_LEAF: usize = 8;
@@ -170,7 +172,9 @@ pub(crate) mod reduce;
 mod tally;
 #[cfg(test)]
 mod tests;
-pub(crate) mod vanished;
+mod vanished;
+#[cfg(test)]
+pub(crate) use vanished::parts;
 
 pub use attributes::DagAttributes;
 use bounds::*;
