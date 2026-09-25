@@ -16,7 +16,8 @@ export interface SoftBodyRecord {
   id: number;
   position: ArrayLike<number>;
   quaternion: ArrayLike<number>;
-  /** The scale its vertices are simulated at: a cooked body's settings are already. */
+  /** The scale its vertices are simulated at; a cooked body's settings are already scaled, by the
+   *  scale the cook was given, which this must repeat for its vertices to be written back. */
   scale: readonly [number, number, number];
   friction: number;
   restitution: number;
@@ -31,7 +32,9 @@ export interface SoftBodyRecord {
 export function writeSoft(writer: CommandWriter, body: SoftBodyRecord) {
   const { settings: s, record } = body;
   const { vertices, indices, cooked } =
-    'cooked' in record ? { vertices: [], indices: [], cooked: record.cooked } : { ...record, cooked: undefined };
+    'cooked' in record
+      ? { vertices: [], indices: [], cooked: record.cooked }
+      : { vertices: record.vertices, indices: record.indices, cooked: undefined };
   const counts = [vertices.length / SOFT_VERTEX_WORDS, indices.length, cooked?.length ?? 0];
   writer.put(
     [OP.soft, body.id],
