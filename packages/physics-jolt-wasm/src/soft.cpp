@@ -95,9 +95,8 @@ bool addSoft(const uint32_t *w) {
   return true;
 }
 
-void teleportSoft(uint32_t index, Vec3 position, Quat rotation) {
+void teleportSoft(uint32_t index, const Slot &slot, Vec3 position, Quat rotation) {
   World &world = trillion::world();
-  const Slot &slot = world.slots[index];
   for (Soft &soft : softs) {
     if (soft.index != index || soft.engine != slot.engine) continue;
     // Jolt keeps the body at the centre of its vertices, not at the place it was made: the turn

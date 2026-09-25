@@ -2,10 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CommandWriter } from '../../../sdk-core/src/physics/index.ts';
 import { castDown } from './module.fixture.ts';
-import { FLAT, flatCloth, settle, softWorld } from './soft.fixture.ts';
-
-const FLOOR = 1 << 24,
-  CLOTH = 1 | (1 << 24);
+import { CLOTH, FLAT, flatCloth, FLOOR, settle, softWorld } from './soft.fixture.ts';
 
 test('a soft body teleported takes its vertices along as they lie, its simulation kept', async () => {
   const jolt = await softWorld();
