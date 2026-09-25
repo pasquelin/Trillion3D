@@ -5,7 +5,7 @@ import {
   PAGE_LOOKUP_WGSL,
   STIPPLE_WGSL,
 } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts';
+import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
@@ -42,6 +42,7 @@ ${PAGE_LOOKUP_WGSL}
 // alone was.
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) tc:vec3f,}
 ${PAGE_GEOMETRY_WGSL}
+${PAGE_SCREEN_WGSL}
 ${MASK_KEEP_WGSL}
 ${STIPPLE_WGSL}
 ${COMPUTE_TAKES_WGSL}

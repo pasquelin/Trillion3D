@@ -119,9 +119,24 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     worker.onmessage({ data: idleTick });
     assert.equal(session.stats.bodies, 0, 'both slots given back, their budget with them');
     assert.deepEqual([session.objectOf(soft), session.objectOf(tile)], [null, null]);
+    // Its model moved: nothing refused is carried, nor made again.
+    const carried: number[] = [];
+    for (const op of ['teleport', 'flags'] as const) {
+      const write = session.writer[op].bind(session.writer) as (...a: unknown[]) => void;
+      session.writer[op] = ((slot: number, ...rest: unknown[]) => (
+        carried.push(slot),
+        write(slot, ...rest)
+      )) as never;
+    }
+    model.position.set(1, 0, 0);
+    model.updateMatrixWorld(true);
+    session.pose(model);
     session.frame(camera);
     await landed();
-    assert.deepEqual(fetched.sort(), ['cloth.bin', 'physics.json', 't.bin'], 'not made again');
+    worker.onmessage({ data: idleTick });
+    assert.deepEqual(carried, [], 'neither carried');
+    assert.equal(session.stats.bodies, 0, 'nor made again');
+    assert.deepEqual(fetched.sort(), ['cloth.bin', 'physics.json', 't.bin']);
     session.dispose();
   } finally {
     restore();
