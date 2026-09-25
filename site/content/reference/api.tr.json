@@ -2043,6 +2043,50 @@
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Orta ağırlıkta dokuma pamuk, kg/m²: kumaş ağırlıkları 0,15 ile 0,25 arasındadır.",
+    "description": "Bir kumaş her kütlede aynı düşer; iğnelerine ve karşılaştığı şeye karşı ağırlık yapar. Bir hacmin kabuğu böyle bir kumaş sayılır."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Beyan edilen: yerde duran bir hacmin çöktüğü, gazının ağırlığını orada taşıdığı, ortalama kesitinin payı — her dışbükey biçim için alanının dörtte biri (Cauchy).",
+    "description": "Varsayılan basıncı o zaman `4·m·g / (share·area)` olur: `SOFT_AREAL_DENSITY` bir kabuk için 31 Pa. Yarım pay, iki kat basınç. Kabuğunun dinlenme hacminin onda biri içinde tuttuğu en yüksek basıncı asla aşmaz."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "10 mm poliamid halat, kg/m: üretici tabloları 0,06 ile 0,07 verir."
+  },
+  "SoftBodyCommon": {
+    "summary": "`obj.physics`'in bir yumuşak cisim için kabul ettiği: köşeleri tek tek simüle edilir.",
+    "members": {
+      "pins": "Geometrinin yerinde tutulan köşelerinin indisleri: bir bayrağın direği, bir halatın kancası.",
+      "mass": "Kilogram, her köşenin taşıdığı alana (halatta: uzunluğa) göre köşelere dağıtılır; verilmezse m² başına `SOFT_AREAL_DENSITY` (halatta m başına `SOFT_LINEAR_DENSITY`).",
+      "stretch": "Bir kenar çekildiğinde ne kadar esner, m/N (sertliğinin tersi): 0 hiç uzamaz.",
+      "bend": "Katlandığında ne kadar esner, rad/(N·m) (halatta: m/N); `Infinity` serbestçe katlanır."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Bir yumuşak cismin seçenekleri: bir kumaş, bir halat ya da gazının basıncıyla bir hacim."
+  },
+  "SoftBodyType": {
+    "summary": "Bir yumuşak cisim: bir kumaş (üçgenleri, açık), bir halat (köşeleri, her biri bir sonrakine bağlı) ya da bir hacim (kapalı üçgenleri, içindeki gazla ayakta durur)."
+  },
+  "SoftSettings": {
+    "summary": "Bir yumuşak cismin okunmuş seçenekleri: her varsayılan doldurulmuş.",
+    "members": {
+      "type": "Ne olduğu.",
+      "pins": "Geometrinin yerinde tutulan köşeleri.",
+      "mass": "Kilogram, varsayılan yoğunluğunki için `undefined`.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), halatta m/N.",
+      "pressure": "Pa; bir hacmin varsayılan basıncı için `undefined` (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Bir hacmin seçenekleri: içindeki gazla ayakta duran kapalı bir ağ.",
+    "members": {
+      "type": "Bir hacim.",
+      "pressure": "Gazın dinlenmedeki havanın basıncının üstündeki basıncı, Pa; sıkıştırılınca hacim azaldıkça yükselir (Boyle yasası). Üçgenler dışa bakmalıdır. Verilmezse, hacmin ağırlığını ortalama kesitinin `SOFT_FOOTPRINT` kadarına bırakan basınç, ya da daha azsa kabuğunun tuttuğu en yüksek basınç. Kabuğunun dinlenme hacminin onda biri içinde tuttuğu en yüksek basıncın üstünde reddedilir."
+    }
+  },
   "TransformNode": {
     "summary": "Referansın matrisleriyle okunan, motorun dönüşüm ağacında tutulan bir sahne düğümü.",
     "members": {
@@ -6973,7 +7017,8 @@
       "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
       "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
       "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
-      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir.",
+      "softVertices": "Aynı anda tüm yumuşak cisimlerin köşeleri (kumaşlar, halatlar, hacimler). Her biri her adımda çözülür ve sayfaya geri okunur, adım başına 12 bayt."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6995,7 +7040,7 @@
     "summary": "Bir nesnenin fiziği, `obj.physics` tuttuğu gibi: cismin ne olduğunun ve ne yaptığının canlı kaydı.",
     "description": "Yazmalar simülasyona bir sonraki adımda ulaşır; `velocity` son adımın bıraktığını okur.",
     "members": {
-      "type": "Cisim nasıl hareket eder; değiştirmek için `obj.physics` değerini yeniden ata.",
+      "type": "Cisim nasıl hareket eder ya da hangi yumuşak cisimdir; değiştirmek için `obj.physics` değerini yeniden ata.",
       "shape": "Bildirilen şekil, varsa.",
       "sensor": "Cismin yalnızca temas bildirip bildirmediği.",
       "ccd": "Sürekli çarpışmanın açık olup olmadığı.",
@@ -7010,7 +7055,9 @@
       "applyImpulse": "Cismi hemen iter, kütle merkezinden N·s cinsinden bir itme; onu uyandırır.",
       "wake": "Cismi uyandırır, uyuyor olsun ya da olmasın.",
       "on": "Bu cismin bir temas olayında `handler` çağırır.",
-      "listens": "Bir temas işleyicisi var mı."
+      "listens": "Bir temas işleyicisi var mı.",
+      "soft": "Bir yumuşak cismin ayarları, her varsayılanı doldurulmuş; katı bir cisim için `null`.",
+      "vertices": "Bir yumuşak cismin köşeleri, son tick onları nasıl bıraktıysa: geometrisinin köşesi başına `x, y, z`, geometrinin kendi çerçevesinde; katı bir cisim için ve ilk tick'ine kadar `null`."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7049,7 +7096,8 @@
       "threads": "Simülasyonu ilerleten iş parçacıkları, fizik işçisininki dahil. 1'in üstü çapraz köken yalıtımlı bir sayfa (paylaşılan bellek) ister; aksi halde simülasyon tek iş parçacığında ilerler. Asla makinenin mantıksal çekirdeklerinden sayfanınkini çıkarınca kalan sayıyı aşmaz.",
       "bodyPairs": "Bir adımda sınırları örtüşen cisim çiftleri. Yoğun bir yığında cisim başına yaklaşık dört tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
       "contactConstraints": "Bir adımda çözülen temas eden çiftler. Oturmuş bir yığında cisim başına yaklaşık iki tane olur; daha fazlasını bulan adım temasları kaçırır ve `PHYSICS_BUDGET` verir.",
-      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir."
+      "contactEvents": "Bir adımın bildirdiği temas olayları (`enter`, `leave`). Sınırı aşan bir `enter` atılır ve sayılır (`world.physics.stats.droppedEvents`), `leave`i hiç gönderilmez; bir `leave` yalnızca gecikir.",
+      "softVertices": "Aynı anda tüm yumuşak cisimlerin köşeleri (kumaşlar, halatlar, hacimler). Her biri her adımda çözülür ve sayfaya geri okunur, adım başına 12 bayt."
     }
   },
   "PhysicsHost": {
@@ -7075,7 +7123,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "`obj.physics` değerine verilebilecek olan."
+    "summary": "`obj.physics` neye ayarlanabilir: katı bir cisim ya da yumuşak bir cisim (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Geometriden çıkarılan uygun değilse bir çarpışma şekli.",

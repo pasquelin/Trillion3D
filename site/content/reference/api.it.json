@@ -4156,6 +4156,50 @@
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Un cotone tessuto medio, kg/m²: le grammature tessili vanno da 0,15 a 0,25.",
+    "description": "Un tessuto cade allo stesso modo con qualsiasi massa; pesa contro i suoi spilli e ciò che incontra. La pelle di un volume è presa come un tessuto simile."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Dichiarata: la parte della sua sezione media — un quarto della sua area, per ogni forma convessa (Cauchy) — su cui un volume a riposo sul suolo si affloscia, il suo gas che vi preme il suo peso.",
+    "description": "La sua pressione predefinita è allora `4·m·g / (share·area)`: 31 Pa per una pelle di `SOFT_AREAL_DENSITY`. Metà parte, doppia pressione. Non supera mai il massimo che la sua pelle regge entro un decimo del suo volume a riposo."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Una corda di poliammide da 10 mm, kg/m: le tabelle dei produttori danno da 0,06 a 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Ciò che `obj.physics` accetta per un corpo morbido: i suoi vertici sono simulati uno a uno.",
+    "members": {
+      "pins": "Indici dei vertici della geometria tenuti dove sono: l’asta di una bandiera, il gancio di una corda.",
+      "mass": "Chilogrammi, ripartiti sui vertici secondo l’area (una corda: la lunghezza) che ciascuno regge; se omessi, `SOFT_AREAL_DENSITY` per m² (una corda: `SOFT_LINEAR_DENSITY` per m).",
+      "stretch": "Quanto cede uno spigolo quando è tirato, m/N (l’inverso della sua rigidezza): 0 non si allunga mai.",
+      "bend": "Quanto cede quando è piegato, rad/(N·m) (una corda: m/N); `Infinity` si piega liberamente."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Le opzioni di un corpo morbido: un tessuto, una corda, o un volume con la pressione del suo gas."
+  },
+  "SoftBodyType": {
+    "summary": "Un corpo morbido: un tessuto (i suoi triangoli, aperto), una corda (i suoi vertici, ognuno unito al successivo) o un volume (i suoi triangoli chiusi, sostenuto dal gas dentro)."
+  },
+  "SoftSettings": {
+    "summary": "Le opzioni di un corpo morbido una volta lette: ogni valore predefinito riempito.",
+    "members": {
+      "type": "Che cos’è.",
+      "pins": "I vertici della geometria tenuti al loro posto.",
+      "mass": "Chilogrammi, `undefined` per quelli della densità predefinita.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m); per una corda, m/N.",
+      "pressure": "Pa; `undefined` per la pressione predefinita di un volume (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Le opzioni di un volume: una mesh chiusa sostenuta dal gas dentro.",
+    "members": {
+      "type": "Un volume.",
+      "pressure": "La pressione del gas sopra quella dell’aria a riposo, Pa; schiacciato, sale mentre il volume cala (legge di Boyle). I triangoli devono guardare verso l’esterno. Se omessa, la pressione che posa il peso del volume su `SOFT_FOOTPRINT` della sua sezione media, o il massimo che la sua pelle regge se minore. Rifiutata oltre il massimo che la sua pelle regge entro un decimo del suo volume a riposo."
+    }
+  },
   "TransformNode": {
     "summary": "Un nodo di scena letto attraverso le matrici del riferimento, tenuto nell’albero delle trasformazioni del motore.",
     "members": {
@@ -6973,7 +7017,8 @@
       "threads": "Thread che fanno avanzare la simulazione, compreso quello del worker fisico. Sopra 1 serve una pagina isolata cross-origin (memoria condivisa); altrimenti la simulazione avanza su uno. Mai più dei core logici della macchina meno quello della pagina.",
       "bodyPairs": "Coppie di corpi i cui volumi si sovrappongono in un passo. Una pila densa ne ha circa quattro per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
       "contactConstraints": "Coppie a contatto risolte in un passo. Una pila ferma ne ha circa due per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
-      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato."
+      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato.",
+      "softVertices": "Vertici di tutti i corpi morbidi insieme (tessuti, corde, volumi). Ognuno è risolto a ogni passo e riletto dalla pagina, 12 byte per passo."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6995,7 +7040,7 @@
     "summary": "La fisica di un oggetto, come la tiene `obj.physics`: un registro vivo di ciò che il corpo è e fa.",
     "description": "Le scritture raggiungono la simulazione al passo successivo; `velocity` legge ciò che ha lasciato l’ultimo passo.",
     "members": {
-      "type": "Come si muove il corpo; riassegna `obj.physics` per cambiarlo.",
+      "type": "Come si muove il corpo, o il corpo morbido che è; riassegna `obj.physics` per cambiarlo.",
       "shape": "La forma dichiarata, se c’era.",
       "sensor": "Se il corpo segnala solo i contatti.",
       "ccd": "Se la collisione continua è attiva.",
@@ -7010,7 +7055,9 @@
       "applyImpulse": "Spinge il corpo di colpo, un impulso in N·s attraverso il baricentro; lo sveglia.",
       "wake": "Sveglia il corpo, addormentato o no.",
       "on": "Chiama `handler` a un evento di contatto di questo corpo.",
-      "listens": "Se è impostato un gestore di contatto."
+      "listens": "Se è impostato un gestore di contatto.",
+      "soft": "Le impostazioni di un corpo morbido, con ogni valore predefinito riempito; `null` per un corpo rigido.",
+      "vertices": "I vertici di un corpo morbido come li ha lasciati l’ultimo tick: `x, y, z` per vertice della sua geometria, nel sistema proprio della geometria; `null` per un corpo rigido, e fino al suo primo tick."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7049,7 +7096,8 @@
       "threads": "Thread che fanno avanzare la simulazione, compreso quello del worker fisico. Sopra 1 serve una pagina isolata cross-origin (memoria condivisa); altrimenti la simulazione avanza su uno. Mai più dei core logici della macchina meno quello della pagina.",
       "bodyPairs": "Coppie di corpi i cui volumi si sovrappongono in un passo. Una pila densa ne ha circa quattro per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
       "contactConstraints": "Coppie a contatto risolte in un passo. Una pila ferma ne ha circa due per corpo; un passo che ne trova di più perde contatti e solleva `PHYSICS_BUDGET`.",
-      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato."
+      "contactEvents": "Eventi di contatto (`enter`, `leave`) che un passo riporta. Un `enter` oltre il limite è scartato e contato (`world.physics.stats.droppedEvents`) e il suo `leave` non è mai inviato; un `leave` è solo ritardato.",
+      "softVertices": "Vertici di tutti i corpi morbidi insieme (tessuti, corde, volumi). Ognuno è risolto a ogni passo e riletto dalla pagina, 12 byte per passo."
     }
   },
   "PhysicsHost": {
@@ -7075,7 +7123,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Ciò che `obj.physics` può ricevere."
+    "summary": "Ciò che `obj.physics` può ricevere: un corpo rigido, o uno morbido (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Una forma di collisione, quando quella dedotta dalla geometria non va bene.",
