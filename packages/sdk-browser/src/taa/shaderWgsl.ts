@@ -1,5 +1,7 @@
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
+import { AS_IS_FLAG } from '../scene/surfaceModel.ts';
+import { readOnly } from '../webgpu/core/bindLayout.ts';
 
 /** Pass label; its timestamp duration absorbs that of the passes that precede it on
  *  some devices (apple metal-3), and is only read safely by envelope difference. */
@@ -15,7 +17,40 @@ export const TAA_BINDINGS = {
   pages: 5,
   motion: 6,
   view: 7,
+  flags: 8,
+  shareHistory: 9,
 } as const;
+
+/** The pass's bind group layout: one entry per binding above, in its order. */
+export function createTaaLayout(device: GPUDevice) {
+  const fragment = GPUShaderStage.FRAGMENT;
+  return device.createBindGroupLayout({
+    entries: [
+      {
+        binding: TAA_BINDINGS.current,
+        visibility: fragment,
+        texture: { sampleType: 'unfilterable-float' },
+      },
+      { binding: TAA_BINDINGS.history, visibility: fragment, texture: { sampleType: 'float' } },
+      {
+        binding: TAA_BINDINGS.historySampler,
+        visibility: fragment,
+        sampler: { type: 'filtering' },
+      },
+      { binding: TAA_BINDINGS.depth, visibility: fragment, texture: { sampleType: 'depth' } },
+      { binding: TAA_BINDINGS.ids, visibility: fragment, texture: { sampleType: 'uint' } },
+      { binding: TAA_BINDINGS.pages, visibility: fragment, buffer: readOnly },
+      { binding: TAA_BINDINGS.motion, visibility: fragment, buffer: readOnly },
+      { binding: TAA_BINDINGS.view, visibility: fragment, buffer: { type: 'uniform' } },
+      { binding: TAA_BINDINGS.flags, visibility: fragment, texture: { sampleType: 'uint' } },
+      {
+        binding: TAA_BINDINGS.shareHistory,
+        visibility: fragment,
+        texture: { sampleType: 'float' },
+      },
+    ],
+  });
+}
 
 /** Uniform bytes: two matrices, three quadruplets, then the nine weights in three. */
 export const TAA_VIEW_BYTES = 208;
@@ -39,7 +74,9 @@ const BINDINGS_WGSL = `
 @group(0) @binding(${TAA_BINDINGS.ids}) var ids:texture_2d<u32>;
 @group(0) @binding(${TAA_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(${TAA_BINDINGS.motion}) var<storage,read> motion:array<mat4x4f>;
-@group(0) @binding(${TAA_BINDINGS.view}) var<uniform> view:TaaView;`;
+@group(0) @binding(${TAA_BINDINGS.view}) var<uniform> view:TaaView;
+@group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<u32>;
+@group(0) @binding(${TAA_BINDINGS.shareHistory}) var shareHistory:texture_2d<f32>;`;
 
 /** YCoCg, the space where the neighbour box tightens best around the colour. */
 export const YCOCG_WGSL = `
@@ -76,6 +113,10 @@ fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
  * same neighbours — which removes ghosts of a moving object or a discovery — then the
  * two are mixed, each weighted by the inverse of its luminance so a spark does not settle.
  * All four channels are accumulated: alpha carries the coverage that composition divides.
+ * Beside the colour, each pixel's as-is share — the weight of debug views (`AS_IS_FLAG`) in it,
+ * which composition keeps off the display curve — is filtered, clamped and mixed with the very
+ * same weights, so it follows the colour it describes: an edge between a debug view and a lit
+ * surface settles on one blend of the curve and none, never flipping with the jitter.
  */
 export const TAA_SHADER = `
 ${PAGE_INFO_STRUCT_WGSL}
@@ -84,26 +125,33 @@ ${BINDINGS_WGSL}
 ${FULLSCREEN_VERTEX}
 ${YCOCG_WGSL}
 ${TAA_REPROJECT_WGSL}
-@fragment fn resolve(@builtin(position) pixel:vec4f)->@location(0) vec4f{
+struct TaaOut{@location(0) color:vec4f,@location(1) share:f32,}
+@fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
  let last=vec2i(view.viewport.xy)-vec2i(1);
  var filtered=vec4f(0.0);
  var lo=vec4f(1e9);var hi=vec4f(-1e9);
+ var share=0.0;var shareLo=1.0;var shareHi=0.0;
  var k=0u;
  for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
-  let sample=textureLoad(current,clamp(coord+vec2i(dx,dy),vec2i(0),last),0);
-  filtered+=sample*view.weights[k>>2u][k&3u];k++;
+  let at=clamp(coord+vec2i(dx,dy),vec2i(0),last);
+  let sample=textureLoad(current,at,0);
+  let weight=view.weights[k>>2u][k&3u];k++;
+  filtered+=sample*weight;
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
+  let asIs=f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u);
+  share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);
  }}
- if(view.params.y==0.0){return filtered;}
+ if(view.params.y==0.0){return TaaOut(filtered,share);}
  let previous=previousUv(coord,textureLoad(depth,coord,0));
- if(previous.z==0.0){return filtered;}
+ if(previous.z==0.0){return TaaOut(filtered,share);}
  let read=textureSampleLevel(history,historySampler,previous.xy,0.0);
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
+ let keptShare=clamp(textureSampleLevel(shareHistory,historySampler,previous.xy,0.0).r,shareLo,shareHi);
  let alpha=view.params.x;
  let wc=alpha/(1.0+toYcocg(filtered.rgb).x);
  let wh=(1.0-alpha)/(1.0+clamped.x);
- return (filtered*wc+kept*wh)/(wc+wh);
+ return TaaOut((filtered*wc+kept*wh)/(wc+wh),(share*wc+keptShare*wh)/(wc+wh));
 }`;
