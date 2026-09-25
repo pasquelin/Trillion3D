@@ -45,7 +45,7 @@ export function dagWorkLayout(blockCount: number, views = 1, pages = 0) {
     viewWords,
     /** The most sixty-four-wide groups any view drew, behind the per-view rows. */
     drawnGroupsMax,
-    /** The frame's stamp, behind it, then each page's asked word: never cleared between frames. */
+    /** The frame's stamp, behind it, then each page's asked word: cleared only when the stamp wraps. */
     askedAt,
     words: askedAt + (pages && pages + 1),
   };
