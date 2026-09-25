@@ -4737,6 +4737,7 @@
         "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "site/app/editor/SurfaceFields.tsx",
         "site/app/editor/objects.ts"
@@ -4775,6 +4776,7 @@
         "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "site/app/editor/SurfaceFields.tsx",
         "site/app/editor/objects.ts"
