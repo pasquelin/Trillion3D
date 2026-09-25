@@ -64,7 +64,8 @@ CTO starts with the Agent tool and supervises; the boss never opens another sess
 | acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                 |
 | writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                              |
 
-Domains: geometry, lighting, compiler, physics, sdk, textures. Issues belong to the leads, and
+Domains: geometry, lighting, compiler, physics, sdk, textures; `site/` and the examples belong to sdk,
+a script or test to the domain whose code it checks, sdk otherwise. Issues belong to the leads, and
 only coders, launched by a lead, write code. The architect, acceptance, measurer and analyst
 never code and own no pull request: they add a To-do item to an open issue, reopen one
 (`audit ko`, `measure ko`) or report to the CTO. Sole exception: the measurer's thumbnail pull
