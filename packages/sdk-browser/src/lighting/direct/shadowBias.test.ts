@@ -12,7 +12,7 @@ import {
   type Face,
 } from './shadowBias.fixture.ts';
 
-const ZENITHS = [0.3, Math.PI / 4, 1.1];
+const ZENITHS = [0.3, Math.PI / 4, 1.1, 1.4];
 
 test('the shadow read restated by the fixture is the shader’s', () => {
   for (const line of RESTATED) assert.ok(SHADOW_WGSL.includes(line), line);
@@ -24,7 +24,7 @@ const along = (read: (index: number, x: number) => number, index: number, sample
 
 test('a plane shades no point of itself, at any slope and any texel', () => {
   for (const tilt of [0, 0.4, 0.9, 1.2])
-    for (const zenith of [0, 0.3, 0.7])
+    for (const zenith of [0, 0.3, 0.7, 1.4])
       for (const texel of [1e-4, 0.01, 1]) {
         const plane: Face = {
           from: [-50 * texel * Math.cos(tilt), -50 * texel * Math.sin(tilt)],
@@ -52,8 +52,8 @@ test('two parallel faces 1 cm apart: the upper one is clean, the lower one keeps
       assert.deepEqual(acne, [], `zenith ${zenith}, texel ${texel}: acne on the upper face`);
       assert.equal(read(2, shadow + 4 * texel), 1, 'the lower face past the shadow is lit');
     }
-    // Where the step's shadow spans 16 texels, its middle is shadow, not light let through.
-    const texel = shadow / 16;
+    // Where the step is 16 texels high, its shadow's middle is shadow, not light let through.
+    const texel = gap / 16;
     assert.equal(sunOverProfile(step, zenith, texel)(2, shadow / 2), 0, `zenith ${zenith}`);
   }
 });
@@ -69,18 +69,32 @@ test('a caster standing on its receiver keeps its contact, a few texels from its
     { from: [0, high], to: [0, 0], normal: [1, 0] },
     { from: [0, 0], to: [1, 0], normal: [0, 1] },
   ];
-  for (const zenith of [Math.PI / 4, 1.1])
+  for (const zenith of [Math.PI / 4, 1.1, 1.4])
     for (const texel of [5e-4, 1e-3, 4e-3]) {
       const read = sunOverProfile(wall, zenith, texel);
       for (let texels = 5; texels <= 10; texels++)
         assert.equal(read(4, texels * texel), 0, `${zenith} ${texel}: ${texels} texels out`);
-      assert.equal(read(4, 0.5), 1, 'the floor past the shadow is lit');
+      assert.equal(read(4, high * Math.tan(zenith) + 0.1), 1, 'the floor past the shadow is lit');
+    }
+});
+
+test('a receiver turned from the light keeps the shadow of a caster above it', () => {
+  // A small face turned away from a low sun — a toon surface still lights it —, under a slab a
+  // metre up: the bias never reaches the slab, however grazing the light.
+  for (const zenith of [0.3, 1.1, 1.4])
+    for (const texel of [1e-3, 0.05]) {
+      const light = [Math.sin(zenith), -Math.cos(zenith)],
+        side = [-light[1] * texel, light[0] * texel];
+      const turned: Face = { from: side.map((v) => -v), to: side, normal: light };
+      const slab: Face = { from: [-50, 1], to: [50, 1], normal: [0, 1] };
+      const read = sunOverProfile([turned, slab], zenith, texel);
+      assert.equal(read(0, 0.5), 0, `${zenith} ${texel}`);
     }
 });
 
 test('a plane off a lamp face’s axis shades no point of itself', () => {
-  // Facing the light or tilted from it, anywhere in the bottom face: the depth along the face's
-  // axis changes across the face even where the plane faces the light.
+  // Facing the light or turned from it up to grazing, anywhere in the bottom face: the depth
+  // along the face's axis changes across the face even where the plane faces the light.
   const light = [0, 2, 0];
   for (const [a, b] of [
     [0, 0],
@@ -88,11 +102,14 @@ test('a plane off a lamp face’s axis shades no point of itself', () => {
     [0.7, 0.95],
     [0.95, 0.95],
   ])
-    for (const tilt of [0, 0.5, 1]) {
+    for (const tilt of [0, 0.5, 1, 1.45]) {
+      // The normal turned by `tilt` from the light, toward a direction across the ray.
       const ray = [a, -1, b].map((v) => v / Math.hypot(a, 1, b));
       const P = ray.map((v, i) => light[i] + 3 * v),
-        N = [tilt - ray[0], -ray[1], 0.3 * tilt - ray[2]];
-      const normal = N.map((v) => v / Math.hypot(...N));
+        across = [1, 0, 0.3].map((v, i) => v - (ray[0] + 0.3 * ray[2]) * ray[i]);
+      const normal = ray.map(
+        (v, i) => -Math.cos(tilt) * v + (Math.sin(tilt) * across[i]) / Math.hypot(...across),
+      );
       const read = pointLampOver(light, [{ at: P, normal }]);
       for (let k = 0; k < 20; k++) {
         const step = [1.3e-4 * k, 0, 7e-5 * k],
