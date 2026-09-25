@@ -14,7 +14,7 @@ export type CutBackend = (resident: Uint8Array) => { drawn: number[]; wanted: nu
 
 /** A camera down the strip from its near end: the leaves near it want fine clusters, the far
  *  ones coarse, so one cut spans several levels. */
-export function stripCamera(dag: RuleDag) {
+function stripCamera(dag: RuleDag) {
   const eye = [-6, 4, 0],
     target = [dag.leaves / 2, 0, 0];
   const z = eye.map((v, a) => v - target[a]),
