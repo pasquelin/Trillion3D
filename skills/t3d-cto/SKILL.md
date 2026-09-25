@@ -43,7 +43,7 @@ origin/develop`, nothing else written there) at start and after every merge you 
 3. **Each session's skill carries its own brief**: it brings its checkout up to `origin/develop`,
    re-reads the rules, picks its work from GitHub, runs its `coder` and `reviewer` in the
    foreground, and reaches you by `SendMessage` (your session is in `ListAgents`).
-4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. Talk only to the
+4. **Supervise** with `/loop 10m` on the checks below until the boss says stop. Talk only to the
    sessions' leads (never to a coder or reviewer); merge in age order what a lead names ready.
 
 ## Each supervision pass
