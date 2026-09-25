@@ -7,9 +7,8 @@ export interface SurfaceMesh {
   indices: number[];
 }
 
-/** One authored box: its material, centre and size, in metres. */
+/** One authored box: its centre and size, in metres. */
 export interface Block {
-  material: number;
   center: number[];
   size: number[];
 }
@@ -69,7 +68,7 @@ export function createWorkshop() {
   }
   function block(material: number, center: number[], size: number[]) {
     const [width, height, depth] = size;
-    blocks.push({ material, center, size });
+    blocks.push({ center, size });
     add(material, geometry.box(width, height, depth).translate(center[0], center[1], center[2]));
   }
   function turned(
