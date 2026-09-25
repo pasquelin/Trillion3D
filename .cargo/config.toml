@@ -1,0 +1,8 @@
+# The cook must be the same bytes on every platform: its cache keys and its tests depend on it.
+# Clang fuses a multiply and an add into one FMA wherever the target has one (arm64 always,
+# x86_64 never at its baseline), and the C++ of meshoptimizer, built by `cc`, then rounds
+# differently on a Mac than on a Linux runner (measured: a chalet cooked three faces apart, #415).
+# `cc` reads these for the host and for a cross target; CMake, which builds Jolt, does not.
+[env]
+HOST_CXXFLAGS = { value = "-ffp-contract=off", force = true }
+TARGET_CXXFLAGS = { value = "-ffp-contract=off", force = true }
