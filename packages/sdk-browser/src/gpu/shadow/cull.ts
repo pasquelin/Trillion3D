@@ -6,14 +6,14 @@ import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import { CULL_UNIFORM_WORDS } from './batchBudget.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
 const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21;
-/** Words of one indirect command, and of one face's cull uniform. */
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4,
-  CULL_UNIFORM_WORDS = 8;
+/** Words of one indirect command. */
+const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
 
 /**
  * The cull's single bind table: its order names both the layout and the group — spheres, source
