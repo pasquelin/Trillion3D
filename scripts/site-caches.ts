@@ -7,7 +7,6 @@
  */
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { firstNewer } from '../packages/sdk-node/src/compiler/freshness.mts';
 import { modelScenes } from './docs/examples/models.ts';
 import {
@@ -110,4 +109,4 @@ export function compileSiteCaches(required = true): void {
   for (const scene of stale) compileCache(scene);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) compileSiteCaches();
+if (import.meta.filename === process.argv[1]) compileSiteCaches();
