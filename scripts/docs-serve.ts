@@ -23,6 +23,9 @@ export function createDocsServer(
   });
 }
 
+/** The loopback port of the local site, unless `PORT` names another. */
+export const DOCS_PORT = Number(process.env.PORT ?? 4177);
+
 let built: Promise<void> | undefined;
 /** Builds the site once per process (nothing is committed), then listens on the loopback port. */
 export async function startDocsServer(port = 0) {
@@ -32,6 +35,6 @@ export async function startDocsServer(port = 0) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { port } = await startDocsServer(Number(process.env.PORT ?? 4177));
+  const { port } = await startDocsServer(DOCS_PORT);
   console.log(`Learning portal: http://127.0.0.1:${port}`);
 }
