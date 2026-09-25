@@ -104,9 +104,9 @@ export function walkCut<T extends PageRecord>(
   lens[45] = s.flatExact ? 1 : 0;
   const [nodesBlock, boundsBlock, leafBlock, openBlock] = resident.blocs();
   // A root with no open node — counts roll up to node 0 — hands none over.
-  const open = s.flatOpen,
-    opened = open && open[0] > 0 ? count : 0;
-  if (opened) openBlock.vue.set(open!.subarray(0, count));
+  const held = s.flatHeld,
+    opened = held && held.openAt(0) > 0 ? count : 0;
+  if (opened) held!.writeOpen(openBlock.vue as Uint32Array, count);
   const status = wasm.cut_walk(
     nodesBlock.offset,
     nodes.length,

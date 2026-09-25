@@ -10,7 +10,7 @@
  * projected error is then monotone up the DAG, as the cook guarantees.
  */
 import { cullingBounds } from './bounds.ts';
-import { cullingLinks } from './readiness.ts';
+import { cullingLinks } from './links.ts';
 import { CULL_STRIDE } from '../../gpu/dag/types.ts';
 import { structureIndex } from '../selection/structure.ts';
 import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts';

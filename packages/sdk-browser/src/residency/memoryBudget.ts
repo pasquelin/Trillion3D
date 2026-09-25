@@ -54,9 +54,10 @@ const checkTotal = (bytes: number, name: string) => {
  * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
  *   screen; the decoded-page cache takes the rest (`pageCache.ts`), the session's manifest tables
  *   and transfer queue reserved off it. A total under the mirror is refused by name.
- *   The cut's host tables — group closure and the rule's readiness, sized by the placed pages —
- *   are held in the cache's share too: once the engine is prepared, the session reserves their
- *   exact bytes there (`hostTableBytes`, the streamer's `reserve`), and the decoded pages keep the
+ *   The cut's host tables — group closure, the rule's readiness, the residency sets and the cut's
+ *   differences, sized by what the view asks for and the pool holds (#483 rule 6) — are held in
+ *   the cache's share too: the session reserves their bytes there (`hostTableBytes`, the
+ *   streamer's `reserve`), read each time the cache weighs itself, and the decoded pages keep the
  *   rest.
  * At the defaults, the split gives each pool its own default.
  */

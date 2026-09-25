@@ -137,8 +137,8 @@ export async function evaluateInstalledPage({
     camera: replay.view,
     capabilities: { renderer: replay.world.renderer },
   };
+  // An engine that publishes no drawn cut (WebGL2) draws what it submits.
   value.drawnTriangles ??= value.submittedTriangles;
-  value.uncoveredTriangles ??= value.selectedTriangles - value.drawnTriangles;
   replay.world.dispose();
   primer.world.dispose();
   return {
