@@ -8,13 +8,9 @@ import { weighsByAlpha } from '../scene/materialBlending.ts';
 const alphaIsCoverage = (mat: PageSurface) =>
   mat.alphaTest > 0 || (mat.transparent && !(mat.transmission > 0) && weighsByAlpha(mat.blending));
 
-/**
- * The readers of the colour textures, shared by both GPU paths (#42): a texture's mips weigh its
- * colours by alpha when EVERY reader takes its alpha for coverage — never an emissive map, as
- * `collect.rs` decides — and its texels were not uploaded premultiplied (weighed twice, they
- * darken). A host switches a surface between opaque and masked without a signal: `follow`
- * rereads the readers as it declares them now.
- */
+/** The colour maps' readers, both GPU paths' (#42): mips weigh colours by alpha when EVERY reader
+ *  takes alpha for coverage — never an emissive map (`collect.rs`) — and the texels are not
+ *  premultiplied. A host switches opaque and masked with no signal: `follow` rereads them. */
 export class CoverageReaders {
   private surfaces = new Set<PageSurface>();
   /** Per colour texture, whether every reader filed so far takes its alpha for coverage. */
@@ -35,10 +31,6 @@ export class CoverageReaders {
    *  its map. */
   weighs(texture: Texture) {
     return !!this.rules.get(texture) && !texture.premultiplyAlpha;
-  }
-  clear() {
-    this.surfaces.clear();
-    this.rules.clear();
   }
   private file(surface: PageSurface) {
     const { map, emissiveMap } = surface;

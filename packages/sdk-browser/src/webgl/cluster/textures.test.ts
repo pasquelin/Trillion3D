@@ -19,10 +19,8 @@ function context() {
         MAX_TEXTURE_MAX_ANISOTROPY_EXT: 0x84ff,
       }),
       getParameter: () => 16,
-      getShaderParameter: () => true,
-      getProgramParameter: () => true,
       createTexture: () => (calls.created++, {}),
-      texImage2D: (_target: number, level: number) => void (level === 0 && calls.uploads++),
+      texImage2D: () => void calls.uploads++,
       texSubImage2D: () => void calls.inPlace++,
       texParameteri: () => void calls.parameters++,
       texParameterf: (_target: number, name: number, value: number) => {
@@ -73,8 +71,7 @@ test('a version uploads the texture again, a sampling sets its sampler alone', (
 });
 
 // #362: a canvas redrawn and a video frame are copied into the texture already held, 120 frames
-// long; only a new size allocates the level again, still in the same texture (its chain, the
-// reducer's, is `mips.test.ts`'s).
+// long; only a new size allocates the level again, still in the same texture.
 test('120 new pictures copy in place into one texture, a new size reallocates it', () => {
   const { gl, calls } = context();
   const binder = new WebglClusterTextures(gl);

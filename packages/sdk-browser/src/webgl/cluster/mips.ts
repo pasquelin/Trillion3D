@@ -19,8 +19,7 @@ void main(){
  vec4 s0=texelFetch(source,min(p,hi),0);vec4 s1=texelFetch(source,min(p+ivec2(1,0),hi),0);
  vec4 s2=texelFetch(source,min(p+ivec2(0,1),hi),0);vec4 s3=texelFetch(source,min(p+ivec2(1,1),hi),0);
  vec4 mean=(s0+s1+s2+s3)*0.25;
- float u=min(max(s0.a,s1.a),max(s2.a,s3.a));
- float v=max(min(s0.a,s1.a),min(s2.a,s3.a));
+ float u=min(max(s0.a,s1.a),max(s2.a,s3.a));float v=max(min(s0.a,s1.a),min(s2.a,s3.a));
  vec4 a=vec4(s0.a,s1.a,s2.a,s3.a);
  vec3 byAlpha=(s0.rgb*s0.a+s1.rgb*s1.a+s2.rgb*s2.a+s3.rgb*s3.a)/dot(a,vec4(1.0));
  color=vec4(weighted&&any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,(u+v)*0.5);
@@ -47,13 +46,10 @@ function buildReducer(gl: WebGL2RenderingContext) {
 }
 
 /**
- * The material mip chain on WebGL2 (#42), in place of `generateMipmap`'s box filter, which
- * averages alpha and darkens masked foliage: one draw per level, from a scratch copy of the level
- * above (`copyTexSubImage2D`). #709 sampled the texture it drew into, a feedback loop the browser
- * refused: every level kept its null allocation, alpha 0, and every masked texel was cut. A format
- * whose levels a framebuffer cannot hold (`checkFramebufferStatus`, once per format) keeps the box
- * chain, never an empty one. sRGB is read decoded and written encoded: linear light, as WebGPU's.
- * The state a reduction touches is restored after it: it may run in the middle of a pass.
+ * WebGL2 material mips (#42), not `generateMipmap`'s box: one draw per level from a scratch copy of
+ * the level above — #709 sampled the texture it drew into, a loop the browser refused, and left
+ * every level empty (alpha 0). A format no framebuffer holds (asked once) keeps the box chain.
+ * sRGB is read decoded, written encoded; the state touched is restored, so it runs mid-pass.
  */
 export class WebglMipReducer {
   private gl: WebGL2RenderingContext;
@@ -104,7 +100,7 @@ export class WebglMipReducer {
         [w, h] = levelSize(width, height, level);
       attach(gl.READ_FRAMEBUFFER, level - 1);
       attach(gl.DRAW_FRAMEBUFFER, level);
-      if (!(drawn = this.drawable.get(format) ?? this.check(format))) break;
+      if (!(drawn = this.drawable.get(format) ?? this.check(format))) break; // checked at level 1
       gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, sw, sh);
       gl.uniform2i(built.extent, sw, sh);
       gl.viewport(0, 0, w, h);

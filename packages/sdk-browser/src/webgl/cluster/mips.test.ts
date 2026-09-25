@@ -97,9 +97,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   const read = t.mock.method(CoverageReaders.prototype, 'read');
   const follow = t.mock.method(CoverageReaders.prototype, 'follow');
   const map = new G.GraphTexture({ width: 4, height: 4 } as TexImageSource);
-  const geometry = new G.Geometry().setIndex([0, 1, 2]);
-  for (const name of ['position', 'normal', 'uv'])
-    geometry.setAttribute(name, G.floatAttribute(new Float32Array(9), name === 'uv' ? 2 : 3));
+  const geometry = G.boxGeometry();
   const hidden = G.mesh(geometry, G.standardSurface({ map }));
   hidden.visible = false;
   const scene = new G.GraphScene();
