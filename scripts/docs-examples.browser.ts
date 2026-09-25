@@ -4,24 +4,8 @@ import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
+import { physicsExamples } from './docs/examples/physics.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
-
-/** The examples that turn physics on: the only pages that fetch the physics session's code, the
- *  worker and Jolt's module. */
-const PHYSICS = new Set([
-  'falling-boxes',
-  'floating-crates',
-  'ten-thousand-bodies',
-  'rolling-on-terrain',
-  'a-walker-among-balls',
-  'walk-with-collisions',
-  'walk-through-a-temple',
-  'create-and-dispose',
-  'hinges-and-joints',
-  'gears-and-pulleys',
-  'drive-a-car',
-  'fly-over-a-model-town',
-]);
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -69,7 +53,8 @@ test('every example file renders an image on its own, fetching Jolt only when it
     // both, since it names no backend and the engine reads the machine it was opened on. Every
     // page is opened before the verdict, so the list names every example that stayed blank.
     const blank: string[] = [],
-      jolt: string[] = [];
+      jolt: string[] = [],
+      physics = await physicsExamples(ready);
     for (const gpu of [true, false])
       for (const example of ready) {
         const share = leastDrawn(example.id, gpu);
@@ -86,11 +71,11 @@ test('every example file renders an image on its own, fetching Jolt only when it
             `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors[0] ? `: ${opened.errors[0]}` : ''}`,
           );
         // #395, #397: Jolt, and the page's code that drives it, are fetched by a page that turns
-        // physics on, and by no other.
+        // physics on, read from its own source (#503), and by no other.
         const fetched = opened.requests.some((url) =>
           /physicsWorker\.js|joltPhysics\w*\.wasm|\/session-\w+\.js/.test(url),
         );
-        if (fetched !== PHYSICS.has(example.id))
+        if (fetched !== physics.has(example.id))
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }
