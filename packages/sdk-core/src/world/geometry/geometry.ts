@@ -7,9 +7,6 @@ import { forgetTree } from '../object/raycastTrees.ts';
 import { readPoints, spanBox, spanSphere } from './bounds.ts';
 import { transformVertices } from './transform.ts';
 
-/** Who built a geometry: the world (a page, the default) or the host (a loaded scene). */
-export type GeometryOwner = 'world' | 'host';
-
 /** The shape alone: named per-vertex attributes, an optional triangle index, material groups,
  *  the morph targets that move it and the range of it drawn. */
 export class Geometry {
@@ -49,9 +46,10 @@ export class Geometry {
   version = 0;
   /** Who draws this geometry: every mesh holding it hears its changes. */
   readonly _listeners = new Set<() => void>();
-  /** Who built it: whether a normalised list it owns is read as stored or at its value
-   *  (`readsStored`). Set by its maker, right after it is made. */
-  _owner: GeometryOwner = 'world';
+  /** Who built it, the world (a page, the default) or the host (a loaded scene): whether a
+   *  normalised list it owns is read as stored or at its value (`readsStored`). Set by its maker,
+   *  right after it is made. */
+  _owner: 'world' | 'host' = 'world';
 
   /** Tells every holder the geometry changed; the bounds are forgotten when its positions did. */
   _changed(moved = true) {
