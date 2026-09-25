@@ -12,8 +12,8 @@ below that says to tell him: never a running account of agent events.
 
 ## At start (each morning)
 
-1. **State.** Read the open PRs and the open issues by domain: `measure ko` / `audit ko`, then
-   by priority label.
+1. **State.** Read the last handover comment on #483 (`docs/roles/cto.md` step 6), then the open
+   PRs and the open issues by domain: `measure ko` / `audit ko`, then by priority label.
 2. **Staff the company, as agents.** Start, with the Agent tool (`run_in_background: true`,
    `subagent_type: general-purpose`), one agent per role that has work and is not already running:
    - one **lead** per domain with work (the domains of AGENTS.md §Roles; a bug goes to its domain);
@@ -33,10 +33,10 @@ below that says to tell him: never a running account of agent events.
      lets agents edit, then `pnpm install` there;
    - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
      Skill column of `docs/COMPANY.md`), its `docs/roles/` file;
-   - its ordered list: what is in flight (its PRs by number), then its issues in the order of
+   - its ordered list: its open PR by number, if any, then its issues in the order of
      AGENTS.md §Leads;
    - the agent bound (AGENTS.md rule 9): a lead runs `coder` then `reviewer`
-     (`subagent_type` `coder` / `reviewer`), one alive at a time, each given the worktree as its
+     (`subagent_type` `coder` / `reviewer`) per AGENTS.md §Leads, each given the worktree as its
      working directory; the architect, measurer, acceptance and analyst run none;
    - when to stop: a lead after two issues merged or closed, or its list exhausted or blocked; the
      measurer and acceptance after their queue is empty. It cleans its worktrees and branches,
@@ -55,9 +55,9 @@ below that says to tell him: never a running account of agent events.
   fresh one on the rest of its list; a stuck one gets a `SendMessage`, then is stopped and
   replaced (its state is in GitHub labels). Never run two leads on one domain. The analyst is
   started again once two hours have passed since its last run.
-- **Flow:** one agent at a time per lead; at most 3 open PRs per lead, resume at 2; one lead
-  per issue. Name to each lead its green-but-unmerged, red, conflicting or stale PRs (AGENTS.md
-  rule 11).
+- **Flow:** each lead within AGENTS.md §Leads; one lead per issue. Name to each lead its
+  green-but-unmerged, red, conflicting or stale PR; merge the ready ones in the order of
+  AGENTS.md rule 11.
 - **Closure:** a merged PR whose issue stays open with no finding → have it closed. Count issues
   opened, closed and reopened since the last pass.
 - **Quality:** the audit-ko rate per lead (reopened ÷ merged). Above 1 in 10 → that lead's next
@@ -75,8 +75,8 @@ below that says to tell him: never a running account of agent events.
   cannot justify as corrections go to the boss.
 - **Issues:** you open them under AGENTS.md rule 5, with the writer role (`docs/roles/writer.md`).
 - **Dashboard:** keep a short dashboard (opened/closed/reopened today and over seven days,
-  audit-ko rate per lead, open PRs per lead, measurement budgets) and give it to the boss on
-  request.
+  audit-ko rate per lead, the open PR of each lead, measurement budgets) and give it to the boss
+  on request.
 
 ## Budget: context and subscription
 
@@ -98,7 +98,7 @@ below that says to tell him: never a running account of agent events.
 
 Keep, at all times, the whole picture for the boss, including the architect's trend (total lines,
 duplicates, cycles, repository size — going down): for each lead, its current issue, its open
-PRs, its audit-ko rate, its closures today; for acceptance and measurement, their queues. Answer
+PR, its audit-ko rate, its closures today; for acceptance and measurement, their queues. Answer
 "où en est-on ?" from it in five lines without asking anyone.
 
 ## Hygiene

@@ -38,7 +38,7 @@ and pull requests.
 1. The boss tells the CTO what matters. The CTO sets the priority labels (🔴 🟠 🟡 🟢) of the
    issues concerned, each owned by one lead.
 2. Each lead takes, in order:
-   - what it has in flight;
+   - its open pull request;
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
 3. For each issue, the lead runs one coder, then one reviewer. It then writes
@@ -49,7 +49,7 @@ and pull requests.
    - the issue closes, or stays open with `Part of #n` when work remains;
    - measurement and acceptance check it, and reopen it with `measure ko` / `audit ko` if needed.
 5. Limits at every moment:
-   - one agent at a time per lead, and at most 3 open PRs per lead (resume at 2);
+   - each lead within the limits of AGENTS.md §Leads;
    - one lead per issue, and nobody idle;
    - no leftover worktree or branch.
 
