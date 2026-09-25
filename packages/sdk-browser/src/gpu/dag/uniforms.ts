@@ -57,14 +57,14 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
  * the planes and view ahead, and block 0 says it is there. A block too short to hold it — a light
  * view's — never carries one.
  */
-function writeAheadBlock(target: Float32Array, uniforms: DagViewUniforms) {
+function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagViewUniforms) {
   const ahead = uniforms.ahead,
     at = AHEAD_VIEW * DAG_VIEW_WORDS;
   if (!ahead || uniforms.light || target.length < at + DAG_VIEW_WORDS) return;
   target.copyWithin(at, 0, DAG_VIEW_WORDS);
   target.set(ahead.planes, at);
   target.set(ahead.view, at + 24);
-  new Uint32Array(target.buffer, target.byteOffset, DAG_VIEW_WORDS)[63] = 1;
+  ints[63] = 1;
 }
 
 /**
@@ -109,7 +109,7 @@ export function writeDagUniforms(
   ints[62] = views?.queueCap ?? packed.nodeCount;
   const light = uniforms.light;
   ints[54] = light ? VIEW_LIGHT | VIEW_PAGES : 0;
-  writeAheadBlock(target, uniforms);
+  writeAheadBlock(target, ints, uniforms);
   if (!light) return;
   ints[55] = light.rows;
   ints[56] = light.mask[0];
@@ -148,7 +148,6 @@ export function parseDagOutput(
   //
   // It is STABLE, and that is what makes it substitutable: at equal priority the order stays
   // that of the sample, exactly what the comparison sort it replaces returned.
-  pageIds.length = count;
   seaux.fill(0);
   for (let i = 0; i < count; i++) seaux[requestRank(requestPriority(ints[head + i]))]++;
   // Prefix sum run from the HIGHEST priority to the lowest: the list comes out decreasing
@@ -161,15 +160,16 @@ export function parseDagOutput(
     seaux[p] = place;
     place += tenus;
   }
-  for (let i = 0; i < count; i++) {
-    const word = ints[head + i];
-    pageIds[seaux[requestRank(requestPriority(word))]++] = requestPage(word);
-  }
-  // The view ahead's requests follow every visible one: they leave for their own tier.
+  // The view ahead's requests rank after every visible one: they go straight to their own list.
   const ahead = scratch.ahead;
-  ahead.length = count - visible;
-  for (let i = visible; i < count; i++) ahead[i - visible] = pageIds[i];
   pageIds.length = visible;
+  ahead.length = count - visible;
+  for (let i = 0; i < count; i++) {
+    const word = ints[head + i],
+      at = seaux[requestRank(requestPriority(word))]++;
+    if (at < visible) pageIds[at] = requestPage(word);
+    else ahead[at - visible] = requestPage(word);
+  }
   result.aheadPageIds = ahead;
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
