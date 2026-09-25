@@ -75,8 +75,7 @@ async function main(): Promise<void> {
   );
   const testFiles = relatedTests(files, changed);
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`);
-  // The lint and the tests read the generated API files and the scene caches, which git never
-  // tracks; a run with no compiler names the caches it left, for tests that may read none.
+  // The lint and the tests read these untracked files; without a compiler, the caches only warn.
   await generateApiFiles();
   compileSiteCaches(false);
   if (!process.argv.includes('--tests-only')) {
