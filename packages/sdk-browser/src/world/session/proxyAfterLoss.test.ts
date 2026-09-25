@@ -1,104 +1,77 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { probeBackendContext } from './backends.fixture.ts';
-import { createExplorerPageSources } from './pageSources.ts';
-import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
-import { createPageCache } from '../../streaming/pageCache.ts';
-import { servedPages } from '../../streaming/servedPages.fixture.ts';
-import {
-  PROXY_TRIANGLE_FLOATS,
-  SCENE_PROXY_HEADER_WORDS,
-  SCENE_PROXY_MAGIC,
-  SCENE_PROXY_VERSION,
-  type ClusterManifest,
-} from '../../../../sdk-core/src/index.ts';
+import { base, openSession, servedScene } from './proxySession.fixture.ts';
+import { createPageCache, manifestTableBytes } from '../../streaming/pageCache.ts';
 
-const base = 'http://localhost/cache/';
-
-/** A one-triangle proxy file with no node, and the manifest that names it. */
-async function servedProxy() {
-  // The header, one triangle, its albedo.
-  const words = new Uint32Array(SCENE_PROXY_HEADER_WORDS + PROXY_TRIANGLE_FLOATS + 1);
-  words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 1, 0]);
-  new Float32Array(words.buffer, SCENE_PROXY_HEADER_WORDS * 4, PROXY_TRIANGLE_FLOATS).set([
-    0, 0, 0, 1, 0, 0, 0, 1, 0,
-  ]);
-  const { pages, fetched } = await servedPages(['proxy.bin'], new Uint8Array(words.buffer));
-  const proxy = {
-    ...pages[0],
-    version: SCENE_PROXY_VERSION,
-    triangles: 1,
-    nodes: 0,
-    bounds: [0, 0, 0, 1, 1, 0],
-  };
-  return { metadata: { primitives: [], proxy } as unknown as ClusterManifest, fetched };
-}
-
-/** One session on the world's kept cache, as far as its engines' context: what they read. */
-async function openSession(
-  metadata: ClusterManifest,
-  pageCache: ReturnType<typeof createPageCache>,
-  root = base,
-) {
-  const options = { manifestUrl: `${root}manifest.json`, pageCache };
-  const pageSources = await createExplorerPageSources(
-    metadata,
-    options,
-    root,
-    undefined,
-    true,
-    [],
-    createDiagnosticChannel(undefined),
-    () => {},
-  );
-  const context = await probeBackendContext(metadata, pageSources, { options, base: root });
-  return { context, close: () => pageSources.streamer.dispose() };
-}
+const proxyUrl = `${base}proxy.bin`;
 
 test('a session reopened after a device loss reads the resident proxy from the kept cache, fetching it once', async () => {
-  const { metadata, fetched } = await servedProxy();
+  const { metadata, fetched } = await servedScene(0);
   const pageCache = createPageCache();
   const before = await openSession(metadata, pageCache);
   const lit = await before.context.readSceneProxy!();
   assert.equal(lit.triangles, 1);
-  assert.deepEqual(fetched, [`${base}proxy.bin`]);
+  assert.deepEqual(fetched, [proxyUrl]);
   // The device is lost: the session closes, the world keeps its cache and opens another.
   before.close();
   const after = await openSession(metadata, pageCache);
   const relit = await after.context.readSceneProxy!();
-  assert.deepEqual(fetched, [`${base}proxy.bin`], 'the proxy it held is not fetched again');
+  assert.deepEqual(fetched, [proxyUrl], 'the proxy it held is not fetched again');
   assert.deepEqual(relit.data.triangles, lit.data.triangles);
-  assert.ok(pageCache.bytes >= metadata.proxy!.bytes, 'its bytes count against the CPU total');
+  assert.equal(pageCache.keptBytes, metadata.proxy!.bytes, 'its bytes count against the CPU total');
   after.close();
 });
 
-test('another scene the world loads reads its own proxy, not the one kept under the same name', async () => {
-  const { metadata, fetched } = await servedProxy();
+test('pages that outgrow the CPU total never evict the kept proxy: a device loss fetches it no more', async () => {
+  const { metadata, urls, fetched } = await servedScene(6);
+  const transfer = 64;
+  // Room for the tables, one transfer, the proxy and two pages: fewer than the six read.
+  const cpu = manifestTableBytes(metadata.primitives[0].pages) + transfer + metadata.proxy!.bytes;
+  const pageCache = createPageCache(cpu + 2 * 12);
+  const before = await openSession(metadata, pageCache, base, transfer);
+  await before.context.readSceneProxy!();
+  for (const url of urls) await before.streamer.request([url]);
+  assert.ok(before.streamer.stats().evictions >= 4, 'the pages churned through the total');
+  assert.ok(before.streamer.stats().cpuBytes <= pageCache.cpuBytes);
+  before.close();
+  const after = await openSession(metadata, pageCache, base, transfer);
+  await after.context.readSceneProxy!();
+  assert.equal(fetched.filter((url) => url === proxyUrl).length, 1, 'the proxy was kept');
+  after.close();
+});
+
+test('another scene the world loads reads its own proxy, and the one it kept leaves', async () => {
+  const { metadata, fetched } = await servedScene(0);
   const pageCache = createPageCache();
   const first = await openSession(metadata, pageCache);
   await first.context.readSceneProxy!();
   first.close();
   const other = 'http://localhost/other/';
   const second = await openSession(metadata, pageCache, other);
+  assert.equal(pageCache.keptBytes, 0, "the first scene's proxy left with it");
   await second.context.readSceneProxy!();
-  assert.deepEqual(fetched, [`${base}proxy.bin`, `${other}proxy.bin`]);
+  assert.deepEqual(fetched, [proxyUrl, `${other}proxy.bin`]);
   second.close();
 });
 
 test('a proxy whose bytes are not the announced ones fails, naming the file and what differs', async () => {
-  const { metadata } = await servedProxy();
+  const { metadata } = await servedScene(0);
   const announced = '0'.repeat(64);
   metadata.proxy!.sha256 = announced;
-  const session = await openSession(metadata, createPageCache());
-  await assert.rejects(session.context.readSceneProxy!(), (error: Error) => {
-    assert.match(
-      error.message,
-      new RegExp(
-        `${base}proxy\\.bin after 3 attempts: .*SHA-256 [0-9a-f]{64}, ${announced} announced`,
-      ),
-    );
-    assert.equal((error.cause as { code?: string }).code, 'INVALID_CACHE');
-    return true;
+  const pageCache = createPageCache();
+  const session = await openSession(metadata, pageCache);
+  await assert.rejects(session.context.readSceneProxy!(), {
+    code: 'INVALID_CACHE',
+    message: new RegExp(`SHA-256 [0-9a-f]{64}, ${announced} announced`),
   });
+  assert.equal(pageCache.keptBytes, 0, 'what failed reserves nothing');
+  session.close();
+});
+
+test('a missing proxy is asked once, as a 404 another request would meet again', async () => {
+  const { metadata, fetched } = await servedScene(0, { missing: ['proxy.bin'] });
+  const session = await openSession(metadata, createPageCache());
+  await assert.rejects(session.context.readSceneProxy!(), { code: 'RESOURCE_HTTP_ERROR' });
+  assert.deepEqual(fetched, [proxyUrl]);
   session.close();
 });
