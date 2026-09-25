@@ -12,13 +12,13 @@ import { tailId, tileId, tileKeyOf } from './ids.ts';
  * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
  * streamed. `baked`: the tail comes from the sidecar, streamed levels are read cooked from the
  * cache. `host`: neither, the host image goes through a working texture, its mips weighted by
- * alpha when every reader takes it for `coverage` (#42). A tail carries every encoding the
+ * alpha when every reader takes it for `coverage` now (#42). A tail carries every encoding the
  * sidecar holds; the atlas pins the one its lane samples.
  */
 type TileSource =
   | { kind: 'bytes'; tail: TailBytes }
   | { kind: 'baked'; sha256: string; atlas: number; tail: TailBytes }
-  | { kind: 'host'; map: Texture; coverage: boolean };
+  | { kind: 'host'; map: Texture; coverage: () => boolean };
 
 /** A texture of the atlas: tile geometry, pool lane, texels, and its record — none for the fill. */
 export type TileTexture = {
