@@ -59,12 +59,12 @@ impl Role {
             Self::Occlusion => material.get("occlusionTexture"),
         }
     }
-    /// The chain the role asks for: the one role whose alpha the shader reads —
-    /// the base colour of a MASK or BLEND material, `channels` says it — takes
-    /// that alpha for coverage.
-    fn kind(self, opaque: bool) -> AtlasKind {
+    /// The chain the role asks for: the one role whose alpha the shader reads for
+    /// coverage — the base colour of a BLEND material, or of a MASK one that cuts —
+    /// takes the chain weighted by that alpha.
+    fn kind(self, coverage: bool) -> AtlasKind {
         match self {
-            Self::BaseColor if self.channels(opaque)[3] => AtlasKind::Coverage,
+            Self::BaseColor if coverage => AtlasKind::Coverage,
             Self::BaseColor | Self::Emissive => AtlasKind::Color,
             _ => AtlasKind::Data,
         }
@@ -112,11 +112,14 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
                 .and_then(Value::as_f64)
                 .unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32
         });
+        // A MASK cutoff at or under 0 cuts nothing: the engine draws it opaque
+        // (`alphaTest > 0`, `collectWebgpuMaterialTextures`), the RGB under alpha 0 included.
+        let coverage = !opaque && cutoff.is_none_or(|c| c > 0.0);
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
             };
-            let kind = role.kind(opaque);
+            let kind = role.kind(coverage);
             let atlas = kind.atlas();
             let entry = wanted
                 .entry((texture, atlas))
