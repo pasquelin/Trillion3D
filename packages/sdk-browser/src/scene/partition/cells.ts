@@ -17,6 +17,7 @@ import {
   type TablePartition,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import type { FrameBudget } from '../../page/integration/frameBudget.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { createCellBoxes } from './boxes.ts';
@@ -132,8 +133,8 @@ export function createPartitionCells(inputs: Inputs) {
         update(rows: PlacementRows, from: number, to: number): void;
         outgrown?: () => void;
       },
-      /** The frame's one integration budget (`FrameBudget`, `../../page/integration/frameBudget.ts`). */
-      budget: { admits(): boolean; spend(): void },
+      /** The frame's one integration budget, the arrival queue's. */
+      budget: FrameBudget,
     ) {
       followParents();
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);

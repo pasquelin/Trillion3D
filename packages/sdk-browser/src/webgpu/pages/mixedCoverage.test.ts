@@ -10,8 +10,8 @@ import { quadScene, camera } from './testScenes.fixture.ts';
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
   installGpuGlobals();
-  // The clock stands still: on a loaded machine the page uploads would otherwise spend their frame
-  // share (`STREAMING_FRAME_MS`) and land a frame later, and what the test counts would follow it.
+  // The clock stands still: on a loaded machine the page uploads would otherwise spend their share
+  // (`STREAMING_FRAME_MS`) and land a task later, and what the test counts would follow it.
   mock.method(performance, 'now', () => 0);
   const fixture = quadScene(),
     blend = quadScene();

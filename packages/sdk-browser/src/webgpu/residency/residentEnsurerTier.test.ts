@@ -5,7 +5,7 @@ import { STREAMING_FRAME_MS } from '../../backend/common.ts';
 import { createWebgpuResidencyQueue } from './queue.ts';
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts';
 
-/** A pool whose every load spends a frame's whole share, on a clock the test owns. */
+/** A pool whose every load spends a whole main-thread share, on a clock the test owns. */
 function slowCache(slots: number) {
   let clock = 0;
   mock.method(performance, 'now', () => clock);

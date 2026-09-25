@@ -40,7 +40,6 @@ export function createWebgpuCutPublication(
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout,
     { shadow, ahead } = tiers;
-  const onAhead = (ids: ArrayLike<number>) => ahead.offerIds(ids);
   const cutDelta = createCutDelta(packedPages, run.desired);
   // The drawable cut writes its records itself, reading its sequence once: `run.shown` is then
   // only a copy of it, and only when the image adopts the readback that produced it.
@@ -79,7 +78,7 @@ export function createWebgpuCutPublication(
     drawnPages,
     onDrawnDelta: publishDrawn,
     onDrawnMirrored: () => markDrawnMirrored(run),
-    onAhead,
+    onAhead: ahead.offerIds,
     onCutDelta: () => {
       publishCut();
       run.pagesEntered = cutDelta.enteredCount;
@@ -139,7 +138,7 @@ export function createWebgpuCutPublication(
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
       // The CPU cut evaluates no view ahead: what the last readback asked for ahead is let go.
-      onAhead(NO_IDS);
+      ahead.offerIds(NO_IDS);
       cutDelta.adoptRecords(wanted);
       publishCut();
       drawnDelta.adoptRecords(shown);

@@ -117,7 +117,10 @@ test('a page whose dependency does not fit is never admitted', async () => {
 test('a shadow caster enters the pool after its dependencies too', async () => {
   const { pages, parentsOf } = placement();
   const [, , , b] = pages;
-  const { loads, want } = ensurerOver(8, pages, { parentsOf, lowerTiers: () => [[b]] });
+  const { loads, want } = ensurerOver(8, pages, {
+    parentsOf,
+    lowerTiers: () => [{ pages: [b], has: () => true }],
+  });
   await want();
   assert.deepEqual(loads, ['r', 'm', 'b']);
 });

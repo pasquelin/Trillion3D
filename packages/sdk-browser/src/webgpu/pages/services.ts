@@ -141,7 +141,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const tier = { keyOf: tracking.keyOf, room, closeOver: closure.closeOver };
   const shadowTier = createLowerTier(tier),
     aheadTier = createLowerTier(tier),
-    lowerTiers = [shadowTier.pages, aheadTier.pages];
+    lowerTiers = [shadowTier, aheadTier];
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
     tracking,

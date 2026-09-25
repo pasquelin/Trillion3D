@@ -1,6 +1,5 @@
 import { STREAMING_FRAME_MS } from '../../backend/common.ts';
 import { createFrameBudget, yieldToEventLoop } from '../../page/integration/frameBudget.ts';
-import { createSparseInts } from '../../page/cut/sparseInts.ts';
 import { pageAddress } from '../row/pageSlots.ts';
 import { createPageAdmission } from './admission.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -10,6 +9,7 @@ import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts';
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic'];
+type LowerList = { pages: readonly PageRec[]; has: (key: number) => boolean };
 type EnsureOptions = {
   getCache: () => Cache | undefined;
   tracking: Tracking;
@@ -22,8 +22,9 @@ type EnsureOptions = {
   traceEnabled: boolean;
   traceDiagnostic: Trace;
   /** The lower tiers, served in this order after the camera's: the casters the light cuts asked
-   *  for, then the pages ahead of the camera, each highest priority first (`lowerTier.ts`). */
-  lowerTiers: () => readonly (readonly PageRec[])[];
+   *  for, then the pages ahead of the camera, each highest priority first and without repeats,
+   *  with the keys it names (`lowerTier.ts`). */
+  lowerTiers: () => readonly LowerList[];
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -49,16 +50,20 @@ export function createWebgpuResidentEnsurer({
     budget.open();
     return true;
   };
-  /** One job's lower tiers in order, each page once: a caster also ahead of the camera is
-   *  counted and loaded once. A copy: a tier's list is rewritten in place by every report taken
-   *  while this job loads, and a loop resumed on another list keeps neither its order nor its
-   *  count of free slots. */
-  const listed = createSparseInts();
+  /** One job's lower tiers in order, each page once: a page an earlier tier names — a caster also
+   *  ahead of the camera — is counted and loaded once. A copy: a tier's list is rewritten in place
+   *  by every report taken while this job loads, and a loop resumed on another list keeps neither
+   *  its order nor its count of free slots. */
   const lowerList = () => {
-    const list: PageRec[] = [];
-    for (const tier of lowerTiers())
-      for (const rec of tier) if (!listed.set(tracking.keyOf(rec), 1)) list.push(rec);
-    listed.clear();
+    const tiers = lowerTiers(),
+      list: PageRec[] = [];
+    for (let t = 0; t < tiers.length; t++)
+      for (const rec of tiers[t].pages) {
+        const key = tracking.keyOf(rec);
+        let named = false;
+        for (let earlier = 0; earlier < t && !named; earlier++) named = tiers[earlier].has(key);
+        if (!named) list.push(rec);
+      }
     return list;
   };
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
