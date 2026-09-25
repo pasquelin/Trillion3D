@@ -22,11 +22,13 @@ export function createWebgpuRowSync(
   { commitRows, sourceRowOf, writePageRow }: Commit,
   /** Called when a page enters residency or leaves it, before the row changes. */
   onResidenceChange: (rec: PageRec) => void = () => {},
+  /** Called when a blended caster's row is written again with another coverage. */
+  onCoverageChange: (rec: PageRec) => void = () => {},
 ) {
   const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
    *  mirror reports (`follow`), and the table's age here, whichever cut draws the image. */
-  const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow);
+  const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange);
   /**
    * Rows for the drawable set. What the image owes the table now depends only on the pages whose
    * cache slot just changed, and on what the previous image's time budget left to write: the whole
