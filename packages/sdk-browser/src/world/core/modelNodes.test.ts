@@ -4,6 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { LoadedModel, type ModelRecord } from './loadedModel.ts';
 import { createWorldPoses } from './worldPoses.ts';
+import { Scene } from './scene.ts';
 
 /** A compiled model's graph as its loader builds it: a root, a turbine and its rotor, and a
  *  crane nobody looks up. */
@@ -87,4 +88,10 @@ test('the graph the file carried is left out of a saved scene, its subtree with 
   const { model } = compiledModel();
   model.getObjectByName('rotor');
   assert.equal(model._fromFile(model.getObjectByName('Scene')!), true);
+});
+
+test('a loaded model and a scene root refuse to be cloned, by name', () => {
+  const refused = { name: 'EngineError', code: 'UNSUPPORTED_SCENE_UPDATE' };
+  assert.throws(() => compiledModel().model.clone(), refused);
+  assert.throws(() => new Scene(() => Promise.reject(new Error('no load'))).clone(), refused);
 });
