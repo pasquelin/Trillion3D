@@ -1,9 +1,6 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
-import {
-  previewAtlasOf,
-  previewIsWhole,
-  type TexturePreview,
-} from '../../../../sdk-core/src/index.ts';
+import { previewIsWhole, type TexturePreview } from '../../../../sdk-core/src/index.ts';
+import { previewAtlasOf } from '../../../../sdk-core/src/texture/previewFormat.ts';
 import { WHITE_TAIL, type PoolEncoding } from '../../texture/blockFormats.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import { tileLayout } from '../../texture/tiles.ts';

@@ -114,7 +114,9 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         });
         // A MASK cutoff at or under 0 cuts nothing: the engine draws it opaque
         // (`alphaTest > 0`, `collectWebgpuMaterialTextures`), the RGB under alpha 0 included.
-        let coverage = !opaque && cutoff.is_none_or(|c| c > 0.0);
+        // So does a mode glTF does not name, which the material table writes `OPAQUE`
+        // (`compiler_tables/materials.rs`): only BLEND and a cutting MASK take coverage.
+        let coverage = mode == Some("BLEND") || cutoff.is_some_and(|c| c > 0.0);
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
