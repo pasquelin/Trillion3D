@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { profileWindow } from '../site/examples/kit/profile.ts';
+import { profileWindow, workerStep } from '../site/examples/kit/profile.ts';
 import { physicsStageReading } from './physics-stage.ts';
 
 const step = (p50: number, p95: number) => ({ p50, p95 });
@@ -15,6 +15,14 @@ test('a profile window carries the physics stage and the worker step, p50 and p9
   const unmeasured = profileWindow([16], [], { steps: { physicsMs: step(NaN, NaN) } });
   assert.equal(unmeasured.physicsMs, null);
   assert.equal(unmeasured.workerStepMs, null);
+});
+
+test("a frame reads the worker's slowest step of the tick, not its mean, and nothing while off", () => {
+  const stats = { stepMs: 9, stepMaxMs: 31 };
+  const onFrame = () => {};
+  assert.equal(workerStep({ onFrame, physics: { enabled: true, stats } }), 31);
+  assert.equal(workerStep({ onFrame, physics: { enabled: false, stats } }), null);
+  assert.equal(workerStep({ onFrame }), null);
 });
 
 test('the reading takes the median p50 and p95 over the windows, the worst p95 and the fps', () => {

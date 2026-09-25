@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, seeded, stats } from '../runtime/kit.js';
+      import { controls, profiling, readout, seeded, stats } from '../runtime/kit.js';
 
       // A stress test of the physics: ten thousand boxes fall at once, every one of them a body
       // simulated by Jolt in a worker. The panel shows what it costs, live, on both threads.
@@ -67,9 +67,9 @@
         step(`${s.stepMs.toFixed(2)} ms`);
         page(`${s.mainMs.toFixed(2)} ms`);
       });
-      // The frame rate in the corner; under `?profile`, each second's `physics` stage and worker
-      // step, p50 / p95, kept as `window.__profile` for the proof (`scripts/physics-stage.browser.ts`).
-      stats(world);
+      // Under `?profile` only, the stats corner: each second's `physics` stage and worker step,
+      // p50 / p95, kept as `window.__profile` for the proof (`scripts/physics-stage.browser.ts`).
+      if (profiling()) stats(world);
     </script>
   </body>
 </html>

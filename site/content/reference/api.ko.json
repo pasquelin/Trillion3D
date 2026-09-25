@@ -7094,6 +7094,7 @@
       "bodies": "시뮬레이션이 가진 물체.",
       "active": "마지막 tick 이후 활성 물체.",
       "stepMs": "고정 스텝당 worker 밀리초, 마지막 tick: worker 자신의 시계이며 페이지 시계와 더하지 않습니다.",
+      "stepMaxMs": "마지막 tick에서 가장 느린 고정 스텝의 worker 밀리초: 평균이 가리는 느린 스텝.",
       "mainMs": "마지막 프레임에서 물리가 쓴 페이지 밀리초(CPU 단계 `physics`).",
       "poses": "마지막 tick이 돌려준 자세.",
       "events": "마지막 tick이 돌려준 접촉 이벤트.",
