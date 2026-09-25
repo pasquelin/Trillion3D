@@ -119,13 +119,11 @@
         lights: [helper.directionalLight(sun, 0.8), helper.spotLight(spot), helper.pointLight(bulb, 0.3), helper.hemisphereLight(sky, 0.5)],
         camera: [helper.camera(filming)],
       };
-      // A line is drawn as a thin prism, as thick as a share of its own size: each helper's width
-      // is set so that every line, a short arrow or the whole grid, reads about as thick.
+      // A line's width is in pixels, the same near and far: every helper, a short arrow or the
+      // whole grid, draws two pixels wide.
       for (const mark of Object.values(families).flat()) {
         mark.traverse((node) => {
-          if (node.primitive !== 'lineSegments') return;
-          node.geometry.computeBoundingBox();
-          node.material.linewidth = (0.018 * 1024) / (node.geometry.boundingBox.getSize(math.vector3()).length() || 1);
+          if (node.primitive === 'lineSegments') node.material.linewidth = 2;
         });
         mark.visible = false;
         world.scene.add(mark);
