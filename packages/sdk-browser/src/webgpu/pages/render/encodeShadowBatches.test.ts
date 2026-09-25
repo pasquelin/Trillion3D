@@ -58,7 +58,7 @@ test('a batch that cannot be encoded leaves its pages and the rest pending, none
 test('a frame draws at most the batches its memory holds, the rest pending', () => {
   const { rt, lights, pages } = frame(64);
   assert.ok(pages > MAX_SHADOW_BATCHES, `${pages} pages, more than the batches`);
-  lights.plan.admission.batchEnd = (_pool, from) => from + 1;
+  lights.plan.admission.batchEnd = (from) => from + 1;
   let batches = 0;
   const drawn = forEachShadowBatch(rt, () => {
     batches++;
@@ -95,4 +95,36 @@ test('the batch composed last is not composed again in its image, any other is',
   lights.plannedFrame = 2;
   writeShadowPages(lights, VIEW.position, 0, MAX_SHADOW_PAGES);
   assert.equal(written, again + first, 'the next image composes it anew');
+});
+
+// At the cap, the pages past the last batch are pending: the next frame resumes where this one
+// stopped (`admit.ts`), so a view late in the list is not beaten every frame by the views ahead of
+// it re-marked meanwhile. 64 suns turning every frame re-mark every floor page every frame; batches
+// of one page (the smallest a bisected view limit leaves) hold fewer pages than the frame marks.
+test('at the cap, every sun turning every frame is drawn within the bound, none starved', () => {
+  const { rt, lights, pages } = frame(64);
+  const { plan, store } = lights;
+  assert.ok(pages > MAX_SHADOW_BATCHES, `${pages} pages, more than the batches`);
+  const batchEnd = plan.admission.batchEnd;
+  plan.admission.batchEnd = (from) => batchEnd(from, 1, 1);
+  const bound = Math.ceil(plan.pool.pages / MAX_SHADOW_BATCHES);
+  const lastDrawn = new Int32Array(store.count).fill(1);
+  for (let f = 2; f < 2 + 3 * bound; f++) {
+    for (let k = 0; k < store.count; k++)
+      store.set(`sun${k}`, { direction: [k / 10 + f / 1000, -1, 0] });
+    plan.plan(store, VIEW, [-50, 0, -50], [50, 10, 50], f, f * 16);
+    const drawn = forEachShadowBatch(rt, (from, to) => {
+      for (let i = from; i < to; i++) {
+        const slice = plan.pool.slice[plan.admission.list[i]];
+        for (let slot = 0; slot < store.count; slot++)
+          if (store.sliceOf(slot) === slice) lastDrawn[slot] = f;
+      }
+      plan.commit(undefined, from, to);
+      lights.runs.reset();
+      return true;
+    });
+    if (drawn < plan.admission.count) plan.reissue(drawn);
+    for (let slot = 0; slot < store.count; slot++)
+      assert.ok(f - lastDrawn[slot] < bound, `sun ${slot} undrawn since frame ${lastDrawn[slot]}`);
+  }
 });

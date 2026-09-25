@@ -16,7 +16,7 @@ test('a frame lists its pages view by view, and cuts them in batches its buffers
     [0, 0, 0, 0, 1, 1, 1, 1],
     'the pages of one view together',
   );
-  assert.equal(admission.batchEnd(pool, 0, 24, 1), 4, 'one view a batch: its four pages');
-  assert.equal(admission.batchEnd(pool, 4, 24, 1), 8, 'then the next view');
-  assert.equal(admission.batchEnd(pool, 0, 3, 2), 3, 'three pages a batch');
+  assert.equal(admission.batchEnd(0, 24, 1), 4, 'one view a batch: its four pages');
+  assert.equal(admission.batchEnd(4, 24, 1), 8, 'then the next view');
+  assert.equal(admission.batchEnd(0, 3, 2), 3, 'three pages a batch');
 });

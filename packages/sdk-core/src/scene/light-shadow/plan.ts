@@ -173,7 +173,7 @@ export function createShadowPlan(poolSide: number) {
      *  drawn by the next frame. */
     reissue(from = 0) {
       counts.pendingPages = Math.max(0, admission.count - from);
-      admission.reset();
+      admission.reset(from);
     },
     /** Starts over. */
     reset() {

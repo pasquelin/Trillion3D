@@ -1,5 +1,4 @@
 import { LIGHT_KIND, SHADOW_CULL_FLOATS, writeFace } from '../../../../sdk-core/src/index.ts';
-import { viewKeyOf } from '../../../../sdk-core/src/scene/light-shadow/admit.ts';
 import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
@@ -118,12 +117,12 @@ export function writeShadowPages(
   if (!shadows || !cull) return 0;
   const slots = lights.shadowSlots,
     pixelError = lights.shadowPixelError;
-  const list = admission.list;
+  const { list, keys } = admission;
   let open = -1;
   for (let i = from; i < to; i++) {
     const page = list[i],
       region = regions.count;
-    const fresh = open < 0 || viewKeyOf(pool, page) !== viewKeyOf(pool, list[open]);
+    const fresh = open < 0 || keys[i] !== keys[open];
     if (fresh && open >= 0) close(lights, slots, open, i, origin, pixelError);
     const { light, near } = composePage(lights, slots, page, region);
     const mode = (pageModes[i - from] = pool.drawMode(page, !!lights.staticLayer));

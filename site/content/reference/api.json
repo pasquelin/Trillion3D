@@ -14043,7 +14043,7 @@
       },
       {
         "name": "admission",
-        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; run(pool: ShadowPool, table: ShadowTable, latest: number): number; batchEnd(pool: ShadowPool, from: ...",
+        "type": "{ list: Int32Array<ArrayBuffer>; keys: Int32Array<ArrayBuffer>; readonly count: number; run(pool: ShadowPool, table: ShadowTable, latest: number): number; ba...",
         "desc": "This frame's pages, light view by light view."
       },
       {

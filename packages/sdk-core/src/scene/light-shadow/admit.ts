@@ -4,8 +4,7 @@ import { ringOf } from './virtual.ts';
 
 /** The light view a page is drawn in — its light, then its sun level or lamp face and mip: the
  *  pages of one view share one caster selection. */
-export const viewKeyOf = (pool: ShadowPool, page: number) =>
-  pool.slice[page] * 4096 + pool.view[page];
+const viewKeyOf = (pool: ShadowPool, page: number) => pool.slice[page] * 4096 + pool.view[page];
 
 /**
  * THE PAGES A FRAME DRAWS: every stale page the latest request report named — what the image
@@ -22,14 +21,27 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * The list holds the pages light view by light view, each view's pages in page order: what the
  * light cut selects casters for once. The GPU draws it in the batches its buffers hold
  * (`batchEnd`), every batch in the frame. All arrays are allocated once.
+ *
+ * NO PAGE WAITS FOREVER. A frame that cannot draw the whole list — its batches past the most its
+ * memory holds, a batch that cannot be encoded — stops at a page (`reset(stopped)`), and the next
+ * list starts at that page's place in the order and wraps around: the pages it left pending come
+ * first, and views re-marked every frame ahead of them in the order cannot beat them every frame.
+ * A frame draws at least one page per batch, so while the pool's pages keep their views a page
+ * that stays read is drawn within ⌈pool pages / batches a frame draws⌉ frames of being listed:
+ * ⌈4096 / 171⌉ = 24 for the largest pool (`MAX_SHADOW_BATCHES`), when every batch holds one page.
  */
 export function createShadowAdmission(poolPages: number) {
   const list = new Int32Array(poolPages),
+    /** The light view of each listed page (`viewKeyOf`), read by the batch cut and the runs. */
+    keys = new Int32Array(poolPages),
     /** One exact sort key per admitted page: its view, then the page itself. */
     order = new Float64Array(poolPages);
-  let count = 0;
+  let count = 0,
+    /** The sort key the next list starts at: the first page the last frame left undrawn. */
+    resume = -Infinity;
   return {
     list,
+    keys,
     get count() {
       return count;
     },
@@ -42,28 +54,33 @@ export function createShadowAdmission(poolPages: number) {
         else order[count++] = viewKeyOf(pool, page) * poolPages + page;
       }
       order.subarray(0, count).sort();
-      // A sun level may be negative: the page is the key's remainder, taken positive.
-      for (let i = 0; i < count; i++) list[i] = ringOf(order[i], poolPages);
+      let start = 0;
+      while (start < count && order[start] < resume) start++;
+      if (start === count) start = 0;
+      for (let i = 0, at = start; i < count; i++, at = at + 1 === count ? 0 : at + 1) {
+        // A sun level may be negative: the page is the key's remainder, taken positive.
+        list[i] = ringOf(order[at], poolPages);
+        keys[i] = (order[at] - list[i]) / poolPages;
+      }
       return count;
     },
     /**
      * End of the batch that starts at `from`: at most `pages` pages, in at most `views` light
      * views — what the GPU's buffers and one light cut hold. A view may span two batches.
      */
-    batchEnd(pool: ShadowPool, from: number, pages: number, views: number) {
+    batchEnd(from: number, pages: number, views: number) {
       let opened = 0,
-        last = -1,
         to = from;
       for (; to < count && to - from < Math.max(1, pages); to++) {
-        const key = viewKeyOf(pool, list[to]);
-        if (key === last) continue;
+        if (to > from && keys[to] === keys[to - 1]) continue;
         if (opened >= Math.max(1, views)) break;
         opened++;
-        last = key;
       }
       return to;
     },
-    reset() {
+    /** Closes the list. The frame drew it up to `stopped`: the next list starts at that page. */
+    reset(stopped = count) {
+      resume = stopped < count ? keys[stopped] * poolPages + list[stopped] : -Infinity;
       count = 0;
     },
   };
