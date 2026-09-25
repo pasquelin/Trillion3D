@@ -54,28 +54,11 @@ test("the compiled observatory decodes each plinth's corners within 1e-4 m of th
   assert.ok(pointer, 'the observatory cache is compiled (pnpm run compile:caches)');
   const { dir, manifest } = readCacheManifest(fileURLToPath(new URL(dirname(pointer), root)));
   const out = new Float64Array(found.length * 24);
-  found.forEach(
-    (
-      {
-        block: {
-          center: [x, y, z],
-          size: [w, h, d],
-        },
-      },
-      n,
-    ) =>
-      boxCornersInto(
-        out,
-        n * 24,
-        x - w / 2,
-        y - h / 2,
-        z - d / 2,
-        x + w / 2,
-        y + h / 2,
-        z + d / 2,
-        IDENTITY_MATRIX4,
-      ),
-  );
+  found.forEach(({ block: { center, size } }, n) => {
+    const [minX, minY, minZ] = center.map((c, axis) => c - size[axis] / 2);
+    const [maxX, maxY, maxZ] = center.map((c, axis) => c + size[axis] / 2);
+    boxCornersInto(out, n * 24, minX, minY, minZ, maxX, maxY, maxZ, IDENTITY_MATRIX4);
+  });
   const corners = Array.from({ length: out.length / 3 }, (_, i) => [
     ...out.subarray(i * 3, i * 3 + 3),
   ]);
@@ -85,7 +68,7 @@ test("the compiled observatory decodes each plinth's corners within 1e-4 m of th
   const positions = manifest.primitives
     .flatMap((primitive) => primitive.pages)
     .flatMap((page) =>
-      page.role === 'exact' && page.geometry && holds(page.min, page.max)
+      page.role !== 'coarse' && page.geometry && holds(page.min, page.max)
         ? [decodeGeometryPage(new Uint8Array(readFileSync(join(dir, page.geometry.url))))]
         : [],
     )
