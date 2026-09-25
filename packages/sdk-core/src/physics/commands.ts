@@ -4,7 +4,6 @@ import {
   JOINT_WORDS,
   OP,
   PART_WORDS,
-  RESTORE_WORDS,
   VIEW_WORDS,
   type SHAPE,
 } from './layout.ts';
@@ -66,11 +65,17 @@ export class CommandWriter {
   private op(op: number, index: number, values: ArrayLike<number>) {
     this.put([op, index], values);
   }
-  /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`). */
-  put(words: readonly number[], floats: ArrayLike<number>) {
-    this.reserve(words.length + floats.length);
+  /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`), then bytes padded
+   *  with zeros to whole words (a cooked shape's or soft body's Jolt binary state). */
+  put(words: readonly number[], floats: ArrayLike<number>, bytes?: Uint8Array) {
+    const padded = Math.ceil((bytes?.length ?? 0) / 4);
+    this.reserve(words.length + floats.length + padded);
     for (const word of words) this.words[this.length++] = word >>> 0;
     for (let i = 0; i < floats.length; i++) this.floats[this.length++] = floats[i];
+    if (!bytes?.length) return;
+    this.words[this.length + padded - 1] = 0;
+    new Uint8Array(this.words.buffer).set(bytes, this.length * 4);
+    this.length += padded;
   }
   /** Creates a body. */
   add(body: BodyRecord) {
@@ -133,12 +138,7 @@ export class CommandWriter {
   }
   /** Restores a cooked shape's Jolt binary state under `handle`, for the ADDs that follow. */
   restore(handle: number, bytes: Uint8Array) {
-    const words = Math.ceil(bytes.length / 4);
-    this.reserve(RESTORE_WORDS + words);
-    this.words.set([OP.restore, handle, bytes.length], this.length);
-    this.words[this.length + RESTORE_WORDS + words - 1] = 0;
-    new Uint8Array(this.words.buffer).set(bytes, (this.length + RESTORE_WORDS) * 4);
-    this.length += RESTORE_WORDS + words;
+    this.put([OP.restore, handle, bytes.length], [], bytes);
   }
   /** Drops a restored shape's handle; the bodies built from it keep the shape. */
   release(handle: number) {
