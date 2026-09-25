@@ -120,5 +120,7 @@ export function readCookedPhysics(file: unknown, jolt = JOLT_COMMIT): CookedPhys
     );
   if (!Array.isArray(cooked.colliders) || !Array.isArray(cooked.instances))
     throw new EngineError('PHYSICS_FORMAT', 'physics.json lists no colliders or instances.');
+  if (cooked.softBodies !== undefined && !Array.isArray(cooked.softBodies))
+    throw new EngineError('PHYSICS_FORMAT', 'physics.json softBodies is no list.');
   return cooked as CookedPhysics;
 }

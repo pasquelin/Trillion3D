@@ -96,6 +96,26 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
   assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
 
+test('a model rescaled while its cooked cloth’s settings arrive has it refused by name', async () => {
+  const { model, writer, bodies } = await opened();
+  const errors: { code: string }[] = [];
+  const softs = createCookedSoftBodies(
+    writer,
+    bodies,
+    () => {},
+    (e) => errors.push(e),
+  );
+  softs.open(model, [cookedCloth(1)]);
+  model.scale.setScalar(2);
+  model.updateMatrixWorld(true);
+  await landed();
+  assert.deepEqual(
+    errors.map((e) => e.code),
+    ['PHYSICS_FAILED'],
+  );
+  assert.equal(bodies.count.softVertices, 9, 'the streamer’s cloth alone');
+});
+
 test('a cooked soft body past the budget, or its model scaled from its cook, is refused by name', async () => {
   const over = await opened(8);
   assert.deepEqual(
