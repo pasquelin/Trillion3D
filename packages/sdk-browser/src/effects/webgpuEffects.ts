@@ -38,14 +38,11 @@ export const WEBGPU_KINDS: { [K in EffectKind]: (device: GPUDevice) => Promise<K
  * `rgba16float` target the next one reads, two in turn at most; each kind keeps its own resources.
  * Nothing exists before the first frame with a pass: the targets are made then, at the image's
  * size, and follow it; a kind's programs compile in the background at its first pass, and until
- * every kind of the chain is ready the image is drawn without the chain and says it is not settled
- * (`loading`). `ready` is called when a kind arrives, so the image is drawn again; `failed` when
- * one cannot be made, and the image stays without the chain.
+ * every kind of the chain is ready the image is drawn without the chain (`loading`), which its
+ * caller draws again rather than hold. `fail` is called when one cannot be made, and the image
+ * stays without the chain.
  */
-export function createWebgpuEffects(
-  device: GPUDevice,
-  events: { ready(): void; failed(error: unknown): void },
-) {
+export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) => void) {
   const made: Partial<Kinds> = {},
     pending = new Map<EffectKind, Promise<void>>(),
     counts = {} as Record<EffectKind, number>,
@@ -65,13 +62,12 @@ export function createWebgpuEffects(
         if (disposed) return implementation.dispose();
         made[kind] = implementation;
         pending.delete(kind);
-        events.ready();
       },
       (error) => {
         if (disposed) return;
         failed = true;
         pending.delete(kind);
-        events.failed(error);
+        fail(error);
       },
     );
     pending.set(kind, loaded);

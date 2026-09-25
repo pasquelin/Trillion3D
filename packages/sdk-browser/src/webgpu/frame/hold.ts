@@ -3,7 +3,7 @@ import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
-import { effectsLoading, effectsMoved } from '../pages/render/encodeEffects.ts';
+import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
 import { shadowPoolPending } from '../shadow/poolSize.ts';
 
@@ -26,7 +26,6 @@ const REASONS = [
   'shadowsPending',
   'cutPending',
   'bounceProbes',
-  'effects',
 ] as const;
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -83,8 +82,6 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // Bounce-light probes converge from frame to frame: their state is written by no revision, and
   // a held frame would freeze it before convergence.
   if (bounce.probes) mask |= BIT.bounceProbes;
-  // A chain whose programs still compile will be drawn by a later image.
-  if (effectsLoading(rt)) mask |= BIT.effects;
   return mask;
 }
 
@@ -154,8 +151,8 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
     const quiet = run.gate.held() && unsettledMask(rt) === 0;
     beginTaaFrame(rt, run.gate.cam, quiet);
-    // Guides or an effect chain the page changed are drawn by a full image; the accumulation
-    // stays still for it.
+    // Guides or an effect chain the page changed, or a chain the last image lacked while its
+    // programs compiled, are drawn by a full image; the accumulation stays still for it.
     if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt)) {
       run.frameHeld = false;
       return false;
