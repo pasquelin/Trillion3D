@@ -49,7 +49,7 @@ export async function captureColorView(
     viewport[1] = size.height;
     resetHizHistory(run);
     restartCameraMotion(run.motion);
-    await renderForCapture(rt, gpuDevice, camera, size.width / size.height);
+    await renderForCapture(rt, camera, size.width / size.height);
     await drawResidentCut(rt, gpuDevice);
     if (!gpu.colorTexture) throw new Error('CAPTURE_NOT_READY');
     pixels = await readGpuImage(

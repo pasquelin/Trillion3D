@@ -99,24 +99,21 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
 
 test('one error scope is open per device: a build that awaits holds the next session back', async () => {
   const gpu = mockGpu();
-  const first = claimGpuDevice(gpu.device, deviceOwner()).device,
-    second = claimGpuDevice(gpu.device, deviceOwner()).device;
-  const gate = () => {
-    let open = () => {};
-    return { opened: new Promise<void>((resolve) => (open = resolve)), open: () => open() };
-  };
-  const [compiled, raised, finished] = [gate(), gate(), gate()];
+  const [first, second] = [0, 1].map(() => claimGpuDevice(gpu.device, deviceOwner()).device);
+  let raise = () => {},
+    finish = () => {};
+  const raised = new Promise<void>((resolve) => (raise = resolve)),
+    finished = new Promise<void>((resolve) => (finish = resolve));
   // The first build is refused while the second's is open, then goes on compiling.
   const refused = validationScope(first, async () => {
-    await compiled.opened;
+    await Promise.resolve();
     gpu.raise('Out of memory');
-    raised.open();
-    await finished.opened;
+    raise();
+    await finished;
   });
-  const made = validationScope(second, async () => (await raised.opened, 'made'));
-  compiled.open();
-  await raised.opened;
-  finished.open();
+  const made = validationScope(second, async () => (await raised, 'made'));
+  await raised;
+  finish();
   assert.equal((await made).error, null, "the second scope never takes the first one's error");
   assert.ok((await refused).error, 'the first keeps its own');
 });
