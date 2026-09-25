@@ -165,12 +165,20 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       const write = 1 - read;
       const pass = encoder.beginRenderPass({
         label: TAA_PASS,
-        colorAttachments: [images[write].color, images[write].share].map((view) => ({
-          view,
-          loadOp: 'clear' as const,
-          storeOp: 'store' as const,
-          clearValue: [0, 0, 0, 0],
-        })),
+        colorAttachments: [
+          {
+            view: images[write].color,
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: [0, 0, 0, 0],
+          },
+          {
+            view: images[write].share,
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: [0, 0, 0, 0],
+          },
+        ],
       });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, groups[read]!);

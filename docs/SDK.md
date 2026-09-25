@@ -1078,16 +1078,14 @@ Frame targets are **not** budgeted: colour, depth, visibility, HDR, material sur
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
 Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`).
 
-Out of memory on the frame targets is absorbed too. They are made under the same out-of-memory
-check as the pools, at prepare and whenever the view's size changes, before a frame draws with
-them. The set in place is released first, so a resize never holds two sets at once, and the
-frames are held meanwhile with nothing presented: the canvas keeps the previous image, and a
-capture waits for the answer. When the device refuses them, Hi-Z goes first, since its absence
-changes no image (`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`), and they are
-asked again. Refused even then, they are refused by name, never reported as a lost device: a
-`frame-targets-refused` error (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason:
-'gpu-out-of-memory'`, the size and `requestedBytes`); the frames stay held on the previous image
-until the size changes. Prepare, a capture and the view a capture restores reject with the code.
+Out of memory on the frame targets is absorbed too: they are made under the pools' out-of-memory
+check, at prepare and when the view's size changes, and the frames are held meanwhile with nothing
+presented, so the canvas keeps the previous image; a capture waits. When the device refuses them,
+Hi-Z goes first, for the rest of the session: its absence costs time, never image
+(`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`). Refused even then, the
+visibility targets included, they are refused by name and the mode is kept, never a lost device:
+`frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason: 'gpu-out-of-memory'`, the
+size, `requestedBytes`); prepare, a capture and its restore reject with the code.
 How the pools are laid out, filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
 
 ## Captures and image checks

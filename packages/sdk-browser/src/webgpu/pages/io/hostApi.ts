@@ -58,9 +58,14 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (capture.capturedPixels && capture.capturedRevision === run.imageRevision)
     return capture.capturedPixels;
-  // Targets not granted yet hold no image: presenting them would blank the canvas.
-  const busy = capture.capturing || frameTargetsAwaited(rt);
-  if (!gpu.presenter || !gpuDevice || !gpu.colorTexture || busy)
+  // Targets not granted hold no image: presenting them would blank the canvas.
+  if (
+    !gpu.presenter ||
+    !gpuDevice ||
+    !gpu.colorTexture ||
+    capture.capturing ||
+    frameTargetsAwaited(rt)
+  )
     throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
   const encoder = gpuDevice.createCommandEncoder();
   gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);
