@@ -6,7 +6,7 @@ import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import type { SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
 import { createCharacterDriver } from './characterDriver.ts';
-import { addSoft, settle, softWorld } from './soft.fixture.ts';
+import { addBox, addSoft, FLAT, settle, softWorld, stepBox } from './soft.fixture.ts';
 
 /** The human character walking east from the origin for 3 s at a soft body placed at `position`
  *  and turned by `quaternion`: each step's feet, `x, z`. */
@@ -48,4 +48,23 @@ test('the character never walks through a soft body: a volume turns it aside, a 
     curtain,
   );
   assert.ok(Math.max(...stopped.map(([x]) => x)) < 2 - reach + 0.05, 'stopped before the cloth');
+});
+
+test('a rigid body four times heavier than the cloth it lands on is held by it, not pushed through', async () => {
+  // A 1 m cloth of 0.2 kg pinned at its corners, 1 m above the floor; a 0.2 m box dropped on it.
+  const drop = async (mass: number) => {
+    const jolt = await softWorld();
+    const corners = [0, 10, 110, 120];
+    addSoft(jolt, plane(1, 1, 10, 10), { type: 'cloth', pins: corners }, [0, 1, 0], {
+      quaternion: FLAT,
+    });
+    addBox(jolt, mass, 1.5);
+    let y = 1.5;
+    for (let s = 0; s < 180; s++) y = stepBox(jolt, y);
+    return y;
+  };
+  for (const mass of [0.16, 0.8, 8]) {
+    const y = await drop(mass);
+    assert.ok(y > 0.75, `a box of ${mass} kg rests at ${y} m, in the cloth`);
+  }
 });

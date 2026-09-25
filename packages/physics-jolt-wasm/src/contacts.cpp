@@ -1,19 +1,14 @@
 // Contact events: the pairs a body touches, their enters and leaves in the event buffer, and the
 // bodies Jolt puts to sleep. Jolt calls the listener from its jobs, on every pool thread at once.
-#include "binding.h"
+#include "contacts.h"
 
 using namespace JPH;
 
 namespace trillion {
 
-namespace {
-
 uint64_t pairKey(uint32_t a, uint32_t b) {
   return a < b ? (uint64_t(a) << 32) | b : (uint64_t(b) << 32) | a;
 }
-
-/// Set on a pair's count once its enter reached the event buffer: only then is a leave owed.
-constexpr uint32_t ENTERED = 0x80000000u;
 
 bool pushEvent(uint32_t type, uint32_t a, uint32_t b, float impulse, Vec3 point) {
   World &w = world();
@@ -31,7 +26,6 @@ bool pushEvent(uint32_t type, uint32_t a, uint32_t b, float impulse, Vec3 point)
   return true;
 }
 
-/// A leave the buffer cannot take waits for the next step: an enter the page saw always ends.
 void pushLeave(uint64_t key) {
   if (!pushEvent(2, uint32_t(key >> 32), uint32_t(key), 0.0f, Vec3::sZero()))
     world().leaving.push_back(key);
@@ -41,15 +35,11 @@ bool wantsEvents(uint32_t engine) {
   return (world().slots[engine & INDEX_MASK].flags & EVENTS) != 0;
 }
 
-/// The engine id of a body a contact names, or `~0u` when that body was removed since.
 uint32_t live(const BodyID &id) {
   uint32_t engine = world().engineOf[id.GetIndex()];
   const Slot &slot = world().slots[engine & INDEX_MASK];
   return slot.used && slot.id == id ? engine : ~0u;
 }
-
-
-}  // namespace
 
 void sendOwedLeaves() {
   std::vector<uint64_t> owed;
