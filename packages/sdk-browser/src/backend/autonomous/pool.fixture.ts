@@ -42,10 +42,8 @@ export function fixture(
     maxResidentPages: options.maxResidentPages,
     descriptors,
     rootUrls,
-    rootError: 0,
     copies,
     coverRevision: () => revision,
-    viewRevision: () => 0,
     state,
     floorBytes: () => {
       rootReads++;
