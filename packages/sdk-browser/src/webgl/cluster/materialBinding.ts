@@ -89,6 +89,7 @@ export function bindClusterMaterial(
     mat.roughnessMap === mat.metalnessMap &&
     mat.roughnessMap.channel === mat.metalnessMap.channel;
   let mapMask = 0;
+  textures.file(material);
   for (let unit = 0; unit < MAPS.length; unit++) {
     const texture = MAPS[unit] === 'aoMap' ? aoMap : mat[MAPS[unit]];
     if (texture) mapMask |= 1 << unit;

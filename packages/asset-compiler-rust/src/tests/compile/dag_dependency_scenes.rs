@@ -98,9 +98,22 @@ fn every_bundle_lists_a_closure_that_reaches_the_root_cover_within_the_published
     fs::remove_dir_all(root).expect("cleanup");
 }
 
+/// A committed site scene, cooked.
+pub(super) struct SiteScene {
+    /// The fixture's folder, removed by the caller.
+    pub root: PathBuf,
+    /// Where the cooked pages are.
+    pub objects: PathBuf,
+    /// The source document and its buffer.
+    pub gltf: Value,
+    pub bin: Vec<u8>,
+    /// What the compiler returned.
+    pub result: Value,
+}
+
 /// Cooks a committed glTF whose one buffer is `<tag>.bin`, found under `folder` from the
-/// repository root, and checks every streamed primitive; returns the bundles past the root cover.
-fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
+/// repository root.
+pub(super) fn cook_site_scene(folder: &str, gltf: &str, tag: &str) -> SiteScene {
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(folder);
@@ -110,6 +123,20 @@ fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
     let (root, mut options) = gltf_fixture(tag, &document, &bin);
     options.texture_formats = Vec::new();
     let result = compile(&options, |_| {}).expect("compile");
+    let objects = options.cache.join("native/objects");
+    SiteScene {
+        root,
+        objects,
+        gltf: document,
+        bin,
+        result,
+    }
+}
+
+/// Checks every streamed primitive of a site scene (`cook_site_scene`); returns the bundles past
+/// the root cover.
+fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
+    let SiteScene { root, result, .. } = cook_site_scene(folder, gltf, tag);
     let past_roots = result["primitives"]
         .as_array()
         .expect("primitives")

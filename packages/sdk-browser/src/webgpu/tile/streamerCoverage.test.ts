@@ -1,8 +1,5 @@
-// #42: a hosted colour texture's chain follows its readers' coverage rule after prepare. A host
-// that switches a surface from masked to opaque sees the texture reduced again, plain, and copied
-// into its places at the next image's follow — signalled as a landed tile, its working texture
-// returned —, with no new prepare; a still rule reduces nothing, and a picture that moves in the
-// same image is reduced once.
+// #42: a hosted map follows its readers' coverage rule after prepare: reduced again and copied at
+// the next image's follow, with no new prepare; a still rule reduces nothing, a moved picture once.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './streamer.ts';
@@ -18,22 +15,20 @@ import * as G from '../../host/graph/graph.fixture.ts';
 
 test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
   installGpuGlobals();
-  const host = G.dataTexture(new Uint8Array(4 * 4 * 4), 4, 4);
+  const host = G.dataTexture(new Uint8Array(64), 4, 4);
   host.generateMipmaps = true;
   const material = G.standardSurface({ map: host, alphaTest: 0.5 });
   const readers = new CoverageReaders();
   readers.read(surfaceOf(material));
-  const map = importHostTexture(host as unknown as HostTexture);
-  const encoding = poolEncoding(undefined);
-  const color = tileCatalogue([map], () => undefined, undefined, encoding, readers);
-  const data = tileCatalogue([], () => undefined, undefined, encoding);
+  const map = importHostTexture(host as unknown as HostTexture),
+    encoding = poolEncoding(undefined);
   const { device, renderPipelines, textures: made } = mockGpu();
   const signalled: number[][] = [];
   const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 };
   const textures = createWebgpuTileStreamer({
     device,
-    color,
-    data,
+    color: tileCatalogue([map], () => undefined, undefined, encoding, readers),
+    data: tileCatalogue([], () => undefined, undefined, encoding),
     layers: { color: lossless, data: lossless },
     encoding,
     budgetBytes: Number.MAX_SAFE_INTEGER,
