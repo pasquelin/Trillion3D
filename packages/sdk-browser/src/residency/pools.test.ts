@@ -90,5 +90,6 @@ test('geometry held beside the slots is paid from the budget first, down to the 
     assert.equal(drawn.slots, Math.floor((budget - 48) / 2848));
     assert.equal(drawn.budgetBytes, budget, 'the budget recorded is the one declared');
   }
-  assert.deepEqual([pool(100, 400).slots, pool(100, 400).clamp], [4, 'root-cover']);
+  const raised = pool(100, 400);
+  assert.deepEqual([raised.slots, raised.clamp], [4, 'root-cover']);
 });

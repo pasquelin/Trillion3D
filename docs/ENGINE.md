@@ -581,9 +581,10 @@ coarsest first, and the surface of what it leaves out is drawn by its nearest re
 asks for more than the slots hold.
 
 The geometry pool's slots are drawn from what its budget leaves the vertex buffers held beside
-them (`heldBytes` in `residency/pools.ts`, read by `webgpu/pages/prepare/cache.ts`), at prepare
-once those buffers are allocated and at every resize: the slots and those buffers never sum past
-the budget. A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
+them (`heldBytes` in `residency/pools.ts`, `geometryPoolDrawer` in `webgpu/pages/io/memory.ts`),
+at prepare once those buffers are allocated and at every resize: the slots and those buffers never
+sum past the budget. A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU
+into the new pool —
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
 rebuilds every bind group that named the old pool on the next image. At prepare a pool is allocated
 once, under an out-of-memory error scope; at a resize, where the old pool lives until the copy, the
