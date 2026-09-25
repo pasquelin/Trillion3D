@@ -5,13 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dot } from '../../../../sdk-core/src/math/projectionOracles.ts';
-import {
-  RESTATED,
-  SHADOW_WGSL,
-  pointLampOver,
-  sunOverProfile,
-  type Face,
-} from './shadowBias.fixture.ts';
+import { RESTATED, SHADOW_WGSL, sunOverProfile, type Face } from './shadowBias.fixture.ts';
+import { lampAt, lampOver } from './shadowLamp.fixture.ts';
 import { SPLIT } from './shadowPages.fixture.ts';
 
 const ZENITHS = [0.3, Math.PI / 4, 1.1, 1.4];
@@ -40,6 +35,17 @@ test('a plane shades no point of itself, at any slope and any texel', () => {
           `${tilt} ${zenith} ${texel}`,
         );
       }
+});
+
+test('a plane facing the sun stays clean under the depth format’s rounding', () => {
+  // A floor read at texels of a quarter and a sixtieth of a millimetre in a map 4 km deep: half a
+  // texel is under the depth's float32 step there, and only the rounding floor keeps it lit.
+  const floor: Face = { from: [-0.01, 0], to: [0.01, 0], normal: [0, 1] };
+  for (const zenith of [0, 0.3, Math.PI / 4])
+    for (const texel of [2 ** -12, 2 ** -16]) {
+      const read = sunOverProfile([floor], zenith, texel, 4096);
+      assert.deepEqual(new Set(samplesAlong(read, 0)), new Set([1]), `${zenith} ${texel}`);
+    }
 });
 
 test('two parallel faces 1 cm apart: the upper one is clean, the lower one keeps its shadow', () => {
@@ -98,30 +104,31 @@ test('a receiver turned from the light keeps the shadow of a caster above it', (
     }
 });
 
-test('a plane off a lamp face’s axis shades no point of itself', () => {
-  // Facing the light or turned from it up to grazing, anywhere in the bottom face: the depth
-  // along the face's axis changes across the face even where the plane faces the light.
+test('a plane off a point light’s or a spot’s axis shades no point of itself', () => {
+  // Facing the light or turned from it up to grazing, anywhere in the bottom face or in a wide
+  // spot's: the depth along the face's axis changes across it even where the plane faces the light.
   const light = [0, 2, 0];
-  for (const [a, b] of [
-    [0, 0],
-    [0.4, 0.5],
-    [0.7, 0.95],
-    [0.95, 0.95],
-  ])
-    for (const tilt of [0, 0.5, 1, 1.45]) {
-      // The normal turned by `tilt` from the light, toward a direction across the ray.
-      const ray = [a, -1, b].map((v) => v / Math.hypot(a, 1, b));
-      const P = ray.map((v, i) => light[i] + 3 * v),
-        across = [1, 0, 0.3].map((v, i) => v - (ray[0] + 0.3 * ray[2]) * ray[i]);
-      const normal = ray.map(
-        (v, i) => -Math.cos(tilt) * v + (Math.sin(tilt) * across[i]) / Math.hypot(...across),
-      );
-      const read = pointLampOver(light, [{ at: P, normal }]);
-      for (let k = 0; k < 20; k++) {
-        const step = [1.3e-4 * k, 0, 7e-5 * k],
-          off = dot(step, normal);
-        const on = P.map((v, i) => v + step[i] - off * normal[i]);
-        assert.equal(read(on, normal, 0).lit, 1, `${a} ${b} ${tilt}: acne at ${on}`);
+  for (const lamp of [lampAt(light), lampAt(light, [0, -1, 0], 1.2)])
+    for (const [a, b] of [
+      [0, 0],
+      [0.4, 0.5],
+      [0.7, 0.95],
+      [0.95, 0.95],
+    ])
+      for (const tilt of [0, 0.5, 1, 1.45]) {
+        // The normal turned by `tilt` from the light, toward a direction across the ray.
+        const ray = [a, -1, b].map((v) => v / Math.hypot(a, 1, b));
+        const P = ray.map((v, i) => light[i] + 3 * v),
+          across = [1, 0, 0.3].map((v, i) => v - (ray[0] + 0.3 * ray[2]) * ray[i]);
+        const normal = ray.map(
+          (v, i) => -Math.cos(tilt) * v + (Math.sin(tilt) * across[i]) / Math.hypot(...across),
+        );
+        const read = lampOver(lamp, [{ at: P, normal }]);
+        for (let k = 0; k < 20; k++) {
+          const step = [1.3e-4 * k, 0, 7e-5 * k],
+            off = dot(step, normal);
+          const on = P.map((v, i) => v + step[i] - off * normal[i]);
+          assert.equal(read(on, normal, 0).lit, 1, `${lamp.kind} ${a} ${b} ${tilt}: acne at ${on}`);
+        }
       }
-    }
 });

@@ -5,7 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { pcf, pointLampOver } from './shadowBias.fixture.ts';
+import { pcf } from './shadowBias.fixture.ts';
+import { lampAt, lampOver } from './shadowLamp.fixture.ts';
 import { pagedPcf } from './shadowPages.fixture.ts';
 
 test('a filter across a page border reads the same depths as one inside a page', () => {
@@ -53,8 +54,8 @@ test('a point light’s shadow crosses a face border without a seam', () => {
   // |z| = 2 of the floor. A slab 1 m up shadows the whole floor, the border included.
   const up = [0, 1, 0],
     floor = { at: [0, 0, 0], normal: up };
-  const alone = pointLampOver([0, 2, 0], [floor]),
-    shaded = pointLampOver([0, 2, 0], [floor, { at: [0, 1, 0], normal: up }]);
+  const alone = lampOver(lampAt([0, 2, 0]), [floor]),
+    shaded = lampOver(lampAt([0, 2, 0]), [floor, { at: [0, 1, 0], normal: up }]);
   for (const mip of [0, 2, 5])
     for (let k = -40; k <= 40; k++)
       for (const [x, z] of [
