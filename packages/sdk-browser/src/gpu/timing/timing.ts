@@ -1,24 +1,28 @@
 import type { GpuTimingSample } from './types.ts';
 export type { GpuTimingSample } from './types.ts';
-import { createTimingResources, instrumentTimingEncoder, type TimingPart } from './encoder.ts';
+import {
+  createTimingResources,
+  instrumentTimingEncoder,
+  type TimingImage,
+  type TimingPart,
+  type TimingResources,
+} from './encoder.ts';
 import { createSampleEmitter, timingEntries, summarizeTimestamps } from './sample.ts';
-/** Query slots per encoder part, and parts per image: the query set holds `PARTS × PART_QUERIES`. */
-const PART_QUERIES = 128,
-  PARTS = 4;
+import { PARTS, QUERY_COUNT, TIMED_PASSES } from './queries.ts';
 export function createGpuTiming(
   device: GPUDevice,
   options: { sampleEveryFrames?: number; onSample: (sample: GpuTimingSample) => void },
 ) {
-  const maxPasses = PART_QUERIES / 2,
-    queryCount = PART_QUERIES * PARTS;
+  const maxPasses = TIMED_PASSES,
+    queryCount = QUERY_COUNT;
   const sampleEveryFrames = Math.max(1, Math.floor(options.sampleEveryFrames ?? 60));
   let enabled = !!device.features?.has('timestamp-query'),
     disposed = false,
     lastFrame = -sampleEveryFrames;
-  let query: GPUQuerySet | undefined, resolve: GPUBuffer | undefined, read: GPUBuffer | undefined;
+  let resources: TimingResources | undefined;
 
   let active:
-    { frame: number; parts: Map<GPUCommandEncoder, TimingPart>; truncated: boolean } | undefined;
+    (TimingImage & { frame: number; parts: Map<GPUCommandEncoder, TimingPart> }) | undefined;
   let pending: Promise<void> | undefined;
   let sampledFrames = 0,
     completedSamples = 0,
@@ -28,12 +32,10 @@ export function createGpuTiming(
   const skippedFrames = { unsupported: 0, interval: 0, busy: 0, disposed: 0, parts: 0 };
   const emit = createSampleEmitter(options.onSample);
   const destroy = () => {
-    query?.destroy();
-    resolve?.destroy();
-    read?.destroy();
-    query = undefined;
-    resolve = undefined;
-    read = undefined;
+    for (const set of resources?.sets ?? []) set.destroy();
+    resources?.resolve.destroy();
+    resources?.read.destroy();
+    resources = undefined;
   };
   const timing = {
     get supported() {
@@ -68,9 +70,7 @@ export function createGpuTiming(
           return encoder;
         }
         try {
-          if (!query) {
-            ({ query, resolve, read } = createTimingResources(device, queryCount));
-          }
+          resources ??= createTimingResources(device, queryCount);
         } catch (error) {
           enabled = false;
           destroy();
@@ -86,7 +86,7 @@ export function createGpuTiming(
           });
           return encoder;
         }
-        active = { frame, parts: new Map(), truncated: false };
+        active = { frame, parts: new Map(), truncated: false, cursor: 0 };
         lastFrame = frame;
         sampledFrames++;
       }
@@ -96,15 +96,8 @@ export function createGpuTiming(
         skippedFrames.parts++;
         return encoder;
       }
-      const part: TimingPart = { slot: state.parts.size, names: [], resolved: false };
-      const wrapper = instrumentTimingEncoder(
-        encoder,
-        part,
-        state,
-        { query: query!, resolve: resolve!, read: read! },
-        maxPasses,
-        PART_QUERIES,
-      );
+      const part: TimingPart = { slot: state.parts.size, base: -1, names: [], resolved: false };
+      const wrapper = instrumentTimingEncoder(encoder, part, state, resources!, queryCount);
       state.parts.set(wrapper, part);
       return wrapper;
     },
@@ -113,11 +106,11 @@ export function createGpuTiming(
       const state = active;
       if (!state || !state.parts.has(encoder)) return;
       active = undefined;
-      const collected = timingEntries(state.parts.values(), state.truncated, PART_QUERIES);
+      const collected = timingEntries(state.parts.values(), state.truncated);
       const { entries, truncated } = collected;
       unresolvedParts += collected.unresolvedParts;
-      if (!entries.length || !read) return;
-      const staging = read;
+      if (!entries.length || !resources) return;
+      const staging = resources.read;
       pending = (async () => {
         try {
           await staging.mapAsync(GPUMapMode.READ);
