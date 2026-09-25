@@ -12,7 +12,7 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
   const exact = s.flatExact,
     cones = s.flatCones,
     boxes = s.flatBoxes,
-    open = s.flatOpen;
+    held = s.flatHeld;
   if (!culling) {
     for (let i = 0; i < pages.length; i++) take(s, pages, i, false, false, exact, cones, boxes);
     return;
@@ -60,7 +60,7 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
       // Under the cut rule (`./rule.ts`) a cluster above the threshold is still drawn when its
       // finer group is not resident: a subtree holding one (`open`, `./readiness.ts`) is never
       // rejected on its floor, and its descent decides cluster by cluster.
-      if (decision < 0 && !(open && open[node] > 0)) continue;
+      if (decision < 0 && !(held && held.openAt(node) > 0)) continue;
       settled = decision > 0;
     }
     const children = nodes[base + 12];

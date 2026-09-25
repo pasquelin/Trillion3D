@@ -134,12 +134,10 @@ export type GpuFrameMs = number | null;
   uncoveredTriangles?: number | null;
   /**
    * Triangles the CURRENT FRAME hands to the draw: its cluster cut, opaque and transparent of
-   * the hierarchy combined, minus the clusters without a resident page that `uncoveredTriangles`
-   * counts. Transparent meshes outside the hierarchy are not in it (`transparentSubmittedTriangles`),
-   * and occlusion reject is not subtracted (`hizRejectedTriangles`). Counted on the same pass as
-   * `uncoveredTriangles`, at cut adoption: no asynchronous GPU readback is
-   * waited for, so it is never `null` for lack of time, unlike `submittedTriangles`.
-   * Expected coverage relation on this sample: `selected − drawn − uncovered = 0`.
+   * the hierarchy combined. Transparent meshes outside the hierarchy are not in it
+   * (`transparentSubmittedTriangles`), and occlusion reject is not subtracted
+   * (`hizRejectedTriangles`). Counted at cut adoption: no asynchronous GPU readback is waited for,
+   * so it is never `null` for lack of time, unlike `submittedTriangles`.
    */
   drawnTriangles?: number | null;
   /** CPU time of this frame's cluster cut, measured around selection alone.

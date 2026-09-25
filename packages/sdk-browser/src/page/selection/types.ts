@@ -4,7 +4,7 @@ import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resourc
 import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
-import type { CullingLinks } from '../cut/readiness.ts';
+import type { CullingLinks } from '../cut/links.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 

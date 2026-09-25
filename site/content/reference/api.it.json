@@ -1747,7 +1747,7 @@
       "gpuFrameMs": "Durata GPU del fotogramma descritta da `gpuPassMs.frame`. Mai sommata a un campo `cpu*`. Il dispositivo è campionato ogni pochi fotogrammi, quindi un numero può risalire a qualche fotogramma prima. Null prima del primo campione, da un fotogramma trattenuto fino al campione successivo del dispositivo, su un dispositivo senza `timestamp-query` e su WebGL2.",
       "gpuHostGapMs": "Tempo CPU che lo stesso fotogramma ha trascorso tra due dei propri invii, e zero quando invia una sola volta. È tempo dell'host, non della GPU, per questo `gpuFrameMs` lo esclude. Nullo quando non misurato.",
       "uncoveredTriangles": "Triangoli dei cluster nominati dal taglio pubblicato ma che l'immagine non può disegnare — nessuna pagina residente e nessun antenato che copra. Un vero buco nell'immagine: zero è l'unico valore sano. Nullo quando un motore non può dirlo (disegna il taglio che ha scelto, quindi non ne ha mai).",
-      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme, meno i cluster senza pagina residente contati da `uncoveredTriangles`. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato nello stesso passaggio di `uncoveredTriangles`, all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`. Relazione di copertura attesa su questa misura: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`.",
       "cpuSelectMs": "Tempo CPU del taglio di cluster di questo fotogramma, misurato solo attorno alla selezione. Nullo per un motore che non sceglie il proprio taglio sulla CPU.",
       "gpuSelectionFallback": "Vero quando il motore aveva una selezione GPU e l'ha abbandonata: ciò che viene misurato da allora è il taglio di ripiego CPU. Un ripiego emette anche la diagnostica `gpu-selection-fallback`, una volta; l'host la copia così com'è, ed è assente in un motore senza selezione GPU.",
       "cpuSelectNodesTested": "Nodi della gerarchia su cui il taglio di questo fotogramma ha fatto un test — decisione di frustum o di livello di dettaglio. Un nodo già deciso e interamente visibile non ne riceve nessuno: viene percorso, non testato. È la misura del vero lavoro di un taglio gerarchico; un taglio piatto ne testa zero e percorre ogni cluster. Nullo per un motore che non sceglie il proprio taglio sulla CPU, o che non lo conta.",
@@ -5525,7 +5525,8 @@
       "pinned": "Pacchetti sempre mantenuti.",
       "bundleBytes": "Dimensione mirata di un pacchetto.",
       "pages": "Quanti pacchetti.",
-      "maxDependencies": "Numero massimo di dipendenze di un pacchetto: il limite che il compilatore pubblica."
+      "maxDependencies": "La lista di dipendenze chiusa più lunga di un pacchetto.",
+      "dependencyBound": "Massimo di pacchetti che contengono i genitori dei cluster di un pacchetto, fissato prima dell’impacchettamento."
     }
   },
   "SlimStructure": {
@@ -5672,7 +5673,8 @@
       "pinned": "Pacchetti sempre mantenuti.",
       "bundleBytes": "Dimensione mirata di un pacchetto.",
       "pages": "Ogni pacchetto.",
-      "maxDependencies": "Numero massimo di dipendenze di un pacchetto, come il compilatore lo ha pubblicato."
+      "maxDependencies": "La lista di dipendenze chiusa più lunga di un pacchetto, come pubblicata dal compilatore.",
+      "dependencyBound": "Massimo di pacchetti che contengono i genitori dei cluster di un pacchetto, fissato prima dell’impacchettamento."
     }
   },
   "StreamPage": {
@@ -6612,7 +6614,7 @@
       "gpuFrameMs": "Durata GPU del fotogramma descritta da `gpuPassMs.frame`. Mai sommata a un campo `cpu*`. Il dispositivo è campionato ogni pochi fotogrammi, quindi un numero può risalire a qualche fotogramma prima. Null prima del primo campione, da un fotogramma trattenuto fino al campione successivo del dispositivo, su un dispositivo senza `timestamp-query` e su WebGL2.",
       "gpuHostGapMs": "Tempo CPU che lo stesso fotogramma ha trascorso tra due dei propri invii, e zero quando invia una sola volta. È tempo dell'host, non della GPU, per questo `gpuFrameMs` lo esclude. Nullo quando non misurato.",
       "uncoveredTriangles": "Triangoli dei cluster nominati dal taglio pubblicato ma che l'immagine non può disegnare — nessuna pagina residente e nessun antenato che copra. Un vero buco nell'immagine: zero è l'unico valore sano. Nullo quando un motore non può dirlo (disegna il taglio che ha scelto, quindi non ne ha mai).",
-      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme, meno i cluster senza pagina residente contati da `uncoveredTriangles`. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato nello stesso passaggio di `uncoveredTriangles`, all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`. Relazione di copertura attesa su questa misura: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`.",
       "cpuSelectMs": "Tempo CPU del taglio di cluster di questo fotogramma, misurato solo attorno alla selezione. Nullo per un motore che non sceglie il proprio taglio sulla CPU.",
       "gpuSelectionFallback": "Vero quando il motore aveva una selezione GPU e l'ha abbandonata: ciò che viene misurato da allora è il taglio di ripiego CPU. Un ripiego emette anche la diagnostica `gpu-selection-fallback`, una volta; l'host la copia così com'è, ed è assente in un motore senza selezione GPU.",
       "cpuSelectNodesTested": "Nodi della gerarchia su cui il taglio di questo fotogramma ha fatto un test — decisione di frustum o di livello di dettaglio. Un nodo già deciso e interamente visibile non ne riceve nessuno: viene percorso, non testato. È la misura del vero lavoro di un taglio gerarchico; un taglio piatto ne testa zero e percorre ogni cluster. Nullo per un motore che non sceglie il proprio taglio sulla CPU, o che non lo conta.",
@@ -7047,8 +7049,8 @@
     "summary": "Ciò che un contatto dà ai suoi ascoltatori: l’altro oggetto, l’impulso e dove ha toccato.",
     "members": {
       "other": "L’oggetto toccato; `null` una volta uscito dalla scena.",
-      "impulse": "N·s: la velocità di avvicinamento lungo la normale per la massa ridotta della coppia, stimata prima del solutore; 0 su `leave`.",
-      "point": "Il punto di contatto, riferimento del mondo; l’origine su `leave`."
+      "impulse": "N·s: la velocità di avvicinamento lungo la normale per la massa ridotta della coppia, stimata prima del solutore (dal lato di un corpo morbido: la sua velocità media e la massa dei suoi vertici che hanno toccato); 0 su `leave`, e tra un corpo morbido e un sensore.",
+      "point": "Il punto di contatto, riferimento del mondo (quello di un corpo morbido: la media dei suoi vertici che hanno toccato, il suo centro davanti a un sensore); l’origine su `leave`."
     }
   },
   "ContactEventName": {

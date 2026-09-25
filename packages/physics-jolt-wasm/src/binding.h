@@ -12,6 +12,7 @@
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
 #include <cstdint>
 #include <unordered_map>
@@ -63,13 +64,19 @@ struct View {
   float range = 0;
 };
 
-class Listener final : public JPH::ContactListener, public JPH::BodyActivationListener {
+class Listener final : public JPH::ContactListener,
+                       public JPH::BodyActivationListener,
+                       public JPH::SoftBodyContactListener {
 public:
   void OnContactAdded(const JPH::Body &a, const JPH::Body &b, const JPH::ContactManifold &manifold,
                       JPH::ContactSettings &settings) override;
   void OnContactRemoved(const JPH::SubShapeIDPair &pair) override;
   void OnBodyActivated(const JPH::BodyID &, JPH::uint64) override {}
   void OnBodyDeactivated(const JPH::BodyID &id, JPH::uint64 user) override;
+  /// A soft body's contacts (`softContacts.cpp`).
+  JPH::SoftBodyValidateResult OnSoftBodyContactValidate(const JPH::Body &soft, const JPH::Body &other,
+                                                        JPH::SoftBodyContactSettings &settings) override;
+  void OnSoftBodyContactAdded(const JPH::Body &soft, const JPH::SoftBodyManifold &manifold) override;
 
 private:
   /// Jolt calls these from its jobs, on every thread of the pool at once.
@@ -91,6 +98,8 @@ struct World {
   View view;
   /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told. */
   std::unordered_map<uint64_t, uint32_t> pairs;
+  /** The pairs of `pairs` a soft body is in, and the step that last saw each touch (`softContacts.cpp`). */
+  std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
   /** This step's bodies whose shape was refused (engine ids), and its enters the buffer dropped. */
@@ -170,5 +179,7 @@ constexpr uint32_t SOFT = 24, SOFT_WORDS = 21, SOFT_VERTEX_WORDS = 4;
 bool addSoft(const uint32_t *w);
 /// Writes the vertices of the soft bodies the step moved, once the bodies have stepped.
 void writeSoft();
+/// After a collision step, the leaves of the soft pairs a soft body it moved no longer touches.
+void leaveSoft();
 
 }  // namespace trillion

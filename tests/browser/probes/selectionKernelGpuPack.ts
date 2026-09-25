@@ -23,12 +23,12 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
   const { buffer, byteOffset, length } = packed.pageCones;
   const cold = new Uint32Array(buffer, byteOffset, length).slice();
   const sets = [
-    [readiness.ready, residentBase(packed.pageCount)],
-    [readiness.childReady, childBase(packed.pageCount)],
+    [readiness.isReady, residentBase(packed.pageCount)],
+    [readiness.isChildReady, childBase(packed.pageCount)],
   ] as const;
-  for (const [values, base] of sets)
+  for (const [ready, base] of sets)
     for (let page = 0; page < packed.pageCount; page++)
-      if (values[page]) cold[base + (page >>> 5)] |= 1 << (page & 31);
+      if (ready(page)) cold[base + (page >>> 5)] |= 1 << (page & 31);
   return cold;
 }
 

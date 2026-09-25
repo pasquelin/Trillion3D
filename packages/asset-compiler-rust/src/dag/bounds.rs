@@ -1,4 +1,4 @@
-use crate::shared_math::extend_aabb;
+use crate::shared_math::{extend_aabb, length};
 
 pub(super) fn point(positions: &[f32], id: u32) -> [f64; 3] {
     let i = id as usize * 3;
@@ -49,7 +49,7 @@ pub(super) fn merge_spheres(left: [f64; 4], right: [f64; 4]) -> [f64; 4] {
         return right;
     }
     let delta = [right[0] - left[0], right[1] - left[1], right[2] - left[2]];
-    let distance = (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]).sqrt();
+    let distance = length(delta);
     if distance + right[3] <= left[3] {
         return left;
     }

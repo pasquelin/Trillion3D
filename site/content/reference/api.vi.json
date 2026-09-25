@@ -1077,7 +1077,7 @@
       "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
-      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
       "cpuSelectMs": "Thời gian CPU của lát cắt cụm khung hình này, chỉ đo riêng quanh việc lựa chọn. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU.",
       "gpuSelectionFallback": "Đúng khi bộ máy từng có một lựa chọn từ GPU và đã bỏ nó đi: những gì được đo từ lúc đó là lát cắt CPU dự phòng. Một lần dự phòng cũng phát ra chẩn đoán `gpu-selection-fallback`, một lần duy nhất; ứng dụng chủ sao chép nó nguyên trạng, và nó vắng mặt trên một bộ máy không có lựa chọn từ GPU.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
@@ -3283,7 +3283,8 @@
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
       "pages": "Có bao nhiêu gói.",
-      "maxDependencies": "Số phụ thuộc lớn nhất của một gói: giới hạn mà trình biên dịch công bố."
+      "maxDependencies": "Danh sách phụ thuộc đóng dài nhất của một gói.",
+      "dependencyBound": "Số gói tối đa chứa cha của các cụm trong một gói, cố định trước khi đóng gói."
     }
   },
   "SlimStructure": {
@@ -3388,7 +3389,8 @@
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
       "pages": "Mọi gói.",
-      "maxDependencies": "Số phụ thuộc lớn nhất của một gói, như trình biên dịch đã công bố."
+      "maxDependencies": "Danh sách phụ thuộc đóng dài nhất của một gói, như trình biên dịch đã công bố.",
+      "dependencyBound": "Số gói tối đa chứa cha của các cụm trong một gói, cố định trước khi đóng gói."
     }
   },
   "StreamPage": {
@@ -4056,7 +4058,7 @@
       "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
-      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
       "cpuSelectMs": "Thời gian CPU của lát cắt cụm khung hình này, chỉ đo riêng quanh việc lựa chọn. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU.",
       "gpuSelectionFallback": "Đúng khi bộ máy từng có một lựa chọn từ GPU và đã bỏ nó đi: những gì được đo từ lúc đó là lát cắt CPU dự phòng. Một lần dự phòng cũng phát ra chẩn đoán `gpu-selection-fallback`, một lần duy nhất; ứng dụng chủ sao chép nó nguyên trạng, và nó vắng mặt trên một bộ máy không có lựa chọn từ GPU.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
@@ -7048,8 +7050,8 @@
     "summary": "Những gì một va chạm trao cho người nghe: vật kia, xung lực và điểm chạm.",
     "members": {
       "other": "Vật bị chạm; `null` khi nó đã rời cảnh.",
-      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải; 0 khi `leave`.",
-      "point": "Điểm tiếp xúc, hệ thế giới; gốc tọa độ khi `leave`."
+      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải (phía vật mềm: vận tốc trung bình của nó và khối lượng các đỉnh đã chạm); 0 khi `leave`, và giữa vật mềm với cảm biến.",
+      "point": "Điểm tiếp xúc, hệ thế giới (của vật mềm: trung bình các đỉnh đã chạm, tâm của nó khi gặp cảm biến); gốc tọa độ khi `leave`."
     }
   },
   "ContactEventName": {
