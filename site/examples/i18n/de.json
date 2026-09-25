@@ -1972,6 +1972,16 @@
       "Look for": "Achte auf"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Zieh an der Deckkraft: der Schatten der mittleren Scheibe folgt ihr, bei 0 verschwunden, bei 1 voll.",
+    "controls": {
+      "opacity": "Deckkraft",
+      "sunHeight": "Sonnenhöhe"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Deckkraft der mittleren Scheibe"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben, und auf dem Eis die Tasten loslassen, um zu rutschen.",
     "controls": {
