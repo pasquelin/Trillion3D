@@ -926,7 +926,8 @@
       "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
       "PHYSICS_FORMAT": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok."
+      "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok.",
+      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi."
     }
   },
   "EngineProfiler": {
@@ -1226,6 +1227,42 @@
     "members": {
       "isGroup": "Her zaman `true`: bir grubu ayırır.",
       "type": "Düğümün türü, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Bir sayfanın çizdiği bir kılavuz kümesi; her ayarlayıcı tutamacı döndürür.",
+    "members": {
+      "visible": "Çizilip çizilmediği; `setVisible` bunu yazar.",
+      "setVisible": "Onu gösterir ya da gizler; köşeleri sınıra sayılmaya devam eder.",
+      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris — `node.matrixWorld` bir düğümü izler.",
+      "remove": "Onu dünyadan çıkarır, köşelerini geri verir; ikinci çağrı hiçbir şey yapmaz."
+    }
+  },
+  "GuideLines": {
+    "summary": "Çizilecek çizgi segmentleri.",
+    "members": {
+      "positions": "Segment başına iki uç, her biri üç sayı.",
+      "color": "Renkleri; varsayılan beyaz.",
+      "width": "Ekrandaki genişlik, piksel cinsinden."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Çizilecek noktalar.",
+    "members": {
+      "positions": "Nokta başına üç sayı.",
+      "color": "Renkleri; varsayılan beyaz.",
+      "size": "Her kare noktanın ekrandaki kenarı, piksel cinsinden."
+    }
+  },
+  "Guides": {
+    "summary": "Bir dünyanın kılavuzları, bir sayfanın çizdiği gibi: `world.guides`.",
+    "members": {
+      "ceiling": "Kılavuzların birlikte tuttuğu en fazla köşe (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Şu an tutulan köşeler, segment başına iki ve nokta başına bir, gizli kılavuzlar dahil.",
+      "lines": "Her biri iki uçlu çizgi segmentleri çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
+      "points": "Her biri bir konumlu kare noktalar çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
+      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde, nesnenin şu an durduğu yerde çizer; üçgenleri kılavuz değildir ve atlanır.",
+      "clear": "Tüm kılavuzları kaldırır."
     }
   },
   "HALF_PI": {
@@ -3946,6 +3983,9 @@
       "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
+  },
+  "world.guides": {
+    "summary": "Görüntünün üzerine çizilen çizgiler, noktalar ve yardımcılar (`Guides`)."
   },
   "world.onFrame": {
     "summary": "Her kareden önce, karenin zamanıyla bir fonksiyon çalıştırır.",
@@ -7029,6 +7069,10 @@
       "mars": "Mars’ınki.",
       "none": "Yerçekimi yok."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Bir dünyanın kılavuzlarının birlikte tuttuğu en fazla köşe sayısı: segment başına iki, nokta başına bir.",
+    "description": "Türetilmemiş, beyan edilmiş: geçişin yüklediği tek örnek arabelleğini, sayfa ne isterse istesin 64 Ki × 32 bayt = 2 MiB ile sınırlar — 16 000 çizgilik bir ızgara sığar, taranmış bir şehrin nokta bulutu sığmaz ve sahneye aittir."
   },
   "GravityInput": {
     "summary": "Bir yerçekimi: bir ön ayarın adı ya da m/s² cinsinden bir vektör."

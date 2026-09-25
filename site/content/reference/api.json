@@ -3979,6 +3979,10 @@
       {
         "name": "NO_VEHICLE",
         "desc": "`world.controls.kind` was set to `'vehicle'` while `world.controls.vehicle` is `null`: there is nothing to drive."
+      },
+      {
+        "name": "GUIDE_CEILING",
+        "desc": "A `world.guides` call would hold more vertices than `GUIDE_VERTEX_CEILING`; nothing of it was added."
       }
     ],
     "description": ""
@@ -4731,6 +4735,17 @@
       }
     ],
     "description": ""
+  },
+  {
+    "id": "GUIDE_VERTEX_CEILING",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GUIDE_VERTEX_CEILING"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "GUIDE_VERTEX_CEILING",
+    "signature": "const GUIDE_VERTEX_CEILING: 65536",
+    "summary": "Most vertices the guides of one world hold together: two per segment, one per point.",
+    "description": "Declared, not derived: it bounds the one instance buffer the pass uploads at 64 Ki × 32 bytes = 2 MiB, whatever a page asks — a grid of 16 000 lines fits, a point cloud of a scanned city does not, and belongs in the scene."
   },
   {
     "id": "GeminiFunctionDeclaration",
@@ -5767,6 +5782,138 @@
         "name": "type",
         "type": "string",
         "desc": "The kind of node, `'Group'`."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GuideHandle",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GuideHandle"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GuideHandle",
+    "signature": "interface GuideHandle",
+    "summary": "One set of guides a page drew; each setter answers the handle.",
+    "members": [
+      {
+        "name": "visible",
+        "type": "boolean",
+        "desc": "Whether it is drawn; `setVisible` writes it."
+      },
+      {
+        "name": "setVisible(on: boolean)",
+        "type": "GuideHandle",
+        "desc": "Shows or hides it, its vertices still counted against the ceiling."
+      },
+      {
+        "name": "setTransform(matrix: ArrayLike<number> | { elements: ArrayLike<number>; })",
+        "type": "GuideHandle",
+        "desc": "Places it: sixteen column-major numbers, or a matrix — `node.matrixWorld` follows a node."
+      },
+      {
+        "name": "remove()",
+        "type": "void",
+        "desc": "Takes it out of the world, its vertices given back; a second call does nothing."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GuideLines",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GuideLines"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GuideLines",
+    "signature": "interface GuideLines",
+    "summary": "Line segments to draw.",
+    "members": [
+      {
+        "name": "positions",
+        "type": "ArrayLike<number>",
+        "desc": "Two ends per segment, three numbers each."
+      },
+      {
+        "name": "color?",
+        "type": "ColorInput | undefined",
+        "desc": "Their colour; white by default."
+      },
+      {
+        "name": "width?",
+        "type": "number | undefined",
+        "desc": "Width on the screen, in pixels."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GuidePoints",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GuidePoints"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GuidePoints",
+    "signature": "interface GuidePoints",
+    "summary": "Dots to draw.",
+    "members": [
+      {
+        "name": "positions",
+        "type": "ArrayLike<number>",
+        "desc": "Three numbers per dot."
+      },
+      {
+        "name": "color?",
+        "type": "ColorInput | undefined",
+        "desc": "Their colour; white by default."
+      },
+      {
+        "name": "size?",
+        "type": "number | undefined",
+        "desc": "Side of each square dot on the screen, in pixels."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "Guides",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["Guides"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Guides",
+    "signature": "interface Guides",
+    "summary": "The guides of one world, as a page draws them: `world.guides`.",
+    "members": [
+      {
+        "name": "ceiling",
+        "type": "number",
+        "desc": "Most vertices the guides hold together (`GUIDE_VERTEX_CEILING`)."
+      },
+      {
+        "name": "vertexCount",
+        "type": "number",
+        "desc": "Vertices held now, two per segment and one per dot, hidden guides included."
+      },
+      {
+        "name": "lines(lines: GuideLines)",
+        "type": "GuideHandle",
+        "desc": "Draws line segments, two ends each; refused above the ceiling (`GUIDE_CEILING`)."
+      },
+      {
+        "name": "points(points: GuidePoints)",
+        "type": "GuideHandle",
+        "desc": "Draws square dots, one position each; refused above the ceiling (`GUIDE_CEILING`)."
+      },
+      {
+        "name": "add(object: Object3D, options?: { width?: number; size?: number; })",
+        "type": "GuideHandle",
+        "desc": "Draws the line and point meshes of `object` — every `helper` builds them —, in their material colours, placed where the object stands now; its triangles are not guides and are skipped."
+      },
+      {
+        "name": "clear()",
+        "type": "void",
+        "desc": "Removes every guide."
       }
     ],
     "description": ""
@@ -19224,6 +19371,17 @@
         "desc": "Every view mode the current renderer offers."
       }
     ],
+    "description": ""
+  },
+  {
+    "id": "world.guides",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Constant",
+    "title": "world.guides",
+    "signature": "world.guides: Guides",
+    "summary": "Lines, points and helpers drawn over the image (`Guides`).",
     "description": ""
   },
   {
