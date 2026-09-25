@@ -26,7 +26,7 @@ try {
     id: 'terrain-proof',
     width: 900,
     height: 620,
-    manifestUrl: '/site/assets/gallery/offline/terrain/cache/native/full/manifest.json',
+    manifestUrl: '/tests/fixtures/scenes/mountain-terrain/cache/native/full/manifest.json',
     texturePoolBytes: 64 * 1024 * 1024,
     position: [10.5, 8.2, 12.5],
     target: [0, 1.1, 0],
