@@ -14,13 +14,11 @@ disagreement is reported to the maintainer.
    other role runs the fast gates only. One Chrome on the machine at a time.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
    browsers of other sessions and of the maintainer run on the same machine.
-4. **One branch, one worktree, one session.** Never commit on `develop` or `main`; a lead merges
-   into `develop` on green CI and the reviewer's OK, and nothing reaches `main` without the boss's
-   word, never write in
-   the shared checkout, never touch another session's worktree. Every worktree lives in
-   `.worktrees/<branch>/` inside the checkout the session runs in (the CTO's, for every agent it
-   starts: the app lets agents edit nowhere else), every log or throwaway file in `.worktrees/logs/`;
-   nothing is written beside the project or in the system's temporary folders.
+4. **One branch, one worktree, one session.** Never commit on `develop` or `main` (`main` moves
+   only on the boss's word), never write in the shared checkout, never touch another session's
+   worktree. Every worktree lives in `.worktrees/<branch>/` of the checkout the session runs in,
+   every log or throwaway file in `.worktrees/logs/`; nothing is written beside the project or in
+   the system's temporary folders.
 5. **Only the CTO opens issues**, with the writer role, when the boss asks for one or in an
    extreme case (a 🔴 critical defect no issue covers; a closed issue that covers it is reopened
    instead), and tells the boss. Existing issues come first: a new need is a To-do item or a
@@ -38,9 +36,9 @@ disagreement is reported to the maintainer.
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
    to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. The
-   depth is fixed: the CTO → a lead → one coder or reviewer → the review agents of the real
-   `simplify` and `code-review` skills (at most 4), which launch none. The architect, measurer,
-   acceptance and analyst agents launch none.
+   depth is fixed: the CTO → a lead → one coder or reviewer (the rules pull request's reviewer is
+   the CTO's own) → the review agents of the real `simplify` and `code-review` skills (at most 4),
+   which launch none. The architect, measurer, acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
 11. **Small, short-lived pull requests.** One step of an issue per pull request; a larger batch is
@@ -67,13 +65,15 @@ CTO starts with the Agent tool and supervises; the boss never opens another sess
 | acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                 |
 | writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                              |
 
-Domains: geometry, lighting, compiler, physics, sdk, textures; `site/` and the examples belong to sdk,
-a script or test to the domain whose code it checks, sdk otherwise. Issues belong to the leads, and
-only coders, launched by a lead, write code. The architect, acceptance, measurer and analyst
+Domains: geometry, lighting, compiler, physics, sdk, textures. A script or test belongs to the
+domain whose code it checks; `site/`, the examples and anything else to sdk. Issues belong to the
+leads, and only coders, launched by a lead, write code. The architect, acceptance, measurer and analyst
 never code and own no pull request: they add a To-do item to an open issue, reopen one
-(`audit ko`, `measure ko`) or report to the CTO. Sole exception: the measurer's thumbnail pull
-request (captured images, no code), merged by the domain's lead. A bug goes to its domain's lead;
-there is no bug domain. There is one CTO session, one measurer and one acceptance agent. Every
+(`audit ko`, `measure ko`) or report to the CTO. Two exceptions: the measurer's thumbnail pull
+request (captured images, no code), merged by the domain's lead, and the CTO's pull request on
+the company's rules (AGENTS.md, CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`),
+reviewed by a reviewer and merged by the CTO. A bug goes to its domain's lead; there is no bug
+domain. There is one CTO session, one measurer and one acceptance agent. Every
 agent reports to the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 %
 (or the threshold the boss sets) it winds the company down (current agents finish, nothing new
 starts) so no work is cut midway.
