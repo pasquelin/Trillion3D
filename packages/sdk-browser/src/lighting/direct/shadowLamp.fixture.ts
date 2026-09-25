@@ -8,7 +8,7 @@ import { faceBasis } from '../../../../sdk-core/src/scene/light-shadow/math.ts';
 import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
-import { DEVELOP_BIAS, along, depthMargin, normalOffset, pcf, sub } from './shadowBias.fixture.ts';
+import { BIAS, DEVELOP_BIAS, along, depthMargin, pcf, sub } from './shadowBias.fixture.ts';
 import type { Vec } from './shadowBias.fixture.ts';
 
 /** `pointFaceOf`: the major axis of the light-to-point direction, in `POINT_FACE_AXES` order. */
@@ -64,8 +64,8 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
     const radius = Math.hypot(...sub(P, at)),
       cosine = clamp(-dot(N, sub(P, at)) / radius, 1e-3, 1);
     const texel = ((2 * tan * radius) / (LAMP_SIDE * SHADOW_PAGE)) * 2 ** mip;
-    const [old, metres] = develop ? DEVELOP_BIAS(texel, cosine) : [];
-    const Q = along(P, N, develop ? old : normalOffset(texel, cosine)),
+    const [offset, metres] = (develop ? DEVELOP_BIAS : BIAS)(texel, cosine);
+    const Q = along(P, N, offset),
       d = sub(Q, at);
     const face = point ? pointFaceOf(develop ? sub(P, at) : d) : 0,
       o = face * 16,
@@ -73,11 +73,11 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
     const [x, y, , w] = transformHomogeneousPoint([0, 0, 0, 0], matrix, Q[0], Q[1], Q[2]);
     const ndc = [x / w, y / w],
       side = (LAMP_SIDE >> mip) * SHADOW_PAGE;
+    if (develop && Math.max(Math.abs(ndc[0]), Math.abs(ndc[1])) > 1) return { ndc, lit: 1 };
     const facing = dot(N, [m[o + 3], m[o + 7], m[o + 11]]);
     const slope = Math.sqrt(Math.max(1 - facing * facing, 0)) / (dot(d, d) * cosine);
     // The shader adds `k·margin` to a depth of `k/w` plus a constant: in the axial metres the map
     // stores, the reference is `1/(1/w + margin)`, the margin `w²·margin` only to first order.
-    if (develop && Math.max(Math.abs(ndc[0]), Math.abs(ndc[1])) > 1) return { ndc, lit: 1 };
     const margin = develop
       ? metres / (w * w)
       : depthMargin(texel, slope, 1 / (w * w)) + SHADOW_DEPTH_ROUNDING / k;

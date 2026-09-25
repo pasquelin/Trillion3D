@@ -131,12 +131,12 @@ function edgeError(faces: Face[], zenith: number, texel: number, bias: Bias, len
 }
 
 test('the new bias puts every shadow edge nearer a ray-cast of its casters than develop’s', () => {
-  // The observatory's 1 cm steps, a 5 cm pawn, sun 51° from vertical, a wall at 78° (grazing):
+  // The observatory's 1 cm steps, a 5 cm pawn, sun 51° from vertical, a wall up to 78° (grazing):
   // edges and contacts alike, where develop's bias let light through or shaded a clean face.
   const cases: [Face[], number[], number[], number][] = [
-    [step, [0.3, Math.PI / 4, 1.1], [gap / 16, gap / 8, gap / 4], 0.03],
+    [step, ZENITHS, [gap / 32, gap / 16, gap / 8, gap / 4], 0.07],
     [standing(0.05, 0.02), [0.89], [2.5e-4, 4e-4, 1e-3], 0.1],
-    [standing(0.1, 0.002), [1.36], [2.5e-4, 1e-3, 4e-3], 0.55],
+    [standing(0.1, 0.002), [Math.PI / 4, 1.1, 1.36], [2.5e-4, 1e-3, 4e-3], 0.55],
   ];
   for (const [faces, zeniths, texels, length] of cases) {
     const errors = (bias: Bias) =>
