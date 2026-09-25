@@ -29,7 +29,7 @@ const FOUR = [-1.25, 1.25].flatMap((z) => [-0.8, 0.8].map((x) => [x, z]));
 /** Each wheel's role, from the VEHICLE words. */
 const roles = (words: number[]) => words.filter((_, i) => i % WHEEL_WORDS === 5);
 
-test('each kind refuses what it cannot be made of', () => {
+test('each kind refuses what it cannot be made of, and an option it would ignore', () => {
   const { body, wheels } = rig(FOUR);
   const make =
     (kind: VehicleKind, list: readonly Object3D[] = wheels, spec = {}) =>
@@ -45,6 +45,14 @@ test('each kind refuses what it cannot be made of', () => {
   assert.throws(make('car', wheels, { gears: [3, 2, 1.5, 1.2, 1, 0.8, 0.7] }), /1 to 6 gears/);
   assert.throws(make('car', wheels, { torqueCurve: [] }), /torque curve/);
   assert.doesNotThrow(make('car'));
+  // An option its kind would ignore: Jolt's tracked controller reads no clutch.
+  assert.throws(make('tracked', wheels, { clutch: 10 }), /no clutch/);
+  assert.doesNotThrow(make('tracked'));
+  // At 0.8 Hz a spring sags 9.81 / (2π 0.8)² = 0.39 m: 0.2 m of travel would leave the body on
+  // its bump stops, 0.45 m holds it.
+  assert.throws(make('car', wheels, { suspensionFrequency: 0.8 }), /sag.*0\.388 m/);
+  assert.throws(make('car', wheels, { suspensionFrequency: 0 }), /suspensionTravel/);
+  assert.doesNotThrow(make('car', wheels, { suspensionFrequency: 0.8, suspensionTravel: 0.45 }));
 });
 
 test('the options go over the kind’s machine; the input is clamped and handed on', () => {
