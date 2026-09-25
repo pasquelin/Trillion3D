@@ -3,6 +3,7 @@
 // autonomous WebGL2 path, which draws; the temporary witness fallback of #298 is gone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { autonomousCacheReady, chooseBackends } from './defaultBackends.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
@@ -12,7 +13,7 @@ import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.t
 
 const cache = (autonomousScene: string | null) =>
   ({ autonomousScene, primitives: [] }) as unknown as ClusterManifest;
-const device = {} as GPUDevice;
+const { device } = fakeDevice();
 
 test('a WebGPU machine renders through the engine page raster by default', () => {
   const choice = chooseBackends({}, cache('scene.gltf'), device);
