@@ -24,9 +24,9 @@ below that says to tell him: never a running account of agent events.
    yet `audited`. Never two sessions on one domain. You start none of them yourself.
 3. **Brief.** Every prompt starts with the role's skill (`/t3d-lead <domain>`…) and carries, in
    this order:
-   - the role, the repository root (the main checkout, never written to) and your session's
-     checkout: worktrees go in `<session checkout>/.worktrees/<branch>/`, the only place the app
-     lets agents edit, then `pnpm install` there;
+   - the role and the repository root (the main checkout, never written to): worktrees go in
+     `.worktrees/<branch>/` of the checkout that session runs in (AGENTS.md rule 4), then
+     `pnpm install` there;
    - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
      Skill column of `docs/COMPANY.md`), its `docs/roles/` file;
    - its ordered list: its open PRs by number, if any, then its issues in the order of
