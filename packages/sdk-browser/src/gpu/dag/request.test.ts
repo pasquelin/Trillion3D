@@ -15,7 +15,9 @@ import {
   REQUEST_PAGE_MAX,
   REQUEST_PRIORITY_MAX,
   REQUEST_PRIORITY_SCALE,
+  REQUEST_STEP_MAX,
   requestPage,
+  requestRank,
   requestPriority,
 } from './request.ts';
 import {
@@ -55,7 +57,18 @@ test('quantification is monotone: it never reverses two errors', () => {
   assert.equal(quantizeRequestPriority(0), 0);
   assert.equal(quantizeRequestPriority(-1), 0);
   assert.equal(quantizeRequestPriority(NaN), 0);
-  assert.equal(quantizeRequestPriority(Infinity), REQUEST_PRIORITY_MAX);
+  assert.equal(quantizeRequestPriority(Infinity), REQUEST_STEP_MAX);
+});
+
+test('every visible request outranks every request ahead of the camera', () => {
+  // The costliest absence ahead against the cheapest one on screen: the deadline decides first.
+  const rank = (pixels: number, ahead = false) =>
+    requestRank(quantizeRequestPriority(pixels, ahead));
+  assert.ok(rank(0) > rank(Infinity, true));
+  assert.equal(rank(NaN, true), 0, 'the least a request can rank');
+  assert.equal(rank(Infinity), REQUEST_PRIORITY_MAX, 'the most a request can rank');
+  // Within the tier ahead, the same monotone ranking by error.
+  assert.ok(rank(64, true) > rank(4, true));
 });
 
 /**
