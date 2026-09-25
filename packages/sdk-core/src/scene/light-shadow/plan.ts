@@ -151,7 +151,7 @@ export function createShadowPlan(poolSide: number) {
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
       requests.floors(posed, view, nowMs, frame);
-      const count = admission.run(pool, table, requests.latest);
+      const count = admission.run(pool, table, requests.latest, frame);
       for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
@@ -169,11 +169,11 @@ export function createShadowPlan(poolSide: number) {
       }
       if (to >= admission.count) admission.reset();
     },
-    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, and come
-     *  first in the next frame's list (`admit.ts`). */
+    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, ahead of
+     *  every page that turns stale after them in the next frame's list (`admit.ts`). */
     reissue(from = 0) {
       counts.pendingPages = Math.max(0, admission.count - from);
-      admission.reset(from);
+      admission.reset();
     },
     /** Starts over. */
     reset() {
