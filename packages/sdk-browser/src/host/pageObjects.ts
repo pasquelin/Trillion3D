@@ -109,7 +109,8 @@ export function hostPageGeometry(
   min: ArrayLike<number>,
   max: ArrayLike<number>,
 ): Geometry {
-  const geometry = new Geometry('host');
+  const geometry = new Geometry();
+  geometry._owner = 'host';
   geometry.setIndex(new BufferAttribute(page.indices, 1));
   for (const [name, array] of Object.entries(page.attributes))
     geometry.setAttribute(name, new BufferAttribute(array, itemSize(name)));

@@ -7,6 +7,9 @@ import { forgetTree } from '../object/raycastTrees.ts';
 import { readPoints, spanBox, spanSphere } from './bounds.ts';
 import { transformVertices } from './transform.ts';
 
+/** Who built a geometry: the world (a page, the default) or the host (a loaded scene). */
+export type GeometryOwner = 'world' | 'host';
+
 /** The shape alone: named per-vertex attributes, an optional triangle index, material groups,
  *  the morph targets that move it and the range of it drawn. */
 export class Geometry {
@@ -16,9 +19,6 @@ export class Geometry {
   readonly kind = 'geometry' as const;
   /** The kind of the geometry, `'Geometry'`. */
   type = 'Geometry';
-  /** Who built it: the world (a page, the default) or the host (a loaded scene); what reads a
-   *  normalised integer list it owns as stored or at its value (`readsStored`). */
-  readonly owner: 'world' | 'host';
   /** Its name. */
   name = '';
   /** The per-vertex lists by name: `position`, `normal`, `uv`, `color`; each owns its numbers or
@@ -49,10 +49,9 @@ export class Geometry {
   version = 0;
   /** Who draws this geometry: every mesh holding it hears its changes. */
   readonly _listeners = new Set<() => void>();
-
-  constructor(owner: 'world' | 'host' = 'world') {
-    this.owner = owner;
-  }
+  /** Who built it: whether a normalised list it owns is read as stored or at its value
+   *  (`readsStored`). Set by its maker, right after it is made. */
+  _owner: GeometryOwner = 'world';
 
   /** Tells every holder the geometry changed; the bounds are forgotten when its positions did. */
   _changed(moved = true) {
@@ -177,7 +176,8 @@ export class Geometry {
   }
   /** A new geometry of the same owner, name, groups, range and data, its lists made by `own`. */
   private shaped(own: (attribute: VertexAttribute) => BufferAttribute) {
-    const copy = new Geometry(this.owner);
+    const copy = new Geometry();
+    copy._owner = this._owner;
     copy.name = this.name;
     for (const [name, attribute] of Object.entries(this.attributes))
       copy.setAttribute(name, own(attribute));

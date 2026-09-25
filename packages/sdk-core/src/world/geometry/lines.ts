@@ -6,7 +6,11 @@ import { readComponent } from './bounds.ts';
 /** The three numbers of vertex `v` of the position of `geometry`, as it reads them. */
 const at = (geometry: Geometry, v: number) => {
   const position = geometry.attributes.position;
-  return [0, 1, 2].map((c) => readComponent(geometry, position, v, c));
+  return [
+    readComponent(geometry, position, v, 0),
+    readComponent(geometry, position, v, 1),
+    readComponent(geometry, position, v, 2),
+  ];
 };
 
 /** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders. */
