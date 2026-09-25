@@ -120,7 +120,9 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let root=rootOf(w);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
  let m=transpose(worlds[w]);let base=slot*FRAME;
- for(var i=0u;i<6u;i++){frames[base+i]=m*views[vi].planes[i];}
+ // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
+ let open=!isLightCut()&&unculledOf(w);
+ for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){

@@ -1,8 +1,8 @@
 import { Group, Object3D } from './object3d.ts';
 import { Mesh, type Primitive } from './mesh.ts';
 import { Geometry } from '../geometry/geometry.ts';
-import { plane } from '../geometry/basic.ts';
 import { Material } from '../material/material.ts';
+import { Sprite } from './sprite.ts';
 import { cloneObject } from './clone.ts';
 
 /** A mesh reading its geometry as `primitive`, in the material kind a page gets by default. */
@@ -54,14 +54,15 @@ export const object = {
    */
   lineLoop: reading('lineLoop', 'line'),
   /**
-   * A unit square facing `+z`, in the sprite kind.
-   * @param material - What the square shows.
+   * A flat picture that always faces the camera, whichever way the camera looks: a unit square,
+   * sized by the sprite's scale and turned in the image by its material's `rotation`.
+   * @param material - What the square shows: a `material.sprite`.
+   * @example const marker = object.sprite(material.sprite({ map })); marker.scale.set(2, 2, 1);
    */
-  sprite: (material: Material = new Material('sprite')) =>
-    new Mesh(plane(1, 1), material, 'sprite'),
+  sprite: (material?: Material) => new Sprite(material),
 };
 
-export { Object3D, Group, Mesh, type Primitive };
+export { Object3D, Group, Mesh, Sprite, type Primitive };
 export type { SceneLink } from './object3d.ts';
 export { TransformNode } from './transformNode.ts';
 export { raycast, type Intersection } from './raycast.ts';

@@ -2,6 +2,7 @@ import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
 import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { packPageCorners } from '../visibility/corners.ts';
+import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
 
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
@@ -34,7 +35,8 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
  * the row table's dirty range, and it is here they leave. As for opaques, a corner changes only when
  * its page's world matrix changes, and the table's age names exactly that moment: a moving camera
  * rewrites none. The doubles are those of `pageCornersInto`, each carried by two single-precision
- * values — the rounding and its residue.
+ * values — the rounding and its residue. The entries never culled (`neverCulled`) leave with them,
+ * one bit each.
  */
 export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   const { blendState, layout } = rt,
@@ -44,7 +46,9 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   if (blendState.occlusionEpoch === epoch) return;
   blendState.occlusionEpoch = epoch;
   const packed = blendState.occlusionCorners,
-    { packedPages } = layout;
+    { packedPages } = layout,
+    bits = occlusion.unculledBits;
+  bits.fill(0);
   for (let entry = 0; entry < table.capacity; entry++) {
     const base = entry * CORNER_VALUES,
       page = table.pageOfEntry[entry];
@@ -55,6 +59,8 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       continue;
     }
     packPageCorners(packed, base, packedPages[page]);
+    if (neverCulled(packedPages[page].material)) bits[entry >> 5] |= 1 << (entry & 31);
   }
   occlusion.uploadCorners(packed, 0, table.capacity - 1);
+  occlusion.uploadUnculled();
 }
