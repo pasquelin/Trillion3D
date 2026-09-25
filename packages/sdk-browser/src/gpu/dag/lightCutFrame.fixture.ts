@@ -2,8 +2,8 @@
 // is the shader's contract, run on the buffers the host wrote: a cut resets the list unless its
 // uniform says append, the first view to want a caster under the frame's stamp lists it and every
 // view raises its best priority (`askedWord`), the frame's list then takes those best requests
-// (`dagAskedBest`), and a view whose caster is not resident draws coarser. The encoder applies its
-// clears; the device's writes are applied by `run`, as they land before the batch.
+// (`dagAskedBest`), and a view whose caster is not resident draws coarser. The stamp the device
+// writes is applied by `run`, as it lands before the batch.
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
 import { createDagLightCut } from './lightCut.ts';
@@ -33,9 +33,6 @@ export function lightCutFrame() {
   const encoder = {
     copyBufferToBuffer(from: GPUBuffer, at: number, to: GPUBuffer, toAt: number, size: number) {
       new Uint8Array(bytes(to)).set(new Uint8Array(bytes(from), at, size), toAt);
-    },
-    clearBuffer(buffer: GPUBuffer, at: number, size: number) {
-      new Uint8Array(bytes(buffer), at, size).fill(0);
     },
     beginComputePass: () => {
       let pipeline: unknown;
