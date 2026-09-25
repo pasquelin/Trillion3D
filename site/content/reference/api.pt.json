@@ -3159,7 +3159,8 @@
       "pinned": "Pacotes sempre mantidos.",
       "bundleBytes": "Tamanho alvo do pacote.",
       "pages": "Quantos pacotes.",
-      "maxDependencies": "Maior número de dependências de um pacote: o limite que o compilador publica."
+      "maxDependencies": "A lista de dependências fechada mais longa de um pacote.",
+      "dependencyBound": "Máximo de pacotes que contêm os pais dos clusters de um pacote, fixado antes do empacotamento."
     }
   },
   "SlimStructure": {
@@ -3264,7 +3265,8 @@
       "pinned": "Pacotes sempre mantidos.",
       "bundleBytes": "Tamanho alvo do pacote.",
       "pages": "Cada pacote.",
-      "maxDependencies": "Maior número de dependências de um pacote, como o compilador o publicou."
+      "maxDependencies": "A lista de dependências fechada mais longa de um pacote, tal como o compilador a publicou.",
+      "dependencyBound": "Máximo de pacotes que contêm os pais dos clusters de um pacote, fixado antes do empacotamento."
     }
   },
   "StreamPage": {

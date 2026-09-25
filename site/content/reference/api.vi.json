@@ -3240,7 +3240,8 @@
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
       "pages": "Có bao nhiêu gói.",
-      "maxDependencies": "Số phụ thuộc lớn nhất của một gói: giới hạn mà trình biên dịch công bố."
+      "maxDependencies": "Danh sách phụ thuộc đóng dài nhất của một gói.",
+      "dependencyBound": "Số gói tối đa chứa cha của các cụm trong một gói, cố định trước khi đóng gói."
     }
   },
   "SlimStructure": {
@@ -3345,7 +3346,8 @@
       "pinned": "Các gói luôn được giữ lại.",
       "bundleBytes": "Kích thước gói mục tiêu.",
       "pages": "Mọi gói.",
-      "maxDependencies": "Số phụ thuộc lớn nhất của một gói, như trình biên dịch đã công bố."
+      "maxDependencies": "Danh sách phụ thuộc đóng dài nhất của một gói, như trình biên dịch đã công bố.",
+      "dependencyBound": "Số gói tối đa chứa cha của các cụm trong một gói, cố định trước khi đóng gói."
     }
   },
   "StreamPage": {
