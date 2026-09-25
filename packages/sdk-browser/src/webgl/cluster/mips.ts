@@ -6,12 +6,8 @@ import {
 } from '../core/fullscreenPass.ts';
 import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
 
-/**
- * The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`), line for line:
- * colours averaged — weighted by alpha under `weighted` where the four alphas differ —, alpha the
- * median of the four texels, so threshold coverage survives every level. `source` is a copy of the
- * level above, `extent` its size: the texture drawn into is never the one sampled.
- */
+/** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`), line for line;
+ *  `source` is a copy of the level above, `extent` its size. */
 const FRAGMENT = `#version 300 es
 precision highp float;
 uniform highp sampler2D source;
@@ -51,41 +47,33 @@ function buildReducer(gl: WebGL2RenderingContext) {
 }
 
 /**
- * The material mip chain on WebGL2 (#42): one draw per level, in place of `generateMipmap`'s box
- * filter, which averages alpha and darkens the borders of masked foliage. Each level above is
- * first copied (`copyTexSubImage2D`) into a scratch texture the draw samples: a texture is never
- * sampled while one of its levels is the target — a feedback loop a browser may refuse, which
- * left every level at its null allocation, alpha 0, and cut every masked texel (#709). A format
- * whose levels a framebuffer cannot hold (`checkFramebufferStatus`, asked once per format) keeps
- * `generateMipmap`: a box chain, never an empty one. An sRGB texture is read decoded and written
- * encoded: the reduction runs in linear light, as the WebGPU chain's. The state a reduction
- * touches is restored after it, so it may run in the middle of a pass.
+ * The material mip chain on WebGL2 (#42), in place of `generateMipmap`'s box filter, which
+ * averages alpha and darkens masked foliage: one draw per level, from a scratch copy of the level
+ * above (`copyTexSubImage2D`). #709 sampled the texture it drew into, a feedback loop the browser
+ * refused: every level kept its null allocation, alpha 0, and every masked texel was cut. A format
+ * whose levels a framebuffer cannot hold (`checkFramebufferStatus`, once per format) keeps the box
+ * chain, never an empty one. sRGB is read decoded and written encoded: linear light, as WebGPU's.
+ * The state a reduction touches is restored after it: it may run in the middle of a pass.
  */
 export class WebglMipReducer {
   private gl: WebGL2RenderingContext;
   private built: ReturnType<typeof buildReducer> | undefined;
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
-  /** The copy of the level above. A chain refilled in place — a live picture — keeps it for the
-   *  next picture; a new chain returns it after its reduction, as WebGPU returns its scratches. */
-  private scratch: Chain | undefined;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
   }
   /** Builds levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
-   *  one above it, `weighted` or not; `allocate` first gives them storage — a new size, or a
-   *  first chain. */
+   *  one above, `weighted` or not; `allocate` first gives them storage (a new size or chain). */
   reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean) {
     const gl = this.gl,
       { texture, format, width, height } = chain;
     const levels = mipLevelCountFor(width, height);
     if (levels === 1) return;
-    if (allocate)
-      for (let level = 1; level < levels; level++) {
-        const [w, h] = levelSize(width, height, level);
-        gl.texImage2D(gl.TEXTURE_2D, level, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      }
-    if (this.drawable.get(format) === false) return gl.generateMipmap(gl.TEXTURE_2D);
+    const store = (level: number, [w, h]: [number, number]) =>
+      gl.texImage2D(gl.TEXTURE_2D, level, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    for (let level = 1; allocate && level < levels; level++)
+      store(level, levelSize(width, height, level));
     const built = (this.built ??= buildReducer(gl));
     const saved = {
       program: gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null,
@@ -96,7 +84,10 @@ export class WebglMipReducer {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: TOGGLES.map((name) => gl.isEnabled(gl[name])),
     };
-    this.scratchFor(chain);
+    const scratch = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, scratch);
+    store(0, [width, height]);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     setFullscreenPassState(gl);
     gl.disable(gl.STENCIL_TEST);
     gl.useProgram(built.program);
@@ -105,25 +96,24 @@ export class WebglMipReducer {
     gl.bindVertexArray(built.vertexArray);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, built.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, built.draw);
-    const attach = (target: number, level: number) =>
-      gl.framebufferTexture2D(target, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, level);
+    const attach = (target: number, level: number, image: WebGLTexture | null = texture) =>
+      gl.framebufferTexture2D(target, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, image, level);
     let drawn = true;
-    for (let level = 1; level < levels && drawn; level++) {
+    for (let level = 1; level < levels; level++) {
       const [sw, sh] = levelSize(width, height, level - 1),
         [w, h] = levelSize(width, height, level);
       attach(gl.READ_FRAMEBUFFER, level - 1);
       attach(gl.DRAW_FRAMEBUFFER, level);
-      drawn = this.drawable.get(format) ?? this.check(format);
-      if (!drawn) break;
+      if (!(drawn = this.drawable.get(format) ?? this.check(format))) break;
       gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, sw, sh);
       gl.uniform2i(built.extent, sw, sh);
       gl.viewport(0, 0, w, h);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
-    gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-    gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+    attach(gl.READ_FRAMEBUFFER, 0, null);
+    attach(gl.DRAW_FRAMEBUFFER, 0, null);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    if (allocate) this.dropScratch();
+    gl.deleteTexture(scratch);
     if (!drawn) gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, saved.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, saved.draw);
@@ -133,37 +123,16 @@ export class WebglMipReducer {
     gl.colorMask(saved.mask[0], saved.mask[1], saved.mask[2], saved.mask[3]);
     TOGGLES.forEach((name, i) => saved.toggles[i] && gl.enable(gl[name]));
   }
-  /** The scratch at `chain`'s format and size, bound on the active unit. */
-  private scratchFor({ format, width, height }: Chain) {
-    const gl = this.gl,
-      held = this.scratch;
-    if (held?.format === format && held.width === width && held.height === height)
-      return gl.bindTexture(gl.TEXTURE_2D, held.texture);
-    this.dropScratch();
-    const texture = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    this.scratch = { texture, format, width, height };
-  }
-  private dropScratch() {
-    if (this.scratch) this.gl.deleteTexture(this.scratch.texture);
-    this.scratch = undefined;
-  }
   /** Whether both framebuffers hold a level of `format`, asked once per format. */
   private check(format: number) {
     const gl = this.gl,
-      complete = gl.FRAMEBUFFER_COMPLETE;
-    const drawable =
-      gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) === complete &&
-      gl.checkFramebufferStatus(gl.READ_FRAMEBUFFER) === complete;
+      complete = (target: number) => gl.checkFramebufferStatus(target) === gl.FRAMEBUFFER_COMPLETE;
+    const drawable = complete(gl.DRAW_FRAMEBUFFER) && complete(gl.READ_FRAMEBUFFER);
     this.drawable.set(format, drawable);
     return drawable;
   }
   dispose() {
     const { gl, built } = this;
-    this.dropScratch();
     if (!built) return;
     gl.deleteProgram(built.program);
     gl.deleteFramebuffer(built.draw);
