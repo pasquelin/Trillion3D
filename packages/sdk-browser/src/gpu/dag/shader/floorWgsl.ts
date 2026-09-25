@@ -44,10 +44,9 @@ export function dagWorkLayout(blockCount: number, views = 1, pages = 0) {
     viewWords,
     /** The most sixty-four-wide groups any view drew, behind the per-view rows. */
     drawnGroupsMax,
-    /** The frame's best priority of each page plus one, behind it: `askedWords` words, cleared at the
-     *  frame's first cut. */
+    /** The frame's best priority of each page plus one, behind it: one word per page, cleared at
+     *  the frame's first cut. */
     askedAt,
-    askedWords: pages,
     words: askedAt + pages,
   };
 }

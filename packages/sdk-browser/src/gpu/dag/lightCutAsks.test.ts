@@ -4,6 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lightCutFrame } from './lightCutFrame.fixture.ts';
 import { DAG_RELEVE_WGSL } from './shader/snapshotWgsl.ts';
+import { DAG_VIEWS_WGSL } from './shader/viewsWgsl.ts';
+import { dagWorkLayout } from './shader/floorWgsl.ts';
 
 test('a light cut lists a caster once a frame, at its best request: the contract restated here', () => {
   for (const line of [
@@ -12,6 +14,13 @@ test('a light cut lists a caster once a frame, at its best request: the contract
     'out.pages[s]=packRequest(page,atomicLoad(&work[askedWord(page)])-1u);',
   ])
     assert.ok(DAG_RELEVE_WGSL.includes(line), line);
+  // The words the frame's first cut clears are the words the kernel marks: behind `drawnGroupsMax`.
+  assert.ok(
+    DAG_VIEWS_WGSL.includes('fn askedWord(page:u32)->u32{return drawnGroupsMax()+1u+page;}'),
+  );
+  const layout = dagWorkLayout(3, 5, 7);
+  assert.equal(layout.askedAt, layout.drawnGroupsMax + 1);
+  assert.equal(layout.words, layout.askedAt + 7);
 });
 
 // Every sun level of every batch wants the casters that span the scene. Asked once a frame, they
