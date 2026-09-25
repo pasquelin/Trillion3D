@@ -50,7 +50,7 @@ export function createPageStreamerWith(
     admissionBlocked: 0,
     dropped: 0,
     disposed: false,
-    reservedBytes: 0,
+    reservedBytes: () => 0,
   };
   const emit = (phase: string, message: string, context: () => Record<string, unknown>) => {
     if (onDiagnostic)
@@ -83,7 +83,7 @@ export function createPageStreamerWith(
   const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
   // A kept page the catalogue names at another size is another page: it leaves before the first read.
   store.dropResized(catalog);
-  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes;
+  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
   const release = store.hold({ reserved, evict });
   if (kept) evict();
   else store.resize(store.cpuBytes + store.reservedBytes);

@@ -2,10 +2,10 @@ import {
   BODY_INDEX,
   SOFT_STATE_WORDS,
   SOFT_VERTEX_WORDS,
+  physicsMatterOf,
   softBodyOf,
   writeSoft,
   type CommandWriter,
-  type PhysicsMatter,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { type Bodied, type createPhysicsBodies } from './bodies.ts';
@@ -14,19 +14,20 @@ type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> };
 
 /**
  * Writes the SOFT command of `mesh`, a soft body placed at `pose` and scaled by `size`: its slot
- * claimed with its vertices counted against the budget, its vertex map kept in `maps`. Returns
- * the slot.
+ * claimed with its vertices counted against the budget, its vertex map kept in `maps`. SOFT has
+ * no flags word: its `flags` (`flagsOf`), when any, follow in FLAGS. Returns the slot.
  */
 export function addSoftBody(
   writer: CommandWriter,
   mesh: Bodied,
   pose: Pose,
   size: { x: number; y: number; z: number },
-  matter: PhysicsMatter,
   claim: (triangles: number, softVertices: number) => number,
   maps: (Uint32Array | null)[],
+  flags: number,
 ) {
   const p = mesh.physics,
+    matter = physicsMatterOf(mesh.material),
     record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass });
   const id = claim(0, record.vertices.length / SOFT_VERTEX_WORDS);
   writeSoft(writer, {
@@ -39,6 +40,7 @@ export function addSoftBody(
     ...{ settings: p.soft!, record },
   });
   maps[id & BODY_INDEX] = record.map;
+  if (flags) writer.flags(id & BODY_INDEX, flags);
   return id & BODY_INDEX;
 }
 

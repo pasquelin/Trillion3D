@@ -5,6 +5,7 @@ import {
   DAMPING,
   DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
+  FLAG,
   OP,
   ObjectPhysics,
   SOFT_VERTEX_WORDS,
@@ -18,6 +19,7 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, type Bodied } from './bodies.ts';
 import { placeBodies } from './placeBodies.ts';
+import { createSessionHost } from './sessionHost.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { receiveSoft } from './softBodies.ts';
 import { createSoftTick } from './softTick.ts';
@@ -124,4 +126,25 @@ test('obj.physics gives a soft body its stretch, bend, pressure, pins and mass, 
   const sum = (w: Float32Array) => mass(w).reduce((a, b) => a + b);
   assert.ok(Math.abs(sum(softWords({ mass: 2 })) - 2) < 1e-6, 'given');
   assert.ok(Math.abs(sum(softWords({ mass: 2 }, (m) => (m.physics.mass = 3))) - 3) < 1e-6, 'set');
+});
+
+test('a soft body with a contact handler asks for its events when made, and as handlers come and go', () => {
+  let session: PhysicsHost | null = null;
+  const host = { listened: (body: ObjectPhysics) => session!.listened(body) } as PhysicsHost;
+  const { writer, bodies, cloth } = sceneOf(100, host);
+  session = createSessionHost(
+    writer,
+    () => bodies.meshes,
+    () => {},
+    () => {},
+  );
+  const mesh = cloth(1);
+  const stop = mesh.physics.on('enter', () => {});
+  bodies.reconcile(new Set(), (e) => assert.fail(String(e)));
+  const made = writer.take(),
+    flags = SOFT_WORDS + 4 * SOFT_VERTEX_WORDS + 6;
+  assert.equal(made[0], OP.soft);
+  assert.deepEqual([...made.subarray(flags)], [OP.flags, 0, FLAG.events], 'made, then listened to');
+  stop();
+  assert.deepEqual([...writer.take()], [OP.flags, 0, 0], 'no handler left, no events');
 });
