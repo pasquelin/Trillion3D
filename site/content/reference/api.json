@@ -8240,12 +8240,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -8544,12 +8549,17 @@
       {
         "name": "dashSize?",
         "type": "number | undefined",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "gapSize?",
         "type": "number | undefined",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "scale?",
+        "type": "number | undefined",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "vertexColors?",
@@ -10280,7 +10290,7 @@
     "kind": "Type",
     "title": "PageCutPayload",
     "signature": "interface PageCutPayload",
-    "summary": "What a `cut` returns: its pages, and the position grid they were quantized on.",
+    "summary": "What a `cut` returns: its pages, and the grids they were quantized on.",
     "members": [
       {
         "name": "pages",
@@ -10291,6 +10301,11 @@
         "name": "positionExponent",
         "type": "number",
         "desc": "Grid step of positions, as a power of two."
+      },
+      {
+        "name": "uvExponent",
+        "type": "number",
+        "desc": "Grid step of texture coordinates, as a power of two."
       },
       {
         "name": "maxPositionError",
@@ -11328,6 +11343,11 @@
         "name": "stepMs",
         "type": "number",
         "desc": "Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's."
+      },
+      {
+        "name": "stepMaxMs",
+        "type": "number",
+        "desc": "Worker milliseconds of the slowest fixed step of the last tick: a slow step the mean hides."
       },
       {
         "name": "mainMs",
@@ -27501,12 +27521,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -27686,12 +27711,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -27871,12 +27901,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28056,12 +28091,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28241,12 +28281,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28426,12 +28471,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28611,12 +28661,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28796,12 +28851,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28981,12 +29041,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29166,12 +29231,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29351,12 +29421,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29411,7 +29486,7 @@
     "kind": "Function",
     "title": "material.lineDashed()",
     "signature": "material.lineDashed(parameters?: MaterialParameters): Material",
-    "summary": "Draws dashed lines.",
+    "summary": "Draws dashed lines: `dashSize` drawn, then `gapSize` left empty, along the line.",
     "parameters": [
       {
         "name": "parameters?",
@@ -29536,12 +29611,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29721,12 +29801,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29906,12 +29991,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
