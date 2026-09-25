@@ -291,6 +291,28 @@
   "Blending": {
     "summary": "Come una superficie si miscela con ciò che sta dietro, in base al suo nome."
   },
+  "Bloom": {
+    "summary": "Luce che trabocca attorno a ciò che è luminoso, come la diffonde una lente.",
+    "description": "Su base fisica: agisce sulla radianza lineare della scena, prima del tone mapping, senza soglia, e conserva l’energia — il bagliore è una copia sfocata dell’immagine mescolata a essa, quindi la luce totale resta quella che era.",
+    "parameters": {
+      "options": "Ciò che una pagina può passare a `effect.bloom`.",
+      "options.intensity": "Parte dell’immagine sostituita dal suo bagliore, da 0 (nessuna) a 1 (solo il bagliore).",
+      "options.radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è il filtro pubblicato."
+    },
+    "members": {
+      "kind": "Quale passata integrata è.",
+      "stage": "Se viene eseguita prima o dopo il tone mapping.",
+      "intensity": "Parte dell’immagine sostituita dal suo bagliore, da 0 a 1.",
+      "radius": "Estensione del bagliore a ogni livello, in texel di quel livello; maggiore di 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Ciò che una pagina può passare a `effect.bloom`.",
+    "members": {
+      "intensity": "Parte dell’immagine sostituita dal suo bagliore, da 0 (nessuna) a 1 (solo il bagliore).",
+      "radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è il filtro pubblicato."
+    }
+  },
   "blocksAcross": {
     "summary": "Blocchi lungo `texels`, l'ultimo completato dal bordo quando il lato non è un multiplo."
   },
@@ -1479,6 +1501,17 @@
   "edge": {
     "summary": "Funzione di spigolo 2D (prodotto vettoriale 2D)."
   },
+  "effect": {
+    "summary": "La famiglia `effect`: le passate che `world.effects` disegna sull’immagine."
+  },
+  "effect.bloom": {
+    "summary": "Un bagliore attorno a ciò che è luminoso, sull’immagine lineare prima del tone mapping.",
+    "parameters": {
+      "options": "`intensity` e `radius`; i valori pubblicati se assenti.",
+      "options.intensity": "Parte dell’immagine sostituita dal suo bagliore, da 0 (nessuna) a 1 (solo il bagliore).",
+      "options.radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è il filtro pubblicato."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Un'irradianza vuota, pronta a ricevere sorgenti."
   },
@@ -1624,6 +1657,33 @@
   "EXPLORER_OPTIONS_SCHEMA": {
     "summary": "Schema JSON completo che documenta tutte le opzioni di avvio dell'esploratore Trillion3D (MeasuredWorldOptions).",
     "description": "Permette agli LLM di comprendere, verificare e regolare la configurazione del motore 3D."
+  },
+  "EffectChain": {
+    "summary": "`world.effects`: le passate ordinate disegnate sull’immagine dopo l’antialiasing temporale e prima che raggiunga il canvas.",
+    "description": "Le passate prima del tone mapping leggono la radianza lineare, nell’ordine in cui sono state aggiunte; quelle dopo leggono l’immagine mostrata, nel loro. Una catena vuota non costa nulla: nessuna passata, nessuna copia, nessun target.",
+    "members": {
+      "revision": "Conta le modifiche: un’immagine disegnata a un’altra revisione è superata.",
+      "passes": "Le passate, nell’ordine in cui vengono eseguite.",
+      "size": "Quante passate contiene la catena.",
+      "add": "Mette una passata nella catena, in fondo o a `index`. Una passata appartiene a una sola catena alla volta.",
+      "remove": "Toglie una passata dalla catena; false se non c’era.",
+      "clear": "Toglie tutte le passate: l’immagine torna quella senza catena.",
+      "stage": "Le passate di una fase, nell’ordine della catena: l’elenco che un motore esegue. Conservato da una modifica all’altra, così un fotogramma non alloca nulla."
+    }
+  },
+  "EffectKind": {
+    "summary": "Le passate integrate che un motore sa disegnare."
+  },
+  "EffectPass": {
+    "summary": "Una passata della catena.",
+    "description": "Una passata dice quale passata integrata è e dove viene eseguita; le sue impostazioni sono proprietà la cui scrittura raggiunge subito il mondo, come quelle di una luce.",
+    "members": {
+      "kind": "Quale passata integrata è.",
+      "stage": "Se viene eseguita prima o dopo il tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Dove si colloca una passata rispetto alla curva di visualizzazione: sulla radianza lineare della scena, prima che esposizione e curva la portino nell’intervallo di visualizzazione, o sull’immagine mostrata che hanno prodotto."
   },
   "exportLightingGltf": {
     "summary": "glTF e un buffer binario separato in little-endian; gli adattatori gestiscono il salvataggio."
@@ -2376,7 +2436,8 @@
       "toneMapping": "La curva di visualizzazione scelta dalla scena; ACES se manca.",
       "framebuffer": "Dove disegnare; `null` per lo schermo.",
       "width": "Larghezza in pixel.",
-      "height": "Altezza in pixel."
+      "height": "Altezza in pixel.",
+      "linear": "Radianza lineare, né passata dalla curva né codificata, su nero trasparente: l’ingresso della catena di effetti, il cui alfa è la copertura."
     }
   },
   "HostGeometry": {
@@ -6384,6 +6445,9 @@
   "world.temporalAntialiasing": {
     "summary": "Antialiasing temporale: spostamento sub-pixel accumulato tra le immagini; attivo per impostazione predefinita.",
     "description": "Scritto, ha effetto dall’immagine successiva, cronologia scartata, nessuna sessione riaperta. Letto, è ciò che l’immagine porta: false su WebGL2, e mentre il programma si compila dopo l’attivazione."
+  },
+  "world.effects": {
+    "summary": "La catena di effetti: passate disegnate sull’immagine (`effect`)."
   },
   "world.budget": {
     "summary": "Le riserve di memoria del mondo, lette e impostate in byte.",
