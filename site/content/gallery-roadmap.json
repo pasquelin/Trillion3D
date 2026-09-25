@@ -1474,6 +1474,11 @@
       "file": "examples/hinges-and-joints.html"
     },
     {
+      "id": "gears-and-pulleys",
+      "theme": "physics",
+      "file": "examples/gears-and-pulleys.html"
+    },
+    {
       "id": "walk-with-collisions",
       "theme": "physics",
       "file": "examples/walk-with-collisions.html"
