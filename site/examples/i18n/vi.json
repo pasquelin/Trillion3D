@@ -2103,5 +2103,19 @@
       "volumes": "Khối",
       "awake": "Đang chạy"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "Lá cờ được tính sẵn cùng mô hình: nó được khôi phục khi mô hình tải xong và rủ xuống từ cột ngay lập tức. Tải lại để xem.",
+    "controls": {
+      "again": "Lại",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "step": "Bước"
+    },
+    "words": {
+      "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
   }
 }

@@ -2103,5 +2103,19 @@
       "volumes": "Volumes",
       "awake": "Éveillés"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "Le drapeau est précalculé avec son modèle : il est restauré au chargement et retombe aussitôt de son mât. Rechargez-le pour le revoir.",
+    "controls": {
+      "again": "Encore",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "bodies": "Corps",
+      "step": "Pas"
+    },
+    "words": {
+      "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
   }
 }
