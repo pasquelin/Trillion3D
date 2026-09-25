@@ -115,7 +115,7 @@ test('a session closed on a device loss while the proxy is in flight leaves its 
   const pageCache = createPageCache();
   const lost = new AbortController();
   const before = await openSession(metadata, pageCache, { signal: lost.signal });
-  void before.context.readSceneProxy!().catch(() => {});
+  const lostRead = before.context.readSceneProxy!();
   await asked(proxyUrl);
   // The world closes the lost session, cancelling what that session asked.
   lost.abort();
@@ -125,6 +125,7 @@ test('a session closed on a device loss while the proxy is in flight leaves its 
   release('proxy.bin');
   assert.equal((await relit).triangles, 1);
   assert.deepEqual(fetched, [proxyUrl], 'the read in flight was not cancelled with its session');
+  await assert.rejects(lostRead, { name: 'AbortError' }, 'the session gone takes nothing from it');
   after.close();
 });
 
@@ -143,24 +144,24 @@ test('a proxy cooked again at the same address and size is read again, not serve
 });
 
 test('a CPU total too small for the proxy beside the pages a frame keeps: the proxy yields, never the pages', async () => {
-  const { metadata, urls } = await servedScene(4);
+  const { metadata, urls } = await servedScene(5);
   const transfer = 64;
-  // Room for the tables, one transfer and the four pages, not for the proxy beside them.
-  const cpu = manifestTableBytes(metadata.primitives[0].pages) + transfer + 4 * 12;
+  // Room for the tables, one transfer and the five pages, not for the proxy beside the four kept.
+  const cpu = manifestTableBytes(metadata.primitives[0].pages) + transfer + 5 * 12;
   const pageCache = createPageCache(cpu);
   const heard: string[] = [];
   const session = await openSession(metadata, pageCache, {
     maxPageTransferBytes: transfer,
     diagnostics: (diagnostic) => heard.push(diagnostic.phase),
   });
-  session.streamer.retain(urls);
+  session.streamer.retain(urls.slice(0, 4));
   await session.streamer.request(urls);
   const lit = await session.context.readSceneProxy!();
   assert.equal(lit.triangles, 1, 'the bounce still gets its proxy');
   assert.equal(pageCache.keptBytes, 0, 'the proxy gave its bytes back');
   assert.ok(
     urls.every((url) => session.streamer.has(url)),
-    'every page the frame keeps stays',
+    'every page stays: the one the frame does not keep fits once the proxy has yielded',
   );
   assert.equal(session.streamer.stats().evictions, 0);
   await session.flush();

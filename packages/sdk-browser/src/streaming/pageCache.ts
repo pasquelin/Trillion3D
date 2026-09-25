@@ -88,7 +88,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get reservedBytes() {
       return (holder?.reserved() ?? 0) + cache.keptBytes;
     },
-    /** Bytes the pages may hold: the total less what the session reserves. */
+    /** Bytes the pages may hold: the total less what is reserved (`reservedBytes`). */
     get budgetBytes() {
       return Math.max(0, total - cache.reservedBytes);
     },

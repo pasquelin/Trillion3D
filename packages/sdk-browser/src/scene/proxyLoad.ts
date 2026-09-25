@@ -38,7 +38,12 @@ export function createSceneProxyReader(
   const key = `${url}#${proxy.sha256}`;
   cache?.keepOnly(key);
   const read = (readSignal = signal) => fetchVerified(url, proxy, readSignal);
-  return async (): Promise<SceneProxy> =>
+  return async (): Promise<SceneProxy> => {
+    const buffer = await (cache ? cache.keep(key, proxy.bytes, read) : read());
+    // The kept read outlives its session, its caller does not: an engine disposed meanwhile builds
+    // nothing on the device from it, which nothing would release.
+    signal?.throwIfAborted();
     // The columns are views of the bytes the cache keeps, whole: they are only read, never written.
-    decodeSceneProxy(proxy, await (cache ? cache.keep(key, proxy.bytes, read) : read()));
+    return decodeSceneProxy(proxy, buffer);
+  };
 }
