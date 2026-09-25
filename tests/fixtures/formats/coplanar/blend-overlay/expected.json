@@ -2,7 +2,7 @@
   "case": "An opaque surface and, exactly on top of it, a transparent surface (alphaMode BLEND).",
   "rule": "A transparent surface never enters the stage: its primitive is compiled as clustered-blend and keeps its order. The cache moves to format 4 because it holds clustered-blend, not because of layers.",
   "formatVersion": 6,
-  "manifestBinaryVersion": 7,
+  "manifestBinaryVersion": 8,
   "coplanar": {
     "stage": "coplanar-depth-layers-v1",
     "surfaces": 1,
