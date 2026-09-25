@@ -63,8 +63,7 @@ export class WebglClusterTextures {
         this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
       ) as number;
   }
-  /** `reader`: a base or emissive map, its own chain under its readers' rule (#42) — the role
-   *  decides, never the sRGB tag, as the WebGPU atlases. */
+  /** `reader`: a base or emissive map, its chain under its readers' rule (#42), as WebGPU's. */
   bind(unit: number, texture?: Texture, color = false, fallback = WHITE, reader = false) {
     const gl = this.gl;
     if (!texture) {
@@ -176,15 +175,13 @@ export class WebglClusterTextures {
         grantedAnisotropy(texture, this.maxAnisotropy),
       );
   }
-  /** Files a declaration among its maps' readers, once: at its first bind, or in the scene's
-   *  census (`WebglClusterOwner.census`). */
+  /** Files a declaration's maps' readers, once: at first bind or census (`WebglClusterOwner`). */
   file(material: HostMaterials) {
     if (this.declarations.has(material)) return;
     this.declarations.add(material);
     this.readers.read(surfaceOf(material));
   }
-  /** A new frame: the host's texture units are unknown, and the readers of the chained maps are
-   *  reread once, as the host declares them now — WebGPU's cadence (`coverageRules`). */
+  /** A new frame: units unknown, the chained maps' readers reread, as WebGPU's `coverageRules`. */
   beginFrame() {
     this.bound.length = 0;
     this.readers.follow(this.chained);
