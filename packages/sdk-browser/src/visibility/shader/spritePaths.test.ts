@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SPRITE_GLSL, SPRITE_WGSL, writeSpriteWords } from './spriteWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts';
+import { PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
@@ -41,13 +41,15 @@ test('the WGSL and GLSL texts are statement for statement the same formula', () 
 test('every WebGPU raster turns a sprite page, the shadow vertex stage is as before', () => {
   assert.match(PAGE_INFO_STRUCT_WGSL, /normalScale:f32,sprite:vec2f,padMetalUv/);
   assert.equal(ROW_SPRITE_WORD, 36, 'the row words of PageInfo.sprite');
-  assert.ok(PAGE_GEOMETRY_WGSL.includes(SPRITE_WGSL));
+  assert.ok(PAGE_SCREEN_WGSL.includes(SPRITE_WGSL));
   // The compute raster and the hardware skip test read `pageClip`, which turns a sprite page.
   assert.ok(
-    PAGE_GEOMETRY_WGSL.includes(
+    PAGE_SCREEN_WGSL.includes(
       ' if(page.sprite.y!=0.0){return uni.viewProj*pageSprite(page,pagePosition(page,h,vertex));}\n let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);',
     ),
   );
+  for (const shader of [rasterSource(4, 16), VIS_SHADER, SHADE_SHADER])
+    assert.ok(shader.includes(PAGE_SCREEN_WGSL));
   assert.ok(rasterSource(4, 16).includes('let ca=pageClip(vp,page,h,ia);'));
   // Both hardware vertex stages, after the untouched triangle and line expressions.
   const hardware =
