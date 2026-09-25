@@ -8230,7 +8230,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -8539,7 +8544,12 @@
       {
         "name": "sizeAttenuation?",
         "type": "boolean | undefined",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "rotation?",
+        "type": "number | undefined",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "linewidth?",
@@ -12833,8 +12843,8 @@
       },
       {
         "name": "mesh?",
-        "type": "{ geometry: number; material: number | number[]; primitive: string; } | undefined",
-        "desc": "Ranks in `geometries` and `materials`, and how the triangles are read."
+        "type": "{ geometry: number; material: number | number[]; primitive: string; center?: [number, number]; } | undefined",
+        "desc": "Ranks in `geometries` and `materials`, how the triangles are read, and a sprite's centre."
       },
       {
         "name": "light?",
@@ -14670,6 +14680,36 @@
       }
     ],
     "description": ""
+  },
+  {
+    "id": "Sprite",
+    "module": "packages/sdk-core/src/world/object/sprite.ts",
+    "exports": ["Sprite"],
+    "section": "object",
+    "kind": "Type",
+    "title": "Sprite",
+    "signature": "class Sprite extends Mesh\nnew Sprite(material?: Material): Sprite",
+    "summary": "A flat picture that always faces the camera: a unit square every renderer turns toward the image at draw time, about the sprite's position.",
+    "parameters": [
+      {
+        "name": "material?",
+        "type": "Material",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "isSprite",
+        "type": "true",
+        "desc": "Always `true`: tells a sprite apart from any other mesh."
+      },
+      {
+        "name": "center",
+        "type": "Vector2",
+        "desc": "The point of the picture that sits on the sprite's position: `(0.5, 0.5)` its middle, `(0, 0)` its bottom-left corner, `(0.5, 0)` the middle of its bottom edge."
+      }
+    ],
+    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow."
   },
   {
     "id": "StablePreview",
@@ -27511,7 +27551,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -27701,7 +27746,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -27891,7 +27941,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28081,7 +28136,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28271,7 +28331,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28461,7 +28526,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28651,7 +28721,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -28841,7 +28916,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29031,7 +29111,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29221,7 +29306,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29411,7 +29501,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29601,7 +29696,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29676,7 +29776,7 @@
     "kind": "Function",
     "title": "material.sprite()",
     "signature": "material.sprite(parameters?: MaterialParameters): Material",
-    "summary": "A flat picture that always faces the camera.",
+    "summary": "A flat picture that always faces the camera (`object.sprite`), see-through where its picture is, turned in the image by `rotation` and smaller with distance unless `sizeAttenuation` is false.",
     "parameters": [
       {
         "name": "parameters?",
@@ -29791,7 +29891,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -29981,7 +30086,12 @@
       {
         "name": "parameters.sizeAttenuation?",
         "type": "boolean",
-        "desc": "Whether dots get smaller with distance."
+        "desc": "Whether dots and sprites get smaller with distance."
+      },
+      {
+        "name": "parameters.rotation?",
+        "type": "number",
+        "desc": "How far a sprite's picture is turned in the image, in radians, counter-clockwise."
       },
       {
         "name": "parameters.linewidth?",
@@ -31453,20 +31563,20 @@
     "section": "object",
     "kind": "Function",
     "title": "object.sprite()",
-    "signature": "object.sprite(material?: Material): Mesh",
-    "summary": "A unit square facing `+z`, in the sprite kind.",
+    "signature": "object.sprite(material?: Material): Sprite",
+    "summary": "A flat picture that always faces the camera, whichever way the camera looks: a unit square, sized by the sprite's scale and turned in the image by its material's `rotation`.",
     "parameters": [
       {
-        "name": "material",
+        "name": "material?",
         "type": "Material",
-        "default": "new Material('sprite')",
-        "desc": "What the square shows."
+        "desc": "What the square shows: a `material.sprite`."
       }
     ],
     "returns": {
-      "type": "Mesh",
+      "type": "Sprite",
       "desc": ""
     },
+    "example": "const marker = object.sprite(material.sprite({ map })); marker.scale.set(2, 2, 1);",
     "description": ""
   },
   {
