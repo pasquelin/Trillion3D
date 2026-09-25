@@ -24,6 +24,9 @@ namespace {
 
 /// The engine id that names the world rather than a body (layout.ts MISS).
 constexpr uint32_t WORLD_BODY = 0xFFFFFFFFu;
+/// The end every path joint is also filed under, which no body's slot is: the step's carry walks
+/// the paths alone (`notePaths`, `carryPaths`).
+constexpr uint32_t EVERY_PATH = WORLD_BODY;
 
 struct Joint {
   Ref<TwoBodyConstraint> constraint;
@@ -40,13 +43,17 @@ struct Joint {
 };
 
 std::vector<Joint> joints;
-/** Each joint under its body ends (the world's none): what `link` and `dropJoints` walk. */
+/** Each joint under its body ends (the world's none), and each path under `EVERY_PATH`: what
+ *  `link`, `dropJoints` and the path carry walk. */
 JointIndex ends;
 /** This step's broken joints, by id. */
 std::vector<uint32_t> broken;
 /** The joints `link` has visited since the module started: a diagnostic, read by the tests only
  *  (`jolt_link_visits`), so its cost is counted, never timed. */
 uint32_t linkVisits = 0;
+/** The path joints the step's carry has visited since the module started: a diagnostic, read by
+ *  the tests only (`jolt_path_visits`). */
+uint32_t pathVisits = 0;
 
 /// A body's frame from the words (`point, axis, normal` in its own frame), its point moved from
 /// the body's origin to its centre of mass (Jolt's `LocalToBodyCOM`); the world's frame as given.
@@ -192,11 +199,13 @@ void relinkGearsOn(const Joint &joint) {
     for (uint32_t i : ends.at(joint.a, kind)) link(joints[i]);
 }
 
-/// Files the joint at `index` under its body ends, or takes it out of them.
+/// Files the joint at `index` under its body ends, and a path under `EVERY_PATH`, or takes it out.
 void file(uint32_t index, bool in) {
   const Joint &joint = joints[index];
+  auto put = [&](uint32_t slot) { in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index); };
   for (uint32_t slot : {joint.a, joint.b})
-    if (slot != WORLD_BODY) in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index);
+    if (slot != WORLD_BODY) put(slot);
+  if (joint.kind == PATH) put(EVERY_PATH);
 }
 
 /// Takes out the joint at `index`, if any, and relinks the gears it held.
@@ -267,13 +276,14 @@ void dropJoints(uint32_t index) {
 }
 
 void notePaths() {
-  for (Joint &joint : joints)
-    if (joint.constraint && joint.kind == PATH) joint.along = pathFraction(joint.constraint);
+  for (uint32_t i : ends.at(EVERY_PATH, PATH)) joints[i].along = pathFraction(joints[i].constraint);
 }
 
 void carryPaths() {
-  for (Joint &joint : joints)
-    if (joint.constraint && joint.kind == PATH) carryAlongPath(joint.constraint, joint.along);
+  for (uint32_t i : ends.at(EVERY_PATH, PATH)) {
+    ++pathVisits;
+    carryAlongPath(joints[i].constraint, joints[i].along);
+  }
 }
 
 void breakJoints(float dt) {
@@ -295,5 +305,7 @@ uint32_t jolt_broken_count() { return uint32_t(trillion::broken.size()); }
 uint32_t jolt_broken(uint32_t i) { return trillion::broken[i]; }
 /// The joints the gear linking has visited since the module started: the tests' measure of its cost.
 uint32_t jolt_link_visits() { return trillion::linkVisits; }
+/// The path joints the step's carry has visited since the module started: the tests' measure of its cost.
+uint32_t jolt_path_visits() { return trillion::pathVisits; }
 
 }  // extern "C"
