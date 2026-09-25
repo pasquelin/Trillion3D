@@ -1,7 +1,7 @@
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
 import { lightCutOf } from '../../../gpu/dag/selection.ts';
 import { shadowBatchWrites } from '../../../gpu/shadow/batchWrites.ts';
-import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
+import { MAX_SHADOW_BATCHES, SHADOW_BATCHES_MOVING } from '../../../gpu/shadow/batchBudget.ts';
 import { pageModes, writeShadowPages } from '../../shadow/pages.ts';
 import { encodeShadowAtlas } from './encodeShadowPass.ts';
 import { encodeShadowRequests } from '../../shadow/casters.ts';
@@ -22,10 +22,11 @@ function batchViews(rt: WebgpuPagesRuntime) {
  * the runs of the batches before it —, in order, until it returns false. Returns where it stopped:
  * the frame's page count when every batch was visited.
  *
- * At most `MAX_SHADOW_BATCHES`: the largest pool's pages in full batches, what the batches' memory
- * is sized for (`../../../gpu/shadow/batchBudget.ts`). Only a view limit bisected after a light cut
- * dropped work cuts batches short enough to need more; the pages past the last are then pending,
- * drawn the next frame.
+ * While the camera moves, `SHADOW_BATCHES_MOVING`: the raster's fixed page budget. At rest, at
+ * most `MAX_SHADOW_BATCHES`: the largest pool's pages in full batches, what the batches' memory is
+ * sized for (`../../../gpu/shadow/batchBudget.ts`); only a view limit bisected after a light cut
+ * dropped work cuts batches short enough to need more. The pages past the last are pending, drawn
+ * the next frame, the oldest first (`admit.ts`).
  */
 export function forEachShadowBatch(
   rt: WebgpuPagesRuntime,
@@ -34,10 +35,11 @@ export function forEachShadowBatch(
   const { plan, runs } = rt.lights,
     { admission } = plan,
     count = admission.count,
-    views = batchViews(rt);
+    views = batchViews(rt),
+    batches = plan.resting ? MAX_SHADOW_BATCHES : SHADOW_BATCHES_MOVING;
   let runBase = 0,
     from = 0;
-  for (let batch = 0; from < count && batch < MAX_SHADOW_BATCHES; batch++) {
+  for (let batch = 0; from < count && batch < batches; batch++) {
     const to = admission.batchEnd(from, MAX_SHADOW_PAGES, views);
     if (!visit(from, to, runBase)) break;
     runBase += runs.count;
@@ -47,12 +49,13 @@ export function forEachShadowBatch(
 }
 
 /**
- * THE FRAME'S SHADOW PAGES, EVERY ONE, IN THE FRAME THAT MARKS THEM. The plan lists every stale page
- * the image reads (`admit.ts`); the per-batch buffers hold `MAX_SHADOW_PAGES` pages and one light
- * cut's views, so the list is drawn batch after batch in the frame's command buffer, each batch's
- * writes landing in command order (`../../../gpu/shadow/batchWrites.ts`), and each batch's pages
- * committed once encoded. Nothing is deferred to a later frame: a batch that cannot be encoded — a
- * resource missing — leaves its pages and the rest stale, pending, for the next frame.
+ * THE FRAME'S SHADOW PAGES, AS MANY AS ITS BUDGET HOLDS. The plan lists every stale page the image
+ * reads, the coarsest first (`admit.ts`); the per-batch buffers hold `MAX_SHADOW_PAGES` pages and
+ * one light cut's views, so the list is drawn batch after batch in the frame's command buffer, each
+ * batch's writes landing in command order (`../../../gpu/shadow/batchWrites.ts`), and each batch's
+ * pages committed once encoded — every batch at rest, one while the camera moves
+ * (`forEachShadowBatch`). What the frame does not draw — past its budget, or a batch that cannot be
+ * encoded, a resource missing — stays stale, pending, for the next frame.
  *
  * Returns whether every page was encoded.
  */

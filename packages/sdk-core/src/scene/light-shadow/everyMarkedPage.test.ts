@@ -1,6 +1,7 @@
-// #489: every page a frame marks is drawn in that frame — no per-frame cap defers it, no coarse or
-// stale page stands in for it. Each frame, every page the latest report named is current: mapped
-// to its very level and absolute page, drawn, stale for nothing — what the converged pose holds.
+// #489: every page a frame marks is listed in that frame, and a frame whose budget holds its list —
+// always at rest (#525) — draws it whole: no coarse or stale page stands in for it. Each frame,
+// every page the latest report named is current: mapped to its very level and absolute page,
+// drawn, stale for nothing — what the converged pose holds.
 // The report comes back one frame late (`cycleDrawn`); the frame that reads it marks and draws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
