@@ -13,7 +13,7 @@ const SLOTS = 2;
 
 /**
  * What a light cut reports to the host: the pages its views asked for — the lower residency tier
- * (`../../webgpu/residency/shadowTier.ts`) —, copied once a frame and read back after submission
+ * (`../../webgpu/residency/lowerTier.ts`) —, copied once a frame and read back after submission
  * (its short draws: `lightCutRedraws.ts`). Every copy read before a take joins the next take: two
  * reads between two takes lose neither.
  *

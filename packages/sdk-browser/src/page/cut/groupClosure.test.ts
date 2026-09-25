@@ -120,3 +120,17 @@ test('the closure holds what the cut closes over, and nothing once the cut has l
   closure.apply(cutDelta([], leaves));
   assert.equal(closure.hostBytes, left, 'the same cut again grows nothing');
 });
+
+test('a walk whose visitor is full stops before the next page', () => {
+  const closure = createGroupClosure(roots, packed);
+  const [a, b] = dag.pages.map((_, p) => p).filter((p) => dag.pages[p].level === 0);
+  const visited = new Set<number>();
+  closure.closeOver(
+    [a, b + n],
+    (id) => visited.add(id),
+    () => visited.size > 0,
+  );
+  assert.deepEqual(visited, expected(a), 'the first page closes over its groups whole');
+  closure.closeOver([b + n], (id) => visited.add(id));
+  assert.ok(visited.size > expected(a).size, 'the next walk starts afresh');
+});

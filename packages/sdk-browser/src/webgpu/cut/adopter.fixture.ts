@@ -48,6 +48,7 @@ export function mountCutAdopter(options: {
   uniforms: SelectionUniforms;
   selection: () => GpuSelection | undefined;
   onDrawnMirrored?: () => void;
+  onAhead?: (ids: readonly number[]) => void;
 }) {
   const { packedPages } = options;
   const desired: PageRec[] = [],
@@ -67,6 +68,7 @@ export function mountCutAdopter(options: {
     onCutDelta: () => {},
     onDrawnDelta: () => {},
     onDrawnMirrored: options.onDrawnMirrored ?? (() => {}),
+    onAhead: options.onAhead ?? (() => {}),
   });
   return { adopter, desired, shown, drawn };
 }
