@@ -4267,6 +4267,13 @@
   "pageCarriesClusterError": {
     "summary": "Un cluster che porta la propria banda di errore sullo schermo non ha bisogno di gerarchia: la scelta è un test piatto per pagina."
   },
+  "PageCacheHolder": {
+    "summary": "La presa di una sessione sulla cache: ciò che riserva dal totale e come espelle — oltre le pagine fissate e i trasferimenti — quando il totale scende.",
+    "members": {
+      "reservedBytes": "Byte che la sessione riserva dal totale: le tabelle del manifesto e la coda dei trasferimenti.",
+      "evict": "Espelle le pagine per ultimo uso finché non rientrano, oltre le pagine fissate e i trasferimenti della sessione."
+    }
+  },
   "PageCutPage": {
     "summary": "Una pagina scritta da un `cut`: i suoi byte di indice e di geometria, le loro impronte, e il suo descrittore.",
     "members": {

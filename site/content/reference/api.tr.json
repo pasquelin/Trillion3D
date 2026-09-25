@@ -2210,6 +2210,13 @@
       "depthLayer": "Derleyicinin dokunmadan bıraktığı her cluster için 0 olan, eş düzlemsel derinlik katmanı. n katmanının bir cluster'ı, n tam katman adımlık bir derinlik sapmasıyla çizilir, tam olarak bir düzlemi paylaşan iki opak yüzey arasında kazananı belirleyen budur. Eksik ve 0 aynı şeyi ifade eder: dokunulmamış çizim."
     }
   },
+  "PageCacheHolder": {
+    "summary": "Bir oturumun önbellek üzerindeki payı: toplamdan ayırdığı ve toplam küçüldüğünde — sabitlenmiş sayfalarına ve aktarımlarına dokunmadan — nasıl çıkardığı.",
+    "members": {
+      "reservedBytes": "Oturumun toplamdan ayırdığı baytlar: manifest tabloları ve aktarım kuyruğu.",
+      "evict": "Sayfaları sığana kadar son kullanıma göre çıkarır; oturumun sabitlenmiş sayfalarına ve aktarımlarına dokunmaz."
+    }
+  },
   "PageCutPage": {
     "summary": "Bir `cut`'ın yazdığı bir sayfa: indeks ve geometri baytları, özetleri, ve açıklayıcısı.",
     "members": {

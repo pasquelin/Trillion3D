@@ -10190,6 +10190,29 @@
     "description": ""
   },
   {
+    "id": "PageCacheHolder",
+    "module": "packages/sdk-browser/src/streaming/pageCache.ts",
+    "exports": ["PageCacheHolder"],
+    "section": "types",
+    "kind": "Type",
+    "title": "PageCacheHolder",
+    "signature": "interface PageCacheHolder",
+    "summary": "A session's hold on the cache: what it reserves off the total, and how it evicts — past its pins and its transfers — when the total shrinks.",
+    "members": [
+      {
+        "name": "reservedBytes",
+        "type": "number",
+        "desc": "Bytes the session reserves off the total: its manifest tables and its transfer queue."
+      },
+      {
+        "name": "evict()",
+        "type": "void",
+        "desc": "Evicts pages by last use until they fit, past the session's pins and transfers."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "PageCutPage",
     "module": "packages/sdk-core/src/page/decodeContracts.ts",
     "exports": ["PageCutPage"],
