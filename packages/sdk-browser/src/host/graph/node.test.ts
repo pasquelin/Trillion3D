@@ -6,7 +6,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { cloneNode } from './node.ts';
 import { GraphMesh } from './mesh.ts';
 import { GraphGeometry } from './geometry.ts';
 import { GraphSurface } from './surface.ts';
@@ -21,7 +20,7 @@ test('a copied subtree keeps the core group, the bare node and the mesh, each po
   group.position.set(1, 2, 3);
   bare.visible = false;
   mesh.renderOrder = 4;
-  const copy = cloneNode(group);
+  const copy = group.clone();
   assert.ok(copy instanceof Group, 'a group stays a group');
   assert.equal(copy.name, 'rig');
   assert.deepEqual([copy.position.x, copy.position.y, copy.position.z], [1, 2, 3]);
@@ -31,5 +30,5 @@ test('a copied subtree keeps the core group, the bare node and the mesh, each po
   assert.ok(meshCopy instanceof GraphMesh && meshCopy !== mesh, 'the mesh, copied');
   assert.equal(meshCopy.material, surface, 'sharing its surface');
   assert.equal(meshCopy.renderOrder, 4);
-  assert.equal(cloneNode(group, false).children.length, 0, 'children left behind when told');
+  assert.equal(group.clone(false).children.length, 0, 'children left behind when told');
 });

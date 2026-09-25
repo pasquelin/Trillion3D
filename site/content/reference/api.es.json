@@ -4101,6 +4101,8 @@
       "remove": "Quita hijos de este nodo.",
       "destroy": "Libera el nodo y todo lo que está debajo ahora, en lugar de cuando se recolecten.",
       "removeFromParent": "Quita el nodo de su padre.",
+      "clone": "Un nodo del mismo tipo con los mismos valores; sus hijos también copiados salvo que se indique lo contrario.",
+      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario.",
       "clear": "Quita todos los hijos de este nodo.",
       "traverse": "Llama a `fn` sobre este nodo y todos los que hay debajo.",
       "traverseVisible": "Llama a `fn` sobre cada nodo visible desde aquí.",
@@ -4113,11 +4115,7 @@
       "rotateY": "Gira el nodo alrededor de su propio eje y.",
       "rotateZ": "Gira el nodo alrededor de su propio eje z.",
       "translateOnAxis": "Mueve el nodo a lo largo de su propio `axis`.",
-      "getWorldPosition": "Dónde se sitúa el nodo en el mundo.",
-      "getWorldQuaternion": "Cómo está girado el nodo en el mundo.",
       "getWorldDirection": "Hacia dónde mira el nodo en el mundo.",
-      "localToWorld": "Un punto del sistema del nodo, en el mundo.",
-      "worldToLocal": "Un punto del mundo, en el sistema del nodo.",
       "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
     }
   },
@@ -4128,7 +4126,11 @@
       "matrixWorld": "Matriz en el mundo tal como se compuso por última vez (`updateMatrixWorld`), una vista sobre el árbol.",
       "matrixAutoUpdate": "Falso cuando `matrix` ES la pose y nada la recompone.",
       "matrixWorldNeedsUpdate": "Activado cuando la matriz local cambió y la matriz del mundo no la ha seguido.",
-      "updateMatrixWorld": "Compone la matriz en el mundo de este nodo y sus descendientes, tomando la del padre tal cual."
+      "updateMatrixWorld": "Compone la matriz en el mundo de este nodo y sus descendientes, tomando la del padre tal cual.",
+      "getWorldPosition": "Dónde se sitúa el nodo en el mundo.",
+      "getWorldQuaternion": "Cómo está girado el nodo en el mundo.",
+      "localToWorld": "Un punto del sistema del nodo, en el mundo.",
+      "worldToLocal": "Un punto del mundo, en el sistema del nodo."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7158,11 +7160,9 @@
   "GraphNode": {
     "members": {
       "serial": "El número del nodo, único en la sesión.",
-      "kind": "Qué es el nodo: lo que cada lector del grafo usa para distinguirlo.",
-      "clone": "Un nodo del mismo tipo con los mismos valores; sus hijos también copiados salvo que se indique lo contrario.",
-      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario."
+      "kind": "Qué es el nodo: lo que cada lector del grafo usa para distinguirlo."
     },
-    "summary": "Un nodo del grafo: su nombre, su pose, su matriz del mundo, su padre y sus hijos."
+    "summary": "Un nodo del grafo: el nodo del núcleo, distinguido por su `kind`, copiado por el `clone` del núcleo."
   },
   "GraphSurface": {
     "members": {

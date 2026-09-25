@@ -4101,6 +4101,8 @@
       "remove": "Entfernt Kinder von diesem Knoten.",
       "destroy": "Gibt den Knoten und alles darunter sofort frei, statt erst bei ihrer Einsammlung.",
       "removeFromParent": "Entfernt den Knoten von seinem Elternteil.",
+      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt.",
       "clear": "Entfernt alle Kinder dieses Knotens.",
       "traverse": "Ruft `fn` für diesen Knoten und alle darunter auf.",
       "traverseVisible": "Ruft `fn` für jeden von hier aus sichtbaren Knoten auf.",
@@ -4113,11 +4115,7 @@
       "rotateY": "Dreht den Knoten um seine eigene y-Achse.",
       "rotateZ": "Dreht den Knoten um seine eigene z-Achse.",
       "translateOnAxis": "Verschiebt den Knoten entlang seiner eigenen `axis`.",
-      "getWorldPosition": "Wo der Knoten in der Welt steht.",
-      "getWorldQuaternion": "Wie der Knoten in der Welt gedreht ist.",
       "getWorldDirection": "In welche Richtung der Knoten in der Welt schaut.",
-      "localToWorld": "Ein Punkt aus dem Bezugssystem des Knotens, in der Welt.",
-      "worldToLocal": "Ein Punkt aus der Welt, im Bezugssystem des Knotens.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
     }
   },
@@ -4128,7 +4126,11 @@
       "matrixWorld": "Matrix in der Welt, so wie zuletzt zusammengesetzt (`updateMatrixWorld`), eine Sicht auf den Baum.",
       "matrixAutoUpdate": "Falsch, wenn `matrix` die Pose IST und nichts sie neu zusammensetzt.",
       "matrixWorldNeedsUpdate": "Gesetzt, wenn sich die lokale Matrix geändert hat und die Weltmatrix nicht gefolgt ist.",
-      "updateMatrixWorld": "Setzt die Matrix in der Welt dieses Knotens und seiner Nachkommen zusammen, wobei die des Elternteils unverändert übernommen wird."
+      "updateMatrixWorld": "Setzt die Matrix in der Welt dieses Knotens und seiner Nachkommen zusammen, wobei die des Elternteils unverändert übernommen wird.",
+      "getWorldPosition": "Wo der Knoten in der Welt steht.",
+      "getWorldQuaternion": "Wie der Knoten in der Welt gedreht ist.",
+      "localToWorld": "Ein Punkt aus dem Bezugssystem des Knotens, in der Welt.",
+      "worldToLocal": "Ein Punkt aus der Welt, im Bezugssystem des Knotens."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7158,11 +7160,9 @@
   "GraphNode": {
     "members": {
       "serial": "Die Nummer des Knotens, eindeutig in der Sitzung.",
-      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt.",
-      "clone": "Ein Knoten derselben Art mit denselben Werten; seine Kinder werden mitkopiert, sofern nicht anders gesagt.",
-      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt."
     },
-    "summary": "Ein Knoten des Graphen: sein Name, seine Pose, seine Weltmatrix, sein Elternteil und seine Kinder."
+    "summary": "Ein Knoten des Graphen: der Knoten des Kerns, unterschieden durch sein `kind`, kopiert durch das `clone` des Kerns."
   },
   "GraphSurface": {
     "members": {

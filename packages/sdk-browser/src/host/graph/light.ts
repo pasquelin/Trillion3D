@@ -5,7 +5,7 @@
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { cloneNode, GraphNode, type GraphLightKind } from './node.ts';
+import { GraphNode, type GraphLightKind } from './node.ts';
 
 export type { GraphLightKind } from './node.ts';
 
@@ -66,7 +66,7 @@ export class GraphLight extends GraphNode {
     this.angle = light.angle;
     this.penumbra = light.penumbra;
     // The copy aims at a copy of the target, outside the graph, as the reference's does.
-    if (light.target) this.target = cloneNode(light.target);
+    if (light.target) this.target = light.target.clone();
     return this;
   }
 }

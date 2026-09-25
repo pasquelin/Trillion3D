@@ -3536,7 +3536,6 @@
         "bench/witnesses/three/fromGraphNodes.ts",
         "packages/sdk-browser/src/host/graph/graph.test.ts",
         "packages/sdk-browser/src/host/graph/node.test.ts",
-        "packages/sdk-browser/src/host/graph/node.ts",
         "packages/sdk-browser/src/host/prepared/graph.ts",
         "packages/sdk-browser/src/lighting/contractLights.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",

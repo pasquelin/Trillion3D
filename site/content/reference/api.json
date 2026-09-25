@@ -2958,7 +2958,7 @@
     "section": "math",
     "kind": "Type",
     "title": "Curve",
-    "signature": "class Curve\nnew Curve(): Curve",
+    "signature": "abstract class Curve",
     "summary": "A parametric curve over `t ∈ [0, 1]`.",
     "members": [
       {
@@ -5604,8 +5604,8 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNode",
-    "signature": "class GraphNode extends Object3D\nnew GraphNode(): GraphNode",
-    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied as the reference copies.",
+    "signature": "abstract class GraphNode extends Object3D",
+    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied by the core's `clone`.",
     "members": [
       {
         "name": "serial",
@@ -5616,16 +5616,6 @@
         "name": "kind",
         "type": "GraphNodeKind",
         "desc": "What the node is: what every reader of the graph narrows on."
-      },
-      {
-        "name": "clone(recursive?: boolean)",
-        "type": "GraphNode",
-        "desc": "A node of the same kind with the same values; its children copied too unless told not."
-      },
-      {
-        "name": "copy(source: Object3D, recursive?: boolean)",
-        "type": "GraphNode",
-        "desc": "Takes `source`'s values, and copies of its children unless told not to."
       }
     ],
     "description": ""
@@ -9444,6 +9434,16 @@
         "desc": "Takes the node off its parent."
       },
       {
+        "name": "clone(recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "A node of this class with the same values, and copies of its children unless told not to."
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "Takes `source`'s values, and copies of its children unless told not to."
+      },
+      {
         "name": "clear()",
         "type": "Object3D",
         "desc": "Takes every child off this node."
@@ -9504,29 +9504,9 @@
         "desc": "Moves the node along its own `axis`."
       },
       {
-        "name": "getWorldPosition(out?: Vector3)",
-        "type": "Vector3",
-        "desc": "Where the node stands in the world."
-      },
-      {
-        "name": "getWorldQuaternion(out?: Quaternion)",
-        "type": "Quaternion",
-        "desc": "How the node is turned in the world."
-      },
-      {
         "name": "getWorldDirection(out?: Vector3)",
         "type": "Vector3",
         "desc": "The way the node faces in the world."
-      },
-      {
-        "name": "localToWorld(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the node's frame, in the world."
-      },
-      {
-        "name": "worldToLocal(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the world, in the node's frame."
       },
       {
         "name": "localBounds()",
@@ -16482,6 +16462,26 @@
         "name": "updateMatrixWorld(force?: boolean)",
         "type": "void",
         "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
+      },
+      {
+        "name": "getWorldPosition(out?: Vector3)",
+        "type": "Vector3",
+        "desc": "Where the node stands in the world."
+      },
+      {
+        "name": "getWorldQuaternion(out?: Quaternion)",
+        "type": "Quaternion",
+        "desc": "How the node is turned in the world."
+      },
+      {
+        "name": "localToWorld(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the node's frame, in the world."
+      },
+      {
+        "name": "worldToLocal(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the world, in the node's frame."
       }
     ],
     "description": ""

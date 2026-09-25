@@ -35,7 +35,7 @@ export { GraphGeometry } from './geometry.ts';
 export { GraphLight } from './light.ts';
 export { GraphMesh } from './mesh.ts';
 export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-export { GraphNode, cloneNode } from './node.ts';
+export { GraphNode } from './node.ts';
 export { GraphScene } from './scene.ts';
 export { GraphSurface } from './surface.ts';
 export { GraphTexture } from './texture.ts';

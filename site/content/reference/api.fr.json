@@ -4109,6 +4109,8 @@
       "remove": "Retire des enfants de ce nœud.",
       "destroy": "Libère le nœud et tout ce qui est dessous tout de suite, plutôt qu’à leur collecte.",
       "removeFromParent": "Retire le nœud de son parent.",
+      "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire.",
       "clear": "Retire tous les enfants de ce nœud.",
       "traverse": "Appelle `fn` sur ce nœud et tous ceux en dessous.",
       "traverseVisible": "Appelle `fn` sur chaque nœud visible à partir d’ici.",
@@ -4121,11 +4123,7 @@
       "rotateY": "Tourne le nœud autour de son propre axe y.",
       "rotateZ": "Tourne le nœud autour de son propre axe z.",
       "translateOnAxis": "Déplace le nœud le long de son propre `axis`.",
-      "getWorldPosition": "Où se tient le nœud dans le monde.",
-      "getWorldQuaternion": "Comment le nœud est tourné dans le monde.",
       "getWorldDirection": "Le sens dans lequel le nœud regarde dans le monde.",
-      "localToWorld": "Un point du repère du nœud, dans le monde.",
-      "worldToLocal": "Un point du monde, dans le repère du nœud.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
     }
   },
@@ -4136,7 +4134,11 @@
       "matrixWorld": "Matrice dans le monde telle que composée en dernier (`updateMatrixWorld`), une vue sur l’arbre.",
       "matrixAutoUpdate": "Faux quand `matrix` EST la pose et que rien ne la recompose.",
       "matrixWorldNeedsUpdate": "Levé quand la matrice locale a changé et que la matrice du monde n’a pas suivi.",
-      "updateMatrixWorld": "Compose la matrice dans le monde de ce nœud et de ses descendants, en prenant celle du parent telle quelle."
+      "updateMatrixWorld": "Compose la matrice dans le monde de ce nœud et de ses descendants, en prenant celle du parent telle quelle.",
+      "getWorldPosition": "Où se tient le nœud dans le monde.",
+      "getWorldQuaternion": "Comment le nœud est tourné dans le monde.",
+      "localToWorld": "Un point du repère du nœud, dans le monde.",
+      "worldToLocal": "Un point du monde, dans le repère du nœud."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7158,11 +7160,9 @@
   "GraphNode": {
     "members": {
       "serial": "Le numéro du nœud, unique dans la session.",
-      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint.",
-      "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
-      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
+      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint."
     },
-    "summary": "Un nœud du graphe : son nom, sa pose, sa matrice du monde, son parent et ses enfants."
+    "summary": "Un nœud du graphe : le nœud du cœur, distingué par son `kind`, copié par le `clone` du cœur."
   },
   "GraphSurface": {
     "members": {
