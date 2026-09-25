@@ -1,8 +1,5 @@
-// #42: the WebGL2 binder reduces its mip chains as the WebGPU chain does — one draw per level,
-// colours weighted by alpha for a map every reader takes for coverage, plain otherwise —, and a
-// surface switched between masked and opaque after its image reduces the same texture again, with
-// no new upload. #709 drew each level while sampling the texture it drew into: refused by the
-// browser, every level stayed at its null allocation, alpha 0, and every masked leaf was cut.
+// #42: WebGL2 mips reduced as WebGPU's, weighted by alpha under the readers' rule. #709 sampled the
+// texture it drew into: refused, every level stayed a null allocation (alpha 0), every leaf cut.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WebglClusterTextures } from './textures.ts';
@@ -53,10 +50,8 @@ test('each level is drawn from a copy of the level above, never from the texture
   const { map, binder } = masked(gl.gl);
   binder.bind(0, map, true, undefined, true);
   const draws = gl.draws();
-  assert.deepEqual(
-    draws.map((draw) => draw[2]),
-    [1, 2],
-  );
+  const levels = draws.map((draw) => draw[2]);
+  assert.deepEqual(levels, [1, 2]);
   assert.ok(draws.every(([sampled, target]) => sampled && sampled !== target));
   assert.deepEqual([gl.of('copyTexSubImage2D').length, gl.of('generateMipmap').length], [2, 1]);
   // The box chain first, drawn over: a refused draw leaves it, never a null level (alpha 0).
@@ -77,12 +72,10 @@ test('a chain follows the coverage rule of its readers, switched after its image
   const gl = context();
   const { host, map, binder, surface } = masked(gl.gl);
   const image = () => (binder.beginFrame(), binder.bind(0, map, true, undefined, true));
-  image();
-  image();
-  surface.alphaTest = 0;
-  image();
-  surface.alphaTest = 0.5;
-  image();
+  for (const alphaTest of [0.5, 0.5, 0, 0.5]) {
+    surface.alphaTest = alphaTest;
+    image();
+  }
   assert.equal(gl.of('texImage2D').filter((args) => args.at(-1) !== null).length, 1, 'uploads');
   // While it weighs: a linear-tagged map by its role, a data binding of the same texture plain.
   binder.bind(1, map, false, undefined, true);

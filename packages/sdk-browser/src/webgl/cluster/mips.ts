@@ -56,12 +56,10 @@ export class WebglMipReducer {
   /** Per format, the copy of the level above, at the largest size seen (`extent` clamps): kept
    *  while a chain is refilled in place — a live picture —, returned after any other reduction. */
   private scratches = new Map<number, { texture: WebGLTexture; width: number; height: number }>();
-  private drop(format?: number) {
-    for (const [held, { texture }] of this.scratches)
-      if (format === undefined || held === format) {
-        this.gl.deleteTexture(texture);
-        this.scratches.delete(held);
-      }
+  private drop(format: number) {
+    const held = this.scratches.get(format);
+    if (held) this.gl.deleteTexture(held.texture);
+    this.scratches.delete(format);
   }
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -143,7 +141,7 @@ export class WebglMipReducer {
   }
   dispose() {
     const { gl, built } = this;
-    this.drop();
+    for (const format of [...this.scratches.keys()]) this.drop(format);
     if (!built) return;
     gl.deleteProgram(built.program);
     gl.deleteFramebuffer(built.draw);

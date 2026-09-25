@@ -87,7 +87,6 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
 /** The rule each host colour map's chain was reduced under, followed at every image (#42): a map
  *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
-  // One census serves every host slot of the atlas (`tileCatalogue`).
   let readers: CoverageReaders | undefined;
   const hosts = new Map<number, { map: Texture; rule: boolean }>();
   const weighs = (map: Texture) => !!readers?.weighs(map);

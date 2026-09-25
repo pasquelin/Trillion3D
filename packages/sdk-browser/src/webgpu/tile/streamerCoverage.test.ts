@@ -1,8 +1,5 @@
-// #42: a hosted colour texture's chain follows its readers' coverage rule after prepare. A host
-// that switches a surface from masked to opaque sees the texture reduced again, plain, and copied
-// into its places at the next image's follow — signalled as a landed tile, its working texture
-// returned —, with no new prepare; a still rule reduces nothing, and a picture that moves in the
-// same image is reduced once.
+// #42: a hosted map follows its readers' coverage rule after prepare: reduced again and copied at
+// the next image's follow, with no new prepare; a still rule reduces nothing, a moved picture once.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './streamer.ts';
@@ -23,10 +20,8 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   const material = G.standardSurface({ map: host, alphaTest: 0.5 });
   const readers = new CoverageReaders();
   readers.read(surfaceOf(material));
-  const [map, encoding] = [
-    importHostTexture(host as unknown as HostTexture),
-    poolEncoding(undefined),
-  ];
+  const map = importHostTexture(host as unknown as HostTexture),
+    encoding = poolEncoding(undefined);
   const { device, renderPipelines, textures: made } = mockGpu();
   const signalled: number[][] = [];
   const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 };
