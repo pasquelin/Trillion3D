@@ -35,17 +35,20 @@ disagreement is reported to the maintainer.
 8. **Commits carry no trailer, no co-author, no tool name, no forced identity.** Branch
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
-   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. The
-   depth is fixed: the CTO → a lead → one coder or reviewer (the rules pull request's reviewer is
-   the CTO's own) → the review agents of the real `simplify` and `code-review` skills (at most 4),
-   which launch none. The architect, measurer, acceptance and analyst agents launch none.
+   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. A
+   coder's run ends when its pull request is `OK` or abandoned: on a `KO` the lead resumes the
+   same coder with `SendMessage`. The depth is fixed: the CTO → a lead → one coder or reviewer
+   (the rules pull request's reviewer is the CTO's own) → the review agents of the real
+   `simplify` and `code-review` skills (at most 4), which launch none. The architect, measurer,
+   acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
-11. **Small, short-lived pull requests.** One step of an issue per pull request; a larger batch is
-    split into `Part of` PRs merged one after another. A lead brings its conflicting PRs up to date
-    at every pick, never lets two of its PRs wait on the same files, and keeps each PR open one
-    hour at most: that is the limit, not a trigger, and a PR open an hour is unblocked before any
-    new coder.
+11. **Small, short-lived pull requests.** One step of an issue per pull request, about 500
+    hand-written lines at most (generated files excluded); larger work becomes the next `Part of`
+    PR. A lead brings its conflicting PR up to date at every pick and keeps it open one hour at
+    most: that is the limit, not a trigger, and a PR open an hour is unblocked before any new
+    coder. Pull requests are merged in age order, the oldest open one first: the CTO merges a
+    younger ready PR only once every older one is merged or abandoned.
 
 ## Roles
 
@@ -86,10 +89,11 @@ finish, nothing new starts) so no work is cut midway.
   always working on it; `measure ko` and `audit ko` first, then its issues by priority label, 🔴
   first; within a label, a programme's children and To-do items in its order, the others oldest
   first; an issue with no priority label last.
-- **One agent at a time.** A lead runs one coder or one reviewer subagent at a time, never two.
-- **At most 3 pull requests waiting per lead.** At 3, the lead starts no coder: it unblocks its own
-  pull requests (red CI, conflict with `develop`, unanswered review) and resumes only once it is
-  back at 2.
+- **One agent working at a time.** A lead runs one coder or one reviewer subagent at a time,
+  never two; a coder waiting on its review is not working.
+- **One open pull request per lead.** Until it is green and named ready (it then waits only on
+  the CTO's merge), the lead starts no coder: it unblocks it (red CI, conflict with `develop`,
+  unanswered review).
 - **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
   working on its children: the order is kept, and each merge passes its checklist. A new step
   is a To-do item of the parent, worked as `Part of #parent`, never a child issue of its own.
