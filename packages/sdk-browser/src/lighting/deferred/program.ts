@@ -107,10 +107,10 @@ export async function createDeferredProgram(
     get lightGroup() {
       return lightGroup;
     },
-    /** The group that reads `source`, the lit image bound by default. `undefined` before `bind`. */
+    /** The group reading `source` (the lit image by default) and the surface flags, once bound. */
     composeGroup(source?: GPUTextureView) {
       const view = source ?? boundHdr;
-      if (!view) return undefined;
+      if (!view || !boundSurface) return undefined;
       let group = composeGroups.get(view);
       if (!group) {
         group = device.createBindGroup({
@@ -118,6 +118,7 @@ export async function createDeferredProgram(
           entries: [
             { binding: 0, resource: view },
             { binding: 1, resource: { buffer: bindings.uniform } },
+            { binding: 2, resource: boundSurface.views()[3] },
           ],
         });
         composeGroups.set(view, group);
@@ -139,7 +140,7 @@ export async function createDeferredProgram(
         requests = direct.requests ?? placeholders.requests,
         probes = direct.probes,
         proxy = direct.proxy ?? placeholders.proxy;
-      if (boundHdr !== hdr) composeGroups.clear();
+      if (boundHdr !== hdr || boundSurface !== surface) composeGroups.clear();
       boundHdr = hdr;
       if (
         boundSurface === surface &&
@@ -185,15 +186,8 @@ export async function createDeferredProgram(
       lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
     },
     release() {
-      boundSurface = undefined;
-      boundTiles = undefined;
-      boundAtlas = undefined;
-      boundTransmittance = undefined;
-      boundRequests = undefined;
-      boundProbes = undefined;
-      boundProxy = undefined;
-      boundHdr = undefined;
-      lightGroup = undefined;
+      boundSurface = boundTiles = boundAtlas = boundTransmittance = undefined;
+      boundRequests = boundProbes = boundProxy = boundHdr = lightGroup = undefined;
       composeGroups.clear();
     },
   };

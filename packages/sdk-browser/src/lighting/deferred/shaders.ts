@@ -7,6 +7,7 @@ import {
   bounceReflectionWgsl,
 } from '../../bounce/reflectWgsl.ts';
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts';
+import { DEPTH_VIEW_FLAG } from '../../scene/surfaceModel.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
 /** Last link of every composition: linear radiance carried into display space. */
@@ -66,7 +67,7 @@ ${WORLD_AT_WGSL}
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
  if(flag==0u){return vec4f(0.0);}
  let base=textureLoad(baseMetal,coord,0);
- if(flag==3u){return vec4f(base.rgb,1.0);}
+ if(flag==3u||flag==${DEPTH_VIEW_FLAG}u){return vec4f(base.rgb,1.0);}
  let z=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,z);
  if(flag==1u){return vec4f(fogged(base.rgb,P,view.display.yzw),1.0);}
@@ -114,19 +115,23 @@ ${contractSurface(
 /**
  * Composition, one source for two separate programs — never a branch in the shader.
  * `chaine` is what linear radiance goes through before sRGB, and `courbe` what must be
- * declared for that. Background, premultiplication and the raw output of diagnostic views are shared.
+ * declared for that. Background, premultiplication and the raw output of diagnostic views are shared,
+ * and so is a depth view's pixel (the surface flags, binding 2), which skips `chaine`: the
+ * reference never exposes nor tone maps its depth material, so its ramp reaches sRGB untouched.
  */
 const composeSource = (courbe: string, chaine: string) => `
 ${VIEW_WGSL}
 @group(0) @binding(0) var hdr:texture_2d<f32>;
 @group(0) @binding(1) var<uniform> view:View;
+@group(0) @binding(2) var flags:texture_2d<u32>;
 ${FULLSCREEN_VERTEX}
 ${SRGB_WGSL}${courbe}
 fn composeColor(pixel:vec4f)->vec4f{
  let value=textureLoad(hdr,vec2i(pixel.xy),0);
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
- let color=linearToSrgb(${chaine});
+ let depthView=textureLoad(flags,vec2i(pixel.xy),0).r==${DEPTH_VIEW_FLAG}u;
+ let color=linearToSrgb(select(${chaine},value.rgb/max(value.a,1e-6),depthView));
  return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}

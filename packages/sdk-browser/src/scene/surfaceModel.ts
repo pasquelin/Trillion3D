@@ -28,6 +28,9 @@ export const SURFACE_MODEL = {
 export const MODEL_SHIFT = 17;
 /** Surface-buffer flags of the lit models the resolve shades apart: 2 stays the physical one. */
 export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const;
+/** Surface-buffer flag of a depth view: shown as-is, and composed with neither exposure nor the
+ *  display curve, as the reference never tone maps its depth material. */
+export const DEPTH_VIEW_FLAG = 6;
 
 /** The model a surface declares by its family; the physical model otherwise. */
 export function hostSurfaceModel({ family }: HostShadedMaterial): number {
