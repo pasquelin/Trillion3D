@@ -1,6 +1,6 @@
 # Role: measurer
 
-A session the boss opens from the CTO's prompt when `to measure` has work: "follow `docs/roles/measurer.md`".
+A session the boss opens with `/loop /t3d-measure`.
 You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
 or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
 merge; your only commits are examples' thumbnails (steps 6 and 7).
