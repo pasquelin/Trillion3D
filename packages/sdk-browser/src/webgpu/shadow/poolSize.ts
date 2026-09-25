@@ -6,16 +6,10 @@ import {
 import { anyCastsShadow } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { grantedShadowPool } from '../residency/poolGrants.ts';
+import { startGrant } from '../../gpu/core/errorScope.ts';
 import type { PoolClamp } from '../../residency/pools.ts';
 import { createShadowRegionList } from './regions.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-
-/** What the device still answers for the shadow pool, while it answers: an image drawn meanwhile
- *  would lack its shadows (#483), so the frame loop holds on it and a capture waits for it. */
-export function shadowPoolPending(rt: WebgpuPagesRuntime) {
-  const grant = rt.lights.shadowGrant;
-  return grant && !grant.settled ? grant.done : undefined;
-}
 
 /** The smallest shadow pool: the side a one-pixel screen asks (`shadowPoolSide`). */
 const FLOOR_SIDE = shadowPoolSide(1, 1);
@@ -42,7 +36,7 @@ export const shadowPoolFor = (wanted: number) => (budgetBytes: number) => {
  * (`grantedShadowPool`): a pool the device refuses is drawn at half its bytes, down to the smallest
  * screen's side — coarser shadow pages —, and said under `gpu-out-of-memory`. Until the device
  * answers, the frame is held (`holdWebgpuFrame`) — the previous image stays, or nothing yet, never
- * one without its shadows — and a capture waits (`shadowPoolPending`). When it refuses even the floor, the shadowed mode cannot be drawn: it
+ * one without its shadows — and a capture waits (`deviceAnswer`). When it refuses even the floor, the shadowed mode cannot be drawn: it
  * is refused by the `shadows-off` error, and the session goes on without shadows, never lost. A
  * world without a light that casts a shadow sizes nothing: its pool would hold no page. The first
  * frame that has one sizes it, before its plan maps any page.
@@ -62,9 +56,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     diag.engineDiagnostic,
     (pool) => atlas.makePool(pool.side),
   );
-  const grant = { settled: false, done: Promise.resolve() };
-  lights.shadowGrant = grant;
-  grant.done = granting.then(
+  const done = granting.then(
     (granted) => {
       if (!granted) {
         // Never silent: the image loses its shadows, and the page is told so by name, in the
@@ -102,5 +94,5 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       if (!run.lost && !rt.signal.aborted) diag.diagnosticFailure('shadow-pool-unavailable', error);
     },
   );
-  void grant.done.finally(() => (grant.settled = true));
+  lights.shadowGrant = startGrant(done);
 }

@@ -8,7 +8,8 @@ import {
   restoreMainView,
   type SavedView,
 } from './surfaceRestore.ts';
-import { shadowPoolPending, sizeShadowPool } from '../../shadow/poolSize.ts';
+import { sizeShadowPool } from '../../shadow/poolSize.ts';
+import { deviceAnswer } from '../../frame/deviceAnswer.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -41,7 +42,7 @@ export async function captureColorView(
   capture.capturing = true;
   let pixels: Uint8Array | undefined;
   try {
-    await shadowPoolPending(rt);
+    await deviceAnswer(rt);
     await rt.services.residency.pending;
     await gpuDevice.queue.onSubmittedWorkDone();
     viewport[0] = size.width;

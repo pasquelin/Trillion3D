@@ -15,6 +15,7 @@ import { createShadowRegionList, type ShadowRegionList } from '../../shadow/regi
 import type { CpuCasterLists } from '../../shadow/cpuCasters.ts';
 import type { DagLightCut } from '../../../gpu/dag/lightCut.ts';
 import type { ShadowPageRequests } from '../../shadow/pageRequests.ts';
+import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 import { createShadowSceneBox } from '../../shadow/sceneBox.ts';
 import { createShadowResidence } from '../../shadow/residence.ts';
 import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility.ts';
@@ -34,7 +35,7 @@ export interface WebgpuLightState {
   tiles: GpuLightTiles | undefined;
   shadows: GpuShadowAtlas | undefined;
   /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
-  shadowGrant: { settled: boolean; done: Promise<void> } | undefined;
+  shadowGrant: DeviceGrant | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
   /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */

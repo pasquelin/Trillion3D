@@ -5,7 +5,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
-import { shadowPoolPending } from '../shadow/poolSize.ts';
+import { deviceAnswer } from './deviceAnswer.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
@@ -133,7 +133,7 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * it waited for those answers before it began.
  */
 const awaitsDevice = (rt: WebgpuPagesRuntime) =>
-  (shadowPoolPending(rt) !== undefined || frameTargetsAwaited(rt)) && !rt.capture.capturing;
+  (deviceAnswer(rt) !== undefined || frameTargetsAwaited(rt)) && !rt.capture.capturing;
 
 /**
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
@@ -164,8 +164,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   run.frame++;
   const start = performance.now();
   let presented = false;
-  // Nothing drawn yet — a first frame waiting on its shadow pool —, or targets not granted,
-  // whose colour holds no image: nothing is shown, and the canvas keeps the previous image.
+  // Nothing drawn yet, or targets not granted: nothing is shown, the canvas keeps its image.
   if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0 && !frameTargetsAwaited(rt)) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
