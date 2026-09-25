@@ -1150,8 +1150,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "CLUSTERED_BLEND_FORMAT_VERSION",
-    "signature": "const CLUSTERED_BLEND_FORMAT_VERSION: 6",
-    "summary": "Outer cache format required for clustered BLEND; source manifests keep their own format.",
+    "signature": "const CLUSTERED_BLEND_FORMAT_VERSION: 8",
+    "summary": "Outer cache format required for clustered BLEND (6 before `selectedNodes` became a count); source manifests keep their own format.",
     "description": ""
   },
   {
@@ -4226,9 +4226,9 @@
     "section": "types",
     "kind": "Constant",
     "title": "FORMAT_VERSION",
-    "signature": "const FORMAT_VERSION: 5",
+    "signature": "const FORMAT_VERSION: 7",
     "summary": "Cache format this runtime reads.",
-    "description": "Format 5 carries `scene-tables.json`, the node and material tables the prepared scene is checked against; formats 3 and 4 have no such product and are refused by their number rather than half-read."
+    "description": "Format 5 added `scene-tables.json`, the node and material tables the prepared scene is checked against; format 7 carries `selectedNodes` as a count, not a list (#404). Earlier formats are refused by their number rather than half-read."
   },
   {
     "id": "FRUSTUM_PLANE_VALUES",
