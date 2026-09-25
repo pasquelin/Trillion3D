@@ -106,7 +106,7 @@ export function webgl2Backend(dag: RuleDag, threshold: number): CutBackend {
     desired: [],
     requested,
     revision: () => 0,
-    pool: { admit: (asked) => asked.length },
+    pool: { admit: (asked) => asked.length, fit: (asked) => asked.length, held: {} },
   });
   const ids = (list: readonly PageRec[]) => list.map((page) => index.get(page)!);
   return (resident) => {

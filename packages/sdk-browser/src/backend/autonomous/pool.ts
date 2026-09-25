@@ -73,6 +73,21 @@ export function createGeometryBudget(env: PoolEnvironment) {
     limit: () => current().allocatedBytes,
     floorBytes,
   });
+  let used = 0,
+    room = 0;
+  /** Charges `requested` in its order, the root cover held beforehand, against the slots it leaves;
+   *  returns how many fit. Sets `used` and `room`, never the verdict. */
+  const fit = (requested: readonly { url: string }[]) => {
+    const { slots, clamp } = current();
+    room = clamp === 'scene' ? Infinity : slots;
+    used = copies.root();
+    let admitted = requested.length;
+    for (let i = 0; i < requested.length; i++) {
+      used += shares.get(requested[i].url) ?? 0;
+      if (used > room && admitted === requested.length) admitted = i;
+    }
+    return admitted;
+  };
   return {
     /**
      * Admits `requested` in its order while the copies it charges fit the slots the root cover
@@ -80,20 +95,15 @@ export function createGeometryBudget(env: PoolEnvironment) {
      * waits for `flush`. `pixelError` is the host's threshold the cut was drawn at.
      */
     admit(requested: readonly { url: string }[], pixelError: number) {
-      const { slots, clamp } = current(),
-        room = clamp === 'scene' ? Infinity : slots;
-      let used = copies.root(),
-        admitted = requested.length;
-      for (let i = 0; i < requested.length; i++) {
-        used += shares.get(requested[i].url) ?? 0;
-        if (used > room && admitted === requested.length) admitted = i;
-      }
+      const admitted = fit(requested);
       if (used > room !== limited) {
         limited = !limited;
-        event = coverageBudgetEvent(limited, used, slots, true, pixelError);
+        event = coverageBudgetEvent(limited, used, current().slots, true, pixelError);
       }
       return admitted;
     },
+    /** How many of `requested` fit the pool as drawn now, the verdict left to the next `admit`. */
+    fit,
     /** The pool as drawn from the budget; its `allocatedBytes` is the most it may hold. */
     get held(): GeometryPool {
       return current();
