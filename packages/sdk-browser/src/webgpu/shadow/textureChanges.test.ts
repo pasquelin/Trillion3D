@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
+import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts';
 import { shadowsFollowTextures } from '../pages/prepare/lightResources.ts';
 import type { PageRec } from '../../page/selection/types.ts';
@@ -19,16 +19,20 @@ function record(x: number) {
   } as unknown as PageRec;
 }
 
-/** Three rows: a masked cutout on texture 3, an opaque surface on texture 3, a cutout on texture 5. */
+/** Three visibility rows — a masked cutout on texture 3, an opaque surface on texture 3, a cutout
+ *  on texture 5 —, then a blended caster's row on texture 7 (#35). */
 function table() {
-  const ints = new Uint32Array(3 * WORDS);
+  const ints = new Uint32Array(4 * WORDS);
   ints[0 * WORDS + ROW_FLAGS_WORD] = FLAG_MASK;
   ints[0 * WORDS + ROW_MAP_LAYER_WORD] = 3;
   ints[1 * WORDS + ROW_FLAGS_WORD] = 0;
   ints[1 * WORDS + ROW_MAP_LAYER_WORD] = 3;
   ints[2 * WORDS + ROW_FLAGS_WORD] = FLAG_MASK;
   ints[2 * WORDS + ROW_MAP_LAYER_WORD] = 5;
-  return { rowCount: 3, pageTableInts: ints, packedRecs: [record(0), record(100), record(10)] };
+  ints[3 * WORDS + ROW_FLAGS_WORD] = FLAG_BLEND_CASTER;
+  ints[3 * WORDS + ROW_MAP_LAYER_WORD] = 7;
+  const packedRecs = [record(0), record(100), record(10), record(-20)];
+  return { rowCount: 3, blendFirst: 3, casterSlots: 4, pageTableInts: ints, packedRecs };
 }
 
 function lightsSpy() {
@@ -60,8 +64,14 @@ test('tiles of two textures served by one pump declare one box, the union of the
 
 test('a tile of a texture no cutout reads stales nothing', () => {
   const { lights, boxes } = lightsSpy();
-  shadowsFollowTextures(lights, table(), new Set([7]));
+  shadowsFollowTextures(lights, table(), new Set([9]));
   assert.equal(boxes.length, 0);
+});
+
+test('a tile of a texture a blended caster reads stales that caster, whose coverage it carries', () => {
+  const { lights, boxes } = lightsSpy();
+  shadowsFollowTextures(lights, table(), new Set([7]));
+  assert.deepEqual(boxes, [[-20 - r, -r, -r, -20 + r, r, r]]);
 });
 
 test('a resize, which names no texture, still restarts everything', () => {

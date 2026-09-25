@@ -6974,6 +6974,7 @@
       "sensor": "Si el cuerpo solo informa de contactos.",
       "ccd": "Si la colisión continua está activa.",
       "decorative": "Si el cuerpo es escombro decorativo.",
+      "damping": "La parte de su velocidad que pierde por sí mismo cada segundo, lineal y angular (`dv/dt = −c·v`).",
       "velocity": "Velocidad lineal, m/s, como la dejó el último paso; escríbela para lanzar el cuerpo.",
       "asleep": "Si el cuerpo duerme: en reposo y sin simular hasta que algo lo despierte.",
       "mass": "Masa en kilogramos; `undefined` toma la densidad del material por el volumen.",
@@ -7008,7 +7009,8 @@
       "ccd": "Colisión continua, para cuerpos pequeños y rápidos que atravesarían paredes finas.",
       "decorative": "Escombros: solo choca con el mundo estático y solo se simula al alcance y a la vista. Limitado por `budget.physics.decorative`.",
       "friction": "Sustituye la fricción del material, de 0 en adelante.",
-      "restitution": "Sustituye la restitución del material, de 0 a 1."
+      "restitution": "Sustituye la restitución del material, de 0 a 1.",
+      "damping": "Cuánta velocidad pierde el cuerpo por sí mismo, por segundo, como por el aire y la rodadura: `dv/dt = −c·v`, 0 o más, lineal y angular por separado; 0 lo conserva todo. Se fija al crear el cuerpo: vuelve a asignar `obj.physics` para cambiarlo."
     }
   },
   "PhysicsBudget": {
@@ -7418,17 +7420,17 @@
       "options.finalDrive": "La relación del grupo final (la reducción de la rueda motriz de un vehículo de orugas).",
       "options.shiftUpRPM": "La caja sube de marcha por encima de esto, en rpm.",
       "options.shiftDownRPM": "Y reduce por debajo de esto, en rpm.",
-      "options.clutch": "Par del embrague por rad/s de deslizamiento, en N·m·s.",
+      "options.clutch": "Par del embrague por rad/s de deslizamiento, N·m·s; solo coches y motos, rechazado en un vehículo de orugas: su motor mueve las orugas sin embrague (el controlador de orugas de Jolt).",
       "options.suspensionFrequency": "Frecuencia de la suspensión, en Hz.",
       "options.suspensionDamping": "Relación de amortiguamiento, de 0 (ninguno) a 1 (crítico).",
-      "options.suspensionTravel": "Recorrido de la rueda de la extensión total a la compresión total, en metros.",
-      "options.antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna.",
-      "options.turnRadius": "El radio de giro con la dirección al tope, en metros.",
+      "options.suspensionTravel": "Recorrido de la rueda desde la extensión total hasta la compresión total, m; más largo que el hundimiento que pide la frecuencia de suspensión en la Tierra, `9.81 / (2π suspensionFrequency)²`, o rechazado: más allá, la carrocería descansa sobre sus topes.",
+      "options.antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna. Solo coches: rechazado en una moto (sus dos ruedas no comparten eje) y en un vehículo de orugas (sus ruedas no llevan barras).",
+      "options.turnRadius": "El radio de giro con la dirección al tope, en metros. Rechazado en un vehículo de orugas, que gira con sus orugas.",
       "options.steerTime": "Segundos del centro al tope de la dirección.",
       "options.brakeGrip": "La fricción a la que los frenos bloquean las ruedas.",
-      "options.drive": "Las ruedas motrices de un coche.",
-      "options.trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar, respecto a la exterior.",
-      "options.maxLean": "La mayor inclinación de una moto, en radianes."
+      "options.drive": "Las ruedas motrices de un coche. Rechazado en una moto (su rueda trasera es la motriz) y en un vehículo de orugas (la rueda más trasera de cada oruga es la motriz).",
+      "options.trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar en marcha, respecto a la exterior; parado, pivota sobre sí mismo con la oruga interior invertida, sea cual sea esta relación. Rechazado en un coche o una moto.",
+      "options.maxLean": "La mayor inclinación de una moto, en radianes. Rechazado en un coche o un vehículo de orugas."
     },
     "members": {
       "kind": "Lo que es el vehículo.",
@@ -7463,17 +7465,17 @@
       "finalDrive": "La relación del grupo final (la reducción de la rueda motriz de un vehículo de orugas).",
       "shiftUpRPM": "La caja sube de marcha por encima de esto, en rpm.",
       "shiftDownRPM": "Y reduce por debajo de esto, en rpm.",
-      "clutch": "Par del embrague por rad/s de deslizamiento, en N·m·s.",
+      "clutch": "Par del embrague por rad/s de deslizamiento, N·m·s; solo coches y motos, rechazado en un vehículo de orugas: su motor mueve las orugas sin embrague (el controlador de orugas de Jolt).",
       "suspensionFrequency": "Frecuencia de la suspensión, en Hz.",
       "suspensionDamping": "Relación de amortiguamiento, de 0 (ninguno) a 1 (crítico).",
-      "suspensionTravel": "Recorrido de la rueda de la extensión total a la compresión total, en metros.",
-      "antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna.",
-      "turnRadius": "El radio de giro con la dirección al tope, en metros.",
+      "suspensionTravel": "Recorrido de la rueda desde la extensión total hasta la compresión total, m; más largo que el hundimiento que pide la frecuencia de suspensión en la Tierra, `9.81 / (2π suspensionFrequency)²`, o rechazado: más allá, la carrocería descansa sobre sus topes.",
+      "antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna. Solo coches: rechazado en una moto (sus dos ruedas no comparten eje) y en un vehículo de orugas (sus ruedas no llevan barras).",
+      "turnRadius": "El radio de giro con la dirección al tope, en metros. Rechazado en un vehículo de orugas, que gira con sus orugas.",
       "steerTime": "Segundos del centro al tope de la dirección.",
       "brakeGrip": "La fricción a la que los frenos bloquean las ruedas.",
-      "drive": "Las ruedas motrices de un coche.",
-      "trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar, respecto a la exterior.",
-      "maxLean": "La mayor inclinación de una moto, en radianes."
+      "drive": "Las ruedas motrices de un coche. Rechazado en una moto (su rueda trasera es la motriz) y en un vehículo de orugas (la rueda más trasera de cada oruga es la motriz).",
+      "trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar en marcha, respecto a la exterior; parado, pivota sobre sí mismo con la oruga interior invertida, sea cual sea esta relación. Rechazado en un coche o una moto.",
+      "maxLean": "La mayor inclinación de una moto, en radianes. Rechazado en un coche o un vehículo de orugas."
     }
   },
   "VehicleSpecs": {

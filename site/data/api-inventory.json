@@ -1369,6 +1369,7 @@
         "packages/sdk-browser/src/webgpu/pages/slotReclaim.test.ts",
         "packages/sdk-browser/src/webgpu/pages/testOccluder.fixture.ts",
         "packages/sdk-browser/src/webgpu/pages/testScenes.fixture.ts",
+        "packages/sdk-browser/src/webgpu/row/blendCasters.test.ts",
         "packages/sdk-browser/src/world/camera/camera.test.ts",
         "packages/sdk-browser/src/world/camera/camera.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
@@ -4193,11 +4194,14 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/advancedJoints.test.ts",
+        "packages/sdk-browser/src/physics/damping.test.ts",
         "packages/sdk-browser/src/physics/gearPhase.test.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
-        "packages/sdk-browser/src/physics/joints.test.ts"
+        "packages/sdk-browser/src/physics/joints.test.ts",
+        "packages/sdk-browser/src/physics/pathEnergy.test.ts",
+        "scripts/docs-examples-coaster.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".joint"
@@ -4247,7 +4251,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/joints.ts",
+        "packages/sdk-browser/src/physics/pathEnergy.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointMotor"
     },
@@ -4399,6 +4406,7 @@
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/gpu/shadow/sunFarShadow.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittance.test.ts",
         "packages/sdk-browser/src/lighting/contractLights.test.ts",
         "packages/sdk-browser/src/lighting/direct/lightSamplingWgsl.test.ts",
         "packages/sdk-browser/src/lighting/direct/lightSamplingWgsl.ts",
@@ -7662,6 +7670,9 @@
         "packages/sdk-browser/src/gpu/shadow/pageHiz.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/gpu/shadow/staticLayer.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittance.test.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittance.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittanceLayer.test.ts",
         "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadowPass.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
@@ -9369,7 +9380,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/vehicleOptions.test.ts",
+        "packages/sdk-browser/src/physics/vehiclePowertrain.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VEHICLE_SPECS"
     },
@@ -9420,7 +9434,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/vehicles.fixture.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/vehicleOptions.test.ts",
+        "packages/sdk-browser/src/physics/vehiclePowertrain.test.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleOptions"
     },
