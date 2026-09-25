@@ -13,7 +13,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
@@ -21,14 +20,7 @@ import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableCont
 import { buildPreparedScene } from './build.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import {
-  caches,
-  describe,
-  describeShape,
-  repository,
-  serveFiles,
-  type Ranks,
-} from './scenes.fixture.ts';
+import { caches, describe, describeShape, serveFiles, type Ranks } from './scenes.fixture.ts';
 
 async function witness(folder: URL, document: string, text?: string) {
   text ??= await readFile(new URL(document, folder), 'utf8');
@@ -80,7 +72,7 @@ test('the scene built from the tables is the scene the loader built, on every co
       assert.deepEqual(
         await prepared(folder, document),
         await witness(folder, document),
-        `${relative(fileURLToPath(repository), fileURLToPath(folder))}/${document}`,
+        `${fileURLToPath(folder)}${document}`,
       );
     }
   }

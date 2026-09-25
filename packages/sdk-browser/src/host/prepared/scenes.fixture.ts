@@ -9,7 +9,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import * as K from './sceneKinds.fixture.ts';
 import { COOKED_SCENES } from '../../../../../scripts/site-caches.ts';
 
-export const repository = new URL('../../../../../', import.meta.url);
+const repository = new URL('../../../../../', import.meta.url);
 
 /** Every compiled scene cache (`scripts/site-caches.ts`): the key folder its pointer names. */
 export async function caches() {
