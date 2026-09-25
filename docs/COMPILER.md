@@ -87,7 +87,7 @@ A stalled group is named by experiment on the group itself, never by a threshold
 | `seam-locked`    | still stalls with no lock, and advances with no lock on its position copies welded across the seams of every texture set the pages carry: its texture seams hold it |
 | `unreducible`    | advances under neither rerun: the surface itself resists the halving                                                                                                |
 | `border-lost`    | lost a shared position on every retry with added locks                                                                                                              |
-| `unusable-error` | received a non-finite error from the simplifier                                                                                                                     |
+| `unusable-error` | received a non-finite error from the simplifier, or a reduction that removes a part larger than its children's error and than what its kept surface moved (#484)    |
 
 A case the compiler cannot accept fails with its named error code, checked against the code the case expects: today `inputs-quantized-positions` is the only one, refused `INVALID_GLTF` ("POSITION must be float VEC3") because `KHR_mesh_quantization` is not read. A panic, a refusal under another code, or a flat DAG with no explanation is a failing case, never a tolerated one. Each case guarantees one outcome, on both seeds:
 
@@ -116,7 +116,7 @@ A case the compiler cannot accept fails with its named error code, checked again
 | `topology-unwelded-duplicates`  | one root                                                        |
 | `topology-degenerate-triangles` | one root                                                        |
 | `topology-thin-strip`           | one root                                                        |
-| `topology-slats`                | one root                                                        |
+| `topology-slats`                | stall: `unusable-error`                                         |
 | `topology-smaller-than-cluster` | one root                                                        |
 | `topology-exactly-one-cluster`  | one root                                                        |
 | `topology-huge-flat-plane`      | one root                                                        |

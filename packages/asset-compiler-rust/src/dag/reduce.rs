@@ -80,10 +80,10 @@ pub(super) fn reduce_group(
         Err(stop) => return stall(input, &live, children.len(), stop),
     };
     let kept = &chosen.simplified.indices;
-    let vanished = vanished::vanished(&live, kept, input.positions, input.weld);
-    let own = chosen.simplified.error_object.max(child_error);
-    let error = vanished.distance.max(own);
-    if !error.is_finite() || vanished.destroys(&live, kept, input.positions, child_error) {
+    let vanished = vanished::vanished(&live, kept, input.positions, input.weld, child_error);
+    let simplified = chosen.simplified.error_object.max(child_error);
+    let error = vanished.distance.max(simplified);
+    if !error.is_finite() || vanished.destroys {
         return Ok(Err(diagnosis::outcome(
             StallCause::UnusableError,
             input,

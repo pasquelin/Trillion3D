@@ -24,24 +24,11 @@ use std::collections::{HashMap, HashSet};
 
 /// What a reduction removed whole.
 pub(super) struct Vanished {
-    /// Bounding radius of the largest part removed; zero when none was.
-    pub radius: f64,
     /// Largest distance from a part removed to the surface kept.
-    pub distance: f64,
-}
-
-impl Vanished {
-    /// Whether the reduction of `source` to `kept` destroyed a part: removed one larger than both
-    /// `child_error` and the distance from `kept` to `source`, which it only measures then.
-    pub fn destroys(
-        &self,
-        source: &[u32],
-        kept: &[u32],
-        positions: &[f32],
-        child_error: f64,
-    ) -> bool {
-        self.radius > child_error && self.radius > one_sided_distance(positions, kept, source)
-    }
+    pub(super) distance: f64,
+    /// A part removed is larger than both the children's error and the distance from the surface
+    /// kept to the source.
+    pub(super) destroys: bool,
 }
 
 /// The parts of `source`, connected over shared positions (`weld`): one corner list each.
@@ -66,19 +53,25 @@ pub(crate) fn parts(source: &[u32], weld: &[u32]) -> Vec<Vec<u32>> {
 }
 
 /// The parts of `source` of which `kept` holds no vertex, measured against the triangles of
-/// `kept`, both over the source vertices; parts meet at a shared position (`weld`).
-pub(super) fn vanished(source: &[u32], kept: &[u32], positions: &[f32], weld: &[u32]) -> Vanished {
+/// `kept`, both over the source vertices; parts meet at a shared position (`weld`). The distance
+/// from `kept` to `source` is measured only when a part removed is larger than `child_error`.
+pub(super) fn vanished(
+    source: &[u32],
+    kept: &[u32],
+    positions: &[f32],
+    weld: &[u32],
+    child_error: f64,
+) -> Vanished {
     let alive: HashSet<u32> = kept.iter().map(|&v| weld[v as usize]).collect();
-    let removed: Vec<Vec<u32>> = parts(source, weld)
-        .into_iter()
-        .filter(|part| !part.iter().any(|&v| alive.contains(&weld[v as usize])))
-        .collect();
-    let radius = removed
-        .iter()
-        .map(|part| bounding_sphere(positions, part)[3])
-        .fold(0.0, f64::max);
+    let (mut radius, mut removed) = (0.0_f64, Vec::new());
+    for part in parts(source, weld) {
+        if !part.iter().any(|&v| alive.contains(&weld[v as usize])) {
+            radius = radius.max(bounding_sphere(positions, &part)[3]);
+            removed.extend(part);
+        }
+    }
     Vanished {
-        radius,
-        distance: one_sided_distance(positions, &removed.concat(), kept),
+        distance: one_sided_distance(positions, &removed, kept),
+        destroys: radius > child_error && radius > one_sided_distance(positions, kept, source),
     }
 }
