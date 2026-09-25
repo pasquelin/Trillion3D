@@ -89,6 +89,11 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       bytes += array.byteLength;
     },
     drop,
+    /** Drops every page `sizes` names at another size: another page under the same url. */
+    dropResized(sizes: ReadonlyMap<string, { bytes: number }>) {
+      for (const [url, held] of pages)
+        if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
+    },
     /** Sets the total, and evicts at once what no longer fits. */
     resize(cpu: number) {
       checkBytes(cpu);
