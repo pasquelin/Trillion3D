@@ -7,9 +7,9 @@ import { DAG_RELEVE_WGSL } from './shader/snapshotWgsl.ts';
 
 test('a light cut lists a caster once a frame, at its best request: the contract restated here', () => {
   for (const line of [
-    'if(isLightCut()&&atomicMax(&work[askedWord(page)],packRequest(page,priority))!=0u){return;}',
+    'if(isLightCut()&&atomicMax(&work[askedWord(page)],priority+1u)!=0u){return;}',
     'let s=id.x;if(s>=min(atomicLoad(&out.count),views[0u].listCap)){return;}',
-    'out.pages[s]=atomicLoad(&work[askedWord(out.pages[s]&((1u<<PAGE_BITS)-1u))]);',
+    'out.pages[s]=packRequest(page,atomicLoad(&work[askedWord(page)])-1u);',
   ])
     assert.ok(DAG_RELEVE_WGSL.includes(line), line);
 });
@@ -43,4 +43,12 @@ test('a caster several views ask for is asked at the highest priority any of the
       : [[3, 8]],
   );
   assert.deepEqual(cut.reports.takeRequests(), [3, 9], 'caster 3 at 8, above caster 9 at 5');
+});
+
+// Page zero at priority zero packs to the word zero: the frame's mark is its priority plus one, so
+// that request too is listed once, not once per view that wants it.
+test('page zero at priority zero is listed once a frame too', async () => {
+  const { cut, frame } = lightCutFrame();
+  await frame([4, 5, 6], new Set(), () => [[0, 0]]);
+  assert.deepEqual(cut.reports.takeRequests(), [0], 'page zero, once');
 });
