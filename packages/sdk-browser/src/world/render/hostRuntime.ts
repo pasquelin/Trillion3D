@@ -65,7 +65,6 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     active: () => state.active,
     check,
     compose,
-    redraw: () => state.redraw?.(),
   });
   const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     check,

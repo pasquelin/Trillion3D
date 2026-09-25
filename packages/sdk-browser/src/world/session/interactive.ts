@@ -123,6 +123,11 @@ export function startInteractiveExplorer(
   // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
   const first = explorer.render();
   original.onFrame?.(first);
+  // A capture puts the view back without what frames build up (the effect chain, the temporal
+  // accumulation, the water): the loop draws it again, gone idle or not.
+  const { captureView, captureSurfaceView } = explorer;
+  explorer.captureView = (width, height) => captureView(width, height).finally(invalidate);
+  explorer.captureSurfaceView = (pose, size) => captureSurfaceView(pose, size).finally(invalidate);
   invalidate();
   return invalidate;
 }
