@@ -43,7 +43,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     check,
     setPose,
   } = host;
-  const { render, profiler, streaming } = createExplorerHostFrame(session, {
+  const { render, profiler, streaming, followCells } = createExplorerHostFrame(session, {
     prepared,
     host,
     backends,
@@ -96,7 +96,11 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
       await loading;
       if (state.disposed) return false;
       const pending = await state.active.pendingFrame?.();
-      return !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending;
+      // Cells asked within reach are placed by the frames after their read, camera still or not.
+      const cells = await followCells?.pending();
+      return (
+        !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending || !!cells
+      );
     },
     capture,
     captureView,

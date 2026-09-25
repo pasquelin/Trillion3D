@@ -34,7 +34,7 @@ Required fields consumed by the browser adapter:
 - `schema` / `formatVersion` — must agree: `6` when the cache contains `clustered-blend`, otherwise `5`
 - `status` — `ready`
 - `scope` — `slice` or `full`
-- `selectedTriangles`, `selectedNodes`
+- `selectedTriangles`, `selectedNodes` — how many triangles and nodes were kept: counts, not lists, so they do not grow with the number of placed objects
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams, dag, topology }`
   - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
   - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.
@@ -42,7 +42,7 @@ Required fields consumed by the browser adapter:
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
-Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
+Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json` and its `scene-cell-<n>.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 
 ### `clusters.bin`
 
@@ -131,17 +131,19 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 2, `nodeTableVersion` 2, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 3, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
 ranks already remapped.
 
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
-- `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, camera, weights,
+- `nodes[]` — every node the partition's cells do not place, in glTF order, renumbered without
+  them (every node, at its glTF rank, when `partition` is `null`): `{ name, children, mesh, light, camera, weights,
 matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
+- `partition` — `null`, or the world partition (below): the cells that place the other nodes.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
 range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
   applies). `lights.json` stays the radiometric product the engine lights with.
@@ -181,13 +183,72 @@ targets, indices, material }` — accessor ranks by glTF semantic, its morph tar
   document's own tangent variant; an image
   `{ name, uri, view, mimeType }`, an address relative to the document or a view of its binary.
 
+### World partition
+
+A node that only places a mesh — a leaf the scene reaches, carrying no light, no camera, no skin
+and no morph weights, that no animation moves, whose mesh declares its position bounds and does
+not morph — is a **placement**. When the placements of a scene weigh more than one stream unit
+(`STREAM_BUNDLE_BYTES`, 128 KiB, the budget of a geometry bundle), the compiler moves them out of
+`nodes[]` into spatial cells (`packages/asset-compiler-rust/src/compiler_tables/partition.rs`), and
+the runtime reads the cells by distance to its camera instead of reading every node before its
+first frame. A scene whose placements fit one unit keeps them in `nodes[]` and has `partition:
+null`: its tables are the ones it always had.
+
+The placements are halved along the widest spread of their centres until a cell's descriptors fit
+the unit. `partition` is `{ version: 1, bounds, meshes, cells }`: `bounds` the box around every cell
+at the declared poses (scene frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), `meshes` the mesh
+ranks the cells place, and per cell `{ url, sha256, bytes, parents, meshes }` — its file beside the
+tables (`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a
+page), `parents`, `[[rank, box], …]`: for each core node its placements hang under (`null`, the
+scene), the box around them **in that node's frame**, and `meshes`, `[[rank, count], …]` in rank
+order: how many placements of each mesh it holds, which the runtime sizes its rows by before
+reading any cell. A cell file is `{ version: 1, nodes }`, each node `{ parent, mesh, matrix, translation,
+rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs under (`null`, the
+scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
+placement's name is not kept: it is a row, not a host node. The cells are products of the key
+folder, recorded in the manifest's `files`.
+
+**Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
+instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
+row at the world matrix the engine composes for a child of its parent — the same bits a host node
+there would carry, proven against the host loader on `site/assets/examples/ten-thousand-objects`
+(`host/prepared/partition.test.ts`) — and gives it back, parked, when its cell leaves. A page may
+move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's box is
+that parent's box under its current matrix (`boxes.ts`), so the cell is read where its placements
+stand. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
+diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
+The error target does not shorten it: nothing coarser stands for a cell that is not read (the
+proxy of #23), so an object dropped below the target would be missing from the image, not
+replaced. An orthographic camera reads every cell. Before its first frame a session reads the cells within
+the reach of the camera the page draws with (a world hands its camera to the session it opens; a
+bare explorer, which has none, reads for its framing camera, which sees the whole scene), and
+nothing else. Then, before every frame, cells within the reach are
+asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
+leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
+never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
+— one request queue — and placed within the arrival budget (`ARRIVAL_BUDGET_MS`), one cell at
+least per frame. The rows are sized once, when a session opens and before its engines read them,
+for every placement its camera's reach can hold at once (`residentRows`): two cells held together
+are within `2 × 1.5 × reach` of each other, so the largest sum of `meshes` over the cells that close
+to any one cell bounds each mesh's rows — set by the reach and the cells' size, not by the world.
+Nothing grows under a drawing engine: a camera whose reach later outgrows the rows, or parents
+moved so close together that a cell is short of them, asks the session's owner, once, to open it
+again sized for that reach and where the cells stand (the world does). A session no owner
+can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
+placement never ask. A session drawing on demand draws again, camera still, until the cells it
+asked for within reach are read and placed. A partitioned scene is not
+replicated (`UNSUPPORTED_SCENE_UPDATE`).
+
+The merged, simplified proxy of a far cell (HLOD) is not part of this format: #23 carries it.
+
 The runtime builds its host scene from these alone (`packages/sdk-browser/src/host/prepared/`):
 attributes viewed on the binary, the local box the positions declare, textures folded on image
 source and sampler, surfaces and their vertex-colour and flat-shading variants, nodes, meshes and
 cameras and lights assembled and named as the host loader assembled and named them — proven equal to the
 loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
-do not carry, or a view outside its binary, is `PREPARED_SCENE_MISMATCH`.
+do not carry, a view outside its binary, or a cell placing a mesh `partition.meshes` does not
+name, is `PREPARED_SCENE_MISMATCH`.
 
 ## `physics.json` — cooked colliders
 

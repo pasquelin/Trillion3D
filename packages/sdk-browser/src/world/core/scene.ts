@@ -9,6 +9,9 @@ import { saveScene } from '../saved/write.ts';
 import { readScene } from '../saved/read.ts';
 import type { SavedScene } from '../saved/format.ts';
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
+import { validateSceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
+import { sceneFogOf, type Fog } from './sceneFog.ts';
+export { sceneFogOf };
 
 /** What `scene.load` may be told about the model it loads; every field is optional. */
 export interface LoadOptions {
@@ -29,8 +32,9 @@ export interface LoadOptions {
   onProgress?: (event: JobProgress) => void;
 }
 
-/** What a world hears from its scene: a node's changes, and its background set or written. */
-export type WorldSceneLink = SceneLink & { background(): void };
+/** What a world hears from its scene: a node's changes, its background and its fog set or
+ *  written. */
+export type WorldSceneLink = SceneLink & { background(): void; fog(): void };
 
 /**
  * The root of a world's scene: objects are added to it, a compiled model is loaded into it, and
@@ -44,8 +48,9 @@ export class Scene extends Object3D {
   private readonly recoloured = () => (this._link as WorldSceneLink | null)?.background();
   /** A picture of the surroundings that shiny surfaces reflect; `null` for none. */
   environment: Texture | null = null;
-  /** Fog that fades objects into `color` between `near` and `far`; `null` for none. */
-  fog: { color: Color; near: number; far: number } | null = null;
+  private _fog: Fog | null = null;
+  /** Tells the world the fog changed, chained on its colour to hear writes in place. */
+  private readonly refogged = () => (this._link as WorldSceneLink | null)?.fog();
 
   private readonly loader: (url: string, options: LoadOptions) => Promise<LoadedModel>;
   constructor(loader: (url: string, options: LoadOptions) => Promise<LoadedModel>) {
@@ -75,6 +80,24 @@ export class Scene extends Object3D {
     this._background = value ?? null;
     if (value) listen(value, this.recoloured);
     this.recoloured();
+  }
+  /** Fog over every surface, opaque and transparent, on both renderers; `null`, the default,
+   *  for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`,
+   *  distances from the camera; `{ color, density }` thickens by `density` per unit of distance;
+   *  add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out
+   *  above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the
+   *  next frame: a new fog set here, or its colour written through its methods. A direct write of
+   *  `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range —
+   *  `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`). */
+  get fog() {
+    return this._fog;
+  }
+  set fog(value: Fog | null) {
+    if (value) validateSceneFog(sceneFogOf(value)!);
+    if (this._fog) unlisten(this._fog.color, this.refogged);
+    this._fog = value ?? null;
+    if (value) listen(value.color, this.refogged);
+    this.refogged();
   }
   /** Loads a compiled model — its manifest URL — and adds it to this scene. */
   async load(manifestUrl: string, options: LoadOptions = {}) {

@@ -16,6 +16,7 @@ import type { BackendContext, MeasuredWorldOptions } from '../../backend/types.t
 import type { ExplorerEmitters } from '../session/session.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';
+import { createPartitionCells } from '../../scene/partition/cells.ts';
 import type { ByteMeter } from '../../cluster/byteMeter.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -126,10 +127,28 @@ export async function loadPreparedScene(
     });
   const { associations, textureIndices } = built;
   let source = built.source;
+  const replicas = options.replicaCount ?? 1;
+  // The cells a partition reads by distance place rows the replicas would share.
+  if (tables.partition && replicas > 1)
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a partitioned scene is not replicated', {
+      replicas,
+    });
+  const partitions = tables.partition
+    ? [
+        createPartitionCells({
+          partition: tables.partition,
+          base,
+          root: source,
+          parents: built.nodes,
+          meshes: built.placed,
+        }),
+      ]
+    : [];
   diagnose('prepared-scene', 'Scene built from the cache tables', {
     kind: 'preparation',
     scope,
     nodes: tables.nodes.length,
+    cells: tables.partition?.cells.length ?? 0,
     materials: tables.materials.length,
     textures: textureIndices.size,
     bytes,
@@ -145,7 +164,6 @@ export async function loadPreparedScene(
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
   await calculEnLot;
-  const replicas = options.replicaCount ?? 1;
   // Load buffers, reserved before they are written and returned as soon as they are read:
   // scene bounds — exact pages of an autonomous scene, host boxes otherwise, and only when
   // replication asks for them — then replica matrices. Reserve by lot, never per frame.
@@ -169,5 +187,5 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
-  return { source, sceneLightingSource, associations, textureIndices, framingLot };
+  return { source, sceneLightingSource, associations, textureIndices, framingLot, partitions };
 }

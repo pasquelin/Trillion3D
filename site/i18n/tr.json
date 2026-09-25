@@ -426,8 +426,6 @@
       "reflections-from-the-screen": "ekran uzayında yansımalar",
       "an-ocean": "dokuya render: su yansıması ve kırılması",
       "a-raging-sea": "özel shader'lı malzemeler",
-      "a-town-in-the-fog": "sis",
-      "fog-on-the-ground": "sis: yükseklik sisi",
       "fog-that-scatters-light": "hacimsel sis ve ışık hüzmeleri",
       "a-cloud-in-a-box": "hacimsel render",
       "a-fire-in-a-volume": "hacimsel render",

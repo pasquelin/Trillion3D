@@ -1073,14 +1073,13 @@
     {
       "id": "a-town-in-the-fog",
       "theme": "environment",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-town-in-the-fog.html"
     },
     {
       "id": "fog-on-the-ground",
       "theme": "environment",
       "file": "",
-      "status": "needs-engine"
+      "status": "buildable"
     },
     {
       "id": "fog-that-scatters-light",
