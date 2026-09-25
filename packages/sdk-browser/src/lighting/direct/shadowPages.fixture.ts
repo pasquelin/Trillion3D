@@ -3,7 +3,8 @@
 // pins the WGSL lines restated here.
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { POISSON_16 } from './shadowWgsl.ts';
-import { clamp, compare, litOf, type Stored } from './shadowBias.fixture.ts';
+import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
+import { compare, litOf, type Stored } from './shadowBias.fixture.ts';
 
 type Pair = [number, number];
 
