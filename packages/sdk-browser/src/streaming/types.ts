@@ -77,6 +77,8 @@ export type StreamContext = {
     /** Jobs marked abandoned but still in the queue array. */
     dropped: number;
     disposed: boolean;
+    /** Bytes the engine's own tables take from the cache's share (`reserve`). */
+    reservedBytes: number;
   };
   emit: (phase: string, message: string, context: () => Record<string, unknown>) => void;
   abortError: () => DOMException;

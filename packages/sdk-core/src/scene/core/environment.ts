@@ -62,15 +62,15 @@ export const SCENE_ENVIRONMENT_FLOATS = 44;
 
 /**
  * The factors of the cosine-lobe convolution per band (Ramamoorthi and Hanrahan, eq. 12): the
- * irradiance at a normal is the coefficient times this factor times the basis polynomial. The
- * linear and cross terms carry the paper's factor 2: `2 · 0.511664` and `2 · 0.429043`.
+ * irradiance at a normal is the coefficient times this factor times the basis polynomial
+ * (`IRRADIANCE_TERMS`, `irradianceBasis.ts`). The linear and cross terms carry the paper's
+ * factor 2: `2 · 0.511664` and `2 · 0.429043`; the `3z² − 1` term is the paper's `c₅`.
  */
 export const IRRADIANCE_BAND = {
   constant: 0.886227,
   linear: 1.023328,
   quadraticCross: 0.858086,
-  quadraticZ: 0.743125,
-  quadraticZOffset: 0.247708,
+  quadraticZ: 0.247708,
   quadraticDifference: 0.429043,
 } as const;
 

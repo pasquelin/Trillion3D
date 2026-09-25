@@ -132,11 +132,10 @@ assert.ok(t.clusters > 0, 'no resident row was compared');
 assert.equal(t.violations1, 0, `${t.violations1} GPU rectangles narrower than the reference`);
 assert.equal(t.violations2, 0, `${t.violations2} boxes cut by the near plane with no clip flag`);
 assert.equal(t.violations3, 0, `${t.violations3} GPU depths above the reference`);
-// Activity proof: the cut does run on the GPU, and the image has no hole.
+// Activity proof: the cut does run on the GPU. Holes are proven by `held-gpu-cut.browser.ts`.
 for (const image of resultat.images) {
   assert.equal(image.cpuSelectMs, null, 'the cut fell back to the CPU');
   assert.equal(image.gpuSelectionFallback, false, 'GPU selection was abandoned');
-  assert.equal(image.uncoveredTriangles, 0, 'the image has a hole');
 }
 // Without an occlusion reject, conservativeness would prove nothing: the test must decide.
 assert.ok(

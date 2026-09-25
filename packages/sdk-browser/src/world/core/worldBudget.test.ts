@@ -4,6 +4,7 @@ import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import {
+  BOUNCE_PROBE_BYTES,
   DEFAULT_CPU_BUDGET,
   DEFAULT_GPU_BUDGET,
   SHADOW_HOST_BYTES,
@@ -19,7 +20,8 @@ import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/t
 import { createShadowPool } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
-import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
+import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
+import { bounceProbeBytes } from '../../bounce/limits.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 
 const budget = (
@@ -72,6 +74,7 @@ test("the default totals split into each pool's own default", () => {
   assert.equal(handle.cpu, DEFAULT_CPU_BUDGET);
   assert.deepEqual(handle.split, {
     shadowPool: SHADOW_POOL_BYTES,
+    bounceProbes: BOUNCE_PROBE_BYTES,
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
     shadowMirror: SHADOW_HOST_BYTES,
@@ -149,6 +152,21 @@ test('the shadow pool of any screen fits its share, and totals below 512 MiB nev
   const smallest = budget('webgpu', null, { gpu: SHADOW_POOL_BYTES + 2 }).split;
   const sum = smallest.shadowPool + smallest.geometryPool + smallest.texturePool;
   assert.ok(sum <= SHADOW_POOL_BYTES + 2);
+});
+
+test('the GPU total counts the bounce probes at their largest, before the pools', () => {
+  // Both copies of a city's cascades — every level followed — are the largest the probes take;
+  // a room holds fewer levels and fits inside.
+  const city = createBounceCascades([0, 0, 0, 8000, 300, 8000]);
+  const room = createBounceCascades([0, 0, 0, 6, 3, 6]);
+  assert.equal(2 * bounceProbeBytes(city.probes), BOUNCE_PROBE_BYTES);
+  assert.ok(2 * bounceProbeBytes(room.probes) < BOUNCE_PROBE_BYTES);
+  for (const total of [DEFAULT_GPU_BUDGET, SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + 8 * MiB]) {
+    const handle = budget('webgpu', null, { gpu: total });
+    const { shadowPool, bounceProbes, geometryPool, texturePool } = handle.split;
+    assert.equal(bounceProbes, BOUNCE_PROBE_BYTES);
+    assert.ok(shadowPool + bounceProbes + geometryPool + texturePool <= total, `${total}`);
+  }
 });
 
 test('a total the rule cannot take is refused by name and changes nothing', () => {
