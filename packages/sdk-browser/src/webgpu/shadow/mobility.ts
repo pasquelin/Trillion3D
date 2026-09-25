@@ -50,10 +50,10 @@ export function createShadowMobility() {
      */
     move(rank: number, world?: ArrayLike<number>) {
       if (rank < 0 || rank >= moving.length) return MOVE_PROMOTED;
-      if (world) {
-        if (sameElements(poses, world, rank * 16)) return MOVE_NONE;
-        poses.set(world, rank * 16);
-      }
+      // A move said without its pose leaves none to compare the next write with.
+      if (!world) poses[rank * 16] = NaN;
+      else if (sameElements(poses, world, rank * 16)) return MOVE_NONE;
+      else poses.set(world, rank * 16);
       if (moving[rank]) return MOVE_MOVING;
       moving[rank] = 1;
       promoted = true;
