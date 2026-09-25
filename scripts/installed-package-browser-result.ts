@@ -1,6 +1,7 @@
 import type { EvaluatedInstalledPage } from './installed-package-browser-page.ts';
 import type { DecodeWorkerResult, IntegrationWorkerResult } from './installed-package-workers.ts';
 import type { RequestRecord } from './installed-package-server.ts';
+import { INSTALLED_SCENE_TRIANGLES } from './installed-package-scene.ts';
 
 interface CommonWorkerMessage {
   translation: number[];
@@ -20,15 +21,14 @@ export interface InstalledBrowserProof {
 }
 
 /**
- * No hole at full residency (#483 rule 1): once every page the view reads is resident, the frame
- * draws exactly the cut it selected — a surface drawn by a coarser stand-in, or by nothing, moves
- * `drawnTriangles` off `selectedTriangles`. Both are read from the engine; an unpublished count
- * fails the check rather than passing it.
+ * No hole at full residency (#483 rule 1): at a zero pixel error with every page the view reads
+ * resident, the frame draws the scene at full detail, each source triangle once. A hole draws
+ * fewer, a coarser stand-in fewer, a surface drawn twice more: each moves `drawnTriangles` off the
+ * scene's own count (`INSTALLED_SCENE_TRIANGLES`), which the engine does not report. An
+ * unpublished count fails the check rather than passing it.
  */
 export function drawsItsWholeCut(metrics: Record<string, number | null> | undefined) {
-  const selected = metrics?.selectedTriangles,
-    drawn = metrics?.drawnTriangles;
-  return typeof selected === 'number' && selected > 0 && drawn === selected;
+  return metrics?.drawnTriangles === INSTALLED_SCENE_TRIANGLES;
 }
 
 export function installedBrowserResult({

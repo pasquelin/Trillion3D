@@ -11,12 +11,11 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts';
  * shadow page reports nothing, and the last list stands — a still scene asks for nothing new.
  */
 export function createShadowTier(options: {
-  packedPages: readonly PageRec[];
   keyOf: (page: PageRec) => number;
   room: () => number;
-  closeOver: (ids: ArrayLike<number>, visit: (id: number) => void) => void;
+  closeOver: (ids: ArrayLike<number>, visit: (id: number, rec: PageRec) => void) => void;
 }) {
-  const { packedPages, keyOf, room, closeOver } = options;
+  const { keyOf, room, closeOver } = options;
   const pages: PageRec[] = [];
   /** The CPU light cuts' packed ids, reused from one report to the next. */
   const ids: number[] = [];
@@ -26,9 +25,8 @@ export function createShadowTier(options: {
     pages.length = 0;
     named.clear();
   };
-  const push = (id: number) => {
-    const rec = packedPages[id];
-    if (!rec || pages.length >= room()) return;
+  const push = (_id: number, rec: PageRec) => {
+    if (pages.length >= room()) return;
     const key = keyOf(rec);
     if (named.set(key, 1)) return;
     pages.push(rec);

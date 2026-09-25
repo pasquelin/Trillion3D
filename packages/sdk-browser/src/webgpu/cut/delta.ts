@@ -64,7 +64,6 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * contract, and readers do not know which one decides.
  */
 export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
-  const catalogue = packedPages.length;
   /** Epoch of the shown list where the id was last held; an id held by neither list has none. */
   const mark = createSparseInts();
   /** Ids held by the previous shown list and by the current one: two swapped buffers, grown and
@@ -119,8 +118,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
         published[i] = id;
         same = false;
       }
-      if (id < 0 || id >= catalogue) continue;
-      const rec = packedPages[id];
+      const rec = id >= 0 ? packedPages[id] : undefined;
       if (!rec) continue;
       const seen = mark.set(id, epoch);
       if (seen === epoch) continue;

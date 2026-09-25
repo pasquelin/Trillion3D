@@ -112,7 +112,7 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
   const streamer = open(pages, cache);
   await streamer.request(urls);
   streamer.retain(['a.bin']);
-  streamer.reserve(20);
+  streamer.reserve(() => 20);
   assert.deepEqual([...cache.pages.keys()], ['a.bin'], 'twenty bytes reserved leave room for one');
   streamer.dispose();
 });

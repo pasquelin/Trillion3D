@@ -89,9 +89,7 @@ export function createGroupClosure(
     const rec = packedPages[id];
     if (rec) enterAs(id, rec);
   };
-  const walk = (visit: (id: number, rec: PageRec) => void, each: () => void) => {
-    visitor = visit;
-    each();
+  const endWalk = () => {
     visitor = undefined;
     walked.clear();
   };
@@ -112,15 +110,15 @@ export function createGroupClosure(
     /** Visits every page `ids` close over, themselves included, each group once per call:
      *  what a list rebuilt whole asks for (`../../webgpu/residency/shadowTier.ts`). */
     closeOver(ids: ArrayLike<number>, visit: (id: number, rec: PageRec) => void) {
-      walk(visit, () => {
-        for (let i = 0; i < ids.length; i++) enter(ids[i]);
-      });
+      visitor = visit;
+      for (let i = 0; i < ids.length; i++) enter(ids[i]);
+      endWalk();
     },
     /** The same, for records carrying their placement and packed index, without a catalogue. */
     closeOverRecords(recs: readonly PageRec[], visit: (id: number, rec: PageRec) => void) {
-      walk(visit, () => {
-        for (const rec of recs) if (rec.packedIndex !== undefined) enterAs(rec.packedIndex, rec);
-      });
+      visitor = visit;
+      for (const rec of recs) if (rec.packedIndex !== undefined) enterAs(rec.packedIndex, rec);
+      endWalk();
     },
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {

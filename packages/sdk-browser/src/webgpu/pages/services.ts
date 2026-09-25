@@ -138,7 +138,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   const shadowTier = createShadowTier({
-    packedPages,
     keyOf: tracking.keyOf,
     room,
     closeOver: closure.closeOver,

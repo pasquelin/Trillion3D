@@ -8,7 +8,6 @@ import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 function world() {
   const w = scene();
   const tier = createShadowTier({
-    packedPages: w.packed,
     keyOf: w.tracking.keyOf,
     room: () => 64,
     closeOver: createGroupClosure([], w.packed).closeOver,

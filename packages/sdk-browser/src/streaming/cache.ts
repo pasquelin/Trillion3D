@@ -4,8 +4,10 @@ import { evictOldest } from './evictOldest.ts';
 export function createStreamingCache(context: StreamContext) {
   const { store, cache, state, maxPages, pinned, jobs, emit, onEvict, catalog } = context;
   const touch = store.touch;
-  const over = () =>
-    (!!maxPages && maxPages >= 1 && cache.size > maxPages) || store.bytes > store.budgetBytes;
+  /** The page budget, read once per eviction: it sums the engine's tables, which the pages
+   *  leaving do not move. */
+  let budget = 0;
+  const over = () => (!!maxPages && maxPages >= 1 && cache.size > maxPages) || store.bytes > budget;
   const pinnedOrLoading = (url: string) => pinned.has(url) || jobs.has(url);
   const evictOne = (url: string) => {
     store.drop(url);
@@ -23,6 +25,7 @@ export function createStreamingCache(context: StreamContext) {
     onEvict?.(url);
   };
   const evict = () => {
+    budget = store.budgetBytes;
     if (!over()) return;
     const evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
     if (!evicted && over()) {
@@ -115,11 +118,11 @@ export function createStreamingCache(context: StreamContext) {
     emitRetain(delta.heldCount, pinned.size - before, removed);
     return true;
   };
-  /** The engine's host tables take `bytes` of the CPU share the cache holds
-   *  (`../residency/memoryBudget.ts`): the decoded pages keep the rest. A function is read each
-   *  time the cache weighs itself, for tables that follow the view. */
-  const reserve = (bytes: number | (() => number)) => {
-    state.reservedBytes = typeof bytes === 'number' ? () => bytes : bytes;
+  /** The engine's host tables take `bytes()` of the CPU share the cache holds
+   *  (`../residency/memoryBudget.ts`): the decoded pages keep the rest. Read each time the cache
+   *  weighs itself, for tables that follow the view. */
+  const reserve = (bytes: () => number) => {
+    state.reservedBytes = bytes;
     evict();
   };
   return { touch, evict, retain, retainRanks, reserve };

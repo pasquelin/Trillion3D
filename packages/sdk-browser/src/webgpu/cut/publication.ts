@@ -106,7 +106,7 @@ export function createWebgpuCutPublication(
     hostTableBytes: () =>
       closure.hostBytes +
       (run.gpuSelection?.hostBytes ?? 0) +
-      rt.layout.selectionRoots.reduce((bytes, root) => bytes + heldHostBytes(root), 0) +
+      heldHostBytes(rt.layout.selectionRoots) +
       residencySets.hostBytes +
       cutDelta.hostBytes +
       drawnDelta.hostBytes +

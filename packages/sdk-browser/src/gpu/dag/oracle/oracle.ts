@@ -9,7 +9,8 @@ import { quantizeRequestPriority } from '../request.ts';
 import { createDagOraclePredicates } from './predicates.ts';
 import type { CutRuleAt } from './predicates.ts';
 
-/** The cut rule's residency, one entry per page (`../readiness.ts`). */
+/** The cut rule's residency, one entry per page: the bit sets its host uploads, read back
+ *  (`../readiness.fixture.ts`). */
 export type DagCutResidency = { ready: ArrayLike<number>; childReady: ArrayLike<number> };
 
 /**

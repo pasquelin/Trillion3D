@@ -53,7 +53,7 @@ function tables(copies: number) {
     isResident: inView,
   });
   assert.ok(cut.wanted.length > 0 && cut.wanted.every(inView), 'the view wants its placement');
-  const cpuReadiness = roots.reduce((bytes, root) => bytes + heldHostBytes(root), 0);
+  const cpuReadiness = heldHostBytes(roots);
   // The GPU kernel's host: the rule's readiness and its upload's change lists.
   const gpuPacked = packDagSelection(roots);
   const gpuReadiness = uploadResidency(
@@ -124,7 +124,7 @@ test("a placement's readiness follows what the pool holds of it, not its size", 
       packDagSelection([root as unknown as ClusterRoot<PageRec>]),
       Uint8Array.from(strip.pages, (page) => (page.group === null ? 1 : 0)),
     );
-    return { roots: roots.length, cpu: heldHostBytes(root), gpu: gpu.hostBytes };
+    return { roots: roots.length, cpu: heldHostBytes([root]), gpu: gpu.hostBytes };
   };
   const small = bytes(64),
     large = bytes(1024);

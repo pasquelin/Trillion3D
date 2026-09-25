@@ -91,12 +91,9 @@ export function createDagResidencyUpload(resources: {
   };
   // Nothing is resident yet: both bit sets and every node count are written whole, once, from the
   // readiness's state with nothing resident; from then on only what moves is.
+  const words = new Int32Array(Math.max(1, residentWords(pageCount)));
   for (const { values, base } of sets)
-    for (let page = 0; page < pageCount; page++) {
-      const word = base + (page >>> 5),
-        mask = 1 << (page & 31);
-      bits[word] = values(page) ? bits[word] | mask : bits[word] & ~mask;
-    }
+    updateResidencyBits(values, pageCount, bits, base, undefined, words);
   const whole = (target: GPUBuffer, source: Float32Array, from: number, words: number) =>
     device.queue.writeBuffer(
       target,
