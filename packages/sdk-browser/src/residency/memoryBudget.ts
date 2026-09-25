@@ -36,6 +36,9 @@ const checkTotal = (bytes: number, name: string) => {
  *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
  *   screen; the decoded-page cache takes the rest. A total under the mirror is refused by name.
+ *   The cut's host tables — group closure and the rule's readiness, sized by the placed pages —
+ *   are held in the cache's share: once the engine is prepared, the session reserves their exact
+ *   bytes there (`hostTableBytes`, the streamer's `reserve`), and the decoded pages keep the rest.
  * At the defaults, the split gives each pool its own default.
  */
 export function splitMemoryBudget(gpu: number, cpu: number) {
