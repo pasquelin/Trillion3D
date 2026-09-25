@@ -19,6 +19,13 @@ const dag = ruleDag(64),
 const typedArray = Object.getPrototypeOf(Int32Array.prototype) as object,
   byteLength = Object.getOwnPropertyDescriptor(typedArray, 'byteLength')!;
 
+/** `copies` placements of the DAG, every page resident. */
+function loaded(copies: number) {
+  const roots = placements(dag, copies);
+  for (const root of roots) for (const page of root.pages) page.array = new Uint32Array(3);
+  return roots;
+}
+
 /** How many typed arrays `read` weighs. */
 function weighed(read: () => number) {
   let count = 0;
@@ -40,8 +47,7 @@ function weighed(read: () => number) {
 test('reading the host bytes weighs as many tables for 2 placements as for 32', () => {
   const reads = (copies: number) => {
     // All in view: every placement is cut, and held.
-    const roots = placements(dag, copies);
-    for (const root of roots) for (const page of root.pages) page.array = new Uint32Array(3);
+    const roots = loaded(copies);
     // WebGL2: the image's cut, its closure and each placement's readiness.
     const cut = webgl2Cut(roots);
     cut(cam, 0.1);
@@ -94,11 +100,6 @@ test("the CPU cut's readiness total follows every settle, a replaced state and n
 });
 
 test('the WebGL2 image counts the placements added and removed since its last cut', () => {
-  const loaded = (copies: number) => {
-    const roots = placements(dag, copies);
-    for (const root of roots) for (const page of root.pages) page.array = new Uint32Array(3);
-    return roots;
-  };
   const fresh = (copies: number) => {
     const cut = webgl2Cut(loaded(copies));
     cut(cam, 0.1);

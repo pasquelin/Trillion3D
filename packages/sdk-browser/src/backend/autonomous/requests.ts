@@ -42,15 +42,22 @@ export function createAutonomousRequests(
     seen.add(rec.url);
     requested.push(rec);
   };
+  /** Lays the placements out again when they changed since the last layout; true when it did. */
+  const follow = () => {
+    if (closure && laidOut === revision() && placements === roots.length) return false;
+    layOut();
+    return true;
+  };
   const coarsestFirst = (a: PageRec, b: PageRec) => (b.level ?? 0) - (a.level ?? 0);
   return {
     /** Bytes of the closure's tables, sized by what the last cuts closed over. */
     get hostBytes() {
       return closure?.hostBytes ?? 0;
     },
+    follow,
     /** Writes the pages `wanted` closes over into `requested`, one per URL, coarsest first. */
     of(wanted: readonly PageRec[]) {
-      if (!closure || laidOut !== revision() || placements !== roots.length) layOut();
+      follow();
       requested.length = 0;
       seen.clear();
       closure!.closeOverRecords(wanted, visit);

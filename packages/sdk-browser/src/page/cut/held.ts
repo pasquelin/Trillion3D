@@ -19,6 +19,11 @@ const heldOf = new WeakMap<object, Held>();
 type Ticket = { tally: HeldBytes | undefined };
 /** The running total each placement adds its readiness's change of bytes to (`createHeldBytes`). */
 const tallyOf = new WeakMap<object, Ticket>();
+/** Adds `bytes` to the total counting `root`, when one does. */
+const tallyBytes = (root: object, bytes: number) => {
+  const tally = tallyOf.get(root)?.tally;
+  if (tally) tally.bytes += bytes;
+};
 
 /**
  * The cut rule's residency for `root` this cut (`./readiness.ts`), from what the cut's residency
@@ -29,7 +34,6 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
   const pages = root.pages,
     culling = root.culling;
   let held = heldOf.get(root);
-  const tally = tallyOf.get(root)?.tally;
   if (
     !held ||
     held.structure !== root.structure ||
@@ -38,7 +42,7 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
   ) {
     const links = culling && linksFor(culling, pages.length);
     // The state it replaces leaves the total with it.
-    if (held && tally) tally.bytes -= held.readiness.hostBytes;
+    if (held) tallyBytes(root, -held.readiness.hostBytes);
     held = {
       readiness: createCutReadiness(root.structure, links),
       structure: root.structure,
@@ -51,9 +55,8 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
     mode = s.residentMode;
   for (let page = 0; page < pages.length; page++)
     readiness.set(page, residentUnder(s, pages[page], mode));
-  readiness.settle();
-  const moved = readiness.takeBytesMoved();
-  if (tally) tally.bytes += moved;
+  const moved = readiness.settle();
+  if (moved) tallyBytes(root, moved);
   return readiness;
 }
 

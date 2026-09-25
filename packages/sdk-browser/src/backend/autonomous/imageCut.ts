@@ -29,16 +29,11 @@ export function createImageCut(options: {
 }) {
   const { roots, shown, desired, requested, pool } = options;
   const requests = createAutonomousRequests(roots, options.revision, requested);
-  // The rule's readiness of the placements, a running total counted again when they change: on
-  // the signals the requests lay out on (`requests.ts`), so a read between two cuts is exact too.
+  // The rule's readiness of the placements, a running total counted again each time the requests
+  // lay the placements out again (`requests.ts`), so a read between two cuts is exact too.
   const held = createHeldBytes();
-  let tracked = -1,
-    placements = -1;
   const follow = () => {
-    if (tracked === options.revision() && placements === roots.length) return;
-    held.track(roots);
-    tracked = options.revision();
-    placements = roots.length;
+    if (requests.follow()) held.track(roots);
   };
   // Cut request and result, allocated once: an image allocates nothing here, and the cut writes
   // `desired` itself instead of being copied into it.
