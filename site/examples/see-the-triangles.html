@@ -58,7 +58,7 @@
       // The terrain is no one's scan: the bust's credit is not shown over it.
       document.querySelector('[data-words="credit"]').hidden = Boolean(cook);
 
-      // The scanned bust, drawn as its triangles: each one its own colour.
+      // The scanned bust (or the terrain), drawn as its triangles: each one its own colour.
       const world = createWorld('view', { controls: 'orbit' });
       await load(world.scene);
       lit(world);
@@ -66,7 +66,7 @@
       world.camera.lookAt(...target);
       world.controls.target.set(...target);
 
-      // The same bust, lit, in a second world beside the first, following its camera.
+      // The same model, lit, in a second world beside the first, following its camera.
       let beauty = null;
       async function openBeauty() {
         beauty = createWorld('beauty');

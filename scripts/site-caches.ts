@@ -20,9 +20,6 @@ export interface CookedScene extends Pick<
   'source' | 'cache' | 'simplification' | 'stdio'
 > {
   directory: string;
-  /** Opened in a browser alone, read by no test (#414): only the site and `compile:caches`
-   *  compile it, never the test runners. */
-  browserOnly?: true;
 }
 
 /** The folder of `scene`'s cache, relative to its directory: `cache` unless it names another. */
@@ -44,7 +41,6 @@ export const COOKED_SCENES: Record<string, CookedScene> = {
     ...example('terrain-tiles'),
     cache: 'cache-none',
     simplification: 'none',
-    browserOnly: true,
   },
   observatory: {
     directory: 'site/assets/gallery/signature-architecture',
@@ -106,14 +102,11 @@ export function isStale(scene: CookedScene, root = ROOT, compiled = compilerTime
   return (compiled ?? 0) > since || firstNewer(sourceOf(scene, root), since) !== null;
 }
 
-/** Compiles every stale cache, the `browserOnly` ones only for a `browser`. Without a compiler, a
- *  `required` run throws; another names what it left and goes on, for a caller that may read none
- *  of them. */
-export function compileSiteCaches(required = true, browser = false): void {
+/** Compiles every stale cache. Without a compiler, a `required` run throws; another names what it
+ *  left and goes on, for a caller that may read none of them. */
+export function compileSiteCaches(required = true): void {
   const compiled = compilerTime();
-  const stale = Object.values(COOKED_SCENES).filter(
-    (scene) => (browser || !scene.browserOnly) && isStale(scene, ROOT, compiled),
-  );
+  const stale = Object.values(COOKED_SCENES).filter((scene) => isStale(scene, ROOT, compiled));
   if (!stale.length) return;
   try {
     requireNativeCompiler();
@@ -126,4 +119,4 @@ export function compileSiteCaches(required = true, browser = false): void {
   for (const scene of stale) compileCache(scene);
 }
 
-if (import.meta.filename === process.argv[1]) compileSiteCaches(true, true);
+if (import.meta.filename === process.argv[1]) compileSiteCaches();
