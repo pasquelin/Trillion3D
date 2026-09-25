@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sha256Hex } from '../measurement/sha256Hex.ts';
 import { createPageStreamer } from './pages.ts';
+import { servedPages } from './servedPages.fixture.ts';
 
 /** Three verified pages served whole, two workers, room for two resident pages. */
 async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
@@ -23,20 +24,8 @@ async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
 }
 
 test('streamer fetches only requested pages and counts hits', async () => {
-  const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = await sha256Hex(bytes.buffer);
-  const fetched: string[] = [];
-  globalThis.fetch = async (url) => {
-    fetched.push(String(url));
-    return new Response(bytes, { status: 200 });
-  };
-  const streamer = createPageStreamer(
-    [
-      { url: 'a.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'b.bin', bytes: bytes.byteLength, sha256: sha },
-    ],
-    'http://cache/',
-  );
+  const { pages, fetched } = await servedPages(['a.bin', 'b.bin']);
+  const streamer = createPageStreamer(pages, 'http://cache/');
   await streamer.request(['a.bin']);
   assert.deepEqual(fetched, ['http://cache/a.bin']);
   assert.equal(streamer.get('a.bin')?.[0], 1);

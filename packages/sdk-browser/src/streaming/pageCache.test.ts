@@ -1,26 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
 import { createPageStreamer } from './pages.ts';
 import { createPageCache, manifestTableBytes } from './pageCache.ts';
 import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts';
 import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts';
 import type { StreamPage } from './types.ts';
+import { servedPages } from './servedPages.fixture.ts';
 
 const TRANSFER = 64;
-
-/** A catalogue of `urls`, each a verified 12-byte page, served by a `fetch` that counts. */
-async function served(urls: readonly string[]) {
-  const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = await sha256Hex(bytes.buffer);
-  const fetched: string[] = [];
-  globalThis.fetch = async (url) => {
-    fetched.push(String(url));
-    return new Response(bytes, { status: 200 });
-  };
-  const pages: StreamPage[] = urls.map((url) => ({ url, bytes: bytes.byteLength, sha256: sha }));
-  return { pages, fetched };
-}
 
 const open = (pages: StreamPage[], cache: ReturnType<typeof createPageCache>) =>
   createPageStreamer(
@@ -39,7 +26,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
   const fixture = dagFixture(),
     camera = wideCamera();
   const { dag } = packed(fixture);
-  const { pages, fetched } = await served(dag.pageUrls);
+  const { pages, fetched } = await servedPages(dag.pageUrls);
   const cache = createPageCache(1024 * 1024);
   /** The cut drawn from what `streamer` holds: the GPU pool is filled from it. */
   const cut = (streamer: ReturnType<typeof open>) => {
@@ -69,7 +56,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
 
 test("the CPU counters — tables, transfers, pages — never exceed the cache's total", async () => {
   const urls = Array.from({ length: 64 }, (_, i) => `p${i}.bin`);
-  const { pages, fetched } = await served(urls);
+  const { pages, fetched } = await servedPages(urls);
   // Room for the tables, one transfer, and ten pages.
   const cpu = manifestTableBytes(pages) + TRANSFER + 10 * 12;
   const cache = createPageCache(cpu);
@@ -87,7 +74,7 @@ test("the CPU counters — tables, transfers, pages — never exceed the cache's
 
 test('a lower total applies at once, pages leaving by last use, pins kept', async () => {
   const urls = ['a.bin', 'b.bin', 'c.bin', 'd.bin'];
-  const { pages } = await served(urls);
+  const { pages } = await servedPages(urls);
   const reserved = manifestTableBytes(pages) + TRANSFER;
   const cache = createPageCache(reserved + 4 * 12);
   const evicted: string[] = [];
@@ -119,7 +106,7 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
 });
 
 test("a streamer's own cache leaves with it; a kept one stays, minus pages the catalogue resized", async () => {
-  const { pages } = await served(['a.bin', 'b.bin']);
+  const { pages } = await servedPages(['a.bin', 'b.bin']);
   const own = open(pages, undefined as never);
   await own.request(['a.bin']);
   own.dispose();
