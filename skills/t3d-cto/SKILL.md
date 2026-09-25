@@ -81,8 +81,8 @@ below that says to tell him: never a running account of agent events.
 
 - **Subscription usage.** At every pass read the plan usage (the session-management `get_usage`
   tool when present). At **80 %** of the window (or the threshold the boss sets), start winding
-  down: no new agent anywhere; every lead finishes its current agent, merges what is green,
-  comments the rest on its issue, cleans its worktrees and stops. Never cut an agent in the middle
+  down: no new agent anywhere; every lead finishes its current agent, names ready what is green
+  (you merge it), comments the rest on its issue, cleans its worktrees and stops. Never cut an agent in the middle
   of its work: before the boss closes your session, every agent has ended.
   Tell the boss when you start winding down and when it resumes.
 - **Context.** Keep your own context small: read counts and states (`gh … --json` with `--jq`),
