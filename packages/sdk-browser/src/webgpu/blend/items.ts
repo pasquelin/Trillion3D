@@ -1,5 +1,6 @@
 import type { BlendGpuItem } from './state.ts';
 import { layerSlot, sampledFlag, type MaterialLayers } from '../row/pageRowMaterial.ts';
+import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 
 /**
  * Record of a transparent item: everything a blend draw reads about IT, and nothing that
@@ -59,10 +60,12 @@ export function writeBlendItemRecord(
   floats[base + 37] = mat.emissive[1];
   floats[base + 38] = mat.emissive[2];
   floats[base + 39] = 0;
-  // A dashed line's dash and gap (`lineDash`), zero on any other item; two words of alignment.
+  // A dashed line's dash and gap (`lineDash`), zero on any other item.
   floats[base + 40] = mat.dashSize ?? 0;
   floats[base + 41] = mat.gapSize ?? 0;
+  // A sprite's turn and size rule (`spriteAt`), zero on any other item.
+  writeSpriteWords(floats, base + 42, mat.sprite);
 }
 
 /** WGSL declaration of the record, written once for the shader and for the layout. */
-export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,dash:vec2f,}`;
+export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,dash:vec2f,sprite:vec2f,}`;
