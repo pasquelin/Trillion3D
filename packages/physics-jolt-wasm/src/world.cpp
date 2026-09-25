@@ -118,7 +118,11 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   w.deactivated.clear();
   trillion::moveCharacter(dt);
   trillion::driveVehicles(dt);
-  if (dt > 0) w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
+  if (dt > 0) {
+    trillion::notePaths();
+    w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
+    trillion::carryPaths();
+  }
   trillion::breakJoints(dt);
   trillion::writeVehicles();
   trillion::writeCharacter();
