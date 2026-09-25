@@ -77,11 +77,11 @@
       const cometOrbit = object.lineLoop(geometry.createBuffer({ position: buffer.float32(cometPath, 3) }), cometInks.dashed);
       world.scene.add(cometOrbit);
 
-      // Under the system, a star chart in its own finer dashes: a ring every metre and a spoke
-      // every fifteen degrees, the spokes one `lineSegments` of point pairs.
-      const chartInk = material.lineDashed({ color: '#2c3654', dashSize: 0.2, gapSize: 0.15, linewidth: 2 });
+      // Under the system, a star chart in its own dim, shorter dashes: a ring every half metre and
+      // a spoke every fifteen degrees, the spokes one `lineSegments` of point pairs.
+      const chartInk = material.lineDashed({ color: '#2c3654', dashSize: 0.2, gapSize: 0.15, linewidth: WIDTH });
       const CHART_RADIUS = 12, SPOKES = 24;
-      for (let radius = 1; radius <= CHART_RADIUS; radius++) world.scene.add(object.lineLoop(circle(radius, 0), chartInk));
+      for (let ring = 1; ring <= CHART_RADIUS * 2; ring++) world.scene.add(object.lineLoop(circle(ring / 2, 0), chartInk));
       const spokes = new Float32Array(SPOKES * 6);
       for (let k = 0; k < SPOKES; k++) {
         const angle = (k / SPOKES) * Math.PI * 2, x = Math.cos(angle), z = Math.sin(angle);
