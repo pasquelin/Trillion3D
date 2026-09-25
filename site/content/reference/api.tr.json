@@ -4795,7 +4795,7 @@
   },
   "createShadowPlan": {
     "summary": "Sanal haritaların gölge zamanlayıcısı.",
-    "description": "Gölgelendirme okuduğu sayfaları kaydeder; birkaç kare sonra geri okunan raporları, eksik olanı sabit havuzdan ayırır. Hareket eden, kapladığı ayrılmış sayfaları eskitir. Ardından bir kare, görüntünün okuduğu her eski sayfayı, hepsini o karede çizer: maliyeti tutan önbellektir — bir sayfa yalnızca içeriği değiştiğinde yeniden çizilir —, ve havuz tek sınırdır. Gölgelendirmesi artık çalışmayan durgun bir sahne hiçbir şey istemez ve hiçbir şey çizmez. Tüm diziler bir kez ayrılır; `plan()` hiçbir şey ayırmaz."
+    "description": "Gölgelendirme okuduğu sayfaları kaydeder; birkaç kare sonra geri okunan raporları, eksik olanı sabit havuzdan ayırır. Hareket eden, kapladığı ayrılmış sayfaları eskitir. Ardından bir kare, görüntünün okuduğu her eski sayfayı en kabası önce olmak üzere listeler; durağanken hepsini, kamera hareket ederken sabit bir bütçesini çizer: maliyeti tutan önbellektir — bir sayfa yalnızca içeriği değiştiğinde yeniden çizilir. Gölgelendirmesi artık çalışmayan durgun bir sahne hiçbir şey istemez ve hiçbir şey çizmez. Tüm diziler bir kez ayrılır; `plan()` hiçbir şey ayırmaz."
   },
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
