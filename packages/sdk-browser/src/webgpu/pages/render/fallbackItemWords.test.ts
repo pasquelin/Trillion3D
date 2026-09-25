@@ -86,7 +86,10 @@ test('#198: a row changed under the fallback draw reaches the visibility pass', 
     const held = new Uint32Array(rt.layout.drawItemWords.length);
     const upload = draw.uploadItems.bind(draw);
     draw.uploadItems = (items, from, to) => {
-      held.set(items.subarray(from * DRAW_ITEM_U32, (to + 1) * DRAW_ITEM_U32), from * DRAW_ITEM_U32);
+      held.set(
+        items.subarray(from * DRAW_ITEM_U32, (to + 1) * DRAW_ITEM_U32),
+        from * DRAW_ITEM_U32,
+      );
       upload(items, from, to);
     };
     const firstPage = rows.packedPageIndex[0];
