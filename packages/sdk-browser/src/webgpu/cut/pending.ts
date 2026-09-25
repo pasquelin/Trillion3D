@@ -13,9 +13,9 @@ import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts';
  *
  * The set only moves here of what moves: the pages the cut difference names, and those whose
  * bytes just arrived or left — which the rank journal already names. `records` is the list of
- * missing records the pool accepted, and only the missing ones are walked: the rule that turns them into addresses is everyone's
- * (`collectPendingUrls`), not a copy. Membership in the cut is that of the difference, to which
- * this set is attached once and for all.
+ * missing records the pool accepted, and only the missing ones are walked: the rule that turns
+ * them into addresses is everyone's (`collectPendingUrls`), not a copy. Membership in the cut is
+ * that of the difference, to which this set is attached once and for all.
  */
 export type CutPending = ReturnType<typeof createCutPending>;
 
