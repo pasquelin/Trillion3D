@@ -18,13 +18,13 @@ export const DEVELOP_FULL_CUT: Record<number, string> = {
   1: '14:701c5fb6',
 };
 
-export function ruleChecks(dag: RuleDag) {
-  /** A reproducible sequence in [0, 1). */
-  function random(seed: number) {
-    let s = seed >>> 0;
-    return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
-  }
+/** A reproducible sequence in [0, 1). */
+export function random(seed: number) {
+  let s = seed >>> 0;
+  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+}
 
+export function ruleChecks(dag: RuleDag) {
   const isRoot = (page: number) => dag.pages[page].group === null;
 
   /** The cluster covering unit `u` one level above `page`: the output of its group that holds `u`. */

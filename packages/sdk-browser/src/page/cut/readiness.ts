@@ -56,6 +56,11 @@ export function createCutReadiness(
     const source = structure ? structure.sources[page] : -1;
     return source < 0 || groupReady.get(source) !== 0;
   };
+  /** Where `writeOpen` writes, read by one callback built once: a walk allocates nothing. */
+  const opened = { out: new Int32Array(0) as Int32Array | Uint32Array, count: 0 };
+  const openNode = (node: number, value: number) => {
+    if (node < opened.count) opened.out[node] -= value;
+  };
   const openAt = (node: number) => (base ? base[node] - closed.get(node) : 0);
   /** A cluster's finer group became ready (`step` 1) or unready (-1): its nodes close or open. */
   const mark = (page: number, step: number) => {
@@ -86,10 +91,10 @@ export function createCutReadiness(
     /** Writes the first `count` open counts into `out`: a walk that reads them densely. */
     writeOpen(out: Int32Array | Uint32Array, count: number) {
       if (!base) return void out.fill(0, 0, count);
-      out.set(base.subarray(0, count));
-      closed.forEach((node, value) => {
-        if (node < count) out[node] -= value;
-      });
+      out.set(count === base.length ? base : base.subarray(0, count));
+      opened.out = out;
+      opened.count = count;
+      closed.forEach(openNode);
     },
     /** Bytes of the state: what the resident pages hold, never the catalogue. */
     get hostBytes() {
