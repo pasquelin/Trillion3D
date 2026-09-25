@@ -23,7 +23,7 @@ import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapMod
 const SAMPLES = 16;
 
 /** A map as the square wears it: RGBA8 texels, row 0 at v = 0, addressed by repeat. */
-export interface TruthMap {
+interface TruthMap {
   data: ArrayLike<number>;
   width: number;
   height: number;
