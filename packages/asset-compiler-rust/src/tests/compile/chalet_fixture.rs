@@ -51,7 +51,7 @@ pub(super) fn push_part(mesh: &mut Mesh, triangles: &[Triangle], centre: [f32; 3
 }
 
 /// A closed box, flat faces.
-fn push_box(mesh: &mut Mesh, min: [f32; 3], max: [f32; 3]) {
+pub(super) fn push_box(mesh: &mut Mesh, min: [f32; 3], max: [f32; 3]) {
     let centre = std::array::from_fn(|a| (min[a] + max[a]) / 2.0);
     push_part(mesh, &box_triangles(min, max), centre);
 }
@@ -82,7 +82,7 @@ pub(super) fn box_triangles(min: [f32; 3], max: [f32; 3]) -> Vec<Triangle> {
 }
 
 /// A closed octagonal log along `axis` from `start` over `length`, smooth sides and flat caps.
-fn push_log(mesh: &mut Mesh, axis: usize, start: [f32; 3], length: f32) {
+pub(super) fn push_log(mesh: &mut Mesh, axis: usize, start: [f32; 3], length: f32) {
     let s = 0.5f32.sqrt();
     let ring = [
         (1.0, 0.0),
