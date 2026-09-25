@@ -1570,7 +1570,8 @@
       "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
       "PHYSICS_FORMAT": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire."
+      "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire.",
+      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté."
     }
   },
   "enginePose": {
@@ -2139,6 +2140,42 @@
     "members": {
       "isGroup": "Toujours `true` : distingue un groupe.",
       "type": "Le genre de nœud, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Un ensemble de guides qu’une page a dessiné ; chaque réglage renvoie la poignée.",
+    "members": {
+      "visible": "S’il est dessiné ; `setVisible` l’écrit.",
+      "setVisible": "Le montre ou le cache, ses sommets toujours comptés sous le plafond.",
+      "setTransform": "Le place : seize nombres par colonnes, ou une matrice — `node.matrixWorld` suit un nœud.",
+      "remove": "Le retire du monde, ses sommets rendus ; un second appel ne fait rien."
+    }
+  },
+  "GuideLines": {
+    "summary": "Des segments à dessiner.",
+    "members": {
+      "positions": "Deux extrémités par segment, trois nombres chacune.",
+      "color": "Leur couleur ; blanc par défaut.",
+      "width": "Largeur à l’écran, en pixels."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Des points à dessiner.",
+    "members": {
+      "positions": "Trois nombres par point.",
+      "color": "Leur couleur ; blanc par défaut.",
+      "size": "Côté de chaque point carré à l’écran, en pixels."
+    }
+  },
+  "Guides": {
+    "summary": "Les guides d’un monde, tels qu’une page les dessine : `world.guides`.",
+    "members": {
+      "ceiling": "Le plus de sommets que les guides tiennent ensemble (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Les sommets tenus maintenant, deux par segment et un par point, guides cachés compris.",
+      "lines": "Dessine des segments, deux extrémités chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
+      "points": "Dessine des points carrés, une position chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
+      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux, placés là où l’objet se tient maintenant ; ses triangles ne sont pas des guides et sont ignorés.",
+      "clear": "Retire tous les guides."
     }
   },
   "HALF_PI": {
@@ -6477,6 +6514,9 @@
       "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
     }
   },
+  "world.guides": {
+    "summary": "Lignes, points et aides dessinés par-dessus l’image (`Guides`)."
+  },
   "world.onFrame": {
     "summary": "Lance une fonction après chaque image dessinée, avec son temps et ses mesures ; renvoie de quoi l’arrêter.",
     "parameters": {
@@ -7029,6 +7069,10 @@
       "mars": "Celle de Mars.",
       "none": "Pas de gravité."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Le plus de sommets que les guides d’un monde tiennent ensemble : deux par segment, un par point.",
+    "description": "Déclaré, non dérivé : il borne le seul tampon d’instances que la passe envoie à 64 Ki × 32 octets = 2 Mio, quoi que demande une page — une grille de 16 000 lignes tient, le nuage de points d’une ville scannée non, et il a sa place dans la scène."
   },
   "GravityInput": {
     "summary": "Une gravité : le nom d’un préréglage, ou un vecteur en m/s²."
