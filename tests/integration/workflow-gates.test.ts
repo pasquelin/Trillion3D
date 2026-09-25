@@ -120,9 +120,8 @@ test('check-pr-size: more than 600 added lines fail, generated paths are not cou
   ok(work, 'switch', '-q', '-c', '12-thing');
   commit(work, 'base');
   ok(work, 'tag', 'base');
-  const lines = (count: number) => Array.from({ length: count }, (_, i) => `${i}\n`).join('');
-  writeFileSync(join(work, 'pnpm-lock.yaml'), lines(5000));
-  writeFileSync(join(work, 'a.ts'), lines(600));
+  writeFileSync(join(work, 'pnpm-lock.yaml'), 'x\n'.repeat(601));
+  writeFileSync(join(work, 'a.ts'), 'x\n'.repeat(600));
   ok(work, 'add', 'pnpm-lock.yaml', 'a.ts');
   ok(work, 'commit', '-q', '-m', 'lock and code');
   const size = () =>
