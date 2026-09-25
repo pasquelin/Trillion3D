@@ -28,7 +28,7 @@ the architect's report names the next one.
 | scripts and tests | `scripts/`, `tests/`, `*.fixture.ts` | copied fixtures and stubs, shell scripts (rule 7), dead scripts                     |
 
 Per-frame costs (CONTRIBUTING.md § Measure before optimising) are confirmed against the
-measurer's last ranking before they become a To-do.
+measurer's cost To-do items on that domain's issue before they become a To-do.
 
 ## How it works
 

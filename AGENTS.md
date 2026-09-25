@@ -43,8 +43,9 @@ disagreement is reported to the maintainer.
     in the issue or the pull request, never on disk.
 11. **Small, short-lived pull requests.** One step of an issue per pull request; a larger batch is
     split into `Part of` PRs merged one after another. A lead brings its conflicting PRs up to date
-    at every pick, never lets two of its PRs wait on the same files, and unblocks a PR open more
-    than two hours before any new coder.
+    at every pick, never lets two of its PRs wait on the same files, and keeps each PR open one
+    hour at most: that is the limit, not a trigger, and a PR open an hour is unblocked before any
+    new coder.
 
 ## Roles
 
@@ -56,9 +57,9 @@ CTO starts with the Agent tool and supervises; the boss never opens another sess
 | Role       | Started by | Does                                                                                                                                      | Never                                                        |
 | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
-| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                    | writes code, measures                                        |
+| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                               | writes code, measures                                        |
 | coder      | lead       | implements one issue, opens the pull request                                                                                              | merges, measures                                             |
-| reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                             |
+| reviewer   | lead, CTO  | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                             |
 | architect  | CTO        | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue            | codes, owns a pull request, measures                         |
 | analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; what could lose quality waits for the boss |
 | measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                           |
@@ -66,17 +67,18 @@ CTO starts with the Agent tool and supervises; the boss never opens another sess
 | writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                              |
 
 Domains: geometry, lighting, compiler, physics, sdk, textures. A script or test belongs to the
-domain whose code it checks; `site/`, the examples and anything else to sdk. Issues belong to the
-leads, and only coders, launched by a lead, write code. The architect, acceptance, measurer and analyst
-never code and own no pull request: they add a To-do item to an open issue, reopen one
-(`audit ko`, `measure ko`) or report to the CTO. Two exceptions: the measurer's thumbnail pull
-request (captured images, no code), merged by the domain's lead, and the CTO's pull request on
-the company's rules (AGENTS.md, CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`),
-reviewed by a reviewer and merged by the CTO. A bug goes to its domain's lead; there is no bug
-domain. There is one CTO session, one measurer and one acceptance agent. Every
-agent reports to the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 %
-(or the threshold the boss sets) it winds the company down (current agents finish, nothing new
-starts) so no work is cut midway.
+domain whose code it checks; `site/`, the examples and anything else but the company's rules to sdk.
+Issues belong to the leads, and only coders, launched by a lead, write code. The architect,
+acceptance, measurer and analyst never code and own no pull request: they add a To-do item to an
+open issue, reopen one (`audit ko`, `measure ko`) or report to the CTO. Sole exception: the
+measurer's thumbnail pull request (captured images, no code). The company's rules (AGENTS.md,
+CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`) are the CTO's: it writes their pull
+request and starts its reviewer. Agents cannot merge from this app: the CTO merges into `develop`
+each pull request a lead names ready (green CI, reviewer `OK`, Lead verification written). A bug
+goes to its domain's lead; there is no bug domain. There is one CTO session, one measurer and one
+acceptance agent. Every agent reports to the CTO; only the CTO speaks to the boss. The CTO watches
+the plan usage: at 80 % (or the threshold the boss sets) it winds the company down (current agents
+finish, nothing new starts) so no work is cut midway.
 
 ## Leads: limits that hold at every moment
 

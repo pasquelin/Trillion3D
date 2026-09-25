@@ -37,10 +37,11 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
    of them, go in one pull request at most, never one per thumbnail: a branch `<n>-thumbnails`
    from `origin/develop` (`<n>` its first issue), titled `docs(examples): thumbnails (#<n>, …)`,
    a body saying `Part of` each issue and "Thumbnail only" under `## Local review before push`.
-   The lead of a named issue merges it.
-8. **Costs.** Once per stint, on the open-world scene at the screen's own resolution, rank the
-   frame's ten largest costs from the per-step profile (CPU and GPU, in ms), add each as a To-do
-   item on the owning domain's open issue, and list them in your report.
+   The lead of a named issue names it ready.
+8. **Costs.** Once per stint, on the open world (`pasquelin/Trillion3D-openworld`, served at
+   `/openworld/`) at the screen's own resolution, rank the frame's ten largest CPU steps in ms from
+   the per-step profile (a GPU pass says where, never how much), add each as a To-do item on the
+   owning domain's open issue (none open: the report only), and list them in your report.
 
 ## Release
 
