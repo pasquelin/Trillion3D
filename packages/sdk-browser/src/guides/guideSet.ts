@@ -109,7 +109,10 @@ export function createGuideSet(onChange: () => void = () => {}) {
         return handle;
       },
       setTransform(matrix) {
-        entry.matrix.set('elements' in matrix ? matrix.elements : matrix);
+        // A page re-placing a guide every frame at the same pose moves nothing: a held frame stays.
+        const next = 'elements' in matrix ? matrix.elements : matrix;
+        if (entry.matrix.every((value, i) => value === next[i])) return handle;
+        entry.matrix.set(next);
         if (entries.has(entry)) changed();
         return handle;
       },
