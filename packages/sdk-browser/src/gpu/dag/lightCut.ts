@@ -4,6 +4,7 @@ import { createLightCutReports } from './lightCutReports.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { encodeAskedBest, encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
+import { selectionListCap } from './layout.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
@@ -163,7 +164,7 @@ export function createDagLightCut(resources: DagResources) {
     encodeReports(encoder: GPUCommandEncoder) {
       if (!listed) return undefined;
       listed = false;
-      encodeAskedBest(encoder, view, pageCount);
+      encodeAskedBest(encoder, view, selectionListCap(pageCount));
       const settle = reports.encodeReadback(encoder);
       redraws.reported(settle !== undefined);
       return settle;

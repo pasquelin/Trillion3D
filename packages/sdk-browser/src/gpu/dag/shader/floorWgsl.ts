@@ -23,8 +23,8 @@
  * top-down pruning would then drop everything.
  *
  * `views` is the view capacity the buffer serves: one for a camera, one row each for a light cut.
- * `pages` is the catalogue a light cut asks for: one word per page behind the rest, its best request
- * of the frame (`askedWord`, `snapshotWgsl.ts`); a camera, which asks for a page once, has none.
+ * `pages` is the catalogue a light cut asks for: one word per page behind the rest, its best priority
+ * of the frame plus one (`askedWord`, `snapshotWgsl.ts`); a camera, which asks for a page once, has none.
  */
 export function dagWorkLayout(blockCount: number, views = 1, pages = 0) {
   const base = blockCount * 2,
@@ -44,7 +44,7 @@ export function dagWorkLayout(blockCount: number, views = 1, pages = 0) {
     viewWords,
     /** The most sixty-four-wide groups any view drew, behind the per-view rows. */
     drawnGroupsMax,
-    /** The frame's best request of each page, behind it: `askedWords` words, cleared at the
+    /** The frame's best priority of each page plus one, behind it: `askedWords` words, cleared at the
      *  frame's first cut. */
     askedAt,
     askedWords: pages,
