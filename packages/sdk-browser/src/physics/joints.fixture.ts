@@ -100,6 +100,13 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
 export const gap = (p: ArrayLike<number>, q: ArrayLike<number>) =>
   Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
 
+/** Twelve points round a 3 m circle about the y axis, at height `y`. */
+export const circle = (y = 0) =>
+  Array.from({ length: 12 }, (_, i) => {
+    const angle = (2 * Math.PI * i) / 12;
+    return [3 * Math.cos(angle), y, 3 * Math.sin(angle)] as const;
+  });
+
 /** A pull no joint in these tests holds: a 1000 kg cube weighs about 9810 N. */
 export const WEAK = 500;
 

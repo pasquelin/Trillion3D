@@ -70,7 +70,7 @@ pub(super) fn stalled(
     stop: Stop,
 ) -> Result<GroupOutcome> {
     let advances = |indices: &[u32]| -> Result<bool> {
-        Ok(matches!(attempt(input, indices, false, 0.0)?, Ok(a) if a.progresses(children)))
+        Ok(matches!(attempt(input, indices, false)?, Ok(a) if a.progresses(children)))
     };
     let cause = match stop {
         Stop::TooSmall => StallCause::TooSmall,

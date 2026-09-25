@@ -55,6 +55,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const dispatch = createDagDispatch(resources, state, fail);
   const selection: GpuSelection = {
     residentCut,
+    hostBytes: uploadResidency?.hostBytes ?? 0,
     maskBuffer: flags,
     maskOffset: nodeCount,
     pageCount,
