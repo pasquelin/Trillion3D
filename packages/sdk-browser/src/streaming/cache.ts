@@ -11,7 +11,8 @@ export function createStreamingCache(context: StreamContext) {
     state.cachedBytes += array.byteLength;
   };
   const over = () =>
-    (!!maxPages && maxPages >= 1 && cache.size > maxPages) || state.cachedBytes > maxCachedBytes;
+    (!!maxPages && maxPages >= 1 && cache.size > maxPages) ||
+    state.cachedBytes + state.reservedBytes > maxCachedBytes;
   const pinnedOrLoading = (url: string) => pinned.has(url) || jobs.has(url);
   const evictOne = (url: string) => {
     const held = cache.get(url);
@@ -123,5 +124,11 @@ export function createStreamingCache(context: StreamContext) {
     emitRetain(delta.heldCount, pinned.size - before, removed);
     return true;
   };
-  return { touch, evict, retain, retainRanks };
+  /** The engine's host tables, sized once its scene is prepared, take `bytes` of the CPU share the
+   *  cache holds (`../residency/memoryBudget.ts`): the decoded pages keep the rest. */
+  const reserve = (bytes: number) => {
+    state.reservedBytes = bytes;
+    evict();
+  };
+  return { touch, evict, retain, retainRanks, reserve };
 }

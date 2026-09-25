@@ -87,3 +87,8 @@ test('a page leaving as its group-mate joins lets nothing go in between', () => 
   closure.apply(cutDelta([b], [a]));
   assert.equal(closure.delta.enteredCount + closure.delta.exitedCount, 0, 'the same closure');
 });
+
+test('the closure counts its host tables: fourteen bytes a placed page, eight a placed group', () => {
+  const closure = createGroupClosure(roots, packed);
+  assert.equal(closure.hostBytes, 14 * packed.length + 8 * 2 * s.groupCount);
+});

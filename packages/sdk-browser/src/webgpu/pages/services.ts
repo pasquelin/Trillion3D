@@ -187,6 +187,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     shadowTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
+    /** Bytes of the cut's host tables — group closure and the rule's readiness — once prepared. */
+    hostTableBytes: () => closure.hostBytes + (rt.run.gpuSelection?.hostBytes ?? 0),
     ...publication,
   };
 }
