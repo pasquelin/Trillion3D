@@ -165,7 +165,7 @@ test('the running gear weighs nothing: a hit turns a vehicle as it turns one wit
     ball.physics = { mass: 50 };
     rig.scene.add(ball);
     rig.run(1);
-    rig.writer.velocity(ball.physics._index, [-10, 0, 0]);
+    rig.writer.velocity(ball.physics!._index, [-10, 0, 0]);
     rig.run(60);
     return rig.turn(car.body);
   };
