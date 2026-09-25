@@ -1,12 +1,13 @@
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
-import { shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
+import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
 
-/** The shadow pool at its largest — the side of the largest screen, and its static layer: the
- *  shadows never hold more, whatever the screen. */
-export const SHADOW_POOL_BYTES = 2 * shadowAtlasBytes(shadowPoolSide(Infinity, Infinity));
+/** The shadows at their largest — the pool on the largest screen, its static layer, and the
+ *  fixed buffers beside it, the page table first: they never hold more, whatever the screen. */
+export const SHADOW_POOL_BYTES =
+  2 * shadowAtlasBytes(shadowPoolSide(Infinity, Infinity)) + SHADOW_BUFFER_BYTES;
 /** The GPU total by default: the three pools at their defaults, what a world held before it had
  *  one total. */
 export const DEFAULT_GPU_BUDGET =
@@ -21,8 +22,9 @@ const checkTotal = (bytes: number, name: string) => {
 /**
  * One memory budget, split by a fixed rule — never by what the machine says it has:
  * - GPU: the shadow pool first, at its largest (`SHADOW_POOL_BYTES`), what the atlas and its
- *   static layer take on the largest screen; the rest in two halves, the geometry pool and the
- *   texture pool, each no larger than its ceiling. The shadows never shrink: a total under the
+ *   static layer take on the largest screen, with the page table and the other fixed shadow
+ *   buffers; the rest in two halves, the geometry pool and the texture pool, each no larger than
+ *   its ceiling. The shadows never shrink: a total under the
  *   shadow pool is refused by name. A total that leaves the other two less than their floors — the
  *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the decoded-page cache takes the whole total, the only CPU pool the engine bounds.

@@ -1551,7 +1551,6 @@
       "shadowNormalOffsetTexels": "Deslocamento do ponto de amostra ao longo da normal, em texels de recorte. É o que fecha a costura entre duas faces de uma luz pontual e remove a acne rasante; está em texels e não em metros para permanecer proporcional à resolução que a luz obteve.",
       "shadowPagesPerFrame": "Páginas de sombra desenhadas no máximo por quadro: o teto do buffer, nunca um ajuste de qualidade. O orçamento em milissegundos quase sempre para antes; este teto é apenas um limite último, e o único num dispositivo sem relógio de GPU.",
       "lampFaceSize": "Lado do mip mais fino de uma face de lâmpada, em texels: 32 × 32 páginas de 128 (o pool: `shadowPoolSide`).",
-      "shadowTableEntries": "Entradas da tabela de páginas de sombra, uma palavra por página virtual: um buffer fixo de 4 MiB. Cabem dezesseis sóis ou 128 luzes pontuais; uma luz que não encontra lugar fica sem sombra, e é contada.",
       "shadowRequestCap": "Páginas virtuais que o sombreamento pode pedir por quadro; o resto pede de novo no quadro seguinte.",
       "sunLevels": "Níveis de clipmap de uma luz direcional. O nível `L` tem texels de `2^L` metros, e um pixel lê o nível cujo texel não passa da sua própria pegada: dezesseis níveis cobrem uma razão longe/perto de 2^15. Além do último nível, a sombra distante assume.",
       "sunLevelPages": "Páginas por lado da extensão de um nível de clipmap em torno da câmera. É uma capacidade, não um ajuste: cada pixel lê a sua própria densidade enquanto `height / tan(halfFovY)` não passar de `sunLevelPages · shadowPage / 2` = 4096 (uma tela 4K com campo vertical de 55°); além disso, os pixels exteriores leem o nível seguinte, com metade da densidade."
@@ -3052,6 +3051,10 @@
   },
   "Side": {
     "summary": "Quais faces um material desenha: `'front'`, `'back'` ou `'double'`."
+  },
+  "SixDofAxis": {
+    "summary": "Os eixos de uma junta de seis graus de liberdade: deslizar ao longo de `x`, `y`, `z` e girar em torno deles.",
+    "description": "`x` segue o `axis` da junta, `y` fica tão perto do alto do mundo quanto pode sendo perpendicular a ele."
   },
   "SlimClusterManifest": {
     "summary": "Um manifesto cujas listas longas vivem em um arquivo binário ao lado.",
@@ -7319,20 +7322,27 @@
     "description": "Ela segura enquanto os dois corpos são simulados, e até se romper.",
     "parameters": {
       "options": "O que `joint.*` aceita. Pontos e eixos ficam no mundo, lidos quando a junta é criada pela primeira vez.",
-      "options.anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância em `a`.",
-      "options.anchorB": "A ponta de uma distância em `b`.",
-      "options.axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone.",
-      "options.limits": "Dobradiça, corrediça, distância e cone: quanto se move. Uma distância mantém por padrão seu comprimento.",
-      "options.spring": "Dobradiça, corrediça e distância: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
-      "options.motor": "Dobradiça e corrediça: um motor, alterável a qualquer momento por `joint.motor`.",
-      "options.breakForce": "Newtons de tração a partir dos quais a junta se rompe; omitido, nunca."
+      "options.anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância ou da corda de uma polia em `a`.",
+      "options.anchorB": "A ponta de uma distância ou da corda de uma polia em `b`.",
+      "options.axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone ou de uma junta de balanço e torção, o `x` de uma junta de seis graus de liberdade, o pino de uma engrenagem ou de um pinhão (`a`).",
+      "options.axisB": "O pino de uma engrenagem em `b`, o trilho de uma cremalheira (`b`).",
+      "options.limits": "Dobradiça, corrediça, distância, cone, balanço e torção e polia: quanto se move. Uma distância mantém por padrão seu comprimento; a corda de uma polia vai de 0 ao seu comprimento.",
+      "options.axes": "Os eixos de uma junta de seis graus de liberdade que se movem, livremente (`'free'`) ou dentro de limites; os outros ficam travados.",
+      "options.spring": "Dobradiça, corrediça, distância e seis graus de liberdade: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
+      "options.motor": "Dobradiça, corrediça, balanço e torção (a sua torção), seis graus de liberdade e caminho: um motor, alterável a qualquer momento por `joint.motor`.",
+      "options.path": "O trilho de um caminho: pelo menos dois pontos, de `b` (ou do mundo) como estão ao ser criado; `a` começa no ponto do trilho mais próximo de `anchor`.",
+      "options.loop": "O trilho de um caminho se fecha sobre si mesmo.",
+      "options.follow": "O `a` de um caminho gira com o trilho, como um carrinho, em vez de livremente, como uma conta.",
+      "options.over": "As duas rodas de uma polia no mundo: a corda de `a` sobe até a primeira, a de `b` até a segunda.",
+      "options.ratio": "Numa engrenagem, as voltas de `b` por volta de `a` (os dentes de `a` sobre os de `b`), no sentido contrário; num pinhão, os radianos por metro de cremalheira, 1 / seu raio; numa polia, os metros de corda de `b` por metro da de `a`.",
+      "options.breakForce": "Newtons de tração a partir dos quais a junta se rompe (N·m de torque entre os dentes de uma engrenagem ou de uma cremalheira); se omitido, nunca."
     },
     "members": {
       "kind": "O que a junta é.",
       "a": "O primeiro corpo.",
       "b": "O segundo corpo, ou `null` para o mundo.",
       "options": "Com o que foi criada.",
-      "motor": "O motor de uma dobradiça ou de uma corrediça; `null` a deixa girar ou deslizar livremente.",
+      "motor": "O motor de uma dobradiça, de uma corrediça, de uma junta de balanço e torção, de seis graus de liberdade ou de um caminho; `null` a deixa se mover livremente.",
       "broken": "Se ela se rompeu: puxada além de sua `breakForce`. Uma junta rompida não segura mais nada.",
       "on": "Chama `handler` quando a junta se rompe."
     }
@@ -7341,31 +7351,40 @@
     "summary": "As juntas entre corpos, cada uma uma restrição do próprio Jolt."
   },
   "JointLimits": {
-    "summary": "Quanto uma junta pode se mover: radianos para uma dobradiça, metros para uma corrediça ou uma distância, o semiângulo do cone (`max`) para um cone.",
+    "summary": "Quanto uma junta pode se mover: radianos para uma dobradiça ou um giro, metros para uma corrediça, uma distância ou a corda de uma polia, o meio ângulo do cone (`max`) para um cone.",
     "members": {
-      "min": "O de uma dobradiça de −π a 0, o de uma corrediça 0 ou menos.",
-      "max": "O de uma dobradiça de 0 a π, o de uma corrediça 0 ou mais."
+      "min": "O de uma dobradiça de −π a 0, o de uma corrediça 0 ou menos; a torção de uma junta de balanço e torção a partir de −π.",
+      "max": "O de uma dobradiça de 0 a π, o de uma corrediça 0 ou mais; a torção de uma junta de balanço e torção até π.",
+      "swing": "O cone de uma junta de balanço e torção: quanto seu `axis` balança, um meio ângulo de até π."
     }
   },
   "JointMotor": {
-    "summary": "O motor de uma dobradiça ou de uma corrediça: leva a junta a uma velocidade ou a uma posição.",
+    "summary": "O motor de uma junta: ele a leva a uma velocidade ou a uma posição.",
     "members": {
-      "mode": "`'velocity'`: rad/s ou m/s; `'position'`: radianos ou metros a partir de onde a junta foi criada.",
+      "mode": "`'velocity'`: rad/s ou m/s; `'position'`: radianos ou metros a partir de onde a junta foi criada — num caminho, o ponto ao longo dele (1.5: a meio caminho entre o segundo e o terceiro).",
       "target": "A velocidade ou a posição a alcançar.",
-      "maxForce": "N·m para uma dobradiça, N para uma corrediça; omitido, sem limite."
+      "maxForce": "N·m para um giro, N para um deslize; se omitido, sem limite.",
+      "axis": "O eixo que ele move, numa junta de seis graus de liberdade."
     }
   },
   "JointOptions": {
     "summary": "O que `joint.*` aceita.",
     "description": "Pontos e eixos ficam no mundo, lidos quando a junta é criada pela primeira vez.",
     "members": {
-      "anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância em `a`.",
-      "anchorB": "A ponta de uma distância em `b`.",
-      "axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone.",
-      "limits": "Dobradiça, corrediça, distância e cone: quanto se move. Uma distância mantém por padrão seu comprimento.",
-      "spring": "Dobradiça, corrediça e distância: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
-      "motor": "Dobradiça e corrediça: um motor, alterável a qualquer momento por `joint.motor`.",
-      "breakForce": "Newtons de tração a partir dos quais a junta se rompe; omitido, nunca."
+      "anchor": "Onde os corpos se ligam: o pino de uma dobradiça, a esfera de uma junta de ponto, a ponta de uma distância ou da corda de uma polia em `a`.",
+      "anchorB": "A ponta de uma distância ou da corda de uma polia em `b`.",
+      "axis": "O pino de uma dobradiça, o trilho de uma corrediça, o meio de um cone ou de uma junta de balanço e torção, o `x` de uma junta de seis graus de liberdade, o pino de uma engrenagem ou de um pinhão (`a`).",
+      "axisB": "O pino de uma engrenagem em `b`, o trilho de uma cremalheira (`b`).",
+      "limits": "Dobradiça, corrediça, distância, cone, balanço e torção e polia: quanto se move. Uma distância mantém por padrão seu comprimento; a corda de uma polia vai de 0 ao seu comprimento.",
+      "axes": "Os eixos de uma junta de seis graus de liberdade que se movem, livremente (`'free'`) ou dentro de limites; os outros ficam travados.",
+      "spring": "Dobradiça, corrediça, distância e seis graus de liberdade: além dos limites, uma mola puxa de volta em vez de uma parede; `frequency` em Hz, `damping` de 0 (nenhum) a 1 (crítico).",
+      "motor": "Dobradiça, corrediça, balanço e torção (a sua torção), seis graus de liberdade e caminho: um motor, alterável a qualquer momento por `joint.motor`.",
+      "path": "O trilho de um caminho: pelo menos dois pontos, de `b` (ou do mundo) como estão ao ser criado; `a` começa no ponto do trilho mais próximo de `anchor`.",
+      "loop": "O trilho de um caminho se fecha sobre si mesmo.",
+      "follow": "O `a` de um caminho gira com o trilho, como um carrinho, em vez de livremente, como uma conta.",
+      "over": "As duas rodas de uma polia no mundo: a corda de `a` sobe até a primeira, a de `b` até a segunda.",
+      "ratio": "Numa engrenagem, as voltas de `b` por volta de `a` (os dentes de `a` sobre os de `b`), no sentido contrário; num pinhão, os radianos por metro de cremalheira, 1 / seu raio; numa polia, os metros de corda de `b` por metro da de `a`.",
+      "breakForce": "Newtons de tração a partir dos quais a junta se rompe (N·m de torque entre os dentes de uma engrenagem ou de uma cremalheira); se omitido, nunca."
     }
   },
   "joint": {
@@ -7376,7 +7395,13 @@
       "hinge": "Um pino em `anchor` ao longo de `axis`: uma porta, uma roda. `limits` em radianos.",
       "slider": "Um trilho ao longo de `axis`: uma gaveta, um pistão. `limits` em metros.",
       "distance": "Mantém `anchor` em `a` e `anchorB` em `b` à sua distância, ou dentro de `limits`.",
-      "cone": "Uma junta esférica cujo `axis` oscila dentro de um cone de semiângulo `limits.max`."
+      "cone": "Uma junta esférica cujo `axis` oscila dentro de um cone de semiângulo `limits.max`.",
+      "swingTwist": "Um ombro: `axis` balança dentro de um cone de meio ângulo `limits.swing` e torce sobre si mesmo entre `limits.min` e `max`; seu motor move a torção.",
+      "sixDof": "Seis eixos, cada um travado, livre ou limitado (`axes`): qualquer junta entre as outras.",
+      "path": "`a` corre por um trilho suave que passa por `path`, preso a `b` ou ao mundo: uma montanha-russa.",
+      "pulley": "Uma corda de `a` sobre duas rodas (`over`) até `b`: um sobe quando o outro desce.",
+      "gear": "Duas rodas que giram juntas segundo `ratio`, cada uma em torno do próprio pino (`axis`, `axisB`) e presa pela sua dobradiça (a roda como seu `a`); quando `ratio` ou 1 / `ratio` é inteiro, os dentes também mantêm a fase em que foram feitos.",
+      "rackAndPinion": "Um pinhão `a` girando em torno de `axis` move uma cremalheira `b` ao longo de `axisB`, cada um preso pela sua dobradiça ou corrediça (o corpo como seu `a`), os dentes mantidos na fase em que foram feitos."
     }
   }
 }

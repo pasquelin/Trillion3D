@@ -2031,5 +2031,19 @@
       "joints": "Giunti",
       "broken": "Rotti"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "Cambia la velocità del meccanismo, alza l’ascensore e getta pesi nel secchio per sollevare il contrappeso.",
+    "controls": {
+      "speed": "Velocità del meccanismo (rad/s)",
+      "raiseLift": "Alza l’ascensore",
+      "addWeight": "Lascia cadere un peso",
+      "emptyBucket": "Svuota il secchio"
+    },
+    "readouts": {
+      "lift": "Ascensore",
+      "load": "Pesi",
+      "rope": "Fune scorsa"
+    }
   }
 }

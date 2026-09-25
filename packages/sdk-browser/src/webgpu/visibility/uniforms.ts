@@ -10,7 +10,7 @@ import {
   writeSunSlice,
 } from '../../visibility/shader/request.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
-import { pixelScaleOf } from '../../camera/pixelFootprint.ts';
+import { pixelFootprintOf } from '../../streaming/priority.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import { taaStippleWord } from '../../taa/frame.ts';
 
@@ -86,7 +86,7 @@ export function writeWebgpuVisibilityUniforms(
   shadeInts[22] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
   // The sun's clipmap, and the pixel scale that picks its level, so resolve asks for the tiles a
   // foliage shadow reads; with no sun to shadow, a header of zeros, and nothing is asked.
-  shadeUniPacked[23] = run.lastCamera ? pixelScaleOf(run.gate.cam.projection, height) : 0;
+  shadeUniPacked[23] = run.lastCamera ? pixelFootprintOf(run.gate.cam.projection, height) : 0;
   // The depth material's ramp: white at the near plane, black at the far one (#365).
   const { near, far, perspective } = run.gate.cam;
   writeDepthRamp(shadeUniPacked, DEPTH_RAMP_WORD, near, far, perspective);

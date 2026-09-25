@@ -2787,7 +2787,6 @@
       "shadowNormalOffsetTexels": "Scarto del punto di campionamento lungo la normale, in texel di fetta. Questo chiude la cucitura tra due facce di una luce puntiforme e rimuove l'acne radente; è in texel e non in metri per restare proporzionale alla risoluzione ottenuta dalla luce.",
       "shadowPagesPerFrame": "Pagine d’ombra disegnate al massimo per fotogramma: il tetto del buffer, mai un’impostazione di qualità. Il budget in millisecondi si ferma quasi sempre prima; questo tetto è solo un limite estremo, e l’unico su un dispositivo senza orologio GPU.",
       "lampFaceSize": "Lato del mip più fine di una faccia di lampada, in texel: 32 × 32 pagine da 128 (il pool: `shadowPoolSide`).",
-      "shadowTableEntries": "Voci della tabella delle pagine d’ombra, una parola per pagina virtuale: un buffer fisso di 4 MiB. Contiene sedici soli o 128 luci puntiformi; una luce che non trova posto resta senz’ombra, e viene contata.",
       "shadowRequestCap": "Pagine virtuali che l’ombreggiatura può chiedere per fotogramma; le altre richiedono al fotogramma successivo.",
       "sunLevels": "Livelli di clipmap di una luce direzionale. Il livello `L` ha texel di `2^L` metri, e un pixel legge il livello il cui texel non supera la propria impronta: sedici livelli coprono un rapporto lontano/vicino di 2^15. Oltre l’ultimo livello subentra l’ombra lontana.",
       "sunLevelPages": "Pagine per lato dell’estensione di un livello di clipmap attorno alla camera. È una capacità, non una regolazione: ogni pixel legge la propria densità finché `height / tan(halfFovY)` resta entro `sunLevelPages · shadowPage / 2` = 4096 (una tela 4K con campo verticale di 55°); oltre, i pixel esterni leggono il livello successivo, a metà densità."
@@ -5330,6 +5329,10 @@
   "Side": {
     "summary": "Quali facce disegna un materiale: `'front'`, `'back'` o `'double'`."
   },
+  "SixDofAxis": {
+    "summary": "Gli assi di un giunto a sei gradi di libertà: scorrere lungo `x`, `y`, `z` e ruotare attorno a essi.",
+    "description": "`x` segue l’`axis` del giunto, `y` è il più vicino possibile all’alto del mondo restandogli perpendicolare."
+  },
   "sideOf": {
     "summary": "Il lato dichiarato da un materiale dell'host, letto una volta al confine nell'enumerazione propria del motore."
   },
@@ -7319,20 +7322,27 @@
     "description": "Tiene finché entrambi i corpi sono simulati, e finché non si rompe.",
     "parameters": {
       "options": "Ciò che accetta `joint.*`. Punti e assi sono nel mondo, letti quando il giunto viene creato la prima volta.",
-      "options.anchor": "Dove i corpi si collegano: il perno di un cardine, la sfera di un giunto sferico, l’estremo di una distanza su `a`.",
-      "options.anchorB": "L’estremo di una distanza su `b`.",
-      "options.axis": "Il perno di un cardine, la guida di un giunto prismatico, il centro di un cono.",
-      "options.limits": "Cardine, giunto prismatico, distanza e cono: quanto si muove. Una distanza mantiene per default la sua lunghezza.",
-      "options.spring": "Cardine, giunto prismatico e distanza: oltre i limiti una molla la riporta indietro al posto di un muro; `frequency` in Hz, `damping` da 0 (nessuno) a 1 (critico).",
-      "options.motor": "Cardine e giunto prismatico: un motore, modificabile in ogni momento tramite `joint.motor`.",
-      "options.breakForce": "Newton di trazione oltre i quali il giunto si rompe; se omesso, mai."
+      "options.anchor": "Dove i corpi si collegano: il perno di un cardine, la sfera di un giunto sferico, l’estremo di una distanza o della fune di una carrucola su `a`.",
+      "options.anchorB": "L’estremo di una distanza o della fune di una carrucola su `b`.",
+      "options.axis": "Il perno di un cardine, la guida di un giunto prismatico, il centro di un cono o di uno snodo a torsione, la `x` di un giunto a sei gradi di libertà, il perno di un ingranaggio o di un pignone (`a`).",
+      "options.axisB": "Il perno di un ingranaggio su `b`, la guida di una cremagliera (`b`).",
+      "options.limits": "Cardine, giunto prismatico, distanza, cono, snodo a torsione e carrucola: quanto si muove. Una distanza mantiene per default la sua lunghezza; la fune di una carrucola va da 0 alla sua lunghezza.",
+      "options.axes": "Gli assi di un giunto a sei gradi di libertà che si muovono, liberamente (`'free'`) o entro limiti; gli altri sono bloccati.",
+      "options.spring": "Cardine, giunto prismatico, distanza e sei gradi di libertà: oltre i limiti una molla lo riporta indietro al posto di un muro; `frequency` in Hz, `damping` da 0 (nessuno) a 1 (critico).",
+      "options.motor": "Cardine, giunto prismatico, snodo a torsione (la sua torsione), sei gradi di libertà e percorso: un motore, modificabile in ogni momento tramite `joint.motor`.",
+      "options.path": "Il tracciato di un percorso: almeno due punti, di `b` (o del mondo) come sono alla creazione; `a` parte dal punto del tracciato più vicino ad `anchor`.",
+      "options.loop": "Il tracciato di un percorso si chiude su sé stesso.",
+      "options.follow": "L’`a` di un percorso ruota con il tracciato, come un vagone, invece che liberamente, come una perlina.",
+      "options.over": "Le due ruote di una carrucola nel mondo: la fune di `a` sale fino alla prima, quella di `b` fino alla seconda.",
+      "options.ratio": "Per un ingranaggio, i giri di `b` per giro di `a` (i denti di `a` su quelli di `b`), in senso opposto; per un pignone, i radianti per metro di cremagliera, 1 / il suo raggio; per una carrucola, i metri di fune di `b` per metro di quella di `a`.",
+      "options.breakForce": "Newton di trazione oltre i quali il giunto si rompe (N·m di coppia tra i denti di un ingranaggio o di una cremagliera); se omesso, mai."
     },
     "members": {
       "kind": "Che cosa è il giunto.",
       "a": "Il primo corpo.",
       "b": "Il secondo corpo, o `null` per il mondo.",
       "options": "Con che cosa è stato creato.",
-      "motor": "Il motore di un cardine o di un giunto prismatico; `null` lo lascia ruotare o scorrere liberamente.",
+      "motor": "Il motore di un cardine, di un giunto prismatico, di uno snodo a torsione, di un giunto a sei gradi di libertà o di un percorso; `null` lo lascia muovere liberamente.",
       "broken": "Se si è rotto: tirato oltre la sua `breakForce`. Un giunto rotto non tiene più nulla.",
       "on": "Chiama `handler` quando il giunto si rompe."
     }
@@ -7341,31 +7351,40 @@
     "summary": "I giunti tra corpi, ciascuno uno dei vincoli di Jolt."
   },
   "JointLimits": {
-    "summary": "Quanto può muoversi un giunto: radianti per un cardine, metri per un giunto prismatico o una distanza, il semiangolo del cono (`max`) per un cono.",
+    "summary": "Quanto può muoversi un giunto: radianti per un cardine o una rotazione, metri per un giunto prismatico, una distanza o la fune di una carrucola, il semiangolo del cono (`max`) per un cono.",
     "members": {
-      "min": "Per un cardine da −π a 0, per un giunto prismatico 0 o meno.",
-      "max": "Per un cardine da 0 a π, per un giunto prismatico 0 o più."
+      "min": "Quello di un cardine da −π a 0, quello di un giunto prismatico 0 o meno; la torsione di uno snodo a torsione da −π.",
+      "max": "Quello di un cardine da 0 a π, quello di un giunto prismatico 0 o più; la torsione di uno snodo a torsione fino a π.",
+      "swing": "Il cono di uno snodo a torsione: quanto oscilla il suo `axis`, un semiangolo fino a π."
     }
   },
   "JointMotor": {
-    "summary": "Il motore di un cardine o di un giunto prismatico: porta il giunto a una velocità o a una posizione.",
+    "summary": "Il motore di un giunto: lo porta a una velocità o a una posizione.",
     "members": {
-      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianti o metri da dove il giunto è stato creato.",
+      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianti o metri da dove il giunto è stato creato — per un percorso, il punto lungo di esso (1.5: a metà tra il secondo e il terzo).",
       "target": "La velocità o la posizione da raggiungere.",
-      "maxForce": "N·m per un cardine, N per un giunto prismatico; se omesso, senza limite."
+      "maxForce": "N·m per una rotazione, N per uno scorrimento; se omesso, nessun limite.",
+      "axis": "L’asse che muove, in un giunto a sei gradi di libertà."
     }
   },
   "JointOptions": {
     "summary": "Ciò che accetta `joint.*`.",
     "description": "Punti e assi sono nel mondo, letti quando il giunto viene creato la prima volta.",
     "members": {
-      "anchor": "Dove i corpi si collegano: il perno di un cardine, la sfera di un giunto sferico, l’estremo di una distanza su `a`.",
-      "anchorB": "L’estremo di una distanza su `b`.",
-      "axis": "Il perno di un cardine, la guida di un giunto prismatico, il centro di un cono.",
-      "limits": "Cardine, giunto prismatico, distanza e cono: quanto si muove. Una distanza mantiene per default la sua lunghezza.",
-      "spring": "Cardine, giunto prismatico e distanza: oltre i limiti una molla la riporta indietro al posto di un muro; `frequency` in Hz, `damping` da 0 (nessuno) a 1 (critico).",
-      "motor": "Cardine e giunto prismatico: un motore, modificabile in ogni momento tramite `joint.motor`.",
-      "breakForce": "Newton di trazione oltre i quali il giunto si rompe; se omesso, mai."
+      "anchor": "Dove i corpi si collegano: il perno di un cardine, la sfera di un giunto sferico, l’estremo di una distanza o della fune di una carrucola su `a`.",
+      "anchorB": "L’estremo di una distanza o della fune di una carrucola su `b`.",
+      "axis": "Il perno di un cardine, la guida di un giunto prismatico, il centro di un cono o di uno snodo a torsione, la `x` di un giunto a sei gradi di libertà, il perno di un ingranaggio o di un pignone (`a`).",
+      "axisB": "Il perno di un ingranaggio su `b`, la guida di una cremagliera (`b`).",
+      "limits": "Cardine, giunto prismatico, distanza, cono, snodo a torsione e carrucola: quanto si muove. Una distanza mantiene per default la sua lunghezza; la fune di una carrucola va da 0 alla sua lunghezza.",
+      "axes": "Gli assi di un giunto a sei gradi di libertà che si muovono, liberamente (`'free'`) o entro limiti; gli altri sono bloccati.",
+      "spring": "Cardine, giunto prismatico, distanza e sei gradi di libertà: oltre i limiti una molla lo riporta indietro al posto di un muro; `frequency` in Hz, `damping` da 0 (nessuno) a 1 (critico).",
+      "motor": "Cardine, giunto prismatico, snodo a torsione (la sua torsione), sei gradi di libertà e percorso: un motore, modificabile in ogni momento tramite `joint.motor`.",
+      "path": "Il tracciato di un percorso: almeno due punti, di `b` (o del mondo) come sono alla creazione; `a` parte dal punto del tracciato più vicino ad `anchor`.",
+      "loop": "Il tracciato di un percorso si chiude su sé stesso.",
+      "follow": "L’`a` di un percorso ruota con il tracciato, come un vagone, invece che liberamente, come una perlina.",
+      "over": "Le due ruote di una carrucola nel mondo: la fune di `a` sale fino alla prima, quella di `b` fino alla seconda.",
+      "ratio": "Per un ingranaggio, i giri di `b` per giro di `a` (i denti di `a` su quelli di `b`), in senso opposto; per un pignone, i radianti per metro di cremagliera, 1 / il suo raggio; per una carrucola, i metri di fune di `b` per metro di quella di `a`.",
+      "breakForce": "Newton di trazione oltre i quali il giunto si rompe (N·m di coppia tra i denti di un ingranaggio o di una cremagliera); se omesso, mai."
     }
   },
   "joint": {
@@ -7376,7 +7395,13 @@
       "hinge": "Un perno in `anchor` lungo `axis`: una porta, una ruota. `limits` in radianti.",
       "slider": "Una guida lungo `axis`: un cassetto, un pistone. `limits` in metri.",
       "distance": "Mantiene `anchor` su `a` e `anchorB` su `b` alla loro distanza, o entro `limits`.",
-      "cone": "Un giunto sferico il cui `axis` oscilla in un cono di semiangolo `limits.max`."
+      "cone": "Un giunto sferico il cui `axis` oscilla in un cono di semiangolo `limits.max`.",
+      "swingTwist": "Una spalla: `axis` oscilla in un cono di semiangolo `limits.swing` e si torce su sé stesso tra `limits.min` e `max`; il suo motore muove la torsione.",
+      "sixDof": "Sei assi, ciascuno bloccato, libero o limitato (`axes`): qualsiasi giunto tra gli altri.",
+      "path": "`a` corre lungo un tracciato morbido che passa per `path`, fissato a `b` o al mondo: le montagne russe.",
+      "pulley": "Una fune da `a` su due ruote (`over`) fino a `b`: uno sale mentre l’altro scende.",
+      "gear": "Due ruote che girano insieme secondo `ratio`, ciascuna attorno al proprio perno (`axis`, `axisB`) e tenuta dal suo cardine (la ruota come suo `a`); quando `ratio` o 1 / `ratio` è intero, i loro denti mantengono anche la fase in cui sono stati creati.",
+      "rackAndPinion": "Un pignone `a` che ruota attorno ad `axis` muove una cremagliera `b` lungo `axisB`, ciascuno tenuto dal suo cardine o giunto prismatico (il corpo come suo `a`), i denti mantenuti nella fase in cui sono stati creati."
     }
   }
 }

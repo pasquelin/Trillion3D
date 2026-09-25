@@ -626,7 +626,8 @@
           "<code>anchor</code> adalah titik tempat benda-benda terhubung dan <code>axis</code> arah pasak atau rel; keduanya di dunia dan dibaca saat sambungan dibuat.",
           "<code>limits</code> menghentikan sambungan: radian untuk engsel, meter untuk rel. <code>spring</code> membuat penahannya lunak.",
           "<code>motor</code> menggerakkan engsel atau rel ke suatu kecepatan atau posisi. Ubah <code>joint.motor</code> kapan saja.",
-          "<code>breakForce</code> adalah tarikan dalam newton yang membuat sambungan putus bila dilewati: <code>joint.broken</code> menjadi true dan <code>joint.on('break', …)</code> dipanggil."
+          "<code>breakForce</code> adalah tarikan dalam newton yang membuat sambungan putus bila dilewati: <code>joint.broken</code> menjadi true dan <code>joint.on('break', …)</code> dipanggil.",
+          "Sambungan lanjutan mengikat gerakan: <code>joint.gear(a, b, { ratio })</code> memutar dua roda berengsel seperti satu rangkaian, <code>joint.rackAndPinion</code> mengubah putaran menjadi geseran, <code>joint.pulley(a, b, { over })</code> menggantung dua beban pada satu tali, <code>joint.path(a, b, { path })</code> menjaga kereta di relnya, serta <code>swingTwist</code> dan <code>sixDof</code> membuat bahu dan sambungan buatanmu sendiri."
         ],
         "tryIt": "Buka pintu dan laci, lalu jatuhkan batu ke jembatan. Turunkan kekuatan jembatan dan bangun ulang: jembatan patah oleh beratnya sendiri."
       },
@@ -1496,6 +1497,7 @@
       "soft-bodies": "Benda lunak",
       "rolling-on-terrain": "Bergulir di medan",
       "hinges-and-joints": "Engsel dan sendi",
+      "gears-and-pulleys": "Roda gigi dan katrol",
       "walk-with-collisions": "Berjalan dengan tabrakan",
       "drive-a-car": "Mengemudikan mobil",
       "a-room-in-vr": "Sebuah ruangan dalam VR",

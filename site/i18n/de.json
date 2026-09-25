@@ -313,6 +313,7 @@
       "soft-bodies": "Weiche Körper",
       "rolling-on-terrain": "Rollen über das Gelände",
       "hinges-and-joints": "Scharniere und Gelenke",
+      "gears-and-pulleys": "Zahnräder und Flaschenzüge",
       "walk-with-collisions": "Laufen mit Kollisionen",
       "drive-a-car": "Ein Auto fahren",
       "a-room-in-vr": "Ein Raum in VR",
@@ -1077,7 +1078,8 @@
           "<code>anchor</code> ist der Punkt, an dem die Körper verbunden sind, und <code>axis</code> die Richtung von Achse oder Schiene, beide in der Welt, gelesen, wenn das Gelenk entsteht.",
           "<code>limits</code> hält das Gelenk an: Radiant für ein Scharnier, Meter für eine Schiene. Eine <code>spring</code> macht den Anschlag weich.",
           "Ein <code>motor</code> treibt ein Scharnier oder eine Schiene auf eine Geschwindigkeit oder eine Position. Ändere <code>joint.motor</code> jederzeit.",
-          "<code>breakForce</code> ist der Zug in Newton, ab dem das Gelenk reißt: <code>joint.broken</code> wird wahr und <code>joint.on('break', …)</code> wird aufgerufen."
+          "<code>breakForce</code> ist der Zug in Newton, ab dem das Gelenk reißt: <code>joint.broken</code> wird wahr und <code>joint.on('break', …)</code> wird aufgerufen.",
+          "Fortgeschrittene Gelenke koppeln Bewegungen: <code>joint.gear(a, b, { ratio })</code> dreht zwei Räder auf Scharnieren wie ein Getriebe, <code>joint.rackAndPinion</code> macht aus einer Drehung ein Gleiten, <code>joint.pulley(a, b, { over })</code> hängt zwei Lasten an ein Seil, <code>joint.path(a, b, { path })</code> hält einen Wagen auf seiner Bahn, und <code>swingTwist</code> und <code>sixDof</code> bauen Schultern und eigene Gelenke."
         ],
         "tryIt": "Öffne die Tür und die Schublade, dann lass den Stein auf die Brücke fallen. Senke die Festigkeit der Brücke und baue sie neu: Sie bricht unter ihrem eigenen Gewicht."
       },

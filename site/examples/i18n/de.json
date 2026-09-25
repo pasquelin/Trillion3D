@@ -2031,5 +2031,19 @@
       "joints": "Gelenke",
       "broken": "Gebrochen"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "Ändere das Tempo des Uhrwerks, fahre den Aufzug hoch und wirf Gewichte in den Eimer, um das Gegengewicht zu heben.",
+    "controls": {
+      "speed": "Tempo des Uhrwerks (rad/s)",
+      "raiseLift": "Aufzug hochfahren",
+      "addWeight": "Gewicht fallen lassen",
+      "emptyBucket": "Eimer leeren"
+    },
+    "readouts": {
+      "lift": "Aufzug",
+      "load": "Gewichte",
+      "rope": "Seillauf"
+    }
   }
 }

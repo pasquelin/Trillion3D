@@ -2031,5 +2031,19 @@
       "joints": "Liaisons",
       "broken": "Rompues"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "Changez la vitesse du mécanisme, montez l’ascenseur et lâchez des poids dans le seau pour soulever le contrepoids.",
+    "controls": {
+      "speed": "Vitesse du mécanisme (rad/s)",
+      "raiseLift": "Monter l’ascenseur",
+      "addWeight": "Lâcher un poids",
+      "emptyBucket": "Vider le seau"
+    },
+    "readouts": {
+      "lift": "Ascenseur",
+      "load": "Poids",
+      "rope": "Corde déroulée"
+    }
   }
 }
