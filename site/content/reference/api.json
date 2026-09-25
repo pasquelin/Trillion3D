@@ -14247,7 +14247,7 @@
       },
       {
         "name": "records",
-        "type": "{ taken: Uint8Array<ArrayBuffer>; kind: Int32Array<ArrayBuffer>; readonly count: number; dropPages: (slice: number) => void; free: (slice: number) => void; c...",
+        "type": "{ taken: Uint8Array<ArrayBuffer>; kind: Int32Array<ArrayBuffer>; readonly count: number; dropPages: (slice: number) => void; free: (slice: number) => void; i...",
         "desc": "The shadow slices, one per light that casts a shadow."
       },
       {
@@ -14263,7 +14263,7 @@
       {
         "name": "admission",
         "type": "{ list: Int32Array<ArrayBuffer>; keys: Int32Array<ArrayBuffer>; hostBytes: number; readonly count: number; run(pool: ShadowPool, table: ShadowTable, latest: ...",
-        "desc": "This frame's pages, light view by light view."
+        "desc": "This frame's pages, the coarsest first, light view by light view."
       },
       {
         "name": "worldChanged",
@@ -14323,7 +14323,7 @@
       {
         "name": "plan(store: SceneLightStore, view: ShadowViewpoint, sceneMin: ArrayLike<number>, sceneMax: ArrayLike<number>, frame: number, nowMs: number)",
         "type": "number",
-        "desc": "Plans a frame: stales what moved, reads the last report, admits every page to draw."
+        "desc": "Plans a frame: stales what moved, reads the last report, lists every page to draw."
       },
       {
         "name": "commit(modes?: ArrayLike<number>, from?: number, to?: number)",
@@ -14333,7 +14333,7 @@
       {
         "name": "reissue(from?: number)",
         "type": "void",
-        "desc": "The frame's pages from `from` on could not be encoded: they stay stale, pending, ahead of every page that turns stale after them in the next frame's list (`admit.ts`)."
+        "desc": "The frame's pages from `from` on were not drawn — past a moving frame's budget, or not encoded: they stay stale, pending, ahead of every page that turns stale after them in the next frame's list (`admit.ts`)."
       },
       {
         "name": "reset()",

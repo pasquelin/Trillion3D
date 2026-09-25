@@ -10,6 +10,8 @@ import {
   SUN,
   VIEW,
   planFrame,
+  report,
+  sunPages,
 } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
@@ -59,25 +61,37 @@ test('a batch that cannot be encoded leaves its pages and the rest pending, none
   assert.equal(lights.plan.admission.count, 0, 'the list is closed');
 });
 
-// #525: the shadow raster's fixed budget. While the camera moves a frame draws one batch's pages —
-// the coarsest first (`admit.ts`, `frameEnd`) — and leaves the rest pending; the first frame it rests draws
-// every page left, so the still image is the one every page drawn gives.
-test('a moving camera draws one batch a frame, the rest pending, the whole list once it rests', () => {
-  const { rt, lights, pages } = frame(16, true);
-  const { plan } = lights;
-  assert.equal(plan.resting, false, 'a first view is a moving one');
+// #525: the shadow raster's fixed budget. While the camera moves a frame draws its lights' floors
+// and one batch's pages — the coarsest first (`admit.ts`, `frameEnd`) — and leaves the rest
+// pending; the first frame it rests draws every page left, so the still image is the one every
+// page drawn gives.
+test('a moving camera draws the floors and one batch a frame, the whole list once it rests', () => {
+  const { rt, lights } = frame(1, true);
+  const { plan, store } = lights;
+  const slice = store.sliceOf(0),
+    grid = Array.from({ length: 36 }, (_, k) => [k % 6, Math.floor(k / 6)]);
+  const read = [2, 3].flatMap((step) => sunPages(plan, slice, plan.sun.finest[slice] + step, grid));
+  report(plan, store, 1, read);
+  // A step far under a page: the view moved, no clipmap extent did.
+  const moved = { ...VIEW, position: [1e-6, 5, 0] as [number, number, number] };
+  const listed = planFrame(plan, store, 2, moved),
+    { list } = plan.admission;
+  assert.equal(plan.resting, false);
+  let floors = 0;
+  for (let i = 0; i < listed; i++) if (plan.records.isFloor(list[i])) floors++;
+  assert.ok(floors > 0 && listed > floors + MAX_SHADOW_PAGES, `${listed} pages, ${floors} floors`);
   const visit = (from: number, to: number) => {
     plan.commit(undefined, from, to);
     lights.runs.reset();
     return true;
   };
   const drawn = forEachShadowBatch(rt, visit);
-  assert.equal(drawn, MAX_SHADOW_PAGES, 'one batch while the camera moves');
+  assert.equal(drawn, floors + MAX_SHADOW_PAGES, 'the floors and one batch while the camera moves');
   plan.reissue(drawn);
-  assert.equal(plan.counts.pendingPages, pages - MAX_SHADOW_PAGES, 'the rest pending');
-  const left = planFrame(plan, lights.store, 2);
+  assert.equal(plan.counts.pendingPages, listed - drawn, 'the rest pending');
+  const left = planFrame(plan, store, 3, moved);
   assert.equal(plan.resting, true, 'the same view again: the camera rests');
-  assert.equal(left, pages - MAX_SHADOW_PAGES);
+  assert.equal(left, listed - drawn);
   assert.equal(forEachShadowBatch(rt, visit), left, 'every page left, in the frame');
 });
 
