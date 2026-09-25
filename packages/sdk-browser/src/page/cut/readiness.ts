@@ -85,6 +85,11 @@ export function createCutReadiness(
     ready,
     childReady,
     open,
+    /** Bytes this readiness allocated itself; views it was handed are its caller's to count. */
+    hostBytes: [resident, groupReady, ...(into ? [] : [ready, childReady, open])].reduce(
+      (bytes, table) => bytes + table.byteLength,
+      0,
+    ),
     /** Records page `page`'s residency; `settle` propagates it. */
     set(page: number, value: boolean) {
       const bit = value ? 1 : 0;

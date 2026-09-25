@@ -6434,13 +6434,13 @@
     "members": {
       "geometryPoolCeiling": "Die größten Reservoirs, die eine Welt anfordern kann: die Startbudgets der Engine.",
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
-      "geometryPool": "Bytes GPU-Speicher für Geometrieseiten; setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Textur-Pool lässt.",
-      "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Geometrie-Pool lässt.",
+      "geometryPool": "Bytes GPU-Speicher für Geometrieseiten; setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten, den Bounce-Sonden und dem Textur-Pool lässt.",
+      "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten, den Bounce-Sonden und dem Geometrie-Pool lässt.",
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
       "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter dem Schatten-Pool wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
-      "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten, beim nächsten Laden einer Szene übernommen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
-      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
+      "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten und die Schnitttabellen der Engine, beim nächsten Laden einer Szene übernommen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool und die Bounce-Sonden in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {

@@ -61,20 +61,20 @@ pub(super) fn cluster_deviations(
     dag.par_iter().map(deviation).collect()
 }
 
-/// The corners, welded, sorted and once each, of the triangles of `indices` wider than `error`
-/// whose deviation exceeds `bound`: those a reduction retries with locked.
+/// The corners, welded, sorted and once each, of the triangles of `indices` whose deviation
+/// exceeds `bound`, however narrow, slivers aside: those a reduction retries with locked.
 pub(super) fn backlit_corners(
     indices: &[u32],
     positions: &[f32],
     normals: &[f32],
     weld: &[u32],
-    (error, bound): (f64, f64),
+    bound: f64,
 ) -> Vec<u32> {
     let mut corners: Vec<u32> = indices
         .as_chunks::<3>()
         .0
         .iter()
-        .filter(|tri| triangle_deviation(tri, positions, normals, error).is_some_and(|d| d > bound))
+        .filter(|tri| triangle_deviation(tri, positions, normals, 0.0).is_some_and(|d| d > bound))
         .flatten()
         .map(|&corner| weld[corner as usize])
         .collect();

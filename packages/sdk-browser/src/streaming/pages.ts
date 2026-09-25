@@ -1,7 +1,6 @@
 import { createStreamingFetcher } from './fetch.ts';
 import { createStreamingQueue } from './queue.ts';
 import type { BackendDiagnostic } from '../backend/types.ts';
-
 import type { StreamContext, Job, StreamPage } from './types.ts';
 import { createStreamingCache } from './cache.ts';
 export type { StreamPage } from './types.ts';
@@ -53,6 +52,7 @@ export function createPageStreamer(
     dropped: 0,
     disposed: false,
     cachedBytes: 0,
+    reservedBytes: 0,
   };
   const emit = (phase: string, message: string, context: () => Record<string, unknown>) => {
     if (onDiagnostic)
@@ -91,7 +91,7 @@ export function createPageStreamer(
     emit,
     abortError,
   };
-  const { touch, evict, retain, retainRanks } = createStreamingCache(context);
+  const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
   const loadOne = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const indexViews = new WeakMap<Uint8Array, Uint32Array>();
@@ -133,6 +133,7 @@ export function createPageStreamer(
       return subscribe(url, requestSignal, 0);
     },
     retain,
+    reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
     /** Reads `urls` the catalog holds, once each; `onPage` hears 0 resident, then each landing. */

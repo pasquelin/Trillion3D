@@ -35,8 +35,9 @@ export function createWebgpuCutPublication(
   // only a copy of it, and only when the image adopts the readback that produced it.
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
-  // What the cache is asked for is the cut closed over its groups (`groupClosure.ts`).
-  const cutPending = createCutPending(packedPages, closure.delta);
+  // What the cache is asked for is the cut closed over its groups (`groupClosure.ts`); what the
+  // image waits for is the part of it the pool accepted.
+  const cutPending = createCutPending(packedPages, closure.delta, residencySets.accepts);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
   rows.watchTouched(coverageWatcher(cutPending));
@@ -82,7 +83,6 @@ export function createWebgpuCutPublication(
     if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
-    run.uncoveredTriangles = metrics.uncoveredTriangles;
     run.submittedTriangles = metrics.selectedTriangles;
     run.drawnTriangles = metrics.drawnTriangles;
     run.blendPagedTriangles = metrics.transparentTriangles;
