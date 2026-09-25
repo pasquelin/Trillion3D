@@ -37,7 +37,8 @@ export const FRAMED_MEASUREMENT_TAG =
 export function inHead(html: string, tag: string): string {
   const close = /^([ \t]*)<\/head>/m.exec(html);
   if (!close) return html;
-  return html.replace(close[0], `${close[1]}  ${tag}\n${close[0]}`);
+  // A function, so a `$` in `tag` is never read as a replacement pattern.
+  return html.replace(close[0], () => `${close[1]}  ${tag}\n${close[0]}`);
 }
 
 /**

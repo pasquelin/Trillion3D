@@ -70,6 +70,8 @@ export async function followSite(root: string, out: string, port = 0) {
     }
     building = undefined;
   }
+  // Listening first: a port in use fails before any folder is followed.
+  const listening = await listen(server, port);
   const watchers = FOLLOWED.map((folder) =>
     watch(resolve(root, folder), { recursive: true }, (_, name) => {
       if (!name) return;
@@ -86,7 +88,7 @@ export async function followSite(root: string, out: string, port = 0) {
     server.closeAllConnections();
     return closed;
   };
-  return { port: await listen(server, port), close };
+  return { port: listening, close };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

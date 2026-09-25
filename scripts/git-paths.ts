@@ -58,6 +58,8 @@ export function ignoredPaths(paths: string[], cwd = process.cwd(), noIndex = fal
     cwd,
     input: paths.join('\0'),
     encoding: 'utf8',
+    // A large batch of paths is never cut at the default output limit.
+    maxBuffer: Infinity,
   });
   // No output when git cannot run there (a folder removed since): none is ignored.
   return (stdout ?? '').split('\0').filter(Boolean);

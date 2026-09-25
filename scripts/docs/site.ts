@@ -7,7 +7,7 @@ import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs
 import { extname, relative, resolve } from 'node:path';
 import { API_FILES, API_SOURCES, generateApiFiles } from '../generate-api-reference.ts';
 import { gitPathsSync } from '../git-paths.ts';
-import { COOKED_SCENES, compileSiteCaches, sourceOf } from '../site-caches.ts';
+import { COOKED_SCENES, compileSiteCaches } from '../site-caches.ts';
 import { buildFlags } from './build-flags.ts';
 import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
@@ -104,7 +104,7 @@ const SITE_STEPS: readonly SiteStep[] = [
   },
   {
     name: 'caches',
-    reads: scenes.map((scene) => relative(ROOT, sourceOf(scene))),
+    reads: scenes.map(({ directory }) => `${directory}/source`),
     writes: scenes.map(({ directory }) => `${directory}/cache`),
     run: () => compileSiteCaches(false),
   },
@@ -140,8 +140,7 @@ const SITE_STEPS: readonly SiteStep[] = [
 const BUILT_FOLDERS = SITE_STEPS.flatMap(({ folder }) => folder ?? []);
 
 /** Whether the `/`-separated `path` is `entry` or lies under it. */
-export const underOrAt = (path: string, entry: string) =>
-  path === entry || path.startsWith(`${entry}/`);
+const underOrAt = (path: string, entry: string) => path === entry || path.startsWith(`${entry}/`);
 
 /** The steps, in order, that read one of `paths` (relative to the root, `/`-separated) or what an
  *  earlier one of them writes. */
