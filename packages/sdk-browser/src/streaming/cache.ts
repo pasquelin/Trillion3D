@@ -40,13 +40,18 @@ export function createStreamingCache(context: StreamContext) {
     if (kept > 0 && heldBytes() > budget) {
       store.yieldKept();
       budget = store.budgetBytes;
-      emit('page-cache-kept-yielded', 'The kept file yields its bytes to the pinned pages', () => ({
-        version: 1,
-        bytes: kept,
-        residentBytes: store.bytes,
-        maxCachedBytes: budget,
-        pinned: pinned.size,
-      }));
+      emit(
+        'page-cache-kept-yielded',
+        'The kept file yields its bytes to the pages kept or in flight',
+        () => ({
+          version: 1,
+          bytes: kept,
+          residentBytes: store.bytes,
+          maxCachedBytes: budget,
+          pinned: pinned.size,
+          loading: state.active,
+        }),
+      );
     }
     const evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
     if (!evicted && over()) {
