@@ -146,10 +146,17 @@ export function createDagLightCut(resources: DagResources) {
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
       // The frame's first cut starts its list under a new stamp: what earlier frames asked for loses
-      // to it, and only a wrapped stamp clears the words (`askedStamp.ts`).
-      if (!listed) {
+      // to it, and only a wrapped stamp clears the words (`askedStamp.ts`). Both go on the queue, in
+      // order, before this frame's command buffer: a frame whose encoder is dropped still leaves its
+      // stamp, so its wrap clear must land too, or the older, larger stamps would outlive it. An
+      // empty catalogue asks for nothing and has no stamp word (`dagWorkLayout`).
+      if (!listed && pageCount) {
         const { stamp, clear } = asked.next();
-        if (clear) encoder.clearBuffer(work, (layout.askedAt + 1) * 4, pageCount * 4);
+        if (clear) {
+          const wrap = device.createCommandEncoder();
+          wrap.clearBuffer(work, (layout.askedAt + 1) * 4, pageCount * 4);
+          device.queue.submit([wrap.finish()]);
+        }
         stampWord[0] = stamp;
         device.queue.writeBuffer(work, layout.askedAt * 4, stampWord);
       }
