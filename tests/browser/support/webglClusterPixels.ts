@@ -22,7 +22,7 @@ export const quad = (z: number, half = 1) => {
   );
   geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
   // A 32-bit index, the one the owner's multi-draw ranges address.
-  geometry.setIndex(new G.GraphAttribute(new Uint32Array([0, 1, 2, 0, 2, 3]), 1));
+  geometry.setIndex(new G.BufferAttribute(new Uint32Array([0, 1, 2, 0, 2, 3]), 1));
   return geometry;
 };
 

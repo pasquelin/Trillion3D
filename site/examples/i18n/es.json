@@ -2055,5 +2055,27 @@
       "load": "Pesos",
       "rope": "Cuerda recorrida"
     }
+  },
+  "drive-a-car": {
+    "banner": "W o ↑ acelera, S o ↓ frena y luego da marcha atrás, A D o ← → giran, Espacio tira del freno de mano. Elige el coche, la moto o el tanque en el panel.",
+    "controls": {
+      "vehicle": "Vehículo",
+      "reset": "Volver a ponerlo sobre sus ruedas"
+    },
+    "readouts": {
+      "speed": "Velocidad",
+      "gear": "Marcha",
+      "rpm": "Motor (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "deportivo",
+        "motorcycle": "moto",
+        "tracked": "tanque"
+      }
+    },
+    "words": {
+      "credit": "Valle modelado en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
   }
 }

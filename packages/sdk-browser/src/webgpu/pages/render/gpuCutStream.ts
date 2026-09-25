@@ -41,9 +41,9 @@ export function streamCutResidency(
 }
 
 /**
- * Sending the selection of an image waiting for coverage. Nothing is drawn from an incomplete
- * sample, but the wait cannot settle for rereading it: without a new send, the same sample comes
- * back every image and the cut stays stuck on it, camera still, even once the missing bytes have
+ * Sending the selection of an image waiting for its root cover. Nothing is drawn before it, but the
+ * wait cannot settle for rereading the last sample: without a new send, the same sample comes back
+ * every image and the cut stays stuck on it, camera still, even once the missing bytes have
  * arrived. Selection submits its own command buffer here; no draw pass goes with it.
  *
  * Returns false when the send fails: the wait then has no way left to produce the sample it hopes

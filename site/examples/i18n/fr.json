@@ -2055,5 +2055,27 @@
       "load": "Poids",
       "rope": "Corde déroulée"
     }
+  },
+  "drive-a-car": {
+    "banner": "W ou ↑ accélère, S ou ↓ freine puis recule, A D ou ← → braquent, Espace tire le frein à main. Choisissez la voiture, la moto ou le char dans le panneau.",
+    "controls": {
+      "vehicle": "Véhicule",
+      "reset": "Remettre sur ses roues"
+    },
+    "readouts": {
+      "speed": "Vitesse",
+      "gear": "Rapport",
+      "rpm": "Moteur (tr/min)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "voiture de sport",
+        "motorcycle": "moto",
+        "tracked": "char"
+      }
+    },
+    "words": {
+      "credit": "Vallée modélisée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
   }
 }

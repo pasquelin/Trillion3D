@@ -8,7 +8,7 @@ import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
 import { GraphCamera } from '../../host/graph/camera.ts';
 import { readHostDrawCamera } from '../../camera/world.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
-import { GraphAttribute } from '../../host/graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -16,9 +16,9 @@ const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
 /** A mesh of `corners` indices — its count names it in the recorded draws. */
 function mesh(corners: number, renderOrder: number, surface = new GraphSurface('standard')) {
-  const geometry = new GraphGeometry().setIndex(new GraphAttribute(new Uint32Array(corners), 1));
-  geometry.setAttribute('position', new GraphAttribute(new Float32Array(9), 3));
-  geometry.setAttribute('normal', new GraphAttribute(new Float32Array(9), 3));
+  const geometry = new GraphGeometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1));
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
+  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
   const made = new GraphMesh(geometry, surface);
   made.renderOrder = renderOrder;
   made.frustumCulled = false;

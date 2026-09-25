@@ -2055,5 +2055,27 @@
       "load": "Quả nặng",
       "rope": "Dây đã chạy"
     }
+  },
+  "drive-a-car": {
+    "banner": "W hoặc ↑ để tăng ga, S hoặc ↓ để phanh rồi lùi, A D hoặc ← → để lái, Space kéo phanh tay. Chọn ô tô, xe máy hoặc xe tăng trong bảng.",
+    "controls": {
+      "vehicle": "Phương tiện",
+      "reset": "Đặt lại trên bánh xe"
+    },
+    "readouts": {
+      "speed": "Tốc độ",
+      "gear": "Số",
+      "rpm": "Động cơ (vòng/phút)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "xe thể thao",
+        "motorcycle": "xe máy",
+        "tracked": "xe tăng"
+      }
+    },
+    "words": {
+      "credit": "Thung lũng được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
   }
 }

@@ -33,7 +33,7 @@ export async function createDagResources(
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
     // Layout of `work` comes from `dagWorkLayout`, which sets it for the kernel as for the
     // benches; here only the byte offsets a copy to the argument asks for are taken.
-    travail = dagWorkLayout(blockCount, worldCount),
+    travail = dagWorkLayout(blockCount),
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4,

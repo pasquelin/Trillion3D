@@ -10,8 +10,8 @@ import { createHeldFloor } from './heldFloor.ts';
 /** A page geometry of `floats` position floats and three indices: `floats * 4 + 12` bytes. */
 function pageGeometry(floats: number) {
   const geometry = new G.GraphGeometry();
-  geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(floats), 3));
-  geometry.setIndex(new G.GraphAttribute(new Uint32Array(3), 1));
+  geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(floats), 3));
+  geometry.setIndex(new G.BufferAttribute(new Uint32Array(3), 1));
   return geometry as unknown as HostGeometry;
 }
 
@@ -67,8 +67,8 @@ test('the floor counts every geometry the store counts: copies sharing their arr
   const first = pageGeometry(9);
   const second = new G.GraphGeometry();
   const source = first as unknown as G.GraphGeometry;
-  second.setIndex(new G.GraphAttribute(source.index!.array, 1));
-  second.setAttribute('position', new G.GraphAttribute(source.attributes.position.array, 3));
+  second.setIndex(new G.BufferAttribute(source.index!.array, 1));
+  second.setAttribute('position', new G.BufferAttribute(source.attributes.position.array, 3));
   const clone = source.clone() as unknown as HostGeometry;
   const bootstrap = [first, second as unknown as HostGeometry, clone].map((geometry) =>
     rec('root', { geometry }),

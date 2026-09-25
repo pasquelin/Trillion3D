@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../../../../sdk-core/src/index.ts';
-import { updateResidencyBits } from './runtime.ts';
+import { updateResidencyBits } from './residencyUpload.ts';
 import { residentWords } from './layout.ts';
 import {
   referenceUpdateResidency,
