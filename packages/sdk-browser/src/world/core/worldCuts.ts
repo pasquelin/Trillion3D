@@ -26,9 +26,10 @@ export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m
 
 /**
  * What decides a mesh's triangles, beside its geometry: how it reads it, and the material fields
- * that turn a point into an octahedron, a face into its wireframe or its flat normals. A line's
- * width is not one of them: the rasters widen its quads on screen. Two meshes equal on these draw
- * the same triangles, whatever else they wear.
+ * that turn a point into an octahedron, a face into its wireframe or its flat normals, and a
+ * dashed line's kind, whose quads carry their distance along the line. A line's width and its
+ * dash lengths are not among them: the rasters widen its quads on screen and cut its dashes.
+ * Two meshes equal on these draw the same triangles, whatever else they wear.
  */
 function readingOf(mesh: Mesh) {
   const material = firstMaterial(mesh.material);
@@ -36,6 +37,7 @@ function readingOf(mesh: Mesh) {
     size: material.size as number | undefined,
     wireframe: material.wireframe === true,
     flat: material.flatShading === true,
+    dashed: material.kind === 'lineDashed',
   };
   const key = [mesh.primitive, ...Object.values(options)].join('|');
   return { key, options };

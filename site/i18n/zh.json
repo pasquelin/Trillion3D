@@ -328,7 +328,6 @@
       "a-walker-among-balls": "球堆里的行走者"
     },
     "missing": {
-      "dashed-lines": "虚线",
       "floating-crates": "每帧重写的几何体",
       "thick-lines": "宽线",
       "a-line-that-draws-itself": "几何体的绘制范围",

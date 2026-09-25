@@ -4,7 +4,7 @@ import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
 import { INVERSE_PI, PI } from '../../lighting/shaderConstants.ts';
 import { FOG_GLSL } from '../../lighting/fogShader.ts';
-import { LINE_CLIP_GLSL } from '../../visibility/shader/lineWgsl.ts';
+import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
 // then the normal, scaled back by the matrix's axes before it is turned — the reference's order.
@@ -38,11 +38,13 @@ gl_Position=lineClip(gl_Position,projectionMatrix*(modelViewMatrix*along),lineWi
 // operation, so the three lighting passes bend a normal map in one frame.
 // A surface declared flat (`flatShaded`) takes the face's normal from the same derivatives of
 // position, as the reference does, already facing the eye: it is never turned for a back face.
+// A dashed line (`lineDash` above zero) discards its gaps at the distance along the line its
+// first texture coordinate carries (`lineDash`, `../../visibility/shader/lineWgsl.ts`).
 export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=${PI},INVERSE_PI=${INVERSE_PI};const int MAX_LIGHTS=64;
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
-uniform vec3 emissiveFactor;uniform vec2 depthRamp;uniform bool depthShaded,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
+uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform bool depthShaded,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
@@ -66,6 +68,7 @@ ${OUTPUT_TRANSFER_GLSL}
 ${RECT_LIGHT_GLSL}
 ${PROBE_IRRADIANCE_GLSL}
 ${FOG_GLSL}
+${LINE_DASH_GLSL}
 // The declared lights on one surface: the engine's only lighting formula, ambient and probe included.
 // In the reference's order of operations, so that a lit view writes its image to the last bit:
 // each direct light's irradiance (its colour already scaled by its intensity, lights.ts) weighs
@@ -82,7 +85,7 @@ color*=attenuation(length(toLight),positionRange.w,cone.z);}
 vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*specularLobe(L,V,N,f0,rough);direct+=E*(INVERSE_PI*diffuse);}
 irradiance+=probeIrradiance(N);return(direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular;}
 ${TRANSMISSION_GLSL}
-void main(){viewPosition=-toEye;vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
+void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0);
 float facing=gl_FrontFacing?1.0:-1.0;vec3 N;if(flatShaded)N=normalize(cross(dFdx(viewPosition),dFdy(viewPosition)));else{N=normalize(viewNormal);if(faceSides!=0)N*=facing;}
