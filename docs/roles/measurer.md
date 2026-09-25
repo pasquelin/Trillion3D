@@ -1,16 +1,15 @@
 # Role: measurer
 
-A session the boss opens from the CTO's prompt when `to measure` has work: "follow `docs/roles/measurer.md`".
+A session the boss opens with `/loop /t3d-measure`.
 You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
 or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
 merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 ## Loop
 
-1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first (an issue a
-   `Part of` pull request leaves open is measured too). Measuring never blocks anything: you only
+1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first. Measuring never blocks anything: you only
    add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
-   (step 7), then end with your report (the CTO starts you again), never measure anything else.
+   (step 7), then report; the next `/loop` turn looks again. Never measure anything else.
 2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
 3. **Tree.** A worktree of your own on the merge commit:
    `git worktree add --detach .worktrees/measure-<n> <merge-sha>`, `pnpm install`, and
@@ -36,7 +35,7 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1. The stint's thumbnails, all
    of them, go in one pull request at most, never one per thumbnail: a branch `<n>-thumbnails`
    from `origin/develop` (`<n>` its first issue), titled `docs(examples): thumbnails (#<n>, …)`,
-   a body saying `Part of` each issue and "Thumbnail only" under `## Local review before push`.
+   a body naming each issue it illustrates and "Thumbnail only" under `## Local review before push`.
    The lead of a named issue names it ready.
 8. **Costs.** Once per stint, on the open world (`pasquelin/Trillion3D-openworld`, served at
    `/openworld/`) at the screen's own resolution, rank the frame's ten largest CPU steps in ms from

@@ -2303,6 +2303,9 @@
     "summary": "जिस एटलस की सेवा एक पूर्वावलोकन करता है: रंग (`rgba8unorm-srgb`, मूल रंग और emissive) या डेटा (`rgba8unorm`, metal-roughness, नॉर्मल, ऑक्लूज़न)।",
     "description": "एक ही टेक्स्चर के पास हर एक की एक एंट्री हो सकती है।"
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "रंग एटलस की एक चेन, उस टेक्सचर के लिए जिसके अल्फ़ा को हर पाठक कवरेज मानता है (केवल MASK या BLEND मटीरियल का बेस कलर): एकमात्र चेन जिसके रंग अल्फ़ा से भारित होते हैं, सामान्य चेन से अलग नाम के साथ (`reduce.rs`, `AtlasKind::Coverage`, #42)।"
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "डेटा एटलस: metal-roughness, नॉर्मल और ऑक्लूज़न मैप।"
   },
@@ -3746,7 +3749,7 @@
       "sourceKind": "0 जब बाइट एक इमेज uri से आए, 1 जब sourceBufferView से आए।",
       "sourceBufferView": "तैयार दृश्य का बफ़र व्यू, या uri स्रोत के लिए -1।",
       "sha256": "डीकोड किए स्रोत बाइट का SHA-256।",
-      "atlas": "जिस एटलस की यह एंट्री सेवा करती है: PREVIEW_ATLAS_COLOR या PREVIEW_ATLAS_DATA।",
+      "atlas": "यह एंट्री जो चेन रखती है: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, या PREVIEW_ATLAS_COVERAGE, जिसे रंग एटलस में सैंपल किया जाता है।",
       "firstLevel": "स्रोत की mip चेन में ढोए पहले स्तर का इंडेक्स; 0 जब यह पहले से PREVIEW_BASE के नीचे समाता है और sidecar इसलिए इसका पूरा रिज़ॉल्यूशन ढोता है।",
       "bakedLevels": "कैश में फ़ाइलों में बेक किए स्तर, 0 से bakedLevels - 1 तक; चेन पूरी होने पर firstLevel, कुछ न लिखे जाने पर 0 और इंजन स्रोत तस्वीर लोड करता है।",
       "levels": "क्रम में ढोए स्तर, सबसे महीन से 1x1 तक, हर एक sidecar बाइट पर एक व्यू।",
