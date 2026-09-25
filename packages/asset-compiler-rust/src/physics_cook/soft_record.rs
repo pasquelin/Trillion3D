@@ -68,8 +68,9 @@ pub(super) fn soft_record(
     let all: Vec<u32> = (0..count as u32).collect();
     let corners = corners.unwrap_or(&all);
     let mut indices = Vec::new();
-    for t in corners.chunks_exact(3).filter(|_| !rope) {
-        let [a, b, c] = [0, 1, 2].map(|k| map.get(t[k] as usize).copied());
+    let triangles: &[[u32; 3]] = if rope { &[] } else { corners.as_chunks().0 };
+    for t in triangles {
+        let [a, b, c] = t.map(|corner| map.get(corner as usize).copied());
         let (Some(a), Some(b), Some(c)) = (a, b, c) else {
             return Err("A soft body's triangle names no vertex.".into());
         };
@@ -77,11 +78,12 @@ pub(super) fn soft_record(
             indices.extend([a, b, c]);
         }
     }
-    if if rope {
-        kept.len() < 2
+    let enough = if rope {
+        kept.len() >= 2
     } else {
-        indices.is_empty()
-    } {
+        !indices.is_empty()
+    };
+    if !enough {
         return Err(format!("A soft {} needs more vertices.", d.kind));
     }
     let mut vertices = vec![0f32; kept.len() * 4];
@@ -144,8 +146,8 @@ fn spread_mass(vertices: &mut [f32], indices: &[u32], s: [f64; 3]) -> Result<f64
             whole += share(vertices, &[i - 1, i], amount);
         }
     }
-    for t in indices.chunks_exact(3) {
-        let [a, b, c] = [0, 1, 2].map(|k| t[k] as usize);
+    for t in indices.as_chunks::<3>().0 {
+        let [a, b, c] = t.map(|corner| corner as usize);
         let (u, v) = (d(vertices, a, b), d(vertices, a, c));
         let cross = [
             u[1] * v[2] - u[2] * v[1],
@@ -154,8 +156,9 @@ fn spread_mass(vertices: &mut [f32], indices: &[u32], s: [f64; 3]) -> Result<f64
         ];
         whole += share(vertices, &[a, b, c], length(cross) / 2.0);
     }
-    if !(whole > 0.0) {
-        return Err("A soft body has no area or length.".into());
+    // Also refuses a NaN whole, as the page does.
+    match whole.partial_cmp(&0.0) {
+        Some(std::cmp::Ordering::Greater) => Ok(whole),
+        _ => Err("A soft body has no area or length.".into()),
     }
-    Ok(whole)
 }
