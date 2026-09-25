@@ -64,7 +64,7 @@ origin/develop`, nothing else written there) at start and after every merge you 
   three merges get a second fresh reviewer; if it stays above, stop the lead and tell the boss.
 - **Boss's adjustments:** every standing instruction the boss gives on how the company works is
   written, the same day, into the file that owns it (this skill, a `docs/roles/` file, AGENTS.md)
-  in the next rules PR (`docs/roles/cto.md`), `Part of` the company's open programme (such as #483), so a fresh session starts up
+  in the next rules PR (`docs/roles/cto.md`), closing its own rules issue (AGENTS.md rule 5), so a fresh session starts up
   to date. Replace or delete the line it changes, never pile a new one beside it: the files stay
   short, since every agent reads them.
 - **Priorities:** the priority labels of the leads' issues are the only order (`docs/roles/cto.md`

@@ -44,8 +44,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    from a new one) and go back to step 3.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
-   an example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
-   request says `Part of #<n>`.
+   an example whose thumbnail is missing or out of date, then `gh issue close <n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
@@ -59,7 +58,7 @@ body under `## Lead verification`, before the merge. CI refuses a pull request o
 without that section.
 It holds one line per To do and Proof item of the issue:
 `- <item>: delivered in <file:line>, proved by <test name>`, or
-`- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
+an item that cannot be delivered holds the pull request and goes back to the CTO, who splits the issue.
 It then holds one line per point below, checked by you.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
@@ -70,9 +69,7 @@ The audit re-reads every merge against these points; each one missed comes back 
 issue. Check them yourself on the diff, not on the coder's or the reviewer's word. A lead whose
 merges keep coming back `audit ko` is stopped by the CTO.
 
-1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out
-   stays in the issue, which stays open: the pull request says `Part of #n` and the rest is
-   written as a comment on #n. You never open an issue (AGENTS.md rule 5). Code (a test, a fixture,
+1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out holds the pull request: the CTO splits the issue (AGENTS.md rule 5). You never open an issue (AGENTS.md rule 5). Code (a test, a fixture,
    a kernel) is never handed to the measurer, who does not write code.
 2. **Tests that bite.** Each changed behaviour has a test that fails before the change and passes
    after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for
