@@ -90,6 +90,9 @@ export class Camera extends Object3D {
   protected override get looksDownNegativeZ() {
     return true;
   }
+  protected override blank(): this {
+    return new Camera(this.projection) as this;
+  }
   /** Kept for pages written against a renderer that needs it: every optic write already redraws. */
   updateProjectionMatrix() {
     this._link?.pose(this);

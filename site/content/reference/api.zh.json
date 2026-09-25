@@ -2016,6 +2016,8 @@
       "remove": "把若干子节点从这个节点上移除。",
       "destroy": "立即释放该节点及其下所有节点，而不是等到它们被回收。",
       "removeFromParent": "把该节点从它的父节点上移除。",
+      "clone": "同类型、同值的节点；除非另有指示，其子节点也会被复制。",
+      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。",
       "clear": "把这个节点的所有子节点都移除。",
       "traverse": "对该节点及其下所有节点调用 `fn`。",
       "traverseVisible": "从这里往下,对每个可见节点调用 `fn`。",
@@ -2028,11 +2030,7 @@
       "rotateY": "把该节点绕自己的 y 轴旋转。",
       "rotateZ": "把该节点绕自己的 z 轴旋转。",
       "translateOnAxis": "沿该节点自己的 `axis` 移动它。",
-      "getWorldPosition": "该节点在世界中所处的位置。",
-      "getWorldQuaternion": "该节点在世界中的旋转状态。",
       "getWorldDirection": "该节点在世界中所朝向的方向。",
-      "localToWorld": "该节点坐标系下的一个点,换算到世界坐标系中的结果。",
-      "worldToLocal": "世界坐标系下的一个点,换算到该节点坐标系中的结果。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
     }
   },
@@ -2043,7 +2041,11 @@
       "matrixWorld": "最近一次合成得到的世界矩阵(`updateMatrixWorld`),是变换树的一个视图。",
       "matrixAutoUpdate": "当 `matrix` 本身就是位姿、没有任何东西重新合成它时为 false。",
       "matrixWorldNeedsUpdate": "局部矩阵已改变而世界矩阵尚未跟随时置位。",
-      "updateMatrixWorld": "合成该节点及其所有后代的世界矩阵,父节点的世界矩阵按现状直接采用。"
+      "updateMatrixWorld": "合成该节点及其所有后代的世界矩阵,父节点的世界矩阵按现状直接采用。",
+      "getWorldPosition": "该节点在世界中所处的位置。",
+      "getWorldQuaternion": "该节点在世界中的旋转状态。",
+      "localToWorld": "该节点坐标系下的一个点,换算到世界坐标系中的结果。",
+      "worldToLocal": "世界坐标系下的一个点,换算到该节点坐标系中的结果。"
     }
   },
   "OcclusionFrameMetrics": {
@@ -7196,12 +7198,10 @@
     }
   },
   "GraphNode": {
-    "summary": "图的节点：名称、姿态、世界矩阵、父节点和子节点。",
+    "summary": "图的一个节点：核心的节点，以其 `kind` 区分，由核心的 `clone` 复制。",
     "members": {
       "serial": "节点的编号，在会话中唯一。",
-      "kind": "节点是什么：图的每个读取方据此收窄类型。",
-      "clone": "同类型、同值的节点；除非另有指示，其子节点也会被复制。",
-      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。"
+      "kind": "节点是什么：图的每个读取方据此收窄类型。"
     }
   },
   "GraphNodeKind": {

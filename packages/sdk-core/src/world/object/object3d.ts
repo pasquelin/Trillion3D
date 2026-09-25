@@ -1,5 +1,6 @@
 import { TransformNode } from './transformNode.ts';
 import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts';
+import { copyObject } from './objectCopy.ts';
 import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
 import * as read from '../../math/transform-tree/read.ts';
 import { Vector3 } from '../math/vector3.ts';
@@ -15,7 +16,6 @@ export type { SceneLink } from './sceneLink.ts';
 const aim = new Vector3(),
   turn = new Quaternion(),
   along = new Vector3(),
-  inverse = new Matrix4(),
   applied = new Matrix4(),
   at = new Float64Array(4);
 
@@ -109,6 +109,19 @@ export class Object3D extends TransformNode {
     this.parent?.remove(this);
     return this;
   }
+  /** A node of this class with the same values, and copies of its children unless told not to. */
+  override clone(recursive = true): this {
+    return this.blank().copy(this, recursive);
+  }
+  /** An empty node of this class, what `clone` fills: a class whose constructor takes arguments
+   *  says how to make one. */
+  protected blank(): this {
+    return new (this.constructor as new () => this)();
+  }
+  /** Takes `source`'s values, and copies of its children unless told not to. */
+  override copy(source: Object3D, recursive = true) {
+    return copyObject(this, source, recursive);
+  }
   /** Takes every child off this node. */ override clear() {
     return this.remove(...this.children);
   }
@@ -169,23 +182,9 @@ export class Object3D extends TransformNode {
     this.position.addScaledVector(along, distance);
     return this;
   }
-  /** Where the node stands in the world. */ getWorldPosition(out = new Vector3()) {
-    return out.fromArray(read.nodeWorldPosition(at, this.state.tree, this.index));
-  }
-  /** How the node is turned in the world. */ getWorldQuaternion(out = new Quaternion()) {
-    return out.fromArray(read.nodeWorldQuaternion(at, this.state.tree, this.index));
-  }
   /** The way the node faces in the world. */ getWorldDirection(out = new Vector3()) {
     const d = read.nodeWorldDirection(at, this.state.tree, this.index, this.looksDownNegativeZ);
     return out.set(d[0], d[1], d[2]);
-  }
-  /** A point of the node's frame, in the world. */ localToWorld(v: Vector3) {
-    this.updateWorldMatrix(true, false);
-    return v.applyMatrix4(this.matrixWorld);
-  }
-  /** A point of the world, in the node's frame. */ worldToLocal(v: Vector3) {
-    this.updateWorldMatrix(true, false);
-    return v.applyMatrix4(inverse.copy(this.matrixWorld).invert());
   }
   /** The box of this node's own content, local frame; a plain node holds none. */
   localBounds(): Box3 | null {

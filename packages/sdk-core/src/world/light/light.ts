@@ -118,6 +118,9 @@ export class Light extends Object3D {
   protected override get looksDownNegativeZ() {
     return true;
   }
+  protected override blank(): this {
+    return new Light(this.kind) as this;
+  }
   /** `light.needsUpdate = true` after writing `sh` in place: the world reads it again. */
   set needsUpdate(_value: boolean) {
     this._link?.content(this);
