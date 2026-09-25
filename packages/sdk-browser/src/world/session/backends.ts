@@ -100,6 +100,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,
+    effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
@@ -114,8 +115,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
-    // Bounced light stays off by default: its measured step holds 1.1 to 1.3 ms on Emerald,
-    // above the one-millisecond bar, and the host turns it on explicitly.
+    // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),

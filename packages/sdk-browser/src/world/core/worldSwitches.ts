@@ -1,6 +1,7 @@
 import type { MeasuredWorld } from '../session/explorer.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 import type { WorldOptions } from './worldOptions.ts';
+import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts';
 
 /** What of the world's runtime the switches reach: its open session, and its reopening. */
@@ -10,10 +11,12 @@ interface SwitchedRuntime {
 }
 
 /**
- * The world's render switches — bounced light, temporal antialiasing — and its guides: held by
- * the world, given to every session it opens (`held`), the switches written into the open one in place, the session
- * reopened only where it cannot take one. Temporal antialiasing reads back what the open session
- * draws; before one opens, what the page asked (`world.temporalAntialiasing`).
+ * The world's render switches — bounced light, temporal antialiasing, the effect chain — and its
+ * guides: held by the world, given to every session it opens (`held`), the switches written into
+ * the open one in place, the session reopened only where it cannot take one. Temporal
+ * antialiasing reads back what the open session draws; before one opens, what the page asked
+ * (`world.temporalAntialiasing`). The chain is shared by reference: a session reads it at every
+ * frame.
  */
 export function worldSwitches(
   options: WorldOptions,
@@ -24,6 +27,8 @@ export function worldSwitches(
   const held = {
     bounce: false,
     temporalAntialiasing: options.temporalAntialiasing !== false,
+    // One chain for the world's life: every session draws it, a change asks for a frame.
+    effects: new EffectChain(invalidate),
     guides: createGuideSet(invalidate),
   };
   return {

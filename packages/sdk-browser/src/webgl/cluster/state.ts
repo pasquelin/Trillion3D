@@ -15,12 +15,13 @@ const glBlendEnums = (gl: WebGL2RenderingContext): Record<string, number> => ({
   add: gl.FUNC_ADD,
 });
 
-/** The equation of a transparent surface's mode, or `undefined` when it replaces the target: the
- *  mode every path draws, refused by the one refusal the gate shares (`drawnBlending`). */
-const equationOf = (material: Material) =>
-  BLEND_EQUATIONS[
-    drawnBlending(blendingOf(material.blending as number | undefined), isTransmissive(material))
-  ];
+/** The mode a transparent surface draws with: the mode every path draws, refused by the one
+ *  refusal the gate shares (`drawnBlending`). */
+export const drawnModeOf = (material: Material) =>
+  drawnBlending(blendingOf(material.blending as number | undefined), isTransmissive(material));
+
+/** The equation of a transparent surface's mode, or `undefined` when it replaces the target. */
+const equationOf = (material: Material) => BLEND_EQUATIONS[drawnModeOf(material)];
 
 const depthFunction = (gl: WebGL2RenderingContext, value: number) => {
   switch (value) {

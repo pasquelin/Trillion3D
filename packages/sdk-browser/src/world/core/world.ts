@@ -13,6 +13,7 @@ import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts';
 import { sessionPools, worldBudget, worldPools } from './worldBudget.ts';
+import { noticeEffectBudget } from '../diagnostic/worldNotices.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
@@ -60,8 +61,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         },
         onFrame: (metrics) => {
           frames.dispatch(metrics);
-          // A clip still playing asks for the next frame; the last one lets the loop pause.
-          if (animating) invalidate();
+          if (animating) invalidate(); // a clip still playing asks for the next; the last pauses
         },
       }),
     opened(explorer) {
@@ -119,8 +119,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       exposure = value;
       runtime.displayChanged();
     },
-    /** The DAG cut's screen error, in pixels. */
-    get pixelError() {
+    /** The DAG cut's screen error, in pixels. */ get pixelError() {
       return pixelError ?? 0;
     },
     set pixelError(value: number) {
@@ -128,9 +127,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       live()?.setPixelError(value);
       invalidate();
     },
-    /** Light bounced off the surfaces, traced against the resident proxy; off by default. A
-     *  change is applied in place on a path that carries it, and taken by the next opening on
-     *  one that does not. */
+    /** Light bounced off the surfaces, traced against the resident proxy; off by default. Applied
+     *  in place on a path that carries it, taken by the next opening on one that does not. */
     get bounce() {
       return switches.bounce;
     },
@@ -146,6 +144,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     set temporalAntialiasing(on: boolean) {
       switches.temporalAntialiasing = on;
     },
+    /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
     /** The world's memory pools, read and set in bytes, and the physics envelopes. */
     budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
@@ -192,6 +191,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       device.dispose();
     },
   };
+  frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
   registerWorld(world, { session: () => runtime.explorer, last: () => frames.last });
   return world;
 }

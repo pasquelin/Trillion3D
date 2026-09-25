@@ -3,6 +3,7 @@ import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
+import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
 import { shadowPoolPending } from '../shadow/poolSize.ts';
 
@@ -150,8 +151,9 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
     const quiet = run.gate.held() && unsettledMask(rt) === 0;
     beginTaaFrame(rt, run.gate.cam, quiet);
-    // Guides the page changed are drawn by a full image; the accumulation stays still for it.
-    if (!quiet || !taaSettled(rt) || guidesMoved(rt)) {
+    // Guides or an effect chain the page changed, or a chain the last image lacked while its
+    // programs compiled, are drawn by a full image; the accumulation stays still for it.
+    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt)) {
       run.frameHeld = false;
       return false;
     }

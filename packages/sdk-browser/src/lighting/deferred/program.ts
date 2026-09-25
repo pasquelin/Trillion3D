@@ -30,11 +30,10 @@ export interface DeferredSources {
   direct: boolean;
   bounce?: boolean;
 }
+/** What composition reads: a colour and its accumulated share, else the lit image's flags. */
+export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView };
 /** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export interface AccumulatedImage {
-  color: GPUTextureView;
-  share: GPUTextureView;
-}
+export type AccumulatedImage = Required<ComposedImage>;
 export interface DeferredBindings {
   uniform: GPUBuffer;
   directLights: GPUBuffer;
@@ -108,17 +107,18 @@ export async function createDeferredProgram(
     get lightGroup() {
       return lightGroup;
     },
-    /** The pipelines and group reading the lit image and its surface flags, or an accumulated
-     *  image and its as-is share; `undefined` before `bind`. */
-    composition(accumulated?: AccumulatedImage) {
-      const view = accumulated?.color ?? boundHdr,
-        share = accumulated?.share ?? boundFlags;
+    /** The pipelines and group reading the lit image and its surface flags, or `image` and its
+     *  as-is share; `undefined` before `bind`. */
+    composition(image?: ComposedImage) {
+      const view = image?.color ?? boundHdr,
+        share = image?.share ?? boundFlags;
       if (!view || !share || !boundSurface) return undefined;
       let byShare = composed.get(view);
       if (!byShare) composed.set(view, (byShare = new WeakMap()));
       const kept = byShare.get(share);
       if (kept) return kept;
-      const { layout, draw, present } = compositions[accumulated ? 'accumulated' : 'still'];
+      // A colour without its own share (the effect chain's, no TAA) reads the lit image's flags.
+      const { layout, draw, present } = compositions[image?.share ? 'accumulated' : 'still'];
       const group = device.createBindGroup({
         layout,
         entries: [

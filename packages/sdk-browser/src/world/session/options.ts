@@ -113,6 +113,8 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
+  /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
+  effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
