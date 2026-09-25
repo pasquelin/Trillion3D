@@ -2834,7 +2834,6 @@
         "packages/sdk-browser/src/scene/manifestLoad.ts",
         "packages/sdk-browser/src/scene/partition/rows.ts",
         "packages/sdk-browser/src/scene/tables.ts",
-        "packages/sdk-browser/src/streaming/fetch.ts",
         "packages/sdk-browser/src/webgl/cluster/refusal.ts",
         "packages/sdk-browser/src/webgpu/core/transformFiniteTransform.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
