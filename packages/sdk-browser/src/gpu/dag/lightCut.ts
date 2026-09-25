@@ -143,7 +143,7 @@ export function createDagLightCut(resources: DagResources) {
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
       // The frame's first cut starts its list, and forgets what the last frame asked for.
-      if (!listed) encoder.clearBuffer(work, layout.askedAt * 4, layout.askedWords * 4);
+      if (!listed) encoder.clearBuffer(work, layout.askedAt * 4, pageCount * 4);
       cutViews.count = light.views = count;
       cutViews.append = listed;
       listed = true;

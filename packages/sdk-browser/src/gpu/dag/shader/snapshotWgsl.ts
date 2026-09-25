@@ -32,7 +32,7 @@ export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
 @compute @workgroup_size(64)
 fn dagAskedBest(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=min(atomicLoad(&out.count),views[0u].listCap)){return;}
- let page=out.pages[s]&((1u<<PAGE_BITS)-1u);
+ let page=requestPage(out.pages[s]);
  out.pages[s]=packRequest(page,atomicLoad(&work[askedWord(page)])-1u);
 }
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
