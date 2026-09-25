@@ -295,7 +295,7 @@
     "summary": "Período de tolerância entre um pedido de cancelamento cooperativo no stdin e uma finalização forçada."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Formato externo de cache exigido para BLEND agrupado; os manifestos de origem mantêm seu próprio formato."
+    "summary": "Formato externo de cache exigido para BLEND agrupado (6 antes de `selectedNodes` virar uma contagem); os manifestos de origem mantêm seu próprio formato."
   },
   "COLUMN_KIND": {
     "summary": "Como cada coluna do manifesto binário é armazenada: decimais, números inteiros ou bytes.",
@@ -1031,7 +1031,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Formato de cache que este runtime lê.",
-    "description": "O formato 5 carrega `scene-tables.json`, as tabelas de nós e materiais contra as quais a cena preparada é verificada; os formatos 3 e 4 não têm esse produto e são recusados pelo seu número em vez de lidos pela metade."
+    "description": "O formato 5 adicionou `scene-tables.json`, as tabelas de nós e materiais contra as quais a cena preparada é verificada; o formato 7 carrega `selectedNodes` como uma contagem, não uma lista (#404). Formatos anteriores são recusados pelo seu número em vez de lidos pela metade."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Contagem de floats para os seis planos de um frustum."
