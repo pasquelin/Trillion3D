@@ -147,3 +147,22 @@ test('every kind breaks when pulled past its force, and holds below it', async (
     kinds.flatMap(() => [true, false]),
   );
 });
+
+test('breaking: a step visits the joints a finite force breaks, whatever the other joints', async () => {
+  // Forty joints that never break (no force, or an infinite one), then one that can.
+  const rig = await jointRig();
+  const anchor = rig.cube(0, 1, 0);
+  for (let i = 0; i < 40; i++)
+    rig.wanted.add(joint.point(anchor, null, i % 2 ? { breakForce: Infinity } : {}));
+  const perStep = () => {
+    const before = rig.breakVisits();
+    rig.run(1);
+    return rig.breakVisits() - before;
+  };
+  assert.equal(perStep(), 0, 'forty unbreakable joints: no visit');
+  const breakable = joint.point(anchor, null, { breakForce: 1e6 });
+  rig.wanted.add(breakable);
+  assert.equal(perStep(), 1, 'one breakable joint beside forty: one visit');
+  rig.wanted.delete(breakable);
+  assert.equal(perStep(), 0, 'the breakable joint taken out: no visit');
+});
