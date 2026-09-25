@@ -84,7 +84,7 @@ test('a chain follows the coverage rule of its readers, switched after its image
   binder.file(G.standardSurface({ map: host }));
   image();
   assert.deepEqual(gl.rules(), [1, 0, 1, 1, 0, 0], 'masked, opaque, masked, an opaque reader');
-  (binder.beginFrame(), binder.beginFrame());
+  [1, 2].forEach(() => binder.beginFrame());
   const held = gl.of('createTexture').length - gl.of('deleteTexture').length;
   assert.equal(held, 3, 'three chains, the scratches returned after an image with no reduction');
 });
