@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ruleDag } from './cutRule.fixture.ts';
 import { createCutReadiness } from './readiness.ts';
+import { random } from './cutRuleChecks.fixture.ts';
 
 const dag = ruleDag(64),
   s = dag.structure,
@@ -55,13 +56,8 @@ function dense(r: Readiness, pageCount = pages, nodeCount = nodes) {
   };
 }
 
-function random(seed: number) {
-  let v = seed >>> 0;
-  return () => (v = (Math.imul(v, 1664525) + 1013904223) >>> 0) / 2 ** 32;
-}
-
 test('kept by difference, readiness is the definition after every change', () => {
-  const r = createCutReadiness(s, dag.culling.links, pages, nodes);
+  const r = createCutReadiness(s, dag.culling.links);
   const resident = new Uint8Array(pages),
     next = random(7);
   for (let step = 0; step < 200; step++) {
@@ -82,7 +78,7 @@ test('kept by difference, readiness is the definition after every change', () =>
 });
 
 test('a missing page leaves its group, and every group below it, not ready', () => {
-  const r = createCutReadiness(s, dag.culling.links, pages, nodes);
+  const r = createCutReadiness(s, dag.culling.links);
   for (let p = 0; p < pages; p++) r.set(p, true);
   r.settle();
   const all = dense(r);
@@ -109,7 +105,7 @@ test('a missing page leaves its group, and every group below it, not ready', () 
 });
 
 test('without group links, each cluster stands for itself', () => {
-  const r = createCutReadiness(undefined, undefined, 3, 1);
+  const r = createCutReadiness(undefined, undefined);
   r.set(1, true);
   r.settle();
   const got = dense(r, 3, 1);
@@ -118,7 +114,7 @@ test('without group links, each cluster stands for itself', () => {
 });
 
 test('the state follows the resident pages: none held, none kept', () => {
-  const r = createCutReadiness(s, dag.culling.links, pages, nodes);
+  const r = createCutReadiness(s, dag.culling.links);
   r.settle();
   assert.equal(r.hostBytes, 0, 'nothing resident, nothing held');
   for (let p = 0; p < pages; p++) r.set(p, true);

@@ -25,7 +25,7 @@ export function createDagReadiness(packed: PackedDag) {
       packed.pageCount,
     );
   const worlds = packed.cutLinks.map((l) =>
-    createCutReadiness(l.structure, l.links, l.pageCount, l.nodeCount),
+    createCutReadiness(l.structure, l.links),
   );
   /** Placements `set` touched since the last settle. */
   const dirty = new Set<number>();

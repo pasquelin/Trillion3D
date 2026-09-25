@@ -57,13 +57,11 @@ export function createCutPending(
     if (rescan)
       for (let i = 0; i < dependents.count; i++) {
         const id = dependents.list[i];
-        if (awaitsClosure(packedPages[id])) missing.add(id, packedPages[id]);
+        if (awaitsClosure(packedPages[id]) && missing.add(id, packedPages[id])) stale = true;
       }
-    if (settle || rescan) {
+    if (settle || rescan)
       for (let i = missing.count - 1; i >= 0; i--)
-        if (!awaitsClosure(records[i])) missing.remove(missing.list[i]);
-      stale = true;
-    }
+        if (!awaitsClosure(records[i]) && missing.remove(missing.list[i])) stale = true;
     settle = rescan = false;
     const now = acceptedRevision();
     if (!stale && now === revision) return;

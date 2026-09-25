@@ -1,6 +1,6 @@
 import type { ClusterRoot } from '../selection/types.ts';
 import { createCutReadiness, type CutReadiness } from './readiness.ts';
-import { cullingLinks, type CullingLinks } from './links.ts';
+import { linksFor } from './links.ts';
 import { residentUnder, type PageRecord, type SelectionState } from './state.ts';
 
 type Held = {
@@ -14,15 +14,6 @@ type Held = {
  *  held for the placement's resident pages only (`./readiness.ts`), so the placements a cut walks
  *  cost what the pool holds of them, never their catalogue. */
 const heldOf = new WeakMap<object, Held>();
-/** Links derived for a hierarchy collected without them, shared by its placements. */
-const linksOf = new WeakMap<Float64Array, CullingLinks>();
-
-function linksFor(culling: NonNullable<ClusterRoot<unknown>['culling']>, pages: number) {
-  if (culling.links) return culling.links;
-  let links = linksOf.get(culling.nodes);
-  if (!links) linksOf.set(culling.nodes, (links = cullingLinks(culling, pages)));
-  return links;
-}
 
 /**
  * The cut rule's residency for `root` this cut (`./readiness.ts`), from what the cut's residency
@@ -40,9 +31,8 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
     held.pages !== pages.length
   ) {
     const links = culling && linksFor(culling, pages.length);
-    const nodeCount = culling ? Math.floor(culling.nodes.length / culling.stride) : 0;
     held = {
-      readiness: createCutReadiness(root.structure, links, pages.length, nodeCount),
+      readiness: createCutReadiness(root.structure, links),
       structure: root.structure,
       nodes: culling?.nodes,
       pages: pages.length,

@@ -20,6 +20,7 @@ import {
 } from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { dagScratch, projectedError } from './math.ts';
 import { drawsCluster } from '../../../page/cut/rule.ts';
+import type { MatrixElements } from '../../../math/matrixElements.ts';
 
 /** The cut rule as the oracle applies it on page `page`: `drawsCluster`'s operands, then the page. */
 export type CutRuleAt = (
@@ -30,7 +31,6 @@ export type CutRuleAt = (
   threshold: number,
   page: number,
 ) => boolean;
-import type { MatrixElements } from '../../../math/matrixElements.ts';
 
 type PredicateContext = {
   packed: PackedDag;

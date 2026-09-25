@@ -54,7 +54,7 @@ export function ruleChecks(dag: RuleDag) {
   }
 
   function readinessOf(resident: Uint8Array) {
-    const r = createCutReadiness(dag.structure, dag.culling.links, dag.pages.length, 1);
+    const r = createCutReadiness(dag.structure, dag.culling.links);
     resident.forEach((v, page) => r.set(page, v === 1));
     r.settle();
     return Uint8Array.from(dag.pages, (_, page) => (r.isReady(page) ? 1 : 0));
