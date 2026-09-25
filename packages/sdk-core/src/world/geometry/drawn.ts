@@ -6,6 +6,7 @@ import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
 import { drawnSprite } from './drawnSprite.ts';
 import { flatten } from './drawnFlat.ts';
+import { readPoints } from './bounds.ts';
 
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
@@ -48,18 +49,14 @@ export function drawnTriangles(
     return drawnSprite(drawnTriangles(geometry, 'triangles'), options.center);
   const position = geometry.attributes.position;
   if (!position || position.count === 0) return null;
-  const p = Array.from(position.array);
+  const p = Array.from(readPoints(position));
   const corners = geometry.index
     ? Array.from(geometry.index.array)
     : Array.from({ length: position.count }, (_, i) => i);
   if (reading === 'points') return solids(points(p, (options.size ?? 1) / 2));
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
-    const segments: number[] = [];
-    const step = reading === 'lineSegments' ? 2 : 1;
-    for (let i = 0; i + 1 < corners.length; i += step) segments.push(corners[i], corners[i + 1]);
-    if (reading === 'lineLoop' && corners.length > 2)
-      segments.push(corners[corners.length - 1], corners[0]);
-    return quads(p, segments, options.dashed, reading === 'lineLoop' && corners.length > 2);
+    const loop = reading === 'lineLoop' && corners.length > 2;
+    return quads(p, lineCorners(corners, reading), options.dashed, loop);
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
@@ -85,6 +82,20 @@ export function drawnTriangles(
   };
   if (options.flat) return flatten(drawn);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
+}
+
+/** The segments a line reading draws, as `[a, b]` corner pairs: each pair of `lineSegments`,
+ *  each step of `lineStrip`, and `lineLoop` closed from its last corner back to its first. */
+export function lineCorners(
+  corners: readonly number[],
+  reading: 'lineSegments' | 'lineStrip' | 'lineLoop',
+) {
+  const segments: number[] = [];
+  const step = reading === 'lineSegments' ? 2 : 1;
+  for (let i = 0; i + 1 < corners.length; i += step) segments.push(corners[i], corners[i + 1]);
+  if (reading === 'lineLoop' && corners.length > 2)
+    segments.push(corners[corners.length - 1], corners[0]);
+  return segments;
 }
 
 /** An octahedron of radius `r` on every vertex. */

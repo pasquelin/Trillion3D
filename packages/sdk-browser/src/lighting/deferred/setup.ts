@@ -86,18 +86,18 @@ export function deferredLayoutEntries(
 }
 
 export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
+  const fragment = GPUShaderStage.FRAGMENT;
+  const composition = (share: GPUTextureSampleType) =>
+    device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
+        { binding: 1, visibility: fragment, buffer: { type: 'uniform' } },
+        { binding: 2, visibility: fragment, texture: { sampleType: share } },
+      ],
+    });
   return {
     lighting: device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) }),
-    composition: device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: { sampleType: 'unfilterable-float' },
-        },
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      ],
-    }),
+    composition: { still: composition('uint'), accumulated: composition('unfilterable-float') },
   };
 }
 

@@ -14,36 +14,26 @@ import {
   traceDrawnVerify,
   traceQueueReconstruct,
   traceTargetsEnsured,
-  traceTransition,
 } from './steps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
 
-function selectCpuCut(
-  rt: WebgpuPagesRuntime,
-  cam: EngineCamera,
-  pixelError: number,
-  pinnedOnly: boolean,
-) {
-  const { roots, viewport, bootstrapUrls } = rt.setup,
-    { poolHolds } = rt.services;
-  // The image's cut writes into the reused result; the rare pinned fallback keeps its own.
-  const result = pinnedOnly ? undefined : rt.run.selectResult;
+/** The image's cut, into the reused result: the cut rule draws the nearest representation the
+ *  pool holds of each surface (`../../../page/cut/rule.ts`). */
+function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
+  const { run } = rt;
   return selectVisiblePages(
-    roots,
+    rt.setup.roots,
     cam,
     {
       pixelError,
-      viewport,
+      viewport: rt.setup.viewport,
       holdResident: true,
-      rootFallback: true,
-      isResident: pinnedOnly
-        ? (rec) => bootstrapUrls.has(pageAddress(rec)) && poolHolds(rec)
-        : poolHolds,
-      wanted: result?.wanted,
-      result,
+      isResident: rt.services.poolHolds,
+      wanted: run.selectResult.wanted,
+      result: run.selectResult,
     },
-    pinnedOnly ? undefined : rt.run.shown,
+    run.shown,
   );
 }
 
@@ -76,7 +66,8 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   }
 }
 
-/** One image driven by the CPU reference cut, drawn only once the cut is entirely resident. */
+/** One image driven by the CPU reference cut, drawn once the pinned coverage is ready: each
+ *  surface by the finest representation the pool holds. */
 export function renderCpuCut(
   rt: WebgpuPagesRuntime,
   cam: EngineCamera,
@@ -97,13 +88,12 @@ export function renderCpuCut(
   run.pagesEntered = null;
   run.pagesExited = null;
   const cpuSelectionStarted = performance.now();
-  const selected = selectCpuCut(rt, cam, pixelError, false);
+  const selected = selectCpuCut(rt, cam, pixelError);
   run.cpuSelectMs = performance.now() - cpuSelectionStarted;
   traceCpuSelection(rt, selected, run.cpuSelectMs);
   // The chosen cut, not yet published. Admission weighs it here, but the residency sets receive it
-  // only once the image's three guards have passed, below: publishing earlier would make the cache
-  // hold — and forbid it from reclaiming — a cut the image may never have drawn, while the pinned
-  // coverage it needs first is still in flight.
+  // only once the pinned coverage is ready, below: publishing earlier would make the cache hold —
+  // and forbid it from reclaiming — a cut the image never drew.
   const wanted = selected.wanted;
   run.overBudget = false;
   run.visible = selected.visible;
@@ -139,42 +129,25 @@ export function renderCpuCut(
     traceCpuFrameWaiting(rt, cam, requested);
     return;
   }
-  if (selected.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
-  // A complete root cover is always pinned. Coarsen atomically before reclaiming
-  // old detail slots if old and new refinements cannot coexist in the budget.
-  const transitionStarted = performance.now(),
-    transition = run.transitionScratch;
-  transition.clear();
-  for (const url of requested) transition.add(url);
-  for (let i = 0; i < run.shown.length; i++) transition.add(pageAddress(run.shown[i]));
-  if (!run.coverageBudgetLimited && transition.size > slots) {
-    const fallback = selectCpuCut(rt, cam, pixelError, true);
-    if (!fallback.complete) throw new Error('GPU_COVERAGE_INCOMPLETE');
-    run.shown.length = 0;
-    appendAll(run.shown, fallback.shown);
-    run.lodLevel = fallback.lodLevel;
-  }
-  traceTransition(rt, requested, transition, transitionStarted);
   if (run.shown.some((page) => !services.hasBytes(page)))
     throw new Error('GPU_COVERAGE_BYTES_MISSING');
   const culled = cullWithTemporalHiz(rt, cam);
   const selectionEnd = performance.now();
   const queueStarted = performance.now();
-  // Here, and no earlier: the image has passed its guards and `shown` is final, pinned fallback
-  // included. The CPU cut then publishes its own by the same delta as the GPU sample — once, and
-  // only once, for an image that draws.
+  // Here, and no earlier: the image has passed its guards and `shown` is final. The CPU cut then
+  // publishes its own by the same delta as the GPU sample — once, and only once, for an image that
+  // draws.
   services.adoptCpuCut(wanted, run.shown);
   services.queueCutResidency(run.coverageBudgetLimited);
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);
   const drawnVerifyStarted = performance.now();
-  if (culled.some((page) => !services.poolHolds(page))) throw new Error('GPU_COVERAGE_INCOMPLETE');
   run.drawn.length = 0;
   appendAll(run.drawn, culled);
   run.blendPagedTriangles = triangleSum(run.drawn, true);
-  // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing.
-  // No cluster without residency has survived the checks above: the whole cut goes to draw, and
-  // occlusion reject does not drop out here — `hizRejectedTriangles` counts it.
+  // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing. The cut
+  // rule drew only what the pool holds: the whole cut goes to draw, and occlusion reject does not
+  // drop out here — `hizRejectedTriangles` counts it.
   run.drawnTriangles = run.selectedTriangles;
   traceDrawnVerify(rt, performance.now() - drawnVerifyStarted);
   const [width, height] = viewport ?? gpu.targetSize,

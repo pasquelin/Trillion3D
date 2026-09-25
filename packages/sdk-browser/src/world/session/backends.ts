@@ -114,6 +114,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     shadowBudgetMs: options.shadowBudgetMs,
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
+    guides: options.guides,
     // Bounced light stays off by default: its measured step holds 1.1 to 1.3 ms on Emerald,
     // above the one-millisecond bar, and the host turns it on explicitly.
     bounce: options.bounce,

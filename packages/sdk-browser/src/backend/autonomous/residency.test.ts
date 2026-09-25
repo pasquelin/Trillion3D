@@ -52,14 +52,14 @@ function fakePageRec(url = '', array?: Uint32Array): PageRec {
 function makeEnv() {
   const bootstrapUrls = new Set(['a.bin', 'b.bin']),
     modifiedPages = new Set(['c.bin']);
+  // What the image asks for: one record per page (`requests.ts`).
   const shown = [fakePageRec('a.bin'), fakePageRec('d.bin')],
-    desired = [
+    requested = [
       fakePageRec('a.bin', new Uint32Array(3)),
       fakePageRec('e.bin'),
-      fakePageRec('e.bin'), // duplicate url in the desired list, on purpose
       fakePageRec('f.bin'),
     ];
-  return { bootstrapUrls, modifiedPages, shown, desired };
+  return { bootstrapUrls, modifiedPages, shown, requested };
 }
 
 test('pendingUrls and pageUrls match the reference on a normal host, called twice in a row', () => {
@@ -68,7 +68,12 @@ test('pendingUrls and pageUrls match the reference on a normal host, called twic
     ...env,
     geometryStore: fakeGeometryStore(),
   });
-  const reference = referenceResidency({ ...env, pending: [], retained: [] });
+  const reference = referenceResidency({
+    ...env,
+    desired: env.requested,
+    pending: [],
+    retained: [],
+  });
   for (const pass of [0, 1]) {
     assert.deepEqual(optimisee.pendingUrls(), reference.pendingUrls(), `pending pass ${pass}`);
     assert.deepEqual(optimisee.pageUrls(), reference.pageUrls(), `retained pass ${pass}`);
@@ -80,13 +85,13 @@ test('an empty host produces empty sets from both implementations', () => {
     bootstrapUrls: new Set<string>(),
     modifiedPages: new Set<string>(),
     shown: [],
-    desired: [],
+    requested: [],
   };
   const optimisee = createAutonomousResidency({
     ...empty,
     geometryStore: fakeGeometryStore(),
   });
-  const reference = referenceResidency({ ...empty, pending: [], retained: [] });
+  const reference = referenceResidency({ ...empty, desired: [], pending: [], retained: [] });
   assert.deepEqual(optimisee.pendingUrls(), []);
   assert.deepEqual(reference.pendingUrls(), []);
   assert.deepEqual(optimisee.pageUrls(), []);
@@ -140,4 +145,18 @@ test('the streamer pins the set the image gathered, without gathering it again',
   residency.keptChanged();
   assert.ok(residency.pageUrls().includes('z.bin'));
   assert.equal(residency.keptUrls().size, pinned.length + 1);
+});
+
+test('as a cut is about to run, the pool keeps what the image asks for, not what it drew', () => {
+  const env = makeEnv();
+  const residency = createAutonomousResidency({ ...env, geometryStore: fakeGeometryStore() });
+  // `d.bin` is drawn but no longer asked for: the next cut draws its resident ancestor instead.
+  assert.ok(residency.keptUrls().has('d.bin'));
+  assert.deepEqual([...residency.askedUrls()].sort(), [
+    'a.bin',
+    'b.bin',
+    'c.bin',
+    'e.bin',
+    'f.bin',
+  ]);
 });

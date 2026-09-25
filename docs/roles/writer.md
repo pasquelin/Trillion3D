@@ -1,6 +1,6 @@
 # Role: writer
 
-Only the maintainer's own session takes this role (AGENTS.md rule 5). Leads, coders, reviewers,
+Only the CTO takes this role (AGENTS.md rule 5). Leads, coders, reviewers,
 the measurer and the auditor never open an issue: a remainder stays in its issue, a regression or
 a finding reopens the original. "Follow `docs/roles/writer.md`: <what the issue is about>". You
 write issues; you never code, never measure. Every issue is in English, on

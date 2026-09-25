@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { plane, sphere } from '../world/geometry/basic.ts';
 import { fromArrays } from '../world/geometry/builder.ts';
+import { InterleavedBuffer, InterleavedBufferAttribute } from '../world/buffer/attribute.ts';
 import { CommandWriter } from './commands.ts';
 import { OP } from './layout.ts';
 import { ObjectPhysics } from './objectPhysics.ts';
@@ -78,6 +79,13 @@ test('a rope is its vertices in order, weighing its length times the rope’s', 
 test('soft options out of range are refused, and a soft body keeps its type and settings', () => {
   for (const bad of [{ stretch: -1 }, { bend: Number.NaN }, { mass: -2 }, { pressure: -5 }])
     assert.throws(() => new ObjectPhysics({ type: 'volume', ...bad }), RangeError);
+  // What Jolt's soft bodies cannot take is refused, never dropped.
+  const rigid = [{ shape: 'box' }, { sensor: true }, { ccd: false }, { decorative: true }];
+  for (const bad of [...rigid, { damping: { angular: 0.1 } }])
+    assert.throws(
+      () => new ObjectPhysics({ type: 'cloth', ...bad } as SoftBodyOptions),
+      RangeError,
+    );
   const body = new ObjectPhysics({ type: 'cloth', pins: [1] });
   assert.equal(body.type, 'cloth');
   assert.deepEqual(body.soft, {
@@ -96,18 +104,32 @@ test('SOFT carries its fixed words at their layout offsets, then the vertices an
   const record = softBodyOf(plane(1, 1, 1, 1), one, settings);
   const writer = new CommandWriter();
   writeSoft(writer, {
-    ...{ id: 9, flags: 4, position: [1, 2, 3], quaternion: [0, 0, 0, 1], scale: [2, 3, 4] },
+    ...{ id: 9, position: [1, 2, 3], quaternion: [0, 0, 0, 1], scale: [2, 3, 4] },
     ...{ friction: 0.125, restitution: 0.375, gravityScale: 0.5, linearDamping: 0.0625 },
     ...{ settings, record },
   });
   const words = writer.take(),
     floats = new Float32Array(words.buffer);
-  assert.deepEqual([...words.subarray(0, 3)], [OP.soft, 9, 4]);
+  assert.deepEqual([...words.subarray(0, 2)], [OP.soft, 9]);
   assert.deepEqual(
-    [...floats.subarray(3, 20)],
+    [...floats.subarray(2, 19)],
     [1, 2, 3, 0, 0, 0, 1, 2, 3, 4, 0.125, 0.375, 0.5, 0.0625, 0.25, 0.5, 0.5],
   );
-  assert.deepEqual([words[20], words[21]], [4, 6]);
+  assert.deepEqual([words[19], words[20]], [4, 6]);
   assert.deepEqual([...floats.subarray(SOFT_WORDS, SOFT_WORDS + 16)], [...record.vertices]);
   assert.deepEqual([...words.subarray(SOFT_WORDS + 16)], [...record.indices]);
+});
+
+test('a cloth over an interleaved position reads its vertices, not the whole shared buffer', () => {
+  const flat = plane(2, 1, 4, 2);
+  const position = flat.getAttribute('position')!;
+  const packed = new Float32Array(position.count * 5);
+  for (let i = 0; i < position.count; i++)
+    for (let c = 0; c < 3; c++) packed[i * 5 + c] = position.getComponent(i, c);
+  const woven = flat.clone();
+  woven.setAttribute(
+    'position',
+    new InterleavedBufferAttribute(new InterleavedBuffer(packed, 5), 3, 0),
+  );
+  assert.deepEqual(of({ type: 'cloth' }, one, woven).vertices, of({ type: 'cloth' }).vertices);
 });

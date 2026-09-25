@@ -13,6 +13,7 @@ import {
   submitColorCopy,
 } from './encoder.ts';
 import { encodeBlend } from './encodeBlend.ts';
+import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
 import { forEachDirtyRun } from '../../row/dirty.ts';
@@ -97,7 +98,6 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   timing.transparentDrawMs = 0;
   timing.transparentSpanUploadBytes = 0;
   if (!gpu.bindGroupLayout || !gpu.cache || !gpu.colorView || !gpu.depthView) return 0;
-  const [width, height] = gpu.targetSize;
   // Frustum planes and view-projection are those image entry posted: the engine has one depth
   // convention (`../../../camera/depthConvention.ts`), so nothing is converted along the path.
   blendState.blendPlanes.set(cam.planes);
@@ -146,13 +146,28 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   if (!rows.packedCount) {
     const encoder = createRenderEncoder(rt, device);
     encodeClear(rt, encoder);
-    encodeBlend(rt, device, encoder, 0);
-    submitColorCopy(rt, device, encoder, height, width);
+    submitFallback(rt, device, encoder, cam, 0);
     return run.blendSubmittedTriangles;
   }
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
   const { encoder, vertices } = drawWebgpuFallback(rt, device);
-  encodeBlend(rt, device, encoder, rows.packedCount);
-  submitColorCopy(rt, device, encoder, height, width);
+  submitFallback(rt, device, encoder, cam, rows.packedCount);
   return vertices / 3 + run.blendSubmittedTriangles;
+}
+
+/**
+ * The end of every fallback image — blend, guides, copy — in one place: a branch that submits
+ * without it would drop the guides and never record their revision, so no frame would hold again.
+ */
+function submitFallback(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  uniformBase: number,
+) {
+  const [width, height] = rt.gpu.targetSize;
+  encodeBlend(rt, device, encoder, uniformBase);
+  if (guidesShown(rt)) encodeWebgpuGuides(rt, device, encoder, cam);
+  submitColorCopy(rt, device, encoder, height, width);
 }

@@ -56,7 +56,7 @@ export const object = {
   /**
    * A flat picture that always faces the camera, whichever way the camera looks: a unit square,
    * sized by the sprite's scale and turned in the image by its material's `rotation`.
-   * @param material - What the square shows: a `material.sprite`.
+   * @param material - What the square shows: a `material.sprite`; any other kind throws.
    * @example const marker = object.sprite(material.sprite({ map })); marker.scale.set(2, 2, 1);
    */
   sprite: (material?: Material) => new Sprite(material),

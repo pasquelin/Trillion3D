@@ -1603,7 +1603,8 @@
       "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, triangles, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
       "PHYSICS_FORMAT": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire."
+      "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire.",
+      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté."
     }
   },
   "enginePose": {
@@ -1808,7 +1809,6 @@
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
       "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
-      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -2048,11 +2048,11 @@
     }
   },
   "Geometry": {
-    "summary": "La forme seule : des attributs nommés par sommet, un index de triangles facultatif, des groupes de matériaux.",
+    "summary": "La forme seule : des attributs nommés par sommet, un index de triangles facultatif, des groupes de matériaux, les cibles de morphose qui la déplacent et la plage dessinée.",
     "members": {
       "isGeometry": "Toujours `true` : distingue une géométrie de tout le reste.",
       "type": "Le genre de la géométrie, `'Geometry'`.",
-      "attributes": "Les listes par sommet, par nom : `position`, `normal`, `uv`, `color`.",
+      "attributes": "Les listes par sommet, par nom : `position`, `normal`, `uv`, `color` ; chacune possède ses nombres ou lit un tampon entrelacé.",
       "index": "Quels sommets forment chaque triangle, trois nombres par triangle ; `null` les lit dans l’ordre.",
       "groups": "Plages d’indices dessinées avec `material[materialIndex]` quand un maillage en porte plusieurs.",
       "boundingBox": "La boîte autour de chaque sommet, une fois calculée ; `null` avant.",
@@ -2066,8 +2066,8 @@
       "addGroup": "Dessine `count` indices à partir de `start` avec le matériau numéro `materialIndex` du maillage.",
       "clearGroups": "Retire chaque groupe de matériau.",
       "computeVertexNormals": "Normales lisses : chaque sommet fait la moyenne des faces qui le partagent, pondérées par leur aire.",
-      "computeBoundingBox": "Mesure la boîte autour de chaque sommet et la garde dans `boundingBox`.",
-      "computeBoundingSphere": "Mesure la boule autour de chaque sommet et la garde dans `boundingSphere`.",
+      "computeBoundingBox": "Mesure la boîte autour de chaque sommet et de chaque forme que lui donne une cible de morphose, et la garde dans `boundingBox`.",
+      "computeBoundingSphere": "Mesure la boule centrée sur la boîte qui atteint le sommet le plus lointain, morphé ou non, et la garde dans `boundingSphere`.",
       "applyMatrix4": "Déplace chaque position, tourne chaque normale : c’est la géométrie qui change, pas une pose.",
       "translate": "Déplace chaque sommet de `(x, y, z)`.",
       "rotateX": "Tourne chaque sommet autour de l’axe x, de `angle` radians.",
@@ -2075,9 +2075,18 @@
       "rotateZ": "Tourne chaque sommet autour de l’axe z, de `angle` radians.",
       "scale": "Étire chaque sommet de `(x, y, z)`.",
       "center": "Déplace la géométrie pour que sa boîte soit centrée sur l’origine.",
-      "clone": "Une nouvelle géométrie avec des copies de chaque liste.",
-      "dispose": "Oublie ceux qui la tiennent : une géométrie libérée n’est dessinée par personne.",
-      "recipe": "Le membre de la famille et les arguments qui ont construit cette forme, tant qu’elle est encore ce qu’ils ont construit : ce qu’une scène enregistrée stocke au lieu des sommets. Tout changement ultérieur l’oublie."
+      "clone": "Une nouvelle géométrie avec des copies de chaque liste, ses groupes, sa plage, ses données et ses bornes, et la recette qui la construit encore.",
+      "dispose": "Rend la géométrie : lance chaque crochet de libération une fois, oublie ceux qui la tiennent et l’arbre de lancer de rayons ; personne ne dessine ni ne vise une géométrie libérée.",
+      "recipe": "Le membre de la famille et les arguments qui ont construit cette forme, tant qu’elle est encore ce qu’ils ont construit : ce qu’une scène enregistrée stocke au lieu des sommets. Tout changement ultérieur l’oublie.",
+      "kind": "Ce qu’est la ressource, comme un lecteur de la scène distingue les ressources.",
+      "name": "Son nom.",
+      "morphAttributes": "Pour chaque attribut morphé, un attribut par cible de morphose.",
+      "morphTargetsRelative": "Vrai quand une cible de morphose contient des déplacements, pas des positions.",
+      "drawRange": "La plage de l’index dessinée.",
+      "userData": "Place libre pour les données de celui qui a construit la géométrie.",
+      "released": "Appelés quand la géométrie est rendue : ce qu’écoute la copie qu’en garde un moteur de rendu.",
+      "getIndex": "La liste de triangles, ou `null`.",
+      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2200,6 +2209,42 @@
     "members": {
       "isGroup": "Toujours `true` : distingue un groupe.",
       "type": "Le genre de nœud, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Un ensemble de guides qu’une page a dessiné ; chaque réglage renvoie la poignée.",
+    "members": {
+      "visible": "S’il est dessiné ; `setVisible` l’écrit.",
+      "setVisible": "Le montre ou le cache, ses sommets toujours comptés sous le plafond.",
+      "setTransform": "Le place : seize nombres par colonnes, ou une matrice — `node.matrixWorld` suit un nœud.",
+      "remove": "Le retire du monde, ses sommets rendus ; un second appel ne fait rien."
+    }
+  },
+  "GuideLines": {
+    "summary": "Des segments à dessiner.",
+    "members": {
+      "positions": "Deux extrémités par segment, trois nombres chacune.",
+      "color": "Leur couleur ; blanc par défaut.",
+      "width": "Largeur à l’écran, en pixels."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Des points à dessiner.",
+    "members": {
+      "positions": "Trois nombres par point.",
+      "color": "Leur couleur ; blanc par défaut.",
+      "size": "Côté de chaque point carré à l’écran, en pixels."
+    }
+  },
+  "Guides": {
+    "summary": "Les guides d’un monde, tels qu’une page les dessine : `world.guides`.",
+    "members": {
+      "ceiling": "Le plus de sommets que les guides tiennent ensemble (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Les sommets tenus maintenant, deux par segment et un par point, guides cachés compris.",
+      "lines": "Dessine des segments, deux extrémités chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
+      "points": "Dessine des points carrés, une position chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
+      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux, placés là où l’objet se tient maintenant ; ses triangles ne sont pas des guides et sont ignorés.",
+      "clear": "Retire tous les guides."
     }
   },
   "HALF_PI": {
@@ -2447,9 +2492,6 @@
       "height": "Hauteur en pixels.",
       "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture."
     }
-  },
-  "HostGeometry": {
-    "summary": "Une géométrie de l’hôte : ses attributs, et la boîte locale que l’hôte a calculée dessus."
   },
   "HostMaterial": {
     "summary": "Un matériau de l’hôte tel que le lit le moteur : les paramètres de surface que partage tout matériau de l’hôte, lus une fois à la frontière dans le `VisMaterial` du moteur ; seul `sideOf` lit `side`."
@@ -4181,7 +4223,7 @@
   "object.sprite": {
     "summary": "Une image plate toujours tournée vers la caméra, où qu’elle regarde : un carré d’une unité, dimensionné par l’échelle du sprite et tourné dans l’image par la `rotation` de son matériau.",
     "parameters": {
-      "material": "Ce que montre le carré : un `material.sprite`."
+      "material": "Ce que montre le carré : un `material.sprite` ; toute autre sorte lève une erreur."
     }
   },
   "Object3D": {
@@ -4238,7 +4280,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Ce que `obj.physics` accepte pour un corps souple : ses sommets sont simulés un par un.",
+    "description": "Sa matière et son poids comme ceux d’un corps rigide ; ni amortissement angulaire, ni forme, ni capteur, ni CCD, ni débris.",
     "members": {
+      "damping": "La part de la vitesse de ses sommets perdue par seconde, `dv/dt = −c·v`, 0 et plus.",
       "pins": "Indices des sommets de la géométrie tenus là où ils sont : la hampe d’un drapeau, le crochet d’une corde.",
       "mass": "Kilogrammes, répartis sur les sommets selon l’aire (une corde : la longueur) que chacun porte ; omis, `SOFT_AREAL_DENSITY` par m² (une corde : `SOFT_LINEAR_DENSITY` par m).",
       "stretch": "Combien une arête cède quand on la tire, m/N (l’inverse de sa raideur) : 0 ne s’étire jamais.",
@@ -5550,7 +5594,8 @@
       "pinned": "Paquets toujours gardés.",
       "bundleBytes": "Taille visée d’un paquet.",
       "pages": "Combien de paquets.",
-      "maxDependencies": "Le plus grand nombre de dépendances d’un paquet : la borne que publie le compilateur."
+      "maxDependencies": "La plus longue liste de dépendances fermée d’un paquet.",
+      "dependencyBound": "Le plus de paquets contenant les parents des clusters d’un paquet, fixé avant l’empaquetage."
     }
   },
   "SlimStructure": {
@@ -5697,7 +5742,8 @@
       "pinned": "Paquets toujours gardés.",
       "bundleBytes": "Taille visée d’un paquet.",
       "pages": "Chaque paquet.",
-      "maxDependencies": "Le plus grand nombre de dépendances d’un paquet, tel que le compilateur l’a publié."
+      "maxDependencies": "La plus longue liste de dépendances fermée d’un paquet, telle que le compilateur l’a publiée.",
+      "dependencyBound": "Le plus de paquets contenant les parents des clusters d’un paquet, fixé avant l’empaquetage."
     }
   },
   "StreamPage": {
@@ -6541,6 +6587,9 @@
       "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
     }
   },
+  "world.guides": {
+    "summary": "Lignes, points et aides dessinés par-dessus l’image (`Guides`)."
+  },
   "world.onFrame": {
     "summary": "Lance une fonction après chaque image dessinée, avec son temps et ses mesures ; renvoie de quoi l’arrêter.",
     "parameters": {
@@ -6632,7 +6681,6 @@
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
       "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
-      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -7095,6 +7143,10 @@
       "none": "Pas de gravité."
     }
   },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Le plus de sommets que les guides d’un monde tiennent ensemble : deux par segment, un par point.",
+    "description": "Déclaré, non dérivé : il borne le seul tampon d’instances que la passe envoie à 64 Ki × 32 octets = 2 Mio, quoi que demande une page — une grille de 16 000 lignes tient, le nuage de points d’une ville scannée non, et il a sa place dans la scène."
+  },
   "GravityInput": {
     "summary": "Une gravité : le nom d’un préréglage, ou un vecteur en m/s²."
   },
@@ -7300,32 +7352,6 @@
       "steer": "Volant, de −1 tout à gauche à 1 tout à droite.",
       "handbrake": "Si le frein à main est tiré."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Ses attributs de sommets.",
-      "boundingBox": "La boîte locale calculée par l’hôte.",
-      "kind": "Ce qu’est la ressource.",
-      "name": "Son nom.",
-      "index": "La liste des triangles, ou `null` pour dessiner les sommets dans l’ordre.",
-      "morphAttributes": "Pour chaque attribut déformé, un attribut par cible de morphose.",
-      "morphTargetsRelative": "Vrai quand une cible de morphose tient des déplacements, pas des positions.",
-      "groups": "Plages de l’index dessinées chacune avec une surface.",
-      "drawRange": "La plage de l’index dessinée.",
-      "boundingSphere": "La sphère locale, une fois calculée ou déclarée.",
-      "userData": "Place libre pour les données de celui qui a construit la géométrie.",
-      "getIndex": "La liste des triangles.",
-      "setIndex": "Fixe la liste des triangles.",
-      "getAttribute": "L’attribut de ce nom.",
-      "setAttribute": "Nomme un attribut.",
-      "deleteAttribute": "Oublie un attribut.",
-      "hasAttribute": "Si elle a un attribut de ce nom.",
-      "clone": "Une géométrie qui tient une copie de chaque tampon, ses groupes, sa plage et ses bornes.",
-      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui.",
-      "computeBoundingBox": "Calcule la boîte locale sur tous les sommets.",
-      "computeBoundingSphere": "Calcule la sphère locale : centrée sur la boîte, jusqu’au sommet le plus lointain."
-    },
-    "summary": "Les attributs qu’un maillage dessine, la liste de triangles qui les indexe, les cibles de morphose qui les déplacent, et la boîte et la sphère locales calculées dessus."
   },
   "GraphNode": {
     "members": {
@@ -7636,10 +7662,11 @@
   },
   "Sprite": {
     "summary": "Une image plate toujours tournée vers la caméra : un carré d’une unité que chaque moteur de rendu tourne vers l’image au moment de dessiner, autour de la position du sprite.",
-    "description": "Sa taille est son échelle dans le monde sur `x` et `y` ; sa rotation dans le plan de l’image est la `rotation` de son matériau ; sa propre rotation n’est pas lue. Un sprite ne projette pas d’ombre.",
+    "description": "Sa taille est son échelle dans le monde sur `x` et `y` ; sa rotation dans le plan de l’image est la `rotation` de son matériau ; sa propre rotation n’est pas lue. Un sprite ne projette pas d’ombre. Comme le `Sprite` de la référence, qui ne prend qu’un `SpriteMaterial`, il ne porte qu’un `material.sprite` : tout autre matériau, donné ou affecté, lève une `TypeError` qui nomme sa sorte.",
     "members": {
       "isSprite": "Toujours `true` : distingue un sprite de tout autre maillage.",
-      "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas."
+      "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas.",
+      "material": "Le `material.sprite` du sprite ; affectez-en un autre pour le changer."
     }
   }
 }

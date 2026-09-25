@@ -8,6 +8,8 @@ import type { RenderBackend } from '../../backend/types.ts';
 import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { createBackendPresenter } from './composeSurface.ts';
 import { createHeldFrame } from './heldFrame.ts';
+import { createWebglGuideDraw } from '../../guides/guideGl.ts';
+import type { GuideSet } from '../../guides/guideSet.ts';
 import type { SceneColour } from '../../webgl/cluster/lights.ts';
 import {
   bindWebglTarget,
@@ -30,14 +32,19 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * a redraw. With an effect chain that holds passes, the engine draws linear radiance into the
  * chain's target instead, and the chain brings its image to the destination
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
- * since it was kept is drawn again. Nothing here belongs to a rendering library.
+ * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
+ * got, the chain's included, before that copy is kept; a change to them spares no redraw.
+ * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  composed?: ComposedChain,
+  layers: { effects?: ComposedChain; guides?: GuideSet } = {},
 ) {
+  const { effects: composed, guides } = layers;
   const heldFrame = createHeldFrame(gl);
+  const guideDraw = createWebglGuideDraw(gl);
+  let guidesDrawn = guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
   const effects = composed && createWebglEffects(gl);
   const drawCamera = createHostDrawCamera();
@@ -97,8 +104,10 @@ export function createFrameComposer(
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
     const revision = composed?.chain.revision ?? 0;
+    const guidesHeld = !guides || guides.revision === guidesDrawn;
     if (
       reuse &&
+      guidesHeld &&
       backend.frameHeld === true &&
       !target &&
       heldFrame.holds(width, height) &&
@@ -127,6 +136,12 @@ export function createFrameComposer(
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];
       effects!.end(passes, target, display);
+      // The guides land where the chain drew, over the depth it carried.
+      output.framebuffer = target?.framebuffer ?? null;
+    }
+    if (guides) {
+      guidesDrawn = guides.revision;
+      guideDraw.draw(guides, drawCamera, output);
     }
     if (target) return;
     heldFrame.keep(width, height);
@@ -138,6 +153,7 @@ export function createFrameComposer(
     present.dispose();
     heldFrame.dispose();
     effects?.dispose();
+    guideDraw.dispose();
   };
   return compose;
 }
