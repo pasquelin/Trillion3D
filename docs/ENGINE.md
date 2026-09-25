@@ -820,9 +820,9 @@ blends in linear radiance and the witness in display space: the fixture declares
 and holds the engine inside it. The grazing fixtures are also cast on the CPU, the map's base level
 averaged along each pixel's minified axis, on the tangent its derivatives lay, and cut once
 (`tests/browser/support/groundTruth.ts`): a perfect anisotropic read, with no mip level and no
-footprint cap. The proof requires the engine at 16× within CONTRIBUTING's tolerance of it — pixels
-over one level, silhouettes aside: 0, 4 on the foliage cut-out — and no farther from it than the
-witness (#443). A successful proof run is not a full-scene parity verdict, and it measures no
+footprint cap. The proof counts both renderers' pixels over one level from it, silhouettes aside,
+and requires the engine at 16× no farther than the witness, give or take CONTRIBUTING's tolerance:
+0 px, 4 on the foliage cut-out (#443). A successful proof run is not a full-scene parity verdict, and it measures no
 performance. The CPU shading oracle encodes linear lighting to sRGB without ACES; it does not
 replace the displayed-image comparisons. Node tests validate orchestration with GPU doubles and
 do not execute WGSL.

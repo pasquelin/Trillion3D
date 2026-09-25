@@ -5,7 +5,8 @@
 // that exercise its feature — base colour, its map, alpha MASK at its cutoff, BLEND, emissive,
 // metal-roughness, normal map, double-sided, glass. A gap outside the fixture's declared window,
 // a missing render diagnostic, a GPU failure or an engine image that never holds turns the run red,
-// and so does a grazing fixture farther than its tolerance from its ground truth (#443).
+// and so does a grazing fixture farther from its ground truth than the witness, give or take its
+// tolerance (#443).
 //
 // The harness server of `bench/runner` serves the page and its import map, the SDK, the page
 // modules of `tests/` and the engine sources they import; nothing outside this repository is
@@ -113,8 +114,8 @@ for (const side of ['reference', 'engine'] as const) {
       `at least ${ANISOTROPY_GAIN} more expected`,
   );
 }
-// #443: the grazing fixtures against their ground truth — the witness is not the
-// truth: the engine within the fixture's tolerance and no farther from it than the witness.
+// #443: the grazing fixtures against their ground truth — the witness is not the truth: the
+// engine no farther from it than the witness, give or take the fixture's tolerance.
 for (const { name, truth } of result.results) {
   if (!truth) continue;
   const { tolerance, engine, reference } = truth;

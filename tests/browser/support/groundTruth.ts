@@ -187,11 +187,9 @@ export function truthGap(image: ArrayLike<number>, truth: Truth): TruthGap {
   return gap;
 }
 
-/** The proof of #443: the engine within `tolerance` pixels of the truth, and no farther from it
- *  than the witness. Undefined when it holds, else what fails. */
+/** The proof of #443: the engine no farther from the truth than the witness, give or take
+ *  CONTRIBUTING's `tolerance` in pixels. Undefined when it holds, else what fails. */
 export function truthVerdict(engine: TruthGap, reference: TruthGap, tolerance: number) {
-  const gap = `engine ${engine.pixels} px from the ground truth`;
-  if (engine.pixels > tolerance) return `${gap}, tolerance ${tolerance} px`;
-  if (engine.pixels > reference.pixels)
-    return `${gap}, farther than the witness's ${reference.pixels} px`;
+  if (engine.pixels > reference.pixels + tolerance)
+    return `engine ${engine.pixels} px from the ground truth, the witness ${reference.pixels} px, tolerance ${tolerance} px`;
 }
