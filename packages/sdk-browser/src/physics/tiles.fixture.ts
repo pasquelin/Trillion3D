@@ -1,6 +1,7 @@
 import {
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
+  JOLT_COMMIT,
   type PhysicsBudget,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -13,6 +14,40 @@ import { createTileStreamer } from './tiles.ts';
  *  next turn of the event loop comes once every answer has been read. */
 export const landed = () => new Promise(setImmediate);
 
+/** A two-triangle tile at `x` along its collider. */
+export const tile = (x = 0) => ({
+  ...{ url: `t${x}.bin`, sha256: 'a'.repeat(64), bytes: 1, triangles: 2 },
+  bounds: [x, 0, -1, x + 2, 1, 1],
+});
+/** Collider `collider` placed by its own node, ten metres apart, with the matter it declares. */
+export const place = (collider: number, matter = {}) => ({
+  ...{ node: collider, collider, position: [collider * 10, 0, 0] },
+  ...{ rotation: [0, 0, 0, 1], scale: [1, 1, 1], ...matter },
+});
+/** A `physics.json` of `colliders` placed by `instances`, and `softBodies`. */
+export const cooked = (colliders: object[], instances: object[], softBodies: object[] = []) => ({
+  ...{ formatVersion: 2, jolt: JOLT_COMMIT, colliders, instances, softBodies },
+});
+
+/** Answers every fetch from now on: `physics.json` with `file`, any other file with `bytes`;
+ *  the names of the files fetched. */
+export function stubFetch(file: object, bytes: Uint8Array) {
+  const fetched: string[] = [];
+  globalThis.fetch = (async (url: string) => {
+    fetched.push(url.split('/').pop()!);
+    const json = async () => JSON.parse(JSON.stringify(file));
+    return { ok: true, json, arrayBuffer: async () => bytes.slice().buffer };
+  }) as unknown as typeof fetch;
+  return fetched;
+}
+
+/** A compiled model at the origin, as `world.scene.load` places one. */
+export const compiledModel = () =>
+  Object.assign(new Object3D(), {
+    isLoadedModel: true as const,
+    record: { base: 'https://cache.test/model/' },
+  });
+
 /**
  * A model at the origin, scaled by `scale`, whose `physics.json` is `file` and every other file
  * `bytes`, opened by a tile streamer within `budget` (8 bodies): the streamer, the scene, the model,
@@ -24,12 +59,7 @@ export async function streamedModel(
   budget: Partial<PhysicsBudget> = {},
   scale = 1,
 ) {
-  const fetched: string[] = [];
-  globalThis.fetch = (async (url: string) => {
-    fetched.push(url.split('/').pop()!);
-    const json = async () => JSON.parse(JSON.stringify(file));
-    return { ok: true, json, arrayBuffer: async () => bytes.slice().buffer };
-  }) as unknown as typeof fetch;
+  const fetched = stubFetch(file, bytes);
   const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
   const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
   const { state } = createPhysicsPoses(limits.bodies, scene);
@@ -41,10 +71,7 @@ export async function streamedModel(
     () => {},
     (e) => errors.push(e),
   );
-  const model = Object.assign(new Object3D(), {
-    isLoadedModel: true as const,
-    record: { base: 'https://cache.test/model/' },
-  });
+  const model = compiledModel();
   model.scale.setScalar(scale);
   model.updateMatrixWorld(true);
   scene.add(model);

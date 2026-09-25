@@ -31,6 +31,12 @@ export const POISSON_16 = [
   [0.14383161, -0.1410079],
 ];
 
+/** Farthest texel centre any tap weighs, in texels from the read point: the tap's offset plus
+ *  the bilinear footprint's texel on each axis. The depth margin covers the receiver over it. */
+export const PCF_REACH = Math.max(
+  ...POISSON_16.map(([x, y]) => Math.hypot(Math.abs(x) + 1, Math.abs(y) + 1)),
+);
+
 /** Words of the request buffer: the count, the entries the shading asked for, then one bit per
  *  table entry — a page is listed once however many pixels read it. */
 export const SHADOW_REQUEST_WORDS = 1 + LIGHT_SETTINGS.shadowRequestCap + SHADOW_TABLE_ENTRIES / 32;
@@ -88,10 +94,8 @@ ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
 ${requestWgsl(requestBinding)}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
-const SHADOW_BIAS:f32=${LIGHT_SETTINGS.shadowDepthBias};
-const SHADOW_SLOPE:f32=${LIGHT_SETTINGS.shadowSlopeBias};
-const SHADOW_SLOPE_MAX:f32=${LIGHT_SETTINGS.shadowSlopeBiasMax};
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
+const SHADOW_PCF_REACH:f32=${PCF_REACH};
 const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
@@ -101,11 +105,15 @@ const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTING
 ).join(',')});
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
-/** Bias in metres at the considered point: a grazing surface needs more margin than a facing
- *  one. The margin is ADDED to the reference, shadow depth being reversed like the camera's. */
-fn shadowBiasMetres(cosine:f32)->f32{
- return SHADOW_BIAS+min(SHADOW_SLOPE*sqrt(1.0-cosine*cosine)/cosine,SHADOW_SLOPE_MAX);
+/** Offset along the normal, in texels of the level read, of a receiver at incidence \`cosine\`:
+ *  half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
+fn shadowNormalTexels(cosine:f32)->f32{
+ return SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0);
 }
+/** Depth margin, in metres toward the light, of a receiver whose depth changes by \`slope\` per
+ *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
+ *  caller's units. ADDED to the reference: shadow depth is reversed. */
+fn shadowDepthMargin(texel:f32,slope:f32,cap:f32)->f32{return texel*SHADOW_PCF_REACH*min(slope,cap);}
 struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
 fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
 /** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,
