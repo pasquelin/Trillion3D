@@ -327,7 +327,6 @@
       "a-walker-among-balls": "ボールの中を歩く人"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPUでの頂点カラー",
       "dashed-lines": "破線",
       "floating-crates": "毎フレーム書き換えるジオメトリ",
       "thick-lines": "太い線",
