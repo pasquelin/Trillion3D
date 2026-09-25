@@ -30,8 +30,10 @@ merge and never run Chrome, a browser proof or the bench.
    - AGENTS.md rules 6 and 7: reuse, the witness library kept a witness, TypeScript.
      Fix what is certain; a finding you cannot fix without changing the batch's intent goes to the
      lead.
-4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, the validate group the diff touches.
-   Commit `refactor|fix(scope): … (#<issue>)`, push.
+4. Commit `refactor|fix(scope): … (#<issue>)`, then merge `origin/develop` into the branch
+   (`git fetch origin`, `git merge origin/develop`), then the gates: `pnpm run check:changed`,
+   `pnpm run test:changed`, the validate group the diff touches. Push once: one CI run covers the
+   update and the fixes.
 5. Fill "Local review before push" in the pull request body: one line `/simplify: …` and one line
    `/code-review: …` with what each skill found and fixed, copied from its report (CI refuses a
    body without them), then the auditor-list result.
