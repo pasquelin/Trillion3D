@@ -135,5 +135,8 @@ test('check-pr-size: more than 600 added lines fail, generated paths are not cou
   writeFileSync(join(work, 'b.ts'), 'one more\n');
   ok(work, 'add', 'b.ts');
   ok(work, 'commit', '-q', '-m', 'one more');
-  assert.match(size().stderr, /AGENTS\.md rule 11: split the pull request, `Part of #n`/);
+  const refused = size();
+  assert.equal(refused.status, 1);
+  assert.match(refused.stdout, /added: 601 \(limit 600\)/);
+  assert.match(refused.stderr, /AGENTS\.md rule 11: split the pull request, `Part of #n`/);
 });
