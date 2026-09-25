@@ -71,6 +71,10 @@ merges keep coming back `audit ko` is stopped by the maintainer.
   time by that one subagent.
 - At most 3 of your pull requests open; at 3, no new coder until you are back at 2.
 - A programme's rules and order (#483) bind its children: check its checklist before each merge.
-- A subagent never launches its own subagents. A finished one is stopped.
+- A subagent never launches its own subagents, with one exception: the `simplify` and
+  `code-review` skills a coder or reviewer invokes launch their own review agents, at most 4,
+  which launch none. A finished subagent is stopped.
+- After a reviewer's `OK`, any new commit on the branch (a fix, a `develop` merge) gets a short
+  re-review before the merge.
 - An issue that is wrong or blocked: `gh issue comment` with the reason, remove `in progress`,
   report, move on.
