@@ -65,6 +65,7 @@ test(
           updatePlacements: (rows) => void written.add(rows),
         }) as Partial<RenderBackend> as RenderBackend,
       renew: () => void renewed++,
+      budget: { admits: () => true, spend() {} },
     })!;
     for (let step = 0; step < 16; step++) {
       frame();

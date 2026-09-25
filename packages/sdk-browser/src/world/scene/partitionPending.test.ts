@@ -31,6 +31,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
     streamer,
     camera: hostFramingCamera(60, 1, 0.1, 100),
     active: () => ({}) as RenderBackend,
+    budget: { admits: () => true, spend() {} },
   })!;
   frame();
   let settled = false;

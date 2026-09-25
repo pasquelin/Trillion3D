@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { createPartitionCells } from '../../scene/partition/cells.ts';
+import { placedMesh } from '../../scene/partition/rows.ts';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
 import { referenceArrivalQueue } from '../../../../../bench/oracles/browser/arrival-admission.ts';
 
@@ -106,4 +109,66 @@ test('the default time budget yields at its boundary and resumes in arrival orde
   assert.deepEqual(accepted, ['p0', 'p1', 'slow', 'p3']);
   assert.equal(queue.pending, 0);
   assert.equal(queue.drain(), 0);
+});
+
+test('the cells a frame places and the pages it drains spend one budget, on one clock', async (t) => {
+  // Reading a cell's bytes costs 1.5 ms and a page 1 ms, against the default 2 ms ceiling.
+  let now = 0;
+  t.mock.method(performance, 'now', () => now);
+  const body = (x: number) =>
+    JSON.stringify({
+      version: 1,
+      nodes: [
+        {
+          parent: null,
+          mesh: 0,
+          matrix: null,
+          translation: [x, 0, 0],
+          rotation: null,
+          scale: null,
+        },
+      ],
+    });
+  const cells = createPartitionCells({
+    partition: {
+      version: 1,
+      bounds: [0, 0, 0, 3, 1, 1],
+      meshes: [0],
+      cells: [0, 1, 2].map((x) => ({
+        url: `${x}.json`,
+        sha256: '',
+        bytes: 1,
+        parents: [[null, [x, 0, 0, x + 1, 1, 1]] as const],
+        meshes: [[0, 1] as const],
+      })),
+    },
+    base: 'https://cache.test/key/',
+    root: new Group(),
+    parents: [],
+    meshes: new Map([[0, placedMesh([{ meshes: 0 }])]]),
+  });
+  // Opened with no owner: rows for every cell, none read.
+  await cells.prime([1e9, 0, 0], 100, () => Promise.reject(new Error('unread')), false);
+  const io = {
+    bytes(url: string) {
+      now += 1.5;
+      return new TextEncoder().encode(body(Number(url.split('/').at(-1)!.split('.')[0])));
+    },
+    loading: () => false,
+    request() {},
+    update() {},
+  };
+  const accepted: string[] = [];
+  const receiver = { acceptPage: (url: string) => void (accepted.push(url), (now += 1)) };
+  const queue = createArrivalQueue(1 << 20, 64);
+  for (const url of ['p0', 'p1']) queue.queue(receiver, url, new Uint32Array(1));
+  const frame = () => {
+    queue.open();
+    cells.frame([0, 0.5, 0.5], 100, io, queue);
+    queue.drain();
+    return [cells.stats().held, accepted.length];
+  };
+  assert.deepEqual(frame(), [1, 0], 'the first cell spends the frame: no page after it');
+  assert.deepEqual(frame(), [2, 0]);
+  assert.deepEqual(frame(), [3, 1], 'the last cell leaves room for one page');
 });
