@@ -115,6 +115,14 @@
       "takes": "captura"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Arraste para olhar em volta. Desligue o brilho para ver as luzes sem ele, ou alargue-o.",
+    "controls": {
+      "glow": "Brilho",
+      "intensity": "Intensidade",
+      "radius": "Espalhamento"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Arraste para olhar em volta. Balance a lanterna e veja a luz se mexer.",
     "controls": {

@@ -16,7 +16,7 @@ export const REGION_CLEAR = 0,
  * its static casters in the static layer and the moving ones over a copy of it; a page whose moving
  * casters alone changed is the copy and the moving casters; without a static layer — nothing has
  * moved yet — a page is its casters, all at once. Each region names its physical page, its start
- * and the casters its cull keeps. Allocated once for a frame's budget, on a pool of `poolSide`
+ * and the casters its cull keeps. Allocated once for a batch, on a pool of `poolSide`
  * pages a side.
  */
 export function createShadowRegionList(poolSide: number) {

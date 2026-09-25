@@ -6,6 +6,7 @@ export * from '../../sdk-core/src/world/buffer/index.ts';
 export * from '../../sdk-core/src/world/object/index.ts';
 export * from '../../sdk-core/src/world/material/index.ts';
 export * from '../../sdk-core/src/world/light/index.ts';
+export * from '../../sdk-core/src/world/effect/index.ts';
 export * from '../../sdk-core/src/world/camera/index.ts';
 export * from '../../sdk-core/src/world/animation/index.ts';
 export * from '../../sdk-core/src/world/constants/index.ts';
@@ -119,6 +120,7 @@ export type {
   PoolClamp,
 } from './residency/pools.ts';
 export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
+export type { BudgetCanvas } from './residency/memoryBudget.ts';
 export type { ShadowAtlasDigest } from './gpu/shadow/digest.ts';
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts';
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts';

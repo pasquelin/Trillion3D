@@ -3,10 +3,9 @@ import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts';
-import { PAGES_RING, noteShadowFrame, uploadSceneLights } from '../state/lights.ts';
+import { noteShadowFrame, uploadSceneLights } from '../state/lights.ts';
 import { planImageShadows } from './encodeShadows.ts';
-import { encodeShadowAtlas } from './encodeShadowPass.ts';
-import { pageModes } from '../../shadow/pages.ts';
+import { encodeShadowBatches } from './encodeShadowBatches.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -53,11 +52,7 @@ export function encodeDirectLights(
     if (!store.unlit) uploadSceneLights(device, lights);
     return directParams;
   }
-  const pagesSlot = rt.run.frame % PAGES_RING;
-  const regions = planImageShadows(rt, cam);
-  // The pass timer comes back late: the image must leave behind how many pages it redrew, or the
-  // sample would not know what it is numbering.
-  lights.pagesByFrame[pagesSlot] = lights.shadowPages;
+  const pages = planImageShadows(rt, cam);
   // The buffer goes to the GPU before the per-tile lists: the blend pass reads it directly, without
   // tiles, and must stay lit even on a device that could not fit the lists.
   uploadSceneLights(device, lights);
@@ -66,11 +61,10 @@ export function encodeDirectLights(
   // is encoded before the lighting pass that will fill them.
   ensureSunFarShadow(rt, device);
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
-  // The pass may refuse to encode (reject or missing selection): its pages then stay stale, and
-  // their table words say what they said — a page is readable only once its draw has landed.
-  const encoded = !regions || encodeShadowAtlas(rt, device, encoder, regions);
-  if (encoded) lights.plan.commit(pageModes);
-  else lights.plan.reissue();
+  // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
+  // (reject or missing selection): its pages then stay stale, and their table words say what they
+  // said — a page is readable only once its draw has landed.
+  if (pages) encodeShadowBatches(rt, device, encoder, cam.eye);
   if (lights.shadows?.texture) {
     // Records and table words go out after the draws are encoded, before the resolve reads them;
     // the request buffer is zeroed for the resolve to record into. No pool, no shadow light yet:
@@ -78,7 +72,7 @@ export function encodeDirectLights(
     lights.shadows.flushData(lights.plan.table);
     lights.pageRequests?.clear(encoder);
   }
-  noteShadowFrame(lights, pagesSlot, encoded);
+  noteShadowFrame(lights);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height);
@@ -181,8 +175,6 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowPagesOverflow: lights.plan.requests.counts.refused + lights.plan.requests.counts.unlisted,
     shadowWaitMs: lights.plan.counts.waitedMs,
     shadowWaitFrames: lights.plan.counts.waitedFrames,
-    shadowBudgetMs: lights.plan.budget.budgetMs,
-    shadowMsPerPage: lights.plan.budget.msPerPage,
     poolPages: lights.shadows
       ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
       : null,

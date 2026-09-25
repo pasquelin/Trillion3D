@@ -16,6 +16,7 @@ import { encodeDirectLights } from './encodeLights.ts';
 import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
+import { encodeEffects } from './encodeEffects.ts';
 import { directLightResources, wantsContractLighting } from '../prepare/lightResources.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -164,8 +165,10 @@ export function encodeSurfaceLighting(
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
-  // lit image itself when this image does not accumulate.
+  // lit image itself when this image does not accumulate. The effect chain follows: its passes
+  // read that image and hand composition the last.
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
+  const composed = encodeEffects(rt, device, encoder, accumulated);
   // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
   // pass stays the same, one colour target aside — that is what isolates presentation. Guides
   // draw on the composed target after it, which the presentation copy then carries.
@@ -175,7 +178,7 @@ export function encodeSurfaceLighting(
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;
-  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation, accumulated);
+  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation, composed);
   if (guided) encodeWebgpuGuides(rt, device, encoder, cam);
   return !!presentation;
 }

@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDagOutput } from './uniforms.ts';
 import { SELECTION_HEADER_WORDS } from './layout.ts';
-import { REQUEST_PRIORITY_MAX, packRequest } from './request.ts';
+import { REQUEST_AHEAD, REQUEST_STEP_MAX, packRequest } from './request.ts';
 import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residency.ts';
 import type { SelectionResult } from '../core/selection.ts';
 
@@ -21,6 +21,7 @@ const HEAD_ORACLE = 4;
  * The readback reduced to what both sides can carry. `drawablePageIds` is normalised — the oracle
  * only wrote the key when a mask existed, the reused readback always carries it. Fields that only
  * one of the two produces — `truncated`, `requestPriorities` that only the oracle publishes,
+ * `aheadPageIds` that only the reader of the view ahead splits off (#488),
  * `complete` that only the oracle still reads (the cut rule leaves no surface undrawn, #486), and
  * the four totals — are STRIPPED and asserted separately: comparing them would ask a side for
  * something it never knew.
@@ -31,6 +32,7 @@ const champs = (releve: (Partial<SelectionResult> & { complete?: boolean }) | nu
     truncated: _t,
     complete: _c,
     requestPriorities: _r,
+    aheadPageIds: _a,
     selectedTriangles: _s,
     drawnTriangles: _d,
     transparentTriangles: _p,
@@ -91,9 +93,11 @@ test('the readback is returned sorted: the costliest request first', () => {
   // in the order of an atomic counter, hence in none; it is the reread that sorts.
   const demandes = [
     packRequest(70, 12),
-    packRequest(11, 900),
+    packRequest(11, 400),
+    packRequest(8, REQUEST_AHEAD | 500),
     packRequest(42, 300),
-    packRequest(5, 900),
+    packRequest(5, 400),
+    packRequest(7, REQUEST_AHEAD | 3),
     packRequest(9, 0),
   ];
   const { neuf } = paire([demandes.length, 0, 0, 0], demandes);
@@ -101,13 +105,15 @@ test('the readback is returned sorted: the costliest request first', () => {
   // Decreasing priority; at equal priority, emission order is kept — it is indifferent, as it is
   // on the WebGL2 path, which does not break ties between two equal errors either.
   assert.deepEqual(releve.pageIds, [11, 5, 42, 70, 9]);
+  // The view ahead's requests leave for their own list, after every visible one (`request.ts`).
+  assert.deepEqual(releve.aheadPageIds, [8, 7]);
 });
 
 test('the sort stays stable on a massive readback where almost everything is tied', () => {
   // The sort is a COUNTING SORT over the one thousand and twenty-four priority steps. A bucket
   // sort breaks where a comparison sort does not: at both ends of the range, and when almost every
   // rank falls in the same bucket. This readback pushes both at once.
-  const PAS = [0, 1, REQUEST_PRIORITY_MAX - 1, REQUEST_PRIORITY_MAX];
+  const PAS = [0, 1, REQUEST_STEP_MAX - 1, REQUEST_STEP_MAX];
   const demandes: number[] = [];
   for (let i = 0; i < 4000; i++) demandes.push(packRequest(i, PAS[i % PAS.length]));
   const { neuf } = paire([demandes.length, 0, 0, 0], demandes);
@@ -115,7 +121,7 @@ test('the sort stays stable on a massive readback where almost everything is tie
   assert.equal(pageIds.length, demandes.length);
   // Decreasing priority from end to end, and AT EQUAL PRIORITY the emission order intact: pages of
   // the same step come out increasing, since that is the order they were emitted in.
-  let precedente = REQUEST_PRIORITY_MAX + 1,
+  let precedente = REQUEST_STEP_MAX + 1,
     dernierePage = -1;
   for (const page of pageIds) {
     const priority = PAS[page % PAS.length];
