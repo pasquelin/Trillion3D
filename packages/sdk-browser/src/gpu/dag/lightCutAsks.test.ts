@@ -7,6 +7,7 @@ import { DAG_RELEVE_WGSL } from './shader/snapshotWgsl.ts';
 import { DAG_VIEWS_WGSL } from './shader/viewsWgsl.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { ASKED_PRIORITY_BITS, ASKED_STAMP_MAX, createAskedStamp } from './askedStamp.ts';
+import { REQUEST_PRIORITY_MAX } from './request.ts';
 
 test('a light cut lists a caster once a frame, at its best request: the contract restated here', () => {
   for (const line of [
@@ -93,5 +94,7 @@ test('the stamp wraps once every ASKED_STAMP_MAX frames, and only the wrap clear
     last = stamp;
   }
   assert.equal(clears, 1);
-  assert.ok((ASKED_STAMP_MAX << ASKED_PRIORITY_BITS) >>> 0 > 0, 'the largest stamp fits the word');
+  const marks = 2 ** ASKED_PRIORITY_BITS;
+  assert.equal(ASKED_STAMP_MAX * marks + marks - 1, 0xffffffff, 'the largest stamp fills the word');
+  assert.ok(REQUEST_PRIORITY_MAX + 1 < marks, 'every priority plus one fits below the stamp');
 });
