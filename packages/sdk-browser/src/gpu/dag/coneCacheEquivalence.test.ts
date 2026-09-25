@@ -5,9 +5,11 @@ import { PAGE_CONE_FLOATS } from '../core/selection.ts';
 import { coldBase } from './layout.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
+import { ruleResidency } from './readiness.fixture.ts';
+import type { DagCutResidency } from './oracle/oracle.ts';
 
 // D5: shader/shader.ts now computes coneRejects once per visible page (dagWanted) and
-// rereads it in dagEscalate/dagCheck/dagMask instead of recomputing. evaluateDagSelectionKernel
+// rereads it in dagMask instead of recomputing. evaluateDagSelectionKernel
 // carries both modes behind its 4th parameter `cacheCone` (oracle/oracle.ts): false recomputes
 // at each site as before batch D5, true caches the first read (always that of the pageIds
 // walk, the CPU equivalent of dagWanted) and rereads it afterwards, like the shader since D5.
@@ -16,7 +18,7 @@ import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 function assertSameSelection(
   dag: ReturnType<typeof packed>['dag'],
   uniforms: ReturnType<typeof kernelUniforms>,
-  resident?: Uint32Array,
+  resident?: DagCutResidency,
 ) {
   const recomputed = evaluateDagSelectionKernel(dag, uniforms, resident, false);
   const cached = evaluateDagSelectionKernel(dag, uniforms, resident, true);
@@ -24,7 +26,6 @@ function assertSameSelection(
   assert.deepEqual(cached.drawablePageIds, recomputed.drawablePageIds, 'drawablePageIds differ');
   assert.equal(cached.frustumRejected, recomputed.frustumRejected);
   assert.equal(cached.lodLevel, recomputed.lodLevel);
-  assert.equal(cached.complete, recomputed.complete);
   return recomputed;
 }
 
@@ -37,14 +38,13 @@ test('normal scene: cache and recompute pick the same pages, several pixelError 
   }
 });
 
-test('resident cut: cache and recompute escalate to the same missing pages', () => {
+test('resident cut: cache and recompute draw the same ancestors of missing pages', () => {
   const { dag, roots } = packed(dagFixture());
   const cam = wideCamera();
   const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);
-  const allMissing = new Uint32Array(dag.pageCount); // no resident page
-  assertSameSelection(dag, uniforms, allMissing);
-  const allResident = new Uint32Array(dag.pageCount).fill(1);
-  assertSameSelection(dag, uniforms, allResident);
+  // No resident page, then everything resident.
+  assertSameSelection(dag, uniforms, ruleResidency(dag, new Uint32Array(dag.pageCount)));
+  assertSameSelection(dag, uniforms, ruleResidency(dag, new Uint32Array(dag.pageCount).fill(1)));
 });
 
 test('degenerate cone: hasBox is zero for every page, coneRejects always false', () => {
@@ -65,7 +65,7 @@ test('camera far from everything: every page is outside the frustum, the cache s
   cam.lookAt(2e6, 0, 0);
   cam.updateMatrixWorld();
   const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);
-  const result = assertSameSelection(dag, uniforms, new Uint32Array(dag.pageCount));
+  const result = assertSameSelection(dag, uniforms, ruleResidency(dag, new Uint32Array(dag.pageCount)));
   assert.equal(result.frustumRejected, dag.pageCount);
   assert.equal(result.pageIds.length, 0);
 });

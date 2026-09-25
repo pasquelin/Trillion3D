@@ -39,9 +39,9 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);
 }
+/** The cluster the cut wants at \`threshold\`: the cut rule with everything resident. */
 fn selects(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32,threshold:f32)->bool{
- if(projected(cluster.lodError,cluster.sphere,e,stretch,focal)>threshold){return false;}
- return projected(cluster.parentError,cluster.parentSphere,e,stretch,focal)>threshold;
+ return drawsCluster(true,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal),true,threshold);
 }
 fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);}
 `;

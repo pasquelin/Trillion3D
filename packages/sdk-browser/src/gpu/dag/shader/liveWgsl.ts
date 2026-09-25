@@ -33,7 +33,7 @@
  * forbids the same buffer as write and as argument in one scope.
  */
 export const DAG_LIVE_WGSL = `fn liveBase()->u32{return views[0u].queueCap+views[0u].clusterCount*2u;}
-fn liveCounter()->u32{return slots()*2u+blockCount()*2u;}
+fn liveCounter()->u32{return blockCount()*2u;}
 fn liveGroups()->u32{return liveCounter()+1u;}
 fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].clusterCount);}
 /** \`entry\` is the candidate's, view included. A light cut also counts each view's live
