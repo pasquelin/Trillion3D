@@ -304,8 +304,8 @@ collider, and is drawn all the same. The page restores the settings and copies t
 command (`packages/sdk-core/src/physics/softLayout.ts`); it builds nothing. A model the page moves
 carries its soft bodies where it now is (TELEPORT), their simulation kept; placed or rescaled at
 another scale than its nodes were cooked at, it has them released and refused (`PHYSICS_FAILED`),
-for Jolt scales no soft body once made. Each takes the flags a page-built one does, its model's
-visibility for its own.
+for Jolt scales no soft body once made, and made again once back at that scale. Each takes the
+flags a page-built one does, its model's visibility for its own.
 
 ## Source glTF
 
