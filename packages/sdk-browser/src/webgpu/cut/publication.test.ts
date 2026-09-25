@@ -56,6 +56,7 @@ function banc() {
     rt,
     residencySets,
     createGroupClosure([], packedPages),
+    { offerIds() {} },
   );
   return {
     publication,

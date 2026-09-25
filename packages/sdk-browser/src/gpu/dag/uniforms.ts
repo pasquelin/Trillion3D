@@ -1,5 +1,11 @@
 import type { PackedDag } from './types.ts';
-import { REQUEST_PRIORITY_MAX, requestPage, requestPriority } from './request.ts';
+import {
+  REQUEST_AHEAD,
+  REQUEST_PRIORITY_MAX,
+  requestPage,
+  requestPriority,
+  requestRank,
+} from './request.ts';
 import {
   OUT_COUNT,
   OUT_FLAGS,
@@ -13,6 +19,8 @@ import {
 import type { SelectionResult } from '../core/selection.ts';
 import type { DagViewUniforms } from './types.ts';
 import { VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
+import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
+import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 
 /** The views one cut runs, the views its buffers hold, and the capacity of each descent queue. */
 export type DagCutViews = { count: number; capacity: number; queueCap: number };
@@ -25,6 +33,7 @@ export type DagCutViews = { count: number; capacity: number; queueCap: number };
 export type DagOutputScratch = {
   result: SelectionResult;
   drawable: number[];
+  ahead: number[];
   /** Counting-sort buckets, one per priority step. Fixed size, allocated once: ranking never
    *  returns anything to the garbage collector, whatever the sample size. */
   seaux: Uint32Array;
@@ -39,8 +48,24 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
     transparentTriangles: 0,
   },
   drawable: [],
+  ahead: [],
   seaux: new Uint32Array(REQUEST_PRIORITY_MAX + 1),
 });
+
+/**
+ * The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's block with
+ * the planes and view ahead, and block 0 says it is there. A block too short to hold it — a light
+ * view's — never carries one.
+ */
+function writeAheadBlock(target: Float32Array, uniforms: DagViewUniforms) {
+  const ahead = uniforms.ahead,
+    at = AHEAD_VIEW * DAG_VIEW_WORDS;
+  if (!ahead || uniforms.light || target.length < at + DAG_VIEW_WORDS) return;
+  target.copyWithin(at, 0, DAG_VIEW_WORDS);
+  target.set(ahead.planes, at);
+  target.set(ahead.view, at + 24);
+  new Uint32Array(target.buffer, target.byteOffset, DAG_VIEW_WORDS)[63] = 1;
+}
 
 /**
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). `views` says how many views the
@@ -84,6 +109,7 @@ export function writeDagUniforms(
   ints[62] = views?.queueCap ?? packed.nodeCount;
   const light = uniforms.light;
   ints[54] = light ? VIEW_LIGHT | VIEW_PAGES : 0;
+  writeAheadBlock(target, uniforms);
   if (!light) return;
   ints[55] = light.rows;
   ints[56] = light.mask[0];
@@ -124,19 +150,27 @@ export function parseDagOutput(
   // that of the sample, exactly what the comparison sort it replaces returned.
   pageIds.length = count;
   seaux.fill(0);
-  for (let i = 0; i < count; i++) seaux[requestPriority(ints[head + i])]++;
+  for (let i = 0; i < count; i++) seaux[requestRank(requestPriority(ints[head + i]))]++;
   // Prefix sum run from the HIGHEST priority to the lowest: the list comes out decreasing
   // without having to reverse it.
-  let place = 0;
+  let place = 0,
+    visible = 0;
   for (let p = REQUEST_PRIORITY_MAX; p >= 0; p--) {
+    if (p === REQUEST_AHEAD - 1) visible = place;
     const tenus = seaux[p];
     seaux[p] = place;
     place += tenus;
   }
   for (let i = 0; i < count; i++) {
     const word = ints[head + i];
-    pageIds[seaux[requestPriority(word)]++] = requestPage(word);
+    pageIds[seaux[requestRank(requestPriority(word))]++] = requestPage(word);
   }
+  // The view ahead's requests follow every visible one: they leave for their own tier.
+  const ahead = scratch.ahead;
+  ahead.length = count - visible;
+  for (let i = visible; i < count; i++) ahead[i - visible] = pageIds[i];
+  pageIds.length = visible;
+  result.aheadPageIds = ahead;
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
   // Totals the GPU holds: they describe the cut, not the list that reports it, so a truncated
