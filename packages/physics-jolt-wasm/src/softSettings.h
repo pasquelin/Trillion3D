@@ -27,7 +27,7 @@ inline JPH::Ref<JPH::SoftBodySharedSettings> softSettings(const uint32_t *vertic
   using namespace JPH;
   if (count < 2) return nullptr;
   Ref<SoftBodySharedSettings> shared = new SoftBodySharedSettings;
-  for (const uint32_t *v = vertices, *end = v + count * 4; v < end; v += 4) {
+  for (const uint32_t *v = vertices, *end = v + count * SOFT_VERTEX_WORDS; v < end; v += SOFT_VERTEX_WORDS) {
     Float3 at;
     (vec3(v) * scale).StoreFloat3(&at);
     shared->mVertices.emplace_back(at, Float3(0, 0, 0), f32(v + 3) > 0 ? 1.0f / f32(v + 3) : 0.0f);
