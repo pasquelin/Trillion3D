@@ -50,6 +50,9 @@ export function createTileScratch(
       GPUTextureUsage.RENDER_ATTACHMENT,
   };
   const texture = device.createTexture(descriptor);
+  /** The texels as uploaded, when they differ from the source's: one array kept for every fill —
+   *  a live texture refills at each video frame, and its size never changes. */
+  let staged: Uint8Array | undefined;
   /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY` and
    *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
    *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
@@ -58,7 +61,10 @@ export function createTileScratch(
     const rgba = textureRgba(map);
     if (rgba) {
       if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
-      const texels = uploadedRgba(map, rgba.data, width, height);
+      const texels =
+        map.flipY || map.premultiplyAlpha
+          ? uploadedRgba(map, rgba.data, (staged ??= new Uint8Array(width * height * 4)), width)
+          : rgba.data;
       writeRgba(device.queue, texture, [0, 0, 0], texels, width, height);
     } else {
       const image = map.image as GPUCopyExternalImageSource | undefined;
@@ -81,13 +87,12 @@ export function createTileScratch(
   };
 }
 
-/** RGBA8 texels as the WebGL2 upload stores them: rows in reverse order under `flipY`, colour
- *  times alpha under `premultiplyAlpha` (`premultipliedByte`, the CPU twin's rule). The source
- *  itself when neither is asked. */
-function uploadedRgba(map: Texture, data: Uint8Array, width: number, height: number) {
-  if (!map.flipY && !map.premultiplyAlpha) return data;
+/** RGBA8 texels as the WebGL2 upload stores them, written into `out`, which it returns: rows in
+ *  reverse order under `flipY`, colour times alpha under `premultiplyAlpha` (`premultipliedByte`,
+ *  the CPU twin's rule). */
+function uploadedRgba(map: Texture, data: Uint8Array, out: Uint8Array, width: number) {
   const row = width * 4,
-    out = new Uint8Array(row * height);
+    height = out.length / row;
   for (let y = 0; y < height; y++) {
     const from = y * row,
       to = (map.flipY ? height - 1 - y : y) * row;

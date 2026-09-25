@@ -709,7 +709,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Cluster başına DAG hataları için önbellek kimliği: grup küresi üzerinden izdüşürülen grup QEM hatası."
+    "summary": "Küme başına DAG hataları için önbellek kimliği: konumlar, normaller ve doku koordinatları üzerinden grubun mutlak QEM hatası, grubun boyutuyla sınırlı; v1 önbelleği reddedilir."
   },
   "DEFAULT_SCOPE": {
     "summary": "Hiçbiri adlandırılmadığında bir modelin derlendiği kapsam: sayfalar halinde akışlı."

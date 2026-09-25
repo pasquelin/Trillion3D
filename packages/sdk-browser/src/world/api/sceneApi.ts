@@ -130,11 +130,11 @@ export function createExplorerSceneApi(inputs: Inputs) {
     },
     /** Host surfaces rewritten in place are read again; false when the active path cannot — or
      *  cannot for this change, a picture that changed size —, and only a new session will draw
-     *  them. */
-    refreshMaterials() {
+     *  them. `values` false says only their textures moved (`BackendSceneUpdates`). */
+    refreshMaterials(values = true) {
       check();
       const active = getActive();
-      return !!active.refreshMaterials && active.refreshMaterials() !== false;
+      return !!active.refreshMaterials && active.refreshMaterials(values) !== false;
     },
     updateMaterial(primitive: string, material: Material) {
       check();

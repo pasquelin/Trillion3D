@@ -887,11 +887,16 @@ changed with `light.visible = false`, `model.remove(light)` or `light.intensity 
 second — another application, another tab —, so a budget measured at start-up would be wrong five
 minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both 512 MiB by
 default: the geometry pool (cluster page slots, the root cover always resident) and the texture pool
-(virtual-texture tiles, every texture's tail always resident). The WebGL2 engine holds the same
-geometry budget, drawn by the same rule: its cut draws coarser beyond it, and the pages no frame
-keeps leave oldest first. While a view refines, the pool can go past its budget by at most the
-ancestors still drawn in place of the pages replacing them, and is back under it at the next cut
-once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
+(virtual-texture tiles, every texture's tail always resident). A live texture — a video, a canvas
+redrawn every frame — keeps one working texture of its own size, and those bytes are texture memory
+too: the metric `textureLiveBytes` reports them, and they are taken out of the texture budget. The
+texture pool is drawn from the declared budget less `textureLiveBytes` — the pool a budget write
+reports carries that difference —, while the budget recorded stays the declared one: the pool is
+drawn again, tiles kept, when a texture turns live and at every budget written after. The WebGL2
+engine holds the same geometry budget, drawn by the same rule: its cut draws coarser beyond it, and
+the pages no frame keeps leave oldest first. While a view refines, the pool can go past its budget
+by at most the ancestors still drawn in place of the pages replacing them, and is back under it at
+the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `geometryPoolAllocatedBytes` is `null`). It has no texture pool:
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
