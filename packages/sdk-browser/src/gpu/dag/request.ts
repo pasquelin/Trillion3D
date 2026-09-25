@@ -29,8 +29,10 @@ export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1;
 export const REQUEST_AHEAD = (REQUEST_PRIORITY_MAX + 1) >> 1;
 /** The highest error step of either tier. */
 export const REQUEST_STEP_MAX = REQUEST_AHEAD - 1;
-/** Quantization step: eight steps per error doubling, over sixty-four doublings. */
-export const REQUEST_PRIORITY_SCALE = 8;
+/** Quantization step: sixteen steps per error doubling, as before the tier bit, over thirty-two
+ *  doublings — four billion pixels, past any finite error a screen projects; the near plane
+ *  reached is `Infinity`, the tier's highest step. */
+export const REQUEST_PRIORITY_SCALE = 16;
 
 /** Priority of an error in pixels, monotone increasing and bounded within its tier. `Infinity`
  *  takes the tier's highest step: a cluster nothing replaces is what is missing most. */

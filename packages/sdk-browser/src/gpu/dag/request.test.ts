@@ -145,7 +145,7 @@ test('published order decreases with the substitute’s screen error, like the W
   // Published order never rises beyond ONE quantification STEP. Two reasons, and not one more:
   // between two clusters of the same step order is indifferent — the reference does not break
   // those ties either —, and the boundary between two steps is floating, the kernel rounding in
-  // f32 what this proof recomputes in f64. One step is 2^(1/8), i.e. 9.05 %.
+  // f32 what this proof recomputes in f64. One step is 2^(1/16), i.e. 4.43 %.
   const PAS = 2 ** (1 / REQUEST_PRIORITY_SCALE);
   for (let i = 1; i < pixels.length; i++)
     assert.ok(
