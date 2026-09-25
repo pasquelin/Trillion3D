@@ -1,5 +1,9 @@
 import { createWebglProgram } from '../core/program.ts';
-import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../core/fullscreenPass.ts';
+import {
+  FULLSCREEN_DISABLED,
+  FULLSCREEN_VERTEX,
+  setFullscreenPassState,
+} from '../core/fullscreenPass.ts';
 import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
 
 /**
@@ -26,25 +30,11 @@ void main(){
  color=vec4(weighted&&any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,(u+v)*0.5);
 }`;
 
-/** The capabilities a reduction turns off (`setFullscreenPassState`, and the stencil test),
- *  restored after it. */
-const TOGGLES = [
-  'BLEND',
-  'CULL_FACE',
-  'DEPTH_TEST',
-  'DITHER',
-  'SCISSOR_TEST',
-  'STENCIL_TEST',
-] as const;
+/** The capabilities a reduction turns off, restored after it. */
+const TOGGLES = [...FULLSCREEN_DISABLED, 'STENCIL_TEST'] as const;
 
-/** A texture as the reducer reads it: its GL name, its format and size, its colour rule. */
-type Chain = {
-  texture: WebGLTexture;
-  format: number;
-  width: number;
-  height: number;
-  weighted?: boolean;
-};
+/** A texture as the reducer reads it: its GL name, its format and size. */
+type Chain = { texture: WebGLTexture; format: number; width: number; height: number };
 
 /**
  * The material mip chain on WebGL2 (#42): one draw per level into a framebuffer on that level, in
@@ -80,10 +70,9 @@ export class WebglMipReducer {
     };
   }
   /** Draws levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
-   *  one above it, `weighted` or not, which the chain keeps; `allocate` first gives them storage —
-   *  a new size, or a first chain. */
+   *  one above it, `weighted` or not; `allocate` first gives them storage — a new size, or a
+   *  first chain. */
   reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean) {
-    chain.weighted = weighted;
     const gl = this.gl,
       { texture, format, width, height } = chain;
     const levels = mipLevelCountFor(width, height);
