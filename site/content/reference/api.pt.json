@@ -2231,10 +2231,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "O que um `cut` devolve: suas páginas, e a grade de posições sobre a qual foram quantizadas.",
+    "summary": "O que um `cut` devolve: suas páginas, e as grades sobre as quais foram quantizadas.",
     "members": {
       "pages": "As páginas escritas.",
       "positionExponent": "Passo da grade de posições, como uma potência de dois.",
+      "uvExponent": "Passo da grade de coordenadas de textura, como uma potência de dois.",
       "maxPositionError": "Maior erro de posição nessa grade."
     }
   },
