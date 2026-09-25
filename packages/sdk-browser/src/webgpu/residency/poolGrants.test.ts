@@ -63,6 +63,17 @@ test('a geometry pool the device refuses is drawn at half its bytes until grante
   ]);
 });
 
+test('a refused geometry pool halves its slots, never the vertex buffers held beside them', async () => {
+  const { device } = refusingDevice(200);
+  const { diagnose } = diagnostics();
+  const held = (budgetBytes: number) =>
+    geometryPoolFor({ budgetBytes, pageBytes: 8, uniquePages: 100, rootPages: 2, heldBytes: 400 });
+  const probe = geometryProbe(device);
+  const granted = await grantedGeometryPool(device, 1200, held, diagnose, probe, 400);
+  // 800 → 400 → 200 bytes of slots, beside the 400 held: not straight down to the root cover.
+  assert.deepEqual([granted?.pool.allocatedBytes, granted?.pool.clamp], [200, null]);
+});
+
 test('a pool granted at once is drawn as asked and says nothing', async () => {
   const { device } = refusingDevice(Infinity);
   const { seen, diagnose } = diagnostics();
