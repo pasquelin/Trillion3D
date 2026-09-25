@@ -127,7 +127,7 @@ export function manifest(): ClusterManifest {
     simplification: true,
     sourceTriangles: 8,
     selectedTriangles: 8,
-    selectedNodes: [0, 1],
+    selectedNodes: 2,
     totalNodes: 2,
     autonomousScene: null,
     texturePreviews: [

@@ -11,8 +11,6 @@ export const viewProj = new Float64Array(16);
 /** Three linear components reread immediately: a diagnostic colour allocates nothing more. */
 const tint = new Float64Array(3);
 export const PAGES_GREEN: [number, number, number] = [0.204, 0.827, 0.6];
-/** Ceiling on the screen error the GPU page budget may impose; past it the root cover is the cut. */
-export const MAX_BUDGET_PIXEL_ERROR = 4096;
 
 /** First GPU readback evidence: requested clear versus two actual pixels from the color target. */
 export function outputColorDiagnostic(

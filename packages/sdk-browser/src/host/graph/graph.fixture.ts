@@ -12,13 +12,13 @@ import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basi
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { resolveCameraWorld } from '../../camera/world.ts';
 import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts';
-import { GraphAttribute } from './attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphCamera } from './camera.ts';
 import { GraphGeometry } from './geometry.ts';
 import { GraphMesh } from './mesh.ts';
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
 import { GraphTexture } from './texture.ts';
-import { GraphNode } from './node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 
 export { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
@@ -29,11 +29,16 @@ export { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 export { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
 export { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 export * from '../surfaceConstants.ts';
-export { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } from './attributes.ts';
+export {
+  BufferAttribute,
+  InterleavedBufferAttribute,
+  InterleavedBuffer,
+} from '../../../../sdk-core/src/world/buffer/attribute.ts';
 export { GraphCamera } from './camera.ts';
 export { GraphGeometry } from './geometry.ts';
 export { GraphLight } from './light.ts';
-export { GraphGroup, GraphMesh } from './mesh.ts';
+export { GraphMesh } from './mesh.ts';
+export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 export { GraphNode } from './node.ts';
 export { GraphScene } from './scene.ts';
 export { GraphSurface } from './surface.ts';
@@ -76,7 +81,7 @@ function surface(family: GraphSurfaceFamily, parameters: SurfaceParameters = {})
 
 /** Numbers stored as 32-bit floats, `itemSize` per vertex. */
 export const floatAttribute = (values: ArrayLike<number>, itemSize: number, normalized = false) =>
-  new GraphAttribute(new Float32Array(values), itemSize, normalized);
+  new BufferAttribute(new Float32Array(values), itemSize, normalized);
 
 /** A perspective eye by its optics. */
 export const perspectiveCamera = (fov = 50, aspect = 1, near = 0.1, far = 2000) =>
@@ -138,7 +143,7 @@ export const sphereGeometry = (...sizes: Parameters<typeof sphere>) =>
 
 /** A triangle list as the reference stores one: 16-bit while every vertex fits, else 32-bit. */
 export const indices = (list: readonly number[]) =>
-  new GraphAttribute(
+  new BufferAttribute(
     list.some((i) => i >= 65535) ? new Uint32Array(list) : new Uint16Array(list),
     1,
   );
@@ -150,13 +155,13 @@ export const xyz = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z];
 export const xyzw = (q: { x: number; y: number; z: number; w: number }) => [q.x, q.y, q.z, q.w];
 
 /** Where a node stands in the world, its chain resolved first. */
-export function worldPosition(node: GraphNode, target = new Vector3()) {
+export function worldPosition(node: Object3D, target = new Vector3()) {
   return target.setFromMatrixPosition(resolveCameraWorld(node).matrixWorld);
 }
 
 /** The first node of the subtree with that name, the root included. */
-export function byName(root: GraphNode, name: string) {
-  let found: GraphNode | undefined;
+export function byName(root: Object3D, name: string) {
+  let found: Object3D | undefined;
   root.traverse((node) => {
     if (!found && node.name === name) found = node;
   });

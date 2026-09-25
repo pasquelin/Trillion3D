@@ -21,7 +21,7 @@ test('source instance transforms update all three WebGL backends without rebuild
     const geometry = triangleGeometry();
     const material = G.basicSurface(),
       mesh = G.mesh(geometry, material),
-      source = new G.GraphGroup();
+      source = new G.Group();
     source.add(mesh);
     const page = {
       id: 0,
@@ -50,7 +50,7 @@ test('source instance transforms update all three WebGL backends without rebuild
     backend.render(camera);
     if (backend.id === 'exact-cluster-pages') assert.equal(backend.metrics().selectedTriangles, 0);
     else {
-      const object = asHostLibrary<G.GraphNode[]>(backend.scene.children).find(
+      const object = asHostLibrary<G.Object3D[]>(backend.scene.children).find(
         // The engine's backends draw graph meshes; the witnesses publish their library's.
         (child) =>
           G.isDrawnNode(child) || ['Mesh', 'LOD'].includes((child as { type?: string }).type ?? ''),

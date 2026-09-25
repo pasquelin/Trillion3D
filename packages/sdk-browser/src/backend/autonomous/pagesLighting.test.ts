@@ -18,7 +18,7 @@ test('the autonomous path lights from the contract table, not from the source gr
     geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
     primitives: [],
   } as unknown as ClusterManifest;
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   source.add(G.directionalLight(0xffffff, PHOTOMETRIC));
   const sceneLights = createSceneLightStore();
   sceneLights.add({
@@ -38,7 +38,7 @@ test('the autonomous path lights from the contract table, not from the source gr
     readGeometryPage: async () => new Uint8Array(),
   });
   try {
-    const shown = (object: G.GraphNode): boolean =>
+    const shown = (object: G.Object3D): boolean =>
       object.visible && (!object.parent || shown(object.parent));
     const lit: number[] = [];
     (backend.scene as G.GraphScene).traverse((object) => {

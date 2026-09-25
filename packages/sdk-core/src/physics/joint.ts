@@ -1,47 +1,18 @@
-import type { Vec3Input } from '../world/math/vector3.ts';
 import type { Object3D } from '../world/object/object3d.ts';
+import type { JointKind, JointMotor, JointOptions } from './jointOptions.ts';
 
-/** The joints between bodies, each one of Jolt's own constraints. */
-export type JointKind = 'fixed' | 'point' | 'hinge' | 'slider' | 'distance' | 'cone';
+export type {
+  JointKind,
+  JointLimits,
+  JointMotor,
+  JointOptions,
+  SixDofAxis,
+} from './jointOptions.ts';
 
-/** How far a joint may move: radians for a hinge, metres for a slider or a distance, the cone's
- *  half angle (`max`) for a cone. */
-export interface JointLimits {
-  /** A hinge's from −π to 0, a slider's 0 or below. */ min?: number;
-  /** A hinge's from 0 to π, a slider's 0 or above. */ max?: number;
-}
-
-/** A hinge's or a slider's motor: it drives the joint to a velocity or to a position. */
-export interface JointMotor {
-  /** `'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made. */
-  mode: 'velocity' | 'position';
-  /** The velocity or the position to reach. */ target: number;
-  /** N·m for a hinge, N for a slider; left out, no bound. */ maxForce?: number;
-}
-
-/** What `joint.*` accepts. Points and axes are in the world, read when the joint is first made. */
-export interface JointOptions {
-  /** Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance
-   *  on `a`. @defaultValue a's position */
-  anchor?: Vec3Input;
-  /** The end of a distance on `b`. @defaultValue b's position, or `anchor` with the world */
-  anchorB?: Vec3Input;
-  /** A hinge's pin, a slider's rail, a cone's middle. @defaultValue [0, 1, 0] */
-  axis?: Vec3Input;
-  /** Hinge, slider, distance and cone: how far it moves. A distance's default is its length. */
-  limits?: JointLimits;
-  /** Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall;
-   *  `frequency` in Hz, `damping` from 0 (none) to 1 (critical). */
-  spring?: { frequency: number; damping?: number };
-  /** Hinge and slider: a motor, changed at any time through `joint.motor`. */
-  motor?: JointMotor | null;
-  /** Newtons of pull past which the joint breaks; left out, never. */
-  breakForce?: number;
-}
-
-/** The tunings each kind has. */
+/** The options each kind has, past `anchor`, `anchorB`, `axis` and `breakForce`. */
 const ALL = ['limits', 'spring', 'motor'] as const;
-type Tuning = (typeof ALL)[number];
+type Tuning =
+  (typeof ALL)[number] | 'axes' | 'axisB' | 'path' | 'loop' | 'follow' | 'over' | 'ratio';
 const TUNINGS: Record<JointKind, readonly Tuning[]> = {
   fixed: [],
   point: [],
@@ -49,10 +20,25 @@ const TUNINGS: Record<JointKind, readonly Tuning[]> = {
   slider: ALL,
   distance: ['limits', 'spring'],
   cone: ['limits'],
+  swingTwist: ['limits', 'motor'],
+  sixDof: ['axes', 'spring', 'motor'],
+  path: ['path', 'loop', 'follow', 'motor'],
+  pulley: ['over', 'ratio', 'limits'],
+  gear: ['axisB', 'ratio'],
+  rackAndPinion: ['axisB', 'ratio'],
 };
+const OPTIONS = [...new Set(Object.values(TUNINGS).flat())];
 const refuse = (kind: JointKind, tuning: Tuning) => {
   if (!TUNINGS[kind].includes(tuning)) throw new RangeError(`A ${kind} joint has no ${tuning}.`);
 };
+/** What a kind cannot be made without: a second body, a track, the wheels. */
+function required(kind: JointKind, b: Object3D | null, options: JointOptions) {
+  if (!b && (kind === 'pulley' || kind === 'gear' || kind === 'rackAndPinion'))
+    throw new RangeError(`A ${kind} joint connects two bodies.`);
+  if (kind === 'path' && (options.path?.length ?? 0) < 2)
+    throw new RangeError('A path joint needs a path of two points or more.');
+  if (kind === 'pulley' && !options.over) throw new RangeError('A pulley joint needs its wheels.');
+}
 
 /**
  * A joint between two bodies, or a body and the world (`b` null), made by `joint.*` and added to
@@ -67,8 +53,9 @@ export class Joint {
    *  simulation — the motor changed. */
   _host: { motor(joint: Joint): void } | null = null;
   /** The joint's id in the simulation (slot and generation), -1 outside one. */ _id = -1;
-  /** Each end's `point, axis, normal` in its body's frame, fixed when first made. */
-  _frames: { a: number[]; b: number[]; length: number } | null = null;
+  /** Each end's `point, axis, normal` in its body's frame, and the kind's own words (a path's
+   *  track in `b`'s), fixed when first made. */
+  _frames: { a: number[]; b: number[]; length: number; extra: number[] } | null = null;
 
   /** What the joint is. */ readonly kind: JointKind;
   /** The first body. */ readonly a: Object3D;
@@ -81,10 +68,12 @@ export class Joint {
     this.b = b;
     this.options = options;
     if (a === b) throw new RangeError('A joint connects two different bodies.');
-    for (const tuning of ALL) if (options[tuning] != null) refuse(kind, tuning);
+    for (const tuning of OPTIONS) if (options[tuning] != null) refuse(kind, tuning);
+    required(kind, b, options);
     this._motor = options.motor ?? null;
   }
-  /** The motor, a hinge's or a slider's; `null` lets the joint turn or slide freely. */
+  /** The motor of a hinge, a slider, a swing-twist, a six-DOF or a path; `null` lets the joint
+   *  move freely. */
   get motor() {
     return this._motor;
   }
@@ -130,4 +119,20 @@ export const joint = {
   distance: make('distance'),
   /** A ball joint whose `axis` swings within a cone of half angle `limits.max`. */
   cone: make('cone'),
+  /** A shoulder: `axis` swings within a cone of half angle `limits.swing` and twists about
+   *  itself between `limits.min` and `max`; its motor drives the twist. */
+  swingTwist: make('swingTwist'),
+  /** Six axes, each locked, free or limited (`axes`): any joint in between the others. */
+  sixDof: make('sixDof'),
+  /** `a` runs along a smooth track through `path`, fixed to `b` or the world: a roller coaster. */
+  path: make('path'),
+  /** A rope from `a` over two wheels (`over`) down to `b`: one rises as the other falls. */
+  pulley: make('pulley'),
+  /** Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`) and held
+   *  by its own hinge (the wheel as its `a`); when `ratio` or 1 / `ratio` is whole, their teeth
+   *  also keep the phase they were made in. */
+  gear: make('gear'),
+  /** A pinion `a` turning about `axis` drives a rack `b` along `axisB`, each held by its own
+   *  hinge or slider (the body as its `a`), their teeth kept in the phase they were made in. */
+  rackAndPinion: make('rackAndPinion'),
 };

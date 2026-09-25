@@ -2,7 +2,7 @@ import { followLightThreshold } from '../prepare/lightResources.ts';
 import { normalizeVector3, type ShadowViewpoint } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
-import { pixelNearOf } from '../../../camera/pixelFootprint.ts';
+import { pixelNearOf } from '../../../streaming/priority.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { createShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
@@ -82,8 +82,8 @@ export function planShadowRegions(
     plan.releaseDeferred();
     return 0;
   }
-  // The light cuts measure their error at the camera's threshold, budget included.
-  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError, rt.run.budgetPixelError);
+  // The light cuts measure their error at the camera's threshold.
+  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError);
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
   const box = lights.sceneBox(rt.layout);
   ensureStaticLayer(rt);

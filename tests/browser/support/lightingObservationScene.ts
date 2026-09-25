@@ -53,7 +53,7 @@ export type ExperimentScene = ReturnType<typeof experimentScene>;
 
 /** The host source graph: one quad per rectangle, named after it, and the sphere. */
 export function hostSource(scene: ExperimentScene) {
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   for (const surface of scene.surfaces) {
     const [ox, oy, oz] = surface.origin,
       [ux, uy, uz] = surface.u,

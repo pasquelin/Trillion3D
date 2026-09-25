@@ -1,5 +1,6 @@
 use super::*;
 pub(in crate::tests) mod buffers_budget;
+pub(in crate::tests) mod cooked_pages;
 pub(in crate::tests) mod dag_bundles;
 pub(in crate::tests) mod dag_dependencies;
 pub(in crate::tests) mod indices_runtime;
@@ -9,3 +10,4 @@ pub(in crate::tests) mod progress;
 pub(in crate::tests) mod simplification_none;
 pub(in crate::tests) mod sources_materials;
 pub(in crate::tests) mod sparse_admission;
+pub(in crate::tests) mod terrain_tiles;

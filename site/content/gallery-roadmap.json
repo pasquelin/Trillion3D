@@ -64,9 +64,7 @@
     {
       "id": "colours-on-the-vertices",
       "theme": "geometry",
-      "file": "examples/colours-on-the-vertices.html",
-      "status": "waiting-engine",
-      "issue": 347
+      "file": "examples/colours-on-the-vertices.html"
     },
     {
       "id": "uvs-of-every-shape",
@@ -1075,14 +1073,13 @@
     {
       "id": "a-town-in-the-fog",
       "theme": "environment",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-town-in-the-fog.html"
     },
     {
       "id": "fog-on-the-ground",
       "theme": "environment",
       "file": "",
-      "status": "needs-engine"
+      "status": "buildable"
     },
     {
       "id": "fog-that-scatters-light",
@@ -1472,6 +1469,11 @@
       "id": "hinges-and-joints",
       "theme": "physics",
       "file": "examples/hinges-and-joints.html"
+    },
+    {
+      "id": "gears-and-pulleys",
+      "theme": "physics",
+      "file": "examples/gears-and-pulleys.html"
     },
     {
       "id": "walk-with-collisions",

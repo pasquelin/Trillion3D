@@ -13,16 +13,15 @@
  * every node of the graph is one this file built, of the engine's own (`../../host/graph/`).
  */
 import { isDrawnNode } from '../../host/graph/kinds.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
-import { GraphAttribute } from '../../host/graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
-import { GraphGroup, GraphMesh } from '../../host/graph/mesh.ts';
-import { type GraphNode } from '../../host/graph/node.ts';
+import { GraphMesh } from '../../host/graph/mesh.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
@@ -31,11 +30,11 @@ import type { PosedTwin } from './worldPoses.ts';
 /** The geometry of drawn triangles, under the attribute names a mesh reads. */
 function hostGeometry(drawn: DrawnTriangles) {
   const geometry = new GraphGeometry();
-  geometry.setAttribute('position', new GraphAttribute(drawn.positions, 3));
-  geometry.setAttribute('normal', new GraphAttribute(drawn.normals, 3));
-  if (drawn.uvs) geometry.setAttribute('uv', new GraphAttribute(drawn.uvs, 2));
-  if (drawn.colors) geometry.setAttribute('color', new GraphAttribute(drawn.colors, 4));
-  geometry.setIndex(new GraphAttribute(drawn.indices, 1));
+  geometry.setAttribute('position', new BufferAttribute(drawn.positions, 3));
+  geometry.setAttribute('normal', new BufferAttribute(drawn.normals, 3));
+  if (drawn.uvs) geometry.setAttribute('uv', new BufferAttribute(drawn.uvs, 2));
+  if (drawn.colors) geometry.setAttribute('color', new BufferAttribute(drawn.colors, 4));
+  geometry.setIndex(new BufferAttribute(drawn.indices, 1));
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
@@ -45,27 +44,33 @@ function hostGeometry(drawn: DrawnTriangles) {
  *  mesh rank each geometry resource was given in the session's manifest. */
 type MirrorInput = {
   placed: readonly { cut: Cut; material: Material; rows: PlacementRows; name: string }[];
-  models: readonly { node: Object3D; graph: GraphNode }[];
+  models: readonly { node: Object3D; graph: Object3D }[];
   rankOf: (cut: Cut) => number;
 };
 
 /** The host graph of a world's session, and the twins the world poses before a frame. */
 export function buildWorldMirror(input: MirrorInput) {
-  const root = new GraphGroup();
+  const root = new Group();
   const twins = new Map<Object3D, PosedTwin>();
   const associations = new Map<
-    GraphNode,
+    Object3D,
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
   const geometries = new Map<Cut, GraphGeometry>(),
-    surfaces = new Map<Material, GraphSurface>(),
+    // One surface per material, and a second one when the material asks for vertex colours and
+    // is worn by geometries with and without them: the material decides, as in the reference
+    // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
+    // it is worn by lines: the line surface is widened and lifted (`hostSurface`).
+    surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    let surface = surfaces.get(material);
-    if (!surface)
-      surfaces.set(material, (surface = hostSurface(material, !!cut.drawn.colors, textures)));
+    const tinted = !!material.vertexColors && !!cut.drawn.colors,
+      lines = !!cut.drawn.lines;
+    let worn = surfaces.get(material);
+    if (!worn) surfaces.set(material, (worn = []));
+    const surface = (worn[lines ? 2 : +tinted] ??= hostSurface(material, tinted, textures, lines));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
@@ -75,7 +80,7 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(mesh);
   }
   for (const { node, graph } of input.models) {
-    const twin = new GraphGroup();
+    const twin = new Group();
     twin.add(graph);
     twin.name = node.name;
     twin.matrixAutoUpdate = false;
@@ -86,16 +91,16 @@ export function buildWorldMirror(input: MirrorInput) {
   /** Writes a repainted material entry's values into the host surface built for it; false when
    *  this mirror built none. */
   const repaint = (material: Material) => {
-    const surface = surfaces.get(material);
-    if (surface) repaintHostSurface(surface, material);
-    return !!surface;
+    const worn = surfaces.get(material);
+    for (const surface of worn ?? []) if (surface) repaintHostSurface(surface, material);
+    return !!worn;
   };
   return { root, twins, associations, repaint };
 }
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many
  *  host meshes share it; a loaded model's are kept. */
-export function releaseWorldMirror(root: GraphNode) {
+export function releaseWorldMirror(root: Object3D) {
   const released = new Set<object>();
   for (const twin of root.children) {
     if (!isDrawnNode(twin)) continue;

@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Siempre `true`: distingue un atributo de búfer de todo lo demás.",
       "type": "Cómo se declararon los valores; un atributo en semiflotantes se conserva en precisión flotante.",
-      "normalized": "Si los números enteros se leen como valores entre 0 y 1.",
       "version": "Aumentado en cada escritura declarada: lo que el mundo compara para ver que el contenido ha cambiado.",
       "array": "Los números mismos.",
-      "itemSize": "Cuántos números pertenecen a un vértice: 3 para una posición.",
       "count": "Cuántos vértices describen los números.",
-      "needsUpdate": "`attribute.needsUpdate = true` después de escribir `array`: el mundo lo vuelve a leer.",
-      "getComponent": "El número `component` del vértice `index`.",
-      "getX": "El primer número del vértice `i`.",
-      "getY": "El segundo número del vértice `i`.",
-      "getZ": "El tercer número del vértice `i`.",
-      "getW": "El cuarto número del vértice `i`.",
-      "setXYZ": "Escribe tres números para el vértice `i`.",
-      "setXY": "Escribe dos números para el vértice `i`.",
-      "setX": "Escribe el primer número del vértice `i`.",
-      "clone": "Un nuevo atributo con una copia de los números."
+      "needsUpdate": "`needsUpdate = true` tras escribir `array`: un lector lo vuelve a subir.",
+      "clone": "Un atributo nuevo con una copia de los números, su tipo, su normalización y su nombre.",
+      "kind": "El atributo posee su búfer.",
+      "updateRanges": "Rangos de `array` escritos desde la última subida, enviados solos.",
+      "addUpdateRange": "Marca `count` números escritos desde `start`.",
+      "clearUpdateRanges": "Olvida los rangos escritos, una vez subidos."
     }
   },
   "BufferNumbers": {
@@ -644,6 +638,7 @@
       "top": "Borde superior del cuadro ortográfico.",
       "bottom": "Borde inferior del cuadro ortográfico.",
       "projection": "`'perspective'` hace pequeño lo lejano; `'orthographic'` conserva todos los tamaños.",
+      "copy": "Toma los valores de nodo de `source` y, de una cámara, su óptica; su propia `projection` se mantiene.",
       "updateProjectionMatrix": "Conservado para las páginas escritas para un motor de renderizado que lo necesite: cada escritura de óptica ya vuelve a dibujar.",
       "rayThrough": "El rayo del mundo que pasa por un punto de la imagen, según la propia proyección del motor (`engineCamera.ts`): desde el ojo a lo largo de la vista para una cámara en perspectiva, recto en el eje de la vista desde la caja para una ortográfica. Su dirección es un vector unitario.",
       "set": "Coloca el ojo en `pose.position`, mirando a `pose.target`, con el campo que indica."
@@ -1693,6 +1688,10 @@
       "autoForward": "CRUCERO, desactivado por defecto: la cámara vuela hacia adelante a `movementSpeed` sin ninguna tecla pulsada, como un avión. W añade entonces `movementSpeed` (el doble de rápido) y S lo retira (la cámara se queda quieta); nunca retrocede. Nada se mueve antes del siguiente `update`, así que un host que redibuja en `change` pide un fotograma cuando activa el crucero."
     }
   },
+  "Fog": {
+    "summary": "Niebla sobre cada superficie: lineal de `near` a `far`, o que se espesa con la distancia según `density`, y se aclara en altura por encima de `baseHeight` cuando se da `heightFalloff`.",
+    "description": "El color es la luz que la niebla dispersa hacia el ojo, expuesta y pasada por la curva de visualización como la de una superficie."
+  },
   "FORMAT_VERSION": {
     "summary": "Formato de caché que lee este motor.",
     "description": "El formato 5 lleva `scene-tables.json`, las tablas de nodos y materiales contra las que se verifica la escena preparada; los formatos 3 y 4 no tienen este producto y se rechazan por su número en lugar de leerse a medias."
@@ -1740,8 +1739,8 @@
       "transparentDrawCalls": "Llamadas de dibujo transparentes.",
       "transparentSubmittedTriangles": "Triángulos transparentes enviados.",
       "coverageReady": "El repliegue de GPU inicial completo está disponible; nulo para motores sin esta garantía.",
-      "coverageBudgetLimited": "El detalle solicitado no puede coexistir con el repliegue fijado en el presupuesto de páginas de GPU.",
-      "budgetPixelError": "Suelo de error en pantalla que el presupuesto de páginas de GPU impone al corte, en píxeles: `0` cuando el detalle solicitado cabe, si no el umbral más grueso al que se dibuja la imagen. Nulo para motores sin presupuesto de páginas.",
+      "coverageBudgetLimited": "El detalle solicitado necesita más páginas de las que caben en el presupuesto de páginas de GPU: el resto se dibuja más grueso.",
+      "budgetPixelError": "Solo WebGL2: suelo de error en pantalla que su presupuesto de páginas impone al corte, en píxeles — `0` cuando el detalle solicitado cabe, si no el umbral más grueso al que se dibuja la imagen. Ausente en WebGPU, donde solo la residencia vuelve más gruesa la imagen. Nulo para motores sin presupuesto de páginas.",
       "frameHeld": "Verdadero cuando el fotograma se mantuvo: ni la escena, ni la vista, ni los recursos se movieron, ningún trabajo asíncrono estaba pendiente, y ninguna etapa de CPU corrió. Los píxeles mostrados son los del fotograma original, bit a bit. Lo que HIZO el fotograma mantenido se publica tal cual, nunca copiado del último renderizado completo: `drawCalls`, `triangles`, `submittedTriangles` y `totalSubmittedTriangles` solo cuentan la presentación, y las duraciones de CPU y GPU por etapa valen cero cuando la etapa no corrió, `null` cuando nada la cronometró. Un motor cuya imagen es una escena que dibuja el adaptador testigo cuenta lo que ese adaptador envió en ese fotograma — nada, para un fotograma mantenido. Lo que MUESTRA el fotograma mantenido sigue descrito por el corte que vuelve a mostrar: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` y `residentPages` son los del fotograma original, ya que es el mismo corte. Ausente en un motor que no mantiene sus fotogramas.",
       "streamingError": "Error de carga persistente; las URL fallidas piden recargar el explorador tras tres intentos.",
       "gpuPassMs": "Última medición de pases de GPU de este motor; nulo cuando el dispositivo no sabe hacer marcas de tiempo.",
@@ -2383,10 +2382,6 @@
   "HostGeometry": {
     "summary": "Una geometría del host: sus atributos, y la caja local que el host calculó sobre ella."
   },
-  "HostGraphNode": {
-    "summary": "Un nodo del grafo del host tal como lo ve un recorrido: su identidad, su pose local, la matriz del mundo que el host resolvió para él, y su cadena.",
-    "description": "El motor calcula sus PROPIAS matrices del mundo a partir de las poses locales (`../world/tree.ts`); `matrixWorld` se lee donde es la resolución propia del HOST que una frontera le devuelve. POR QUÉ `HostPlaced` (`../resources.ts`) TAMBIÉN DESCRIBE UN NODO COLOCADO. Los dos no son una copia: se apoyan en las dos resoluciones distintas que ofrece un host. `HostPlaced` pide `updateWorldMatrix(ancestors, descendants)` — la cadena de UN nodo, lo que devuelven una colocación y un recorrido de visibilidad; este pide `updateMatrixWorld(force)` — el SUBÁRBOL bajo un nodo, lo que resuelven en una llamada un recorrido, una unión de límites y una réplica. Un host que solo ofrece una de las dos solo satisface el contrato al que responde, así que ninguno puede reemplazar al otro."
-  },
   "HostMaterial": {
     "summary": "Un material del host tal como lo lee el motor: los parámetros de superficie que comparte todo material del host, leídos una vez en la frontera hacia el `VisMaterial` del motor; solo `sideOf` lee `side`."
   },
@@ -2395,9 +2390,6 @@
   },
   "HostMesh": {
     "summary": "Una malla del host, mantenida por su identidad: el registro de dibujo, la tabla transparente y los conjuntos de selección nombran la superficie que colocó el host."
-  },
-  "HostNode": {
-    "summary": "Un nodo del grafo de escena del host, mantenido por su identidad y por los dos campos que necesita un recorrido."
   },
   "HostNodeMatrix": {
     "summary": "Los mismos dieciséis flotantes, MODIFICABLES término a término: la pose que una frontera devuelve a un nodo del host o a una cámara del host que restaura.",
@@ -2450,9 +2442,6 @@
   "HostTexture": {
     "summary": "Una textura del host: la imagen que el host decodificó y el estado de muestreo que declaró, mantenida también por su identidad."
   },
-  "HostTraversable": {
-    "summary": "Un nodo del host que el motor recorre: el subárbol debajo, él primero, en el orden propio del host."
-  },
   "HostVector": {
     "summary": "Tres números de una pose, tal como los guarda el host y los devuelve una frontera.",
     "members": {
@@ -2478,7 +2467,10 @@
       "array": "Los números de cada vértice, dispuestos uno tras otro.",
       "stride": "Cuántos números ocupa cada vértice.",
       "count": "Cuántos vértices empaqueta.",
-      "attribute": "Un atributo extraído del paquete, como atributo de flotantes aparte."
+      "attribute": "Un atributo extraído del paquete, como atributo aparte.",
+      "kind": "Un almacenamiento que miran varios atributos.",
+      "version": "Incrementado por `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` tras escribir `array`: un lector lo vuelve a subir."
     }
   },
   "invertMatrix4": {
@@ -2729,6 +2721,7 @@
       "height": "Altura de una luz rectangular.",
       "radius": "Radio de la esfera que emite; `emitterRadius` en el almacenamiento del motor.",
       "kind": "Qué tipo de luz es: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Toma los valores de nodo de `source` y, de una luz, sus números, colores, coeficientes y objetivo; su propio `kind` se mantiene.",
       "needsUpdate": "`light.needsUpdate = true` después de escribir `sh` en el sitio: el mundo lo vuelve a leer.",
       "lookAt": "Apunta con la luz a un punto del mundo: una luz direccional o un foco mueve allí su `target` — su dirección se deduce de eso —, y el nodo también gira, lo que orienta un rectángulo."
     }
@@ -2783,7 +2776,6 @@
       "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels de porción. Esto cierra la costura entre dos caras de una luz puntual y quita el acné rasante; está en texels y no en metros para permanecer proporcional a la resolución que ha obtenido la luz.",
       "shadowPagesPerFrame": "Páginas de sombra dibujadas como máximo por imagen: el tope del búfer, nunca un ajuste de calidad. El presupuesto en milisegundos casi siempre se detiene antes; este tope es solo un límite último, y el único en un dispositivo sin reloj de GPU.",
       "lampFaceSize": "Lado del mip más fino de una cara de lámpara, en téxeles: 32 × 32 páginas de 128 (el pool: `shadowPoolSide`).",
-      "shadowTableEntries": "Entradas de la tabla de páginas de sombra, una palabra por página virtual: un búfer fijo de 4 MiB. Cabe en él dieciséis soles o 128 luces puntuales; una luz que no encuentra sitio se queda sin sombra, y se cuenta.",
       "shadowRequestCap": "Páginas virtuales que el sombreado puede pedir por imagen; el resto vuelve a pedirlas en la siguiente.",
       "sunLevels": "Niveles de clipmap de una luz direccional. El nivel `L` tiene téxeles de `2^L` metros, y un píxel lee el nivel cuyo téxel no supera su propia huella: dieciséis niveles cubren una razón lejos/cerca de 2^15. Más allá del último nivel, toma el relevo la sombra lejana.",
       "sunLevelPages": "Páginas por lado de la extensión de un nivel de clipmap alrededor de la cámara. Es una capacidad, no un ajuste: cada píxel lee su propia densidad mientras `height / tan(halfFovY)` no pase de `sunLevelPages · shadowPage / 2` = 4096 (un lienzo 4K con un campo vertical de 55°); más allá, los píxeles exteriores leen el nivel siguiente, a la mitad de densidad."
@@ -2988,7 +2980,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3026,7 +3018,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3064,7 +3056,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3102,7 +3094,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3140,7 +3132,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3178,7 +3170,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3216,7 +3208,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3254,7 +3246,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3292,7 +3284,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3330,7 +3322,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3368,7 +3360,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3406,7 +3398,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3444,7 +3436,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3482,7 +3474,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3540,7 +3532,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3603,7 +3595,7 @@
       "flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "size": "Tamaño de un punto, para el material de puntos.",
       "sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "linewidth": "Anchura de una línea.",
+      "linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "dashSize": "Longitud de un guion.",
       "gapSize": "Longitud del espacio entre dos guiones.",
       "vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -4114,6 +4106,8 @@
       "remove": "Quita hijos de este nodo.",
       "destroy": "Libera el nodo y todo lo que está debajo ahora, en lugar de cuando se recolecten.",
       "removeFromParent": "Quita el nodo de su padre.",
+      "clone": "Un nodo del mismo tipo con los mismos valores; sus hijos también copiados salvo que se indique lo contrario.",
+      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario.",
       "clear": "Quita todos los hijos de este nodo.",
       "traverse": "Llama a `fn` sobre este nodo y todos los que hay debajo.",
       "traverseVisible": "Llama a `fn` sobre cada nodo visible desde aquí.",
@@ -4126,11 +4120,7 @@
       "rotateY": "Gira el nodo alrededor de su propio eje y.",
       "rotateZ": "Gira el nodo alrededor de su propio eje z.",
       "translateOnAxis": "Mueve el nodo a lo largo de su propio `axis`.",
-      "getWorldPosition": "Dónde se sitúa el nodo en el mundo.",
-      "getWorldQuaternion": "Cómo está girado el nodo en el mundo.",
       "getWorldDirection": "Hacia dónde mira el nodo en el mundo.",
-      "localToWorld": "Un punto del sistema del nodo, en el mundo.",
-      "worldToLocal": "Un punto del mundo, en el sistema del nodo.",
       "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
     }
   },
@@ -4141,7 +4131,11 @@
       "matrixWorld": "Matriz en el mundo tal como se compuso por última vez (`updateMatrixWorld`), una vista sobre el árbol.",
       "matrixAutoUpdate": "Falso cuando `matrix` ES la pose y nada la recompone.",
       "matrixWorldNeedsUpdate": "Activado cuando la matriz local cambió y la matriz del mundo no la ha seguido.",
-      "updateMatrixWorld": "Compone la matriz en el mundo de este nodo y sus descendientes, tomando la del padre tal cual."
+      "updateMatrixWorld": "Compone la matriz en el mundo de este nodo y sus descendientes, tomando la del padre tal cual.",
+      "getWorldPosition": "Dónde se sitúa el nodo en el mundo.",
+      "getWorldQuaternion": "Cómo está girado el nodo en el mundo.",
+      "localToWorld": "Un punto del sistema del nodo, en el mundo.",
+      "worldToLocal": "Un punto del mundo, en el sistema del nodo."
     }
   },
   "OcclusionFrameMetrics": {
@@ -4964,8 +4958,8 @@
     "members": {
       "isScene": "Siempre `true`: distingue la raíz de la escena de cualquier otro objeto.",
       "environment": "Una imagen del entorno que reflejan las superficies brillantes; `null` para ninguna.",
-      "fog": "Una niebla que funde los objetos en `color` entre `near` y `far`; `null` para ninguna.",
       "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
+      "fog": "Niebla sobre cada superficie, opaca o transparente, en los dos renderizadores; `null`, el valor por defecto, para ninguna, sin coste. `{ color, near, far }` funde los objetos en `color` de `near` a `far`, distancias desde la cámara; `{ color, density }` se espesa `density` por unidad de distancia; añade `heightFalloff` (y `baseHeight`, 0 por defecto) y se posa en el suelo, aclarándose por encima de `baseHeight` — dividida por e cada `1 / heightFalloff` unidades hacia arriba. Un cambio se ve en la imagen siguiente: una niebla nueva dada aquí, o su color escrito con sus métodos. Una escritura directa de `near`, `far`, `density`... no se oye: vuelve a dar `fog` después. Una niebla fuera de rango — `far` no más allá de `near`, una densidad negativa — se rechaza (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carga un modelo compilado — la URL de su manifiesto — y lo añade a esta escena.",
       "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
       "fromJSON": "Reemplaza lo que contiene la escena por una escena guardada con `toJSON`, conservando sus marcas `helper`; se resuelve cuando sus modelos están cargados. Otro formato u otra versión se rechaza (`UNSUPPORTED_SCENE_FORMAT`). Las llamadas hechas mientras se lee una se ejecutan una tras otra, en orden, cada una sobre lo que dejó la anterior: dos escenas guardadas nunca se mezclan."
@@ -5004,8 +4998,21 @@
     "members": {
       "exposure": "Multiplicador de la radiancia lineal, aplicado antes de la curva.",
       "toneMapping": "La curva de visualización; `DEFAULT_TONE_MAPPING` si falta.",
-      "irradiance": "La irradiancia que llega desde todas las direcciones, en 27 números: nueve coeficientes, cada uno un triplete RGB, en el orden de las bandas constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, o toda nula, nada ilumina una superficie salvo las lámparas declaradas."
+      "irradiance": "La irradiancia que llega desde todas las direcciones, en 27 números: nueve coeficientes, cada uno un triplete RGB, en el orden de las bandas constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, o toda nula, nada ilumina una superficie salvo las lámparas declaradas.",
+      "fog": "Niebla de distancia o de altura sobre cada superficie (`SceneFog`); ausente, ninguna."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Niebla que se espesa con la distancia: `density` por unidad de la escena; con `heightFalloff`, se aclara por encima de `baseHeight`, dividida por e cada `1 / heightFalloff` unidades hacia arriba.",
+    "members": {
+      "color": "La radiancia hacia la que la niebla funde los objetos, en RGB lineal.",
+      "density": "Extinción por unidad de la escena, en `baseHeight`; ≥ 0.",
+      "heightFalloff": "Lo rápido que la densidad baja con la altura, por unidad de la escena; 0, el valor por defecto, la mantiene uniforme a cualquier altura.",
+      "baseHeight": "La altura a la que la densidad vale `density`; 0 por defecto."
+    }
+  },
+  "SceneFog": {
+    "summary": "Niebla de distancia o de altura, tal como la lee la iluminación."
   },
   "SceneLight": {
     "summary": "Una luz de escena, versión 2.",
@@ -5030,6 +5037,14 @@
     "summary": "Lo que el host pide ver.",
     "description": "`lit` es la iluminación real y solo ella; `unlit` es la vista de diagnóstico en albedo puro — el color del material tal cual, sin luz, sin ambiente y sin emisión — para los bancos de pruebas de geometría que comparan imágenes píxel a píxel. `auto`, por defecto, da `unlit` mientras no se declare ninguna luz y `lit` en cuanto haya una. `bounce` es la tercera vista de diagnóstico: solo la irradiancia indirecta, multiplicada por la exposición y dada en valores lineales sin ACES ni sRGB. Es lo que el banco compara con el oráculo del compilador; no es una imagen para mirar, y es negra sin rebote configurado."
   },
+  "SceneLinearFog": {
+    "summary": "Niebla que empieza en `near` y oculta todo a partir de `far`, distancias desde el ojo.",
+    "members": {
+      "color": "La radiancia hacia la que la niebla funde los objetos, en RGB lineal.",
+      "near": "Distancia desde el ojo donde empieza la niebla.",
+      "far": "Distancia desde el ojo donde solo se ve la niebla."
+    }
+  },
   "SceneLightStore": {
     "summary": "Las luces de una escena tal como las lee la GPU, ordenadas y mantenidas al día.",
     "members": {
@@ -5041,6 +5056,7 @@
       "ids": "El nombre de la luz de cada plaza.",
       "count": "Cuántas luces.",
       "epoch": "Aumentado cuando cambia el conjunto de luces.",
+      "transportEpoch": "Aumenta con la época, salvo por un cambio solo de la niebla: la niebla es un término del rayo de vista, no del transporte de luz, así que lo que guarda en caché la luz transportada (las sondas de rebote) la conserva.",
       "environment": "El entorno de la escena.",
       "lightingView": "Vista solicitada por el host, tal cual: `auto` mientras no haya pedido nada.",
       "unlit": "Verdadero cuando la imagen debe salir en albedo puro, sin luz. Es el comportamiento por defecto mientras no se declare ninguna luz: una escena sin fuente no tiene nada que iluminar, y una imagen negra no ayudaría a ningún banco de pruebas de geometría. En cuanto existe una luz, la iluminación real toma el relevo — salvo que el host haya pedido explícitamente la vista de diagnóstico.",
@@ -5303,6 +5319,10 @@
   },
   "Side": {
     "summary": "Qué caras dibuja un material: `'front'`, `'back'` o `'double'`."
+  },
+  "SixDofAxis": {
+    "summary": "Los ejes de una unión de seis grados de libertad: deslizar a lo largo de `x`, `y`, `z` y girar alrededor de ellos.",
+    "description": "`x` sigue el `axis` de la unión, `y` queda tan cerca del arriba del mundo como puede siendo perpendicular a él."
   },
   "sideOf": {
     "summary": "El lado que declara un material del host, leído una vez en la frontera hacia la enumeración propia del motor."
@@ -5570,7 +5590,7 @@
       "baseMetal": "Color base en RGB, A para el metal.",
       "normalRough": "Normal XYZ en el mundo, A para la rugosidad.",
       "emissiveAo": "Emisión RGB, A para la oclusión ambiental.",
-      "flags": "0 fondo, 1 sin luz, 2 lecturas, 3 diagnóstico en espacio de visualización.",
+      "flags": "0 fondo, 1 sin iluminar (con niebla), 2 leído, 3 mostrado tal cual: un diagnóstico, una vista de normales o de profundidad.",
       "views": "Sus vistas de textura de GPU.",
       "dispose": "Lo libera."
     }
@@ -6358,8 +6378,8 @@
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
       "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Un total por debajo del depósito de sombras se rechaza (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca se lee de la máquina.",
-      "cpu": "Bytes de memoria CPU que pueden ocupar las páginas decodificadas del mundo; se aplica en la próxima carga de escena.",
-      "split": "Cómo se reparten los dos totales: el depósito de sombras a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; la caché de páginas decodificadas toma el total de CPU. Lo que da la regla, antes de ajustar un depósito por separado."
+      "cpu": "Bytes de memoria CPU que puede ocupar el mundo: primero el espejo en el host de la tabla de páginas de sombras, luego las páginas decodificadas; se aplica en la próxima carga de escena. Un total que no supera el espejo se rechaza (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca se lee de la máquina.",
+      "split": "Cómo se reparten los dos totales: el depósito de sombras a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; el espejo en el host de la tabla de sombras, luego la caché de páginas decodificadas toma el resto del total de CPU. Lo que da la regla, antes de ajustar un depósito por separado."
     }
   },
   "world.diagnostic": {
@@ -6461,8 +6481,8 @@
       "transparentDrawCalls": "Llamadas de dibujo transparentes.",
       "transparentSubmittedTriangles": "Triángulos transparentes enviados.",
       "coverageReady": "El repliegue de GPU inicial completo está disponible; nulo para motores sin esta garantía.",
-      "coverageBudgetLimited": "El detalle solicitado no puede coexistir con el repliegue fijado en el presupuesto de páginas de GPU.",
-      "budgetPixelError": "Suelo de error en pantalla que el presupuesto de páginas de GPU impone al corte, en píxeles: `0` cuando el detalle solicitado cabe, si no el umbral más grueso al que se dibuja la imagen. Nulo para motores sin presupuesto de páginas.",
+      "coverageBudgetLimited": "El detalle solicitado necesita más páginas de las que caben en el presupuesto de páginas de GPU: el resto se dibuja más grueso.",
+      "budgetPixelError": "Solo WebGL2: suelo de error en pantalla que su presupuesto de páginas impone al corte, en píxeles — `0` cuando el detalle solicitado cabe, si no el umbral más grueso al que se dibuja la imagen. Ausente en WebGPU, donde solo la residencia vuelve más gruesa la imagen. Nulo para motores sin presupuesto de páginas.",
       "frameHeld": "Verdadero cuando el fotograma se mantuvo: ni la escena, ni la vista, ni los recursos se movieron, ningún trabajo asíncrono estaba pendiente, y ninguna etapa de CPU corrió. Los píxeles mostrados son los del fotograma original, bit a bit. Lo que HIZO el fotograma mantenido se publica tal cual, nunca copiado del último renderizado completo: `drawCalls`, `triangles`, `submittedTriangles` y `totalSubmittedTriangles` solo cuentan la presentación, y las duraciones de CPU y GPU por etapa valen cero cuando la etapa no corrió, `null` cuando nada la cronometró. Un motor cuya imagen es una escena que dibuja el adaptador testigo cuenta lo que ese adaptador envió en ese fotograma — nada, para un fotograma mantenido. Lo que MUESTRA el fotograma mantenido sigue descrito por el corte que vuelve a mostrar: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` y `residentPages` son los del fotograma original, ya que es el mismo corte. Ausente en un motor que no mantiene sus fotogramas.",
       "streamingError": "Error de carga persistente; las URL fallidas piden recargar el explorador tras tres intentos.",
       "gpuPassMs": "Última medición de pases de GPU de este motor; nulo cuando el dispositivo no sabe hacer marcas de tiempo.",
@@ -6796,7 +6816,7 @@
       "format": "Siempre `'trillion3d-scene'`.",
       "formatVersion": "La versión de esta estructura; cualquier otra se rechaza.",
       "background": "El color de fondo, o `null`.",
-      "fog": "La niebla, o `null`.",
+      "fog": "La niebla, su color en componentes lineales, o `null`.",
       "camera": "La cámara guardada con la escena, o `null`.",
       "geometries": "Cada forma, una sola vez, sin importar cuántas mallas la usen.",
       "materials": "Cada material, una sola vez, sin importar cuántas mallas lo usen.",
@@ -7132,19 +7152,6 @@
       "handbrake": "Si el freno de mano está echado."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Cuántos vértices.",
-      "array": "El almacenamiento.",
-      "kind": "El atributo posee su búfer.",
-      "version": "Incrementado por `needsUpdate`.",
-      "updateRanges": "Rangos de `array` escritos desde la última subida, enviados solos.",
-      "addUpdateRange": "Marca `count` números escritos desde `start`.",
-      "clearUpdateRanges": "Olvida los rangos escritos, una vez subidos.",
-      "needsUpdate": "`needsUpdate = true` tras escribir `array`: un lector lo vuelve a subir."
-    },
-    "summary": "Un atributo que posee su almacenamiento: `itemSize` números por vértice, uno tras otro."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Sus atributos de vértices.",
@@ -7174,14 +7181,9 @@
   "GraphNode": {
     "members": {
       "serial": "El número del nodo, único en la sesión.",
-      "kind": "Qué es el nodo: lo que cada lector del grafo usa para distinguirlo.",
-      "parent": "Su padre.",
-      "children": "Los nodos que este contiene, en orden.",
-      "traverse": "El subárbol bajo el nodo, él primero, en el orden propio del host.",
-      "clone": "Un nodo del mismo tipo con los mismos valores; sus hijos también copiados salvo que se indique lo contrario.",
-      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario."
+      "kind": "Qué es el nodo: lo que cada lector del grafo usa para distinguirlo."
     },
-    "summary": "Un nodo del grafo: su nombre, su pose, su matriz del mundo, su padre y sus hijos."
+    "summary": "Un nodo del grafo: el nodo del núcleo, distinguido por su `kind`, copiado por el `clone` del núcleo."
   },
   "GraphSurface": {
     "members": {
@@ -7245,34 +7247,6 @@
     },
     "summary": "Una imagen y el estado de muestreo con el que se lee, y la transformación de sus coordenadas."
   },
-  "GraphArray": {
-    "summary": "Los arrays tipados que guarda un atributo."
-  },
-  "GraphElements": {
-    "summary": "Cualquiera de los dos tipos de atributo."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Un atributo que mira `itemSize` números en `offset` de cada vértice de un búfer entrelazado.",
-    "members": {
-      "kind": "El atributo mira un búfer compartido.",
-      "data": "El búfer que mira.",
-      "offset": "Dónde empiezan sus números en cada vértice.",
-      "array": "El almacenamiento donde viven los elementos.",
-      "count": "Cuántos vértices.",
-      "needsUpdate": "`needsUpdate = true` tras escribir `array`: un lector lo vuelve a subir."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Un almacenamiento que miran varios atributos, un vértice cada `stride` números.",
-    "members": {
-      "kind": "Un almacenamiento que miran varios atributos.",
-      "count": "Cuántos vértices.",
-      "version": "Incrementado por `needsUpdate`.",
-      "array": "El almacenamiento.",
-      "stride": "Números por vértice.",
-      "needsUpdate": "`needsUpdate = true` tras escribir `array`: un lector lo vuelve a subir."
-    }
-  },
   "GraphMesh": {
     "summary": "Un nodo dibujado: una geometría y su superficie, o una superficie por grupo de la geometría.",
     "members": {
@@ -7286,27 +7260,34 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Qué es un nodo del grafo: un nodo simple, la raíz, un grupo, una malla dibujada (en una colocación o en varias), un ojo, o una de las luces que declara una escena."
+    "summary": "Qué es un nodo del grafo: la raíz, una malla dibujada (en una colocación o en varias), un ojo, o una de las luces que declara una escena."
   },
   "Joint": {
     "summary": "Una unión entre dos cuerpos, o entre un cuerpo y el mundo (`b` null), creada con `joint.*` y añadida a la simulación con `world.physics.add`.",
     "description": "Se mantiene mientras ambos cuerpos se simulan y hasta que se rompe.",
     "parameters": {
       "options": "Lo que acepta `joint.*`. Puntos y ejes están en el mundo y se leen cuando la unión se crea por primera vez.",
-      "options.anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia en `a`.",
-      "options.anchorB": "El extremo de una distancia en `b`.",
-      "options.axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono.",
-      "options.limits": "Bisagra, corredera, distancia y cono: cuánto se mueve. Una distancia conserva por defecto su longitud.",
-      "options.spring": "Bisagra, corredera y distancia: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
-      "options.motor": "Bisagra y corredera: un motor, modificable en cualquier momento con `joint.motor`.",
-      "options.breakForce": "Newtons de tirón a partir de los cuales la unión se rompe; si se omite, nunca."
+      "options.anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia o de la cuerda de una polea en `a`.",
+      "options.anchorB": "El extremo de una distancia o de la cuerda de una polea en `b`.",
+      "options.axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono o de una rótula con torsión, la `x` de una unión de seis grados de libertad, el eje de un engranaje o de un piñón (`a`).",
+      "options.axisB": "El eje de un engranaje en `b`, el riel de una cremallera (`b`).",
+      "options.limits": "Bisagra, corredera, distancia, cono, rótula con torsión y polea: cuánto se mueve. Una distancia conserva por defecto su longitud; la cuerda de una polea va de 0 a su longitud.",
+      "options.axes": "Los ejes de una unión de seis grados de libertad que se mueven, libremente (`'free'`) o dentro de límites; los demás quedan bloqueados.",
+      "options.spring": "Bisagra, corredera, distancia y seis grados de libertad: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
+      "options.motor": "Bisagra, corredera, rótula con torsión (su torsión), seis grados de libertad y camino: un motor, modificable en cualquier momento con `joint.motor`.",
+      "options.path": "La vía de un camino: al menos dos puntos, de `b` (o del mundo) tal como están al crearla; `a` empieza en el punto de la vía más cercano a `anchor`.",
+      "options.loop": "La vía de un camino se cierra sobre sí misma.",
+      "options.follow": "El `a` de un camino gira con la vía, como un vagón, en vez de libremente, como una cuenta.",
+      "options.over": "Las dos ruedas de una polea en el mundo: la cuerda de `a` sube hasta la primera, la de `b` hasta la segunda.",
+      "options.ratio": "En un engranaje, las vueltas de `b` por vuelta de `a` (los dientes de `a` entre los de `b`), en sentido contrario; en un piñón, los radianes por metro de cremallera, 1 / su radio; en una polea, los metros de cuerda de `b` por metro de la de `a`.",
+      "options.breakForce": "Newtons de tirón a partir de los cuales la unión se rompe (N·m de par entre los dientes de un engranaje o de una cremallera); si se omite, nunca."
     },
     "members": {
       "kind": "Qué es la unión.",
       "a": "El primer cuerpo.",
       "b": "El segundo cuerpo, o `null` para el mundo.",
       "options": "Con qué se creó.",
-      "motor": "El motor de una bisagra o una corredera; `null` la deja girar o deslizar libremente.",
+      "motor": "El motor de una bisagra, una corredera, una rótula con torsión, una unión de seis grados de libertad o un camino; `null` la deja moverse libremente.",
       "broken": "Si se rompió: tirada más allá de su `breakForce`. Una unión rota ya no sujeta nada.",
       "on": "Llama a `handler` cuando la unión se rompe."
     }
@@ -7315,31 +7296,40 @@
     "summary": "Las uniones entre cuerpos, cada una una restricción propia de Jolt."
   },
   "JointLimits": {
-    "summary": "Cuánto puede moverse una unión: radianes para una bisagra, metros para una corredera o una distancia, el semiángulo del cono (`max`) para un cono.",
+    "summary": "Cuánto puede moverse una unión: radianes para una bisagra o un giro, metros para una corredera, una distancia o la cuerda de una polea, el medio ángulo del cono (`max`) para un cono.",
     "members": {
-      "min": "El de una bisagra de −π a 0, el de una corredera 0 o menos.",
-      "max": "El de una bisagra de 0 a π, el de una corredera 0 o más."
+      "min": "El de una bisagra de −π a 0, el de una corredera 0 o menos; la torsión de una rótula con torsión desde −π.",
+      "max": "El de una bisagra de 0 a π, el de una corredera 0 o más; la torsión de una rótula con torsión hasta π.",
+      "swing": "El cono de una rótula con torsión: cuánto oscila su `axis`, un medio ángulo de hasta π."
     }
   },
   "JointMotor": {
-    "summary": "El motor de una bisagra o una corredera: lleva la unión a una velocidad o a una posición.",
+    "summary": "El motor de una unión: la lleva a una velocidad o a una posición.",
     "members": {
-      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianes o metros desde donde se creó la unión.",
+      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianes o metros desde donde se creó la unión — en un camino, el punto a lo largo de él (1.5: a medio camino entre el segundo y el tercero).",
       "target": "La velocidad o la posición que alcanzar.",
-      "maxForce": "N·m para una bisagra, N para una corredera; si se omite, sin límite."
+      "maxForce": "N·m para un giro, N para un deslizamiento; si se omite, sin límite.",
+      "axis": "El eje que mueve, en una unión de seis grados de libertad."
     }
   },
   "JointOptions": {
     "summary": "Lo que acepta `joint.*`.",
     "description": "Puntos y ejes están en el mundo y se leen cuando la unión se crea por primera vez.",
     "members": {
-      "anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia en `a`.",
-      "anchorB": "El extremo de una distancia en `b`.",
-      "axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono.",
-      "limits": "Bisagra, corredera, distancia y cono: cuánto se mueve. Una distancia conserva por defecto su longitud.",
-      "spring": "Bisagra, corredera y distancia: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
-      "motor": "Bisagra y corredera: un motor, modificable en cualquier momento con `joint.motor`.",
-      "breakForce": "Newtons de tirón a partir de los cuales la unión se rompe; si se omite, nunca."
+      "anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia o de la cuerda de una polea en `a`.",
+      "anchorB": "El extremo de una distancia o de la cuerda de una polea en `b`.",
+      "axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono o de una rótula con torsión, la `x` de una unión de seis grados de libertad, el eje de un engranaje o de un piñón (`a`).",
+      "axisB": "El eje de un engranaje en `b`, el riel de una cremallera (`b`).",
+      "limits": "Bisagra, corredera, distancia, cono, rótula con torsión y polea: cuánto se mueve. Una distancia conserva por defecto su longitud; la cuerda de una polea va de 0 a su longitud.",
+      "axes": "Los ejes de una unión de seis grados de libertad que se mueven, libremente (`'free'`) o dentro de límites; los demás quedan bloqueados.",
+      "spring": "Bisagra, corredera, distancia y seis grados de libertad: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
+      "motor": "Bisagra, corredera, rótula con torsión (su torsión), seis grados de libertad y camino: un motor, modificable en cualquier momento con `joint.motor`.",
+      "path": "La vía de un camino: al menos dos puntos, de `b` (o del mundo) tal como están al crearla; `a` empieza en el punto de la vía más cercano a `anchor`.",
+      "loop": "La vía de un camino se cierra sobre sí misma.",
+      "follow": "El `a` de un camino gira con la vía, como un vagón, en vez de libremente, como una cuenta.",
+      "over": "Las dos ruedas de una polea en el mundo: la cuerda de `a` sube hasta la primera, la de `b` hasta la segunda.",
+      "ratio": "En un engranaje, las vueltas de `b` por vuelta de `a` (los dientes de `a` entre los de `b`), en sentido contrario; en un piñón, los radianes por metro de cremallera, 1 / su radio; en una polea, los metros de cuerda de `b` por metro de la de `a`.",
+      "breakForce": "Newtons de tirón a partir de los cuales la unión se rompe (N·m de par entre los dientes de un engranaje o de una cremallera); si se omite, nunca."
     }
   },
   "joint": {
@@ -7350,7 +7340,52 @@
       "hinge": "Un eje en `anchor` a lo largo de `axis`: una puerta, una rueda. `limits` en radianes.",
       "slider": "Un riel a lo largo de `axis`: un cajón, un pistón. `limits` en metros.",
       "distance": "Mantiene `anchor` en `a` y `anchorB` en `b` a su distancia, o dentro de `limits`.",
-      "cone": "Una rótula cuyo `axis` oscila dentro de un cono de semiángulo `limits.max`."
+      "cone": "Una rótula cuyo `axis` oscila dentro de un cono de semiángulo `limits.max`.",
+      "swingTwist": "Un hombro: `axis` oscila dentro de un cono de medio ángulo `limits.swing` y se tuerce sobre sí mismo entre `limits.min` y `max`; su motor mueve la torsión.",
+      "sixDof": "Seis ejes, cada uno bloqueado, libre o limitado (`axes`): cualquier unión entre las demás.",
+      "path": "`a` recorre una vía suave que pasa por `path`, fija a `b` o al mundo: una montaña rusa.",
+      "pulley": "Una cuerda de `a` sobre dos ruedas (`over`) hasta `b`: uno sube cuando el otro baja.",
+      "gear": "Dos ruedas que giran juntas según `ratio`, cada una sobre su propio eje (`axis`, `axisB`) y sujeta por su bisagra (la rueda como su `a`); cuando `ratio` o 1 / `ratio` es entero, sus dientes también conservan la fase en que se hicieron.",
+      "rackAndPinion": "Un piñón `a` que gira alrededor de `axis` mueve una cremallera `b` a lo largo de `axisB`, cada uno sujeto por su bisagra o su corredera (el cuerpo como su `a`), sus dientes en la fase en que se hicieron."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Un atributo que mira `itemSize` números en `offset` de cada vértice de un búfer entrelazado.",
+    "members": {
+      "isInterleavedBufferAttribute": "Siempre `true`: distingue una vista entrelazada de todo lo demás.",
+      "kind": "El atributo mira un búfer compartido.",
+      "data": "El búfer que mira.",
+      "offset": "Dónde empiezan sus números en cada vértice.",
+      "array": "El almacenamiento donde viven los elementos.",
+      "count": "Cuántos vértices describen los números.",
+      "needsUpdate": "`needsUpdate = true` tras escribir `array`: un lector lo vuelve a subir.",
+      "clone": "Sus propios números, copiados fuera del paquete en un atributo que los posee."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Cualquiera de los dos tipos de atributo: dueño de su almacenamiento o vista de uno entrelazado."
+  },
+  "VertexElements": {
+    "summary": "Los elementos de un atributo de vértice, leídos y escritos componente a componente.",
+    "members": {
+      "name": "El nombre con el que se conoce un objetivo de morph; vacío para los demás.",
+      "itemSize": "Cuántos números pertenecen a un vértice: 3 para una posición.",
+      "normalized": "Si los números enteros se leen como valores entre 0 y 1.",
+      "array": "El almacenamiento donde viven los elementos.",
+      "count": "Cuántos vértices describen los números.",
+      "stored": "El número `component` del vértice `index` tal como está almacenado; un entero normalizado sin escalar.",
+      "getComponent": "El número `component` del vértice `index`, leído como el número que representa.",
+      "setComponent": "Escribe el número `component` del vértice `index`.",
+      "getX": "El primer número del vértice `i`.",
+      "getY": "El segundo número del vértice `i`.",
+      "getZ": "El tercer número del vértice `i`.",
+      "getW": "El cuarto número del vértice `i`.",
+      "setX": "Escribe el primer número del vértice `i`.",
+      "setY": "Escribe el segundo número del vértice `i`.",
+      "setZ": "Escribe el tercer número del vértice `i`.",
+      "setW": "Escribe el cuarto número del vértice `i`.",
+      "setXY": "Escribe dos números para el vértice `i`.",
+      "setXYZ": "Escribe tres números para el vértice `i`."
     }
   }
 }

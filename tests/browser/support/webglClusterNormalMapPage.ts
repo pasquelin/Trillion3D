@@ -23,7 +23,7 @@ const decoded = (r: number, g: number, b: number) =>
 
 /** Texture coordinates of the proof triangle: u along +x, v along `vSign` × y. */
 const texcoords = (vSign: number) =>
-  new G.GraphAttribute(
+  new G.BufferAttribute(
     new Float32Array([0, 0.5 - vSign * 0.5, 1, 0.5 - vSign * 0.5, 0.5, 0.5 + vSign * 0.5]),
     2,
   );
@@ -58,7 +58,7 @@ export function normalMapFrames(
   const draw = (material: G.GraphSurface, vSign: number, normal: [number, number, number]) => {
     mesh.material = material;
     mesh.geometry.attributes.uv = texcoords(vSign);
-    mesh.geometry.attributes.normal = new G.GraphAttribute(
+    mesh.geometry.attributes.normal = new G.BufferAttribute(
       new Float32Array([...normal, ...normal, ...normal]),
       3,
     );
@@ -74,7 +74,7 @@ export function normalMapFrames(
     mirroredWitness: draw(baked, -1, [tilt.x, -tilt.y, tilt.z]),
   };
   mesh.geometry.attributes.uv = previousUv;
-  mesh.geometry.attributes.normal = new G.GraphAttribute(
+  mesh.geometry.attributes.normal = new G.BufferAttribute(
     new Float32Array([...flat, ...flat, ...flat]),
     3,
   );
