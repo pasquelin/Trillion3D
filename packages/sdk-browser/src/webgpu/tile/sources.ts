@@ -88,7 +88,6 @@ export function createTileSources(options: {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
     copyLiveTexture(encoder, atlas, slot, scratch.texture);
     device.queue.submit([encoder.finish()]);
-    return true;
   };
   const dropScratches = () => {
     for (const scratch of scratches.values()) scratch.destroy();
@@ -171,12 +170,14 @@ export function createTileSources(options: {
         live.set(id, (scratch = build(atlas, slot)));
         liveBytes += scratch.bytes;
       }
-      return copyIntoPlaces(atlas, slot, scratch);
+      copyIntoPlaces(atlas, slot, scratch);
+      return true;
     },
     /** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied. */
     reduce(atlas: WebgpuTileAtlas, slot: number) {
       if (!pictureFits(atlas.textures[slot])) return false;
-      const kept = live.get(scratchId(atlas, slot)),
+      const id = scratchId(atlas, slot),
+        kept = live.get(id) ?? scratches.get(id),
         scratch = kept ?? build(atlas, slot);
       kept?.reduce();
       copyIntoPlaces(atlas, slot, scratch);

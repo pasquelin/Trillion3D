@@ -9,20 +9,20 @@ const alphaIsCoverage = (mat: PageSurface) =>
   mat.alphaTest > 0 || (mat.transparent && !(mat.transmission > 0) && weighsByAlpha(mat.blending));
 
 /**
- * The readers of the colour textures, and whether each texture's mip chain weighs its colours by
- * alpha — the compiler's `Coverage` chain (#42), shared by both GPU paths: EVERY reader takes its
- * alpha for coverage — the map of a masked or alpha-blended surface, never an emissive map, the
- * decision `collect.rs` takes —, and its texels were not uploaded premultiplied, which already
- * carry the weight: weighing twice would darken them. A host switches a surface between opaque
- * and masked without a new prepare: `follow` rereads the readers as the host declares them now.
+ * The readers of the colour textures, shared by both GPU paths (#42): a texture's mips weigh its
+ * colours by alpha when EVERY reader takes its alpha for coverage — never an emissive map, as
+ * `collect.rs` decides — and its texels were not uploaded premultiplied (weighed twice, they
+ * darken). A host switches a surface between opaque and masked without a signal: `follow`
+ * rereads the readers as it declares them now.
  */
 export class CoverageReaders {
-  private surfaces: PageSurface[] = [];
+  private surfaces = new Set<PageSurface>();
   /** Per colour texture, whether every reader filed so far takes its alpha for coverage. */
   private rules = new Map<Texture, boolean>();
-  /** Files a surface's colour maps. */
+  /** Files a surface's colour maps, once however many meshes wear it. */
   read(surface: PageSurface) {
-    this.surfaces.push(surface);
+    if (this.surfaces.has(surface)) return;
+    this.surfaces.add(surface);
     this.file(surface);
   }
   /** Rereads every reader once, as the host declares it now (`refreshSurface`). */
@@ -36,7 +36,7 @@ export class CoverageReaders {
     return !!this.rules.get(texture) && !texture.premultiplyAlpha;
   }
   clear() {
-    this.surfaces.length = 0;
+    this.surfaces.clear();
     this.rules.clear();
   }
   private file(surface: PageSurface) {
