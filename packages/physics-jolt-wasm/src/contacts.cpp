@@ -66,14 +66,11 @@ void Listener::OnContactAdded(const Body &a, const Body &b, const ContactManifol
   uint32_t &pair = world().pairs[pairKey(ia, ib)];
   if (pair++ != 0) return;
   Vec3 point = Vec3(manifold.GetWorldSpaceContactPointOn1(0));
-  // Approach speed along the normal times the pair's reduced mass: the impulse needed to stop the
-  // approach, an estimate made before the solver runs.
+  // Approach speed along the normal times the pair's reduced mass.
   Vec3 relative = a.GetPointVelocity(RVec3(point)) - b.GetPointVelocity(RVec3(point));
-  float approach = std::max(0.0f, relative.Dot(manifold.mWorldSpaceNormal));
-  float inverse = (a.IsDynamic() ? a.GetMotionProperties()->GetInverseMass() : 0.0f) +
-                  (b.IsDynamic() ? b.GetMotionProperties()->GetInverseMass() : 0.0f);
+  float impulse = approachImpulse(relative.Dot(manifold.mWorldSpaceNormal), inverseMass(a) + inverseMass(b));
   // An enter the buffer cannot take is counted, and its leave is never sent.
-  if (pushEvent(1, ia, ib, inverse > 0 ? approach / inverse : 0.0f, point)) pair |= ENTERED;
+  if (pushEvent(1, ia, ib, impulse, point)) pair |= ENTERED;
   else ++world().dropped;
 }
 

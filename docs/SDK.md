@@ -1220,9 +1220,9 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   (its vertices do not turn). A soft body is a
   direct child of the scene; moved by the page, it is made again there; it takes no velocity,
   impulse, joint or vehicle. Rigid bodies and the character collide with its vertices: the
-  character is turned aside or stopped, never pushing it; a rigid body heavier than the free
-  vertices it lands on meets them as heavy as itself (Jolt's soft-body contact mass scale), so it
-  is held rather than pushed between them; soft bodies pass through each other (Jolt collides
+  character is turned aside or stopped, never pushing it; a rigid body heavier than a soft body's
+  free vertices together meets them as if they weighed what it weighs (Jolt's soft-body contact
+  mass scale), so it is held rather than pushed between them; soft bodies pass through each other (Jolt collides
   them with rigid bodies only). `on('contact' | 'enter' | 'leave')` works on either side of a
   soft body's pair, from Jolt's soft-body contact listener: the point is the mean of its vertices
   that touched, the impulse is estimated from its mean velocity and their mass, and a pair stays

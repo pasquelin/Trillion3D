@@ -1,6 +1,7 @@
 import {
   BODY_INDEX,
   CommandWriter,
+  FLAG,
   POSE_WORDS,
   SOFT_STATE_WORDS,
   softBodyOf,
@@ -9,6 +10,7 @@ import {
   type SoftBodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
 import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
+import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { body, startModule, type Module } from './module.fixture.ts';
@@ -88,3 +90,15 @@ export const ropeLine = (count: number, length: number) =>
 
 /** The vertex `v` of `vertices`. */
 export const at = (vertices: Float32Array, v: number) => [...vertices.subarray(v * 3, v * 3 + 3)];
+
+/** A 1 m cloth of 10 × 10 squares laid flat at `y` in slot 1, `pins` held, its events wanted when
+ *  told. */
+export function flatCloth(jolt: Module, y: number, pins: number[], events = false) {
+  const record = addSoft(jolt, plane(1, 1, 10, 10), { type: 'cloth', pins }, [0, y, 0], {
+    quaternion: FLAT,
+  });
+  const writer = new CommandWriter();
+  if (events) writer.flags(1, FLAG.events);
+  jolt.step(writer.take(), 0);
+  return record;
+}
