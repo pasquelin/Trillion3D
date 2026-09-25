@@ -19,10 +19,10 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 /**
  * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
  * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then lists every stale page the image reads, the coarsest
- * first, and draws them all at rest, a fixed budget of them while the camera moves (`admit.ts`):
- * what holds the cost is the cache — a page is drawn again only when what it holds changed. A
- * still scene, whose shading runs no more, asks for nothing and draws nothing.
+ * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
+ * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
+ * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
+ * asks for nothing and draws nothing.
  *
  * All arrays are allocated once; `plan()` allocates nothing.
  */
@@ -92,7 +92,7 @@ export function createShadowPlan(poolSide: number) {
     receive(next: ShadowRequestReport) {
       if (!report || next.frame > report.frame) report = next;
     },
-    /** Plans a frame: stales what moved, reads the last report, lists every page to draw. */
+    /** Plans a frame: stales what moved, reads the last report, admits every page to draw. */
     plan(
       store: SceneLightStore,
       view: ShadowViewpoint,
@@ -155,9 +155,8 @@ export function createShadowPlan(poolSide: number) {
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
       requests.floors(posed, view, nowMs, frame);
-      const count = admission.run(pool, table, requests.latest, frame, records.isFloor, still);
-      // A light counts as drawn only for the pages the frame's budget draws (`admission.end`).
-      for (let i = 0; i < admission.end; i++) {
+      const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
+      for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
       }
@@ -174,9 +173,8 @@ export function createShadowPlan(poolSide: number) {
       }
       if (to >= admission.count) admission.reset();
     },
-    /** The frame's pages from `from` on were not drawn — past a moving frame's budget, or not
-     *  encoded: they stay stale, pending, ahead of every page that turns stale after them in the
-     *  next frame's list (`admit.ts`). */
+    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, ahead of
+     *  every page that turns stale after them in the next frame's list (`admit.ts`). */
     reissue(from = 0) {
       counts.pendingPages = Math.max(0, admission.count - from);
       admission.reset(from);

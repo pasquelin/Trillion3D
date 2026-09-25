@@ -1197,7 +1197,7 @@
   },
   "createShadowPlan": {
     "summary": "Lo scheduler delle ombre delle mappe virtuali.",
-    "description": "L’ombreggiatura annota le pagine che legge; il loro rapporto, riletto qualche fotogramma dopo, alloca ciò che manca dal pool fisso. Ciò che si è mosso invalida le pagine allocate che copre. Un fotogramma elenca poi ogni pagina scaduta che l’immagine legge, la più grossolana per prima, e le disegna tutte a riposo, un budget fisso di esse mentre la camera si muove: a contenere il costo è la cache — una pagina viene ridisegnata solo quando cambia ciò che contiene. Una scena ferma, la cui ombreggiatura non gira più, non chiede nulla e non disegna nulla. Tutti gli array sono allocati una volta; `plan()` non alloca nulla."
+    "description": "L’ombreggiatura annota le pagine che legge; il loro rapporto, riletto qualche fotogramma dopo, alloca ciò che manca dal pool fisso. Ciò che si è mosso invalida le pagine allocate che copre. Un fotogramma disegna poi ogni pagina scaduta che l’immagine legge, tutte in quel fotogramma: a contenere il costo è la cache — una pagina viene ridisegnata solo quando cambia ciò che contiene —, e il pool è l’unico limite. Una scena ferma, la cui ombreggiatura non gira più, non chiede nulla e non disegna nulla. Tutti gli array sono allocati una volta; `plan()` non alloca nulla."
   },
   "createTerminalProgress": {
     "summary": "Una barra di avanzamento nel terminale che segue gli eventi del compilatore.",
@@ -2881,7 +2881,7 @@
       "shadowNearFraction": "Piano vicino di una fetta: una quota della portata, mai meno di questa soglia minima.",
       "shadowNearMin": "Distanza d'ombra più vicina.",
       "shadowNormalOffsetTexels": "Scarto del punto di campionamento lungo la normale, in texel di fetta. Questo chiude la cucitura tra due facce di una luce puntiforme e rimuove l'acne radente; è in texel e non in metri per restare proporzionale alla risoluzione ottenuta dalla luce.",
-      "shadowPagesPerBatch": "Pagine d’ombra che un lotto GPU disegna: la dimensione dei buffer di un lotto, e ciò che un fotogramma disegna mentre la camera si muove — il budget fisso del raster delle ombre. Un fotogramma a riposo disegna ogni pagina che marca, in tanti lotti quanti servono.",
+      "shadowPagesPerBatch": "Pagine d’ombra che un lotto GPU disegna: la dimensione dei buffer di un lotto, mai un limite del fotogramma. Un fotogramma disegna ogni pagina che marca, in tanti lotti quanti servono.",
       "lampFaceSize": "Lato del mip più fine di una faccia di lampada, in texel: 32 × 32 pagine da 128 (il pool: `shadowPoolSide`).",
       "shadowRequestCap": "Pagine virtuali che l’ombreggiatura può chiedere per fotogramma; le altre richiedono al fotogramma successivo.",
       "sunLevels": "Livelli di clipmap di una luce direzionale. Il livello `L` ha texel di `2^L` metri, e un pixel legge il livello il cui texel non supera la propria impronta: sedici livelli coprono un rapporto lontano/vicino di 2^15. Oltre l’ultimo livello subentra l’ombra lontana.",
