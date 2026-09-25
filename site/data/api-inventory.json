@@ -2408,7 +2408,8 @@
         "packages/sdk-browser/src/webgpu/row/pageRow.ts",
         "packages/sdk-browser/src/webgpu/row/pageRowDepthBias.test.ts",
         "packages/sdk-browser/src/webgpu/visibility/drawLayers.test.ts",
-        "packages/sdk-browser/src/webgpu/visibility/pipelines.ts"
+        "packages/sdk-browser/src/webgpu/visibility/pipelines.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lod/depthLayer\".depthLayerUnits"

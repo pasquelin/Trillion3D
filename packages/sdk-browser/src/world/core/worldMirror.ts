@@ -57,14 +57,21 @@ export function buildWorldMirror(input: MirrorInput) {
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
   const geometries = new Map<Cut, GraphGeometry>(),
-    surfaces = new Map<Material, GraphSurface>(),
     textures: HostTextures = new Map();
+  // One surface per material and per way of drawing: a material worn by lines and by faces is
+  // two surfaces, the line one widened and lifted (`hostSurface`).
+  const surfaces = {
+    faces: new Map<Material, GraphSurface>(),
+    lines: new Map<Material, GraphSurface>(),
+  };
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    let surface = surfaces.get(material);
+    const lines = !!cut.drawn.lines,
+      held = lines ? surfaces.lines : surfaces.faces;
+    let surface = held.get(material);
     if (!surface)
-      surfaces.set(material, (surface = hostSurface(material, !!cut.drawn.colors, textures)));
+      held.set(material, (surface = hostSurface(material, !!cut.drawn.colors, textures, lines)));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
@@ -85,9 +92,11 @@ export function buildWorldMirror(input: MirrorInput) {
   /** Writes a repainted material entry's values into the host surface built for it; false when
    *  this mirror built none. */
   const repaint = (material: Material) => {
-    const surface = surfaces.get(material);
-    if (surface) repaintHostSurface(surface, material);
-    return !!surface;
+    const drawn = [surfaces.faces.get(material), surfaces.lines.get(material)].filter(
+      (surface) => !!surface,
+    );
+    for (const surface of drawn) repaintHostSurface(surface, material);
+    return drawn.length > 0;
   };
   return { root, twins, associations, repaint };
 }

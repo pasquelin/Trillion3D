@@ -14,6 +14,7 @@ import { BLEND_ITEM_WGSL } from './items.ts';
 import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
 import { FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
+import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts';
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
@@ -59,6 +60,7 @@ ${TILE_REQUEST_WGSL}
 struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
 ${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
+${LINE_CLIP_WGSL}
 // What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
 // maps, their factors and the flags. They are constant over the call, therefore FLAT — the
 // fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
@@ -105,6 +107,8 @@ ${FACING_WGSL}
  let id=it.vertexBase+indices[base+local];
  let world=it.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;
+ // A line quad widens on screen (\`lineClip\`), along the direction its corner's normal carries.
+ if(it.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u],0.0)),it.lineWidth,uni.viewport);}
  out.tri=0u;
  out.diagId=0u;
  if((flags&0x1c000000u)!=0u){out.diagId=clusterId;}

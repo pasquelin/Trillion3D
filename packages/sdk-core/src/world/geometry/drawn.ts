@@ -3,36 +3,32 @@ import { computeNormals } from './normals.ts';
 import { GeometryBuilder, fromArrays } from './builder.ts';
 import type { Geometry } from './geometry.ts';
 import { edgesOf } from './lines.ts';
-import { Box3 } from '../math/box3.ts';
-import { Vector3 } from '../math/vector3.ts';
 import type { Primitive } from '../object/mesh.ts';
 
-const box = new Box3(),
-  size = new Vector3();
-
-/** The triangles a mesh draws, as the page cutter reads them. */
+/** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
+ *  (`quads`), which every raster widens on screen by the surface's `lineWidth`. */
 export interface DrawnTriangles {
   positions: Float32Array;
   normals: Float32Array;
   uvs: Float32Array | null;
   colors: Float32Array | null;
   indices: Uint32Array;
+  lines?: boolean;
 }
 
 type V3 = [number, number, number];
 
 /**
  * What a mesh draws, as triangles: the engine rasterises triangles alone, so a point is a small
- * octahedron of the material's `size` and a line segment a thin square prism. A line has no
- * width of its own in world units; its prism is `linewidth` × 1/1024 of the geometry's own
- * diagonal thick — one pixel when the geometry spans a 1024-pixel view. That value is NOT
- * derived from the frame (the thickness would have to follow the camera); it is declared here as
- * what it stands for, and a line seen much closer or much further reads thicker or thinner.
+ * octahedron of the material's `size` and a line segment a quad of two triangles whose corners
+ * all sit on the segment (`quads`). A line has no width in world units: the rasters widen each
+ * quad on screen to the surface's `lineWidth` in pixels, at every distance
+ * (`sdk-browser/src/visibility/shader/lineWgsl.ts`).
  */
 export function drawnTriangles(
   geometry: Geometry,
   reading: Primitive,
-  options: { size?: number; linewidth?: number; wireframe?: boolean; flat?: boolean } = {},
+  options: { size?: number; wireframe?: boolean; flat?: boolean } = {},
 ): DrawnTriangles | null {
   const position = geometry.attributes.position;
   if (!position || position.count === 0) return null;
@@ -41,21 +37,19 @@ export function drawnTriangles(
     ? Array.from(geometry.index.array)
     : Array.from({ length: position.count }, (_, i) => i);
   if (reading === 'points') return solids(points(p, (options.size ?? 1) / 2));
-  const diagonal = box.setFromArray(position.array, position.itemSize).getSize(size).length() || 1;
-  const thickness = (diagonal / 1024) * (options.linewidth ?? 1);
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
     const segments: number[] = [];
     const step = reading === 'lineSegments' ? 2 : 1;
     for (let i = 0; i + 1 < corners.length; i += step) segments.push(corners[i], corners[i + 1]);
     if (reading === 'lineLoop' && corners.length > 2)
       segments.push(corners[corners.length - 1], corners[0]);
-    return solids(prisms(p, segments, thickness));
+    return quads(p, segments);
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
     // Every edge once, however many triangles share it (`edgesOf`).
     const segments = [...edgesOf(geometry).values()].flatMap(({ a, b }) => [a, b]);
-    return solids(prisms(p, segments, thickness));
+    return quads(p, segments);
   }
   const attribute = (name: string, width: number) => {
     const a = geometry.attributes[name];
@@ -89,37 +83,43 @@ function points(p: number[], r: number) {
   return b;
 }
 
-/** A square prism of side `t` along each segment `(a, b)`, capped at both ends. */
-function prisms(p: number[], segments: number[], t: number) {
-  const b = new GeometryBuilder();
+/**
+ * Two triangles per segment `(a, b)`, every corner on an endpoint: `a` twice, then `b` twice. A
+ * corner's normal is the segment's direction, signed by the side of the line it moves to once
+ * widened: `+d` to the left of the segment on screen, `-d` to the right. The quad has no area
+ * until a raster widens it, and a pass that does not (the shadow depth) draws nothing of it.
+ */
+function quads(p: number[], segments: number[]): DrawnTriangles | null {
+  const positions: number[] = [],
+    normals: number[] = [],
+    indices: number[] = [];
   for (let s = 0; s + 1 < segments.length; s += 2) {
-    const a: V3 = [p[segments[s] * 3], p[segments[s] * 3 + 1], p[segments[s] * 3 + 2]];
-    const e: V3 = [p[segments[s + 1] * 3], p[segments[s + 1] * 3 + 1], p[segments[s + 1] * 3 + 2]];
-    const d = e.map((x, i) => x - a[i]) as V3;
-    const len = Math.hypot(...d);
-    if (len === 0) continue;
-    const side = Math.abs(d[0]) < 0.9 * len ? [1, 0, 0] : [0, 1, 0];
-    const u = normalOf(d, side as V3),
-      w = normalOf(d, u);
-    const ring = (o: V3) =>
-      [
-        [1, 1],
-        [-1, 1],
-        [-1, -1],
-        [1, -1],
-      ].map(([x, y]) => o.map((c, i) => c + ((u[i] * x + w[i] * y) * t) / 2) as V3);
-    const [r0, r1] = [ring(a), ring(e)];
-    for (let k = 0; k < 4; k++) {
-      const n = (k + 1) % 4;
-      face(b, [r0[k], r0[n], r1[n]]);
-      face(b, [r0[k], r1[n], r1[k]]);
+    const a = segments[s] * 3,
+      b = segments[s + 1] * 3;
+    const d: V3 = [p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]];
+    if (d[0] === 0 && d[1] === 0 && d[2] === 0) continue;
+    normalizeVector3(d);
+    const first = positions.length / 3;
+    for (const [at, side] of [
+      [a, 1],
+      [a, -1],
+      [b, 1],
+      [b, -1],
+    ]) {
+      positions.push(p[at], p[at + 1], p[at + 2]);
+      normals.push(d[0] * side, d[1] * side, d[2] * side);
     }
-    face(b, [r0[0], r0[2], r0[1]]);
-    face(b, [r0[0], r0[3], r0[2]]);
-    face(b, [r1[0], r1[1], r1[2]]);
-    face(b, [r1[0], r1[2], r1[3]]);
+    indices.push(first, first + 1, first + 3, first, first + 3, first + 2);
   }
-  return b;
+  if (!indices.length) return null;
+  return {
+    positions: new Float32Array(positions),
+    normals: new Float32Array(normals),
+    uvs: null,
+    colors: null,
+    indices: new Uint32Array(indices),
+    lines: true,
+  };
 }
 
 /** One triangle with its own vertices, wound outward from the solid it closes. */

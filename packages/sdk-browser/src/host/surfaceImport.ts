@@ -92,5 +92,6 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
         ? [first.attenuationColor.r, first.attenuationColor.g, first.attenuationColor.b]
         : [1, 1, 1],
     model,
+    lineWidth: typeof first.lineWidth === 'number' ? first.lineWidth : 0,
   };
 }

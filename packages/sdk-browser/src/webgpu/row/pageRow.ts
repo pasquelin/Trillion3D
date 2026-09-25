@@ -102,6 +102,8 @@ export function createPageRowWriter(resources: PageRowResources) {
     // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
     // layer 0, one calculation source for the hardware path and the software raster alike.
     ints[base + 60] = depthLayerUnits(rec.depthLayer);
+    // The width a line page's quads widen to on screen (`PageInfo.lineWidth`); zero for triangles.
+    floats[base + 61] = mat.lineWidth ?? 0;
     // Row placement: the temporal pass reads the pixel motion matrix there. A page without a
     // placement does not exist in a WebGPU layout: that is an invariant, not zero.
     if (rec.placementIndex === undefined) throw new Error('PAGE_PLACEMENT_MISSING');
