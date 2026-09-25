@@ -30,32 +30,37 @@ disagreement is reported to the maintainer.
 8. **Commits carry no trailer, no co-author, no tool name, no forced identity.** Branch
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
-   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped.
+   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. The
+   depth is fixed: the CTO → a lead or the architect → one coder or reviewer → the review agents
+   of the real `simplify` and `code-review` skills (at most 4), which launch none. The measurer,
+   acceptance, analyst and writer agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
 
 ## Roles
 
-A company. The **boss** (the maintainer) talks only to the **CTO**, tests the result and sets
-priorities. The CTO starts and supervises every other session. Each role is
-`docs/roles/<role>.md`.
+A company. The **boss** (the maintainer) opens **one session**, the CTO's (`/t3d-cto`), talks
+only to it, tests the result and sets priorities. Every other role is a **background agent** the
+CTO starts with the Agent tool and supervises; the boss never opens another session. Each role is
+`docs/roles/<role>.md`, and its skill in `skills/` is the agent's brief.
 
-| Role       | Started by | Does                                                                                                                                        | Never                                                         |
-| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the sessions, decides technique, opens issues, reports to the boss | writes code, measures                                         |
-| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                      | writes code, measures                                         |
-| coder      | lead       | implements one issue, opens the pull request                                                                                                | merges, measures                                              |
-| reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                      | merges, measures                                              |
-| architect  | CTO        | the `architecture` domain: finds duplicates, bloat and tangles through the graph, proposes, delivers behaviour-preserving refactors         | changes behaviour, measures                                   |
-| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                          | changes anything; nothing applies without the boss's approval |
-| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                       | edits code, merges                                            |
-| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                          | edits code, merges, measures                                  |
-| writer     | CTO        | writes one issue on the template, from the boss's words                                                                                     | codes, measures                                               |
+| Role       | Started by | Does                                                                                                                                      | Never                                                         |
+| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                         |
+| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                    | writes code, measures                                         |
+| coder      | lead       | implements one issue, opens the pull request                                                                                              | merges, measures                                              |
+| reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                              |
+| architect  | CTO        | the `architecture` domain: finds duplicates, bloat and tangles through the graph, proposes, delivers behaviour-preserving refactors       | changes behaviour, measures                                   |
+| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; nothing applies without the boss's approval |
+| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                            |
+| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                  |
+| writer     | CTO        | writes one issue on the template, from the boss's words                                                                                   | codes, measures                                               |
 
 Domains: geometry, lighting, compiler, physics, sdk, and architecture (the architect's). A bug goes to its domain's lead; there is no
-bug domain. There is one CTO, one measurer and one acceptance session. Every session reports to
-the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 % it winds the
-company down (current agents finish, nothing new starts) so no work is cut midway.
+bug domain. There is one CTO session, one measurer and one acceptance agent. Every agent reports
+to the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 % (or the
+threshold the boss sets) it winds the company down (current agents finish, nothing new starts) so
+no work is cut midway.
 
 ## Leads: limits that hold at every moment
 
