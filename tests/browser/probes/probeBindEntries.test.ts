@@ -1,6 +1,6 @@
 // The GPU probes run only in the measurer's browser, so this Node test holds their bind groups
-// to the engine's (#20): the page gets `namedBufferEntries` itself, and no probe lays its
-// buffers out by position next to `DAG_BINDING` / `EXPAND_BINDING`.
+// to the engine's (#20): the page gets `namedBufferEntries` itself, and no probe, oracle or light
+// cut lays its buffers out by position next to `DAG_BINDING` / `EXPAND_BINDING`.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -36,10 +36,18 @@ for (const [kernel, bindings] of KERNELS) {
   });
 }
 
-for (const probe of ['selectionKernelGpu.ts', 'scatterKernelGpu.ts']) {
+// The two probes, the cut oracle whose frozen descent still binds the shipped group 0, and the
+// light cut, which binds the selection kernel's group 0 for its own views.
+const BUILDERS = [
+  'selectionKernelGpu.ts',
+  'scatterKernelGpu.ts',
+  '../../../bench/oracles/browser/cut-dispatches.ts',
+  '../../../packages/sdk-browser/src/gpu/dag/lightCut.ts',
+];
+for (const probe of BUILDERS) {
   test(`${probe} builds its bind group through namedBufferEntries, not by position`, () => {
     const source = readFileSync(new URL(probe, import.meta.url), 'utf8');
-    assert.match(source, /entries: globalThis\.namedBufferEntries\(/);
+    assert.match(source, /entries: (globalThis\.)?namedBufferEntries\(/);
     assert.doesNotMatch(source, /binding: \w+ \+ \d/, 'a binding computed from an index');
     assert.doesNotMatch(source, /\.map\(\(\w+, binding\)/, 'a binding taken from a list index');
     assert.doesNotMatch(source, /binding: \d/, 'a binding written as a number');
