@@ -317,7 +317,10 @@ light cut finds the cluster at that row (`gpu/draw/lightRows.ts`, pinned by the 
 lists it there, and the same cull and depth raster draw it: there is no second shadow pass. The
 depth raster keeps its depth on `round(16 × coverage)` texels of every 4 × 4 block of the map, the
 coverage being the material's opacity times its colour map's alpha (`gpu/shadow/blendCoverage.ts`),
-and the existing PCF averages that pattern into a partial shadow. Opacity 0 takes no row and casts
+and the existing PCF averages that pattern into a partial shadow — exactly on average, but its
+sixteen taps span about three texels, narrower than the pattern's four: the filtered shadow still
+swings by up to a third of full shadow along a four-texel period (0.20 to 0.53 at coverage 5/16),
+and a coverage of 1/16 to 3/16 leaves fully lit texels. Opacity 0 takes no row and casts
 nothing; opacity 1 keeps every texel, the opaque depth to the bit. Additive and transmissive
 surfaces cast nothing yet: the tinted shadow of transmission is #33's, which extends the coverage
 word into a transmittance. An unpaged blended mesh casts nothing. WebGL2 has no shadow path, so
