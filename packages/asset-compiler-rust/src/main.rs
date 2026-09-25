@@ -46,7 +46,7 @@ fn pointer(result: &Value, cache: &Path) -> Value {
     let scope = result["scope"].as_str().unwrap_or("");
     let key = result["key"].as_str().unwrap_or("");
     json!({"status":"ready","key":key,"scope":scope,"url":format!("{key}/clusters.json"),"pointer":cache.join("native").join(scope).join("manifest.json").to_string_lossy(),"cache":cache.to_string_lossy(),
-  "formatVersion":result["formatVersion"],"compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"].as_array().map(|a|a.len()).unwrap_or(0),"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
+  "formatVersion":result["formatVersion"],"compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
   "metrics":{"importMs":result["metrics"]["importMs"],"clusterHierarchyPagesMs":result["metrics"]["clusterHierarchyPagesMs"],"wallMs":result["metrics"]["wallMs"],"pruneMs":result["metrics"]["pruneMs"],"outputGeometryBytes":result["metrics"]["outputGeometryBytes"],"threads":result["metrics"]["threads"],"ramBudgetMb":result["metrics"]["ramBudgetMb"]},
   "unsupported":result["unsupported"],"reused":result["reused"]})
 }
