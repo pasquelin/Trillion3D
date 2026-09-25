@@ -15,6 +15,7 @@ import { CLUSTER_WORDS, coldBase } from './layout.ts';
 import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf } from './records.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import type { DagRoot } from './types.ts';
+import { ruleResidency } from './readiness.fixture.ts';
 
 const pages = scenePages(1024, 6);
 const PLACEMENTS = 12;
@@ -81,8 +82,8 @@ test('shared records select, draw and count exactly what unshared ones do', () =
       packedWorldsToRenderOrigin(shared, roots, uniforms.cameraWorld);
       packedWorldsToRenderOrigin(alone, roots, uniforms.cameraWorld);
       for (const mask of [undefined, resident]) {
-        const a = evaluateDagSelectionKernel(shared, uniforms, mask),
-          b = evaluateDagSelectionKernel(alone, uniforms, mask);
+        const a = evaluateDagSelectionKernel(shared, uniforms, mask && ruleResidency(shared, mask)),
+          b = evaluateDagSelectionKernel(alone, uniforms, mask && ruleResidency(alone, mask));
         assert.deepEqual(a, b, `(${x}, ${z}) at ${threshold} px`);
         kept += a.pageIds.length;
       }

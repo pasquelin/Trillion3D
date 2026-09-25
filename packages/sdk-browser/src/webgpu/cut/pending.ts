@@ -1,5 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { CutDelta } from './delta.ts';
+import type { IdDelta } from './delta.ts';
 import { createDenseKeySet } from './denseKeys.ts';
 import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts';
 
@@ -19,7 +19,7 @@ import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts';
  */
 export type CutPending = ReturnType<typeof createCutPending>;
 
-export function createCutPending(packedPages: readonly PageRec[], delta: CutDelta) {
+export function createCutPending(packedPages: readonly PageRec[], delta: IdDelta) {
   /** Records of the missing pages, held at their key rank by the set itself. */
   const records: PageRec[] = [];
   const missing = createDenseKeySet(packedPages.length, records);

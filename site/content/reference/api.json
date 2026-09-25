@@ -4573,12 +4573,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -18948,12 +18948,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",

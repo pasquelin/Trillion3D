@@ -1,5 +1,4 @@
-// Shared-formula batch: ESCALATION_ROUNDS, factored out of 2 copies (the flat cut and the
-// cluster-DAG cut escalate the same number of times).
+// ESCALATION_ROUNDS: the CPU cut's climb before its pinned root cover (`../cut/repair.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ESCALATION_ROUNDS } from './types.ts';

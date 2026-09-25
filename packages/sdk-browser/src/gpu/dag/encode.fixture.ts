@@ -90,8 +90,6 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     preparePipeline: etape('dagPrepare'),
     clearDrawnPipeline: etape('dagClearDrawn'),
     wantedPipeline: etape('dagWanted'),
-    escalatePipeline: etape('dagEscalate'),
-    checkPipeline: etape('dagCheck'),
     maskPipeline: etape('dagMask'),
     drawPrefixPipeline: etape('dagDrawPrefix'),
     drawScatterPipeline: etape('dagDrawScatter'),
