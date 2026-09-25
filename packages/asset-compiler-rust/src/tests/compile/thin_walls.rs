@@ -46,8 +46,7 @@ fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":buffer.bin.len()}],
         "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":[{"primitives":primitives}],"nodes":[{"mesh":0}],
         "scenes":[{"nodes":[0]}],"scene":0,"materials":materials});
-    let triangles = meshes.iter().map(|m| m.indices.len() / 3).sum();
-    gltf_fixture(tag, &gltf, &buffer.bin, triangles)
+    gltf_fixture(tag, &gltf, &buffer.bin)
 }
 
 /// The chalet cooked with simplification, without texture families: the cut is the subject.
