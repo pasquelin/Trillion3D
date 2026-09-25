@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADER,
+  COMPOSE_SHADERS,
   DIRECT_LIGHTING_SHADER,
   UNLIT_LIGHTING_SHADER,
 } from './deferred/shaders.ts';
@@ -33,7 +33,7 @@ test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.
   }
   assert.match(SURFACE_SHADE, /select\(3u,1u,model==4u\)/);
   assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogged/);
-  assert.doesNotMatch(COMPOSE_SHADER, /fogged/);
+  for (const shader of Object.values(COMPOSE_SHADERS)) assert.doesNotMatch(shader, /fogged/);
 });
 
 test('blended and water surfaces, lit or unlit, are fogged from the eye of the blend view', () => {

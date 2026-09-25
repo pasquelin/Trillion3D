@@ -12,6 +12,7 @@ export * from '../../sdk-core/src/world/constants/index.ts';
 export * from './world/texture/index.ts';
 export * from './world/loader/index.ts';
 export * from './world/helper/index.ts';
+export * from './guides/index.ts';
 export * from './world/controls/index.ts';
 export * from './world/page/index.ts';
 export * from './world/budget/index.ts';

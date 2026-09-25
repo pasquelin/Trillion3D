@@ -1,6 +1,7 @@
 //! A chalet built of thin closed shapes (#415): a whitewash box for the ground floor, walls of
 //! octagonal 0.12 m logs, balcony slabs and boards 0.1 m thick. Every part is a closed solid whose
 //! faces point away from its centre, with the normals an exporter writes.
+use super::chalet_roof::shingle_roof;
 use super::silhouette::Mesh;
 
 /// Footprint and storey of the chalet, in metres, and its logs: 0.12 m in radius, octagonal.
@@ -12,11 +13,15 @@ const LOGS_PER_WALL: usize = 6;
 const LOG_SEGMENTS: usize = 8;
 const SLAB: f32 = 0.1;
 
-/// Triangles pushed unordered, then turned to face away from their convex part's centre; corners
-/// equal in position and normal are one vertex, as an exporter writes them.
-fn push_part(mesh: &mut Mesh, triangles: &[[([f32; 3], [f32; 3]); 3]], centre: [f32; 3]) {
+/// One triangle: per corner, its position and its normal.
+pub(super) type Triangle = [([f32; 3], [f32; 3]); 3];
+
+/// Triangles pushed in pairs, each pair a quad, then turned to face away from their convex part's
+/// centre. Corners of one quad equal in position and normal are one vertex; each quad writes its
+/// own, as the open world's exporter writes them: twins in everything a page stores.
+pub(super) fn push_part(mesh: &mut Mesh, triangles: &[Triangle], centre: [f32; 3]) {
     let mut shared = std::collections::HashMap::new();
-    for triangle in triangles {
+    for (rank, triangle) in triangles.iter().enumerate() {
         let p = triangle.map(|(p, _)| p.map(f64::from));
         let normal = crate::shared_math::cross(
             crate::shared_math::sub(p[1], p[0]),
@@ -30,7 +35,11 @@ fn push_part(mesh: &mut Mesh, triangles: &[[([f32; 3], [f32; 3]); 3]], centre: [
         };
         for k in order {
             let (position, normal) = triangle[k];
-            let key = (position.map(f32::to_bits), normal.map(f32::to_bits));
+            let key = (
+                rank / 2,
+                position.map(f32::to_bits),
+                normal.map(f32::to_bits),
+            );
             let index = *shared.entry(key).or_insert_with(|| {
                 mesh.positions.push(position.map(f64::from));
                 mesh.normals.push(normal.map(f64::from));
@@ -43,6 +52,12 @@ fn push_part(mesh: &mut Mesh, triangles: &[[([f32; 3], [f32; 3]); 3]], centre: [
 
 /// A closed box, flat faces.
 fn push_box(mesh: &mut Mesh, min: [f32; 3], max: [f32; 3]) {
+    let centre = std::array::from_fn(|a| (min[a] + max[a]) / 2.0);
+    push_part(mesh, &box_triangles(min, max), centre);
+}
+
+/// The twelve triangles of a closed box, unordered.
+pub(super) fn box_triangles(min: [f32; 3], max: [f32; 3]) -> Vec<Triangle> {
     let mut triangles = Vec::new();
     for axis in 0..3 {
         let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
@@ -63,8 +78,7 @@ fn push_box(mesh: &mut Mesh, min: [f32; 3], max: [f32; 3]) {
             triangles.extend([[a, b, c], [a, c, d]]);
         }
     }
-    let centre = std::array::from_fn(|a| (min[a] + max[a]) / 2.0);
-    push_part(mesh, &triangles, centre);
+    triangles
 }
 
 /// A closed octagonal log along `axis` from `start` over `length`, smooth sides and flat caps.
@@ -116,8 +130,9 @@ fn push_log(mesh: &mut Mesh, axis: usize, start: [f32; 3], length: f32) {
     push_part(mesh, &triangles, centre);
 }
 
-/// The whitewash ground floor, then the log walls with their balcony slabs and boards.
-pub(in crate::tests) fn chalet() -> [Mesh; 2] {
+/// The whitewash ground floor, the log walls with their balcony slabs and boards, then the
+/// shingle roof on the top log.
+pub(in crate::tests) fn chalet() -> [Mesh; 3] {
     let mut whitewash = Mesh::default();
     push_box(
         &mut whitewash,
@@ -157,5 +172,6 @@ pub(in crate::tests) fn chalet() -> [Mesh; 2] {
             );
         }
     }
-    [whitewash, wood]
+    let eaves = GROUND + 2.0 * LOG_RADIUS * LOGS_PER_WALL as f32;
+    [whitewash, wood, shingle_roof(WIDTH, DEPTH, eaves)]
 }
