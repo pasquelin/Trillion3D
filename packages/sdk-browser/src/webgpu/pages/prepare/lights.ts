@@ -11,7 +11,7 @@ import { isCancelled } from '../../../backend/common.ts';
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 /** Named approximation of the shadow path, published in the diagnostic (P5). */
 const SHADOW_APPROXIMATIONS = [
-  'blended clusters hold no visibility row, so they reach no shadow draw table and cast no shadow; only the opaque path casts a real cutout, and an attenuated tinted shadow is a later lot',
+  'a blended cluster casts from a shadow-only row into the transmittance layer, at half the pool resolution and filtered by the same PCF: one 8-bit product of (1 − coverage) and one nearest 32-bit depth per texel, so a receiver between two stacked panes takes both; additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
   'the shadow millisecond budget folds a page fixed cost into an averaged per-page cost',
   'shadow pages are asked for by the opaque resolve alone: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
@@ -25,7 +25,7 @@ const SHADOW_APPROXIMATIONS = [
  */
 export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, vis, capabilities, diag } = rt,
-    { drawSlots } = rt.layout;
+    { casterSlots } = rt.layout.rows;
   if (rt.context.shadowBudgetMs !== undefined) lights.plan.setBudgetMs(rt.context.shadowBudgetMs);
   if (rt.context.shadowPageInvalidation === false) lights.plan.setPageInvalidation(false);
   if (!lights.buffer || !vis.visEnabled || !vis.visBindGroupLayout) {
@@ -44,7 +44,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   // One without the other would light nothing, so failure of one yields both.
   try {
     lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
-    lights.cull = await createGpuShadowCull(device, drawSlots);
+    lights.cull = await createGpuShadowCull(device, casterSlots);
     lights.pageRequests = createShadowPageRequests(device, lights.shadows.requestBuffer);
   } catch (error) {
     if (isCancelled(rt.signal)) throw error;
@@ -64,7 +64,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     tileLists: !!lights.tiles,
     // The atlas is sized at the first frame (`../../shadow/poolSize.ts`, diagnostic `shadow-pool`).
     shadowAtlas: !!lights.shadows,
-    shadowCullRows: lights.cull ? drawSlots : null,
+    shadowCullRows: lights.cull ? casterSlots : null,
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowPageInvalidation: lights.plan.pageInvalidation,
     unavailable: lights.shadowReason,
