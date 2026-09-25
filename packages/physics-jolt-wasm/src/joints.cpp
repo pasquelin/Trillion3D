@@ -44,7 +44,8 @@ std::vector<Joint> joints;
 JointIndex ends;
 /** This step's broken joints, by id. */
 std::vector<uint32_t> broken;
-/** The joints `link` has visited since the module started: read by the tests only. */
+/** The joints `link` has visited since the module started: a diagnostic, read by the tests only
+ *  (`jolt_link_visits`), so its cost is counted, never timed. */
 uint32_t linkVisits = 0;
 
 /// A body's frame from the words (`point, axis, normal` in its own frame), its point moved from
@@ -156,7 +157,6 @@ float pull(const Joint &joint) {
     default: return advancedPull(c, joint.kind);
   }
 }
-
 
 /// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
 /// body's frame — of several, the one in the lowest joint slot; null when none does.
