@@ -1,0 +1,19 @@
+# Files written by a tool, never by hand: GitHub folds them in a diff, and the pull request size
+# gate (scripts/check-pr-size.sh) leaves them out of the count. Keep the bare form, not `=true`:
+# git's `attr:` pathspec matches only a set attribute.
+pnpm-lock.yaml linguist-generated
+**/Cargo.lock linguist-generated
+# scripts/generate-sdk-facade.ts
+packages/sdk/index.ts linguist-generated
+packages/sdk/browser.ts linguist-generated
+packages/sdk/node.mts linguist-generated
+packages/sdk/common/** linguist-generated
+packages/sdk/browser/** linguist-generated
+site/data/api-inventory.json linguist-generated
+# scripts/generate-api-reference.ts and its translations
+site/content/reference/api*.json linguist-generated
+# Compiled scene caches, as in .prettierignore
+site/assets/examples/*/cache/** linguist-generated
+site/assets/kinetic-garden/cache/** linguist-generated
+site/assets/gallery/offline/** linguist-generated
+site/assets/gallery/signature-architecture/cache/** linguist-generated
