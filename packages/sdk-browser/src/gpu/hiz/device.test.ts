@@ -4,7 +4,7 @@ import { createGpuHiz } from './hiz.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test('missing compute leaves GPU Hi-Z undefined so the visbuffer cut stays conservative', async () => {
-  assert.equal(await createGpuHiz({} as GPUDevice, 32, 32, 4), undefined);
+  assert.equal(await createGpuHiz(fakeDevice({ compute: false }).device, 32, 32, 4), undefined);
 });
 
 test('a Hi-Z resize replaces the this-frame level-0 depth target', async () => {

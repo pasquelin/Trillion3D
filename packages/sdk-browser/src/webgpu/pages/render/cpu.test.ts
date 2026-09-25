@@ -5,6 +5,7 @@
 // counters.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import {
   collectClusterPages,
   createSelectionResult,
@@ -77,7 +78,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
       tracking: { traceSet: () => ({}), traceRecs: () => ({}) },
     },
     gpu: {
-      device: {},
+      device: fakeDevice().device,
       cache: { get: (url: string) => residents.get(url) },
       targetSize: [64, 64],
     },

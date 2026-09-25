@@ -1,6 +1,7 @@
 // Setup of the GPU-cut resume bench, split from its cases so neither file exceeds the line
 // limit. Cases live in `resume.test.ts`.
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { renderGpuCut } from '../pages/render/gpuCut.ts';
 import { fixtureTotals, mountCutAdopter } from './adopter.fixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from '../../gpu/core/selection.ts';
@@ -105,7 +106,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       imageRevision: 1,
       clearColor: 0,
     },
-    gpu: { device: {}, cache: {}, cutIncomplete: false, selectionFallback: false },
+    gpu: { device: fakeDevice().device, cache: {}, cutIncomplete: false, selectionFallback: false },
     capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
       traceDiagnostic: () => {

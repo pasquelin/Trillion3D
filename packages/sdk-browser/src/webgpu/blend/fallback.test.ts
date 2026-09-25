@@ -4,7 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { BLEND_EQUATIONS, hostBlending } from '../../scene/materialBlending.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { drawFallbackBlendPass } from './fallback.ts';
 import { createWebgpuBlendState } from './state.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
@@ -12,14 +12,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** The pipelines the fallback pass sets, one per item it draws, read as the blend of their target. */
 function drawn(blendings: (number | undefined)[]) {
-  installGpuGlobals();
-  const device = {
-    createBindGroupLayout: () => ({}),
-    createPipelineLayout: () => ({}),
-    createShaderModule: () => ({}),
-    createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => descriptor,
-    createBindGroup: () => ({}),
-  } as unknown as GPUDevice;
+  // The fake's render pipeline is its descriptor: `setPipeline` reads the blend it was made with.
+  const { device } = fakeDevice();
   const { pipelineBlend } = createWebgpuPagesPipelines(device, 256);
   const set: GPUBlendState[] = [];
   const pass = {
