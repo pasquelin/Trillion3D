@@ -4,6 +4,7 @@ import { createSceneLightContractBuffer } from '../state/lights.ts';
 import { prepareWebgpuPresentation } from '../../frame/presentationSetup.ts';
 import { createWebgpuPagesPipelines } from './pipelines.ts';
 import { ensureWebgpuPositionBuffer } from '../../core/positions.ts';
+import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
 import { prepareWebgpuBlend } from '../../blend/prepare.ts';
 import { createTransparentTable } from '../../transparent/table.ts';
 import { prepareBlendResources } from '../../blend/resources.ts';
@@ -125,6 +126,15 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     gpuCompaction: !!blendState.compaction?.encode,
     transmissiveMeshes: blendState.transmissive,
   });
+  // The float geometry of what no page covers, concatenated once; then, every vertex buffer
+  // allocated, the geometry pool is drawn from what they leave of its budget.
+  vis.geometryBlocks.clear();
+  ({
+    concatPos: vis.concatPos,
+    concatUv: vis.concatUv,
+    concatNrm: vis.concatNrm,
+  } = prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+  await grantWebgpuPagesCache(rt, gpuDevice);
   const [width, height] = viewport;
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   ensureUniform(rt, gpuDevice, cap);
@@ -138,8 +148,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
-  // Every vertex buffer is allocated by now: the geometry pool is drawn from what they leave.
-  await grantWebgpuPagesCache(rt, gpuDevice);
   if (blendState.blendGpu.length && !vis.blendPipelines) dropVis(rt);
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
