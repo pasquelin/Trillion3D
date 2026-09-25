@@ -98,6 +98,10 @@ pub fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 pub fn scale(a: [f64; 3], k: f64) -> [f64; 3] {
     [a[0] * k, a[1] * k, a[2] * k]
 }
+/// Divides each axis by `k`: not `scale(a, 1.0 / k)`, which rounds once more.
+pub fn divide(a: [f64; 3], k: f64) -> [f64; 3] {
+    [a[0] / k, a[1] / k, a[2] / k]
+}
 pub fn length(a: [f64; 3]) -> f64 {
     dot(a, a).sqrt()
 }
@@ -108,7 +112,7 @@ pub fn length(a: [f64; 3]) -> f64 {
 pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     let norm = length(vector);
     if norm > 1e-12 {
-        [vector[0] / norm, vector[1] / norm, vector[2] / norm]
+        divide(vector, norm)
     } else {
         fallback
     }
@@ -126,7 +130,11 @@ pub fn elapsed_ms(since: std::time::Instant) -> f64 {
 /// mean of three scales, mirror yields same scale as reflection, degenerate
 /// matrix yields zero: zero length discarded by caller.
 pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
-    let column = |c: usize| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]];
-    let (x, y, z) = (column(0), column(1), column(2));
+    let [x, y, z] = linear_columns(m);
     dot(x, cross(y, z)).abs().cbrt()
+}
+
+/// The three columns of the linear part of a column-major 4x4 matrix.
+pub(crate) fn linear_columns(m: &[f64; 16]) -> [[f64; 3]; 3] {
+    [0, 1, 2].map(|c| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]])
 }

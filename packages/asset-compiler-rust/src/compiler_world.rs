@@ -1,5 +1,5 @@
 use super::*;
-use crate::shared_math::cross;
+use crate::shared_math::{cross, linear_columns};
 
 /// A glTF node transform, column-major like the format itself.
 pub(super) type Mat4 = [f64; 16];
@@ -142,8 +142,7 @@ pub(super) fn world_matrices(g: &Value) -> Result<Vec<Mat4>> {
 /// the transformed plane normal without ever dividing, and its length is the factor an area of that
 /// plane is multiplied by.
 pub(super) fn cofactor_direction(matrix: &Mat4, normal: [f64; 3]) -> [f64; 3] {
-    let column = |c: usize| [matrix[c * 4], matrix[c * 4 + 1], matrix[c * 4 + 2]];
-    let (a0, a1, a2) = (column(0), column(1), column(2));
+    let [a0, a1, a2] = linear_columns(matrix);
     let (c0, c1, c2) = (cross(a1, a2), cross(a2, a0), cross(a0, a1));
     [
         normal[0] * c0[0] + normal[1] * c1[0] + normal[2] * c2[0],

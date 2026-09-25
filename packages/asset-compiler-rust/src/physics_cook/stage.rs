@@ -8,7 +8,7 @@ use super::{
 };
 use crate::compiler_coplanar::DepthLayerScene;
 use crate::compiler_world::{world_matrices, Mat4};
-use crate::shared_math::{dot, length};
+use crate::shared_math::{dot, length, linear_columns};
 use crate::{product, required_index, values, Product, Result, COMPILER_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -17,8 +17,7 @@ use std::path::Path;
 /// A node matrix as translation, rotation (x, y, z, w) and scale; `None` when it shears, which no
 /// body pose can carry.
 pub(crate) fn trs(m: &Mat4) -> Option<([f64; 3], [f64; 4], [f64; 3])> {
-    let column = |c: usize| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]];
-    let (c0, c1, c2) = (column(0), column(1), column(2));
+    let [c0, c1, c2] = linear_columns(m);
     let det = c0[0] * (c1[1] * c2[2] - c1[2] * c2[1]) - c1[0] * (c0[1] * c2[2] - c0[2] * c2[1])
         + c2[0] * (c0[1] * c1[2] - c0[2] * c1[1]);
     let s = [length(c0) * det.signum(), length(c1), length(c2)];
