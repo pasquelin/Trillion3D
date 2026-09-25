@@ -23,9 +23,11 @@ export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
  *  cap, so the camera's own requests keep the other half. Past it the request is dropped, never
  *  declared: the sample stays whole for the camera, which alone decides truncation. */
 fn emitAhead(page:u32,pixels:f32){
- if(atomicLoad(&out.count)>=views[0u].listCap/2u){return;}
+ if(aheadFull()){return;}
  let slot=atomicAdd(&out.count,1u);
  if(slot>=views[0u].listCap){return;}
  out.pages[slot]=packRequest(page,REQUEST_AHEAD|quantizePriority(pixels));
 }
+/** True once the sample holds half its cap: the view ahead asks for nothing more this frame. */
+fn aheadFull()->bool{return atomicLoad(&out.count)>=views[0u].listCap/2u;}
 `;
