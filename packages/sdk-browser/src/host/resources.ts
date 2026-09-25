@@ -1,8 +1,9 @@
 // The graph the engine reads is the engine's own (`graph/`): every name below is one of its
-// classes, read by its `kind` and its fields, never by a library's brand. The plain data a
-// reader shares with the witnesses — a colour, a box, the diagnostic factory — stays a shape.
+// classes (the attributes are sdk-core's, `world/buffer/`), read by its `kind` and its fields,
+// never by a library's brand. The plain data a reader shares with the witnesses — a colour, a
+// box, the diagnostic factory — stays a shape.
 // The 4×4 pose is `MatrixElements` (`matrixElements.ts`).
-import type { GraphElements } from './graph/attributes.ts';
+import type { VertexAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import type { GraphGeometry } from './graph/geometry.ts';
 import type { GraphMesh } from './graph/mesh.ts';
 import type { GraphSurface } from './graph/surface.ts';
@@ -12,11 +13,11 @@ import type { GraphTexture } from './graph/texture.ts';
 export type HostTexture = GraphTexture;
 
 /** One vertex attribute of a geometry, owning its storage or viewing an interleaved one. */
-export type HostAttribute = GraphElements;
+export type HostAttribute = VertexAttribute;
 
 /** The named attributes of one geometry. Also an identity: the engine keys its GPU buffers,
  *  geometry blocks and position caches on the attribute set a page draws from. */
-export type HostAttributes = { [name: string]: GraphElements };
+export type HostAttributes = { [name: string]: VertexAttribute };
 
 /** One corner of a local bound, as the host writes it. */
 export type HostPoint = {

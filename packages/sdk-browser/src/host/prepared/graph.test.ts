@@ -5,7 +5,7 @@ import type {
   TableNode,
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
-import { GraphAttribute } from '../graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphGeometry } from '../graph/geometry.ts';
 import { GraphMesh } from '../graph/mesh.ts';
 import { GraphSurface } from '../graph/surface.ts';
@@ -40,8 +40,8 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
   const { tables, meshes } = oneNode('morphed', [0.5]);
   const geometryOf = () => {
     const geometry = new GraphGeometry();
-    geometry.setAttribute('position', new GraphAttribute(new Float32Array(9), 3));
-    geometry.morphAttributes.position = [new GraphAttribute(new Float32Array(9), 3)];
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
+    geometry.morphAttributes.position = [new BufferAttribute(new Float32Array(9), 3)];
     return geometry;
   };
   const materialOf = () => Promise.resolve(new GraphSurface('standard'));
@@ -58,9 +58,9 @@ test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of i
   const { tables, meshes } = oneNode('painted', null);
   const geometryOf = (_rank: number, primitive: number) => {
     const geometry = new GraphGeometry();
-    geometry.setAttribute('position', new GraphAttribute(new Float32Array(9), 3));
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
     if (primitive === 0)
-      geometry.setAttribute('color', new GraphAttribute(new Float32Array(12), 4));
+      geometry.setAttribute('color', new BufferAttribute(new Float32Array(12), 4));
     return geometry;
   };
   const variants: boolean[] = [];

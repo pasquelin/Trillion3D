@@ -52,10 +52,10 @@ function page(depart: number) {
   return {
     array: new Uint32Array([0, 1, 2]),
     attributes: {
-      position: new G.GraphAttribute(positions, 3),
-      normal: new G.GraphAttribute(normales, 3),
-      tangent: new G.GraphAttribute(tangentes, 4),
-      uv: new G.GraphAttribute(uvs, 2),
+      position: new G.BufferAttribute(positions, 3),
+      normal: new G.BufferAttribute(normales, 3),
+      tangent: new G.BufferAttribute(tangentes, 4),
+      uv: new G.BufferAttribute(uvs, 2),
     },
     matrix: new G.Matrix4().makeRotationY(0.7).setPosition(0.3, -0.2, 0.9),
     material: surfaceOf(G.standardSurface()),
