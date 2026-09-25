@@ -18,17 +18,15 @@ disagreement is reported to the maintainer.
    the shared checkout, never touch another session's worktree. Every worktree lives in
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
-5. **Only the CTO opens issues**, with the writer role, and only when the boss asks for one or in
-   an extreme case (a 🔴 critical defect no issue covers; a closed issue that covers it is
-   reopened instead), and tells the boss. Existing issues come first: a new need joins an open
-   issue (a To-do item or a comment), and over any seven days the issues the CTO opens and reopens
-   stay fewer than those closed as completed; a boss's request or an extreme case is never refused
-   for that balance.
-   No other agent opens an issue, not even to split one. What a pull request does not deliver
-   stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
-   open. A regression reopens the measured issue with `measure ko`; a finding reopens
-   the audited issue with `audit ko`. A defect found on the way is one line in your report to the
-   CTO.
+5. **Only the CTO opens issues**, with the writer role, when the boss asks for one or in an
+   extreme case (a 🔴 critical defect no issue covers; a closed issue that covers it is reopened
+   instead), and tells the boss. Existing issues come first: a new need is a To-do item or a
+   comment on an open issue. Over any seven days the CTO opens and reopens fewer issues than are
+   closed as completed; a boss's request or an extreme case overrides that balance. No other agent
+   opens an issue, not even to split one. What a pull request does not deliver stays in its issue:
+   the PR says `Part of #n`, the rest is a comment on #n, the issue stays open. A regression
+   reopens the measured issue with `measure ko`, a finding the audited one with `audit ko`; a
+   defect found on the way is one line in your report to the CTO.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **The witness library stays a witness**: named only in bench, measurement and migration
@@ -37,9 +35,9 @@ disagreement is reported to the maintainer.
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
    to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. The
-   depth is fixed: the CTO → a lead → one coder or reviewer → the review agents
-   of the real `simplify` and `code-review` skills (at most 4), which launch none. The architect,
-   measurer, acceptance and analyst agents launch none: only coders write code.
+   depth is fixed: the CTO → a lead → one coder or reviewer → the review agents of the real
+   `simplify` and `code-review` skills (at most 4), which launch none. The architect, measurer,
+   acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
 
@@ -62,12 +60,15 @@ CTO starts with the Agent tool and supervises; the boss never opens another sess
 | acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                 |
 | writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                              |
 
-Domains: geometry, lighting, compiler, physics, sdk, textures. Issues belong to leads only: the architect,
-the auditor and the measurer add To-do items or reopen, and only coders code. A bug goes to its domain's lead; there is no
-bug domain. There is one CTO session, one measurer and one acceptance agent. Every agent reports
-to the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 % (or the
-threshold the boss sets) it winds the company down (current agents finish, nothing new starts) so
-no work is cut midway.
+Domains: geometry, lighting, compiler, physics, sdk, textures. Issues belong to the leads, and
+only coders, launched by a lead, write code. The architect, acceptance, measurer and analyst
+never code and own no pull request: they add a To-do item to an open issue, reopen one
+(`audit ko`, `measure ko`) or report to the CTO. Sole exception: the measurer's thumbnail pull
+request (captured images, no code), merged by the domain's lead. A bug goes to its domain's lead;
+there is no bug domain. There is one CTO session, one measurer and one acceptance agent. Every
+agent reports to the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 %
+(or the threshold the boss sets) it winds the company down (current agents finish, nothing new
+starts) so no work is cut midway.
 
 ## Leads: limits that hold at every moment
 
