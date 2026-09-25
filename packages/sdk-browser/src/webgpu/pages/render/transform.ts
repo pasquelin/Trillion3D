@@ -1,3 +1,4 @@
+import { MOVE_PROMOTED } from '../../../placement/update.ts';
 import type { HostMesh } from '../../../host/resources.ts';
 import {
   BOX_VALUES,
@@ -26,9 +27,9 @@ const local = new Float64Array(16),
   trs = new Float64Array(3),
   trsRotation = new Float64Array(4),
   trsScale = new Float64Array(3),
-  movedMin = [0, 0, 0],
-  movedMax = [0, 0, 0],
-  moved = new Float64Array(BOX_VALUES);
+  moved = new Float64Array(BOX_VALUES),
+  movedMin = moved.subarray(0, 3),
+  movedMax = moved.subarray(3, 6);
 /** One flag per selection root: under the moved node or not. Grown once, never per move. */
 let underNode = new Uint8Array(0);
 
@@ -114,12 +115,12 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   const roots = layout.selectionRoots;
   if (underNode.length < roots.length) underNode = new Uint8Array(roots.length);
   boxEmpty(moved, 0);
+  let promoted = false;
   for (let i = 0; i < roots.length; i++) {
     const root = roots[i];
     underNode[i] = isUnder(root.pages[0]?.sourceMesh, node) ? 1 : 0;
     if (!underNode[i] || !root.worldBox) continue;
     boxUnionBatch(moved, root.worldBox, 1);
-    lights.mobility.move(i);
   }
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
@@ -148,7 +149,10 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     if (!underNode[i]) continue;
     const root = roots[i];
     moveRootRows(rt, root);
-    if (!root.localBox || !root.worldBox) continue;
+    if (!root.worldBox) continue;
+    // A node moved: each root under it moved, at the pose it now reads.
+    promoted = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED || promoted;
+    if (!root.localBox) continue;
     if (!enLot) boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     boxUnionBatch(moved, root.worldBox, 1);
   }
@@ -159,11 +163,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // The hierarchy already carries this revision's matrices: the next image does not climb it.
   run.gate.noteWorldsUpdated();
   if (boxIsEmpty(moved, 0)) return;
-  for (let axis = 0; axis < 3; axis++) {
-    movedMin[axis] = moved[axis];
-    movedMax[axis] = moved[axis + 3];
-  }
-  lights.plan.worldChanged(movedMin, movedMax, !lights.mobility.takePromoted());
+  // A root's first move changes the static layer: the pages it crossed are staled whole.
+  lights.plan.worldChanged(movedMin, movedMax, !promoted);
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */

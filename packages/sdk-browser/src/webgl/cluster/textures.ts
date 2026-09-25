@@ -50,9 +50,9 @@ export class WebglClusterTextures {
   private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
-  /** The frame's readers of each colour map, and the declarations they were read from (#42). */
   private readers = new CoverageReaders();
-  private declarations = new Set<HostMaterials>();
+  /** The colour maps drawn this image, their readers reread: work bounded by the view. */
+  private followed = new Set<Texture>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.mips = new WebglMipReducer(gl);
@@ -62,9 +62,7 @@ export class WebglClusterTextures {
         this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
       ) as number;
   }
-  /** Binds `texture` on `unit`, decoded from sRGB when `color`. `reader`: a colour map (base or
-   *  emissive), its chain by its readers' coverage rule (#42) and apart from a data binding of the
-   *  same texture, as the WebGPU atlases hold it: the role decides, never the sRGB tag. */
+  /** `reader`: a base or emissive map, its chain under its readers' rule (#42), as WebGPU's. */
   bind(unit: number, texture?: Texture, color = false, fallback = WHITE, reader = false) {
     const gl = this.gl;
     if (!texture) {
@@ -88,6 +86,8 @@ export class WebglClusterTextures {
     }
     // Brought up to its host at this bind, then uploaded or set again by its counters.
     followHostTexture(texture);
+    if (reader && !this.followed.has(texture)) this.readers.follow([texture]);
+    if (reader) this.followed.add(texture);
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}${reader ? ':map' : ''}`,
       weighted = reader && this.readers.weighs(texture);
     let record = this.records.get(key);
@@ -101,8 +101,7 @@ export class WebglClusterTextures {
       }
       const sampling = record.sampling !== texture.sampling,
         rule = record.weighted !== undefined && record.weighted !== weighted;
-      // `setSampler` and the chain write the texture bound on the ACTIVE unit: select it even
-      // when the texture is already bound there, or they land on another unit's texture.
+      // `setSampler` and the chain write the ACTIVE unit's texture: select it even if bound there.
       if (sampling || rule) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
@@ -154,10 +153,9 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    if (texture.generateMipmaps) {
-      this.mips.reduce(unit, record, weighted, !inPlace || held?.weighted === undefined);
-      record.weighted = weighted;
-    }
+    const allocate = !inPlace || !held?.weighted;
+    if (texture.generateMipmaps)
+      this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }
@@ -176,25 +174,21 @@ export class WebglClusterTextures {
         grantedAnisotropy(texture, this.maxAnisotropy),
       );
   }
-  /** A new frame: the host's texture units are unknown, and the readers of the colour maps are
-   *  the surfaces of every mesh the scene holds, drawn or hidden, in the frustum or not — as the
-   *  WebGPU census, the rule never follows the camera nor visibility —, each declaration read once. */
-  beginFrame(meshes: readonly (readonly { material: HostMaterials }[])[]) {
+  /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite. */
+  file(material: HostMaterials) {
+    this.readers.read(surfaceOf(material));
+  }
+  /** A new image: units unknown, drawn maps' readers reread at first bind, idle scratches out. */
+  beginFrame() {
     this.bound.length = 0;
-    this.readers.clear();
-    this.declarations.clear();
-    for (const list of meshes)
-      for (const { material } of list)
-        if (!this.declarations.has(material) && this.declarations.add(material))
-          this.readers.read(surfaceOf(material));
+    this.followed.clear();
+    this.mips.trim();
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();
     this.fallbacks.clear();
-    this.declarations.clear();
-    this.readers.clear();
     this.mips.dispose();
   }
 }

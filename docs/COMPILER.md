@@ -56,9 +56,9 @@ trillion3d-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/eme
 
 `simplification` says what the cluster DAG is allowed to hold, not how fast it is built. In `none` the DAG stops at level 0: its clusters partition the source triangles exactly, nothing replaces them, every cluster is a root, and `"simplification": false` in the manifest means precisely that no cluster carries a surface the source does not have. In `qem-endpoints` each level groups 8 to 32 clusters, simplifies the group with its border locked and re-splits the result; the level-0 partition is the same in both modes.
 
-The simplification is the one of meshoptimizer's reference DAG (`clusterlod.h`): absolute error, normals and every texture set the pages carry counted in it (normals weighted ½, texture coordinates 1, against positions normalised to the group's extent, the error clamped to that extent), permissive mode across hard edges with texture seams protected, and disconnected parts pruned once the error passes them. Copies a page cannot tell apart — same position and same value of every carried attribute — are one vertex before a group is reduced, through the group's own first copy, so a coarse page names only vertices its children draw; no other weld remains. A group's error also covers the distance from every disconnected part it removes whole to the surface it keeps: a roof of shingles each under the error keeps a cover within that error. A coarse corner points at the copy of its position and texture coordinates whose normal is its own face's, among the copies a face turned its way draws. A reduction that shades a face from behind, or leaves a corner no such copy exists for, is retried with that face's surroundings locked, as long as a retry locks something new; a reduction that loses a vertex shared with another group is retried, three times at most, without pruning, which ignores locks.
+The simplification is the one of meshoptimizer's reference DAG (`clusterlod.h`): absolute error, normals and every texture set the pages carry counted in it (normals weighted ½, texture coordinates 1, against positions normalised to the group's extent, the error clamped to that extent), permissive mode across hard edges with texture seams protected, and disconnected parts pruned once the error passes them. Copies a page cannot tell apart — same position and same value of every carried attribute — are one vertex before a group is reduced, through the group's own first copy, so a coarse page names only vertices its children draw; no other weld remains. Removing a disconnected part whole is a simplification like any other: the group's error covers the part's own extent, the diameter of its bounds, so a part, a column or an arch, drops only at the level whose error is as wide as it is. It also covers the distance from the part to the surface the group keeps: a roof of shingles each under the error keeps a cover within that error. A coarse corner points at the copy of its position and texture coordinates whose normal is its own face's, among the copies a face turned its way draws. A reduction that shades a face from behind, or leaves a corner no such copy exists for, is retried with that face's surroundings locked, as long as a retry locks something new; a reduction that loses a vertex shared with another group is retried, three times at most, without pruning, which ignores locks.
 
-Before publishing, the cook checks every DAG and refuses it (`DAG_ERROR_NOT_MONOTONE`, `DAG_NORMAL_DEVIATION`) when a cluster's error exceeds its parent's, or when a coarse cluster's normal deviation passes its group's bound. The normal deviation of a triangle is the angle between its face normal and the mean of its corner normals, the normal its centre is shaded with; triangles no wider than their level's error, and slivers thinner than a thousandth of their longest edge, are exempt. A group's bound is 90° — past it a face is lit from behind — or, when larger, the worst deviation among the level-0 triangles that group descends from: one inverted source triangle raises the bound of its own groups, never the rest of the primitive. The reduction holds each group to the same bound, and without the width exemption: it retries with locks any face but a sliver that turns past the bound, even one narrower than the error, so a long thin coarse face never comes out inside out. The cook is the same bytes on every platform: the root `.cargo/config.toml` builds the C++ of meshoptimizer with `-ffp-contract=off`, since arm64 otherwise fuses its multiply-adds and rounds apart from x86_64, and a test pins the digest of a cooked fixture. The report publishes, per level, `errorMax` and `normalDeviationMax`.
+Before publishing, the cook checks every DAG and refuses it (`DAG_ERROR_NOT_MONOTONE`, `DAG_NORMAL_DEVIATION`) when a cluster's error exceeds its parent's, or when a coarse cluster's normal deviation passes its group's bound. The normal deviation of a triangle is the angle between its face normal and the mean of its corner normals, the normal its centre is shaded with; triangles no wider than their level's error, and slivers thinner than a thousandth of their longest edge, are exempt. A group's bound is 90° — past it a face is lit from behind — or, when larger, the worst deviation among the level-0 triangles that group descends from: one inverted source triangle raises the bound of its own groups, never the rest of the primitive. The reduction holds each group to the same bound, and without the width exemption: it retries with locks any face but a sliver that turns past the bound, even one narrower than the error, so a long thin coarse face never comes out inside out. The cook is the same bytes on every platform: the root `.cargo/config.toml` builds the C++ of meshoptimizer with `-ffp-contract=off`, since arm64 otherwise fuses its multiply-adds and rounds apart from x86_64, and a test pins the digest of a cooked fixture. The report publishes, per level, `errorMax`, `normalDeviationMax` and `rootTriangles`, what the level adds to the root cover a budget cannot go under.
 
 Pages are then packed into streaming bundles of 128 KiB and each bundle lists the bundles it depends on: those holding the parents of its clusters, closed up to the pinned root cover ([FORMAT.md](FORMAT.md#cluster-dag), `streams`). The packing keeps that list short — one level per bundle, coarsest first, siblings together — and holds it to a bound fixed before packing, `streams.dependencyBound`: the most parents one cluster has. A bundle closes early rather than need more parent bundles than the primitive's neediest cluster has parents, and a cluster that alone would is refused (`PAGE_DEPENDENCY_BOUND`). The bound holds each bundle's direct parent bundles; `streams.maxDependencies`, the longest closed list, is a statistic measured after packing, not a bound. The cook refuses (`INVALID_PAGE_DEPENDENCIES`) a dependency graph with a cycle, a page whose parents' bundle is not on its bundle's list, a list that is not closed or does not reach the root cover, and a pinned bundle that depends on anything; the message names the page or the bundle.
 
@@ -608,12 +608,37 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   gap between the two diagonals of a cell is published as its `hausdorff`.
 - **Declared matter** (`declared.rs`). A node whose `KHR_physics_rigid_bodies` collider names a
   `physicsMaterial` gives its placements that material's friction and restitution. Every drawn node
-  is static ground, as drawn, a node declaring motion included: no body simulates a node of a
-  compiled model yet.
+  but a declared soft body (below) is static ground, as drawn, a node declaring motion included: no
+  rigid body simulates a node of a compiled model yet.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
 `report.refused` names it with Jolt's reason, and the compile goes on, its render cache the same.
+
+### Soft bodies a model declares
+
+A drawn node whose `extras.physics` holds the options `obj.physics` takes for a soft body —
+`{ "type": "cloth" | "rope" | "volume", "pins", "mass", "stretch", "bend", "pressure", … }`, `bend`
+left out for none, JSON having no `Infinity` — is cooked as a soft body, not as static ground
+(`src/physics_cook/soft.rs`). Its mesh must hold one primitive. Its vertices become the simulated
+ones exactly as the page's `softBodyOf` makes them (`soft_record.rs`): those at one position welded,
+their masses from the area — a rope's length — each holds at the node's world scale, or the
+declared `mass` spread so, the pins held, a volume's default pressure. Each stored value is rounded
+to 32 bits where the page rounds it, and the two agree bit for bit: the cook writes the records of a
+cloth, a scaled welded rope and a volume (`soft_tests.rs`,
+`tests/fixtures/physics/soft-records.bin`), and the page rebuilds each with `softBodyOf`
+(`packages/sdk-core/src/physics/softCook.test.ts`). Native Jolt then builds the
+`SoftBodySharedSettings` with the physics worker's own builder
+(`packages/physics-jolt-wasm/src/softSettings.h`, compiled into both), optimised, and writes them
+with `SaveWithMaterials` under their SHA-256, like a tile. At runtime, loading one is a decode and a
+copy: the page fetches the bytes and hands them to Jolt's `sRestoreWithMaterials` in one SOFT
+command, and builds nothing (`packages/sdk-browser/src/physics/cookedSoft.ts`). The golden cloth
+(`tests/fixtures/physics/cloth-settings.bin`, rewritten with `TRILLION3D_WRITE_GOLDEN=1`) is restored
+by the physics module's test and swings as the same cloth built on the page
+(`packages/sdk-browser/src/physics/cookedSoft.test.ts`). A node the cook refuses — two primitives, a
+shearing matrix, an option out of range, a pin naming no vertex — is named in `report.softRefused`
+with the page's own words; the compile goes on. The node is still drawn as compiled: its simulated
+vertices reach no drawn surface until dynamic geometry is uploaded in place (#573).
 
 ## Cutouts declared as blend
 
