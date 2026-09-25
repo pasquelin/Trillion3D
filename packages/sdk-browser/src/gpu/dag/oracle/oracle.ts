@@ -7,9 +7,10 @@ import { dagViewFrames } from './math.ts';
 import { dagOracleDescent } from './descent.ts';
 import { quantizeRequestPriority } from '../request.ts';
 import { createDagOraclePredicates } from './predicates.ts';
-import type { drawsCluster } from '../../../page/cut/rule.ts';
+import type { CutRuleAt } from './predicates.ts';
 
-/** The cut rule's residency, one entry per page (`../readiness.ts`). */
+/** The cut rule's residency, one entry per page: the bit sets its host uploads, read back
+ *  (`../readiness.fixture.ts`). */
 export type DagCutResidency = { ready: ArrayLike<number>; childReady: ArrayLike<number> };
 
 /**
@@ -21,15 +22,16 @@ export type DagCutResidency = { ready: ArrayLike<number>; childReady: ArrayLike<
  * like ../shader/shader.ts has done since the lot D5 cache. Both modes must select the same pages: this
  * flag exists only so ../coneCacheEquivalence.test.ts can prove that without forking the kernel.
  *
- * `rule`: the cut rule applied, `drawsCluster` by default; the rule's tests pass its WGSL text run
- * in Node (`../../../page/cut/cutRule.test.ts`), so the kernel's own rule is driven too.
+ * `rule`: the cut rule applied, `drawsCluster` by default; the rule's tests pass the kernel's
+ * `dagMask` call site run in Node (`../../../page/cut/cutRule.test.ts`), so the kernel's own text
+ * decides, on the residency bits its host uploaded.
  */
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
   uniforms: DagViewUniforms,
   resident?: DagCutResidency,
   cacheCone = false,
-  rule?: typeof drawsCluster,
+  rule?: CutRuleAt,
 ) {
   if (
     resident &&

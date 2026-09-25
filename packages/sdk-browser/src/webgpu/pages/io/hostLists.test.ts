@@ -35,6 +35,7 @@ function banc() {
     packedPages,
     delta,
     (page) => !run.coverageBudgetLimited || wantedPages.includes(page),
+    () => (run.coverageBudgetLimited ? 1 : 0),
   );
   const run = {
     desired,

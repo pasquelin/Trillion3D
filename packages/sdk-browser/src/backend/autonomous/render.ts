@@ -118,5 +118,5 @@ export function createAutonomousRender(options: {
     residency.keptChanged();
     gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
-  return frame;
+  return Object.assign(frame, { hostBytes: cut.hostBytes });
 }

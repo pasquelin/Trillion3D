@@ -98,8 +98,8 @@ export interface RenderBackend extends BackendSceneUpdates {
     data: import('../page/decode/geometryPage.ts').DecodedGeometryPage,
   ): void;
   dropPage?(url: string): void;
-  /** Bytes of CPU tables the engine sized by the scene's pages once prepared, which the CPU total
-   *  holds beside the decoded pages (`../residency/memoryBudget.ts`). */
+  /** Bytes of the engine's CPU cut tables now, sized by the view and the pool: the CPU total holds
+   *  them beside the decoded pages (`../residency/memoryBudget.ts`). */
   hostTableBytes?(): number;
   syncResident?(): void;
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback

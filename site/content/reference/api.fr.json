@@ -1755,7 +1755,7 @@
       "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
-      "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis, moins les clusters sans page résidente que compte `uncoveredTriangles`. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté dans le même passage que `uncoveredTriangles`, à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`. Relation de couverture attendue sur cette mesure : `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
       "cpuSelectMs": "Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule. Null pour un moteur qui ne choisit pas sa coupe sur le CPU.",
       "gpuSelectionFallback": "Vrai quand le moteur avait une sélection GPU et l’a abandonnée : ce qui est mesuré depuis est la coupe CPU de repli. Un repli émet aussi le diagnostic `gpu-selection-fallback`, une fois ; l’hôte le copie tel quel, et il est absent d’un moteur sans sélection GPU.",
       "cpuSelectNodesTested": "Nœuds de la hiérarchie sur lesquels la coupe de cette image a fait un test — décision de frustum ou de niveau de détail. Un nœud déjà décidé et entièrement visible n’en reçoit aucun : il est parcouru, pas testé. C’est la mesure du vrai travail d’une coupe hiérarchique ; une coupe à plat en teste zéro et parcourt chaque cluster. Null pour un moteur qui ne choisit pas sa coupe sur le CPU, ou qui ne la compte pas.",
@@ -6622,7 +6622,7 @@
       "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
-      "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis, moins les clusters sans page résidente que compte `uncoveredTriangles`. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté dans le même passage que `uncoveredTriangles`, à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`. Relation de couverture attendue sur cette mesure : `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
       "cpuSelectMs": "Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule. Null pour un moteur qui ne choisit pas sa coupe sur le CPU.",
       "gpuSelectionFallback": "Vrai quand le moteur avait une sélection GPU et l’a abandonnée : ce qui est mesuré depuis est la coupe CPU de repli. Un repli émet aussi le diagnostic `gpu-selection-fallback`, une fois ; l’hôte le copie tel quel, et il est absent d’un moteur sans sélection GPU.",
       "cpuSelectNodesTested": "Nœuds de la hiérarchie sur lesquels la coupe de cette image a fait un test — décision de frustum ou de niveau de détail. Un nœud déjà décidé et entièrement visible n’en reçoit aucun : il est parcouru, pas testé. C’est la mesure du vrai travail d’une coupe hiérarchique ; une coupe à plat en teste zéro et parcourt chaque cluster. Null pour un moteur qui ne choisit pas sa coupe sur le CPU, ou qui ne la compte pas.",
@@ -6906,7 +6906,8 @@
       "recipe": "Le membre de la famille et chacun des arguments avec lesquels il l’a construite.",
       "attributes": "Chaque liste par sommet, quand aucun appel ne reconstruit la forme.",
       "index": "Quels sommets forment chaque triangle.",
-      "groups": "Plages d’index dessinées chacune avec un matériau."
+      "groups": "Plages d’index dessinées chacune avec un matériau.",
+      "owner": "`'host'` pour les sommets d’une scène chargée, lus à leur valeur (`Geometry._owner`) ; absent pour ceux du monde."
     }
   },
   "SavedMaterial": {
@@ -7048,8 +7049,8 @@
     "summary": "Ce qu’un contact donne à ses écouteurs : l’autre objet, l’impulsion et le point touché.",
     "members": {
       "other": "L’objet touché ; `null` une fois sorti de la scène.",
-      "impulse": "N·s : la vitesse d’approche selon la normale fois la masse réduite de la paire, estimée avant le solveur ; 0 sur `leave`.",
-      "point": "Le point de contact, repère du monde ; l’origine sur `leave`."
+      "impulse": "N·s : la vitesse d’approche selon la normale fois la masse réduite de la paire, estimée avant le solveur (côté corps mou : sa vitesse moyenne, et la masse de ses sommets qui ont touché) ; 0 sur `leave`, et entre un corps mou et un capteur.",
+      "point": "Le point de contact, repère du monde (celui d’un corps mou : la moyenne de ses sommets qui ont touché, son centre face à un capteur) ; l’origine sur `leave`."
     }
   },
   "ContactEventName": {
