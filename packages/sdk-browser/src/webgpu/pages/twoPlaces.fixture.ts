@@ -15,7 +15,7 @@ import { rootPage, twoPrimitives } from './testScenes.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 
 /** Two meshes twenty units apart, one root cluster each: a camera sees both, or the second only. */
-export function twoPlacesScene() {
+function twoPlacesScene() {
   const geoA = triangleGeometry([-1, -1, 0, 1, -1, 0, 1, 1, 0]),
     geoB = triangleGeometry([20, -1, 0, 22, -1, 0, 22, 1, 0]);
   const front = G.basicSurface({ color: 0xff0000, side: G.FRONT_SIDE }),
