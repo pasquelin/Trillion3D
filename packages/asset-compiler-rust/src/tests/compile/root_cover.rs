@@ -1,9 +1,8 @@
 //! A part leaves the DAG only where the error covers it (#484): in every cut the runtime may draw,
 //! the root cover — what `memory-on-a-budget` draws at its smallest budget — included, a part of
 //! the model none of whose vertices the cut names is no wider than the cut's error, and every root
-//! face lies within twice its error of the model. On `signature-architecture`, the roots dropped
-//! walls up to 32 m across at 21.8 m of error, and a fan of faces turned from the light filled
-//! every arch opening. The cook refuses a parent error below a child's, so a cook that passes
+//! face lies within twice its error of the model (what `signature-architecture` lost:
+//! `dag/vanished.rs`). The cook refuses a parent error below a child's, so a cook that passes
 //! keeps its errors monotone.
 use super::chalet_fixture::{push_box, push_log};
 use super::dag_dependency_scenes::cook_site_scene;
@@ -65,14 +64,11 @@ fn missing_part_defects(
     indices: &[u32],
 ) -> Vec<String> {
     let index = &primitive["primitive"];
-    let parts: Vec<(Vec<u32>, f64)> = parts(indices, &weld_positions(positions, indices))
+    let parts: Vec<(f64, Vec<u32>)> = parts(indices, &weld_positions(positions, indices))
         .into_iter()
-        .map(|part| {
-            let extent = extent(positions, &part);
-            (part, extent)
-        })
+        .map(|part| (extent(positions, &part), part))
         .collect();
-    let widest = parts.iter().fold(0.0_f64, |w, (_, e)| w.max(*e));
+    let widest = parts.iter().fold(0.0_f64, |w, (e, _)| w.max(*e));
     let mut defects = Vec::new();
     // Past the widest part's extent, no part can leave a cut too early.
     for (t, cut) in page_cuts(objects, primitive)
@@ -80,7 +76,7 @@ fn missing_part_defects(
         .filter(|(t, _)| *t < widest)
     {
         let named: HashSet<u32> = cut.into_iter().collect();
-        for (part, extent) in &parts {
+        for (extent, part) in &parts {
             if *extent > t + 1e-6 && !part.iter().any(|v| named.contains(v)) {
                 let at = bounding_sphere(positions, part);
                 defects.push(format!(

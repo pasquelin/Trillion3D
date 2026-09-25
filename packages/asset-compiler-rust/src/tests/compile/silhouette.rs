@@ -8,6 +8,7 @@
 //! is neither pruned nor turned away, and a seam narrower than the error may open. Separately, no
 //! cut triangle may face against the normals of the source vertices it names.
 use super::*;
+use crate::proxy::cut::in_cut;
 use crate::shared_math::{cross, dot, sub};
 
 type Point = [f64; 3];
@@ -118,7 +119,7 @@ pub(in crate::tests) fn page_indices(objects: &Path, page: &Value) -> Vec<u32> {
 }
 
 /// Every cut of `primitive`, finest first: its threshold and the source indices it draws, the
-/// pages whose own error is at most the threshold and whose parent's is above it.
+/// pages `proxy::cut::in_cut` selects.
 pub(in crate::tests) fn page_cuts(objects: &Path, primitive: &Value) -> Vec<(f64, Vec<u32>)> {
     let pages = primitive["pages"].as_array().expect("pages");
     let indices: Vec<Vec<u32>> = pages
@@ -131,7 +132,7 @@ pub(in crate::tests) fn page_cuts(objects: &Path, primitive: &Value) -> Vec<(f64
     thresholds.dedup();
     let cut = |t: f64| -> Vec<u32> {
         let drawn = pages.iter().zip(&indices);
-        let drawn = drawn.filter(|(p, _)| error(p, "lodError") <= t && error(p, "parentError") > t);
+        let drawn = drawn.filter(|(p, _)| in_cut(error(p, "lodError"), error(p, "parentError"), t));
         drawn.flat_map(|(_, i)| i.iter().copied()).collect()
     };
     thresholds.into_iter().map(|t| (t, cut(t))).collect()
