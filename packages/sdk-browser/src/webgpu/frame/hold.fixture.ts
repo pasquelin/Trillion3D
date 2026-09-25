@@ -1,3 +1,4 @@
+import type { GuideSet } from '../../guides/guideSet.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
@@ -91,7 +92,9 @@ export function settledRt() {
       presenter: undefined as unknown,
       colorTexture: undefined as unknown,
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
+      guideRevision: 0,
     },
+    context: {} as { guides?: GuideSet },
     sunFar: { pending: undefined as Promise<unknown> | undefined, gpu: undefined as unknown },
   };
   return rt as unknown as WebgpuPagesRuntime & typeof rt;

@@ -933,7 +933,8 @@
       "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
       "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan."
+      "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan.",
+      "GUIDE_CEILING": "Sebuah panggilan `world.guides` akan memegang lebih banyak verteks daripada `GUIDE_VERTEX_CEILING`; tidak ada yang ditambahkan."
     }
   },
   "EngineProfiler": {
@@ -1234,6 +1235,42 @@
     "members": {
       "isGroup": "Selalu `true`: membedakan sebuah grup.",
       "type": "Jenis node itu, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Satu kumpulan pemandu yang digambar halaman; setiap setter mengembalikan pegangannya.",
+    "members": {
+      "visible": "Apakah ia digambar; `setVisible` menuliskannya.",
+      "setVisible": "Menampilkan atau menyembunyikannya; verteksnya tetap dihitung terhadap batas.",
+      "setTransform": "Menempatkannya: enam belas angka per kolom, atau sebuah matriks — `node.matrixWorld` mengikuti sebuah node.",
+      "remove": "Mengeluarkannya dari dunia, verteksnya dikembalikan; panggilan kedua tidak berbuat apa-apa."
+    }
+  },
+  "GuideLines": {
+    "summary": "Segmen garis yang akan digambar.",
+    "members": {
+      "positions": "Dua ujung per segmen, masing-masing tiga angka.",
+      "color": "Warnanya; putih secara bawaan.",
+      "width": "Lebar di layar, dalam piksel."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Titik yang akan digambar.",
+    "members": {
+      "positions": "Tiga angka per titik.",
+      "color": "Warnanya; putih secara bawaan.",
+      "size": "Sisi setiap titik persegi di layar, dalam piksel."
+    }
+  },
+  "Guides": {
+    "summary": "Pemandu satu dunia, sebagaimana halaman menggambarnya: `world.guides`.",
+    "members": {
+      "ceiling": "Jumlah verteks terbanyak yang dipegang bersama oleh pemandu (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Verteks yang dipegang sekarang, dua per segmen dan satu per titik, termasuk pemandu tersembunyi.",
+      "lines": "Menggambar segmen garis, masing-masing dua ujung; ditolak di atas batas (`GUIDE_CEILING`).",
+      "points": "Menggambar titik persegi, masing-masing satu posisi; ditolak di atas batas (`GUIDE_CEILING`).",
+      "add": "Menggambar mesh garis dan titik dari `object` — setiap `helper` membangunnya — dengan warna materialnya, ditempatkan di posisi objek saat ini; segitiganya bukan pemandu dan dilewati.",
+      "clear": "Menghapus semua pemandu."
     }
   },
   "HALF_PI": {
@@ -6802,6 +6839,9 @@
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },
+  "world.guides": {
+    "summary": "Garis, titik, dan alat bantu yang digambar di atas gambar (`Guides`)."
+  },
   "world.raycast": {
     "summary": "Objek terdekat di bawah sebuah titik canvas (piksel CSS) atau di sepanjang sinar dunia, atau `null`: node yang ditambahkan halaman, titik dunia dan normal yang terkena, serta jaraknya (`worldRaycast`).",
     "parameters": {
@@ -7030,6 +7070,10 @@
       "mars": "Milik Mars.",
       "none": "Tanpa gravitasi."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Jumlah verteks terbanyak yang dipegang bersama oleh pemandu satu dunia: dua per segmen, satu per titik.",
+    "description": "Dinyatakan, bukan diturunkan: membatasi satu-satunya buffer instans yang diunggah pass pada 64 Ki × 32 byte = 2 MiB, apa pun yang diminta halaman — kisi 16 000 garis muat, awan titik kota hasil pindaian tidak, dan tempatnya di adegan."
   },
   "GravityInput": {
     "summary": "Gravitasi: nama preset, atau vektor dalam m/s²."
