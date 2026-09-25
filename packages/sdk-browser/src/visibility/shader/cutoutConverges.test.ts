@@ -96,6 +96,7 @@ test('the hard cut, accumulated on a still camera, converges to the coverage of 
     const [got, want] = [held(hard(alpha)), held(coverage(alpha))];
     // Only the pixels the silhouette crosses: the others are all or nothing on both sides.
     const crossed = [...want.keys()].filter((i) => want[i]! > 1e-3 && want[i]! < 1 - 1e-3);
+    assert.ok(crossed.length > 0, `${name}: the silhouette crosses no pixel`);
     const errors = crossed.map((i) => Math.abs(got[i]! - want[i]!));
     const worst = Math.max(...errors),
       mean = errors.reduce((a, b) => a + b, 0) / errors.length;
