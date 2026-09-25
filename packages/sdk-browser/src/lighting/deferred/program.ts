@@ -97,7 +97,8 @@ export async function createDeferredProgram(
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One per colour and share read (an image drawn from TAA reads either share); weak.
+  // One per colour and share read (an image drawn from TAA reads either share); weak, and keyed
+  // by every view the group reads, so a new surface or lit image needs no reset.
   type Composition = (typeof compositions)['still'] & { group: GPUBindGroup };
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
@@ -112,8 +113,8 @@ export async function createDeferredProgram(
       if (!view || !boundSurface) return undefined;
       const accumulated = image?.share,
         share = accumulated ?? boundSurface.views()[3];
-      const byShare = composed.get(view) ?? new WeakMap<GPUTextureView, Composition>();
-      composed.set(view, byShare);
+      let byShare = composed.get(view);
+      if (!byShare) composed.set(view, (byShare = new WeakMap()));
       const kept = byShare.get(share);
       if (kept) return kept;
       const kind = compositions[accumulated ? 'accumulated' : 'still'];
@@ -144,7 +145,6 @@ export async function createDeferredProgram(
         requests = direct.requests ?? placeholders.requests,
         probes = direct.probes,
         proxy = direct.proxy ?? placeholders.proxy;
-      if (boundHdr !== hdr || boundSurface !== surface) composed = new WeakMap();
       boundHdr = hdr;
       if (
         boundSurface === surface &&
