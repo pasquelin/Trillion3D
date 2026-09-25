@@ -22,10 +22,10 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math, buffer, joint } from '../runtime/engine.js';
       import { controls, ease, mix, readout, seeded } from '../runtime/kit.js';
 
-      const world = createWorld('view', { controls: 'orbit' });
+      const world = createWorld('view', { controls: 'orbit', physics: true });
       world.scene.background = math.color('#f3c28c');
       world.camera.far = 1500;
       const random = seeded(23);
@@ -114,29 +114,66 @@
         return { samples, total, lift: [samples[marks.lift].s, samples[marks.crest].s], brake: samples[marks.brake].s };
       }
 
-      // A pose anywhere along the track: the two samples around it, blended.
+      // A pose anywhere along the track: the two samples around it, blended; past the last one,
+      // the span that closes the track back to the first.
       function poseAt(track, distance) {
         const { samples, total } = track, s = ((distance % total) + total) % total;
         let low = 0, high = samples.length - 1;
-        if (s >= samples[high].s) return { ...samples[high] };
-        while (high - low > 1) {
+        const closing = s >= samples[high].s;
+        while (!closing && high - low > 1) {
           const middle = (low + high) >> 1;
           if (samples[middle].s <= s) low = middle;
           else high = middle;
         }
-        const a = samples[low], b = samples[high], k = (s - a.s) / (b.s - a.s || 1);
+        const [a, b] = closing ? [samples[high], samples[0]] : [samples[low], samples[high]];
+        const k = (s - a.s) / ((closing ? total : b.s) - a.s || 1);
         return { p: mix(a.p, b.p, k), t: unit(mix(a.t, b.t, k)), u: unit(mix(a.u, b.u, k)), bend: a.bend + (b.bend - a.bend) * k };
       }
 
-      // The speed the train carries: the chain's pace on the lift, then what its fall from the
-      // crest gives it, less a rolling loss of 2 cm of height per metre, and the brakes easing it
-      // back to the station.
-      function speedAt(track, s, y) {
-        const [liftStart, liftEnd] = track.lift, chain = 4.5;
-        if (s < liftEnd) return s < liftStart ? 5 : chain;
-        const free = Math.sqrt(Math.max(chain * chain, chain * chain + 2 * G * (TOP - y - 0.02 * (s - liftEnd))));
-        const braking = ease.smooth((s - track.brake) / 30);
-        return free + (5 - free) * braking;
+      // Where a point on the track lies along it: the nearest sample, then the segment beside it.
+      function along(track, point) {
+        const { samples, total } = track, n = samples.length, far = (p) => Math.hypot(...plus(p, point, -1));
+        let near = 0;
+        samples.forEach(({ p }, k) => far(p) < far(samples[near].p) && (near = k));
+        let best = { gap: Infinity, s: 0 };
+        for (const from of [(near + n - 1) % n, near]) {
+          const a = samples[from], span = plus(samples[(from + 1) % n].p, a.p, -1), length = Math.hypot(...span);
+          const k = Math.max(0, Math.min(1, dot(plus(point, a.p, -1), span) / (length * length)));
+          const gap = far(plus(a.p, span, k));
+          if (gap < best.gap) best = { gap, s: (a.s + k * length) % total };
+        }
+        return best.s;
+      }
+
+      // The ride: the train is one body held on the track by a path joint and pulled by gravity.
+      // Its motor is the chain up the lift, then the tyres that brake it and drive it through the
+      // station. The chain's and the station's paces are declared; every force is the train's
+      // mass times an acceleration. The train: four cars of 500 kg, two riders of 75 kg in each.
+      const CHAIN = 4.5, STATION = 5, MASS = 4 * (500 + 2 * 75);
+      // What the train loses by itself, as the share of its speed lost each second (dv/dt = −c·v)
+      // at the ride's pace, the speed halfway down the lift's fall: its steel wheels rolling on
+      // steel rails, a force of 0.001 of its weight (a railway wheel on its rail: 0.001 to 0.002,
+      // "Rolling resistance", Wikipedia), and the air on the front car as drawn, 1.7 m wide and
+      // 1.2 m high, ½·ρ·Cd·A·v² with air at 1.2 kg/m³ and a bluff body's drag coefficient, 1.
+      // The train's mass, its drag coefficient and its front are this game's choices, not measured:
+      // the air takes 94 % of the loss, which goes as Cd·A / mass. The lap holds at twice the loss
+      // (tested) — a train half as heavy, or twice as blunt — and not at three times.
+      const PACE = Math.sqrt(CHAIN * CHAIN + G * TOP);
+      const LOSS = (0.001 * G) / PACE + (0.5 * 1.2 * 1 * 1.7 * 1.2 * PACE) / MASS;
+      function ride(track) {
+        const [liftStart, liftEnd] = track.lift;
+        // The chain holds the train's whole weight, on a slope as steep as a wall.
+        const chain = { mode: 'velocity', target: CHAIN, maxForce: MASS * G };
+        // The brakes bring the fastest the train can go — the lift's height fallen with nothing
+        // lost — down to the station's pace within the brake run.
+        const fastest = CHAIN * CHAIN + 2 * G * TOP, run = track.total - track.brake;
+        const brakes = { mode: 'velocity', target: STATION, maxForce: (MASS * (fastest - STATION * STATION)) / (2 * run) };
+        const hold = { ...brakes, target: 0 };
+        return {
+          path: track.samples.map(({ p }) => p),
+          // What drives the train at `s` along the track: nothing between the crest and the brakes.
+          motorAt: (s, waiting) => (waiting ? hold : s >= liftStart && s < liftEnd ? chain : s < liftStart || s >= track.brake ? brakes : null),
+        };
       }
 
       // The track's meshes: two rails and a spine swept along the samples, ties every few metres.
@@ -186,8 +223,10 @@
         world.scene.add(post);
         return post;
       });
-      let track = null;
+      let track = null, plan = null, rail = null;
       function rebuild(loops) {
+        // The train keeps its place along the track and its speed when the loops change.
+        const s = track ? along(track, where()) : START, speed = train.physics.velocity.length();
         track = layout(loops);
         const railList = { position: [], normal: [], index: [] }, spineList = { position: [], normal: [], index: [] }, tieList = { position: [], normal: [], index: [] };
         for (const across of [-0.55, 0.55]) sweep(railList, track.samples, across, 0, 0.075, 10);
@@ -206,11 +245,19 @@
         rails.geometry = built(railList);
         spine.geometry = built(spineList);
         ties.geometry = built(tieList);
+        if (rail) world.physics.remove(rail);
+        plan = ride(track);
+        const { p, t } = poseAt(track, s);
+        train.position.set(...p);
+        train.physics.velocity.set(...plus([0, 0, 0], t, speed));
+        rail = joint.path(train, null, { path: plan.path, loop: true, follow: false, motor: plan.motorAt(s, wait > 0) });
+        world.physics.add(rail);
       }
 
       // The train: four cars, each a body, two seats and a lap bar, on its own frame of the track.
       const red = material.meshStandard({ color: '#d7263d', roughness: 0.3, metalness: 0.35 });
       const seat = material.meshStandard({ color: '#20242c', roughness: 0.7 }), chrome = material.meshStandard({ color: '#f1f1f1', roughness: 0.2, metalness: 0.9 });
+      const GAP = 3.3;
       const cars = Array.from({ length: 4 }, (_, k) => {
         const car = object.group();
         car.rotation.order = 'YXZ';
@@ -239,6 +286,18 @@
         car.position.set(...p);
         car.rotation.set(pitch, yaw, Math.atan2(-dot(u, side0), dot(u, up0)));
       }
+      // The train's body: a point on the track under the front row, a 1 cm speck between the
+      // rails. It turns freely, as a bead, since the cars take their frames from the track. Its
+      // shape is a sphere reaching the last car's tail (its capsule's half length past its centre),
+      // so the rider's eye is always inside it and the view always hears where the train is;
+      // nothing else in the park is a body, so it meets nothing.
+      // The opening: the train waits at the station, START metres along the track, then goes.
+      let wait = 3.2;
+      const START = 6, reach = (cars.length - 1) * GAP + 1.7 / 2 + 0.62;
+      const train = object.mesh(geometry.box(0.01, 0.01, 0.01), red);
+      train.physics = { type: 'dynamic', mass: MASS, shape: { type: 'sphere', radius: reach }, damping: { linear: LOSS } };
+      world.scene.add(train);
+      const where = () => [train.position.x, train.position.y, train.position.z];
 
       // The park: grass, a station, a lake, a Ferris wheel, trees clear of the track, far hills.
       const paint = (color, roughness = 0.9, metalness = 0) => material.meshStandard({ color, roughness, metalness });
@@ -341,21 +400,25 @@
       });
 
       // The opening: seen from high above the park, the camera drops into the front row of the
-      // first car while the train waits at the station, then the chain takes it up.
-      let travel = 6, wait = 3.2;
+      // first car while the train waits at the station, then the chain takes it up. The frame
+      // reads where the simulation left the train and gives its motor what that stretch drives.
+      let laps = 0, last = START;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         wait -= step;
-        const front = poseAt(track, travel), speed = wait > 0 ? 0 : speedAt(track, travel % track.total, front.p[1]);
-        travel += speed * step;
-        cars.forEach((car, k) => seatCar(car, poseAt(track, travel - k * 3.3)));
+        const s = along(track, where()), speed = train.physics.velocity.length(), half = track.total / 2;
+        laps += s < last - half ? 1 : s > last + half ? -1 : 0;
+        last = s;
+        const travel = laps * track.total + s, motor = plan.motorAt(s, wait > 0);
+        if (motor !== rail.motor) rail.motor = motor;
+        cars.forEach((car, k) => seatCar(car, poseAt(track, s - k * GAP)));
         wheel.rotation.set(0, 0, (travel / 600) * Math.PI);
         gondolas.forEach((cabin, k) => {
           const a = (k / 16) * Math.PI * 2 + (travel / 600) * Math.PI;
           cabin.position.set(hub[0] + Math.cos(a) * 20, hub[1] + Math.sin(a) * 20, hub[2]);
         });
         // The rider sits in the front row of the first car: nothing of the train stands ahead.
-        const rider = poseAt(track, travel);
+        const rider = poseAt(track, s);
         speedShown(`${Math.round(speed * 3.6)} km/h`);
         felt(`${((speed * speed * rider.bend + G * rider.u[1]) / G).toFixed(1)} g`);
         if (!held) look = look.map((value) => value * Math.exp(-step * 3));
