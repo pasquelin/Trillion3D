@@ -58,7 +58,10 @@ test('each level is drawn from a copy of the level above, never from the texture
     [1, 2],
   );
   assert.ok(draws.every(([sampled, target]) => sampled && sampled !== target));
-  assert.deepEqual([gl.of('copyTexSubImage2D').length, gl.of('generateMipmap').length], [2, 0]);
+  assert.deepEqual([gl.of('copyTexSubImage2D').length, gl.of('generateMipmap').length], [2, 1]);
+  // The box chain first, drawn over: a refused draw leaves it, never a null level (alpha 0).
+  assert.ok(gl.names().indexOf('generateMipmap') < gl.names().indexOf('drawArrays'));
+  assert.deepEqual(gl.of('texImage2D').filter((args) => args[1] !== 0).length, 0);
 });
 
 test('a format no framebuffer holds keeps the box chain, never levels left empty', () => {

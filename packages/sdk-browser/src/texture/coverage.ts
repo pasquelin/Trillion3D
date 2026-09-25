@@ -12,20 +12,27 @@ const alphaIsCoverage = (mat: PageSurface) =>
  *  takes alpha for coverage — never an emissive map (`collect.rs`) — and the texels are not
  *  premultiplied. A host switches opaque and masked with no signal: `follow` rereads them. */
 export class CoverageReaders {
-  private surfaces = new Set<PageSurface>();
+  private filed = new WeakSet<PageSurface>();
+  /** Per colour texture, the surfaces filed as wearing it, as a base or an emissive map. */
+  private readers = new Map<Texture, Set<PageSurface>>();
   /** Per colour texture, whether every reader filed so far takes its alpha for coverage. */
   private rules = new Map<Texture, boolean>();
   /** Files a surface's colour maps, once however many meshes wear it; false when already filed. */
   read(surface: PageSurface) {
-    if (this.surfaces.has(surface)) return false;
-    this.surfaces.add(surface);
+    if (this.filed.has(surface)) return false;
+    this.filed.add(surface);
     this.file(surface);
     return true;
   }
-  /** Rereads every reader once, as the host declares it now (`refreshSurface`). */
-  follow() {
-    this.rules.clear();
-    for (const surface of this.surfaces) this.file(refreshSurface(surface));
+  /** Rereads the readers of `maps` only — the chains that follow the rule —, as the host declares
+   *  them now (`refreshSurface`); a reader moved to another map is filed under it. */
+  follow(maps: Iterable<Texture>) {
+    for (const map of maps) {
+      const readers = this.readers.get(map);
+      this.readers.delete(map);
+      this.rules.delete(map);
+      for (const surface of readers ?? []) this.file(refreshSurface(surface));
+    }
   }
   /** True when `texture`'s chain weighs its colours by alpha; false for one no surface wears as
    *  its map. */
@@ -34,7 +41,11 @@ export class CoverageReaders {
   }
   private file(surface: PageSurface) {
     const { map, emissiveMap } = surface;
-    if (map) this.rules.set(map, (this.rules.get(map) ?? true) && alphaIsCoverage(surface));
-    if (emissiveMap) this.rules.set(emissiveMap, false);
+    if (map) this.wear(map, surface, alphaIsCoverage(surface));
+    if (emissiveMap) this.wear(emissiveMap, surface, false);
+  }
+  private wear(texture: Texture, surface: PageSurface, coverage: boolean) {
+    (this.readers.get(texture) ?? this.readers.set(texture, new Set()).get(texture)!).add(surface);
+    this.rules.set(texture, (this.rules.get(texture) ?? true) && coverage);
   }
 }
