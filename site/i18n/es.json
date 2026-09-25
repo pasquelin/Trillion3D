@@ -313,6 +313,7 @@
       "soft-bodies": "Cuerpos blandos",
       "rolling-on-terrain": "Rodar sobre el terreno",
       "hinges-and-joints": "Bisagras y articulaciones",
+      "gears-and-pulleys": "Engranajes y poleas",
       "walk-with-collisions": "Caminar con colisiones",
       "drive-a-car": "Conducir un coche",
       "a-room-in-vr": "Una habitación en RV",
@@ -1079,7 +1080,8 @@
           "<code>anchor</code> es donde se unen los cuerpos y <code>axis</code> hacia dónde apunta el eje o el riel, ambos en el mundo, leídos al crear la unión.",
           "<code>limits</code> detiene la unión: radianes para una bisagra, metros para un riel. Un <code>spring</code> hace suave el tope.",
           "Un <code>motor</code> lleva una bisagra o un riel a una velocidad o a una posición. Cambia <code>joint.motor</code> cuando quieras.",
-          "<code>breakForce</code> es el tirón, en newtons, a partir del cual la unión se rompe: <code>joint.broken</code> pasa a verdadero y se llama a <code>joint.on('break', …)</code>."
+          "<code>breakForce</code> es el tirón, en newtons, a partir del cual la unión se rompe: <code>joint.broken</code> pasa a verdadero y se llama a <code>joint.on('break', …)</code>.",
+          "Las uniones avanzadas enlazan movimientos: <code>joint.gear(a, b, { ratio })</code> hace girar dos ruedas con bisagra como un solo tren, <code>joint.rackAndPinion</code> convierte un giro en un deslizamiento, <code>joint.pulley(a, b, { over })</code> cuelga dos cargas de una misma cuerda, <code>joint.path(a, b, { path })</code> mantiene un vagón en su vía, y <code>swingTwist</code> y <code>sixDof</code> crean hombros y uniones a tu medida."
         ],
         "tryIt": "Abre la puerta y el cajón, luego deja caer la piedra sobre el puente. Baja la resistencia del puente y reconstrúyelo: se rompe bajo su propio peso."
       },
