@@ -1,5 +1,6 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
+import { effectTargetExcess, type BudgetCanvas } from '../../residency/memoryBudget.ts';
 
 /** The page channels open now (`diagnostic.createChannel`): every world notice reaches each. */
 const listeners = new Set<(notice: BackendDiagnostic) => void>();
@@ -60,4 +61,34 @@ export function noticeFolds(
           `once and give it to every mesh that wears it`,
         { kind, count },
       );
+}
+
+/**
+ * Says on the world's channel by how many bytes the effect chain's targets on the `drawn` canvas
+ * pass the reserve of the declared one (`effectTargetExcess`), each time that excess grows. The
+ * chain still draws the whole image, at full resolution: nothing is shrunk to fit the budget.
+ */
+export function noticeEffectBudget(
+  budget: { readonly canvas: BudgetCanvas },
+  drawn: { readonly width: number; readonly height: number },
+  chain: { readonly size: number },
+  notices: Pick<WorldNotices, 'say'>,
+) {
+  let said = 0;
+  return () => {
+    const { canvas } = budget;
+    const excess = chain.size ? effectTargetExcess(drawn.width, drawn.height, canvas) : 0;
+    if (excess <= said) {
+      if (!excess) said = 0;
+      return;
+    }
+    said = excess;
+    const { width, height } = drawn;
+    notices.say(
+      'effect-targets-over-budget',
+      `effect targets over budget: ${excess} bytes past the reserve of the declared ` +
+        `${canvas.width} × ${canvas.height} canvas, drawn at ${width} × ${height}`,
+      { excess, width, height, declared: canvas },
+    );
+  };
 }

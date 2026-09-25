@@ -43,10 +43,10 @@ export const EFFECT_KIND_BYTES: Record<EffectKind, (width: number, height: numbe
 /** Every kind, read off the one table typed by all of them. */
 export const EFFECT_KINDS = Object.keys(EFFECT_KIND_BYTES) as readonly EffectKind[];
 
-/** Bytes of every target a chain may hold on a `side × side` image: two pass targets, the WebGL2
- *  scene target, and every kind's own. */
-export function effectChainBytesAt(side: number) {
-  let bytes = effectTargetBytes(side, side, effectPassTargets(Infinity), true);
-  for (const kind of EFFECT_KINDS) bytes += EFFECT_KIND_BYTES[kind](side, side);
+/** Bytes of every target a chain may hold on a `width × height` image: two pass targets, the
+ *  WebGL2 scene target, and every kind's own. */
+export function effectChainBytesAt(width: number, height: number) {
+  let bytes = effectTargetBytes(width, height, effectPassTargets(Infinity), true);
+  for (const kind of EFFECT_KINDS) bytes += EFFECT_KIND_BYTES[kind](width, height);
   return bytes;
 }

@@ -482,7 +482,7 @@
     "description": "`memory(world)` est ce que le monde tient maintenant (`world.budget`) ; les deux réservoirs construisent le réglage que prend un monde."
   },
   "budget.memory": {
-    "summary": "Les budgets de mémoire que tient un monde en ce moment : les totaux GPU et CPU, leur partage par la règle, les deux réservoirs et le maximum de chacun."
+    "summary": "Les budgets de mémoire que tient un monde en ce moment : les totaux GPU et CPU, leur partage par la règle, les deux réservoirs et le maximum de chacun, et le canvas auquel sont réservées les cibles d’effets."
   },
   "budget.geometryPool": {
     "summary": "Un réglage de réservoir de géométrie de `bytes`, prêt à donner à un monde.",
@@ -6527,8 +6527,9 @@
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
       "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous le réservoir d’ombres est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
+      "canvas": "Le plus grand canvas que le monde déclare, en pixels du tampon de dessin : les cibles de la chaîne d’effets sont réservées à sa taille (`split.effectTargets`) ; 3840 × 2160 par défaut, et le `gpu` par défaut ne grandit que de cette réserve. Règle-le pour redistribuer chaque réservoir par la règle. Un canvas dessiné plus grand est quand même rendu en entier : les diagnostics disent `effect targets over budget` avec les octets au-delà de la réserve.",
       "cpu": "Octets de mémoire CPU que le monde peut tenir : d’abord le miroir hôte de la table des pages d’ombre, puis les pages décodées, leurs tables de manifeste, leur file de transferts et les tables de coupe du moteur ensemble. Un changement s’applique aussitôt : les pages partent par dernier usage jusqu’à tenir. Un total qui ne dépasse pas le miroir est refusé (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Jamais lu sur la machine.",
-      "split": "Le partage des deux totaux : le réservoir d’ombres, les sondes de rebond et les cibles de la chaîne d’effets à leur maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU, tout entier, et la session en place y réserve ses tables de manifeste, sa file de transferts et les tables de coupe du moteur. Ce que donne la règle, avant un réservoir réglé seul."
+      "split": "Le partage des deux totaux : le réservoir d’ombres et les sondes de rebond à leur maximum, les cibles de la chaîne d’effets sur le `canvas` déclaré, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU, tout entier, et la session en place y réserve ses tables de manifeste, sa file de transferts et les tables de coupe du moteur. Ce que donne la règle, avant un réservoir réglé seul."
     }
   },
   "world.diagnostic": {

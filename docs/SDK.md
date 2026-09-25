@@ -920,11 +920,12 @@ as `world.budget.split`:
 
 - GPU: the shadow pool first, at its largest (the largest screen's side, its static layer and its
   transmittance layer), then the bounce probes at their largest, then the effect chain's targets
-  at their largest (`split.effectTargets`: the targets on an 8192 × 8192 image, 2 027 MiB); the
-  rest in two halves, geometry and textures, each capped at its ceiling. At the defaults the split
-  gives each pool its own default, so a page that sets nothing sees no change. The three fixed
-  shares never shrink: a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total
-  below 2.6 GiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
+  on the largest canvas the budget declares (`split.effectTargets`: 250.5 MiB on the default
+  3840 × 2160 canvas); the rest in two halves, geometry and textures, each capped at its ceiling.
+  The default total is 1 937 MiB, and at the defaults the split gives each pool its own default
+  (512 MiB each), so a page that sets nothing sees no change. The three fixed shares never shrink:
+  a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
+  taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
@@ -935,7 +936,16 @@ as `world.budget.split`:
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
+**The largest canvas is declared.** `world.budget.canvas` (`{ width, height }`, in pixels of the
+drawing buffer, 3840 × 2160 by default) is the size the effect chain's targets are reserved at, by
+the one rule the renderers count them with. Declared larger, the default total grows by the larger
+reserve only; under a total set by the page, the pools make room for it. A canvas drawn past the
+declared one is never shrunk: the chain renders at full resolution, and the diagnostics say
+`effect targets over budget` with the bytes past the reserve. A size that is not a whole number of
+pixels above zero is refused (`INVALID_BUDGET_CANVAS`).
+
 ```js
+world.budget.canvas = { width: 7680, height: 4320 }; // an 8K display: its targets reserved
 world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split
 world.budget.cpu = 128 * 1024 * 1024;
 world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
@@ -959,6 +969,7 @@ is too small for that view). A value that cannot be held as given is brought to 
 
 - a value that is not a whole number of bytes above zero: `INVALID_GPU_BUDGET`,
   `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET`;
+- a declared canvas that is not a whole number of pixels above zero: `INVALID_BUDGET_CANVAS`;
 - a total under its fixed share, above: `GPU_BUDGET_UNDER_SHADOW_POOL`,
   `CPU_BUDGET_UNDER_SHADOW_MIRROR`;
 - a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`;

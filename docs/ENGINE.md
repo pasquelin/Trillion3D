@@ -191,11 +191,15 @@ Parity rules, each held by a unit test: an empty chain adds no pass, no copy and
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
 runs no pass, a changed chain breaks the hold; targets are made at the first frame with a pass, fixed
 at the image size, freed when the chain empties, and counted in `gpuFrameTargetBytes` (on WebGL2,
-which counts no other target, the chain's alone). The GPU total reserves them at their largest
-(`EFFECT_TARGET_BYTES`, 2 027 MiB: two pass targets, the WebGL2 scene target and the bloom levels on
-an 8192 × 8192 image, the texture side every WebGPU device offers), sized by the same rule the
-renderers count them with (`effects/targets.ts`), and the default total grows by as much. A diagnostic view and an off-screen capture show
-the engine's image without the chain.
+which counts no other target, the chain's alone). The GPU total reserves them on the largest canvas
+the budget declares (`world.budget.canvas`, 3840 × 2160 by default: two pass targets, the WebGL2
+scene target and the bloom levels, 250.5 MiB, `effectTargetReserve`), sized by the same rule the
+renderers count them with (`effects/targets.ts`); the default total grows by that reserve only, from
+1 686 to 1 937 MiB, and the geometry and texture pools keep 512 MiB each. A canvas drawn past the
+declared one still renders whole, at full resolution: the world's diagnostic channel says
+`effect targets over budget` (`effect-targets-over-budget`) with the bytes past the reserve, each
+time that excess grows. A diagnostic view and an off-screen capture show the engine's image without
+the chain.
 
 **Bloom** (`effect.bloom`, `effects/bloomFilter.ts`) is the physically based one of Jimenez
 (SIGGRAPH 2014): six half-size levels at most (a declared value, the publication's), filtered down
