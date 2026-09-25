@@ -636,6 +636,18 @@ material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPP
 materials included. The former aliases of the node, `HostNode`,
 `HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
 
+The engine's geometries hold the same vertex attributes as a world's `Geometry`: a
+`BufferAttribute` owning its numbers, or an `InterleavedBufferAttribute` viewing `itemSize` numbers
+at `offset` of each vertex of an `InterleavedBuffer` (`VertexAttribute` names either).
+`new BufferAttribute(array, itemSize, normalized)` reads an integer attribute declared normalised
+as its value over the largest of its type, and writes it back the same way; `needsUpdate = true`
+bumps `version` (the buffer's, for a view), which the renderer compares before uploading the same
+bytes again, and `addUpdateRange` limits that upload to the numbers written. `clone()` copies the
+numbers, their type, normalisation and name; a view's clone owns its numbers. The former engine
+classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` and the types
+`GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
+`InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop

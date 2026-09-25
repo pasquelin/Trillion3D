@@ -85,7 +85,7 @@ const GARNITURES: [number, number, number][] = [
 ];
 
 const attribut = (valeurs: number[], size: number) =>
-  new G.GraphAttribute(Float32Array.from(valeurs), size);
+  new G.BufferAttribute(Float32Array.from(valeurs), size);
 
 /** The four attribute sets of a fitting: with tangents, without, without normals, without UV. */
 function attributs([n, t, u]: [number, number, number]): G.GraphGeometry['attributes'][] {

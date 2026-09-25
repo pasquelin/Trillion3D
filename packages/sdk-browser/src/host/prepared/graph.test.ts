@@ -5,7 +5,7 @@ import type {
   TableNode,
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
-import { GraphAttribute } from '../graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphGeometry } from '../graph/geometry.ts';
 import { GraphMesh } from '../graph/mesh.ts';
 import { GraphSurface } from '../graph/surface.ts';
@@ -33,8 +33,8 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
   ] as unknown as TableDocument['meshes'];
   const geometryOf = () => {
     const geometry = new GraphGeometry();
-    geometry.setAttribute('position', new GraphAttribute(new Float32Array(9), 3));
-    geometry.morphAttributes.position = [new GraphAttribute(new Float32Array(9), 3)];
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
+    geometry.morphAttributes.position = [new BufferAttribute(new Float32Array(9), 3)];
     return geometry;
   };
   const materialOf = () => Promise.resolve(new GraphSurface('standard'));

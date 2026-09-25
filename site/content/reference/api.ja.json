@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "常に`true`: 他の何かとバッファ属性を区別する。",
       "type": "値がどう宣言されたか。半精度浮動小数点の属性も単精度で保持される。",
-      "normalized": "整数値が0から1の間の値として読まれるかどうか。",
       "version": "宣言された書き込みのたびに増える: 世界が、内容が変わったかを見るために比較するもの。",
       "array": "数値そのもの。",
-      "itemSize": "1つの頂点に属する数値の数: 位置なら3。",
       "count": "これらの数値が表す頂点の数。",
-      "needsUpdate": "`array`を書き込んだ後の`attribute.needsUpdate = true`: 世界がそれを読み直す。",
-      "getComponent": "頂点`index`の`component`番目の数値。",
-      "getX": "頂点`i`の1番目の数値。",
-      "getY": "頂点`i`の2番目の数値。",
-      "getZ": "頂点`i`の3番目の数値。",
-      "getW": "頂点`i`の4番目の数値。",
-      "setXYZ": "頂点`i`に3つの数値を書き込む。",
-      "setXY": "頂点`i`に2つの数値を書き込む。",
-      "setX": "頂点`i`の1番目の数値を書き込む。",
-      "clone": "数値のコピーを持つ新しい属性。"
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。",
+      "clone": "数値とその型、正規化、名前のコピーを持つ新しい属性。",
+      "kind": "属性が自分のバッファを所有する。",
+      "updateRanges": "前回のアップロード以降に書き込まれた `array` の範囲。単独で送られる。",
+      "addUpdateRange": "`start` から `count` 個の数値を書き込み済みとして印を付ける。",
+      "clearUpdateRanges": "アップロード後、書き込まれた範囲を忘れる。"
     }
   },
   "BufferNumbers": {
@@ -1438,7 +1432,10 @@
       "array": "すべての頂点の数値を、次々に詰めたもの。",
       "stride": "各頂点が占める数値の個数。",
       "count": "それが詰め込む頂点数。",
-      "attribute": "そのまとまりから取り出された1つの属性。それ自身の浮動小数点属性として。"
+      "attribute": "そのまとまりから取り出された1つの属性。それ自身の属性として。",
+      "kind": "複数の属性が参照する 1 つのストレージ。",
+      "version": "`needsUpdate` で増える。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
     }
   },
   "JobProgress": {
@@ -7129,19 +7126,6 @@
       "handbrake": "サイドブレーキが引かれているか。"
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "頂点数。",
-      "array": "保存領域。",
-      "kind": "属性が自分のバッファを所有する。",
-      "version": "`needsUpdate` で増える。",
-      "updateRanges": "前回のアップロード以降に書き込まれた `array` の範囲。単独で送られる。",
-      "addUpdateRange": "`start` から `count` 個の数値を書き込み済みとして印を付ける。",
-      "clearUpdateRanges": "アップロード後、書き込まれた範囲を忘れる。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    },
-    "summary": "自分のストレージを持つ属性：頂点ごとに `itemSize` 個の数値が順に並ぶ。"
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "その頂点属性。",
@@ -7236,34 +7220,6 @@
       "rotation": "回転（ラジアン）。"
     },
     "summary": "画像と、それを読むサンプラー状態、そして座標の変換。"
-  },
-  "GraphArray": {
-    "summary": "属性が保持する型付き配列。"
-  },
-  "GraphElements": {
-    "summary": "いずれかの種類の属性。"
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "インターリーブバッファの各頂点の `offset` にある `itemSize` 個の数値を参照する属性。",
-    "members": {
-      "kind": "属性が共有バッファを参照する。",
-      "data": "参照しているバッファ。",
-      "offset": "各頂点内で数値が始まる位置。",
-      "array": "要素が置かれるストレージ。",
-      "count": "頂点の数。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "複数の属性が参照する 1 つのストレージ。`stride` 個の数値ごとに 1 頂点。",
-    "members": {
-      "kind": "複数の属性が参照する 1 つのストレージ。",
-      "count": "頂点の数。",
-      "version": "`needsUpdate` で増える。",
-      "array": "ストレージ。",
-      "stride": "頂点あたりの数値の数。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    }
   },
   "GraphMesh": {
     "summary": "描画されるノード：ジオメトリとそのサーフェス、またはジオメトリグループごとに 1 つのサーフェス。",
@@ -7365,6 +7321,45 @@
       "pulley": "`a` から 2 つの車輪(`over`)を越えて `b` へ下りるロープ:片方が下がるともう片方が上がります。",
       "gear": "`ratio` の比で一緒に回る 2 つの車輪。それぞれ自分のピン(`axis`、`axisB`)の周りを回り、自分の蝶番(車輪をその `a` として)で支えられます。`ratio` か 1 / `ratio` が整数なら、歯は作られたときの位相も保ちます。",
       "rackAndPinion": "`axis` の周りを回るピニオン `a` が、ラック `b` を `axisB` に沿って動かします。それぞれ自分の蝶番かスライダー(物体をその `a` として)で支えられ、歯は作られたときの位相に保たれます。"
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "インターリーブバッファの各頂点の `offset` にある `itemSize` 個の数値を参照する属性。",
+    "members": {
+      "isInterleavedBufferAttribute": "常に`true`: インターリーブビューを他の何かと区別する。",
+      "kind": "属性が共有バッファを参照する。",
+      "data": "参照しているバッファ。",
+      "offset": "各頂点内で数値が始まる位置。",
+      "array": "要素が置かれるストレージ。",
+      "count": "これらの数値が表す頂点の数。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。",
+      "clone": "まとまりから、それを所有する属性へコピーされた自身の数値。"
+    }
+  },
+  "VertexAttribute": {
+    "summary": "いずれかの種類の属性: 自身のストレージを持つか、インターリーブされたものを参照する。"
+  },
+  "VertexElements": {
+    "summary": "1つの頂点属性の要素。成分ごとに読み書きされる。",
+    "members": {
+      "name": "モーフターゲットが知られる名前。他は空。",
+      "itemSize": "1つの頂点に属する数値の数: 位置なら3。",
+      "normalized": "整数値が0から1の間の値として読まれるかどうか。",
+      "array": "要素が置かれるストレージ。",
+      "count": "これらの数値が表す頂点の数。",
+      "stored": "頂点`index`の`component`番目の数値を格納されたまま。正規化された整数はスケールされない。",
+      "getComponent": "頂点`index`の`component`番目の数値。それが表す数として読まれる。",
+      "setComponent": "頂点`index`の`component`番目の数値を書き込む。",
+      "getX": "頂点`i`の1番目の数値。",
+      "getY": "頂点`i`の2番目の数値。",
+      "getZ": "頂点`i`の3番目の数値。",
+      "getW": "頂点`i`の4番目の数値。",
+      "setX": "頂点`i`の1番目の数値を書き込む。",
+      "setY": "頂点`i`の2番目の数値を書き込む。",
+      "setZ": "頂点`i`の3番目の数値を書き込む。",
+      "setW": "頂点`i`の4番目の数値を書き込む。",
+      "setXY": "頂点`i`に2つの数値を書き込む。",
+      "setXYZ": "頂点`i`に3つの数値を書き込む。"
     }
   }
 }

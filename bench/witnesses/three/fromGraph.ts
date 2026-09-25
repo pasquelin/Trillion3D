@@ -5,7 +5,7 @@
  * object crosses as it is. Every number is the engine's.
  */
 import * as THREE from 'three';
-import type { GraphElements } from '../../../packages/sdk-browser/src/host/graph/attributes.ts';
+import type { VertexAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
 import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { isGraphTexture } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
@@ -133,7 +133,7 @@ export function threeMaterials(declared: HostMaterials | THREE.Material | THREE.
 }
 
 /** The library's attribute of an engine one, sharing its storage. */
-function threeAttribute(attribute: GraphElements) {
+function threeAttribute(attribute: VertexAttribute) {
   let made = attributes.get(attribute);
   if (made) return made;
   if (!('data' in attribute))
