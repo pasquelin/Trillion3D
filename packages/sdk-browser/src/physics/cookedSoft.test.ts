@@ -2,22 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
   JOLT_COMMIT,
   OP,
   SOFT_WORDS,
   type CookedSoftBody,
-  type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createPhysicsBodies } from './bodies.ts';
 import { createCookedSoftBodies } from './cookedSoft.ts';
 import { startModule } from './module.fixture.ts';
-import { createPhysicsPoses } from './poses.ts';
 import { addSoft, at, FLAT, settle, softWorld } from './soft.fixture.ts';
-import { createTileStreamer } from './tiles.ts';
+import { landed, streamedModel } from './tiles.fixture.ts';
 
 /** The golden cooked cloth (`physics_cook/soft_tests.rs`): 1 m of 2 × 2 squares in the xy plane,
  *  its vertices row by row from (−0.5, −0.5), pinned at its top corners, bend 0.01 rad/(N·m). */
@@ -63,34 +58,8 @@ async function opened(softVertices = DEFAULT_PHYSICS_BUDGET.softVertices, scale 
     instances: [],
     softBodies: [cookedCloth(bytes.length)],
   };
-  globalThis.fetch = (async (url: string) =>
-    new Response(url.endsWith('physics.json') ? JSON.stringify(file) : bytes)) as typeof fetch;
-  const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, softVertices };
-  const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
-  const bodies = createPhysicsBodies(
-    writer,
-    budget,
-    {} as PhysicsHost,
-    scene,
-    createPhysicsPoses(8, scene).state,
-  );
-  const tiles = createTileStreamer(
-    writer,
-    budget,
-    bodies,
-    () => {},
-    (e) => errors.push(e),
-  );
-  const model = Object.assign(new Object3D(), {
-    isLoadedModel: true as const,
-    record: { base: 'https://cache.test/model/' },
-  });
-  model.scale.set(scale, scale, scale);
-  model.updateMatrixWorld(true);
-  scene.add(model);
-  tiles.scan(scene);
-  await new Promise((resolve) => setTimeout(resolve, 10));
-  return { scene, model, writer, bodies, tiles, errors, bytes };
+  const opening = await streamedModel(file, bytes, { softVertices }, scale);
+  return { ...opening, bytes };
 }
 
 test('a compiled model’s cooked cloth is made from its settings alone and moves from the first steps', async () => {
@@ -123,7 +92,7 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
   const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail);
   softs.open(model, [cookedCloth(1)]);
   softs.open(model, [cookedCloth(1)]);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await landed();
   assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
 
