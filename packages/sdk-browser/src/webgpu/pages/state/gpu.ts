@@ -47,11 +47,9 @@ export interface WebgpuGpuState {
   targetSize: [number, number];
   /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number;
-  /** The frame targets last asked of the device (`targetGrant.ts`): in flight until `settled`,
-   *  then `granted` or refused at that size. */
-  targetGrant:
-    | { width: number; height: number; settled: boolean; granted: boolean; done: Promise<void> }
-    | undefined;
+  /** The frame targets asked of the device (`targetGrant.ts`): in flight, or `refused` at that
+   *  size; gone once granted. */
+  targetGrant: { width: number; height: number; refused: boolean; done: Promise<void> } | undefined;
   positionBuffers: Map<HostAttributes, GPUBuffer>;
   /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
    *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says

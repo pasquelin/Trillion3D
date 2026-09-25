@@ -65,15 +65,18 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   vis.zeroFlags = shaders.zeroFlags;
   vis.visUniform = shaders.visUniform;
   const { visModule, shadeModule } = shaders;
-  // Hi-Z is a frame target: made under the out-of-memory check, and left out when refused — its
-  // absence changes no image (`targetGrant.ts`).
-  const hiz = await validationScope(
-    gpuDevice,
-    () => createGpuHiz(gpuDevice, Math.max(1, width), Math.max(1, height), drawSlots),
-    'out-of-memory',
-  );
-  if (hiz.error) hiz.value?.dispose();
-  vis.gpuHiz = hiz.error ? undefined : hiz.value;
+  // Hi-Z is a frame target: its pyramid is made at the view's size under the out-of-memory check,
+  // in one synchronous step, and left out when refused — its absence changes no image.
+  const hiz = await createGpuHiz(gpuDevice, 1, 1, drawSlots);
+  const sized =
+    hiz &&
+    (await validationScope(
+      gpuDevice,
+      () => hiz.resize(gpuDevice, Math.max(1, width), Math.max(1, height)),
+      'out-of-memory',
+    ));
+  if (hiz && (sized?.error || !sized?.value)) hiz.dispose();
+  else vis.gpuHiz = hiz;
   let rasterPipelines;
   try {
     if (!vis.gpuHiz || !vis.visBindGroupLayout) throw new Error('HIZ_UNAVAILABLE');

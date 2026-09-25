@@ -45,7 +45,7 @@ export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDe
  *  kept on the runtime, and the teardown releases it. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
-    { allPages, blendCopies, scene, viewport, cap } = rt.setup,
+    { allPages, blendCopies, scene, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
   const step = <T>(name: string, work: () => Promise<T>) => {
     throwIfStopped(rt);
@@ -143,8 +143,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     geometryFailure = { error };
   }
   await grantWebgpuPagesCache(rt, gpuDevice);
-  const [width, height] = viewport;
-  await grantFrameTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
+  await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
   try {
     if (geometryFailure) throw geometryFailure.error;
