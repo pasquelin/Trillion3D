@@ -2223,7 +2223,7 @@
     "members": {
       "visible": "S’il est dessiné ; `setVisible` l’écrit.",
       "setVisible": "Le montre ou le cache, ses sommets toujours comptés sous le plafond.",
-      "setTransform": "Le place : seize nombres par colonnes, ou une matrice — `node.matrixWorld` suit un nœud.",
+      "setTransform": "Le place : seize nombres par colonnes, ou une matrice ; un guide qu’`add` a dessiné cesse alors de suivre son nœud.",
       "remove": "Le retire du monde, ses sommets rendus ; un second appel ne fait rien."
     }
   },
@@ -2232,7 +2232,7 @@
     "members": {
       "positions": "Deux extrémités par segment, trois nombres chacune.",
       "color": "Leur couleur ; blanc par défaut.",
-      "width": "Largeur à l’écran, en pixels."
+      "width": "Largeur à l’écran, en pixels CSS, comme toute ligne du moteur."
     }
   },
   "GuidePoints": {
@@ -2240,7 +2240,7 @@
     "members": {
       "positions": "Trois nombres par point.",
       "color": "Leur couleur ; blanc par défaut.",
-      "size": "Côté de chaque point carré à l’écran, en pixels."
+      "size": "Côté de chaque point carré à l’écran, en pixels CSS."
     }
   },
   "Guides": {
@@ -2250,7 +2250,7 @@
       "vertexCount": "Les sommets tenus maintenant, deux par segment et un par point, guides cachés compris.",
       "lines": "Dessine des segments, deux extrémités chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
       "points": "Dessine des points carrés, une position chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
-      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux, placés là où l’objet se tient maintenant ; ses triangles ne sont pas des guides et sont ignorés.",
+      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux ; ses triangles ne sont pas des guides et sont ignorés. Le guide suit l’objet — pour une aide de lumière ou de caméra, le nœud qu’elle montre — déplacé à chaque image où ce nœud a bougé, jamais autrement.",
       "clear": "Retire tous les guides."
     }
   },
