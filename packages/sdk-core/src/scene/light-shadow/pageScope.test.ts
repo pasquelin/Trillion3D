@@ -9,7 +9,7 @@ import { createShadowPlan } from './plan.ts';
 import { writeSunSquare } from './sunFaces.ts';
 import { SHADOW_CULL_FLOATS } from './faces.ts';
 import { PAGE_MAPPED, sunFloorLevel, sunPageMetres } from './virtual.ts';
-import { SUN, planFrame, report, sunPages } from './lightShadow.fixture.ts';
+import { SUN, VIEW, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 import { dotVector3 } from '../../math/primitives/vector.ts';
 
 /** A sun planned once, its floor drawn: the tests' scene. */
@@ -87,4 +87,28 @@ test("a frame's list serves each light's coarsest pages first, its floor before 
     'the coarsest level first',
   );
   assert.equal(levels[0], sunFloorLevel(finest));
+});
+
+// A sun turning while the camera moves withdraws every page it holds each frame: past the moving
+// budget, the finer pages wait, but a reader never loses the shadow — every floor is drawn in the
+// frame that marks it, outside the budget, and the finer pages fall back to it.
+test('a turning sun under a moving camera keeps its floor current every frame', () => {
+  const { store, plan, slice } = sunScene();
+  const grid = Array.from({ length: 36 }, (_, k) => [k % 6, Math.floor(k / 6)]);
+  const read = () =>
+    [2, 3].flatMap((step) => sunPages(plan, slice, plan.sun.finest[slice] + step, grid));
+  const { pool } = plan;
+  for (let frame = 1; frame < 12; frame++) {
+    store.set(SUN.id, { direction: [frame / 1000, -1, 0] });
+    const position: [number, number, number] = [frame * 1e-6, 5, 0];
+    const count = planFrame(plan, store, frame, { ...VIEW, position });
+    const end = plan.admission.frameEnd(plan.resting);
+    plan.commit(undefined, 0, end);
+    if (end < count) plan.reissue(end);
+    if (frame > 1) assert.ok(end < count, `frame ${frame}: the budget holds pages back`);
+    for (let page = 0; page < pool.pages; page++)
+      if (pool.owner[page] >= 0 && plan.records.isFloor(page))
+        assert.ok(pool.valid[page], `frame ${frame}: floor page ${page} is not readable`);
+    report(plan, store, frame, read());
+  }
 });
