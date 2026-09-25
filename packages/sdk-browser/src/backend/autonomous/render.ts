@@ -59,7 +59,7 @@ export function createAutonomousRender(options: {
   residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged' | 'askedUrls'>;
   /** The geometry pool: what it admits of the requests, and the shedding of what the image no
    *  longer asks for (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'trim'>;
+  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'trim'>;
 }) {
   const {
     state,
@@ -102,7 +102,9 @@ export function createAutonomousRender(options: {
       lighting.update();
     }
     // Over the budget, the pages the last image drew but no longer asks for can go: this cut
-    // draws their nearest resident ancestor, before the scene is drawn again.
+    // draws their nearest resident ancestor, before the scene is drawn again. A pool drawn since
+    // the last cut first cuts what it asked for, so the image that sees it holds no more.
+    if (cut.readmit()) residency.keptChanged();
     pool.trim(residency.askedUrls);
     const selected = cut(gate.cam, gate.pixelError);
     state.visible = selected.visible;

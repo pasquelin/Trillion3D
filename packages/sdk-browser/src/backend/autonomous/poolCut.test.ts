@@ -18,12 +18,11 @@ test('a smaller budget bounds what the image asks for and holds, never its thres
   assert.ok(state.allocationBytes > 40 * PAGE, `a fine cut to shrink: ${fine} pages`);
   assert.equal(pool.coverageBudgetLimited, false, 'a cut the budget did not limit');
   pool.resize(20 * PAGE);
-  // The image that sees the smaller budget asks for less; the next one releases what it no longer
-  // asks for, before its cut draws their ancestors.
+  // Every image, the first to see the smaller budget included, releases what it no longer asks
+  // for before its cut draws their ancestors.
   for (let frame = 0; frame < 12; frame++) {
     const most = image(1);
-    if (frame > 0)
-      assert.ok(most <= 20 * PAGE, `image ${frame}: ${most / PAGE} pages for 20 slots`);
+    assert.ok(most <= 20 * PAGE, `image ${frame}: ${most / PAGE} pages for 20 slots`);
     assert.equal(wanted(), asked, `image ${frame}: the cut is still the host's`);
     assert.equal(pool.coverageBudgetLimited, true, 'the verdict moves in the image that asked');
   }
