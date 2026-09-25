@@ -7388,5 +7388,102 @@
       "setXY": "Ghi hai số cho đỉnh `i`.",
       "setXYZ": "Ghi ba số cho đỉnh `i`."
     }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Ba cỗ máy mà các phương tiện bắt đầu từ đó, theo loại.",
+    "members": {
+      "car": "Một chiếc Chevrolet Corvette C5: dẫn động cầu sau, 0,32 N·m mỗi kilôgam, sáu số.",
+      "motorcycle": "Một chiếc Yamaha XJ900 cùng người lái: 0,26 N·m mỗi kilôgam, sáu số.",
+      "tracked": "Một chiếc M1 Abrams: tua-bin khí, 0,083 N·m mỗi kilôgam, bốn số."
+    }
+  },
+  "Vehicle": {
+    "summary": "Một phương tiện: một thân được ràng buộc phương tiện của Jolt đỡ trên bánh xe, với động cơ, hộp số, vi sai, hệ treo và thanh cân bằng, tạo bằng `vehicle.*` và thêm vào mô phỏng bằng `world.physics.add`.",
+    "description": "Nó là một `VehicleDriver`: `world.controls.vehicle = car` lái nó.",
+    "parameters": {
+      "options": "Những gì `vehicle.*` nhận: các bánh xe, và bao nhiêu giá trị của cỗ máy tùy ý (`VehicleSpec`).",
+      "options.wheels": "Các bánh xe: lưới là con của thân, mỗi cái đặt tại tâm như khi nằm trên mặt đất phẳng, trục dọc theo x của thân. Bán kính và bề rộng được đọc từ giới hạn của nó. Thân hướng về −z: các bánh phía trước đánh lái.",
+      "options.torquePerKg": "Mô-men cực đại của động cơ trên mỗi kilôgam thân, N·m/kg.",
+      "options.idleRPM": "Vòng tua không tải của động cơ, vòng/phút.",
+      "options.maxRPM": "Vạch đỏ của động cơ, vòng/phút.",
+      "options.torqueCurve": "Tối đa năm điểm `[rpm / maxRPM, mô-men / đỉnh]`, tỉ lệ vòng tua tăng dần.",
+      "options.gears": "Tối đa sáu tỉ số số tiến, số một trước.",
+      "options.reverse": "Tỉ số của số lùi.",
+      "options.finalDrive": "Tỉ số truyền cuối (bộ giảm tốc bánh sao của xe bánh xích).",
+      "options.shiftUpRPM": "Hộp số lên số khi vượt mức này, vòng/phút.",
+      "options.shiftDownRPM": "Và về số thấp dưới mức này, vòng/phút.",
+      "options.clutch": "Mô-men ly hợp trên mỗi rad/s trượt, N·m·s.",
+      "options.suspensionFrequency": "Tần số hệ treo, Hz.",
+      "options.suspensionDamping": "Tỉ số giảm chấn, từ 0 (không có) đến 1 (tới hạn).",
+      "options.suspensionTravel": "Hành trình của bánh từ duỗi hết đến nén hết, mét.",
+      "options.antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có.",
+      "options.turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét.",
+      "options.steerTime": "Số giây từ giữa đến đánh lái hết cỡ.",
+      "options.brakeGrip": "Ma sát mà tại đó phanh khóa bánh xe.",
+      "options.drive": "Các bánh chủ động của ô tô.",
+      "options.trackTurn": "Tốc độ xích bên trong của xe bánh xích khi rẽ, so với xích bên ngoài.",
+      "options.maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian."
+    },
+    "members": {
+      "kind": "Phương tiện là gì.",
+      "body": "Thân mà các bánh xe đỡ.",
+      "wheels": "Các bánh xe, con của thân.",
+      "spec": "Cỗ máy: của loại xe đó (`VEHICLE_SPECS`), với các tùy chọn đè lên.",
+      "input": "Bàn đạp và vô-lăng nó đang nhận.",
+      "speed": "Mét mỗi giây tiến về trước sau bước cuối, âm khi lùi.",
+      "rpm": "Số vòng quay mỗi phút của động cơ sau bước cuối.",
+      "gear": "Số sau bước cuối: từ 1 trở lên là tiến, −1 là lùi, 0 là số không.",
+      "drive": "Nhận bàn đạp và vô-lăng mỗi khi một phím thay đổi chúng, khi bắt đầu được lái, và tất cả được nhả khi thôi được lái."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Các phương tiện của vật lý, mỗi cái trên ràng buộc phương tiện của Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Những gì `vehicle.*` nhận: các bánh xe, và bao nhiêu giá trị của cỗ máy tùy ý (`VehicleSpec`).",
+    "members": {
+      "wheels": "Các bánh xe: lưới là con của thân, mỗi cái đặt tại tâm như khi nằm trên mặt đất phẳng, trục dọc theo x của thân. Bán kính và bề rộng được đọc từ giới hạn của nó. Thân hướng về −z: các bánh phía trước đánh lái."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Phương tiện được làm từ gì: động cơ, hộp số, hệ treo, lái và phanh, mỗi giá trị mặc định là của một cỗ máy thật (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Mô-men cực đại của động cơ trên mỗi kilôgam thân, N·m/kg.",
+      "idleRPM": "Vòng tua không tải của động cơ, vòng/phút.",
+      "maxRPM": "Vạch đỏ của động cơ, vòng/phút.",
+      "torqueCurve": "Tối đa năm điểm `[rpm / maxRPM, mô-men / đỉnh]`, tỉ lệ vòng tua tăng dần.",
+      "gears": "Tối đa sáu tỉ số số tiến, số một trước.",
+      "reverse": "Tỉ số của số lùi.",
+      "finalDrive": "Tỉ số truyền cuối (bộ giảm tốc bánh sao của xe bánh xích).",
+      "shiftUpRPM": "Hộp số lên số khi vượt mức này, vòng/phút.",
+      "shiftDownRPM": "Và về số thấp dưới mức này, vòng/phút.",
+      "clutch": "Mô-men ly hợp trên mỗi rad/s trượt, N·m·s.",
+      "suspensionFrequency": "Tần số hệ treo, Hz.",
+      "suspensionDamping": "Tỉ số giảm chấn, từ 0 (không có) đến 1 (tới hạn).",
+      "suspensionTravel": "Hành trình của bánh từ duỗi hết đến nén hết, mét.",
+      "antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có.",
+      "turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét.",
+      "steerTime": "Số giây từ giữa đến đánh lái hết cỡ.",
+      "brakeGrip": "Ma sát mà tại đó phanh khóa bánh xe.",
+      "drive": "Các bánh chủ động của ô tô.",
+      "trackTurn": "Tốc độ xích bên trong của xe bánh xích khi rẽ, so với xích bên ngoài.",
+      "maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "Cỗ máy khởi đầu của mỗi loại phương tiện.",
+    "members": {
+      "car": "Chevrolet Corvette C5: dẫn động cầu sau, 0,32 N·m mỗi kilôgam, sáu số.",
+      "motorcycle": "Yamaha XJ900 cùng người lái: 0,26 N·m mỗi kilôgam, sáu số.",
+      "tracked": "M1 Abrams: tua-bin khí, 0,083 N·m mỗi kilôgam, bốn số."
+    }
+  },
+  "vehicle": {
+    "summary": "Họ `vehicle`: một thân và các bánh xe của nó, được `world.controls` `'vehicle'` lái.",
+    "members": {
+      "car": "Ba bánh trở lên trên hai trục trở lên, bánh trước đánh lái, bánh theo `drive` là chủ động.",
+      "motorcycle": "Hai bánh, bánh trước đánh lái, bánh sau chủ động; nó tự giữ thăng bằng.",
+      "tracked": "Bánh xe trên hai dải xích, trái và phải, mỗi dải được bánh sau cùng dẫn động; nó rẽ bằng cách làm chậm một dải xích, và quay tại chỗ khi đứng yên."
+    }
   }
 }

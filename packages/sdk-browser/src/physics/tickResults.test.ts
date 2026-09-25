@@ -19,6 +19,7 @@ test('a tick steps on only while one more step of events fits its results', () =
     refused: () => [],
     broken: () => [],
     overflow: () => [],
+    vehicles: () => new Uint32Array(0),
   } as unknown as JoltModule;
   const buffers = [new ArrayBuffer(resultWords(budget) * 4)];
   const sent: unknown[] = [];
