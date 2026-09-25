@@ -109,7 +109,13 @@ fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStr
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let t=id.x;
- if(t==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
+ if(t==0u){
+  // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
+  // the list-full bit carry on, the other flags are the batch's own.
+  if((views[0u].viewFlags&VIEW_APPEND)==0u){atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);}
+  else{atomicAnd(&out.overflow,1u);}
+  atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
+ }
  if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}
  if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
  if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);}
