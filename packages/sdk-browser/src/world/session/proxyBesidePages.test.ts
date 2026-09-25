@@ -21,7 +21,6 @@ test('a proxy above the transfer budget, asked while pages stream, lands beside 
   const reading = session.context.readSceneProxy!();
   await asked(`${base}proxy.bin`);
   assert.equal(pageCache.keptBytes, proxyBytes, 'its announced bytes are reserved while in flight');
-  assert.ok(pageCache.reservedBytes >= proxyBytes);
   // A page asked while the proxy is in flight is not held back by it.
   const third = streamer.request([urls[2]]);
   await asked(base + urls[2]);

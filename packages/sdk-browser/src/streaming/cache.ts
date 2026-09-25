@@ -27,7 +27,22 @@ export function createStreamingCache(context: StreamContext) {
   const evict = () => {
     budget = store.budgetBytes;
     if (!over()) return;
-    const evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
+    let evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
+    // The kept file yields to the pages the frame keeps: it never costs the image a page (#483
+    // rule 1). It is read again after a device loss, and the notice says what it gave back.
+    const kept = store.keptBytes;
+    if (kept > 0 && store.bytes > budget) {
+      store.yieldKept();
+      budget = store.budgetBytes;
+      emit('page-cache-kept-yielded', 'The kept file yields its bytes to the pinned pages', () => ({
+        version: 1,
+        bytes: kept,
+        residentBytes: store.bytes,
+        maxCachedBytes: budget,
+        pinned: pinned.size,
+      }));
+      evicted += evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
+    }
     if (!evicted && over()) {
       state.admissionBlocked++;
       emit('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({

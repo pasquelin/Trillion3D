@@ -43,8 +43,15 @@ const checkBytes = (bytes: number) => {
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
-  /** The one file kept whole beside the pages: its read, and the bytes it takes off the total. */
-  let slot: { url: string; bytes: number; read: Promise<Uint8Array> } | undefined;
+  /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
+   *  cancellation that is the cache's, not a session's. */
+  let slot:
+    { key: string; bytes: number; read: Promise<ArrayBuffer>; abort: AbortController } | undefined;
+  /** Lets the kept file go; `cancel` stops its read too, which no one waits for any longer. */
+  const release = (cancel: boolean) => {
+    if (cancel) slot?.abort.abort(new DOMException('Kept file released', 'AbortError'));
+    slot = undefined;
+  };
   let bytes = 0,
     total = cpuBytes,
     holder: Holder | undefined;
@@ -98,27 +105,36 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
         if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
     },
     /**
-     * Keeps `read`, the file at `url` of `bytes` bytes — the scene's resident proxy —, whole beside
-     * the pages in place of any other, never evicted: its bytes come off the total from the moment
-     * it is asked, in flight as landed. It stays kept, across sessions, until `keepOnly` no longer
-     * names it; a read that fails leaves at once.
+     * The read of the file `key` names, of `bytes` bytes — the scene's resident proxy —, kept whole
+     * beside the pages in place of any other: `start` begins it on the cache's own cancellation when
+     * none is kept, and a session reopened meanwhile joins the one in flight. Its bytes come off the
+     * total from the moment it is asked, and no page evicts it: it stays kept, across sessions, until
+     * `keepOnly` no longer names it, or it yields (`yieldKept`). A read that fails leaves at once.
      */
-    keep(url: string, bytes: number, read: Promise<Uint8Array>) {
-      slot = { url, bytes, read };
-      evict();
-      read.catch(() => {
-        if (slot?.read === read) slot = undefined;
+    keep(key: string, bytes: number, start: (signal: AbortSignal) => Promise<ArrayBuffer>) {
+      if (slot?.key === key) return slot.read;
+      release(true);
+      const abort = new AbortController();
+      const kept = { key, bytes, read: start(abort.signal), abort };
+      slot = kept;
+      kept.read.catch(() => {
+        if (slot === kept) slot = undefined;
       });
+      evict();
+      return kept.read;
     },
     /** Bytes the kept file takes off the total. */
     get keptBytes() {
       return slot?.bytes ?? 0;
     },
-    /** The read kept for `url`, landed or in flight: a session reopened meanwhile joins it. */
-    kept: (url: string) => (slot?.url === url ? slot.read : undefined),
-    /** Lets the kept file go unless it is `url`'s: a scene gone. */
-    keepOnly(url?: string) {
-      if (slot?.url !== url) slot = undefined;
+    /** Lets the kept file go, its read cancelled, unless `key` names it: a scene gone. */
+    keepOnly(key?: string) {
+      if (slot?.key !== key) release(true);
+    },
+    /** Gives the kept file's bytes back to the pages, its read left to whoever waits for it: the
+     *  pages a frame keeps come first (`streaming/cache.ts`). */
+    yieldKept() {
+      release(false);
     },
     /** Sets the total, and evicts at once what no longer fits. */
     resize(cpu: number) {
@@ -136,7 +152,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear();
-      slot = undefined;
+      release(true);
       bytes = 0;
     },
   };
