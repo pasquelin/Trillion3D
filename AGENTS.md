@@ -37,9 +37,9 @@ disagreement is reported to the maintainer.
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
    to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. The
-   depth is fixed: the CTO → a lead or the architect → one coder or reviewer → the review agents
-   of the real `simplify` and `code-review` skills (at most 4), which launch none. The measurer,
-   acceptance and analyst agents launch none.
+   depth is fixed: the CTO → a lead → one coder or reviewer → the review agents
+   of the real `simplify` and `code-review` skills (at most 4), which launch none. The architect,
+   measurer, acceptance and analyst agents launch none: only coders write code.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
 
@@ -56,13 +56,14 @@ CTO starts with the Agent tool and supervises; the boss never opens another sess
 | lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                    | writes code, measures                                        |
 | coder      | lead       | implements one issue, opens the pull request                                                                                              | merges, measures                                             |
 | reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                             |
-| architect  | CTO        | the `architecture` domain: finds duplicates, bloat and tangles through the graph, proposes, delivers behaviour-preserving refactors       | changes behaviour, measures                                  |
+| architect  | CTO        | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue            | codes, owns a pull request, measures                         |
 | analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; what could lose quality waits for the boss |
 | measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                           |
 | acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                 |
 | writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                              |
 
-Domains: geometry, lighting, compiler, physics, sdk, and architecture (the architect's). A bug goes to its domain's lead; there is no
+Domains: geometry, lighting, compiler, physics, sdk, textures. Issues belong to leads only: the architect,
+the auditor and the measurer add To-do items or reopen, and only coders code. A bug goes to its domain's lead; there is no
 bug domain. There is one CTO session, one measurer and one acceptance agent. Every agent reports
 to the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 % (or the
 threshold the boss sets) it winds the company down (current agents finish, nothing new starts) so

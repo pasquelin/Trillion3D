@@ -16,9 +16,10 @@ below that says to tell him: never a running account of agent events.
    PRs, the open issues by domain with `measure ko` / `audit ko`, and the 🔴 critical ones.
 2. **Staff the company, as agents.** Start, with the Agent tool (`run_in_background: true`,
    `subagent_type: general-purpose`), one agent per role that has work and is not already running:
-   - one **lead** per domain with work (geometry, lighting, compiler, physics, sdk; a bug goes to
-     its domain);
-   - the **architect** (the `architecture` domain; keep it off areas where a lead has an open PR);
+   - one **lead** per domain with work (geometry, lighting, compiler, physics, sdk, textures; a bug
+     goes to its domain);
+   - the **architect**, on its round (compiler → engine → site and examples → scripts and tests →
+     again; the area in progress is on the Priorities issue); it writes findings, the leads code;
    - the **analyst** (again every two hours, below), its brief giving the time of its last run
      (the last 24 hours at a session's first run);
      apply at once, as a boss's adjustment (below), every proposal that loses no product quality,
@@ -34,9 +35,9 @@ below that says to tell him: never a running account of agent events.
      Skill column of `docs/COMPANY.md`), its `docs/roles/` file, the Priorities issue;
    - the ordered list from the Priorities issue: what is in flight (its PRs by number), then its
      `measure ko` / `audit ko`, then its 🔴 critical issues in the Priorities order;
-   - the agent bound (AGENTS.md rule 9): a lead or the architect runs `coder` then `reviewer`
+   - the agent bound (AGENTS.md rule 9): a lead runs `coder` then `reviewer`
      (`subagent_type` `coder` / `reviewer`), one alive at a time, each given the worktree as its
-     working directory; the measurer, acceptance and analyst run none;
+     working directory; the architect, measurer, acceptance and analyst run none;
    - when to stop: a lead after two issues merged or closed, or its list exhausted or blocked; the
      measurer and acceptance after their queue is empty. It cleans its worktrees and branches,
      then ends with a report of at most six lines;
@@ -44,7 +45,7 @@ below that says to tell him: never a running account of agent events.
      or an open question is written on the issue and put in its report, never worked around.
 4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. The agents you
    start run in the background; their own `coder` and `reviewer` run in the foreground, so each
-   result reaches the lead or architect that started it; should one reach you instead,
+   result reaches the lead that started it; should one reach you instead,
    `SendMessage` that agent a short summary so it resumes. An agent that ends wakes you:
    read its report, then start the next agent for that role if work remains.
 
