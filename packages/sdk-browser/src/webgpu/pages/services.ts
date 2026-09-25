@@ -175,7 +175,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     diagnosticFailure: diag.diagnosticFailure,
   });
   const publication = createWebgpuCutPublication(rt, residencySets, closure, {
-    shadow: shadowTier,
+    all: lowerTiers,
     ahead: aheadTier,
   });
   return {

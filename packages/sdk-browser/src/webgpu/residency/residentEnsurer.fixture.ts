@@ -70,17 +70,17 @@ export const ensurerOptions = (
   lowerTiers: () => [],
 });
 
-/** An ensurer over `cache` whose caster tier is `shadowPages`, and whose tier ahead is `aheadPages`. */
+/** An ensurer over `cache` whose caster tier is `casterPages`, and whose tier ahead is `aheadPages`. */
 export const tierEnsurer = (
   tracking: ReturnType<typeof createWebgpuPageTracking>,
   cache: unknown,
-  shadowPages: () => readonly PageRec[],
+  casterPages: () => readonly PageRec[],
   aheadPages: () => readonly PageRec[] = () => [],
 ) =>
   createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
     lowerTiers: () =>
-      [shadowPages(), aheadPages()].map((pages) => ({
+      [casterPages(), aheadPages()].map((pages) => ({
         pages,
         has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
       })),

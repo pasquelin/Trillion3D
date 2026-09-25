@@ -10,6 +10,7 @@ import {
   packedWorldsToRenderOrigin,
 } from './selection.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
+import { VIEWPORT } from './selectionHelpers.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { readCameraMotion, restartCameraMotion, type CameraMotion } from '../../camera/motion.ts';
@@ -44,7 +45,7 @@ function cut(s: ReturnType<typeof scene>, x: number, speed: number) {
   readCameraMotion(cameraAt(x - speed * 0.1), motion, 0);
   const cam = cameraAt(x);
   readCameraMotion(cam, motion, 100);
-  const uniforms = cameraSelectionUniforms(cam, 1, [1280, 720], undefined, motion);
+  const uniforms = cameraSelectionUniforms(cam, 1, VIEWPORT, undefined, motion);
   packedWorldsToRenderOrigin(s.packed, s.roots, uniforms.cameraWorld);
   return { uniforms, result: evaluateDagSelectionKernel(s.packed, uniforms) };
 }
@@ -85,7 +86,7 @@ test('a still camera sends no view ahead, and its cut is the one of before', () 
   const { uniforms, result } = cut(s, 0, 0);
   assert.equal(uniforms.ahead, null);
   assert.deepEqual(result.aheadPageIds, []);
-  const without = cameraSelectionUniforms(cameraAt(0), 1, [1280, 720]);
+  const without = cameraSelectionUniforms(cameraAt(0), 1, VIEWPORT);
   assert.deepEqual(evaluateDagSelectionKernel(s.packed, without), result);
 });
 

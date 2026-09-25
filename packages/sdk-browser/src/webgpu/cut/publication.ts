@@ -30,16 +30,16 @@ export function createWebgpuCutPublication(
   rt: WebgpuPagesCore,
   residencySets: WebgpuResidencySets,
   closure: GroupClosure,
-  /** The lower tiers (`../residency/lowerTier.ts`): the view ahead's requests go to `ahead`, below
-   *  the camera's; both count in the host tables. */
+  /** The lower tiers in order (`../residency/lowerTier.ts`), each counted in the host tables; the
+   *  view ahead's requests go to `ahead`, below the camera's. */
   tiers: {
-    shadow: { readonly hostBytes: number };
-    ahead: { readonly hostBytes: number; offerIds(ids: ArrayLike<number>): void };
+    all: readonly { readonly hostBytes: number }[];
+    ahead: { offerIds(ids: ArrayLike<number>): void };
   },
 ) {
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout,
-    { shadow, ahead } = tiers;
+    { ahead } = tiers;
   const cutDelta = createCutDelta(packedPages, run.desired);
   // The drawable cut writes its records itself, reading its sequence once: `run.shown` is then
   // only a copy of it, and only when the image adopts the readback that produced it.
@@ -125,8 +125,7 @@ export function createWebgpuCutPublication(
       cutDelta.hostBytes +
       drawnDelta.hostBytes +
       cutPending.hostBytes +
-      shadow.hostBytes +
-      ahead.hostBytes,
+      tiers.all.reduce((bytes, tier) => bytes + tier.hostBytes, 0),
     adoptGpuCut,
     /**
      * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`
