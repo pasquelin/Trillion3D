@@ -13,8 +13,10 @@
  *
  * In a parent's frame, `least` and `most` stretch the root's: a box is at most `√3·most·r` wider in
  * the root's frame than the ball of radius `r` around it (the box around a turned box), and a gap
- * there is at least `least` times the one in the parent's. A parent scaled below its stretch at
- * sizing, like a reach past the one sized, asks for the rows to be sized again (`cells.ts`).
+ * there is at least `least` times the one in the parent's. Two boxes held together are thus within
+ * `2·radius/least + √3·(most/least)·(r₁ + r₂)` in the parent's frame: a parent moved, turned or
+ * scaled up keeps that span, and only one scaled down or stretched more unevenly than at sizing,
+ * like a reach past the one sized, asks for the rows to be sized again (`cells.ts`).
  */
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { KEEP } from './plan.ts';
@@ -106,14 +108,16 @@ export const sizedStretch = (now: ReadonlyMap<number, Stretch>) =>
     [...now].map(([rank, [least, most]]) => [rank, [least * (1 - SLACK), most * (1 + SLACK)]]),
   ) as ReadonlyMap<number, Stretch>;
 
-/** Whether a parent stretches its cells' frame, `now`, past what rows `sized` for hold. */
+/** Whether a parent stretches its cells' frame, `now`, past what rows `sized` for hold: a least
+ *  stretch below the sized one, or a ratio of most to least above it (products, so a flattened
+ *  frame compares without dividing by 0). */
 export const outstretched = (
   now: ReadonlyMap<number, Stretch>,
   sized: ReadonlyMap<number, Stretch>,
 ) =>
   [...now].some(([rank, [least, most]]) => {
     const [low, high] = sized.get(rank) ?? [least, most];
-    return least < low || most > high;
+    return least < low || most * low > high * least;
   });
 
 /** Whether `rows` hold every node `cells` place: rows that many are never short. */
