@@ -140,7 +140,14 @@ test('a blended caster at opacity 1 casts as the same surface declared opaque', 
   const row = blend.rows.blendRowOf[1];
   const opaquePages = catalogue(1, false);
   const opaque = mount(opaquePages, 1);
-  opaque.writer(opaquePages[1], 1, row, 16, opaque.rows.pageTableFloats!, opaque.rows.pageTableInts!);
+  opaque.writer(
+    opaquePages[1],
+    1,
+    row,
+    16,
+    opaque.rows.pageTableFloats!,
+    opaque.rows.pageTableInts!,
+  );
   const words = (ints: Uint32Array) => Array.from(ints.subarray(row * STRIDE, (row + 1) * STRIDE));
   const a = words(blend.rows.pageTableInts!),
     b = words(opaque.rows.pageTableInts!);

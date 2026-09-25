@@ -36,9 +36,10 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
     page.windingEpoch = undefined;
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
     const row = page.transparent ? rows.blendRowOf[index] : rows.rowOfPage[index];
+    if (!floats || row < 0) continue;
     // A rank the CPU cut left behind may name another page since: only a row that is this page's.
-    const owned = page.transparent || (row < rows.packedCount && rows.packedPageIndex[row] === index);
-    if (!floats || row < 0 || !owned) continue;
+    if (!page.transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index))
+      continue;
     floats.set(page.matrix.elements, row * ROW_WORDS);
     rows.markRowDirty(row);
     rewritten++;

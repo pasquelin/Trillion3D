@@ -16,7 +16,9 @@ import type { PageSurface } from '../../page/surface.ts';
  *
  * Coverage 0 keeps no texel, coverage 1 keeps all sixteen — the opaque depth, to the bit.
  */
-export const BLEND_DITHER: readonly number[] = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+export const BLEND_DITHER: readonly number[] = [
+  0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5,
+]
   // Each rank's threshold sits in the middle of its sixteenth: `coverage > threshold` keeps
   // `round(16 × coverage)` texels of every 4×4 block.
   .map((rank) => (rank + 0.5) / 16);

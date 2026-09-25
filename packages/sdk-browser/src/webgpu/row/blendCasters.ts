@@ -1,11 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { castsBlendShadow } from '../../gpu/shadow/blendCoverage.ts';
-import {
-  ROW_BLEND_COVERAGE_WORD,
-  ROW_INDEX_WORDS,
-  type createPageRowWriter,
-} from './pageRow.ts';
+import { ROW_BLEND_COVERAGE_WORD, ROW_INDEX_WORDS, type createPageRowWriter } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;

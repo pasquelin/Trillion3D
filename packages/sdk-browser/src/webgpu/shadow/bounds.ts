@@ -113,7 +113,11 @@ export function uploadRowMobility(
     { rows, selectionRoots } = layout,
     { casterSlots } = rows;
   const { mobility } = lights;
-  mobility.ensure(selectionRoots.length, casterSlots, (rank) => selectionRoots[rank].world.elements);
+  mobility.ensure(
+    selectionRoots.length,
+    casterSlots,
+    (rank) => selectionRoots[rank].world.elements,
+  );
   if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
     lights.mobilityRows?.destroy();
     lights.mobilityRows = device.createBuffer({

@@ -310,7 +310,7 @@ its casters take rows behind its own (#10, #26).
 
 **Blended surfaces cast a shadow attenuated by their opacity.** A blended cluster is drawn by the
 blend pass and never enters the visibility tables: to cast, it takes a row of the page table
-*behind* the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
+_behind_ the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
 row follows residency like a visibility row — taken when the cluster's slot arrives, given back
 when it leaves — and the pool bounds how many exist; a scene that blends nothing has none. The
 light cut finds the cluster at that row (`gpu/draw/lightRows.ts`, pinned by the host), the CPU cut

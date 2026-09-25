@@ -20,7 +20,10 @@ test('every 4×4 block of the map keeps round(16 × coverage) texels of a blende
         for (let x = x0; x < x0 + 2; x++) if (threshold > BLEND_DITHER[y * 4 + x]) n++;
       return n;
     });
-    assert.deepEqual(quarters, quarters.map(() => threshold * 4));
+    assert.deepEqual(
+      quarters,
+      quarters.map(() => threshold * 4),
+    );
   }
 });
 
