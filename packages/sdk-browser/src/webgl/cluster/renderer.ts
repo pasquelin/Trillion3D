@@ -55,7 +55,7 @@ export class WebglClusterRenderer {
   backdropPasses = 0;
   /** The display curve's rank (`TONE_MAPPING_RANK`), written by the owner before a frame. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
-  private pass: ClusterMaterialPass;
+  readonly pass: ClusterMaterialPass;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     const program = (this.program = createClusterProgram(gl));

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from './lineWgsl.ts';
+import { LINE_CLIP_GLSL, LINE_CLIP_WGSL, lineClip } from './lineWgsl.ts';
 import { runLineClip } from './lineClip.fixture.ts';
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
@@ -9,6 +9,7 @@ import { rasterSource } from '../../gpu/raster/shader.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
+import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 
 const VIEWPORT = [800, 600];
 const NEAR = 0.1;
@@ -33,13 +34,20 @@ const PROJECTIONS = {
 const SOURCES = { wgsl: LINE_CLIP_WGSL, glsl: LINE_CLIP_GLSL };
 const pixel = (c: V4) => [0, 1].map((i) => (c[i] / c[3]) * 0.5 * VIEWPORT[i]);
 
-/** The two corners of an endpoint `p` of the segment of direction `d`, widened to `width`. */
-function corners(language: keyof typeof SOURCES, p: number[], d: number[], width: number) {
+/** The two corners of an endpoint `p` of the segment of direction `d`, widened to `width` CSS
+ *  pixels at `pixelRatio` image pixels per CSS pixel. */
+function corners(
+  language: keyof typeof SOURCES,
+  p: number[],
+  d: number[],
+  width: number,
+  pixelRatio = 1,
+) {
   const run = runLineClip(SOURCES[language]),
     project = PROJECTIONS[language];
   const clip = project(p[0], p[1], p[2], 1);
   return [1, -1].map((side) =>
-    run(clip, project(d[0] * side, d[1] * side, d[2] * side, 0), width, VIEWPORT),
+    run(clip, project(d[0] * side, d[1] * side, d[2] * side, 0), width, VIEWPORT, pixelRatio),
   );
 }
 
@@ -58,6 +66,51 @@ for (const language of ['wgsl', 'glsl'] as const)
         assert.ok(gap[0] * 0.6 - gap[1] * 0.8 < 0, 'the +d corner moves to the left');
       }
   });
+
+// #348, lead decision: `linewidth` counts CSS pixels, as the reference's `LineMaterial` (its
+// `resolution` is the CSS size). The image draws `width × pixelRatio` of its own pixels.
+for (const language of ['wgsl', 'glsl'] as const)
+  test(`${language}: the drawn width is the CSS width times the pixel ratio`, () => {
+    for (const pixelRatio of [1, 1.5, 2]) {
+      const [left, right] = corners(language, [0.3, -0.2, -20], [0.8, 0.6, 0], 3, pixelRatio);
+      const gap = Math.hypot(pixel(left)[0] - pixel(right)[0], pixel(left)[1] - pixel(right)[1]);
+      assert.ok(Math.abs(gap - 3 * pixelRatio) < 1e-6, `ratio ${pixelRatio}: ${gap}`);
+    }
+  });
+
+// The CPU software raster widens a corner with `lineClip`, the WGSL text's twin: the same numbers,
+// in front of the eye, behind it, seen end-on, at every ratio.
+test('the CPU lineClip is the WGSL text, statement for statement', () => {
+  const run = runLineClip(LINE_CLIP_WGSL),
+    project = PROJECTIONS.wgsl;
+  const cases: Array<[number[], number[]]> = [
+    [
+      [0.3, -0.2, -20],
+      [0.8, 0.6, 0],
+    ],
+    [
+      [0.5, 0, 1],
+      [0, 0, -1],
+    ],
+    [
+      [0, 0, -5],
+      [0, 0, -1],
+    ],
+    [
+      [-2, 1, -3],
+      [0.2, -0.9, 0.4],
+    ],
+  ];
+  for (const [p, d] of cases)
+    for (const pixelRatio of [1, 2])
+      for (const side of [1, -1]) {
+        const clip = project(p[0], p[1], p[2], 1),
+          along = project(d[0] * side, d[1] * side, d[2] * side, 0);
+        const cpu = lineClip(new Float64Array(4), clip, along, 2.5, VIEWPORT, pixelRatio);
+        const gpu = run(clip, along, 2.5, VIEWPORT, pixelRatio);
+        for (let i = 0; i < 4; i++) assert.ok(Math.abs(cpu[i] - gpu[i]) < 1e-12, `${p} ${d} ${i}`);
+      }
+});
 
 for (const language of ['wgsl', 'glsl'] as const)
   test(`${language}: a corner behind the camera slides onto the near plane along its segment`, () => {
@@ -97,4 +150,19 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
   assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL));
   assert.ok(CLUSTER_VERTEX.includes(LINE_CLIP_GLSL));
   assert.match(CLUSTER_VERTEX, /gl_Position=projectionMatrix\*view;\nif\(lineWidth>0\.0\)/);
+  // The diagnostic fallback pipeline: its triangle corner is decoded as before, and a line page's
+  // is widened by the same text, with the same ratio.
+  assert.ok(FALLBACK_SHADER.includes(LINE_CLIP_WGSL));
+  assert.match(
+    FALLBACK_SHADER,
+    /local=clusterPosition\(h,uni\.pageOffset,clusterIndex\(h,uni\.pageOffset,vertexIndex\)\);\n/,
+  );
+  assert.match(
+    FALLBACK_SHADER,
+    /out\.tri=0u;\n if\(uni\.lineWidth>0\.0\)\{out\.position=lineClip\(.*uni\.lineWidth,uni\.viewport,uni\.pixelRatio\);\}/,
+  );
+  for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)])
+    assert.ok(text.includes('page.lineWidth,uni.viewport.xy,uni.pixelRatio)'));
+  assert.match(BLEND_SHADER, /it\.lineWidth,uni\.viewport,uni\.pixelRatio\)/);
+  assert.match(CLUSTER_VERTEX, /lineWidth,viewport,pixelRatio\);\}\}$/);
 });
