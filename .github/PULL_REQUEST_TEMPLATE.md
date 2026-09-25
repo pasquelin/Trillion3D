@@ -17,7 +17,7 @@ Closes # <!-- one pull request, one issue (AGENTS.md rule 5) -->
 ## Lead verification
 
 <!-- Written by the lead before `gh pr ready`, checked by the CI once out of draft: one line per
-     To do and Proof item, "- <item>: delivered in <file:line>, proved by <test>" or
-     "- <item>: not delivered, written on #<n>". -->
+     To do and Proof item, "- <item>: delivered in <file:line>, proved by <test>"; an item not
+     delivered holds the pull request (AGENTS.md rule 5). -->
 
 ## Not proven / left out

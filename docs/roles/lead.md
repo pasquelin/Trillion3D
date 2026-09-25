@@ -64,7 +64,7 @@ The audit re-reads every merge against these points; each one missed comes back 
 issue. Check them yourself on the diff, not on the coder's or the reviewer's word. A lead whose
 merges keep coming back `audit ko` is stopped by the CTO.
 
-1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out holds the pull request: the CTO splits the issue (AGENTS.md rule 5). You never open an issue (AGENTS.md rule 5). Code (a test, a fixture,
+1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out holds the pull request until the CTO splits the issue; you never open one (AGENTS.md rule 5). Code (a test, a fixture,
    a kernel) is never handed to the measurer, who does not write code.
 2. **Tests that bite.** Each changed behaviour has a test that fails before the change and passes
    after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for
