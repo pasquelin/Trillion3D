@@ -68,6 +68,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
+  // The display graph's page ceiling: the host's, or the default raised to the root cover, as the
+  // pool raises its budget to it — a transparent page hangs one mesh per row that places it.
+  const ceiling = () => context.maxResidentPages ?? Math.max(cap, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...tables,
     baseRoots,
@@ -107,7 +110,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     worlds,
     ...lists,
     revision: () => heldFloor.revision,
-    cap,
+    ceiling,
     sync,
     residency,
     pool: pool.budget,
@@ -125,7 +128,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
-      if (attachedPages(bootstrap) > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      if (heldFloor.meshes() > ceiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       await Promise.all(
         [...bootstrapUrls].map(async (url) => {
           context.signal?.throwIfAborted();
