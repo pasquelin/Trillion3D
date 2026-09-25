@@ -4785,7 +4785,7 @@
   },
   "createShadowPlan": {
     "summary": "Bộ lập lịch bóng của các bản đồ ảo.",
-    "description": "Tô bóng ghi lại các trang nó đọc; báo cáo của chúng, được đọc lại vài khung hình sau, cấp phát phần thiếu từ pool cố định. Những gì di chuyển làm cũ các trang đã ánh xạ mà nó phủ. Sau đó một khung hình vẽ mọi trang cũ mà ảnh đọc, tất cả trong khung hình đó: thứ giữ chi phí là bộ nhớ đệm — một trang chỉ được vẽ lại khi nội dung của nó thay đổi —, và pool là giới hạn duy nhất. Một cảnh tĩnh, có tô bóng không còn chạy, không yêu cầu gì và không vẽ gì. Mọi mảng được cấp phát một lần; `plan()` không cấp phát gì."
+    "description": "Tô bóng ghi lại các trang nó đọc; báo cáo của chúng, được đọc lại vài khung hình sau, cấp phát phần thiếu từ pool cố định. Những gì di chuyển làm cũ các trang đã ánh xạ mà nó phủ. Sau đó một khung hình liệt kê mọi trang cũ mà ảnh đọc, trang thô nhất trước, và vẽ tất cả khi đứng yên, một ngân sách cố định trong số đó khi camera di chuyển: thứ giữ chi phí là bộ nhớ đệm — một trang chỉ được vẽ lại khi nội dung của nó thay đổi. Một cảnh tĩnh, có tô bóng không còn chạy, không yêu cầu gì và không vẽ gì. Mọi mảng được cấp phát một lần; `plan()` không cấp phát gì."
   },
   "createTerminalProgress": {
     "summary": "Một thanh tiến trình trong terminal theo dõi các sự kiện của trình biên dịch.",
