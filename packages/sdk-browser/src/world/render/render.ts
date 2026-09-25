@@ -91,8 +91,10 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     const frameNumber = ++state.hostFrame;
     const start = performance.now();
     if (pose) setPose(pose);
+    // One integration budget per frame: the cells placed, then the arrivals drained, both
+    // outside the frame they would have lengthened.
+    streaming.arrivals.open();
     followCells?.();
-    // Single drain of arrivals, outside the frame they would have lengthened.
     const arrivalStart = performance.now();
     streaming.arrivals.drain();
     (state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart);
