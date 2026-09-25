@@ -36,6 +36,18 @@ const TOGGLES = [...FULLSCREEN_DISABLED, 'STENCIL_TEST'] as const;
 /** A texture as the reducer reads it: its GL name, its format and size. */
 type Chain = { texture: WebGLTexture; format: number; width: number; height: number };
 
+/** The reduction's program, its uniforms, its framebuffer and its empty vertex array. */
+function buildReducer(gl: WebGL2RenderingContext) {
+  const program = createWebglProgram(gl, FULLSCREEN_VERTEX, FRAGMENT);
+  return {
+    program,
+    source: gl.getUniformLocation(program, 'source'),
+    weighted: gl.getUniformLocation(program, 'weighted'),
+    framebuffer: gl.createFramebuffer()!,
+    vertexArray: gl.createVertexArray()!,
+  };
+}
+
 /**
  * The material mip chain on WebGL2 (#42): one draw per level into a framebuffer on that level, in
  * place of `generateMipmap`'s box filter, which averages alpha and darkens the borders of masked
@@ -46,28 +58,9 @@ type Chain = { texture: WebGLTexture; format: number; width: number; height: num
  */
 export class WebglMipReducer {
   private gl: WebGL2RenderingContext;
-  private built:
-    | {
-        program: WebGLProgram;
-        source: WebGLUniformLocation | null;
-        weighted: WebGLUniformLocation | null;
-        framebuffer: WebGLFramebuffer;
-        vertexArray: WebGLVertexArrayObject;
-      }
-    | undefined;
+  private built: ReturnType<typeof buildReducer> | undefined;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
-  }
-  private build() {
-    const gl = this.gl,
-      program = createWebglProgram(gl, FULLSCREEN_VERTEX, FRAGMENT);
-    return {
-      program,
-      source: gl.getUniformLocation(program, 'source'),
-      weighted: gl.getUniformLocation(program, 'weighted'),
-      framebuffer: gl.createFramebuffer()!,
-      vertexArray: gl.createVertexArray()!,
-    };
   }
   /** Draws levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
    *  one above it, `weighted` or not; `allocate` first gives them storage — a new size, or a
@@ -77,7 +70,7 @@ export class WebglMipReducer {
       { texture, format, width, height } = chain;
     const levels = mipLevelCountFor(width, height);
     if (levels === 1) return;
-    const built = (this.built ??= this.build());
+    const built = (this.built ??= buildReducer(gl));
     const saved = {
       program: gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null,
       framebuffer: gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null,
