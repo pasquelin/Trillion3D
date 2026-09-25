@@ -4,6 +4,7 @@ import {
   CAST,
   CAST_WORDS,
   DEFAULT_PHYSICS_BUDGET,
+  EVENT_WORDS,
   MISS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -26,9 +27,15 @@ export async function startModule(
   const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget };
   const opened = await openJolt(bytes, full.memoryBytes, pool);
   const jolt = startJolt(opened, full, pool?.count ?? 1);
-  /** The joints the module's gear linking has visited since it started (`jolt_link_visits`). */
-  const linkVisits = () => (opened.exports.jolt_link_visits as () => number)();
-  return { ...jolt, linkVisits };
+  /** A diagnostic count the module keeps since it started: the joints some work has visited. */
+  const count = (name: string) => () => (opened.exports[name] as () => number)();
+  /** By the gear linking, the step's path carry and the step's breaking (`jolt_*_visits`). */
+  const visits = {
+    link: count('jolt_link_visits'),
+    path: count('jolt_path_visits'),
+    break: count('jolt_break_visits'),
+  };
+  return { ...jolt, visits };
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
@@ -65,6 +72,16 @@ export const body = (id: number, motion: number, y: number, half: number, flags 
   restitution: 0,
   gravityScale: 1,
 });
+
+/** The last step's events: `[type, a, b, impulse]` each. */
+export function events(jolt: Module) {
+  const words = jolt.events(),
+    floats = new Float32Array(words.buffer, words.byteOffset, words.length);
+  return Array.from({ length: words.length / EVENT_WORDS }, (_, r) => {
+    const at = r * EVENT_WORDS;
+    return [words[at], words[at + 1], words[at + 2], floats[at + 3]];
+  });
+}
 
 /** A ray down at `x` through the module, straight: its hit words. */
 export function castDown(jolt: Module, x: number) {

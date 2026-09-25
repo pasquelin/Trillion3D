@@ -28,7 +28,7 @@ export function createWebgpuPinUpdater(options: {
   const { tracking, sets, bootstrapUrls, deferredDrops, byUrl } = options;
   const { traceEnabled, traceDiagnostic } = options;
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
-  const waiting = createDenseKeySet(tracking.keyCount);
+  const waiting = createDenseKeySet();
   /**
    * What the pin sample publishes: the image's DELTA, never the pinned set. Copying and filtering
    * it cost four walks of the cut per image as soon as trace was requested, while pins change by a

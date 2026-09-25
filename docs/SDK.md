@@ -688,6 +688,17 @@ classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` 
 `GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
 `InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
 
+The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexAttribute`.
+`morphAttributes` lists one attribute per morph target for each morphed attribute, and
+`morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
+and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
+every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
+and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
+centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
+index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
+bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
+hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
@@ -955,8 +966,10 @@ as `world.budget.split`:
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
-  and its transfer queue, and the engine's cut tables (group closure and residency readiness,
-  sized by the scene's placed pages) once the scene is prepared. A change applies at once: pages
+  and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
+  residency sets and the cut's differences), which follow what the view asks for and the pool
+  holds, never the size of the world, and are read each time the cache weighs itself. A change
+  applies at once: pages
   leave by last use until they fit, save those the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
@@ -1096,7 +1109,8 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   `RangeError`. `world.physics.waterSurface` reads those same waves at the simulation's time, to
   draw them (they run on while every body sleeps, and stand still when paused): `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
   `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
-  goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
+  goes on from where it is. Its example, floating crates, waits for geometry written every frame
+  to be uploaded in place (#573).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
@@ -1190,7 +1204,7 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
   longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
-  bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
+bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
   a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
   out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
   Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex
@@ -1207,10 +1221,13 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
   (its vertices do not turn). A soft body is a
   direct child of the scene; moved by the page, it is made again there; it takes no velocity,
-  impulse, joint or vehicle, and sends no contact event. Rigid bodies and the character collide
-  with its vertices: the character is turned aside or stopped, never pushing it; a rigid body
-  much heavier than the skin it lands on can push between its vertices; soft bodies pass through
-  each other (Jolt collides them with rigid bodies only). `mesh.physics.vertices` reads its
+  impulse, joint or vehicle. Rigid bodies and the character collide with its vertices: the
+  character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
+  it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
+  them with rigid bodies only). `on('contact' | 'enter' | 'leave')` works on either side of a
+  soft body's pair, from Jolt's soft-body contact listener: the point is the mean of its vertices
+  that touched, the impulse is estimated from its mean velocity and their mass, and a pair stays
+  entered while both rest; a sensor reports it without stopping it. `mesh.physics.vertices` reads its
   vertices as the last tick left them, `x, y, z` per geometry vertex in the geometry's frame. The
   drawn mesh does not follow them yet: it waits for geometry written every frame to be uploaded
   in place (#573).

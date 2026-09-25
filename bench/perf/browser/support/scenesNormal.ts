@@ -88,7 +88,7 @@ const attribut = (valeurs: number[], size: number) =>
   new G.BufferAttribute(Float32Array.from(valeurs), size);
 
 /** The four attribute sets of a fitting: with tangents, without, without normals, without UV. */
-function attributs([n, t, u]: [number, number, number]): G.GraphGeometry['attributes'][] {
+function attributs([n, t, u]: [number, number, number]): G.Geometry['attributes'][] {
   const normal = () => attribut(NORMALES[n], 3),
     tangent = () => attribut(TANGENTES[t], 4),
     uv = () => attribut(UVS[u], 2);

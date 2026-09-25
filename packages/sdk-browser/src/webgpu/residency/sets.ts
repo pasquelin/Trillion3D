@@ -26,14 +26,14 @@ export function createWebgpuResidencySets(options: {
 }) {
   const { tracking, bootstrapKey, packedPages } = options;
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
-  const keyOfPageId = new Int32Array(Math.max(1, packedPages.length));
-  for (let id = 0; id < packedPages.length; id++) keyOfPageId[id] = keyOf(packedPages[id]);
+  /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
+  const keyOfId = (id: number) => keyOf(packedPages[id]);
   /** What joined and left `keep` since the pin step last ran. */
-  const entering = createDenseKeySet(keyCount),
-    leaving = createDenseKeySet(keyCount);
+  const entering = createDenseKeySet(),
+    leaving = createDenseKeySet();
   const desiredPages: PageRec[] = [];
-  const desired = createDenseKeySet(keyCount, desiredPages);
-  const ranking = createBudgetRanking({ keyCount, bootstrapKey, keyOf });
+  const desired = createDenseKeySet(desiredPages);
+  const ranking = createBudgetRanking({ bootstrapKey, keyOf });
   let followsDesired = true;
   const requested = createKeyUnion({
     members: desired,
@@ -60,26 +60,30 @@ export function createWebgpuResidencySets(options: {
   });
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
   /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
+  /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
+  let acceptedRevision = 0;
   const enqueue = (key: number, page?: PageRec) => {
-    if (wanted.add(key, page)) keep.retain(key);
+    if (!wanted.add(key, page)) return;
+    acceptedRevision++;
+    keep.retain(key);
   };
   const dequeue = (key: number) => {
-    if (wanted.remove(key)) keep.release(key);
+    if (!wanted.remove(key)) return;
+    acceptedRevision++;
+    keep.release(key);
   };
   /** What the cut asks the cache for, and what the image actually draws. The second is not a subset
    *  of the first: a cluster whose replacement is missing is drawn from a resident ancestor the cut
    *  never asked for, and the cache must not reclaim it while it is on screen. */
   const askedKeys = createHeldKeys({
-    keyCount,
-    keyOfPageId,
+    keyOf: keyOfId,
     retain: (key, id) => requested.retain(key, packedPages[id]),
     release: (key) => requested.release(key),
     onEnter: (id) => ranking.add(packedPages[id]),
     onExit: (id) => ranking.remove(packedPages[id]),
   });
   const drawnKeys = createHeldKeys({
-    keyCount,
-    keyOfPageId,
+    keyOf: keyOfId,
     retain: (key: number) => keep.retain(key),
     release: (key: number) => keep.release(key),
   });
@@ -87,6 +91,7 @@ export function createWebgpuResidencySets(options: {
   const emptyQueue = () => {
     for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
     wanted.clear();
+    acceptedRevision++;
   };
   const restoreWanted = () => {
     followsDesired = true;
@@ -103,6 +108,25 @@ export function createWebgpuResidencySets(options: {
     /** Keys this image forbids the cache to reclaim: what it asks for plus what it draws. */
     get keepCount() {
       return tracking.keep.count;
+    },
+    /** Bytes of every set above and of the tracking's: they follow what the image asks for, holds
+     *  and draws, never the catalogue (#483 rule 6). */
+    get hostBytes() {
+      return (
+        entering.byteLength +
+        leaving.byteLength +
+        requested.byteLength +
+        keep.byteLength +
+        askedKeys.byteLength +
+        drawnKeys.byteLength +
+        ranking.byteLength +
+        wanted.byteLength +
+        tracking.pinned.byteLength
+      );
+    },
+    /** Changes whenever `accepts` may answer differently. */
+    get acceptedRevision() {
+      return acceptedRevision;
     },
     /** True when this image asks the cache for the key, even past the page budget. */
     requests: (key: number) => desired.has(key),

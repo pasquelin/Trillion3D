@@ -1,6 +1,7 @@
 import { DAG_NODE_FLOATS } from '../types.ts';
 import { dagNodeFloor, dagNodeVerdict } from './math.ts';
 import { NODE_FIRST_CHILD } from '../packNodes.ts';
+import { castsNoShadow } from '../../../page/cut/select.ts';
 import type { DagViewFrames } from './math.ts';
 
 /** A kept leaf reached only by the view ahead (`../shader/aheadWgsl.ts`): its pages are requested
@@ -29,7 +30,13 @@ function keeps(frames: DagViewFrames, nodes: Float32Array, nodeInts: Uint32Array
  * Split from `oracle.ts`: it is a whole step, it has its own WGSL mirror.
  */
 export function dagOracleDescent(
-  packed: { nodeCount: number; worldCount: number; nodes: Float32Array; rootNodes: Uint32Array },
+  packed: {
+    nodeCount: number;
+    worldCount: number;
+    nodes: Float32Array;
+    rootNodes: Uint32Array;
+    sprite?: Uint8Array;
+  },
   frames: DagViewFrames,
   ahead?: DagViewFrames,
 ) {
@@ -38,8 +45,10 @@ export function dagOracleDescent(
   const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
   /** Pairs: the node, then whether it is the view ahead's alone. */
   const frontier: number[] = [];
+  // A light's cut opens no descent on a sprite (`castsNoShadow`, `spriteOf` in the shader).
   for (let w = 0; w < packed.worldCount; w++)
-    if (packed.rootNodes[w] !== 0xffffffff) frontier.push(packed.rootNodes[w], 0);
+    if (packed.rootNodes[w] !== 0xffffffff && !castsNoShadow(packed.sprite?.[w], frames.light))
+      frontier.push(packed.rootNodes[w], 0);
   while (frontier.length) {
     let aheadOnly = frontier.pop() as number;
     const n = frontier.pop() as number;

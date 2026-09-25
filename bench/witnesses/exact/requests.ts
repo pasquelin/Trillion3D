@@ -1,8 +1,5 @@
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
-import type {
-  HostAttribute,
-  HostGeometry,
-} from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { HostAttribute } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   acceptPageArray,
   collectPendingUrls,
@@ -22,6 +19,8 @@ import {
 } from '../../../packages/sdk-browser/src/page/integration/arrivalSpecs.ts';
 import type { ArrivalPlan } from '../../../packages/sdk-browser/src/page/integration/host.ts';
 import { ClusterBatches } from './batches/batches.ts';
+import { createAutonomousRequests } from '../../../packages/sdk-browser/src/backend/autonomous/requests.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 export function createExactPagesRequestData(allPages: PageRec[], requestCount: number) {
   const byUrl = indexPagesByUrl(allPages);
@@ -63,7 +62,7 @@ export type ExactPagesRequestContext = {
   batches: ClusterBatches;
   byUrl: Map<string, PageRec[]>;
   indexByUrl: Map<string, HostAttribute>;
-  disposeGeometry(geometry: HostGeometry): void;
+  disposeGeometry(geometry: Geometry): void;
   /** Engine camera of the last frame, absent as long as no frame has been rendered. */
   readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;
@@ -97,6 +96,16 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
   // The WebGL cut's page rank lives in batches, not in a page table: the record therefore
   // only carries the position of each entry in the bundle and its size.
   const pageSpecs = createArrivalSpecs(byUrl, () => undefined);
+  // The witness asks for and keeps the cut closed over its groups, as the engine does
+  // (`page/cut/groupClosure.ts`): the rule draws a group only once all of it is resident.
+  const closed: PageRec[] = [],
+    requests = createAutonomousRequests(roots, () => 0, closed);
+  let closedAt = -1;
+  const closedCut = () => {
+    if (closedAt !== ctx.frame) requests.of(desired.length ? desired : shown);
+    closedAt = ctx.frame;
+    return closed;
+  };
   return {
     pageSpecs,
     pendingUrls() {
@@ -106,7 +115,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
         if (!bootstrap[i].array) missingRoots.push(bootstrap[i]);
       if (missingRoots.length)
         return collectPendingUrls(missingRoots, pendingScratch, requestStamps);
-      const waiting = desired.length ? desired : shown;
+      const waiting = closedCut();
       if (!ctx.cam) return collectPendingUrls(waiting, pendingScratch, requestStamps);
       // Most costly absence first: what the viewer sees wrong the longest is fetched last, not first.
       return orderPendingUrls(
@@ -123,7 +132,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       // what the frame shows: the visible page enters, the ring page pushes it out, the cut
       // falls back on a coarser substitute, the ring moves — and two equivalent covers take
       // turns forever on a still pose, never stopping asking.
-      const visible = desired.length ? desired : shown;
+      const visible = closedCut();
       for (let i = 0; i < visible.length; i++) if (!visible[i].array) return prefetchScratch;
       // A ring around the cut: what a twice-finer threshold would select. Asked for only when nothing
       // visible is missing, at a priority the visible cut always outranks.
@@ -148,13 +157,13 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
         requestStamps.begin();
         requestStamps.mark(bootstrap, urlScratch);
         requestStamps.mark(shown, urlScratch);
-        requestStamps.mark(desired, urlScratch);
+        requestStamps.mark(closedCut(), urlScratch);
         return urlScratch;
       }
       ctx.urlStamp++;
       batches.markUrls(bootstrap, ctx.urlStamp, urlScratch);
       batches.markUrls(shown, ctx.urlStamp, urlScratch);
-      batches.markUrls(desired, ctx.urlStamp, urlScratch);
+      batches.markUrls(closedCut(), ctx.urlStamp, urlScratch);
       return urlScratch;
     },
     // One request carries a whole bundle: every record it holds takes the view at its own offset, and
