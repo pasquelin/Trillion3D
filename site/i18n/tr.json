@@ -328,7 +328,6 @@
       "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
     },
     "missing": {
-      "dashed-lines": "kesikli çizgiler",
       "floating-crates": "her karede yeniden yazılan geometri",
       "thick-lines": "geniş çizgiler",
       "a-line-that-draws-itself": "bir geometrinin çizim aralığı",

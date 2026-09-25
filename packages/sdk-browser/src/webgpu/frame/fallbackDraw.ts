@@ -3,7 +3,7 @@ import { createRenderEncoder } from '../pages/render/encoder.ts';
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from '../../visibility/buffer.ts';
 import { UNIFORM_STRIDE } from '../blend/uniforms.ts';
-import { ROW_INDEX_WORDS, ROW_LINE_WIDTH_WORD } from '../row/pageRow.ts';
+import { ROW_DASH_WORD, ROW_INDEX_WORDS, ROW_LINE_WIDTH_WORD } from '../row/pageRow.ts';
 import { FALLBACK_CLUSTER_PAGE, FALLBACK_WIREFRAME } from '../pages/prepare/shaders.ts';
 import {
   bindGroupFor,
@@ -50,6 +50,9 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     uniformPacked[base + 41] = pixelRatio;
     uniformPacked[base + 42] = width;
     uniformPacked[base + 43] = height;
+    // A dashed line page cuts its gaps like in every raster (`lineDash`); zero keeps every pixel.
+    uniformPacked[base + 44] = rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD];
+    uniformPacked[base + 45] = rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD + 1];
   }
   if (rows.packedCount && uniformBuffer)
     device.queue.writeBuffer(
