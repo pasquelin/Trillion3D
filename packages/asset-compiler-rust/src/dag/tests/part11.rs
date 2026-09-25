@@ -34,11 +34,7 @@ fn a_part_removed_whole_costs_its_extent_and_its_distance_to_what_is_kept() {
 // cut whose error is at least its extent: a small piece drops early, a large one late (#484).
 #[test]
 fn a_separate_piece_leaves_only_a_cut_whose_error_covers_its_extent() {
-    let mut mesh = super::part8::Shaded {
-        positions: Vec::new(),
-        normals: Vec::new(),
-        indices: Vec::new(),
-    };
+    let mut mesh = super::part8::Shaded::default();
     let mut pieces = Vec::new();
     for k in 0..144 {
         let side = [0.1, 0.25, 0.5, 1.0, 2.0, 4.0][k % 6];
@@ -49,20 +45,13 @@ fn a_separate_piece_leaves_only_a_cut_whose_error_covers_its_extent() {
             2,
         );
         let vertices: Vec<u32> = (first as u32..(mesh.positions.len() / 3) as u32).collect();
-        let extent = 2.0 * crate::dag::bounds::bounding_sphere(&mesh.positions, &vertices)[3];
+        let extent = vanished::extent(&mesh.positions, &vertices);
         pieces.push((vertices, extent));
     }
     let (dag, _) = mesh.build();
-    let mut thresholds: Vec<f64> = dag.iter().map(|c| c.lod_error).collect();
-    thresholds.sort_by(f64::total_cmp);
-    thresholds.dedup();
     let mut left = 0;
-    for t in thresholds {
-        let cut: HashSet<u32> = dag
-            .iter()
-            .filter(|c| c.lod_error <= t && t < c.parent_error)
-            .flat_map(|c| c.indices.iter().copied())
-            .collect();
+    for (t, cut) in cuts(&dag) {
+        let cut: HashSet<u32> = cut.iter().flat_map(|c| c.indices.iter().copied()).collect();
         for (vertices, extent) in &pieces {
             if !vertices.iter().any(|v| cut.contains(v)) {
                 assert!(

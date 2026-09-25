@@ -46,10 +46,15 @@ pub(crate) fn parts(source: &[u32], weld: &[u32]) -> Vec<Vec<u32>> {
 pub(super) fn part_extents(positions: &[f32], indices: &[u32], weld: &[u32]) -> Vec<f64> {
     let mut extents = vec![0.0; positions.len() / 3];
     for part in parts(indices, weld) {
-        let extent = 2.0 * bounding_sphere(positions, &part)[3];
+        let extent = extent(positions, &part);
         part.iter().for_each(|&v| extents[v as usize] = extent);
     }
     extents
+}
+
+/// The extent of a part, the diameter of the bounds of its corners.
+pub(crate) fn extent(positions: &[f32], part: &[u32]) -> f64 {
+    2.0 * bounding_sphere(positions, part)[3]
 }
 
 /// What removing the parts of `source` of which `kept` holds no vertex costs: the largest of their
@@ -68,7 +73,8 @@ pub(super) fn vanished_error(
         .filter(|part| !part.iter().any(|&v| alive.contains(&weld[v as usize])))
         .flatten()
         .collect();
-    let extent = removed.iter().map(|&v| extents[v as usize]);
-    let extent = extent.fold(0.0_f64, f64::max);
+    let extent = removed
+        .iter()
+        .fold(0.0_f64, |e, &v| e.max(extents[v as usize]));
     extent.max(one_sided_distance(positions, &removed, kept))
 }

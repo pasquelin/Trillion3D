@@ -117,8 +117,9 @@ pub(in crate::tests) fn page_indices(objects: &Path, page: &Value) -> Vec<u32> {
         .collect()
 }
 
-/// Each cut of `primitive` against `mesh`, its source, one line per defect.
-pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Mesh) -> Vec<String> {
+/// Every cut of `primitive`, finest first: its threshold and the source indices it draws, the
+/// pages whose own error is at most the threshold and whose parent's is above it.
+pub(in crate::tests) fn page_cuts(objects: &Path, primitive: &Value) -> Vec<(f64, Vec<u32>)> {
     let pages = primitive["pages"].as_array().expect("pages");
     let indices: Vec<Vec<u32>> = pages
         .iter()
@@ -128,6 +129,16 @@ pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Me
     let mut thresholds: Vec<f64> = pages.iter().map(|p| error(p, "lodError")).collect();
     thresholds.sort_by(f64::total_cmp);
     thresholds.dedup();
+    let cut = |t: f64| -> Vec<u32> {
+        let drawn = pages.iter().zip(&indices);
+        let drawn = drawn.filter(|(p, _)| error(p, "lodError") <= t && error(p, "parentError") > t);
+        drawn.flat_map(|(_, i)| i.iter().copied()).collect()
+    };
+    thresholds.into_iter().map(|t| (t, cut(t))).collect()
+}
+
+/// Each cut of `primitive` against `mesh`, its source, one line per defect.
+pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Mesh) -> Vec<String> {
     let (low, high) = (0..3).fold(
         ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]),
         |(mut lo, mut hi), a| {
@@ -139,13 +150,7 @@ pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Me
     );
     let diagonal = crate::shared_math::length(sub(high, low));
     let mut defects = Vec::new();
-    for t in thresholds {
-        let cut: Vec<u32> = pages
-            .iter()
-            .zip(&indices)
-            .filter(|(p, _)| error(p, "lodError") <= t && error(p, "parentError") > t)
-            .flat_map(|(_, i)| i.iter().copied())
-            .collect();
+    for (t, cut) in page_cuts(objects, primitive) {
         for c in cut.chunks(3) {
             let p = [0, 1, 2].map(|k| mesh.positions[c[k] as usize]);
             let n = [0, 1, 2].map(|k| mesh.normals[c[k] as usize]);

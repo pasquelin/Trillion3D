@@ -21,8 +21,10 @@ pub(super) fn level_report(dag: &[crate::dag::DagCluster], depth: usize) -> Vec<
         for cluster in dag.iter().filter(|c| c.level == level) {
             errors.push(cluster.lod_error);
             triangles += cluster.triangles();
-            roots += usize::from(cluster.is_root());
-            root_triangles += usize::from(cluster.is_root()) * cluster.triangles();
+            if cluster.is_root() {
+                roots += 1;
+                root_triangles += cluster.triangles();
+            }
         }
         if errors.is_empty() {
             continue;
