@@ -50,7 +50,8 @@ export interface StaticOptions {
   refuse?: (file: string) => boolean;
   /** Answers a request before any file is looked for; returns whether it did. */
   answer?: (request: IncomingMessage, response: ServerResponse, url: URL) => boolean;
-  /** The JavaScript a file is served as, or `undefined` to serve its bytes. */
+  /** The text a file is served as, or `undefined` to serve its bytes: a TypeScript file's text is
+   *  JavaScript, any other's of the file's own type. */
   transform?: (file: string) => string | undefined;
 }
 
@@ -67,7 +68,8 @@ async function serveFile(
   if (found.isDirectory()) found = await stat((file = resolve(file, 'index.html')));
   if (!found.isFile()) return reply(response, 404);
   const text = transform?.(file);
-  if (text !== undefined) return reply(response, 200, contentType('.js'), text);
+  if (text !== undefined)
+    return reply(response, 200, contentType(/\.tsx?$/.test(file) ? '.js' : extname(file)), text);
   // The file is opened before the headers leave, so a file it cannot read is still a 404.
   const stream = createReadStream(file);
   await once(stream, 'open');
