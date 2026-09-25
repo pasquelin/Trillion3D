@@ -98,9 +98,9 @@ test('the shape-write counter counts a rewritten shape and not a moved object', 
 
 // #573's acceptance: skipped while the roadmap parks floating crates on it, run once unparked.
 const crates = roadmapEntries.find(({ id }) => id === 'floating-crates');
-assert.ok(crates, 'the roadmap has no floating-crates entry');
-const parked = crates.status === 'waiting-engine' && `waits for #${crates.issue}`;
+const parked = crates?.status === 'waiting-engine' && `waits for #${crates.issue}`;
 test('floating crates writes no shape per frame', { skip: parked }, async () => {
+  assert.ok(crates, 'the roadmap has no floating-crates entry');
   const html = await readFile(new URL(`../site/${crates.file}`, import.meta.url), 'utf8');
   const frame = await countShapeWrites(html);
   assert.deepEqual([0.1, 0.2, 0.3].map(frame), [0, 0, 0]);
