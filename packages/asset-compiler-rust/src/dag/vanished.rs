@@ -1,24 +1,46 @@
-//! The parts a reduction removes whole, and how far the surface it keeps lies from them.
+//! The parts a reduction removes whole: how large the largest is, and how far the surface it keeps
+//! lies from them.
 //!
 //! A reduction's error measures how far what it keeps moves from the surface it replaces; it says
 //! nothing of a disconnected part it removes whole, which only answers for its own size. A roof of
 //! shingles 0.4 m across, each removed at 0.4 m of error, loses half its shingles on one level and
 //! half the rest on the next, all at the same 0.4 m: its coarsest level kept 1.8 % of its area on
 //! the open world's chalet (#484). A part removed whole therefore costs the distance from its
-//! surface to the nearest surface the reduction keeps — a part under the error is pruned, a roof
-//! of parts keeps a cover within its error.
+//! surface to the nearest surface the reduction keeps — a roof of parts keeps a cover within its
+//! error.
+//!
+//! A part larger than the error is not pruned but destroyed. The simplifier's error weighs the
+//! normals as well as the positions, so it can grow far past what the kept surface moved: on
+//! `signature-architecture`, a limestone reduction at 21.8 m of error moved its surface 1.9 m —
+//! a fan of faces turned from the light across every arch opening — and removed paving stones,
+//! plinths and walls up to 32 m across; the ivory's columns went the same way, and the root cover
+//! stood with two of four columns per arcade (#484). A part may therefore vanish only when it is
+//! no larger than the distance the kept surface moved or than the children's error
+//! (`Vanished::destroys`); the caller refuses a reduction that destroys one.
+use super::bounds::bounding_sphere;
 use crate::join::Join;
 use crate::physics_cook::hausdorff::one_sided_distance;
 use std::collections::HashMap;
 
-/// Largest distance from the parts of `source` of which `kept` holds no vertex to the triangles of
+/// What a reduction removed whole.
+pub(super) struct Vanished {
+    /// Bounding radius of the largest part removed; zero when none was.
+    pub radius: f64,
+    /// Largest distance from a part removed to the surface kept.
+    pub distance: f64,
+}
+
+impl Vanished {
+    /// Whether the reduction of `source` to `kept` destroyed a part: removed one larger than both
+    /// `child_error` and the distance from `kept` to `source`, which it only measures then.
+    pub fn destroys(&self, source: &[u32], kept: &[u32], positions: &[f32], child_error: f64) -> bool {
+        std::env::var("SIMDEV").is_err() && self.radius > child_error && self.radius > one_sided_distance(positions, kept, source)
+    }
+}
+
+/// The parts of `source` of which `kept` holds no vertex, measured against the triangles of
 /// `kept`, both over the source vertices; parts meet at a shared position (`weld`).
-pub(super) fn vanished_distance(
-    source: &[u32],
-    kept: &[u32],
-    positions: &[f32],
-    weld: &[u32],
-) -> f64 {
+pub(super) fn vanished(source: &[u32], kept: &[u32], positions: &[f32], weld: &[u32]) -> Vanished {
     let mut local: HashMap<u32, u32> = HashMap::new();
     let mut id = |v: u32| {
         let next = local.len() as u32;
@@ -36,13 +58,20 @@ pub(super) fn vanished_distance(
             alive[join.root(l) as usize] = true;
         }
     }
-    let vanished: Vec<u32> = source
-        .as_chunks::<3>()
-        .0
-        .iter()
-        .zip(corners.as_chunks::<3>().0)
-        .filter(|(_, local)| !alive[join.root(local[0]) as usize])
-        .flat_map(|(tri, _)| *tri)
-        .collect();
-    one_sided_distance(positions, &vanished, kept)
+    let mut parts: HashMap<u32, Vec<u32>> = HashMap::new();
+    for (tri, local) in source.as_chunks::<3>().0.iter().zip(corners.as_chunks::<3>().0) {
+        let root = join.root(local[0]);
+        if !alive[root as usize] {
+            parts.entry(root).or_default().extend(tri);
+        }
+    }
+    let radius = parts
+        .values()
+        .map(|part| bounding_sphere(positions, part)[3])
+        .fold(0.0, f64::max);
+    let removed: Vec<u32> = parts.into_values().flatten().collect();
+    Vanished {
+        radius,
+        distance: one_sided_distance(positions, &removed, kept),
+    }
 }
