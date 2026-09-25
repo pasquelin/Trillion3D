@@ -5,13 +5,14 @@ import { execFileSync } from 'node:child_process';
 import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
+import { sceneMounts } from '../../kit/scenes/caches.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
 
 const root = resolve(import.meta.dirname, '../../..'),
   output = measureOutput('mountain-terrain');
 await mkdir(output, { recursive: true });
 const { server, port } = await startServer({
-  mounts: [...sdkMounts(root), { prefix: '/site/', dir: resolve(root, 'site') }],
+  mounts: [...sdkMounts(root), ...sceneMounts(root)],
 });
 const browser = await launchChrome({ headless: true }),
   errors: string[] = [];
