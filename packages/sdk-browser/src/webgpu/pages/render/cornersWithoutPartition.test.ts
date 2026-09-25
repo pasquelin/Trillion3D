@@ -88,7 +88,7 @@ test('#198: rows changed while the partition is absent reach the partition that 
       epoch = rows.tableEpoch;
     // The visibility pass without its partition: the second mesh alone, so row 0 changes occupant.
     rt.vis.gpuPartition = undefined;
-    for (let frame = 0; frame < 4 && rows.packedCount !== 1; frame++) {
+    for (let frame = 0; frame < 4 && rt.layout.rows.packedCount !== 1; frame++) {
       renderWebgpuPages(rt, lookAt(21, 5));
       await flushWebgpuPages(rt);
     }
