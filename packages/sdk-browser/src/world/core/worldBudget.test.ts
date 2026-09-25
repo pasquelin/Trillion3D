@@ -119,6 +119,26 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
   }
 });
 
+// #487's audit: the shadow pool a screen takes, with its static layer and fixed buffers, is sized
+// inside `split.shadowPool`, and a total below 512 MiB never lets the pools sum past it.
+test('the shadow pool of any screen fits its share, and totals below 512 MiB never overflow', () => {
+  const { shadowPool } = budget('webgpu', null).split;
+  for (const [w, h] of [[1, 1], [1280, 720], [3840, 2160], [16384, 16384], [Infinity, Infinity]]) {
+    const taken = 2 * shadowAtlasBytes(shadowPoolSide(w, h)) + SHADOW_BUFFER_BYTES;
+    assert.ok(taken <= shadowPool, `${w}×${h}`);
+  }
+  for (const total of [64 * MiB, 256 * MiB, 511 * MiB]) {
+    const pools = worldPools();
+    const handle = budget('webgpu', null, {}, pools);
+    assert.throws(() => (handle.gpu = total), /GPU_BUDGET_UNDER_SHADOW_POOL/, `${total}`);
+    assert.equal(handle.gpu, DEFAULT_GPU_BUDGET, 'a refused total leaves the one in place');
+    assert.equal(pools.gpu, undefined);
+  }
+  const smallest = budget('webgpu', null, { gpu: SHADOW_POOL_BYTES + 2 }).split;
+  const sum = smallest.shadowPool + smallest.geometryPool + smallest.texturePool;
+  assert.ok(sum <= SHADOW_POOL_BYTES + 2);
+});
+
 test('a total the rule cannot take is refused by name and changes nothing', () => {
   const pools = worldPools();
   const handle = budget('webgpu', null, {}, pools);
