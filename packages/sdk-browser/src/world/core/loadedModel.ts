@@ -1,7 +1,9 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { lightFromRecord, type Light } from '../../../../sdk-core/src/world/light/light.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import { importedLightsUrl, loadImportedLights } from '../../lighting/importedLights.ts';
 import { sceneDocument, sceneTablesUrl } from '../../scene/tables.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
@@ -12,7 +14,6 @@ import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
 import { findGraphNode, modelNode } from './modelNodes.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -61,9 +62,9 @@ export class LoadedModel extends Object3D {
     return this.add(...nodes);
   }
   /** The scene node standing for each graph node a page looked up, and for its ancestors. */
-  private readonly looked = new Map<HostGraphNode, Object3D>();
+  private readonly looked = new Map<Object3D, Object3D>();
   /** The scene node of `graph`, built with its missing ancestors on first ask (`modelNode`). */
-  private nodeOf(graph: HostGraphNode): Object3D {
+  private nodeOf(graph: Object3D): Object3D {
     let node = this.looked.get(graph);
     if (node) return node;
     node = modelNode(graph);
@@ -88,6 +89,10 @@ export class LoadedModel extends Object3D {
       new Vector3(flat[0], flat[1], flat[2]),
       new Vector3(flat[3], flat[4], flat[5]),
     );
+  }
+  /** Refused: a model is loaded again with `scene.load`, never cloned. */
+  protected override blank(): this {
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'A LoadedModel cannot be cloned');
   }
   /** The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the
    *  clusters its pages hold, every level of its DAGs counted. */
