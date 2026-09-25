@@ -8,7 +8,7 @@
  * friction, restitution, gravityScale, linearDamping, stretch, bend, pressure, vertexCount,
  * indexCount` — the body's place, turn and scale in the world, its matter, its compliances (m/N;
  * `Infinity` is no constraint) and its gauge pressure at rest (Pa, 0 none). No flags word: a soft
- * body is never a sensor nor CCD, and sends no pose or contact event that would read one. Then
+ * body is never a sensor nor CCD, and the contact events it wants follow in a FLAGS command. Then
  * per vertex `SOFT_VERTEX_WORDS`: `x, y, z, mass` in the geometry's own frame, a mass of 0 held in
  * place (a pin); then `indexCount` triangle corners. A body with no triangle is a rope: each
  * vertex joined to the next. A soft body is removed as any body (REMOVE).

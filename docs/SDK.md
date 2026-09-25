@@ -1219,10 +1219,13 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
   (its vertices do not turn). A soft body is a
   direct child of the scene; moved by the page, it is made again there; it takes no velocity,
-  impulse, joint or vehicle, and sends no contact event. Rigid bodies and the character collide
-  with its vertices: the character is turned aside or stopped, never pushing it; a rigid body
-  much heavier than the skin it lands on can push between its vertices; soft bodies pass through
-  each other (Jolt collides them with rigid bodies only). `mesh.physics.vertices` reads its
+  impulse, joint or vehicle. Rigid bodies and the character collide with its vertices: the
+  character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
+  it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
+  them with rigid bodies only). `on('contact' | 'enter' | 'leave')` works on either side of a
+  soft body's pair, from Jolt's soft-body contact listener: the point is the mean of its vertices
+  that touched, the impulse is estimated from its mean velocity and their mass, and a pair stays
+  entered while both rest; a sensor reports it without stopping it. `mesh.physics.vertices` reads its
   vertices as the last tick left them, `x, y, z` per geometry vertex in the geometry's frame. The
   drawn mesh does not follow them yet: it waits for geometry written every frame to be uploaded
   in place (#573).
