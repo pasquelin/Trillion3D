@@ -18,6 +18,7 @@ export function fixture() {
     version: 1,
     pinned: 1,
     bundleBytes: 65536,
+    dependencyBound: 1,
     maxDependencies: 2,
     pages: [
       { url: 'bundle-roots', sha256: 'roots', bytes: 12, count: 1, dependencies: [] },
