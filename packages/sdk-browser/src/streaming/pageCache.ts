@@ -19,9 +19,9 @@ export const manifestTableBytes = (pages: Iterable<{ url: string }>) => {
   return bytes;
 };
 
-/** A session's hold on the cache: what it reserves off the total, and how it evicts — past its
- *  pins and its transfers — when the total shrinks. */
-type Holder = { reservedBytes: number; evict(): void };
+/** A session's hold on the cache: what it reserves off the total, which may change while it reads,
+ *  and how it evicts — past its pins and its transfers — when the total shrinks. */
+type Holder = { reserved(): number; evict(): void };
 
 const checkBytes = (bytes: number) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('INVALID_PAGE_CACHE_BUDGET');
@@ -35,8 +35,8 @@ const checkBytes = (bytes: number) => {
  * last one fetched from here, and fetches nothing it holds.
  *
  * The total is shared by a fixed rule: the session reading through it reserves its manifest
- * tables and its transfer queue (`manifestTableBytes`, `maxTransferBytes`), and the pages hold the
- * rest (`budgetBytes`). A total set lower applies at once: pages leave by last use until they fit,
+ * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
+ * streamer's `reserve`), and the pages hold the rest (`budgetBytes`). A total set lower applies at once: pages leave by last use until they fit,
  * save those the session pins.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
@@ -76,7 +76,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     },
     /** Bytes the session in place reserves off the total, `0` when none reads through it. */
     get reservedBytes() {
-      return holder?.reservedBytes ?? 0;
+      return holder?.reserved() ?? 0;
     },
     /** Bytes the pages may hold: the total less what the session reserves. */
     get budgetBytes() {
