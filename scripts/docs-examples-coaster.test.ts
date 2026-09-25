@@ -7,7 +7,12 @@ import { mix } from '../site/examples/kit/opening.ts';
 
 type Vec = [number, number, number];
 type Motor = { mode: 'velocity'; target: number; maxForce: number } | null;
-type Track = { samples: { p: Vec }[]; total: number; lift: [number, number]; brake: number };
+type Track = {
+  samples: { p: Vec; s: number }[];
+  total: number;
+  lift: [number, number];
+  brake: number;
+};
 interface Coaster {
   layout(loops: number): Track;
   poseAt(track: Track, s: number): { p: Vec; t: Vec };
@@ -34,6 +39,15 @@ test('the roller coaster moves no car by hand: its train rides a looped path joi
   assert.match(script, /joint\.path\(train, null, \{[^}]*loop: true/);
   assert.match(script, /damping: \{ linear: LOSS \}/, 'the train declares what it loses');
   assert.doesNotMatch(script, /travel \+=|speedAt/, 'no position integrated by the page');
+});
+
+test('a pose on the span closing the track lies between its last sample and its first', () => {
+  const { layout, poseAt } = coaster();
+  const track = layout(3);
+  const last = track.samples[track.samples.length - 1].p;
+  const s = (track.samples[track.samples.length - 1].s + track.total) / 2;
+  const middle = poseAt(track, s).p.map((v, i) => v - (last[i] + track.samples[0].p[i]) / 2);
+  assert.ok(Math.hypot(...middle) < 1e-9, `${middle} off the span's middle`);
 });
 
 test('the train climbs the lift on its chain, runs a lap by gravity and never leaves the track', async () => {
