@@ -41,7 +41,8 @@ export function cutWalkModule(): SdkWasm | null {
     : null;
 }
 
-/** The hierarchy's copy in module memory — nodes, bounds, leaf list — made at its first walk. */
+/** The hierarchy's copy in module memory — nodes, bounds, leaf list, and room for the open counts
+ *  a held cut writes before its walk — made at its first walk. */
 function residentOf(wasm: SdkWasm, culling: WalkCulling, count: number) {
   const known = held.get(culling.nodes);
   if (known?.bounds === culling.bounds) return known.arena;
@@ -52,6 +53,7 @@ function residentOf(wasm: SdkWasm, culling: WalkCulling, count: number) {
   const arena = reserveArena(wasm, [
     { type: 'f64', longueur: culling.nodes.length },
     { type: 'f64', longueur: culling.bounds.length },
+    { type: 'u32', longueur: count },
     { type: 'u32', longueur: count },
   ]);
   if (!arena) return null;
@@ -100,13 +102,19 @@ export function walkCut<T extends PageRecord>(
   lens[43] = perspective === undefined ? 1 : perspective;
   lens[44] = s.pixelError;
   lens[45] = s.flatExact ? 1 : 0;
-  const [nodesBlock, boundsBlock, leafBlock] = resident.blocs();
+  const [nodesBlock, boundsBlock, leafBlock, openBlock] = resident.blocs();
+  // A root with no open node — counts roll up to node 0 — hands none over.
+  const open = s.flatOpen,
+    opened = open && open[0] > 0 ? count : 0;
+  if (opened) openBlock.vue.set(open!.subarray(0, count));
   const status = wasm.cut_walk(
     nodesBlock.offset,
     nodes.length,
     stride,
     boundsBlock.offset,
     bounds.length,
+    openBlock.offset,
+    opened,
     lensBlock.offset,
     stackBlock.offset,
     stackBlock.vue.length,

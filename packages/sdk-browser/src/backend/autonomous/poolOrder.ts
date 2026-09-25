@@ -3,11 +3,12 @@ import { evictOldest } from '../../streaming/evictOldest.ts';
 /**
  * The pages the WebGL2 geometry pool holds, oldest first (`pool.ts`). Once they hold more than
  * `limit` — the pool's slots, the page cap and the session ceiling applied —, those no image keeps
- * leave oldest first (`evictOldest`, the page streamer's order, which skips the kept ones). What
- * the image keeps, and every page that arrived since, never leaves: the image shows no hole and a
- * page is not evicted on arrival. When what is kept fills the budget alone, arrivals stay until the
- * next cut decides, and nothing is walked again before it. Only `floorBytes`, what nothing may
- * evict, stays above.
+ * leave oldest first (`evictOldest`, the page streamer's order, which skips the kept ones). Between
+ * two cuts, what the image keeps, and every page that arrived since, never leaves: the image shows
+ * no hole and a page is not evicted on arrival. Just before a cut (`trim`), a page the image drew
+ * but no longer asks for may leave too: that cut draws its nearest resident ancestor instead. When
+ * what is kept fills the budget alone, arrivals stay until the next cut decides, and nothing is
+ * walked again before it. Only `floorBytes`, what nothing may evict, stays above.
  */
 export function createResidentOrder(env: {
   state: { readonly allocationBytes: number };
@@ -31,12 +32,12 @@ export function createResidentOrder(env: {
     order.delete(url);
     drop(url);
   };
-  const shed = () => {
+  const shed = (keep = env.kept) => {
     // What nothing may evict only raises the bar: under the pool it is not even read.
     if (exhausted || state.allocationBytes <= limit()) return 0;
     floorBytes = env.floorBytes();
     if (!over()) return 0;
-    kept = env.kept();
+    kept = keep();
     const evicted = evictOldest(order, over, isKept, evictOne);
     exhausted = over();
     return evicted;
@@ -56,12 +57,12 @@ export function createResidentOrder(env: {
       order.delete(url);
       arrivals.delete(url);
     },
-    /** A cut was drawn and the image gathered what it keeps: what it no longer keeps can go, once
-     *  over the budget; returns the pages evicted. */
-    trim() {
+    /** A cut is about to be drawn: what `keep` — by default what the image keeps — does not name
+     *  can go, once over the budget; returns the pages evicted. */
+    trim(keep = env.kept) {
       exhausted = false;
       arrivals.clear();
-      return shed();
+      return shed(keep);
     },
   };
 }

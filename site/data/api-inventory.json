@@ -653,7 +653,6 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/guides/guideSet.test.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/geometry.ts",
@@ -2989,7 +2988,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/framing\".framingFromBounds"
     },
@@ -5076,7 +5075,6 @@
       "affectedConsumers": [
         "bench/oracles/browser/core-math-priority.ts",
         "bench/perf/browser/residency.perf.ts",
-        "packages/sdk-browser/src/backend/autonomous/poolSearch.ts",
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/gpu/dag/pack.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
@@ -6418,7 +6416,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/world/pose/index\".pose"
     },
@@ -9505,7 +9503,6 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/guides/guideSet.test.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/geometry.ts",

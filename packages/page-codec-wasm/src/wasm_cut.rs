@@ -13,8 +13,9 @@ pub const LENS_VALUES: usize = PLANE_VALUES + 16 + 6;
 ///
 /// # Safety
 /// Every offset must lie in a live `arena_alloc` reservation: `nodes` and `bounds` hold
-/// `node_values` and `bound_values` floats, `lens` `LENS_VALUES` floats, `stack` and `leaves`
-/// `stack_len` and `leaves_len` words, `result` three words; the ranges are disjoint.
+/// `node_values` and `bound_values` floats, `open` `open_len` words (0: no node open), `lens`
+/// `LENS_VALUES` floats, `stack` and `leaves` `stack_len` and `leaves_len` words, `result` three
+/// words; the ranges are disjoint.
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn cut_walk(
@@ -23,6 +24,8 @@ pub unsafe extern "C" fn cut_walk(
     stride: usize,
     bounds: u32,
     bound_values: usize,
+    open: u32,
+    open_len: usize,
     lens: u32,
     stack: u32,
     stack_len: usize,
@@ -46,6 +49,11 @@ pub unsafe extern "C" fn cut_walk(
         core::slice::from_raw_parts(nodes as *const f64, node_values),
         stride,
         core::slice::from_raw_parts(bounds as *const f64, bound_values),
+        if open_len == 0 {
+            &[]
+        } else {
+            core::slice::from_raw_parts(open as *const u32, open_len)
+        },
         &lens,
         core::slice::from_raw_parts_mut(stack as *mut u32, stack_len),
         core::slice::from_raw_parts_mut(leaves as *mut u32, leaves_len),
