@@ -1,4 +1,5 @@
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
@@ -158,7 +159,7 @@ ${BLEND_SURFACE_WGSL}
  // resolve. Neither ambient, nor sky, nor a default sun (P6).
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
- let clamped=clamp(s.rough,0.0525,1.0);
+ let clamped=clamp(s.rough,${ROUGHNESS_FLOOR},1.0);
  if(!unlit){
   if((flags&1u)!=0u){
    let m=clamp(s.metal,0.0,1.0);
