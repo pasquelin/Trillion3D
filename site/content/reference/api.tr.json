@@ -7417,13 +7417,13 @@
       "options.suspensionFrequency": "Süspansiyon frekansı, Hz.",
       "options.suspensionDamping": "Sönüm oranı, 0 (yok) ile 1 (kritik) arası.",
       "options.suspensionTravel": "Tam salınımdan tam sıkışmaya tekerlek yolu, m; süspansiyon frekansının Dünya'da istediği çökmeden, `9.81 / (2π suspensionFrequency)²`, uzun olmalı, yoksa reddedilir: ötesinde gövde tamponlarına oturur.",
-      "options.antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir.",
-      "options.turnRadius": "Tam kilitte dönüş yarıçapı, metre.",
+      "options.antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir. Yalnızca otomobiller: motosiklette (iki tekerleği ortak aks paylaşmaz) ve paletli araçta (tekerlekleri çubuk taşımaz) reddedilir.",
+      "options.turnRadius": "Tam kilitte dönüş yarıçapı, metre. Paletleriyle dönen paletli araçta reddedilir.",
       "options.steerTime": "Ortadan tam direksiyon kilidine saniye.",
       "options.brakeGrip": "Frenlerin tekerlekleri kilitlediği sürtünme.",
-      "options.drive": "Bir arabanın çekiş tekerlekleri.",
-      "options.trackTurn": "Paletli bir araç hareket hâlinde dönerken iç paletin hızının dış palete oranı; dururken, bu oran ne olursa olsun, iç palet geri dönerek yerinde döner.",
-      "options.maxLean": "Bir motosikletin en büyük yatışı, radyan."
+      "options.drive": "Bir arabanın çekiş tekerlekleri. Motosiklette (arka tekerleği çeker) ve paletli araçta (her paletin en arkadaki tekerleği çeker) reddedilir.",
+      "options.trackTurn": "Paletli bir araç hareket hâlinde dönerken iç paletin hızının dış palete oranı; dururken, bu oran ne olursa olsun, iç palet geri dönerek yerinde döner. Otomobilde veya motosiklette reddedilir.",
+      "options.maxLean": "Bir motosikletin en büyük yatışı, radyan. Otomobilde veya paletli araçta reddedilir."
     },
     "members": {
       "kind": "Aracın ne olduğu.",
@@ -7462,13 +7462,13 @@
       "suspensionFrequency": "Süspansiyon frekansı, Hz.",
       "suspensionDamping": "Sönüm oranı, 0 (yok) ile 1 (kritik) arası.",
       "suspensionTravel": "Tam salınımdan tam sıkışmaya tekerlek yolu, m; süspansiyon frekansının Dünya'da istediği çökmeden, `9.81 / (2π suspensionFrequency)²`, uzun olmalı, yoksa reddedilir: ötesinde gövde tamponlarına oturur.",
-      "antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir.",
-      "turnRadius": "Tam kilitte dönüş yarıçapı, metre.",
+      "antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir. Yalnızca otomobiller: motosiklette (iki tekerleği ortak aks paylaşmaz) ve paletli araçta (tekerlekleri çubuk taşımaz) reddedilir.",
+      "turnRadius": "Tam kilitte dönüş yarıçapı, metre. Paletleriyle dönen paletli araçta reddedilir.",
       "steerTime": "Ortadan tam direksiyon kilidine saniye.",
       "brakeGrip": "Frenlerin tekerlekleri kilitlediği sürtünme.",
-      "drive": "Bir arabanın çekiş tekerlekleri.",
-      "trackTurn": "Paletli bir araç hareket hâlinde dönerken iç paletin hızının dış palete oranı; dururken, bu oran ne olursa olsun, iç palet geri dönerek yerinde döner.",
-      "maxLean": "Bir motosikletin en büyük yatışı, radyan."
+      "drive": "Bir arabanın çekiş tekerlekleri. Motosiklette (arka tekerleği çeker) ve paletli araçta (her paletin en arkadaki tekerleği çeker) reddedilir.",
+      "trackTurn": "Paletli bir araç hareket hâlinde dönerken iç paletin hızının dış palete oranı; dururken, bu oran ne olursa olsun, iç palet geri dönerek yerinde döner. Otomobilde veya motosiklette reddedilir.",
+      "maxLean": "Bir motosikletin en büyük yatışı, radyan. Otomobilde veya paletli araçta reddedilir."
     }
   },
   "VehicleSpecs": {

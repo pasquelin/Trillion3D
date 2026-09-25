@@ -7417,13 +7417,13 @@
       "options.suspensionFrequency": "Frequência da suspensão, em Hz.",
       "options.suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
       "options.suspensionTravel": "Curso da roda da extensão total à compressão total, m; maior que o afundamento que a frequência da suspensão pede na Terra, `9.81 / (2π suspensionFrequency)²`, ou recusado: além dele, a carroceria fica apoiada nos batentes.",
-      "options.antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
-      "options.turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "options.antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma. Só carros: recusado numa moto (as duas rodas não partilham eixo) e num veículo de lagartas (as rodas não levam barras).",
+      "options.turnRadius": "O raio de giro com a direção no batente, em metros. Recusado num veículo de lagartas, que vira pelas lagartas.",
       "options.steerTime": "Segundos do centro ao batente da direção.",
       "options.brakeGrip": "O atrito com que os freios travam as rodas.",
-      "options.drive": "As rodas motrizes de um carro.",
-      "options.trackTurn": "A velocidade da lagarta interna de um veículo de lagartas ao virar em movimento, sobre a da externa; parado, ele gira no lugar com a lagarta interna invertida, qualquer que seja esta razão.",
-      "options.maxLean": "A maior inclinação de uma moto, em radianos."
+      "options.drive": "As rodas motrizes de um carro. Recusado numa moto (a roda traseira é a motriz) e num veículo de lagartas (a roda mais traseira de cada lagarta é a motriz).",
+      "options.trackTurn": "A velocidade da lagarta interna de um veículo de lagartas ao virar em movimento, sobre a da externa; parado, ele gira no lugar com a lagarta interna invertida, qualquer que seja esta razão. Recusado num carro ou numa moto.",
+      "options.maxLean": "A maior inclinação de uma moto, em radianos. Recusado num carro ou num veículo de lagartas."
     },
     "members": {
       "kind": "O que o veículo é.",
@@ -7462,13 +7462,13 @@
       "suspensionFrequency": "Frequência da suspensão, em Hz.",
       "suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
       "suspensionTravel": "Curso da roda da extensão total à compressão total, m; maior que o afundamento que a frequência da suspensão pede na Terra, `9.81 / (2π suspensionFrequency)²`, ou recusado: além dele, a carroceria fica apoiada nos batentes.",
-      "antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
-      "turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma. Só carros: recusado numa moto (as duas rodas não partilham eixo) e num veículo de lagartas (as rodas não levam barras).",
+      "turnRadius": "O raio de giro com a direção no batente, em metros. Recusado num veículo de lagartas, que vira pelas lagartas.",
       "steerTime": "Segundos do centro ao batente da direção.",
       "brakeGrip": "O atrito com que os freios travam as rodas.",
-      "drive": "As rodas motrizes de um carro.",
-      "trackTurn": "A velocidade da lagarta interna de um veículo de lagartas ao virar em movimento, sobre a da externa; parado, ele gira no lugar com a lagarta interna invertida, qualquer que seja esta razão.",
-      "maxLean": "A maior inclinação de uma moto, em radianos."
+      "drive": "As rodas motrizes de um carro. Recusado numa moto (a roda traseira é a motriz) e num veículo de lagartas (a roda mais traseira de cada lagarta é a motriz).",
+      "trackTurn": "A velocidade da lagarta interna de um veículo de lagartas ao virar em movimento, sobre a da externa; parado, ele gira no lugar com a lagarta interna invertida, qualquer que seja esta razão. Recusado num carro ou numa moto.",
+      "maxLean": "A maior inclinação de uma moto, em radianos. Recusado num carro ou num veículo de lagartas."
     }
   },
   "VehicleSpecs": {

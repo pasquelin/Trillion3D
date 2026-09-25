@@ -17776,12 +17776,12 @@
       {
         "name": "options.antiRoll?",
         "type": "number",
-        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only, refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels carry no bars)."
       },
       {
         "name": "options.turnRadius?",
         "type": "number",
-        "desc": "The full-lock turning radius, m."
+        "desc": "The full-lock turning radius, m; refused on a tracked vehicle, which steers by its tracks."
       },
       {
         "name": "options.steerTime?",
@@ -17796,17 +17796,17 @@
       {
         "name": "options.drive?",
         "type": "'front' | 'all' | 'rear'",
-        "desc": "A car's driven wheels."
+        "desc": "A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked vehicle (the rearmost wheel of each track drives)."
       },
       {
         "name": "options.trackTurn?",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a motorcycle."
       },
       {
         "name": "options.maxLean?",
         "type": "number",
-        "desc": "A motorcycle's greatest lean, radians."
+        "desc": "A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle."
       }
     ],
     "members": [
@@ -18016,12 +18016,12 @@
       {
         "name": "antiRoll",
         "type": "number",
-        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only, refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels carry no bars)."
       },
       {
         "name": "turnRadius",
         "type": "number",
-        "desc": "The full-lock turning radius, m."
+        "desc": "The full-lock turning radius, m; refused on a tracked vehicle, which steers by its tracks."
       },
       {
         "name": "steerTime",
@@ -18036,17 +18036,17 @@
       {
         "name": "drive",
         "type": "'front' | 'all' | 'rear'",
-        "desc": "A car's driven wheels."
+        "desc": "A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked vehicle (the rearmost wheel of each track drives)."
       },
       {
         "name": "trackTurn",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a motorcycle."
       },
       {
         "name": "maxLean",
         "type": "number",
-        "desc": "A motorcycle's greatest lean, radians."
+        "desc": "A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle."
       }
     ],
     "description": ""
