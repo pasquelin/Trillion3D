@@ -2061,6 +2061,50 @@
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Katun tenun sedang, kg/m²: berat kain berkisar 0,15 sampai 0,25.",
+    "description": "Kain jatuh sama pada massa berapa pun; ia menekan pinnya dan apa yang ditemuinya. Kulit sebuah volume dianggap kain seperti itu."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Dinyatakan: bagian penampang rata-ratanya — seperempat luasnya, untuk bentuk cembung apa pun (Cauchy) — tempat volume yang diam di tanah melesak, gasnya menahan beratnya di sana.",
+    "description": "Tekanan bawaannya lalu `4·m·g / (share·area)`: 31 Pa untuk kulit `SOFT_AREAL_DENSITY`. Setengah bagian, dua kali tekanan. Tak pernah melewati tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Tali poliamida 10 mm, kg/m: tabel pembuat memberi 0,06 sampai 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Apa yang diterima `obj.physics` untuk benda lunak: verteksnya disimulasikan satu per satu.",
+    "members": {
+      "pins": "Indeks verteks geometri yang ditahan di tempatnya: tiang bendera, kait tali.",
+      "mass": "Kilogram, dibagi ke verteks menurut luas (tali: panjang) yang ditanggung masing-masing; bila dihilangkan, `SOFT_AREAL_DENSITY` per m² (tali: `SOFT_LINEAR_DENSITY` per m).",
+      "stretch": "Seberapa rusuk mengalah saat ditarik, m/N (kebalikan kekakuannya): 0 tak pernah meregang.",
+      "bend": "Seberapa ia mengalah saat dilipat, rad/(N·m) (tali: m/N); `Infinity` melipat bebas."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Opsi benda lunak: kain, tali, atau volume dengan tekanan gasnya."
+  },
+  "SoftBodyType": {
+    "summary": "Benda lunak: kain (segitiganya, terbuka), tali (verteksnya, masing-masing tersambung ke berikutnya), atau volume (segitiganya yang tertutup, ditopang gas di dalamnya)."
+  },
+  "SoftSettings": {
+    "summary": "Opsi benda lunak setelah dibaca: setiap bawaan terisi.",
+    "members": {
+      "type": "Apa ia.",
+      "pins": "Verteks geometri yang ditahan di tempatnya.",
+      "mass": "Kilogram, `undefined` untuk massa dari kepadatan bawaan.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), m/N untuk tali.",
+      "pressure": "Pa; `undefined` untuk tekanan bawaan volume (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Opsi volume: mesh tertutup yang ditopang gas di dalamnya.",
+    "members": {
+      "type": "Sebuah volume.",
+      "pressure": "Tekanan gas di atas tekanan udara saat diam, Pa; bila ditekan, naik saat volume turun (hukum Boyle). Segitiga harus menghadap keluar. Bila dihilangkan, tekanan yang meletakkan berat volume pada `SOFT_FOOTPRINT` penampang rata-ratanya, atau tekanan terbesar yang ditahan kulitnya bila lebih kecil. Ditolak di atas tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
+    }
+  },
   "TransformNode": {
     "summary": "Simpul adegan yang dibaca melalui matriks referensi, disimpan di pohon transformasi mesin.",
     "members": {
@@ -6974,7 +7018,8 @@
       "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
       "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
       "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
-      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda.",
+      "softVertices": "Verteks semua benda lunak sekaligus (kain, tali, volume). Masing-masing diselesaikan setiap langkah dan dibaca kembali oleh halaman, 12 byte per langkah."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6996,7 +7041,7 @@
     "summary": "Fisika satu objek, seperti dipegang `obj.physics`: catatan hidup tentang apa benda itu dan apa yang dilakukannya.",
     "description": "Penulisan sampai ke simulasi pada langkah berikutnya; `velocity` membaca apa yang ditinggalkan langkah terakhir.",
     "members": {
-      "type": "Cara benda bergerak; tetapkan ulang `obj.physics` untuk mengubahnya.",
+      "type": "Cara benda bergerak, atau benda lunak apa ia; tetapkan ulang `obj.physics` untuk mengubahnya.",
       "shape": "Bentuk yang dinyatakan, jika ada.",
       "sensor": "Apakah benda hanya melaporkan kontak.",
       "ccd": "Apakah tabrakan kontinu aktif.",
@@ -7011,7 +7056,9 @@
       "applyImpulse": "Mendorong benda seketika, impuls dalam N·s melalui pusat massanya; membangunkannya.",
       "wake": "Membangunkan benda, tidur atau tidak.",
       "on": "Memanggil `handler` pada peristiwa kontak benda ini.",
-      "listens": "Apakah ada penangan kontak."
+      "listens": "Apakah ada penangan kontak.",
+      "soft": "Pengaturan benda lunak, setiap bawaan terisi; `null` untuk benda kaku.",
+      "vertices": "Verteks benda lunak seperti yang ditinggalkan tick terakhir: `x, y, z` per verteks geometrinya, dalam kerangka geometri itu sendiri; `null` untuk benda kaku, dan sampai tick pertamanya."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7050,7 +7097,8 @@
       "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
       "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
       "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
-      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda.",
+      "softVertices": "Verteks semua benda lunak sekaligus (kain, tali, volume). Masing-masing diselesaikan setiap langkah dan dibaca kembali oleh halaman, 12 byte per langkah."
     }
   },
   "PhysicsHost": {
@@ -7076,7 +7124,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Apa yang bisa diisikan ke `obj.physics`."
+    "summary": "Apa yang dapat diterima `obj.physics`: benda kaku, atau benda lunak (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Bentuk tabrakan, bila yang disimpulkan dari geometri tidak cocok.",
