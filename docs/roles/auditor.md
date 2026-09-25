@@ -34,4 +34,4 @@ rule 2).
      request closed several issues, reopen the one each finding concerns. Then
      `gh pr edit <pr> --add-label audited`. The domain's lead takes #<n> again, removes
      `audit ko` and closes it once the findings are fixed.
-5. Back to step 1. Report to the maintainer only the `audit ko` verdicts, one line each.
+5. Back to step 1. Report to the CTO only the `audit ko` verdicts, one line each.
