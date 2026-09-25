@@ -45,7 +45,7 @@ ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
 ${VERTEX_COLOR_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData)}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d;

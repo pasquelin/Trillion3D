@@ -2,8 +2,8 @@ import { MODEL_FLAG } from '../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 
 /** Rank of the surface cache in the deferred bounce layout: past the water composite's own
- *  bindings (14 to 17), which extend that layout at the same numbers. */
-export const BOUNCE_SURFACE_BINDING = 18;
+ *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
+export const BOUNCE_SURFACE_BINDING = 20;
 
 /**
  * Radiance a ray brings back from the resident proxy: nothing if it hits nothing, the hit texel

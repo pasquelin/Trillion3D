@@ -6967,6 +6967,7 @@
       "sensor": "物体是否只报告接触。",
       "ccd": "连续碰撞是否开启。",
       "decorative": "物体是否为装饰碎片。",
+      "damping": "每秒自行损失的速度比例，线速度与角速度（`dv/dt = −c·v`）。",
       "velocity": "线速度，m/s，即上一步留下的值；写入它可抛出物体。",
       "asleep": "物体是否在睡眠：静止，直到被唤醒前不再模拟。",
       "mass": "质量，单位千克；`undefined` 取材质密度乘以体积。",
@@ -7001,7 +7002,8 @@
       "ccd": "连续碰撞，用于可能穿过薄墙的小而快的物体。",
       "decorative": "碎片：只与静态世界碰撞，且只在范围内并可见时模拟。受 `budget.physics.decorative` 限制。",
       "friction": "覆盖材质的摩擦，0 及以上。",
-      "restitution": "覆盖材质的回弹，0 到 1。"
+      "restitution": "覆盖材质的回弹，0 到 1。",
+      "damping": "物体每秒自行损失多少速度，如空气和滚动所致：`dv/dt = −c·v`，0 及以上，线速度与角速度分开；0 则全部保留。创建时设定：要更改，请重新设置 `obj.physics`。"
     }
   },
   "PhysicsBudget": {
@@ -7411,17 +7413,17 @@
       "options.finalDrive": "主减速比（履带车辆为主动轮减速）。",
       "options.shiftUpRPM": "高于此值时升挡，转/分。",
       "options.shiftDownRPM": "低于此值时降挡，转/分。",
-      "options.clutch": "每 rad/s 打滑的离合器扭矩，N·m·s。",
+      "options.clutch": "每 rad/s 打滑的离合器扭矩，N·m·s；仅限汽车和摩托车，履带车辆会被拒绝：其发动机不经离合器直接驱动履带（Jolt 的履带控制器）。",
       "options.suspensionFrequency": "悬架频率，Hz。",
       "options.suspensionDamping": "阻尼比，从 0（无）到 1（临界）。",
-      "options.suspensionTravel": "车轮从完全伸展到完全压缩的行程，米。",
-      "options.antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。",
-      "options.turnRadius": "满舵时的转弯半径，米。",
+      "options.suspensionTravel": "车轮从完全伸展到完全压缩的行程，m；须长于悬架频率在地球上要求的下沉量 `9.81 / (2π suspensionFrequency)²`，否则被拒绝：超过它，车身会压在限位块上。",
+      "options.antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。仅限汽车：摩托车（两个车轮不共用车轴）和履带车辆（车轮不带稳定杆）上会被拒绝。",
+      "options.turnRadius": "满舵时的转弯半径，米。履带车辆靠履带转向，会被拒绝。",
       "options.steerTime": "从中位打到满舵的秒数。",
       "options.brakeGrip": "刹车锁死车轮时的摩擦。",
-      "options.drive": "汽车的驱动轮。",
-      "options.trackTurn": "履带车辆转向时内侧履带的速度，与外侧之比。",
-      "options.maxLean": "摩托车的最大倾角，弧度。"
+      "options.drive": "汽车的驱动轮。摩托车（后轮驱动）和履带车辆（每条履带最后一个轮驱动）上会被拒绝。",
+      "options.trackTurn": "履带车辆行驶中转向时内侧履带相对外侧的速度比；静止时无论此比值如何，它都会反转内侧履带原地转向。汽车或摩托车上会被拒绝。",
+      "options.maxLean": "摩托车的最大倾角，弧度。汽车或履带车辆上会被拒绝。"
     },
     "members": {
       "kind": "车辆的类型。",
@@ -7456,17 +7458,17 @@
       "finalDrive": "主减速比（履带车辆为主动轮减速）。",
       "shiftUpRPM": "高于此值时升挡，转/分。",
       "shiftDownRPM": "低于此值时降挡，转/分。",
-      "clutch": "每 rad/s 打滑的离合器扭矩，N·m·s。",
+      "clutch": "每 rad/s 打滑的离合器扭矩，N·m·s；仅限汽车和摩托车，履带车辆会被拒绝：其发动机不经离合器直接驱动履带（Jolt 的履带控制器）。",
       "suspensionFrequency": "悬架频率，Hz。",
       "suspensionDamping": "阻尼比，从 0（无）到 1（临界）。",
-      "suspensionTravel": "车轮从完全伸展到完全压缩的行程，米。",
-      "antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。",
-      "turnRadius": "满舵时的转弯半径，米。",
+      "suspensionTravel": "车轮从完全伸展到完全压缩的行程，m；须长于悬架频率在地球上要求的下沉量 `9.81 / (2π suspensionFrequency)²`，否则被拒绝：超过它，车身会压在限位块上。",
+      "antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。仅限汽车：摩托车（两个车轮不共用车轴）和履带车辆（车轮不带稳定杆）上会被拒绝。",
+      "turnRadius": "满舵时的转弯半径，米。履带车辆靠履带转向，会被拒绝。",
       "steerTime": "从中位打到满舵的秒数。",
       "brakeGrip": "刹车锁死车轮时的摩擦。",
-      "drive": "汽车的驱动轮。",
-      "trackTurn": "履带车辆转向时内侧履带的速度，与外侧之比。",
-      "maxLean": "摩托车的最大倾角，弧度。"
+      "drive": "汽车的驱动轮。摩托车（后轮驱动）和履带车辆（每条履带最后一个轮驱动）上会被拒绝。",
+      "trackTurn": "履带车辆行驶中转向时内侧履带相对外侧的速度比；静止时无论此比值如何，它都会反转内侧履带原地转向。汽车或摩托车上会被拒绝。",
+      "maxLean": "摩托车的最大倾角，弧度。汽车或履带车辆上会被拒绝。"
     }
   },
   "VehicleSpecs": {

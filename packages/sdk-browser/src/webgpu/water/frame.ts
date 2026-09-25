@@ -80,7 +80,9 @@ export async function createWaterFrame(device: GPUDevice) {
       next[12] = lighting.bounceGrid;
       next[13] = lighting.probes;
       next[14] = lighting.proxy;
-      next[15] = lighting.surfaceCache;
+      // The translucent depth is made and dropped with it.
+      next[15] = lighting.shadowTransmittance;
+      next[16] = lighting.surfaceCache;
       if (!identity.moved()) return true;
       surfaces = gpu.surfaces;
       from.texture = gpu.hdrTexture;
@@ -102,6 +104,8 @@ export async function createWaterFrame(device: GPUDevice) {
           { binding: b.shadowData, resource: { buffer: lighting.shadowData } },
           { binding: b.shadowAtlas, resource: lighting.shadowAtlas },
           { binding: b.shadowSampler, resource: lighting.shadowSampler },
+          { binding: b.shadowTransmittance, resource: lighting.shadowTransmittance },
+          { binding: b.shadowTranslucentDepth, resource: lighting.shadowTranslucentDepth },
           { binding: b.bounceGrid, resource: { buffer: lighting.bounceGrid } },
           { binding: b.probes, resource: { buffer: lighting.probes } },
           { binding: b.proxy, resource: { buffer: lighting.proxy } },

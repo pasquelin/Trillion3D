@@ -78,11 +78,11 @@ RefConst<Shape> shapeOf(const uint32_t *w) {
   // A mesh has no volume: only a body that never moves by force may be one (the page refuses it).
   if (kind <= CYLINDER) return primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15));
   // A cooked shape: its handle is the one data word, `a, b, c` its scale.
-  if (kind == COOKED) return w[22] == 1 ? cookedShape(w[ADD_WORDS], vec3(w + 13)) : nullptr;
+  if (kind == COOKED) return w[24] == 1 ? cookedShape(w[ADD_WORDS], vec3(w + 13)) : nullptr;
   if (kind == TRIANGLES && motion == 2) return nullptr;
   // A compound's parts are its data words (indexCount counts them, vertexCount is 0).
-  if (kind == COMPOUND) return compoundShape(w + ADD_WORDS, w[22]);
-  return meshShape(kind, w + ADD_WORDS, w[21], w[22]);
+  if (kind == COMPOUND) return compoundShape(w + ADD_WORDS, w[24]);
+  return meshShape(kind, w + ADD_WORDS, w[23], w[24]);
 }
 
 }  // namespace trillion
