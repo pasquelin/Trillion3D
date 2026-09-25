@@ -2111,19 +2111,5 @@
       "volumes": "Volúmenes",
       "awake": "Despiertos"
     }
-  },
-  "a-cooked-flag": {
-    "banner": "La bandera se precalculó con su modelo: se restaura al cargar y cae enseguida desde su mástil. Cárgala otra vez para verlo.",
-    "controls": {
-      "again": "Otra vez",
-      "slowMotion": "Cámara lenta"
-    },
-    "readouts": {
-      "bodies": "Cuerpos",
-      "step": "Paso"
-    },
-    "words": {
-      "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
-    }
   }
 }

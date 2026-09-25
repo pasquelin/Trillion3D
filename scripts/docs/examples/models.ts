@@ -4,7 +4,6 @@ import { writeAvenue } from './avenue.ts';
 import { writeChessObj } from './chess-obj.ts';
 import { writeChessSet } from './chess-set.ts';
 import { writeCourtyard } from './courtyard.ts';
-import { writeFlag } from './flag.ts';
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
 import { appendSurfacesGltf } from './gltf.ts';
 import { fromGeometry, merge } from './mesh.ts';
@@ -182,7 +181,6 @@ export const modelScenes = {
   'detail-by-pixel-error': inCode(writeAvenue),
   'ten-thousand-objects': inCode(writeRing),
   terrain: inCode(writeTerrain),
-  flag: inCode(writeFlag),
 };
 
 /** Assembles the source folder of the model scenes `names` under `examples` from `models`. */

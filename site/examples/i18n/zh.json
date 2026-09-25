@@ -2111,19 +2111,5 @@
       "volumes": "体",
       "awake": "活动"
     }
-  },
-  "a-cooked-flag": {
-    "banner": "旗帜与模型一起预先计算：模型加载时即被恢复，并立刻从旗杆上垂下。再次加载即可观看。",
-    "controls": {
-      "again": "再来",
-      "slowMotion": "慢动作"
-    },
-    "readouts": {
-      "bodies": "物体",
-      "step": "步长"
-    },
-    "words": {
-      "credit": "旗杆上的旗帜为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
-    }
   }
 }

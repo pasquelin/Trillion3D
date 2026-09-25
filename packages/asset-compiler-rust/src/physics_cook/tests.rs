@@ -14,20 +14,15 @@ const GOLDEN: &str = "../../tests/fixtures/physics/ramp-tile.bin";
 pub(super) fn golden_tile(pos: &[f32], golden: &str) -> Vec<u8> {
     let first = mesh_shape(pos, &RAMP_TRIANGLES).unwrap();
     assert_eq!(first, mesh_shape(pos, &RAMP_TRIANGLES).unwrap());
-    assert_golden(&first, golden);
-    first
-}
-
-/// Checks cooked `bytes` against the golden file `golden` (`TRILLION3D_WRITE_GOLDEN` rewrites it).
-pub(super) fn assert_golden(bytes: &[u8], golden: &str) {
     if std::env::var_os("TRILLION3D_WRITE_GOLDEN").is_some() {
-        std::fs::write(golden, bytes).unwrap();
+        std::fs::write(golden, &first).unwrap();
     }
     assert_eq!(
-        bytes,
+        first,
         std::fs::read(golden).unwrap(),
-        "golden bytes moved: {golden}"
+        "golden tile moved: {golden}"
     );
+    first
 }
 
 // Behaviour: the cook is deterministic and its bytes are the golden ones the runtime restores.

@@ -2111,19 +2111,5 @@
       "volumes": "Volumen",
       "awake": "Wach"
     }
-  },
-  "a-cooked-flag": {
-    "banner": "Die Flagge wurde mit ihrem Modell vorberechnet: Sie wird beim Laden wiederhergestellt und sinkt sofort am Mast herab. Laden Sie sie erneut, um es zu sehen.",
-    "controls": {
-      "again": "Nochmal",
-      "slowMotion": "Zeitlupe"
-    },
-    "readouts": {
-      "bodies": "Körper",
-      "step": "Schritt"
-    },
-    "words": {
-      "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
-    }
   }
 }

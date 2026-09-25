@@ -2111,19 +2111,5 @@
       "volumes": "Volume",
       "awake": "Aktif"
     }
-  },
-  "a-cooked-flag": {
-    "banner": "Bendera dihitung sebelumnya bersama modelnya: ia dipulihkan saat model dimuat dan langsung terkulai dari tiangnya. Muat lagi untuk melihatnya.",
-    "controls": {
-      "again": "Lagi",
-      "slowMotion": "Gerak lambat"
-    },
-    "readouts": {
-      "bodies": "Benda",
-      "step": "Langkah"
-    },
-    "words": {
-      "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
-    }
   }
 }

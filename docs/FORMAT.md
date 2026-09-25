@@ -278,31 +278,6 @@ the stage and its version.
 The manifest's `physics` field names the file, its format, the Jolt commit, the report and every
 object the file cites (`objects[].sha256`), so a prune keeps them.
 
-### `softBodies` — cooked soft bodies
-
-Stage version 5 adds `softBodies`, one entry per drawn node whose `extras.physics` declares a
-cloth, a rope or a volume ([COMPILER.md](COMPILER.md#soft-bodies-a-model-declares)). The field is
-additive: a file cooked before it has none, and format 2 still reads it. Each entry:
-
-- `node`: the declaring node. It has no `instances` entry: a soft body is no static ground.
-- `physics`: the options the node declares, as `obj.physics` takes them; the page reads the body's
-  matter, pull and damping from them.
-- `settings`: the body's `SoftBodySharedSettings` in Jolt's binary state (`SaveWithMaterials`), a
-  SHA-addressed object like a tile (`url`, `sha256`, `bytes`); its vertices are already at
-  `scale`, its compliances in it.
-- `vertices`: simulated vertices, counted against `budget.physics.softVertices`.
-- `pressure`: the gas's gauge pressure at rest, Pa; 0 for a cloth or a rope.
-- `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
-- `friction`, `restitution`: as an instance's, those of the `physicsMaterial` its
-  `KHR_physics_rigid_bodies` collider names, if any.
-
-`report.softBodies` counts them; `report.softRefused` lists each declaring node the cook refused
-(`node`, `reason`, in the words the page would refuse it with): it has no body and no static
-collider, and is drawn all the same. The page restores the settings and copies them into one SOFT
-command (`packages/sdk-core/src/physics/softLayout.ts`); it builds nothing. A model placed at another
-scale than its nodes were cooked at has its soft bodies refused (`PHYSICS_FAILED`), for Jolt scales
-no soft body once made.
-
 ## Source glTF
 
 The compiler writes a compacted `source.gltf` + `source.bin` for the selected nodes. Relative image URIs are rewritten against the host `resourceBaseUrl`. `images` may be omitted. Images that use `bufferView` (no `uri`) keep their view; the view is copied into `source.bin`. Sparse accessors (`accessor.sparse`) are decoded and their bufferViews are compacted and remapped. Skinned meshes (`skin`, `JOINTS_0`, `WEIGHTS_0`), morph targets (`targets`), and animations are preserved in `source.gltf` and routed to the `shared-blend` reference pass.

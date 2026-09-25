@@ -1,10 +1,8 @@
 //! `physics.json`, the cooked physics of a scene: the colliders of its primitives (tiles, their
-//! objects, tolerance and measured error), the static placements of those colliders by the nodes
-//! that draw them, each with the matter its source declares, and the soft bodies its nodes declare
-//! (`soft.rs`). Its `formatVersion` is its own, and it
+//! objects, tolerance and measured error) and the static placements of those colliders by the nodes
+//! that draw them, each with the matter its source declares. Its `formatVersion` is its own, and it
 //! names the stage and the Jolt commit that cooked it: a reader refuses any other.
 use super::declared::declared_matter;
-use super::soft::{declared_soft, soft_bodies};
 use super::{
     JOLT_COMMIT, PHYSICS_COOK_STAGE, PHYSICS_COOK_VERSION, PHYSICS_FILE, PHYSICS_FORMAT_VERSION,
 };
@@ -78,16 +76,11 @@ pub(crate) fn trs(m: &Mat4) -> Option<([f64; 3], [f64; 4], [f64; 3])> {
     Some(([m[12], m[13], m[14]], q, s))
 }
 
-/// Writes a placement `trs` into `entry` as `physics.json` carries it: a static instance's or a
-/// soft body's.
-pub(super) fn place(entry: &mut Value, (t, q, s): ([f64; 3], [f64; 4], [f64; 3])) {
+fn placed(mut entry: Value, m: &Mat4) -> Option<Value> {
+    let (t, q, s) = trs(m)?;
     entry["position"] = json!(t);
     entry["rotation"] = json!(q);
     entry["scale"] = json!(s);
-}
-
-fn placed(mut entry: Value, m: &Mat4) -> Option<Value> {
-    place(&mut entry, trs(m)?);
     Some(entry)
 }
 
@@ -124,9 +117,7 @@ pub(crate) fn stage_physics(
     directory: &Path,
 ) -> Result<(Product, Value)> {
     let DepthLayerScene {
-        o,
         g,
-        bin,
         chosen,
         mesh_map,
         ..
@@ -134,15 +125,11 @@ pub(crate) fn stage_physics(
     let world = world_matrices(g)?;
     let nodes = values(g, "nodes")?;
     let (colliders, slot, refused) = gathered(primitives, collisions);
-    let (soft_bodies, soft_refused) = soft_bodies(o, (g, bin), chosen, &world)?;
     let by_mesh = crate::proxy::primitives_by_mesh(primitives);
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
-    // Every drawn node but a soft body is static ground, as drawn: a node the source declares
-    // moving is placed too, for no rigid body simulates a node of a compiled model yet.
-    for &node in chosen
-        .iter()
-        .filter(|&&n| declared_soft(&nodes[n]).is_none())
-    {
+    // Every drawn node is static ground, as drawn: a node the source declares moving is placed
+    // too, for no body simulates a node of a compiled model yet.
+    for &node in chosen.iter() {
         let old = required_index(nodes[node].get("mesh"), "node.mesh")?;
         let Some(mesh) = mesh_map.get(&old) else {
             continue;
@@ -170,11 +157,11 @@ pub(crate) fn stage_physics(
         .iter()
         .filter_map(|c| c["triangles"].as_u64())
         .sum();
-    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance"),"refused":refused,"softBodies":soft_bodies.len(),"softRefused":soft_refused});
+    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance"),"refused":refused});
     let document = json!({
         "formatVersion":PHYSICS_FORMAT_VERSION,"compilerVersion":COMPILER_VERSION,"jolt":JOLT_COMMIT,
         "stage":{"name":PHYSICS_COOK_STAGE,"version":PHYSICS_COOK_VERSION},
-        "colliders":colliders,"instances":instances,"softBodies":soft_bodies,"report":report,
+        "colliders":colliders,"instances":instances,"report":report,
     });
     let mut objects = BTreeSet::new();
     crate::compiler_prune::referenced_objects(&document, None, &mut objects)?;

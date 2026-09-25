@@ -1,5 +1,4 @@
 import { EngineError } from '../contracts/cache.ts';
-import type { PhysicsOption } from './options.ts';
 
 /**
  * `physics.json`, the physics a compiled model carries (stage `physics-cook` of the native
@@ -50,20 +49,6 @@ export interface CookedInstance {
   restitution?: number;
 }
 
-/** A soft body a node of the model declares (`extras.physics`, the options of `obj.physics`),
- *  cooked: its `SoftBodySharedSettings` in Jolt's binary state, already at the node's scale, and
- *  placed by the node; the matter its collider declares, when it declares one. */
-export interface CookedSoftBody extends Omit<CookedInstance, 'collider'> {
-  /** The options the node declares, read by the page as `obj.physics` reads them. */
-  physics: PhysicsOption;
-  /** The settings object, beside the manifest. */
-  settings: Omit<CookedTile, 'triangles' | 'bounds'>;
-  /** Simulated vertices, what it counts against `budget.physics.softVertices`. */
-  vertices: number;
-  /** The gas's pressure at rest, Pa; 0 without gas. */
-  pressure: number;
-}
-
 /** A primitive whose collider Jolt refused: it collides with nothing, and is drawn all the same. */
 interface CookRefusal {
   primitive: number;
@@ -82,9 +67,6 @@ interface CookReport {
   hausdorff: number;
   tolerance: number;
   refused: CookRefusal[];
-  /** Soft bodies cooked, and those refused: a node and the cook's reason. */
-  softBodies?: number;
-  softRefused?: { node: number; reason: string }[];
 }
 
 /** The whole file. */
@@ -94,8 +76,6 @@ export interface CookedPhysics {
   stage: { name: string; version: number };
   colliders: CookedCollider[];
   instances: CookedInstance[];
-  /** Absent from a file cooked before soft bodies were. */
-  softBodies?: CookedSoftBody[];
   report: CookReport;
 }
 
