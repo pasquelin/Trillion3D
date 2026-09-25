@@ -6,7 +6,7 @@ export function mipLevelCountFor(width: number, height: number) {
 }
 
 /**
- * Layout and reduction program, built ONCE per device and per format.
+ * Layout and reduction program, built ONCE per device, per format and per colour rule.
  *
  * The mip chain is generated at every working texture: recompiling the same program and the same
  * layout at each made one pay a pipeline compilation per texture, on the very path that must
@@ -15,7 +15,7 @@ export function mipLevelCountFor(width: number, height: number) {
  * handle: it serves every session, and names none.
  */
 type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
-const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
+const pipelines = new WeakMap<GPUDevice, Map<string, MipPipeline>>();
 
 /**
  * Colours are averaged, alpha is the MEDIAN of the four texels — never their mean.
@@ -34,10 +34,18 @@ const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
  *
  * Sorted decreasing, the median is the mean of the two middle values: `u` is the second, `v` the
  * third, six comparisons with neither a sort nor a branch.
+ *
+ * Under `weighted` — the colour atlas holding straight alpha (`weighsColourByAlpha`) — four texels
+ * whose alphas differ average their colours weighted by alpha: premultiplied, averaged, divided by
+ * the summed alpha to store straight alpha again, so the colour of a transparent texel, often black,
+ * no longer darkens the border of a cutout at the coarse levels (#42). Four equal alphas keep the
+ * plain mean, which weighting could not change: an opaque texture is reduced as it always was. The
+ * compiler bakes the same rule (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`).
  */
 const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
+ override weighted:bool;
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
   return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
  }
@@ -48,13 +56,30 @@ const MIP_SHADER = `
   let mean=(s0+s1+s2+s3)*0.25;
   let u=min(max(s0.w,s1.w),max(s2.w,s3.w));
   let v=max(min(s0.w,s1.w),min(s2.w,s3.w));
-  return vec4f(mean.rgb,(u+v)*0.5);
+  var rgb=mean.rgb;
+  let a=vec4f(s0.w,s1.w,s2.w,s3.w);
+  if(weighted&&any(a!=vec4f(s0.w))){
+   rgb=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
+  }
+  return vec4f(rgb,(u+v)*0.5);
  }`;
 
-function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
-  let byFormat = pipelines.get(device);
-  if (!byFormat) pipelines.set(device, (byFormat = new Map()));
-  const held = byFormat.get(format);
+/**
+ * Whether the reduction weighs colours by alpha: in the colour atlas (an `-srgb` format), whose
+ * alpha is coverage, and only while its texels hold straight alpha — a texture uploaded
+ * premultiplied already carries the weight, and weighing it again would darken it. The data atlas
+ * (`rgba8unorm`: normals, packed channels) keeps the plain mean: its alpha is not coverage there,
+ * and weighting a normal by it would bend the normal, not hide a border.
+ */
+export function weighsColourByAlpha(format: GPUTextureFormat, premultiplied: boolean) {
+  return format.endsWith('-srgb') && !premultiplied;
+}
+
+function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean): MipPipeline {
+  let byKey = pipelines.get(device);
+  if (!byKey) pipelines.set(device, (byKey = new Map()));
+  const key = `${format}${weighted ? ' weighted' : ''}`;
+  const held = byKey.get(key);
   if (held) return held;
   const layout = device.createBindGroupLayout({
     entries: [
@@ -68,11 +93,16 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
     pipeline: device.createRenderPipeline({
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       vertex: { module, entryPoint: 'vs' },
-      fragment: { module, entryPoint: 'fs', targets: [{ format }] },
+      fragment: {
+        module,
+        entryPoint: 'fs',
+        targets: [{ format }],
+        constants: { weighted: Number(weighted) },
+      },
       primitive: { topology: 'triangle-list' },
     }),
   };
-  byFormat.set(format, built);
+  byKey.set(key, built);
   return built;
 }
 
@@ -100,7 +130,8 @@ function mipUniforms(device: GPUDevice, size: number) {
   return buffer;
 }
 
-/** Generates the mip chain of a 2D texture: averaged colour, median alpha so that threshold
+/** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha in the colour
+ * atlas unless `premultiplied` says the texels already are —, median alpha so that threshold
  * coverage survives every level. Commands are submitted without being awaited: the device queue
  * runs them in order, therefore before any copy that will read a level. */
 export function generateMaterialMips(
@@ -109,11 +140,16 @@ export function generateMaterialMips(
   format: GPUTextureFormat,
   width: number,
   height: number,
+  premultiplied = false,
 ) {
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
   const shared = sharedGpuDevice(device);
-  const { layout, pipeline } = mipPipeline(shared, format);
+  const { layout, pipeline } = mipPipeline(
+    shared,
+    format,
+    weighsColourByAlpha(format, premultiplied),
+  );
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   // One uniform per reduced level: the extent of the source level, so as not to read off the image.
   const packed = new Uint32Array(((levels - 1) * stride) / 4);
