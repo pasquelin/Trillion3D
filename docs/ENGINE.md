@@ -378,9 +378,25 @@ The deferred resolve adds the interpolated irradiance of the eight surrounding p
 the cell, the surface's facing and each probe's measured mean distances, which close leaks through a
 wall; where no level reaches, the term is zero. Against the compiler's path tracer
 (`trillion3d-oracle`) on a control room, the mean error is 18.6 %, above the 10 % target. The
-bounce is **off by default**: its stage costs about 1.1 ms, above the one-millisecond bar. Emission,
-transparency and specular are not bounced. `setLightingView('bounce')` outputs the indirect
-irradiance alone, the quantity `bench/runner/oracle.ts` compares.
+bounce is **off by default**: its stage costs about 1.1 ms, above the one-millisecond bar. Emission
+and transparency are not bounced. `setLightingView('bounce')` outputs the indirect irradiance alone,
+the quantity `bench/runner/oracle.ts` compares.
+
+**Mirrors.** With the bounce on, a surface at the roughness floor (0.0525, the clamp every shading
+path applies) reflects the scene: the resolve fires one ray along the mirror direction against the
+resident proxy, from the origin the sun's far shadow uses, and reads the face it hits in the surface
+cache; a ray that leaves the proxy reads the probe irradiance in that direction over π. The radiance
+is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
+rectangular light reads. The water composite reflects through the same function, weighted by its
+Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounce/reflectWgsl.ts`):
+mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
+irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
+certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
+ray. A rougher opaque surface, a diffuse or toon one, and every surface with the bounce off add
+exactly zero: the
+floor is a material threshold, so a roughness map that crosses it shows reflecting and
+non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
+traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
 
 ## Fog
 
@@ -724,7 +740,7 @@ What the reference is made of, and our counterpart:
 | Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle                                 | L4              |
 | Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget                                | L4              |
 | Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                                                  | L5              |
-| Reflections                                       | screen traces, then distance fields reading the cache        | none                                                                                        | L1, L6          |
+| Reflections                                       | screen traces, then distance fields reading the cache        | mirror-limit ray against the resident proxy, read in the surface cache (bounce on)          | L1, L6          |
 | Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | page table, screen-sized pool (2 601 pages at 720p), per-pixel level, receiver-marked pages | L3              |
 | Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest                                   | L2 (denoise)    |
 
