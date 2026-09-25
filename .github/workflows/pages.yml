@@ -13,6 +13,7 @@ on:
       - 'packages/**'
       - 'scripts/docs/**'
       - 'scripts/docs-build.ts'
+      - 'scripts/site-caches.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/actions/node/**'
@@ -32,12 +33,16 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     outputs:
       deploy: ${{ steps.plan.outputs.deploy }}
       floor: ${{ steps.plan.outputs.floor }}
     steps:
+      # A deploying run compiles the scene caches, with the native compiler that links the pinned
+      # Jolt; a pull request builds the site without them.
       - uses: actions/checkout@v7
+        with:
+          submodules: ${{ github.event_name != 'pull_request' }}
       - uses: ./.github/actions/node
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of
@@ -52,7 +57,15 @@ jobs:
           statics=$(git ls-files -- site/examples site/assets site/data site/reports | grep -cEv '\.tsx?$')
           echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
           echo "floor=$((statics + 3))" >> "$GITHUB_OUTPUT"
-      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone;
+      - if: steps.plan.outputs.deploy == 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.plan.outputs.deploy == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/asset-compiler-rust
+      - if: steps.plan.outputs.deploy == 'true'
+        run: pnpm run build:native && pnpm run compile:caches
+      # Styles, demo maths, browser engine, workers, portal, API files, scene caches and statics;
       # `--published` adds the audience measurement, which no local or proof build carries.
       - run: node scripts/docs-build.ts --published
       - if: steps.plan.outputs.deploy == 'true'
