@@ -1,8 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { publierRapport } from './publishReport.ts';
 
 test('a campaign replaces the one report, keeps the portal entry, and validates evidence before copying', () => {
@@ -41,4 +50,19 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the published campaign has every image it references, each stored once', () => {
+  const reports = resolve(import.meta.dirname, '../../site/reports');
+  const [{ id }] = JSON.parse(readFileSync(join(reports, 'index.json'), 'utf8'));
+  const report = JSON.parse(readFileSync(join(reports, id, 'report.json'), 'utf8'));
+  for (const { image } of report.records as { image: string | null }[])
+    if (image) assert.ok(existsSync(join(reports, id, image)), image);
+  const images = join(reports, id, 'images');
+  const hashes = readdirSync(images).map((file) =>
+    createHash('sha256')
+      .update(readFileSync(join(images, file)))
+      .digest('hex'),
+  );
+  assert.equal(new Set(hashes).size, hashes.length, 'two images are byte-identical');
 });

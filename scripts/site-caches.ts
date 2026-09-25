@@ -1,10 +1,5 @@
-/**
- * The compiled caches of the scenes the site serves and the tests read, which git never tracks
- * (#683): each is compiled from its committed source by this checkout's native compiler — on
- * demand (`pnpm run compile:caches`), by the site deploy, the unit test runners and `test:gpu`. A
- * cache is kept while its stamp names its compile options and is newer than its source and its
- * compiler; the regenerators rewrite source and cache.
- */
+/** The scene caches git never tracks (#683), compiled from their committed sources by this
+ *  checkout's native compiler, on demand (`pnpm run compile:caches`) and before their readers. */
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { firstNewer } from '../packages/sdk-node/src/compiler/freshness.mts';
