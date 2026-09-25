@@ -180,7 +180,6 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowWaitFrames: lights.plan.counts.waitedFrames,
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowMsPerPage: lights.plan.budget.msPerPage,
-    shadowsDenied: lights.plan.counts.denied,
     poolPages: lights.shadows
       ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
       : null,

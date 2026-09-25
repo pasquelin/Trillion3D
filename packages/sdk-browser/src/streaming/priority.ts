@@ -173,3 +173,19 @@ export function pixelScaleOf<T extends number[]>(
   into[1] = (height * Math.abs(projection[5])) / 2;
   return into;
 }
+
+const footprintViewport = [1, 1],
+  footprintScale = [0, 0];
+/**
+ * World size of one pixel per unit of view depth under a perspective projection, or the size of
+ * one pixel under an orthographic one: the reciprocal of `pixelScaleOf`'s vertical scale. The
+ * shadow read chooses its level from it; the scheduler, from its value at the near plane.
+ */
+export function pixelFootprintOf(projection: ArrayLike<number>, height: number) {
+  footprintViewport[1] = Math.max(1, height);
+  return 1 / pixelScaleOf(projection, footprintViewport, footprintScale)[1];
+}
+
+/** A pixel's footprint at the near plane: the finest any pixel of the view has. */
+export const pixelNearOf = (projection: ArrayLike<number>, height: number, near: number) =>
+  pixelFootprintOf(projection, height) * (projection[15] === 0 ? near : 1);

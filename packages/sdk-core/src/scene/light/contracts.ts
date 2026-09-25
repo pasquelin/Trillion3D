@@ -97,11 +97,6 @@ export const LIGHT_SETTINGS = {
   shadowCostBlend: 0.25,
   /** Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`). */
   lampFaceSize: 4096,
-  /**
-   * Entries of the shadow page table, one word per virtual page: a fixed 4 MiB buffer. It holds
-   * sixteen suns or 128 point lights; a light that finds no room is denied its shadow, and counted.
-   */
-  shadowTableEntries: 1 << 20,
   /** Virtual pages the shading may request per frame; the rest ask again the next frame. */
   shadowRequestCap: 4096,
   /** PCF taps per pixel and per shadow light (X2). */

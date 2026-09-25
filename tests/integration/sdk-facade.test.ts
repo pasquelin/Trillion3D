@@ -161,7 +161,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const inputs = Object.keys(proposed.metafile.inputs);
   assert.ok(inputs.some((path) => path.endsWith('/math/batch/batch.ts')));
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
-  assert.equal(baseline.outputFiles[0].contents.length, 5_277);
+  assert.equal(baseline.outputFiles[0].contents.length, 5_253);
   assert.equal(proposed.outputFiles[0].contents.length, 1_780);
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_329);
   assert.ok(
