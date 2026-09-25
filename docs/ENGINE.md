@@ -325,10 +325,11 @@ of its own follows the pool's (`webgpu/pages/render/encodeShadowPass.ts`): each 
 is cleared to full transmittance and far depth, then draws its list twice, where only the blended
 rows survive, from the same shader entry — depth only, depth-tested, for the nearest depth; then
 colour only, blended multiplicatively, without depth. Both discard a fragment the pool's opaque
-depth hides at all four of its texels. The shadow read multiplies each of its sixteen PCF
-comparisons by the layer at the same tap (`lighting/direct/shadowWgsl.ts`): the four texels around
-it, kept within its page, each its transmittance where the receiver lies behind its translucent
-depth, filtered bilinearly. A constant opacity gives a constant shadow, two panes multiply, a
+depth hides at all four of its texels. The shadow read multiplies its filtered PCF result by
+the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
+lie within one texel of it: the four texels around it, kept within its page, each its transmittance
+where the receiver lies behind its translucent depth, filtered bilinearly. A pixel the opaque depth
+already darkens fully reads nothing of the layer. A constant opacity gives a constant shadow, two panes multiply, a
 receiver in front of a pane keeps its light, and a receiver 2 m behind a pane at a 4 km sun range
 is attenuated: the depth is single precision. Blended rows count as moving, so the static layer
 keeps depth alone and a restored page starts from full transmittance. The layer exists from the

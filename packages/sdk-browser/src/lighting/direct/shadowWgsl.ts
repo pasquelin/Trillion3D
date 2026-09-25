@@ -74,10 +74,10 @@ fn requestShadowPage(e:u32){
  * A tap whose bilinear footprint lies in one page is one hardware comparison in that page; one
  * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
  *
- * Each comparison is multiplied by the transmittance layer at its place (\`shadowThrough\`,
- * \`../../gpu/shadow/transmittance.ts\`): its two textures are bound at \`transmittanceBinding\` and
- * the number after it. A pool without that layer binds one-texel stand-ins, which the PCF never
- * reads: its comparisons are those of before.
+ * The filtered result is multiplied by the transmittance layer once, at the footprint's centre
+ * (\`shadowThroughLit\`, \`../../gpu/shadow/transmittance.ts\`): its two textures are bound at
+ * \`transmittanceBinding\` and the number after it. A pool without that layer binds one-texel
+ * stand-ins, which the PCF never reads: its result is that of before, bit for bit.
  */
 export const directShadowWgsl = (
   dataBinding: number,
@@ -132,10 +132,8 @@ fn shadowOffset(word:u32,p:vec2i)->vec2f{
 /** Texels a side of the pool: its size is the world's, derived from the screen (\`shadowPoolSide\`). */
 fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
 ${shadowThroughWgsl(transmittanceBinding)}
-fn shadowCompare(offset:vec2f,t:vec2f,reference:f32,through:bool)->f32{
- let lit=textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
- if(!through){return lit;}
- return lit*shadowThrough(offset+t,reference);
+fn shadowCompare(offset:vec2f,t:vec2f,reference:f32)->f32{
+ return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
 }
 /** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
 fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec2f)->vec3f{
@@ -160,16 +158,13 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
  let first=vec2f(home)*SHADOW_PAGE;
  let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);
  let offset=shadowOffset(homeWord,home);
- let through=textureDimensions(shadowTransmittance).x>1u;
  var lit=0.0;
  if(!any(edge)){
   let texels=shadowAtlasTexels();let uv=(offset+t)/texels;
   for(var tap=0u;tap<PCF_TAPS;tap++){
-   var c=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,reference);
-   if(through){c*=shadowThrough(offset+t+POISSON[tap],reference);}
-   lit+=c;
+   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,reference);
   }
-  return lit/f32(PCF_TAPS);
+  return shadowThroughLit(offset+t,reference,lit/f32(PCF_TAPS));
  }
  let up=t-first>=vec2f(0.5*SHADOW_PAGE);
  let step=select(vec2i(-1),vec2i(1),up);
@@ -185,12 +180,12 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
   let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
   let w=saturate(0.5+(seam-at)*toward);
-  var sum=w.x*w.y*shadowCompare(offset,h,reference,through);
-  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference,through);}
-  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference,through);}
-  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference,through);}
+  var sum=w.x*w.y*shadowCompare(offset,h,reference);
+  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference);}
+  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference);}
+  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference);}
   lit+=sum;
  }
- return lit/f32(PCF_TAPS);
+ return shadowThroughLit(offset+t,reference,lit/f32(PCF_TAPS));
 }
 ${SHADOW_FACTOR_WGSL}`;

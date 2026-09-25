@@ -11,8 +11,8 @@ import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual
  *   transmission (#33) to colour it;
  * - the nearest translucent depth, `depth32float`, like the pool's.
  *
- * The shading multiplies each PCF comparison by the transmittance, filtered at the same tap,
- * where the receiver lies behind the translucent depth (`../../lighting/direct/shadowWgsl.ts`):
+ * The shading multiplies the PCF's result by the transmittance, filtered once at the footprint's
+ * centre, where the receiver lies behind the translucent depth (`../../lighting/direct/shadowWgsl.ts`):
  * a constant opacity gives a constant shadow, with no pattern to average away.
  *
  * It is filled by a pass of its own after the pool's (`../../webgpu/pages/render/
@@ -63,8 +63,8 @@ export const BLEND_TRANSMITTANCE_WGSL = `fn blendTransmittance(page:PageInfo,uv:
 }`;
 
 /**
- * The layer's read, bound at \`binding\` and the number after it: \`shadowThrough\`, which the PCF
- * of \`../../lighting/direct/shadowWgsl.ts\` calls at each tap. Requires \`SHADOW_PAGE\` there.
+ * The layer's read, bound at \`binding\` and the number after it: \`shadowThroughLit\`, which the PCF
+ * of \`../../lighting/direct/shadowWgsl.ts\` calls once per pixel. Requires \`SHADOW_PAGE\` there.
  */
 export const shadowThroughWgsl = (
   binding: number,
@@ -87,6 +87,11 @@ fn shadowThrough(a:vec2f,reference:f32)->f32{
  let t=vec4f(textureLoad(shadowTransmittance,i,0).r,textureLoad(shadowTransmittance,i+x,0).r,textureLoad(shadowTransmittance,i+y,0).r,textureLoad(shadowTransmittance,i+x+y,0).r);
  let s=select(vec4f(1.0),t,behind);
  return mix(mix(s.x,s.y,f.x),mix(s.z,s.w,f.x),f.y);
+}
+/** The PCF's \`lit\` at \`a\` times the layer there, read once per footprint (its taps lie within a
+ *  texel of \`a\`); \`lit\` itself, no texel read, with no layer (a one-texel stand-in) or no light. */
+fn shadowThroughLit(a:vec2f,reference:f32,lit:f32)->f32{
+ if(lit==0.0||textureDimensions(shadowTransmittance).x==1u){return lit;}return lit*shadowThrough(a,reference);
 }`;
 
 /**
