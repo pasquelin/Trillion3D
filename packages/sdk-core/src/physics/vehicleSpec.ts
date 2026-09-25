@@ -81,15 +81,12 @@ export interface VehicleSpec {
   /** A motorcycle's greatest lean, radians. */ maxLean: number;
 }
 
-const GRAVITY = 9.80665;
 /** The shift points of a gearbox (see SHIFTS). */
 function shifts(peakPowerRPM: number, maxRPM: number, gears: readonly number[]) {
   const up = Math.min(peakPowerRPM, 0.9 * maxRPM);
   const step = Math.min(...gears.slice(1).map((ratio, i) => ratio / gears[i]));
   return { shiftUpRPM: up, shiftDownRPM: up * step * 0.9 };
 }
-/** The sag of a spring of frequency `f` under its own weight, m (see SUSPENSION). */
-export const sagOf = (frequency: number) => GRAVITY / (2 * Math.PI * frequency) ** 2;
 
 const COMMON = {
   suspensionDamping: 0.5,
