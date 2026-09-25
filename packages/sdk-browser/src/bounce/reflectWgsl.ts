@@ -24,11 +24,13 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 
 /**
  * The engine's one reflection model, at the binding the calling pass gives the surface cache: the
- * radiance arriving at P along R. The ray is traced against the resident proxy and reads the face
- * it hits in the surface cache — the reflected geometry, at the proxy's certified error, lit by the
- * same direct and bounce the probes gather. A ray that leaves the proxy reads the probe irradiance
- * in R over π, the far field the water reflected alone before. Without bounce there is no cache
- * and no probe: exactly zero, and no ray is fired.
+ * radiance arriving at P along R from a lobe of the given roughness. At the roughness floor the
+ * lobe is the mirror direction itself: the ray is traced against the resident proxy and reads the
+ * face it hits in the surface cache — the reflected geometry, at the proxy's certified error, lit
+ * by the same direct and bounce the probes gather. A rougher lobe, or a ray that leaves the proxy,
+ * reads the probe irradiance in R over π: the blurred far field, never a sharp image through a
+ * rough surface (rough reflections are #33). Without bounce there is no cache and no probe:
+ * exactly zero, and no ray is fired.
  *
  * The ray starts where the sun's far shadow starts (`sunFarShadowWgsl`): lifted off the plane, one
  * proxy cell along its own direction, so the coarse surface the point sits on does not reflect
@@ -37,11 +39,13 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 export const bounceReflectionWgsl = (binding: number) => `
 @group(0) @binding(${binding}) var<storage,read> surface:array<vec4f>;
 ${SURFACE_RAY_WGSL}
-fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f)->vec3f{
+fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  if(bounce.counts.w==0u){return vec3f(0.0);}
- let reach=bounce.reach.x;
- let hit=rayRadiance(P+N*proxy.offsetMetres+R*proxy.startMetres,R,reach);
- if(hit.w<reach){return hit.rgb;}
+ if(rough<=${ROUGHNESS_FLOOR}){
+  let reach=bounce.reach.x;
+  let hit=rayRadiance(P+N*proxy.offsetMetres+R*proxy.startMetres,R,reach);
+  if(hit.w<reach){return hit.rgb;}
+ }
  return sampleBounce(P,R)*INVERSE_PI;
 }`;
 
@@ -60,5 +64,5 @@ fn mirrorLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  if(rough>${ROUGHNESS_FLOOR}||surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return vec3f(0.0);}
  let t=ltcLookup(rough,clamp(dot(N,V),1e-4,1.0),1u);
  let f0=mix(vec3f(0.04),rgb,metal);
- return (f0*t.x+(vec3f(1.0)-f0)*t.y)*reflectedRadiance(P,N,reflect(-V,N));
+ return (f0*t.x+(vec3f(1.0)-f0)*t.y)*reflectedRadiance(P,N,reflect(-V,N),rough);
 }`;
