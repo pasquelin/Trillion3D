@@ -2,7 +2,7 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import {
-  SHADOW_HOST_BYTES,
+  SHADOW_TABLE_ENTRIES,
   shadowPoolSide,
 } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
@@ -11,6 +11,9 @@ import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
  *  fixed buffers beside it, the page table first: they never hold more, whatever the screen. */
 export const SHADOW_POOL_BYTES =
   2 * shadowAtlasBytes(shadowPoolSide(Infinity, Infinity)) + SHADOW_BUFFER_BYTES;
+/** The shadow page table's host mirror, whatever the screen, per table entry: a 4-byte word and
+ *  a 1-byte change flag (`light-shadow/table.ts`), and one eviction bit (`light-shadow/pool.ts`). */
+export const SHADOW_HOST_BYTES = SHADOW_TABLE_ENTRIES * (4 + 1 + 1 / 8);
 /** The GPU total by default: the three pools at their defaults, what a world held before it had
  *  one total. */
 export const DEFAULT_GPU_BUDGET =

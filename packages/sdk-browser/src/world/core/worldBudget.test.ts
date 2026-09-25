@@ -6,11 +6,11 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import {
   DEFAULT_CPU_BUDGET,
   DEFAULT_GPU_BUDGET,
+  SHADOW_HOST_BYTES,
   SHADOW_POOL_BYTES,
 } from '../../residency/memoryBudget.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import {
-  SHADOW_HOST_BYTES,
   SHADOW_TABLE_ENTRIES,
   shadowPoolSide,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
