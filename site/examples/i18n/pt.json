@@ -2111,5 +2111,19 @@
       "volumes": "Volumes",
       "awake": "Acordados"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "A bandeira foi pré-calculada com o seu modelo: é restaurada ao carregar e cai logo do mastro. Carregue-a de novo para ver.",
+    "controls": {
+      "again": "De novo",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "step": "Passo"
+    },
+    "words": {
+      "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
   }
 }

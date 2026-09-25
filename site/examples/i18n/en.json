@@ -2111,5 +2111,19 @@
       "volumes": "Volumes",
       "awake": "Awake"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "The flag was cooked with its model: it is restored as the model loads, and sags from its pole at once. Load it again to watch.",
+    "controls": {
+      "again": "Again",
+      "slowMotion": "Slow motion"
+    },
+    "readouts": {
+      "bodies": "Bodies",
+      "step": "Step"
+    },
+    "words": {
+      "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
+    }
   }
 }
