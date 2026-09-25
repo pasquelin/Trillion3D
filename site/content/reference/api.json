@@ -17746,7 +17746,7 @@
       {
         "name": "options.clutch?",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only: a tracked vehicle's engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "options.suspensionFrequency?",
@@ -17986,7 +17986,7 @@
       {
         "name": "clutch",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only: a tracked vehicle's engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "suspensionFrequency",

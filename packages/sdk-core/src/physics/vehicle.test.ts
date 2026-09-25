@@ -74,6 +74,8 @@ test('a car’s forward wheels steer, its `drive` wheels drive, the handbrake ho
   assert.deepEqual(roles(rear.words), [steers, steers, handbrake | driven, handbrake | driven]);
   const all = wheelsOf(vehicle.car(body, { wheels, drive: 'all' }));
   assert.deepEqual(roles(all.words), [steers | driven, steers | driven, 6, 6]);
+  const front = wheelsOf(vehicle.car(body, { wheels, drive: 'front' }));
+  assert.deepEqual(roles(front.words), [steers | driven, steers | driven, handbrake, handbrake]);
   // A wheelbase of 2.5 m in a 5.5 m turning radius.
   assert.equal(rear.maxSteer.toFixed(4), Math.asin(2.5 / 5.5).toFixed(4));
   // Centre, radius and width in the body's frame, its scale applied.
@@ -106,19 +108,47 @@ test('a motorcycle drives its rear wheel; a tracked vehicle its rearmost wheel o
   ]);
 });
 
-test('VEHICLE carries its header, the spec, then its wheels, at their layout offsets', () => {
+/** Each option's spec word after the VEHICLE header, as `vehicles.cpp` reads it (`s + n`). */
+const SPEC_WORD = {
+  torquePerKg: 0,
+  idleRPM: 1,
+  maxRPM: 2,
+  shiftUpRPM: 13,
+  shiftDownRPM: 14,
+  clutch: 15,
+  reverse: 22,
+  finalDrive: 23,
+  suspensionFrequency: 24,
+  suspensionDamping: 25,
+  suspensionTravel: 26,
+  antiRoll: 27,
+  steerTime: 29,
+  brakeGrip: 30,
+  trackTurn: 31,
+  maxLean: 32,
+} as const;
+
+test('VEHICLE carries its header, every option at its own word, then its wheels', () => {
   const { body, wheels } = rig(FOUR);
+  // A distinct sentinel in every option: a swapped or shifted word lands another's value.
+  const options = Object.fromEntries(Object.keys(SPEC_WORD).map((name, i) => [name, 101 + i]));
+  const torqueCurve = [0.1, 0.2, 0.3, 0.4, 0.5].map((rpm, i) => [rpm, 0.61 + i / 10] as const);
+  const gears = [6.1, 5.1, 4.1, 3.1, 2.1, 1.1];
+  const car = vehicle.car(body, { wheels, ...options, torqueCurve, gears, turnRadius: 5 });
   const writer = new CommandWriter();
-  writeVehicle(writer, 9, 3, vehicle.car(body, { wheels, idleRPM: 800 }));
+  writeVehicle(writer, 9, 3, car);
   const words = writer.take(),
-    floats = new Float32Array(words.buffer);
+    spec = new Float32Array(words.buffer).subarray(5);
+  const near = (n: number) => +n.toFixed(5);
   assert.equal(words.length, VEHICLE_WORDS + 4 * WHEEL_WORDS);
   assert.deepEqual([...words.subarray(0, 5)], [OP.vehicle, 9, 0, 3, 4]);
-  assert.equal(floats[6], 800, 'the options over the machine');
+  for (const [name, word] of Object.entries(SPEC_WORD))
+    assert.equal(spec[word], options[name], `${name} at spec word ${word}`);
+  assert.deepEqual([...spec.subarray(3, 13)].map(near), torqueCurve.flat().map(near));
+  assert.deepEqual([...spec.subarray(16, 22)].map(near), gears.map(near));
+  // The steered wheels' lock, from the turning radius: a wheelbase of 2.5 m in a 5 m radius.
+  assert.equal(near(spec[28]), near(Math.asin(2.5 / 5)));
   // The first wheel follows the spec: its centre, radius and width, its role.
-  const wheel = [...floats.subarray(VEHICLE_WORDS, VEHICLE_WORDS + WHEEL_WORDS)];
-  assert.deepEqual(
-    wheel.map((n) => +n.toFixed(5)),
-    [-0.8, -0.3, -1.25, 0.3, 0.2, WHEEL_ROLE.steers],
-  );
+  const wheel = [...spec.subarray(VEHICLE_WORDS - 5, VEHICLE_WORDS - 5 + WHEEL_WORDS)];
+  assert.deepEqual(wheel.map(near), [-0.8, -0.3, -1.25, 0.3, 0.2, WHEEL_ROLE.steers]);
 });
