@@ -44,8 +44,7 @@ function segments(geometry: Geometry, keep: (normals: number[][]) => boolean) {
   const position = geometry.attributes.position;
   const out: number[] = [];
   for (const { a, b, normals } of edgesOf(geometry).values())
-    if (keep(normals))
-      for (const v of [a, b]) out.push(...at(position, v));
+    if (keep(normals)) for (const v of [a, b]) out.push(...at(position, v));
   const lines = new Geometry();
   lines.setAttribute('position', new BufferAttribute(new Float32Array(out), 3));
   return lines;
