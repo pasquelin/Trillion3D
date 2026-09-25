@@ -58,7 +58,6 @@ lampes-4-sans-ombres | four point lights and sun with no shadows: map cost by di
 lampes-16 | sixteen point lights with shadows | DEUX --pixelError 1 MOBILE PLEINE --lampes 16
 lampe-mobile | locked camera, one moving light: cost of a shadow that redraws | --vues sol --pixelError 1 --soleil --lampes 4 --lampe-mobile --empreinte-ombres PLEINE
 ombres-pages-off | same, full shadow face: atlas identity gate | --vues sol --pixelError 1 --soleil --lampes 4 --lampe-mobile --empreinte-ombres --ombres-pages off PLEINE
-budget-ombres-0-25 | shadow budget clamped to 0.25 ms: pending pages and lag | --vues sol --pixelError 1 --soleil --lampes 4 --lampe-mobile --budget-ombres 0.25 PLEINE
 rebond | bounce lighting on | DEUX --pixelError 1 MOBILE PLEINE --lampes 4 --rebond on
 instances-4 | four copies of the model | --vues generale --pixelError 1 MOBILE PLEINE --instances 4
 instances-12 | twelve copies of the model | --vues generale --pixelError 1 MOBILE PLEINE --instances 12

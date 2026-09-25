@@ -19,16 +19,14 @@ const streamer = {
     misses: 0,
   }),
 } as unknown as ReturnType<typeof createPageStreamer>;
-const state = () => ({ loaded: 0, pageBytesRead: 0, streamingError: null });
-
-function harnais() {
+function harnais(effectBytes = 0) {
   return createExplorerMetrics(
     {} as ClusterManifest,
     {} as MeasuredWorldOptions,
     streamer,
     0,
     0,
-    state,
+    () => ({ loaded: 0, pageBytesRead: 0, streamingError: null, effectBytes }),
   );
 }
 
@@ -52,4 +50,16 @@ test('drawnTriangles falls back to null when the engine no longer publishes it (
   assert.equal(metricsScratch.drawnTriangles, 42);
   fillMetrics({ metrics: () => ({}) } as unknown as RenderBackend);
   assert.equal(metricsScratch.drawnTriangles, null, 'never the previous-frame value kept');
+});
+
+// #349: the effect chain the host composes holds targets of its own; they count with the frame's.
+test('the host chain adds its target bytes to the frame targets, published or not', () => {
+  const { metricsScratch, fillMetrics } = harnais(96);
+  fillMetrics({ metrics: () => ({}) } as unknown as RenderBackend);
+  assert.equal(metricsScratch.gpuFrameTargetBytes, 96, 'WebGL2 counts no other target');
+  fillMetrics({ metrics: () => ({ gpuFrameTargetBytes: 1000 }) } as unknown as RenderBackend);
+  assert.equal(metricsScratch.gpuFrameTargetBytes, 1096);
+  const without = harnais();
+  without.fillMetrics({ metrics: () => ({}) } as unknown as RenderBackend);
+  assert.equal(without.metricsScratch.gpuFrameTargetBytes, null, 'no chain: still unmeasured');
 });

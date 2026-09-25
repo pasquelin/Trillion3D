@@ -8,12 +8,23 @@ type Held = {
   structure: ClusterRoot<unknown>['structure'];
   nodes: Float64Array | undefined;
   pages: number;
+  /** The residency stamp the readiness was read under, 0 for none. */
+  stamp: number;
 };
 
 /** One readiness per placement: its pages' residency is its own, its DAG shared. Its state is
  *  held for the placement's resident pages only (`./readiness.ts`), so the placements a cut walks
  *  cost what the pool holds of them, never their catalogue. */
 const heldOf = new WeakMap<object, Held>();
+/** Last residency stamp handed out. */
+let lastStamp = 0;
+
+/** A new residency stamp, never 0: cuts that pass it answer residency alike (`./cut.ts`). */
+export function nextResidencyStamp() {
+  lastStamp = (lastStamp + 1) >>> 0 || 1;
+  return lastStamp;
+}
+
 /** What a total's `track` hands each placement it counts: the total, until it tracks again. The
  *  placements keep only this, so a total never keeps alive the placements it let go of. */
 type Ticket = { tally: HeldBytes | undefined };
@@ -29,6 +40,7 @@ const tallyBytes = (root: object, bytes: number) => {
  * The cut rule's residency for `root` this cut (`./readiness.ts`), from what the cut's residency
  * rule answers for each of its pages. Kept per placement from one cut to the next, so only the
  * pages whose residency moved propagate; a placement whose DAG or hierarchy changed starts over.
+ * A cut of the stamp the readiness was read under reads nothing again: nothing moved since.
  */
 export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: ClusterRoot<T>) {
   const pages = root.pages,
@@ -48,11 +60,14 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
       structure: root.structure,
       nodes: culling?.nodes,
       pages: pages.length,
+      stamp: 0,
     };
     heldOf.set(root, held);
   }
   const { readiness } = held,
     mode = s.residentMode;
+  if (s.residencyStamp && held.stamp === s.residencyStamp) return readiness;
+  held.stamp = s.residencyStamp;
   for (let page = 0; page < pages.length; page++)
     readiness.set(page, residentUnder(s, pages[page], mode));
   const moved = readiness.settle();

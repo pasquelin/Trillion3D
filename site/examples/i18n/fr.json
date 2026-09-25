@@ -115,6 +115,14 @@
       "takes": "prend"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Faites glisser pour regarder autour. Éteignez le halo pour voir les lampes sans lui, ou élargissez-le.",
+    "controls": {
+      "glow": "Halo",
+      "intensity": "Intensité",
+      "radius": "Étalement"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Glisse pour regarder autour. Balance la lanterne et regarde la lumière bouger.",
     "controls": {
