@@ -37,8 +37,8 @@ export function createCookedSoftBodies(
   /** Each open model's opening: its soft bodies made, and those refused at another scale. */
   type Opening = { made: Made[]; refused: CookedSoftBody[] };
   const held = new Map<Model, Opening>();
-  /** Each soft body's settings, fetched once: a model opened again restores its bodies from them,
-   *  never waiting on the network. */
+  /** Each soft body's settings, fetched once: a body made again, its model opened again or back
+   *  at its scale, restores from them, never waiting on the network. */
   const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>();
   function settingsOf(model: Model, soft: CookedSoftBody) {
     let bytes = settings.get(soft);
@@ -101,16 +101,14 @@ export function createCookedSoftBodies(
       const opening = held.get(model);
       if (!opening) return;
       // Back at its scale, a refused body is made again.
-      if (opening.refused.length) {
-        const refused = opening.refused;
-        opening.refused = [];
-        for (const soft of refused)
-          if (fits(tilePose({ model, instance: soft }).scale, soft.scale))
-            start(model, opening, soft);
-          else opening.refused.push(soft);
-      }
-      // Compacted in place: a model moved every frame makes no new list.
-      const { made } = opening;
+      // Both lists compacted in place: a model moved every frame makes no new list.
+      const { refused, made } = opening;
+      let waiting = 0;
+      for (const soft of refused)
+        if (fits(tilePose({ model, instance: soft }).scale, soft.scale))
+          start(model, opening, soft);
+        else refused[waiting++] = soft;
+      refused.length = waiting;
       let kept = 0;
       for (const body of made) {
         const { position, quaternion, scale } = tilePose({ model, instance: body.soft });
@@ -127,8 +125,9 @@ export function createCookedSoftBodies(
     },
     /** The model a cooked soft body's engine id belongs to, or `null`: what a ray on it hits. */
     modelOf(id: number) {
+      const index = id & BODY_INDEX;
       for (const [model, { made }] of held)
-        if (made.some(({ slot }) => slot === (id & BODY_INDEX))) return model;
+        if (made.some(({ slot }) => slot === index)) return model;
       return null;
     },
   };
