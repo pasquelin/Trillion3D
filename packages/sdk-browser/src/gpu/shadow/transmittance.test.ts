@@ -173,8 +173,9 @@ test('a receiver in front of the pane, or on it, keeps its light', () => {
 
 test('a receiver 2 m behind a pane is attenuated anywhere in a 4 km sun range', () => {
   assert.equal(SHADOW_TRANSLUCENT_DEPTH_FORMAT, 'depth32float');
+  // A receiver facing the sun, read at metre-wide texels: its margin is its normal offset.
   const range = 4000,
-    bias = LIGHT_SETTINGS.shadowDepthBias / range;
+    bias = LIGHT_SETTINGS.shadowNormalOffsetTexels / range;
   let missed = 0,
     missedHalf = 0;
   for (let metres = 1; metres < range - 2; metres += 0.25) {
