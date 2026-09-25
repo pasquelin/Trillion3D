@@ -100,10 +100,6 @@ export type GpuFrameMs = number | null;
   coverageReady?: boolean | null;
   /** Requested detail needs more pages than the GPU page budget holds: the rest draws coarser. */
   coverageBudgetLimited?: boolean | null;
-  /** WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when
-   *  the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on
-   *  WebGPU, where residency alone coarsens the image. Null on engines without a page budget. */
-  budgetPixelError?: number | null;
   /**
    * True when the frame was held: neither the scene, nor the view, nor the resources moved, no
    * asynchronous work was pending, and no CPU stage ran. The displayed

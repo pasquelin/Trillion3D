@@ -16,25 +16,11 @@ import { pixelScaleOf } from '../../streaming/priority.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 
 /**
- * World pose of a root copied into an owned buffer, once per root and per pass: the base product
+ * World pose of a root copied into an owned buffer, once per root: the base product
  * only reads and writes `Float64Array`s (`packages/sdk-core/src/math/matrix/matrix4.ts`), and host-library matrices are ordinary
  * arrays.
  */
 const rootWorld = new Float64Array(16);
-
-/** One pass of the cut at a threshold: whether it went past its budget, what it charged
- *  (`slotsOf`, held places included), and whether it asked for a page a coarser threshold may
- *  still cut down. Read before the next pass: it is the reused cut state. */
-export type CutPass = { readonly over: boolean; readonly used: number; readonly finer: boolean };
-
-/** A strategy that searches the threshold under a budget: it runs `pass` at the thresholds it
- *  tries, with `budget` places (0: none) of which `held` are taken beforehand, from the host's
- *  `floor`. The cut keeps the last pass, redone without its budget if it overflowed. */
-export type BudgetSearch = (
-  pass: (threshold: number, budget: number, held: number) => CutPass,
-  floor: number,
-  cam: EngineCamera,
-) => void;
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
@@ -45,12 +31,6 @@ export function selectVisiblePages<T extends PageRecord>(
     viewport?: [number, number];
     holdResident?: boolean;
     isResident?: (page: T) => boolean;
-    rootFallback?: boolean;
-    pageBudget?: number;
-    /** What a page asked for costs in the budget; without it, one place per record drawn. */
-    slotsOf?: (page: T) => number;
-    /** Replaces the doubling search of `pageBudget` (`BudgetSearch`). */
-    search?: BudgetSearch;
     wanted?: T[];
     result?: SelectionResult<T>;
     /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
@@ -60,7 +40,6 @@ export function selectVisiblePages<T extends PageRecord>(
 ): SelectionResult<T> {
   const viewport = options.viewport,
     hold = !!options.holdResident;
-  const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
   const { viewMatrix } = selectionScratch;
   // World frustum planes are those image entry set, in the host's depth convention: an image
   // computes them once, for all of its consumers, and nothing is copied here.
@@ -71,8 +50,6 @@ export function selectVisiblePages<T extends PageRecord>(
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
   state.cam = cam;
-  state.hold = hold;
-  state.rootFallback = hold && !!options.rootFallback;
   state.wanted = wanted;
   state.shown = shown;
   state.isResident = options.isResident;
@@ -86,75 +63,34 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatElements = (roots[0]?.world ?? IDENTITY_WORLD).elements;
   state.flatStretch = 1;
   state.flatFocal = 1;
-  state.flatStructure = undefined;
-  state.flatForced = undefined;
-  state.flatForcedList = undefined;
   state.flatExact = false;
-  state.flatUseForcing = false;
-  state.flatMissing = false;
-  state.flatShort = false;
-  state.budget = budget;
-  state.slotsOf = options.slotsOf;
-  const sweep = () => {
-    state.over = false;
-    state.shownCount = 0;
-    state.wantedCount = 0;
-    state.wantedTriangles = 0;
-    state.shownTriangles = 0;
-    state.frustumRejected = 0;
-    state.nodesTested = 0;
-    state.lodLevel = 0;
-    state.complete = true;
-    for (const root of roots) {
-      if (state.over) return;
-      // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
-      // light's cut takes no sprite: it casts no shadow.
-      if (root.parked || castsNoShadow(root.sprite, state.light)) continue;
-      const box = root.worldBox;
-      if (
-        box &&
-        !openToCamera(state, root) &&
-        frustumExcludesBox(worldPlanes, box[0], box[1], box[2], box[3], box[4], box[5])
-      ) {
-        state.frustumRejected++;
-        continue;
-      }
-      copyElements(rootWorld, root.world.elements);
-      multiplyMatrix4(viewMatrix, cam.view, rootWorld);
-      selectFlat(state, root);
+  state.shownCount = 0;
+  state.wantedCount = 0;
+  state.wantedTriangles = 0;
+  state.shownTriangles = 0;
+  state.frustumRejected = 0;
+  state.nodesTested = 0;
+  state.lodLevel = 0;
+  state.complete = true;
+  for (const root of roots) {
+    // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
+    // light's cut takes no sprite: it casts no shadow.
+    if (root.parked || castsNoShadow(root.sprite, state.light)) continue;
+    const box = root.worldBox;
+    if (
+      box &&
+      !openToCamera(state, root) &&
+      frustumExcludesBox(worldPlanes, box[0], box[1], box[2], box[3], box[4], box[5])
+    ) {
+      state.frustumRejected++;
+      continue;
     }
-  };
-  const search = options.search;
-  if (search)
-    search(
-      (threshold, passBudget, held) => {
-        state.pixelError = threshold;
-        state.budget = passBudget;
-        state.used = held;
-        state.finer = false;
-        sweep();
-        return state;
-      },
-      state.pixelError,
-      cam,
-    );
-  else sweep();
-  // A pass above the budget brings only one thing: the next threshold. The abandoned cut
-  // therefore stops at the overflowing page, and only the pass that holds the budget is taken to
-  // the end. When even the coarsest threshold overflows, the whole cut is redone: the overflow
-  // flag rises on a complete cover, never on a truncated cut.
-  for (let attempt = 0; budget && state.over && attempt < 16; attempt++) {
-    state.pixelError = state.pixelError > 0 ? state.pixelError * 2 : 1;
-    sweep();
+    copyElements(rootWorld, root.world.elements);
+    multiplyMatrix4(viewMatrix, cam.view, rootWorld);
+    selectFlat(state, root);
   }
-  if (state.over) {
-    state.budget = 0;
-    sweep();
-  }
-  state.budget = 0;
-  state.slotsOf = undefined;
   // The cut is finished: both lists take their length here, and only once. They thus keep their
-  // capacity from one image to the next, instead of losing it again at every pass.
+  // capacity from one image to the next.
   shown.length = state.shownCount;
   wanted.length = state.wantedCount;
   // Both sums are held as a running total: no more sweep of the records after the cut.
@@ -176,8 +112,7 @@ export function selectVisiblePages<T extends PageRecord>(
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.light = undefined;
-  state.flatStructure = undefined;
-  state.flatForced = undefined;
-  state.flatForcedList = undefined;
+  state.flatReady = state.flatChildReady = undefined;
+  state.flatOpen = undefined;
   return result;
 }

@@ -1,7 +1,7 @@
 // The cut's node walk in WebAssembly (`walkWasm.ts`, `packages/page-codec-wasm/src/cut.rs`)
 // against the JavaScript descent (`visit.ts`): the same cut to the bit — the same page objects in
 // the same order, the same counters, the same threshold — on two hierarchy shapes, perspective and
-// orthographic eyes, zero and positive thresholds, held residency, and both budget searches.
+// orthographic eyes, zero and positive thresholds, held residency and missing groups.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,6 +14,7 @@ import { scenePages, sceneRoots } from '../../gpu/dag/cutFrontierScene.fixture.t
 import { culledDagRoots } from '../selection/helpers.fixture.ts';
 import { obliqueCamera, wideCamera } from '../selection/dag.fixture.ts';
 import { BOUND_STRIDE, cullingBounds } from './bounds.ts';
+import { ruleDag } from './cutRule.fixture.ts';
 import { selectVisiblePages } from './cut.ts';
 import { CUT_WALK, cutWalkRuns } from './walkWasm.ts';
 import type { ClusterRoot } from '../selection/types.ts';
@@ -59,11 +60,8 @@ const ASKS = [
   {
     pixelError: 1,
     holdResident: true,
-    rootFallback: true,
     isResident: (p: PageRecord) => p.triangles % 3 !== 0,
   },
-  { pixelError: 0.5, pageBudget: 120 },
-  { pixelError: 0.5, pageBudget: 400, slotsOf: (p: PageRecord) => 1 + (p.triangles % 4) },
 ];
 
 /** One cut under a forced path, its lists copied out of the reused state. */
@@ -128,6 +126,31 @@ test('cut walk: same cut on the prepared DAG fixture, held at a zero threshold',
     for (const ask of [{ pixelError: 0, holdResident: true }, { pixelError: 2 }])
       await assertSameCut(roots as ClusterRoot<PageRecord>[], cam, ask, 'dag fixture');
   fixture.geometry.dispose();
+});
+
+test('cut walk: same cut on a DAG missing pages, its open subtrees walked past their floor', async () => {
+  const dag = ruleDag(256),
+    pages = dag.pages as PageRecord[];
+  const roots = [
+    { world: dag.world, pages, culling: dag.culling, structure: dag.structure },
+  ] as ClusterRoot<PageRecord>[];
+  const cam = eye([-6, 4, 0], [128, 0, 0]);
+  let opened = 0;
+  for (const keep of [1, 0.8, 0.5]) {
+    // Every root resident, the rest kept at random: a missing group opens the nodes above it.
+    const resident = new Set(
+      pages.filter((p, i) => p.group === null || (i * 7919) % 100 < keep * 100),
+    );
+    const ask = {
+      pixelError: 0.1,
+      holdResident: true,
+      isResident: (p: PageRecord) => resident.has(p),
+    };
+    await assertSameCut(roots, cam, ask, `keep ${keep}`);
+    const drawn = (await cut(roots, cam, ask, 'js')).shown.filter((p) => p.lodError! > 0.1).length;
+    if (keep < 1) opened += drawn;
+  }
+  assert.ok(opened > 0, 'no cluster above the threshold drawn: no open subtree walked');
 });
 
 test('cut walk: a hierarchy outside the kernel domain throws what the JavaScript cut throws', async () => {

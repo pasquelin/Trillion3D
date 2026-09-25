@@ -9,7 +9,7 @@ import { fixturePages, fixtureUniforms } from './adopter.fixture.ts';
 import type { CutDelta } from './delta.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
-import { createGroupClosure } from './groupClosure.ts';
+import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 
 function banc() {
   const packedPages = fixturePages(4);
