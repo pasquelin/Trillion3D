@@ -10,8 +10,9 @@ export function slotSampled({ words }: { readonly words: Uint32Array }, slot: nu
   return ((word >>> PAGE_FILTER_SHIFT) & SAMPLE_FILTER_MASK) !== 0;
 }
 
-/** Copies a moved picture into the places its slot holds; false when it could not. */
-type PictureCopy = (atlas: WebgpuTileAtlas, slot: number) => boolean;
+/** Copies a moved picture into the places its slot holds; false when it could not. `keep` false:
+ *  the same picture, reduced again, whose working texture need not stay. */
+type PictureCopy = (atlas: WebgpuTileAtlas, slot: number, keep?: boolean) => boolean;
 
 /** What a follow found: a header word moved, and a texture's filter rule switched on or off —
  *  the pages that wear it change resolve class (`FLAG_SAMPLED`). */
@@ -25,8 +26,8 @@ export const HEADERS_WRITTEN = 1,
  * host at this render (`followHostTexture`), and rewrites a header only when the record's
  * counters moved past the ones it was last written at: another engine following the same record
  * first does not hide the change from this one. No slot is walked while no host write was
- * announced since the last follow: a still scene costs one comparison. `force` writes every
- * header, the first time.
+ * announced since the last follow: a still scene costs one comparison, and the coverage rule of
+ * its host colour textures (`coverageRules`). `force` writes every header, the first time.
  * Colour slots whose header moved are added to `colorMoved`; the result is a mask of
  * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same walk hands `copy` each host-image slot
  * whose picture moved since the last follow — a new version of its record —, for its places in
@@ -64,11 +65,38 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
     };
   };
   const colour = atlasHeaders(color),
-    other = atlasHeaders(data);
+    other = atlasHeaders(data),
+    coverage = coverageRules(color);
   let followed = -1;
   return (force: boolean, colorMoved?: Set<number>, copy?: PictureCopy) => {
-    if (!force && followed === hostTextureWrites()) return 0;
+    const recopied = copy ? coverage(copy, colorMoved) : 0;
+    if (!force && followed === hostTextureWrites()) return recopied;
     followed = hostTextureWrites();
-    return colour(force, colorMoved, copy) | other(force, undefined, copy);
+    return recopied | colour(force, colorMoved, copy) | other(force, undefined, copy);
+  };
+}
+
+/**
+ * The coverage rule each host colour texture's chain was reduced under, followed at every image
+ * (#42): a host switches a surface between opaque and masked without a new prepare, and a texture
+ * whose readers' rule moved (`CoverageReaders`) is reduced again under the new one and copied into
+ * its places by `copy`, as a moved picture is; its slot is added to `moved`. Only host slots are
+ * walked: a cooked chain keeps the rule the compiler baked.
+ */
+function coverageRules(atlas: WebgpuTileAtlas) {
+  const hosts = atlas.textures.flatMap(({ source }, slot) =>
+    source.kind === 'host' ? [{ slot, coverage: source.coverage, rule: source.coverage() }] : [],
+  );
+  return (copy: PictureCopy, moved?: Set<number>) => {
+    let result = 0;
+    for (const host of hosts) {
+      const rule = host.coverage();
+      if (rule === host.rule) continue;
+      host.rule = rule;
+      if (!copy(atlas, host.slot, false)) continue;
+      result |= HEADERS_WRITTEN;
+      moved?.add(host.slot);
+    }
+    return result;
   };
 }
