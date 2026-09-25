@@ -44,9 +44,13 @@ export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTML
   return { renderer, canvas };
 }
 
+/** The side of the fixture's square, and the side and depth of the square behind it. */
+export const SQUARE_SIDE = 2,
+  BEHIND = { side: 4, z: -1 };
+
 /** The fixture's square: a lit one carries normals, a normal-mapped one its tangents. */
 function square(fixture: Fixture): G.Geometry {
-  const geometry = G.planeGeometry(2, 2);
+  const geometry = G.planeGeometry(SQUARE_SIDE, SQUARE_SIDE);
   if (fixture.tangents)
     geometry.setAttribute(
       'tangent',
@@ -77,8 +81,11 @@ export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
   builder.source.add(mesh);
   builder.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
   if (fixture.behind !== undefined) {
-    const back = G.mesh(G.planeGeometry(4, 4), G.basicSurface({ color: fixture.behind }));
-    back.position.z = -1;
+    const back = G.mesh(
+      G.planeGeometry(BEHIND.side, BEHIND.side),
+      G.basicSurface({ color: fixture.behind }),
+    );
+    back.position.z = BEHIND.z;
     builder.source.add(back);
     builder.ajoute(back, 'exact-clusters', 2);
   }

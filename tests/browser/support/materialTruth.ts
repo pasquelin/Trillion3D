@@ -6,7 +6,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { groundTruth, truthGap, type TruthGap } from './groundTruth.ts';
 import { SIZE, type Fixture } from './materialFixtureShape.ts';
-import { CLEAR_COLOR } from './materialPixelsRender.ts';
+import { BEHIND, CLEAR_COLOR, SQUARE_SIDE } from './materialPixelsRender.ts';
 
 /** Both renderers' gaps to the truth, and the pixels the engine may show over one level — `null`
  *  when the gaps are only reported. */
@@ -28,8 +28,8 @@ function pictureOf(rgba: Uint8Array) {
   return canvas.toDataURL();
 }
 
-/** The fixture's truth and both gaps to it, or nothing when it declares no truth. Its map is a
- *  canvas read unflipped and repeated (`materialImages.ts`), on a white unlit square. */
+/** The fixture's truth and both gaps to it, or nothing when it declares no truth: its map, a
+ *  canvas (`materialImages.ts`), on the squares `sceneOf` places. */
 export function truthOf(
   fixture: Fixture,
   camera: G.GraphCamera,
@@ -58,7 +58,7 @@ export function truthOf(
   const truth = groundTruth({
     size: SIZE,
     camera,
-    square: new G.Matrix4().makeRotationX(fixture.tilt ?? 0),
+    square: { place: new G.Matrix4().makeRotationX(fixture.tilt ?? 0), half: SQUARE_SIDE / 2 },
     map: {
       data: canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data,
       width: canvas.width,
@@ -67,7 +67,14 @@ export function truthOf(
       uv: map.matrix.elements,
     },
     alphaTest: surface.alphaTest,
-    behind: fixture.behind,
+    behind:
+      fixture.behind === undefined
+        ? undefined
+        : {
+            place: new G.Matrix4().makeTranslation(0, 0, BEHIND.z),
+            half: BEHIND.side / 2,
+            colour: fixture.behind,
+          },
     clear: CLEAR_COLOR,
   });
   surface.dispose();
