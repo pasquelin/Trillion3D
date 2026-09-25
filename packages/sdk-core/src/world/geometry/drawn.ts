@@ -1,9 +1,11 @@
 import { crossVector3, lengthSqVector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 import { computeNormals } from './normals.ts';
-import { GeometryBuilder, fromArrays } from './builder.ts';
+import { GeometryBuilder } from './builder.ts';
 import type { Geometry } from './geometry.ts';
 import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
+import { drawnSprite } from './drawnSprite.ts';
+import { flatten } from './drawnFlat.ts';
 
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
@@ -15,9 +17,19 @@ export interface DrawnTriangles {
   colors: Float32Array | null;
   indices: Uint32Array;
   lines?: boolean;
+  /** Set on a sprite's quad (`drawnSprite`): its farthest corner from the sprite's origin. */
+  spriteRadius?: number;
 }
 
 type V3 = [number, number, number];
+/** The material and object fields that change what a mesh draws (`drawnTriangles`). */
+type DrawnOptions = {
+  size?: number;
+  wireframe?: boolean;
+  flat?: boolean;
+  dashed?: boolean;
+  center?: readonly [number, number];
+};
 
 /**
  * What a mesh draws, as triangles: the engine rasterises triangles alone, so a point is a small
@@ -30,8 +42,10 @@ type V3 = [number, number, number];
 export function drawnTriangles(
   geometry: Geometry,
   reading: Primitive,
-  options: { size?: number; wireframe?: boolean; flat?: boolean; dashed?: boolean } = {},
+  options: DrawnOptions = {},
 ): DrawnTriangles | null {
+  if (reading === 'sprite')
+    return drawnSprite(drawnTriangles(geometry, 'triangles'), options.center);
   const position = geometry.attributes.position;
   if (!position || position.count === 0) return null;
   const p = Array.from(position.array);
@@ -45,7 +59,7 @@ export function drawnTriangles(
     for (let i = 0; i + 1 < corners.length; i += step) segments.push(corners[i], corners[i + 1]);
     if (reading === 'lineLoop' && corners.length > 2)
       segments.push(corners[corners.length - 1], corners[0]);
-    return quads(p, segments, options.dashed);
+    return quads(p, segments, options.dashed, reading === 'lineLoop' && corners.length > 2);
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
@@ -93,10 +107,15 @@ function points(p: number[], r: number) {
  *
  * `dashed`: each corner also carries, as `(u, 0)`, its distance along the line — the running
  * length of the segments before it, in their order, as the reference's `computeLineDistances`
- * measures it, a loop's closing segment continuing the count. Only a dashed line pays it: any
- * other line's quads keep no coordinate.
+ * measures it; a `loop`'s closing segment runs back from the total to its first vertex's 0, as
+ * the reference draws it. Only a dashed line pays it: any other line's quads keep no coordinate.
  */
-function quads(p: number[], segments: number[], dashed = false): DrawnTriangles | null {
+function quads(
+  p: number[],
+  segments: number[],
+  dashed = false,
+  loop = false,
+): DrawnTriangles | null {
   const positions: number[] = [],
     normals: number[] = [],
     uvs: number[] = [],
@@ -110,6 +129,7 @@ function quads(p: number[], segments: number[], dashed = false): DrawnTriangles 
     if (length === 0) continue;
     normalizeVector3(d);
     const first = positions.length / 3;
+    const end = loop && s + 2 === segments.length ? 0 : distance + length;
     for (const [at, side] of [
       [a, 1],
       [a, -1],
@@ -118,7 +138,7 @@ function quads(p: number[], segments: number[], dashed = false): DrawnTriangles 
     ]) {
       positions.push(p[at], p[at + 1], p[at + 2]);
       normals.push(d[0] * side, d[1] * side, d[2] * side);
-      if (dashed) uvs.push(at === a ? distance : distance + length, 0);
+      if (dashed) uvs.push(at === a ? distance : end, 0);
     }
     distance += length;
     indices.push(first, first + 1, first + 3, first, first + 3, first + 2);
@@ -160,35 +180,4 @@ function solids(b: GeometryBuilder): DrawnTriangles | null {
     colors: null,
     indices: new Uint32Array(b.indices),
   };
-}
-
-/** Every triangle its own corners, each carrying the face's normal: flat shading. */
-function flatten(d: Omit<DrawnTriangles, 'normals'>): DrawnTriangles {
-  const pick = (from: Float32Array | null, width: number) => {
-    if (!from) return null;
-    const out = new Float32Array(d.indices.length * width);
-    d.indices.forEach((v, k) => out.set(from.subarray(v * width, v * width + width), k * width));
-    return out;
-  };
-  const positions = pick(d.positions, 3)!;
-  const indices = new Uint32Array(d.indices.length).map((_, k) => k);
-  return {
-    positions,
-    normals: computeNormals(positions, null),
-    uvs: pick(d.uvs, 2),
-    colors: pick(d.colors, 4),
-    indices,
-  };
-}
-
-/** A builder's triangles as a geometry of flat faces: every corner its own, with its face's normal. */
-export function flatGeometry(b: GeometryBuilder) {
-  const flat = flatten({
-    positions: new Float32Array(b.positions),
-    uvs: new Float32Array(b.uvs),
-    colors: null,
-    indices: new Uint32Array(b.indices),
-  });
-  const list = (a: ArrayLike<number>) => Array.from(a);
-  return fromArrays(list(flat.positions), list(flat.normals), list(flat.uvs!), list(flat.indices));
 }

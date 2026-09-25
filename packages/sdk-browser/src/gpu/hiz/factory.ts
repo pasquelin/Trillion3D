@@ -35,10 +35,9 @@ export async function createGpuHiz(
   try {
     const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
     if (!pipelines) return undefined;
-    const { layout, copyPipeline, reducePipeline, testPipeline } = pipelines;
-    const uniformSlots = MAX_LEVELS + 2;
+    const { layout, copyPipeline, reducePipeline, testPipeline, pagesGroup } = pipelines;
     const uniforms = device.createBuffer({
-      size: UNIFORM_BYTES * uniformSlots,
+      size: UNIFORM_BYTES * (MAX_LEVELS + 2),
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
@@ -145,7 +144,7 @@ export async function createGpuHiz(
       levels: () =>
         (levelTable ??= sizes.map((size, level) => ({ offset: offsets[level], width: size[0] }))),
       pyramidBuffer: () => (disposed ? undefined : pyramid),
-      encodeTest(queueDevice, encoder, maxRows, flagRows) {
+      encodeTest(queueDevice, encoder, maxRows, flagRows, pages) {
         if (disposed || !bindGroup || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);
         if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
@@ -163,6 +162,7 @@ export async function createGpuHiz(
         const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ test' });
         pass.setPipeline(testPipeline);
         pass.setBindGroup(0, bindGroup, [testSlot * UNIFORM_BYTES]);
+        pass.setBindGroup(1, pagesGroup(pages));
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)));
         pass.end();
         return rows;

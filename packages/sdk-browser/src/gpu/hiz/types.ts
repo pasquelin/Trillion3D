@@ -21,13 +21,15 @@ export type GpuHiz = {
    * Tests the boxes the partition compacted; their count lives in the state, and the CPU does not
    * read it. `maxRows` bounds the dispatch — any drawable row may have been tested — and
    * `flagRows` verdict entries are cleared first, so a row this frame does not test reads 0
-   * instead of a previous frame's verdict.
+   * instead of a previous frame's verdict. `pages` is the page table: a row whose Hi-Z slot is
+   * none (never culled) is kept and counts no reject.
    */
   encodeTest(
     device: GPUDevice,
     encoder: GPUCommandEncoder,
     maxRows: number,
     flagRows: number,
+    pages: GPUBuffer,
   ): number;
   resize(device: GPUDevice, width: number, height: number): boolean;
   dispose(): void;

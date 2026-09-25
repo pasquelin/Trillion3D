@@ -240,7 +240,7 @@ void add(const uint32_t *w) {
   // A body refused or gone since the page wrote the vehicle: the page takes it out in turn.
   if (w[2] > TRACKED || slotIndex >= slots.size() || !slots[slotIndex].used || slots[slotIndex].engine != engine) return;
   BodyLockWrite lock(world().system->GetBodyLockInterfaceNoLock(), slots[slotIndex].id);
-  if (!lock.Succeeded() || !lock.GetBody().IsDynamic()) return;
+  if (!lock.Succeeded() || !lock.GetBody().IsDynamic() || !lock.GetBody().IsRigidBody()) return;
   Vehicle &vehicle = vehicles[index];
   vehicle.shape = lock.GetBody().GetShape();
   lower(lock.GetBody(), w);

@@ -1754,7 +1754,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga-segitiganya.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -1831,7 +1832,8 @@
       "wireframe": "Hanya menggambar tepi segitiga-segitiganya.",
       "flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "size": "Ukuran sebuah titik, untuk material points.",
-      "sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -2057,6 +2059,50 @@
       "translateOnAxis": "Menggerakkan node sepanjang `axis`-nya sendiri.",
       "getWorldDirection": "Arah node itu menghadap di dunia.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
+    }
+  },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Katun tenun sedang, kg/m²: berat kain berkisar 0,15 sampai 0,25.",
+    "description": "Kain jatuh sama pada massa berapa pun; ia menekan pinnya dan apa yang ditemuinya. Kulit sebuah volume dianggap kain seperti itu."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Dinyatakan: bagian penampang rata-ratanya — seperempat luasnya, untuk bentuk cembung apa pun (Cauchy) — tempat volume yang diam di tanah melesak, gasnya menahan beratnya di sana.",
+    "description": "Tekanan bawaannya lalu `4·m·g / (share·area)`: 31 Pa untuk kulit `SOFT_AREAL_DENSITY`. Setengah bagian, dua kali tekanan. Tak pernah melewati tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Tali poliamida 10 mm, kg/m: tabel pembuat memberi 0,06 sampai 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Apa yang diterima `obj.physics` untuk benda lunak: verteksnya disimulasikan satu per satu.",
+    "members": {
+      "pins": "Indeks verteks geometri yang ditahan di tempatnya: tiang bendera, kait tali.",
+      "mass": "Kilogram, dibagi ke verteks menurut luas (tali: panjang) yang ditanggung masing-masing; bila dihilangkan, `SOFT_AREAL_DENSITY` per m² (tali: `SOFT_LINEAR_DENSITY` per m).",
+      "stretch": "Seberapa rusuk mengalah saat ditarik, m/N (kebalikan kekakuannya): 0 tak pernah meregang.",
+      "bend": "Seberapa ia mengalah saat dilipat, rad/(N·m) (tali: m/N); `Infinity` melipat bebas."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Opsi benda lunak: kain, tali, atau volume dengan tekanan gasnya."
+  },
+  "SoftBodyType": {
+    "summary": "Benda lunak: kain (segitiganya, terbuka), tali (verteksnya, masing-masing tersambung ke berikutnya), atau volume (segitiganya yang tertutup, ditopang gas di dalamnya)."
+  },
+  "SoftSettings": {
+    "summary": "Opsi benda lunak setelah dibaca: setiap bawaan terisi.",
+    "members": {
+      "type": "Apa ia.",
+      "pins": "Verteks geometri yang ditahan di tempatnya.",
+      "mass": "Kilogram, `undefined` untuk massa dari kepadatan bawaan.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), m/N untuk tali.",
+      "pressure": "Pa; `undefined` untuk tekanan bawaan volume (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Opsi volume: mesh tertutup yang ditopang gas di dalamnya.",
+    "members": {
+      "type": "Sebuah volume.",
+      "pressure": "Tekanan gas di atas tekanan udara saat diam, Pa; bila ditekan, naik saat volume turun (hukum Boyle). Segitiga harus menghadap keluar. Bila dihilangkan, tekanan yang meletakkan berat volume pada `SOFT_FOOTPRINT` penampang rata-ratanya, atau tekanan terbesar yang ditahan kulitnya bila lebih kecil. Ditolak di atas tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
     }
   },
   "TransformNode": {
@@ -2811,7 +2857,7 @@
       "renderOrder": "Urutan gambarnya di antara benda-benda tembus pandang.",
       "userData": "Data milik halaman sendiri, sebagai JSON.",
       "children": "Node di bawahnya, secara berurutan.",
-      "mesh": "Urutan di `geometries` dan `materials`, serta cara segitiga dibaca.",
+      "mesh": "Peringkat di `geometries` dan `materials`, cara segitiga dibaca, dan pusat sebuah sprite.",
       "light": "Jenis cahaya, warna, angka, arah bidikan, dan koefisien probe-nya.",
       "model": "Model terkompilasi, lewat alamat manifest tempat ia dimuat: tidak pernah disalin ke dalam."
     }
@@ -5415,7 +5461,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5454,7 +5501,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5493,7 +5541,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5532,7 +5581,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5571,7 +5621,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5610,7 +5661,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5649,7 +5701,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5688,7 +5741,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5727,7 +5781,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5766,7 +5821,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5805,7 +5861,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5844,7 +5901,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5883,7 +5941,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -5898,7 +5957,7 @@
     }
   },
   "material.sprite": {
-    "summary": "Sebuah gambar datar yang selalu menghadap kamera.",
+    "summary": "Gambar datar yang selalu menghadap kamera (`object.sprite`), tembus pandang di bagian gambarnya yang tembus pandang, diputar di dalam gambar oleh `rotation` dan lebih kecil di kejauhan kecuali `sizeAttenuation` bernilai false.",
     "parameters": {
       "parameters": "Yang boleh dilewatkan sebuah halaman ke anggota material; setiap bidang opsional.",
       "parameters.color": "Warna dasar.",
@@ -5922,7 +5981,8 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
       "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
       "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
       "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
@@ -6220,9 +6280,9 @@
     }
   },
   "object.sprite": {
-    "summary": "Sebuah persegi satuan menghadap `+z`, dalam jenis sprite.",
+    "summary": "Gambar datar yang selalu menghadap kamera, ke mana pun kamera melihat: persegi satuan, sebesar skala sprite dan diputar di dalam gambar oleh `rotation` materialnya.",
     "parameters": {
-      "material": "Yang ditampilkan persegi."
+      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`."
     }
   },
   "orthographicProjection": {
@@ -6662,8 +6722,8 @@
       "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya.",
       "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Total di bawah pool bayangan ditolak (`GPU_BUDGET_UNDER_SHADOW_POOL`). Tidak pernah dibaca dari mesin.",
-      "cpu": "Byte memori CPU yang boleh ditahan dunia: pertama cermin host tabel halaman bayangan, lalu halaman terdekode dan tabel potongan mesin; diterapkan pada pemuatan adegan berikutnya. Total yang tidak melebihi cermin ditolak (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Tidak pernah dibaca dari mesin.",
-      "split": "Cara kedua total dibagi: pool bayangan dan probe pantulan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU. Hasil aturan, sebelum sebuah pool diatur sendiri."
+      "cpu": "Byte memori CPU yang boleh ditahan dunia: pertama cermin host tabel halaman bayangan, lalu halaman terdekode, tabel manifesnya, antrean transfernya, dan tabel potongan mesin bersama-sama. Perubahan langsung berlaku: halaman keluar berdasarkan penggunaan terakhir sampai muat. Total yang tidak melebihi cermin ditolak (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Tidak pernah dibaca dari mesin.",
+      "split": "Cara kedua total dibagi: pool bayangan dan probe pantulan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU, seluruhnya, dan di dalamnya sesi yang berjalan mencadangkan tabel manifes, antrean transfernya, dan tabel potongan mesin. Hasil aturan, sebelum sebuah pool diatur sendiri."
     }
   },
   "world.camera": {
@@ -6958,7 +7018,8 @@
       "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
       "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
       "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
-      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda.",
+      "softVertices": "Verteks semua benda lunak sekaligus (kain, tali, volume). Masing-masing diselesaikan setiap langkah dan dibaca kembali oleh halaman, 12 byte per langkah."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6980,7 +7041,7 @@
     "summary": "Fisika satu objek, seperti dipegang `obj.physics`: catatan hidup tentang apa benda itu dan apa yang dilakukannya.",
     "description": "Penulisan sampai ke simulasi pada langkah berikutnya; `velocity` membaca apa yang ditinggalkan langkah terakhir.",
     "members": {
-      "type": "Cara benda bergerak; tetapkan ulang `obj.physics` untuk mengubahnya.",
+      "type": "Cara benda bergerak, atau benda lunak apa ia; tetapkan ulang `obj.physics` untuk mengubahnya.",
       "shape": "Bentuk yang dinyatakan, jika ada.",
       "sensor": "Apakah benda hanya melaporkan kontak.",
       "ccd": "Apakah tabrakan kontinu aktif.",
@@ -6995,7 +7056,9 @@
       "applyImpulse": "Mendorong benda seketika, impuls dalam N·s melalui pusat massanya; membangunkannya.",
       "wake": "Membangunkan benda, tidur atau tidak.",
       "on": "Memanggil `handler` pada peristiwa kontak benda ini.",
-      "listens": "Apakah ada penangan kontak."
+      "listens": "Apakah ada penangan kontak.",
+      "soft": "Pengaturan benda lunak, setiap bawaan terisi; `null` untuk benda kaku.",
+      "vertices": "Verteks benda lunak seperti yang ditinggalkan tick terakhir: `x, y, z` per verteks geometrinya, dalam kerangka geometri itu sendiri; `null` untuk benda kaku, dan sampai tick pertamanya."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7034,7 +7097,8 @@
       "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
       "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
       "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
-      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda.",
+      "softVertices": "Verteks semua benda lunak sekaligus (kain, tali, volume). Masing-masing diselesaikan setiap langkah dan dibaca kembali oleh halaman, 12 byte per langkah."
     }
   },
   "PhysicsHost": {
@@ -7060,7 +7124,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Apa yang bisa diisikan ke `obj.physics`."
+    "summary": "Apa yang dapat diterima `obj.physics`: benda kaku, atau benda lunak (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Bentuk tabrakan, bila yang disimpulkan dari geometri tidak cocok.",
@@ -7504,6 +7568,14 @@
       "car": "Tiga roda atau lebih pada dua poros atau lebih, yang depan berbelok, yang `drive` menggerakkan.",
       "motorcycle": "Dua roda, yang depan berbelok, yang belakang menggerakkan; ia tetap tegak sendiri.",
       "tracked": "Roda di dua rantai, kiri dan kanan, masing-masing digerakkan roda paling belakangnya; berbelok dengan memperlambat satu rantai, dan berputar di tempat saat diam."
+    }
+  },
+  "Sprite": {
+    "summary": "Gambar datar yang selalu menghadap kamera: persegi satuan yang diputar setiap renderer ke arah gambar saat menggambar, di sekitar posisi sprite.",
+    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan.",
+    "members": {
+      "isSprite": "Selalu `true`: membedakan sprite dari mesh lain mana pun.",
+      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya."
     }
   }
 }

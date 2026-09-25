@@ -27,7 +27,9 @@ import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 
-/** The geometry of drawn triangles, under the attribute names a mesh reads. */
+/** The geometry of drawn triangles, under the attribute names a mesh reads. A sprite's quad is
+ *  bounded as its pages are (`runtimePrimitive.ts`): by the cube and ball of its radius about its
+ *  origin, which hold it whichever way the rasters turn it. */
 function hostGeometry(drawn: DrawnTriangles) {
   const geometry = new GraphGeometry();
   geometry.setAttribute('position', new BufferAttribute(drawn.positions, 3));
@@ -37,6 +39,13 @@ function hostGeometry(drawn: DrawnTriangles) {
   geometry.setIndex(new BufferAttribute(drawn.indices, 1));
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
+  const radius = drawn.spriteRadius;
+  if (radius !== undefined) {
+    geometry.boundingBox!.min.set(-radius, -radius, -radius);
+    geometry.boundingBox!.max.set(radius, radius, radius);
+    geometry.boundingSphere!.center.set(0, 0, 0);
+    geometry.boundingSphere!.radius = radius;
+  }
   return geometry;
 }
 
@@ -60,17 +69,23 @@ export function buildWorldMirror(input: MirrorInput) {
     // One surface per material, and a second one when the material asks for vertex colours and
     // is worn by geometries with and without them: the material decides, as in the reference
     // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
-    // it is worn by lines: the line surface is widened and lifted (`hostSurface`).
+    // it is worn by lines: the line surface is widened and lifted (`hostSurface`). A fourth when
+    // it is worn by a sprite: the sprite surface turns its quad to the camera.
     surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
     const tinted = !!material.vertexColors && !!cut.drawn.colors,
-      lines = !!cut.drawn.lines;
+      reading = cut.drawn.lines
+        ? 'lines'
+        : cut.drawn.spriteRadius !== undefined
+          ? 'sprite'
+          : 'faces';
     let worn = surfaces.get(material);
     if (!worn) surfaces.set(material, (worn = []));
-    const surface = (worn[lines ? 2 : +tinted] ??= hostSurface(material, tinted, textures, lines));
+    const rank = reading === 'lines' ? 2 : reading === 'sprite' ? 3 : +tinted;
+    const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
