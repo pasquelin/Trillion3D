@@ -32,7 +32,7 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   webgl.begin(chain, width, height);
   assert.equal(webgl.bytes, EFFECT_TARGET_BYTES, 'scene target, two pass targets, bloom levels');
   const gpu = fakeDevice();
-  const webgpu = createWebgpuEffects(gpu.device, { ready() {}, failed: assert.fail });
+  const webgpu = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)));
   const input = {} as GPUTextureView,
     encoder = {
       beginRenderPass: () => ({ setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }),
