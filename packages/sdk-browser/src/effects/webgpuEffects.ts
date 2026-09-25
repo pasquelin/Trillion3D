@@ -1,48 +1,88 @@
-import type { EffectPass } from '../../../sdk-core/src/world/effect/chain.ts';
-import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
-import { BLOOM_TEXEL_BYTES } from './bloomFilter.ts';
-import { createWebgpuBloom, type WebgpuBloom } from './webgpuBloom.ts';
+import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts';
+import {
+  countKinds,
+  EFFECT_KINDS as KINDS,
+  effectPassTargets,
+  effectTargetBytes,
+  type EffectPassOf,
+} from './targets.ts';
+import { createWebgpuBloom } from './webgpuBloom.ts';
+
+/** One kind of pass on WebGPU: its programs, compiled once, and the resources its passes share. */
+export type WebgpuEffectKind<P> = {
+  /** Bytes of what it holds as allocated. */
+  readonly bytes: number;
+  /** Sizes what it holds for `count` passes on a `w × h` image; zero passes free it. */
+  resize(w: number, h: number, count: number): void;
+  /** Encodes `pass`, the `nth` of its kind in the chain, from `input` into `output`; returns the
+   *  render passes encoded, zero when it cannot draw at this size. */
+  encode(
+    encoder: GPUCommandEncoder,
+    pass: P,
+    nth: number,
+    input: GPUTextureView,
+    output: GPUTextureView,
+  ): number;
+  dispose(): void;
+};
+type Kinds = { [K in EffectKind]: WebgpuEffectKind<EffectPassOf<K>> };
+
+/** Each kind's WebGPU implementation: the one place a new built-in or a custom pass plugs in. */
+export const WEBGPU_KINDS: { [K in EffectKind]: (device: GPUDevice) => Promise<Kinds[K]> } = {
+  bloom: createWebgpuBloom,
+};
 
 /**
  * The WebGPU side of `world.effects`: the passes that run before tone mapping, between the
  * temporal resolve and the composition that tone-maps. Each pass writes a full-size
- * `rgba16float` target the next one reads, two in turn at most; the bloom keeps its own levels.
+ * `rgba16float` target the next one reads, two in turn at most; each kind keeps its own resources.
  * Nothing exists before the first frame with a pass: the targets are made then, at the image's
- * size, and follow it; the programs compile in the background, and until they are ready the
- * image is drawn without the chain and says it is not settled (`loading`). `ready` is called when
- * they arrive, so the image is drawn again with them; `failed` when they cannot be made, and the
- * image stays without the chain.
+ * size, and follow it; a kind's programs compile in the background at its first pass, and until
+ * every kind of the chain is ready the image is drawn without the chain and says it is not settled
+ * (`loading`). `ready` is called when a kind arrives, so the image is drawn again; `failed` when
+ * one cannot be made, and the image stays without the chain.
  */
 export function createWebgpuEffects(
   device: GPUDevice,
   events: { ready(): void; failed(error: unknown): void },
 ) {
-  let bloom: WebgpuBloom | undefined,
-    loading: Promise<void> | undefined,
-    failed = false,
+  const made: Partial<Kinds> = {},
+    pending = new Map<EffectKind, Promise<void>>(),
+    counts = {} as Record<EffectKind, number>,
+    nth = {} as Record<EffectKind, number>;
+  let failed = false,
     draws = 0,
     width = 0,
     height = 0;
   const targets: GPUTexture[] = [],
     views: GPUTextureView[] = [];
-  const load = () => {
-    loading ??= createWebgpuBloom(device).then(
-      (made) => {
-        bloom = made;
-        loading = undefined;
+  const load = <K extends EffectKind>(kind: K) => {
+    if (failed || pending.has(kind)) return;
+    const loaded = WEBGPU_KINDS[kind](device).then(
+      (implementation) => {
+        made[kind] = implementation;
+        pending.delete(kind);
         events.ready();
       },
       (error) => {
         failed = true;
-        loading = undefined;
+        pending.delete(kind);
         events.failed(error);
       },
     );
+    pending.set(kind, loaded);
   };
+  /** Draws `pass` with its kind's implementation; the chain holds built-ins only (`EffectKind`). */
+  const encodePass = <K extends EffectKind>(
+    encoder: GPUCommandEncoder,
+    pass: EffectPassOf<K>,
+    input: GPUTextureView,
+    output: GPUTextureView,
+  ) => made[pass.kind as K]!.encode(encoder, pass, nth[pass.kind]++, input, output);
   const release = () => {
     for (const target of targets) target.destroy();
     targets.length = views.length = 0;
-    bloom?.resize(0, 0);
+    for (const kind of KINDS) made[kind]?.resize(0, 0, 0);
     width = height = 0;
   };
   const ensure = (count: number, w: number, h: number) => {
@@ -59,18 +99,32 @@ export function createWebgpuEffects(
       targets.push(target);
       views.push(target.createView());
     }
-    bloom!.resize(w, h);
+    for (const kind of KINDS) made[kind]?.resize(w, h, counts[kind]);
+  };
+  /** Counts the passes of each kind; false while a kind they need is not compiled. */
+  const readyFor = (passes: readonly EffectPass[]) => {
+    countKinds(passes, counts);
+    for (const kind of KINDS) nth[kind] = 0;
+    let ready = !failed;
+    for (const kind of KINDS)
+      if (counts[kind] && !made[kind]) {
+        load(kind);
+        ready = false;
+      }
+    return ready;
   };
   return {
-    /** True while the programs compile: the image drawn meanwhile lacks the chain. */
+    /** True while programs compile: the image drawn meanwhile lacks the chain. */
     get loading() {
-      return loading !== undefined;
+      return pending.size > 0;
     },
-    /** Bytes of every target the chain holds: the pass targets and the bloom levels. */
+    /** Bytes of every target the chain holds: the pass targets and each kind's own. */
     get bytes() {
-      return targets.length * width * height * BLOOM_TEXEL_BYTES + (bloom?.bytes ?? 0);
+      let bytes = effectTargetBytes(width, height, targets.length, false);
+      for (const kind of KINDS) bytes += made[kind]?.bytes ?? 0;
+      return bytes;
     },
-    /** Passes the last `encode` drew: zero when it drew none. */
+    /** Render passes the last `encode` drew: zero when it drew none. */
     get draws() {
       return draws;
     },
@@ -88,24 +142,23 @@ export function createWebgpuEffects(
         release();
         return input;
       }
-      if (!bloom) {
-        if (!failed) load();
-        return input;
-      }
-      ensure(Math.min(passes.length, 2), w, h);
-      if (!bloom.levels) return input;
-      let view = input;
-      for (let index = 0; index < passes.length; index++) {
-        const output = views[index % 2];
-        draws += bloom.encode(encoder, passes[index] as Bloom, view, output);
+      if (!readyFor(passes)) return input;
+      ensure(effectPassTargets(passes.length), w, h);
+      let view = input,
+        written = 0;
+      for (const pass of passes) {
+        const output = views[written % 2],
+          drawn = encodePass(encoder, pass as EffectPassOf<EffectKind>, view, output);
+        if (!drawn) continue;
+        draws += drawn;
         view = output;
+        written++;
       }
       return view;
     },
     dispose() {
       release();
-      bloom?.dispose();
-      bloom = undefined;
+      for (const kind of KINDS) made[kind]?.dispose();
     },
   };
 }
