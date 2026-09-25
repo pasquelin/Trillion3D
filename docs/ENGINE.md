@@ -818,12 +818,13 @@ assets under `.mesure/assets/` ([TESTS.md](TESTS.md)). The material proof
 witness within one level per channel, except blending over an opaque surface, where the engine
 blends in linear radiance and the witness in display space: the fixture declares that 45-level gap
 and holds the engine inside it. The grazing fixtures are also cast on the CPU, the map's base level
-averaged along each pixel's minified axis and cut once (`tests/browser/support/groundTruth.ts`):
-a perfect anisotropic read, with no mip level and no footprint cap. The proof requires the engine
-at 16× within CONTRIBUTING's tolerance of it — pixels over one level, silhouettes aside: 0, 4 on
-the foliage cut-out — and no farther from it than the witness (#443). A successful proof run is not a full-scene parity verdict, and it measures no performance.
-The CPU shading oracle encodes linear lighting to sRGB without ACES; it does not replace the
-displayed-image comparisons. Node tests validate orchestration with GPU doubles and
+averaged along each pixel's minified axis, on the tangent its derivatives lay, and cut once
+(`tests/browser/support/groundTruth.ts`): a perfect anisotropic read, with no mip level and no
+footprint cap. The proof requires the engine at 16× within CONTRIBUTING's tolerance of it — pixels
+over one level, silhouettes aside: 0, 4 on the foliage cut-out — and no farther from it than the
+witness (#443). A successful proof run is not a full-scene parity verdict, and it measures no
+performance. The CPU shading oracle encodes linear lighting to sRGB without ACES; it does not
+replace the displayed-image comparisons. Node tests validate orchestration with GPU doubles and
 do not execute WGSL.
 
 ## Lighting: the target and the stages

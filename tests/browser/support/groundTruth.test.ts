@@ -6,6 +6,10 @@ import { test } from 'node:test';
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import { cameraFace } from './sharedSceneProof.ts';
 import { backgroundRgb } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import {
+  linearToSrgb8,
+  srgbToLinear,
+} from '../../../packages/sdk-core/src/math/primitives/color.ts';
 import { groundTruth, truthGap, truthVerdict, type TruthView } from './groundTruth.ts';
 
 const SIZE = 24;
@@ -29,8 +33,8 @@ const view = (texels: number[][], extra: Partial<TruthView> = {}, repeat = 1): T
   clear: CLEAR,
   ...extra,
 });
-const rgb = (image: Uint8Array, x: number, y: number) =>
-  Array.from(image.subarray((y * SIZE + x) * 4, (y * SIZE + x) * 4 + 3));
+const rgb = (image: Uint8Array, x: number, y: number, size = SIZE) =>
+  Array.from(image.subarray((y * size + x) * 4, (y * size + x) * 4 + 3));
 const CENTRE = SIZE >> 1;
 
 test('the square shows its texel, the clear colour lies around it, a silhouette is an edge', () => {
@@ -124,4 +128,44 @@ test('a perfect one-read sampler is the truth where the map is magnified', () =>
     const judged = truth.edge.length - truth.edge.filter(Boolean).length;
     assert.ok(judged > 3000, `${judged} pixels judged: the square fills the view's middle`);
   }
+});
+
+// Review of #443: the footprint is integrated on its tangent, the line a sampler's derivatives
+// lay, not on the curve a pixel's edges trace on the plane — at 88° the curve moves 34 pixels of
+// the stripes up to 7 levels, where no sampler follows it. Stripes vary along u alone: the tangent's
+// mean is a one-dimensional integral, the plane cast here in closed form from `cameraFace`.
+test('a slanted footprint is read on its tangent, as a sampler reads it', () => {
+  const size = 96,
+    tilt = (-88 * Math.PI) / 180,
+    a = Math.tan((55 / 2) * (Math.PI / 180));
+  const texels = Array.from({ length: 64 }, (_, i) => Array(4).fill(i % 2 ? 255 : 0)).flat();
+  const truth = groundTruth({
+    ...view([]),
+    size,
+    square: { place: new Matrix4().makeRotationX(tilt), half: 1 },
+    map: { data: texels, width: 8, height: 8, srgb: true, uv: [4, 0, 0, 0, 4, 0, 0, 0, 1] },
+  });
+  // The ray from (0, 0, 3) through NDC (x, y) meets the tilted plane at (s x a, s y a / cos):
+  // the map's u, in texels, is (X + 1) 16. Its linear value runs 0 to 1 between texel centres.
+  const hit = (y: number) => 3 / (1 + y * a * Math.tan(tilt));
+  const u = (x: number, y: number) => (hit(y) * x * a + 1) * 16;
+  const linear = (t: number) => 1 - Math.abs(((((t - 0.5) % 2) + 2) % 2) - 1);
+  let judged = 0;
+  for (let py = 0; py < size; py++)
+    for (let px = 0; px < size; px++) {
+      const x = (2 * px + 1) / size - 1,
+        y = (2 * py + 1) / size - 1;
+      const inside = Math.abs(hit(y) * y * a) <= Math.cos(tilt) && Math.abs(hit(y) * x * a) <= 1;
+      if (truth.edge[py * size + px] || !inside) continue;
+      judged++;
+      const du = ((u(x, y + 1e-4) - u(x, y - 1e-4)) / 2e-4) * (2 / size);
+      let mean = 0;
+      for (let s = 0; s < 256; s++) mean += linear(u(x, y) + du * ((s + 0.5) / 256 - 0.5)) / 256;
+      for (const c of rgb(truth.rgba, px, py, size))
+        assert.ok(
+          Math.abs(c - linearToSrgb8(mean)) <= 1,
+          `${px},${py}: ${c}, not ${linearToSrgb8(mean)}`,
+        );
+    }
+  assert.ok(judged >= 50, `${judged} pixels judged on the square`);
 });

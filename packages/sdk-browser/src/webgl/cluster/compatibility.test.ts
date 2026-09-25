@@ -5,6 +5,9 @@ import { clusterMaterialReason } from './compatibility.ts';
 import { validateClusterMeshes } from './validation.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
+import { hostSurface } from '../../world/core/worldSurface.ts';
+import { texture } from '../../world/texture/index.ts';
+import { material } from '../../../../sdk-core/src/world/material/index.ts';
 
 const position = new G.BufferAttribute(new Float32Array(9), 3);
 const NO_COPIES = { plain: [], blended: [], transmissive: [] };
@@ -184,4 +187,22 @@ test('a named blending is admitted, an unnamed one and a transmissive non-normal
     clusterMaterialReason(glass, { position, normal }, true)!,
     /transmissive material cannot use additive blending/,
   );
+});
+
+// #443: a WebGL2 texel map is read as it is stored (`textureRgba`); any other storage is named.
+test('texels the WebGL2 upload cannot read as stored are refused by name', () => {
+  const { attributes } = G.boxGeometry();
+  const reason = (map: ReturnType<typeof texture.data>) =>
+    clusterMaterialReason(
+      hostSurface(material.meshStandard({ normalMap: map }), false, new Map()),
+      attributes,
+    );
+  assert.equal(reason(texture.data(new Uint8Array(16), 2, 2)), undefined);
+  for (const [map, refusal] of [
+    [texture.data(new Uint8Array(12), 2, 2, 'rgb'), /texel format 1022 is unsupported/],
+    [texture.data(new Uint8Array(4), 2, 2, 'r'), /texel format 1028 is unsupported/],
+    [texture.data(new Float32Array(16), 2, 2), /8-bit texels only/],
+    [texture.data(new Uint8Array(8), 2, 2), /holds 8 bytes, not 2×2 RGBA/],
+  ] as const)
+    assert.match(reason(map) ?? '', refusal);
 });

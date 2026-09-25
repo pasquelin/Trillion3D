@@ -2,6 +2,7 @@ import type { HostAttributes } from '../host/resources.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
+import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
 
 export const VIS_INVALID = 0;
 /**
@@ -141,6 +142,18 @@ export function unpackVisibilityId(id: number): UnpackedVisibility | null {
 }
 
 export { visMaterial, isTransmissive } from './shader/material.ts';
+
+/** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
+ *  many as the size holds —, or nothing when they can: a gate names the storage, never draws it
+ *  blank. */
+export const texelsReason = ({ format, image }: { format: number; image: unknown }) => {
+  if (format !== HOST_FORMAT_RGBA) return `texel format ${format} is unsupported: RGBA only`;
+  const { data, width, height } = image as { data?: unknown; width: number; height: number };
+  if (!(data instanceof Uint8Array || data instanceof Uint8ClampedArray))
+    return 'texel storage is unsupported: 8-bit texels only';
+  if (data.length !== width * height * 4)
+    return `texel storage holds ${data.length} bytes, not ${width}×${height} RGBA`;
+};
 
 export type TextureRgba = { data: Uint8Array; width: number; height: number };
 /**

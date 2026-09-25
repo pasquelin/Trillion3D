@@ -10,6 +10,9 @@ import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
+import { hostSurface } from '../../world/core/worldSurface.ts';
+import { texture } from '../../world/texture/index.ts';
+import { material } from '../../../../sdk-core/src/world/material/index.ts';
 
 /** A test context; `draws`: per draw, the texture sampled, and the texture and level drawn. */
 function context(answers: Record<string, unknown> = {}) {
@@ -113,4 +116,26 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   assert.deepEqual([filed, follow.mock.callCount()], [2, 3]);
   assert.equal(gl.chains(), 'box', 'plain, the box chain: the hidden reader is opaque');
   draw.dispose();
+});
+
+// #443: a world texel map — `texture.data`, a file the loader decoded — is drawn on WebGL2 as on
+// WebGPU: uploaded as the bytes it holds, with the chain its filter reads (none: incomplete, black).
+test('a world texel map is uploaded as stored, with its box chain', () => {
+  const pixels = new Uint8Array(4 * 4 * 4).fill(128);
+  const scene = new G.GraphScene();
+  const surface = material.meshStandard({ normalMap: texture.data(pixels, 4, 4) });
+  scene.add(G.mesh(G.boxGeometry(), hostSurface(surface, false, new Map())));
+  const gl = context();
+  const draw = createSceneDraw(gl.gl, scene);
+  draw.render({} as HostCamera);
+  draw.drawHostGeometry(createHostDrawCamera(), {
+    toneMapped: false,
+    framebuffer: null,
+    width: 8,
+    height: 4,
+  });
+  draw.dispose();
+  const uploaded = gl.of('texImage2D').map((args) => (args[8] as ArrayBufferView | null)?.buffer);
+  assert.ok(uploaded.includes(pixels.buffer), 'uploaded as the bytes it holds');
+  assert.equal(gl.chains(), 'box', 'a normal map is data: the plain box chain (#42)');
 });

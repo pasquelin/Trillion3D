@@ -85,9 +85,9 @@ function bilinear(
 }
 
 /** A square's plane seen from the screen: the inverse of its projection, a homography built once.
- *  The function writes into `at` the plane point under NDC `(x, y)`, into `slope` when given its
- *  derivatives along NDC x then y — exact, as the engine's (`uvGradients`) —, and says whether it
- *  lies on the square's front face, in front of the eye. */
+ *  The function writes into `at` the plane point under NDC `(x, y)`, into `slope` its derivatives
+ *  along NDC x then y — exact, as the engine's (`uvGradients`) —, and says whether it lies on the
+ *  square's front face, in front of the eye. */
 function onSquare({ camera }: TruthView, { place, half }: TruthSquare) {
   const f = new Matrix4()
     .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
@@ -101,15 +101,14 @@ function onSquare({ camera }: TruthView, { place, half }: TruthSquare) {
   const eye = new Vector3(0, 0, 0).applyMatrix4(
     place.clone().invert().multiply(camera.matrixWorld),
   );
-  return (x: number, y: number, at: { x: number; y: number }, slope?: number[]) => {
+  return (x: number, y: number, at: { x: number; y: number }, slope: number[]) => {
     const w = g[3] * x + g[7] * y + g[15];
     at.x = (g[0] * x + g[4] * y + g[12]) / w;
     at.y = (g[1] * x + g[5] * y + g[13]) / w;
-    if (slope)
-      for (const i of [0, 1]) {
-        slope[2 * i] = (g[4 * i] - at.x * g[4 * i + 3]) / w;
-        slope[2 * i + 1] = (g[4 * i + 1] - at.y * g[4 * i + 3]) / w;
-      }
+    for (const i of [0, 1]) {
+      slope[2 * i] = (g[4 * i] - at.x * g[4 * i + 3]) / w;
+      slope[2 * i + 1] = (g[4 * i + 1] - at.y * g[4 * i + 3]) / w;
+    }
     return eye.z > 0 && w > 0 && Math.abs(at.x) <= half && Math.abs(at.y) <= half;
   };
 }
@@ -129,38 +128,35 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
     slope = [0, 0, 0, 0],
     sum = new Float64Array(4),
     e = map.uv,
-    pixel = 1 / size,
+    halfPixel = 1 / size,
     // The square's plane point to its UV, `(p / half + 1) / 2`: this much per plane unit.
     toUv = 1 / (2 * square.half);
   const truth: Truth = { rgba: new Uint8Array(size * size * 4), edge: new Uint8Array(size * size) };
   /** The surface the geometry shows at `(x, y)`: 1 the square, 2 the one behind, 0 none. */
-  const surfaceAt = (x: number, y: number) => (front(x, y, at) ? 1 : back?.(x, y, at) ? 2 : 0);
-  /** The map's coordinate moved by a plane move `(a, b)`, through its UV transform. */
-  const moved = (a: number, b: number) => [e[0] * a + e[3] * b, e[1] * a + e[4] * b];
+  const surfaceAt = (x: number, y: number) =>
+    front(x, y, at, slope) ? 1 : back?.(x, y, at, slope) ? 2 : 0;
+  /** A plane point (`w` 1) or move (`w` 0) `(a, b)` on the map, through its UV transform. */
+  const onMap = (a: number, b: number, w: number) => [
+    e[0] * a + e[3] * b + e[6] * w,
+    e[1] * a + e[4] * b + e[7] * w,
+  ];
   /** Texels spanned, squared, by a map move. */
   const texels = ([du, dv]: number[]) => (du * map.width) ** 2 + (dv * map.height) ** 2;
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {
       const index = py * size + px,
-        x = (2 * px + 1) * pixel - 1,
-        y = (2 * py + 1) * pixel - 1;
+        x = (2 * px + 1) * halfPixel - 1,
+        y = (2 * py + 1) * halfPixel - 1;
       const surface = surfaceAt(x, y);
-      // A silhouette crossing the pixel changes the surface at one of its corners.
-      for (const cx of [-1, 1])
-        for (const cy of [-1, 1])
-          if (surfaceAt(x + cx * pixel, y + cy * pixel) !== surface) truth.edge[index] = 1;
-      let colour: ArrayLike<number> = surface === 2 ? behind : clear;
+      let colour: ArrayLike<number> | undefined;
       if (surface === 1) {
-        front(x, y, at, slope);
-        const [su, sv] = moved(at.x * toUv + 0.5, at.y * toUv + 0.5),
-          u = su + e[6],
-          v = sv + e[7];
+        const [u, v] = onMap(at.x * toUv + 0.5, at.y * toUv + 0.5, 1);
         // The pixel's footprint on the map, one pixel along each screen axis, on the tangent at
         // its centre as a sampler's derivatives lay it — the curve a pixel's edges trace departs
         // from it, and no sampler follows that curve.
-        const step = 2 * pixel * toUv,
-          across = moved(slope[0] * step, slope[1] * step),
-          up = moved(slope[2] * step, slope[3] * step);
+        const step = 2 * halfPixel * toUv,
+          across = onMap(slope[0] * step, slope[1] * step, 0),
+          up = onMap(slope[2] * step, slope[3] * step, 0);
         const [lx, ly] = [texels(across), texels(up)];
         // A footprint of one texel or less is magnified: one read, as the sampler's.
         const reads = Math.max(lx, ly) > 1 ? samples : 1,
@@ -170,17 +166,23 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
           const t = (s + 0.5) / reads - 0.5;
           bilinear(map, linear, u + du * t, v + dv * t, 1 / reads, sum);
         }
-        colour = sum[3] >= view.alphaTest ? sum : back?.(x, y, at) ? behind : clear;
+        if (sum[3] >= view.alphaTest) colour = sum;
       }
+      // Under the cutoff, or off the square: the square behind, or the clear colour.
+      colour ??= back?.(x, y, at, slope) ? behind : clear;
+      // A silhouette crossing the pixel changes the surface at one of its corners.
+      for (const cx of [-1, 1])
+        for (const cy of [-1, 1])
+          if (surfaceAt(x + cx * halfPixel, y + cy * halfPixel) !== surface) truth.edge[index] = 1;
       for (let k = 0; k < 3; k++) truth.rgba[index * 4 + k] = linearToSrgb8(colour[k]);
       truth.rgba[index * 4 + 3] = 255;
     }
   return truth;
 }
 
-/** The gap of a bottom-left RGBA8 `image` to the truth: pixels farther than `levels` on a
+/** The gap of a bottom-left RGBA8 `image` to the truth: pixels farther than one level on a
  *  channel, silhouettes aside, and the largest gap there. */
-export function truthGap(image: ArrayLike<number>, truth: Truth, levels = 1): TruthGap {
+export function truthGap(image: ArrayLike<number>, truth: Truth): TruthGap {
   // A short image — no frame read — would compare as NaN and count as no gap.
   if (image.length < truth.rgba.length)
     throw new Error(`image of ${image.length} bytes, the truth holds ${truth.rgba.length}`);
@@ -191,7 +193,7 @@ export function truthGap(image: ArrayLike<number>, truth: Truth, levels = 1): Tr
     for (let k = 0; k < 3; k++)
       most = Math.max(most, Math.abs(image[pixel * 4 + k] - truth.rgba[pixel * 4 + k]));
     gap.max = Math.max(gap.max, most);
-    if (most > levels) gap.pixels++;
+    if (most > 1) gap.pixels++;
   }
   return gap;
 }
