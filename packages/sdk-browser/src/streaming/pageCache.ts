@@ -115,7 +115,9 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       pages.delete(url);
       pages.set(url, array);
       bytes += array.byteLength;
+      // Other bytes with no identity are no file read under it: the next session drops them.
       if (identity) identities.set(url, identity);
+      else if (held !== array) identities.delete(url);
     },
     drop,
     /** Drops every page read as another file than the one `catalog` names at its url under
