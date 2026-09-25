@@ -12,6 +12,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
+import { attachedPages } from '../../placement/autonomousPlacements.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -23,7 +24,11 @@ type InstanceEnvironment = {
   byUrl: Map<string, PageRec[]>;
   baseMaterials: Map<PageRec, HostMaterials>;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
-  cap: number;
+  /** The host's page ceiling, `Infinity` when it set none: the root cover an instance grows
+   *  past it is refused by name. */
+  hostCeiling: number;
+  /** The display meshes the root cover hangs now (`heldFloor.ts`). */
+  coverMeshes: () => number;
   /** Notified by every entry point that writes the scene: that is where the origin is. */
   sceneChanged: () => void;
   /** Notified when an instance adds or removes the copies of its root cover. */
@@ -41,7 +46,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     byUrl,
     baseMaterials,
     geometryStore,
-    cap,
+    hostCeiling,
+    coverMeshes,
     sceneChanged,
     coverChanged,
   } = env;
@@ -74,7 +80,9 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     addInstance(id: string, transform: Float64Array) {
       sceneChanged();
       if (instances.has(id) || !id) throw new Error('AUTONOMOUS_INSTANCE_ID');
-      if (bootstrap.length + baseBootstrap.length > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      // Without a host ceiling the cover is always drawn: nothing is counted.
+      if (hostCeiling < Infinity && coverMeshes() + attachedPages(baseBootstrap) > hostCeiling)
+        throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const mapped = new Map<PageRec, PageRec>();
       for (const base of basePages) {
         // A record rows place shares the page's geometry, as the store gives it (`geometry.ts`):
