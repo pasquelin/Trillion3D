@@ -1,7 +1,7 @@
 // #198: the occluder history is established by the partition alone, and the partition runs only on
 // opaque rows. A view with none — blend clusters alone, the sky — never cleared the bit and never
 // held its frame. It no longer counts there, and still counts as soon as a row is packed. The row
-// change flag was consumed by the opaque path alone as well: the empty path now consumes it.
+// change flag was consumed by the opaque path alone as well: every submitted image now does.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { unsettledMask, unsettledReasons } from './hold.ts';
