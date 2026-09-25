@@ -59,10 +59,7 @@ test('the published campaign has every image it references, each stored once', (
   for (const { image } of report.records as { image: string | null }[])
     if (image) assert.ok(existsSync(join(reports, id, image)), image);
   const images = join(reports, id, 'images');
-  const hashes = readdirSync(images).map((file) =>
-    createHash('sha256')
-      .update(readFileSync(join(images, file)))
-      .digest('hex'),
-  );
+  const hash = (file: string) => createHash('sha256').update(readFileSync(join(images, file)));
+  const hashes = readdirSync(images).map((file) => hash(file).digest('hex'));
   assert.equal(new Set(hashes).size, hashes.length, 'two images are byte-identical');
 });
