@@ -9526,6 +9526,11 @@
         "desc": "Whether the body is decorative debris."
       },
       {
+        "name": "damping",
+        "type": "{ readonly linear: number; readonly angular: number; }",
+        "desc": "The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`)."
+      },
+      {
         "name": "velocity",
         "type": "Vector3",
         "desc": "Linear velocity, m/s, as the last step left it; write it to launch the body."
@@ -11134,6 +11139,11 @@
         "name": "restitution?",
         "type": "number | undefined",
         "desc": "Overrides the material's restitution (bounciness), 0 to 1."
+      },
+      {
+        "name": "damping?",
+        "type": "{ linear?: number; angular?: number; } | undefined",
+        "desc": "How much of its speed the body loses by itself, per second, as air and rolling do: `dv/dt = −c·v`, 0 and up, linear and angular apart; 0 keeps every bit. Set when the body is made: set `obj.physics` again to change it."
       }
     ],
     "description": ""
@@ -17769,7 +17779,7 @@
       {
         "name": "options.clutch?",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "options.suspensionFrequency?",
@@ -17784,17 +17794,17 @@
       {
         "name": "options.suspensionTravel?",
         "type": "number",
-        "desc": "Wheel travel from full droop to full bump, m."
+        "desc": "Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump stops."
       },
       {
         "name": "options.antiRoll?",
         "type": "number",
-        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only, refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels carry no bars)."
       },
       {
         "name": "options.turnRadius?",
         "type": "number",
-        "desc": "The full-lock turning radius, m."
+        "desc": "The full-lock turning radius, m; refused on a tracked vehicle, which steers by its tracks."
       },
       {
         "name": "options.steerTime?",
@@ -17809,17 +17819,17 @@
       {
         "name": "options.drive?",
         "type": "'front' | 'all' | 'rear'",
-        "desc": "A car's driven wheels."
+        "desc": "A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked vehicle (the rearmost wheel of each track drives)."
       },
       {
         "name": "options.trackTurn?",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a motorcycle."
       },
       {
         "name": "options.maxLean?",
         "type": "number",
-        "desc": "A motorcycle's greatest lean, radians."
+        "desc": "A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle."
       }
     ],
     "members": [
@@ -18009,7 +18019,7 @@
       {
         "name": "clutch",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "suspensionFrequency",
@@ -18024,17 +18034,17 @@
       {
         "name": "suspensionTravel",
         "type": "number",
-        "desc": "Wheel travel from full droop to full bump, m."
+        "desc": "Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump stops."
       },
       {
         "name": "antiRoll",
         "type": "number",
-        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only, refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels carry no bars)."
       },
       {
         "name": "turnRadius",
         "type": "number",
-        "desc": "The full-lock turning radius, m."
+        "desc": "The full-lock turning radius, m; refused on a tracked vehicle, which steers by its tracks."
       },
       {
         "name": "steerTime",
@@ -18049,17 +18059,17 @@
       {
         "name": "drive",
         "type": "'front' | 'all' | 'rear'",
-        "desc": "A car's driven wheels."
+        "desc": "A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked vehicle (the rearmost wheel of each track drives)."
       },
       {
         "name": "trackTurn",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a motorcycle."
       },
       {
         "name": "maxLean",
         "type": "number",
-        "desc": "A motorcycle's greatest lean, radians."
+        "desc": "A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle."
       }
     ],
     "description": ""

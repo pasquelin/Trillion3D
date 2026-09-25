@@ -6974,6 +6974,7 @@
       "sensor": "Se il corpo segnala solo i contatti.",
       "ccd": "Se la collisione continua è attiva.",
       "decorative": "Se il corpo è un detrito decorativo.",
+      "damping": "La quota della sua velocità persa da sé ogni secondo, lineare e angolare (`dv/dt = −c·v`).",
       "velocity": "Velocità lineare, m/s, come l’ha lasciata l’ultimo passo; scrivila per lanciare il corpo.",
       "asleep": "Se il corpo dorme: fermo, e non più simulato finché qualcosa non lo sveglia.",
       "mass": "Massa in chilogrammi; `undefined` prende la densità del materiale per il volume.",
@@ -7008,7 +7009,8 @@
       "ccd": "Collisione continua, per corpi piccoli e veloci che attraverserebbero pareti sottili.",
       "decorative": "Detriti: incontra solo il mondo statico ed è simulato solo a portata e in vista. Limitato da `budget.physics.decorative`.",
       "friction": "Sostituisce l’attrito del materiale, da 0 in su.",
-      "restitution": "Sostituisce il rimbalzo del materiale, da 0 a 1."
+      "restitution": "Sostituisce il rimbalzo del materiale, da 0 a 1.",
+      "damping": "Quanta velocità il corpo perde da sé, al secondo, come per l’aria e il rotolamento: `dv/dt = −c·v`, 0 o più, lineare e angolare a parte; 0 conserva tutto. Fissato alla creazione: riassegna `obj.physics` per cambiarlo."
     }
   },
   "PhysicsBudget": {
@@ -7418,17 +7420,17 @@
       "options.finalDrive": "Il rapporto al ponte (la riduzione alla ruota motrice di un cingolato).",
       "options.shiftUpRPM": "Il cambio sale di marcia oltre questo valore, in giri/min.",
       "options.shiftDownRPM": "E scala sotto questo valore, in giri/min.",
-      "options.clutch": "Coppia della frizione per rad/s di slittamento, in N·m·s.",
+      "options.clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i cingoli senza frizione (il controller cingolato di Jolt).",
       "options.suspensionFrequency": "Frequenza delle sospensioni, in Hz.",
       "options.suspensionDamping": "Rapporto di smorzamento, da 0 (nessuno) a 1 (critico).",
-      "options.suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, in metri.",
-      "options.antiRoll": "La rigidezza di ogni barra antirollio rispetto alle molle del suo asse; 0 è nessuna.",
-      "options.turnRadius": "Il raggio di sterzata a fine corsa, in metri.",
+      "options.suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, m; più lunga dell'abbassamento che la frequenza delle sospensioni chiede sulla Terra, `9.81 / (2π suspensionFrequency)²`, altrimenti rifiutata: oltre, la scocca poggia sui tamponi.",
+      "options.antiRoll": "La rigidezza di ogni barra antirollio rispetto alle molle del suo asse; 0 è nessuna. Solo auto: rifiutato su una moto (le sue due ruote non condividono un asse) e su un veicolo cingolato (le sue ruote non portano barre).",
+      "options.turnRadius": "Il raggio di sterzata a fine corsa, in metri. Rifiutato su un veicolo cingolato, che sterza con i cingoli.",
       "options.steerTime": "Secondi dal centro al fine corsa dello sterzo.",
       "options.brakeGrip": "L'attrito a cui i freni bloccano le ruote.",
-      "options.drive": "Le ruote motrici di un'auto.",
-      "options.trackTurn": "La velocità del cingolo interno di un veicolo cingolato in curva, rispetto a quello esterno.",
-      "options.maxLean": "La piega massima di una moto, in radianti."
+      "options.drive": "Le ruote motrici di un'auto. Rifiutato su una moto (la ruota posteriore è motrice) e su un veicolo cingolato (la ruota più arretrata di ogni cingolo è motrice).",
+      "options.trackTurn": "La velocità del cingolo interno di un veicolo cingolato che sterza in movimento, rispetto a quello esterno; da fermo ruota sul posto, cingolo interno invertito, qualunque sia questo rapporto. Rifiutato su un’auto o una moto.",
+      "options.maxLean": "La piega massima di una moto, in radianti. Rifiutato su un’auto o un veicolo cingolato."
     },
     "members": {
       "kind": "Che cos'è il veicolo.",
@@ -7463,17 +7465,17 @@
       "finalDrive": "Il rapporto al ponte (la riduzione alla ruota motrice di un cingolato).",
       "shiftUpRPM": "Il cambio sale di marcia oltre questo valore, in giri/min.",
       "shiftDownRPM": "E scala sotto questo valore, in giri/min.",
-      "clutch": "Coppia della frizione per rad/s di slittamento, in N·m·s.",
+      "clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i cingoli senza frizione (il controller cingolato di Jolt).",
       "suspensionFrequency": "Frequenza delle sospensioni, in Hz.",
       "suspensionDamping": "Rapporto di smorzamento, da 0 (nessuno) a 1 (critico).",
-      "suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, in metri.",
-      "antiRoll": "La rigidezza di ogni barra antirollio rispetto alle molle del suo asse; 0 è nessuna.",
-      "turnRadius": "Il raggio di sterzata a fine corsa, in metri.",
+      "suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, m; più lunga dell'abbassamento che la frequenza delle sospensioni chiede sulla Terra, `9.81 / (2π suspensionFrequency)²`, altrimenti rifiutata: oltre, la scocca poggia sui tamponi.",
+      "antiRoll": "La rigidezza di ogni barra antirollio rispetto alle molle del suo asse; 0 è nessuna. Solo auto: rifiutato su una moto (le sue due ruote non condividono un asse) e su un veicolo cingolato (le sue ruote non portano barre).",
+      "turnRadius": "Il raggio di sterzata a fine corsa, in metri. Rifiutato su un veicolo cingolato, che sterza con i cingoli.",
       "steerTime": "Secondi dal centro al fine corsa dello sterzo.",
       "brakeGrip": "L'attrito a cui i freni bloccano le ruote.",
-      "drive": "Le ruote motrici di un'auto.",
-      "trackTurn": "La velocità del cingolo interno di un veicolo cingolato in curva, rispetto a quello esterno.",
-      "maxLean": "La piega massima di una moto, in radianti."
+      "drive": "Le ruote motrici di un'auto. Rifiutato su una moto (la ruota posteriore è motrice) e su un veicolo cingolato (la ruota più arretrata di ogni cingolo è motrice).",
+      "trackTurn": "La velocità del cingolo interno di un veicolo cingolato che sterza in movimento, rispetto a quello esterno; da fermo ruota sul posto, cingolo interno invertito, qualunque sia questo rapporto. Rifiutato su un’auto o una moto.",
+      "maxLean": "La piega massima di una moto, in radianti. Rifiutato su un’auto o un veicolo cingolato."
     }
   },
   "VehicleSpecs": {

@@ -3,8 +3,16 @@ import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.t
 import { pageAddress } from './pageSlots.ts';
 import { createDirtyRows } from './dirty.ts';
 
-/** Stable row and residency arrays shared by the cut, visibility pass, and cache journal. */
-export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) {
+/**
+ * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
+ *
+ * The table holds `drawSlots` visibility rows, then `blendSlots` rows the shadow pass alone reads:
+ * the blended clusters that cast (`blendCasters.ts`). A visibility pass reads `[0, packedCount)`
+ * and never reaches them; the per-row arrays the shadow pass reads — record, catalogue page,
+ * dirty marks — span both.
+ */
+export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, blendSlots = 0) {
+  const casterSlots = drawSlots + blendSlots;
   const residentFlags = new Uint32Array(packedPages.length);
   // Packed ranks by pool ADDRESS: that is the key the cache names when a slot moves, and several
   // placements of one cluster share it.
@@ -25,18 +33,20 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   const rowPageIndex = new Int32Array(drawSlots).fill(-1);
   const rowOffsetWords = new Int32Array(drawSlots).fill(-1);
   const rowEpoch = new Int32Array(drawSlots);
-  const packedPageIndex = new Int32Array(drawSlots);
+  const packedPageIndex = new Int32Array(casterSlots);
   const newRowPage = new Int32Array(drawSlots);
   const newRowSource = new Int32Array(drawSlots);
   const rowOfPage = new Int32Array(packedPages.length).fill(-1);
   const rowRewrites = new Int32Array(drawSlots);
-  const packedRecs: Array<PageRec | undefined> = new Array(drawSlots).fill(undefined);
+  const packedRecs: Array<PageRec | undefined> = new Array(casterSlots).fill(undefined);
+  /** Per catalogue page, the shadow-only row a blended cluster casts from, or -1. */
+  const blendRowOf = new Int32Array(packedPages.length).fill(-1);
   const packedPositions: Array<GPUBuffer | undefined> = new Array(drawSlots).fill(undefined);
   const pagePositions: Array<GPUBuffer | undefined> = new Array(packedPages.length).fill(undefined);
   let rowCount = 0,
     tableEpoch = 1,
     rowsEpoch = 0;
-  const dirtyRows = createDirtyRows(drawSlots);
+  const dirtyRows = createDirtyRows(casterSlots);
   let candidateCount = 0,
     candidateOverflow = 0;
   /**
@@ -51,6 +61,10 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
 
   return {
     ...journal,
+    /** First shadow-only row, and the end of the table: `[drawSlots, casterSlots)`. */
+    blendFirst: drawSlots,
+    casterSlots,
+    blendRowOf,
     residentFlags,
     pageIndicesByUrl,
     pageIndexOf,

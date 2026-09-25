@@ -24,14 +24,19 @@
  *   of the redline when the power peaks there (the turbine), since the governor stops the engine
  *   at it; and down below the speed the largest ratio step lands at, less a tenth, so a shift
  *   never hunts back. Jolt shifts up only while no driven wheel spins.
- * - CLUTCH, Jolt's own sample values: 10 for the car and the tracked hull, 2 for the motorcycle.
+ * - CLUTCH, Jolt's own sample values: 10 for the car, 2 for the motorcycle. A tracked hull has
+ *   none: Jolt's tracked controller couples its engine to the tracks without reading one.
+ * - AN OPTION A KIND NEVER READS is refused on it (`vehicle.ts` IGNORED), never silently dropped:
+ *   a tracked vehicle's clutch, drive, turnRadius, antiRoll and maxLean; a motorcycle's drive,
+ *   trackTurn and antiRoll; a car's trackTurn and maxLean.
  * - SUSPENSION: ride frequencies of 1.5 Hz for a sports car, 2 Hz for a motorcycle, 1 Hz for a
  *   heavy tracked hull; a damping ratio of 0.5, between ride comfort's 0.25 and the 0.7 of a race
  *   car (Milliken and Milliken, "Race Car Vehicle Dynamics", 1995). Wheel travel 0.2 m for a car
  *   (150 to 250 mm), 0.13 m for a motorcycle's fork, 0.3 m for a tracked hull's torsion bars.
  *   Jolt makes each spring as stiff as its frequency asks of the body's mass felt at that wheel,
  *   and the suspension is hung so that under the body's weight each wheel rests where the page
- *   placed it.
+ *   placed it. A travel within the sag its frequency asks, `g / (2π f)²` (the textbook static
+ *   deflection), is refused: the wheel would rest past full bump, the body on its bump stops.
  * - ANTI-ROLL 1: a road car's bars range from a third of its axle's spring stiffness to twice it
  *   (Gillespie, "Fundamentals of Vehicle Dynamics", 1992); a bar as stiff as its springs is within
  *   it. Each bar pushes with that stiffness in N/m (`vehicles.cpp` setBars). Sensitivity, on the
@@ -74,18 +79,33 @@ export interface VehicleSpec {
   /** The final drive's ratio (a tracked vehicle's sprocket reduction). */ finalDrive: number;
   /** The gearbox shifts up past this, rpm. */ shiftUpRPM: number;
   /** And down below this, rpm. */ shiftDownRPM: number;
-  /** Clutch torque per rad/s of slip, N·m·s. */ clutch: number;
+  /** Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked
+   *  vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller). */
+  clutch: number;
   /** Ride frequency, Hz. */ suspensionFrequency: number;
   /** Damping ratio, 0 (none) to 1 (critical). */ suspensionDamping: number;
-  /** Wheel travel from full droop to full bump, m. */ suspensionTravel: number;
-  /** Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. */
+  /** Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on
+   *  Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump
+   *  stops. */
+  suspensionTravel: number;
+  /** Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only,
+   *  refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels
+   *  carry no bars). */
   antiRoll: number;
-  /** The full-lock turning radius, m. */ turnRadius: number;
+  /** The full-lock turning radius, m; refused on a tracked vehicle, which steers by its
+   *  tracks. */
+  turnRadius: number;
   /** Seconds from centre to full lock. */ steerTime: number;
   /** The friction the brakes lock the wheels at. */ brakeGrip: number;
-  /** A car's driven wheels. */ drive: 'front' | 'rear' | 'all';
-  /** A tracked vehicle's inner track speed while steering, over the outer's. */ trackTurn: number;
-  /** A motorcycle's greatest lean, radians. */ maxLean: number;
+  /** A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked
+   *  vehicle (the rearmost wheel of each track drives). */
+  drive: 'front' | 'rear' | 'all';
+  /** A tracked vehicle's inner track speed while steering on the move, over the outer's; at a
+   *  standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a
+   *  motorcycle. */
+  trackTurn: number;
+  /** A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle. */
+  maxLean: number;
 }
 
 /** The shift points of a gearbox (see SHIFTS). */
