@@ -368,6 +368,7 @@
       "top": "Ortografik kutunun üst kenarı.",
       "bottom": "Ortografik kutunun alt kenarı.",
       "projection": "`'perspective'` uzak şeyleri küçük yapar; `'orthographic'` her boyutu korur.",
+      "copy": "`source` düğüm değerlerini ve, bir kameradan, optiğini alır; kendi `projection` değeri kalır.",
       "updateProjectionMatrix": "Buna ihtiyaç duyan bir render motoruna karşı yazılmış sayfalar için tutulur: her optik yazma zaten yeniden çizer.",
       "rayThrough": "Resmin bir noktasından geçen dünya ışını, motorun kendi izdüşümünde (`engineCamera.ts`): perspektif kamerada gözden bakış yönünde, ortografik kamerada kutudan dümdüz bakış yönünde. Yönü birim vektördür.",
       "set": "Gözü `pose.position`'a koyar, adlandırdığı alanda `pose.target`'a bakacak şekilde."
@@ -1592,6 +1593,7 @@
       "height": "Bir dikdörtgen ışığın yüksekliği.",
       "radius": "Yayan kürenin yarıçapı; motorun deposunda `emitterRadius`.",
       "kind": "Bunun ne tür bir ışık olduğu: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "`source` düğüm değerlerini ve, bir ışıktan, sayılarını, renklerini, katsayılarını ve hedefini alır; kendi `kind` değeri kalır.",
       "needsUpdate": "`sh`'yi yerinde yazdıktan sonra `light.needsUpdate = true`: dünya onu yeniden okur.",
       "lookAt": "Işığı bir dünya noktasına hedefler: bir yönlü ya da spot ışık `target`'ını oraya taşır — yönü ondan okunur —, ve düğüm de döner, bu bir dikdörtgenin baktığı yöndür."
     }

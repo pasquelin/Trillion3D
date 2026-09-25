@@ -644,6 +644,7 @@
       "top": "Oberer Rand der orthografischen Box.",
       "bottom": "Unterer Rand der orthografischen Box.",
       "projection": "`'perspective'` macht Fernes klein; `'orthographic'` behält alle Größen.",
+      "copy": "Übernimmt die Knotenwerte von `source` und, von einer Kamera, ihre Optik; die eigene `projection` bleibt.",
       "updateProjectionMatrix": "Für Seiten erhalten, die für ein Rendering-Backend geschrieben wurden, das sie braucht: jeder Optik-Schreibvorgang zeichnet bereits neu.",
       "rayThrough": "Der Weltstrahl durch einen Punkt des Bildes, in der eigenen Projektion der Engine (`engineCamera.ts`): vom Auge entlang der Blickrichtung bei einer perspektivischen Kamera, gerade in Blickrichtung aus dem Quader bei einer orthografischen. Seine Richtung ist ein Einheitsvektor.",
       "set": "Platziert das Auge bei `pose.position`, das zu `pose.target` schaut, mit dem angegebenen Sichtfeld."
@@ -2716,6 +2717,7 @@
       "height": "Höhe eines rechteckigen Lichts.",
       "radius": "Radius der strahlenden Kugel; `emitterRadius` in der Speicherung der Engine.",
       "kind": "Welche Art von Licht es ist: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Übernimmt die Knotenwerte von `source` und, von einem Licht, seine Zahlen, Farben, Koeffizienten und Ausrichtung; die eigene `kind` bleibt.",
       "needsUpdate": "`light.needsUpdate = true`, nachdem `sh` an Ort und Stelle geschrieben wurde: die Welt liest es erneut.",
       "lookAt": "Zielt mit dem Licht auf einen Weltpunkt: ein Richtungslicht oder ein Spot verschiebt dorthin sein `target` — seine Richtung ergibt sich daraus —, und der Knoten dreht sich ebenfalls, was ein Rechteck ausrichtet."
     }

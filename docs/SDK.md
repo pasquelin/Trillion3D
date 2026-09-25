@@ -628,8 +628,12 @@ creation number.
 `Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
 pose, matrices, flags and `userData`, and a `clone` of each child unless `recursive` is `false`;
 `copy(source, recursive)` writes the same values into an existing node. A class whose constructor
-takes arguments says how an empty one is made (`blank`). `cloneObject` stays the deep copy: it
-shares nothing with the source, a mesh's geometry and materials included. The former aliases of the node, `HostNode`,
+takes arguments says how an empty one is made (`blank`). A `Light` also keeps its colours,
+intensity, range, cone, coefficients and target; a `Camera` its optics (`fov`, `near`, `far`,
+`aspect`, `zoom` and the orthographic box); a `Mesh` its primitive, and shares its geometry and
+material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPPORTED_SCENE_UPDATE`.
+`cloneObject` stays the deep copy: it shares nothing with the source, a mesh's geometry and
+materials included. The former aliases of the node, `HostNode`,
 `HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
 
 ## Batch math for hosts
