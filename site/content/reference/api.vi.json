@@ -273,7 +273,7 @@
     "summary": "Khoảng thời gian gia hạn giữa một yêu cầu hủy hợp tác trên stdin và việc buộc dừng."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm; các tệp kê khai nguồn giữ định dạng riêng của chúng."
+    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm (là 6 trước khi `selectedNodes` trở thành một số đếm); các tệp kê khai nguồn giữ định dạng riêng của chúng."
   },
   "COLUMN_KIND": {
     "summary": "Cách mỗi cột của tệp kê khai nhị phân được lưu trữ: số thập phân, số nguyên hay byte.",
@@ -989,7 +989,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Định dạng bộ nhớ đệm mà thời gian chạy này đọc.",
-    "description": "Định dạng 5 mang theo `scene-tables.json`, các bảng node và vật liệu mà cảnh đã chuẩn bị được đối chiếu với; định dạng 3 và 4 không có sản phẩm như vậy và bị từ chối theo đúng số hiệu của chúng thay vì đọc dở dang."
+    "description": "Định dạng 5 đã thêm `scene-tables.json`, các bảng node và vật liệu mà cảnh đã chuẩn bị được đối chiếu với; định dạng 7 mang `selectedNodes` dưới dạng số đếm, không phải danh sách (#404). Các định dạng cũ hơn bị từ chối theo số hiệu của chúng thay vì đọc dở dang."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Số lượng số thực cho sáu mặt phẳng của một khối nhìn."
