@@ -3,6 +3,7 @@ import { listen } from '../world/math/observed.ts';
 import type { Object3D } from '../world/object/object3d.ts';
 import { DAMPING } from './layout.ts';
 import type { PhysicsBodyOptions, PhysicsOption, PhysicsShape, PhysicsType } from './options.ts';
+import { softOf, type SoftBodyType, type SoftSettings } from './soft.ts';
 
 /** What a contact hands its listeners: the other object, the impulse and where it touched. */
 export interface ContactEvent {
@@ -39,7 +40,10 @@ export interface PhysicsHost {
  * and does. Writes reach the simulation at the next step; `velocity` reads what the last step left.
  */
 export class ObjectPhysics {
-  /** How the body moves; set `obj.physics` again to change it. */ readonly type: PhysicsType;
+  /** How the body moves, or the soft body it is; set `obj.physics` again to change it. */
+  readonly type: PhysicsType | SoftBodyType;
+  /** A soft body's settings, every default filled; `null` for a rigid body. */
+  readonly soft: Readonly<SoftSettings> | null;
   /** The declared shape, when one was. */ readonly shape?: PhysicsShape;
   /** Whether the body only reports contacts. */ readonly sensor: boolean;
   /** Whether continuous collision is on. */ readonly ccd: boolean;
@@ -64,10 +68,16 @@ export class ObjectPhysics {
     /** Six numbers per slot: the linear velocity, then the angular one. */ velocity: Float32Array;
     /** The tick that last wrote each slot, from 1. */ stamp: Uint32Array;
   } | null = null;
+  /** A soft body's vertices as the last tick left them, `x, y, z` per geometry vertex in the
+   *  geometry's own frame; `null` for a rigid body and until its first tick. */
+  vertices: Float32Array | null = null;
 
   constructor(option: PhysicsOption) {
-    const o: PhysicsBodyOptions = typeof option === 'string' ? { type: option } : option;
-    this.type = o.type ?? 'dynamic';
+    this.soft = softOf(option);
+    const o = (
+      typeof option === 'string' ? { type: option } : this.soft ? {} : option
+    ) as PhysicsBodyOptions;
+    this.type = this.soft?.type ?? o.type ?? 'dynamic';
     this.shape = o.shape;
     this.sensor = o.sensor ?? false;
     this.ccd = o.ccd ?? false;
