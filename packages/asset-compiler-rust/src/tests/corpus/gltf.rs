@@ -141,7 +141,7 @@ pub(super) fn write(case: &Case) -> Written {
         gltf["extensionsUsed"] = json!(["KHR_mesh_quantization"]);
         gltf["extensionsRequired"] = json!(["KHR_mesh_quantization"]);
     }
-    let (root, options) = gltf_fixture(case.name, &gltf, &buffer.bin, case.indices.len() / 3);
+    let (root, options) = gltf_fixture(case.name, &gltf, &buffer.bin);
     Written {
         root,
         options,

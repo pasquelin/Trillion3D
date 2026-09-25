@@ -14581,9 +14581,14 @@
         "desc": "Target bundle size."
       },
       {
+        "name": "dependencyBound",
+        "type": "number",
+        "desc": "Most bundles holding the parents of one bundle's clusters, fixed before packing."
+      },
+      {
         "name": "maxDependencies",
         "type": "number",
-        "desc": "Largest dependency count of a bundle: the bound the compiler publishes."
+        "desc": "Longest closed dependency list of a bundle."
       },
       {
         "name": "pages",
@@ -15187,9 +15192,14 @@
         "desc": "Target bundle size."
       },
       {
+        "name": "dependencyBound",
+        "type": "number",
+        "desc": "Most bundles holding the parents of one bundle's clusters, fixed before packing."
+      },
+      {
         "name": "maxDependencies",
         "type": "number",
-        "desc": "Largest dependency count of a bundle, as the compiler published it."
+        "desc": "Longest closed dependency list of a bundle, as the compiler published it."
       },
       {
         "name": "pages",
