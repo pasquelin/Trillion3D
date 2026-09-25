@@ -6906,7 +6906,8 @@
       "recipe": "O membro da família e cada argumento com que ela foi construída.",
       "attributes": "Cada lista por vértice, quando nenhuma chamada reconstrói a forma.",
       "index": "Quais vértices formam cada triângulo.",
-      "groups": "Intervalos de índices desenhados cada um com um material."
+      "groups": "Intervalos de índices desenhados cada um com um material.",
+      "owner": "`'host'` para os vértices de uma cena carregada, lidos pelo seu valor (`Geometry._owner`); ausente para os do mundo."
     }
   },
   "SavedMaterial": {
