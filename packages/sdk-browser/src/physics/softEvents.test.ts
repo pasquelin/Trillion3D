@@ -39,10 +39,11 @@ test('a soft body that wants events hears the floor it lands on, once, and keeps
   const enter = until(jolt, EVENT.begin, CLOTH, FLOOR);
   assert.ok(enter, 'it lands: an enter');
   assert.ok(enter[3] > 0.2 * 3, `the impulse of 0.2 kg landing at 4 m/s: ${enter[3]} N·s`);
-  let events = 0;
-  while (jolt.active() > 0) events += step(jolt).length;
-  jolt.step(null, 1 / 60);
-  assert.equal(events, 0, 'resting, then asleep on the floor: no enter again, no leave');
+  let sent = 0;
+  for (let s = 0; s < 1800 && jolt.active() > 0; s++) sent += step(jolt).length;
+  assert.equal(jolt.active(), 0, 'asleep');
+  sent += step(jolt).length;
+  assert.equal(sent, 0, 'resting, then asleep on the floor: no enter again, no leave');
   const quiet = await softWorld();
   flatCloth(quiet, 1, [], false);
   assert.equal(until(quiet, EVENT.begin, CLOTH, FLOOR), null, 'no events wanted, none sent');
@@ -71,7 +72,7 @@ test('a soft body removed while it touches sends its leave, and a sensor lets it
   const writer = new CommandWriter();
   writer.remove(1);
   assert.ok(
-    step(jolt, writer.take()).some((e) => e[0] === EVENT.end),
+    step(jolt, writer.take()).some((e) => e[0] === EVENT.end && e[1] + e[2] === CLOTH + BOX),
     'removed, its leave is sent',
   );
   // A sensor box across the cloth's fall: an enter with no impulse, and the cloth reaches the floor.
