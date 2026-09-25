@@ -1,3 +1,5 @@
+import { ASKED_PRIORITY_BITS } from '../askedStamp.ts';
+
 /**
  * SNAPSHOT write: what the GPU reports to the CPU, and the ceiling that bounds it.
  *
@@ -18,14 +20,20 @@
  * batch appends to one list (`VIEW_APPEND`) as long as the catalogue, and the same caster asked by
  * each sun level and each batch filled it with repeats, so a late batch's own casters fell past it
  * (`LIST_FULL`) and its coarse pages were drawn again every frame without ever being asked for.
- * Each page keeps its best priority of the frame, plus one (`askedWord`): zero is "not asked yet",
- * even for page zero at priority zero, whose request word is zero. The first view to raise it from
- * zero lists the page, and once the frame's cuts are done `dagAskedBest` writes the request at that
- * best priority over its entry — the highest any view gave it, whatever view won the race.
+ * Each page keeps the frame's stamp and its best priority plus one (`askedWord`, `../askedStamp.ts`):
+ * the view whose `atomicMax` finds an earlier frame's stamp there lists the page — an earlier stamp
+ * is smaller, so it always loses, and nothing is cleared between frames —, and once the frame's cuts
+ * are done `dagAskedBest` writes the request at that best priority over its entry: the highest any
+ * view gave it, whatever view won the race. Page zero at priority zero, whose request word is zero,
+ * is marked too: the mark is the priority plus one.
  */
-export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
+export const DAG_RELEVE_WGSL = `const ASKED_BITS:u32=${ASKED_PRIORITY_BITS}u;
+fn emitOne(page:u32,pixels:f32){
  let priority=quantizePriority(pixels);
- if(isLightCut()&&atomicMax(&work[askedWord(page)],priority+1u)!=0u){return;}
+ if(isLightCut()){
+  let stamp=atomicLoad(&work[askedStamp()]);
+  if((atomicMax(&work[askedWord(page)],(stamp<<ASKED_BITS)|(priority+1u))>>ASKED_BITS)==stamp){return;}
+ }
  emitWord(page,priority,true);
 }
 /** After a frame's last light cut: each listed page at the best request its views made of it. */
@@ -33,7 +41,7 @@ export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
 fn dagAskedBest(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=min(atomicLoad(&out.count),views[0u].listCap)){return;}
  let page=requestPage(out.pages[s]);
- out.pages[s]=packRequest(page,atomicLoad(&work[askedWord(page)])-1u);
+ out.pages[s]=packRequest(page,(atomicLoad(&work[askedWord(page)])&((1u<<ASKED_BITS)-1u))-1u);
 }
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
 fn emitWord(page:u32,priority:u32,declare:bool){

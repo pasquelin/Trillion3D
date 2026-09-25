@@ -5,6 +5,7 @@ import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { encodeAskedBest, encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { selectionListCap } from './layout.ts';
+import { createAskedStamp } from './askedStamp.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
@@ -124,6 +125,8 @@ export function createDagLightCut(resources: DagResources) {
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
   /** A cut ran since the requests were last copied: the next one appends to its list. */
   let listed = false;
+  const asked = createAskedStamp(),
+    stampWord = new Uint32Array(1);
   const reports = createLightCutReports(own, output, outputBytes);
   const redraws = createLightCutRedraws(own, output, capacity);
   return {
@@ -142,8 +145,14 @@ export function createDagLightCut(resources: DagResources) {
       count: number,
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
-      // The frame's first cut starts its list, and forgets what the last frame asked for.
-      if (!listed) encoder.clearBuffer(work, layout.askedAt * 4, pageCount * 4);
+      // The frame's first cut starts its list under a new stamp: what earlier frames asked for loses
+      // to it, and only a wrapped stamp clears the words (`askedStamp.ts`).
+      if (!listed) {
+        const { stamp, clear } = asked.next();
+        if (clear) encoder.clearBuffer(work, (layout.askedAt + 1) * 4, pageCount * 4);
+        stampWord[0] = stamp;
+        device.queue.writeBuffer(work, layout.askedAt * 4, stampWord);
+      }
       cutViews.count = light.views = count;
       cutViews.append = listed;
       listed = true;
