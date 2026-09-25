@@ -295,7 +295,7 @@
     "summary": "Periode tenggang antara permintaan pembatalan kooperatif di stdin dan penghentian paksa."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Format cache luar yang dibutuhkan untuk BLEND berkelompok; manifest sumber menyimpan formatnya sendiri."
+    "summary": "Format cache luar yang dibutuhkan untuk BLEND berkelompok (6 sebelum `selectedNodes` menjadi hitungan); manifest sumber menyimpan formatnya sendiri."
   },
   "COLUMN_KIND": {
     "summary": "Bagaimana setiap kolom manifest biner disimpan: desimal, bilangan bulat, atau byte.",
@@ -1038,7 +1038,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Format cache yang dibaca runtime ini.",
-    "description": "Format 5 membawa `scene-tables.json`, tabel node dan material tempat scene yang disiapkan diperiksa; format 3 dan 4 tidak punya produk seperti itu dan ditolak lewat nomornya, bukan dibaca separuh."
+    "description": "Format 5 menambahkan `scene-tables.json`, tabel node dan material tempat scene yang disiapkan diperiksa; format 7 membawa `selectedNodes` sebagai hitungan, bukan daftar (#404). Format yang lebih lama ditolak lewat nomornya, bukan dibaca separuh."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Jumlah float untuk keenam bidang sebuah frustum."
