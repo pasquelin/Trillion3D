@@ -153,3 +153,27 @@ fn a_cluster_whose_parents_exceed_a_forced_bound_is_refused_with_the_page_named(
     assert_eq!(error.code, "PAGE_DEPENDENCY_BOUND");
     assert!(error.message.contains("Page 3"), "{error}");
 }
+
+#[test]
+fn a_refusal_in_the_second_primitive_of_a_cook_names_its_mesh_and_primitive() {
+    // Page ids restart at 0 in every primitive: "Page 3" alone would name a page of each of them.
+    let (root, options) = fixture();
+    let mut gltf = read_gltf(&options);
+    let push = |list: &mut Value, item: Value| list.as_array_mut().expect("array").push(item);
+    push(
+        &mut gltf["accessors"],
+        json!({"bufferView":1,"componentType":5126,"type":"SCALAR","count":3}),
+    );
+    push(
+        &mut gltf["meshes"][0]["primitives"],
+        json!({"attributes":{"POSITION":0},"indices":2}),
+    );
+    write_gltf(&options, &gltf, None);
+    let error = compile(&options, |_| {}).expect_err("refused");
+    assert_eq!(error.code, "INVALID_GLTF");
+    assert!(
+        error.message.starts_with("glTF mesh 0 primitive 1: "),
+        "{error}"
+    );
+    fs::remove_dir_all(root).expect("cleanup");
+}
