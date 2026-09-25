@@ -1,6 +1,6 @@
 import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
-import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
+import { grantedAnisotropy, mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
@@ -11,7 +11,7 @@ import { WebglMipReducer } from './mips.ts';
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
  * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
- * alone. The placement is not uploaded here — the material binding uploads the UV matrix at every
+ * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The placement is not uploaded here — the material binding uploads the UV matrix at every
  * draw (`materialBinding.ts`).
  */
 type TextureRecord = {
@@ -100,14 +100,16 @@ export class WebglClusterTextures {
         gl.bindTexture(gl.TEXTURE_2D, record.texture);
       }
       const sampling = record.sampling !== texture.sampling,
+        // A sampling moved to a mip filter asks for the chain its picture was uploaded without.
+        chain = record.weighted === undefined && mipFiltered(texture.minFilter),
         rule = record.weighted !== undefined && record.weighted !== weighted;
       // `setSampler` and the chain write the ACTIVE unit's texture: select it even if bound there.
-      if (sampling || rule) gl.activeTexture(gl.TEXTURE0 + unit);
+      if (sampling || chain || rule) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
         this.setSampler(texture);
       }
-      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false);
+      if (chain || rule) this.mips.reduce(unit, record, (record.weighted = weighted), chain);
     }
     this.bound[unit] = record.texture;
   }
@@ -154,7 +156,7 @@ export class WebglClusterTextures {
       format,
     };
     const allocate = !inPlace || !held?.weighted;
-    if (texture.generateMipmaps)
+    if (mipFiltered(texture.minFilter))
       this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
