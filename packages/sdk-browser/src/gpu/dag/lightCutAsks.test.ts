@@ -6,21 +6,26 @@ import { lightCutFrame } from './lightCutFrame.fixture.ts';
 import { DAG_RELEVE_WGSL } from './shader/snapshotWgsl.ts';
 import { DAG_VIEWS_WGSL } from './shader/viewsWgsl.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
+import { ASKED_PRIORITY_BITS, ASKED_STAMP_MAX, createAskedStamp } from './askedStamp.ts';
 
 test('a light cut lists a caster once a frame, at its best request: the contract restated here', () => {
   for (const line of [
-    'if(isLightCut()&&atomicMax(&work[askedWord(page)],priority+1u)!=0u){return;}',
+    'let stamp=atomicLoad(&work[askedStamp()]);',
+    'if((atomicMax(&work[askedWord(page)],(stamp<<ASKED_BITS)|(priority+1u))>>ASKED_BITS)==stamp){return;}',
     'let s=id.x;if(s>=min(atomicLoad(&out.count),views[0u].listCap)){return;}',
-    'out.pages[s]=packRequest(page,atomicLoad(&work[askedWord(page)])-1u);',
+    'out.pages[s]=packRequest(page,(atomicLoad(&work[askedWord(page)])&((1u<<ASKED_BITS)-1u))-1u);',
+    `const ASKED_BITS:u32=${ASKED_PRIORITY_BITS}u;`,
   ])
     assert.ok(DAG_RELEVE_WGSL.includes(line), line);
-  // The words the frame's first cut clears are the words the kernel marks: behind `drawnGroupsMax`.
-  assert.ok(
-    DAG_VIEWS_WGSL.includes('fn askedWord(page:u32)->u32{return drawnGroupsMax()+1u+page;}'),
-  );
+  // The stamp the host writes and the words a wrap clears are the kernel's: behind `drawnGroupsMax`.
+  for (const line of [
+    'fn askedStamp()->u32{return drawnGroupsMax()+1u;}',
+    'fn askedWord(page:u32)->u32{return drawnGroupsMax()+2u+page;}',
+  ])
+    assert.ok(DAG_VIEWS_WGSL.includes(line), line);
   const layout = dagWorkLayout(3, 5, 7);
   assert.equal(layout.askedAt, layout.drawnGroupsMax + 1);
-  assert.equal(layout.words, layout.askedAt + 7);
+  assert.equal(layout.words, layout.askedAt + 1 + 7);
 });
 
 // Every sun level of every batch wants the casters that span the scene. Asked once a frame, they
@@ -60,4 +65,33 @@ test('page zero at priority zero is listed once a frame too', async () => {
   const { cut, frame } = lightCutFrame();
   await frame([4, 5, 6], new Set(), () => [[0, 0]]);
   assert.deepEqual(cut.reports.takeRequests(), [0], 'page zero, once');
+});
+
+// A frame's asks are told from the last frame's by the stamp alone: nothing clears the words between
+// two frames, and a word the last frame left, even at a higher priority, loses to this frame's (#525).
+test("a frame's asks do not see the previous frame's, with no clear between them", async () => {
+  const { cut, frame, words, askedAt } = lightCutFrame();
+  await frame([4], new Set(), () => [[3, 9]]);
+  cut.reports.takeRequests();
+  const left = words()[askedAt + 1 + 3];
+  assert.ok(left !== 0, 'the first frame left its word');
+  await frame([4], new Set(), () => [[3, 2]]);
+  assert.deepEqual(cut.reports.takeRequests(), [3], 'asked again, the next frame');
+  assert.equal(words()[askedAt + 1 + 3] & ((1 << ASKED_PRIORITY_BITS) - 1), 3, 'at its own best');
+});
+
+// The stamp counts frames up to its last value, then starts again: that frame alone clears the
+// words, once, since a word may still hold a larger stamp from before (`askedStamp.ts`).
+test('the stamp wraps once every ASKED_STAMP_MAX frames, and only the wrap clears the words', () => {
+  const asked = createAskedStamp();
+  let clears = 0,
+    last = 0;
+  for (let frame = 0; frame < ASKED_STAMP_MAX + 3; frame++) {
+    const { stamp, clear } = asked.next();
+    if (clear) clears++;
+    assert.ok(clear ? stamp === 1 && last === ASKED_STAMP_MAX : stamp === last + 1);
+    last = stamp;
+  }
+  assert.equal(clears, 1);
+  assert.ok((ASKED_STAMP_MAX << ASKED_PRIORITY_BITS) >>> 0 > 0, 'the largest stamp fits the word');
 });
