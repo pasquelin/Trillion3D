@@ -71,7 +71,7 @@ function scene(nombre: number) {
       range: 20,
       castsShadow: true,
     });
-  return { store, plan: createShadowPlan(nombre, shadowPoolSide(1280, 720)), frame: 0 };
+  return { store, plan: createShadowPlan(shadowPoolSide(1280, 720)), frame: 0 };
 }
 
 // Each frame, a node moves within lamp range: invalidation and admission work. A still
