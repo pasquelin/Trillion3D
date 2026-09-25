@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPageStreamer } from './pages.ts';
+import { createPageStreamerWith } from './pageStreamer.ts';
 import { createPageCache, manifestTableBytes } from './pageCache.ts';
 import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts';
 import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts';
@@ -10,7 +10,8 @@ import { servedPages } from './servedPages.fixture.ts';
 const TRANSFER = 64;
 
 const open = (pages: StreamPage[], cache: ReturnType<typeof createPageCache>) =>
-  createPageStreamer(
+  createPageStreamerWith(
+    cache,
     pages,
     'http://cache/',
     undefined,
@@ -19,7 +20,6 @@ const open = (pages: StreamPage[], cache: ReturnType<typeof createPageCache>) =>
     undefined,
     TRANSFER,
     undefined,
-    cache,
   );
 
 test('a session reopened after a device loss rebuilds the same cut, fetching nothing it held', async () => {
@@ -78,7 +78,8 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
   const reserved = manifestTableBytes(pages) + TRANSFER;
   const cache = createPageCache(reserved + 4 * 12);
   const evicted: string[] = [];
-  const streamer = createPageStreamer(
+  const streamer = createPageStreamerWith(
+    cache,
     pages,
     'http://cache/',
     undefined,
@@ -87,7 +88,6 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
     (url) => evicted.push(url),
     TRANSFER,
     undefined,
-    cache,
   );
   await streamer.request(urls);
   streamer.retain(['a.bin']);

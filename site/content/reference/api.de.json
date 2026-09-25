@@ -1146,7 +1146,7 @@
   },
   "createPageStreamer": {
     "summary": "Begrenzte Lesevorgänge, nach Priorität und ohne Duplikat.",
-    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt sowohl in Einträgen als auch in Bytes; angeheftete Einträge überleben die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Festhalten behält. Der Cache ist `kept`, wenn der Aufrufer einen übergibt (`pageCache.ts`): Der Streamer reserviert dann seine Manifest-Tabellen und seine Transfer-Warteschlange von der CPU-Summe des Caches, verwirft, was der Katalog nicht mehr in dieser Größe nennt, und lässt die Seiten beim Freigeben für die nächste Sitzung dort."
+    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt sowohl in Einträgen als auch in Bytes; angeheftete Einträge überleben die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Festhalten behält."
   },
   "createPathGovernor": {
     "summary": "Ein Regler."
@@ -4266,13 +4266,6 @@
   },
   "pageCarriesClusterError": {
     "summary": "Ein Cluster, der sein eigenes Fehlerband auf dem Bildschirm trägt, braucht keine Hierarchie: die Wahl ist ein flacher Test pro Seite."
-  },
-  "PageCacheHolder": {
-    "summary": "Der Anteil einer Sitzung am Cache: was sie vom Gesamtbudget reserviert und wie sie verdrängt — an ihren angehefteten Seiten und Übertragungen vorbei —, wenn das Gesamtbudget sinkt.",
-    "members": {
-      "reservedBytes": "Bytes, die die Sitzung vom Gesamtbudget reserviert: ihre Manifesttabellen und ihre Übertragungswarteschlange.",
-      "evict": "Verdrängt Seiten nach letzter Nutzung, bis sie passen, an den angehefteten Seiten und Übertragungen der Sitzung vorbei."
-    }
   },
   "PageCutPage": {
     "summary": "Eine von einem `cut` geschriebene Seite: ihre Index- und Geometriebytes, ihre Fingerabdrücke, und ihr Deskriptor.",

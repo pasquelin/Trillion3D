@@ -10195,29 +10195,6 @@
     "description": ""
   },
   {
-    "id": "PageCacheHolder",
-    "module": "packages/sdk-browser/src/streaming/pageCache.ts",
-    "exports": ["PageCacheHolder"],
-    "section": "types",
-    "kind": "Type",
-    "title": "PageCacheHolder",
-    "signature": "interface PageCacheHolder",
-    "summary": "A session's hold on the cache: what it reserves off the total, and how it evicts — past its pins and its transfers — when the total shrinks.",
-    "members": [
-      {
-        "name": "reservedBytes",
-        "type": "number",
-        "desc": "Bytes the session reserves off the total: its manifest tables and its transfer queue."
-      },
-      {
-        "name": "evict()",
-        "type": "void",
-        "desc": "Evicts pages by last use until they fit, past the session's pins and transfers."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "PageCutPage",
     "module": "packages/sdk-core/src/page/decodeContracts.ts",
     "exports": ["PageCutPage"],
@@ -23079,7 +23056,7 @@
     "section": "types",
     "kind": "Function",
     "title": "createPageStreamer()",
-    "signature": "createPageStreamer(pages: readonly StreamPage[], base: string, signal?: AbortSignal, workerCount?: number, maxPages?: number, onEvict?: (url: string) => void, maxTransferBytes?: number, onDiagnostic?: (diagnostic: BackendDiagnostic) => void, kept?: { pages: ReadonlyMap<string, Uint8Array>; readonly bytes: number; readonly cpuBytes: number; readonly reservedBytes: number; readonly budgetBytes: number; to...): { get(url: string): Uint32Array<ArrayBufferLike> | undefined; getBytes(url: string): Uint8Array<ArrayBufferLike> | undefined; has(url: string): boolean; load...",
+    "signature": "createPageStreamer(pages: readonly StreamPage[], base: string, signal?: AbortSignal, workerCount?: number, maxPages?: number, onEvict?: (url: string) => void, maxTransferBytes?: number, onDiagnostic?: (diagnostic: BackendDiagnostic) => void, maxCachedBytes?: number): { get(url: string): Uint32Array<ArrayBufferLike> | undefined; getBytes(url: string): Uint8Array<ArrayBufferLike> | undefined; has(url: string): boolean; load...",
     "summary": "Bounded, prioritized and deduplicated reads.",
     "parameters": [
       {
@@ -23125,8 +23102,9 @@
         "desc": ""
       },
       {
-        "name": "kept?",
-        "type": "{ pages: ReadonlyMap<string, Uint8Array>; readonly bytes: number; readonly cpuBytes: number; readonly reservedBytes: number; readonly budgetBytes: number; to...",
+        "name": "maxCachedBytes",
+        "type": "number",
+        "default": "DEFAULT_CACHED_BYTES",
         "desc": ""
       }
     ],
@@ -23134,7 +23112,7 @@
       "type": "{ get(url: string): Uint32Array<ArrayBufferLike> | undefined; getBytes(url: string): Uint8Array<ArrayBufferLike> | undefined; has(url: string): boolean; load...",
       "desc": ""
     },
-    "description": "A request still waiting in the queue is dropped once its last consumer leaves; one already transferring is allowed to land in the cache. The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive eviction, so a caller keeps its displayed cover by retaining it. The cache is `kept` when the caller hands one in (`pageCache.ts`): the streamer then reserves its manifest tables and its transfer queue off the cache's CPU total, drops what the catalogue no longer names at that size, and leaves the pages there when it is disposed, for the next session."
+    "description": "A request still waiting in the queue is dropped once its last consumer leaves; one already transferring is allowed to land in the cache. The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive eviction, so a caller keeps its displayed cover by retaining it."
   },
   {
     "id": "createPathGovernor",

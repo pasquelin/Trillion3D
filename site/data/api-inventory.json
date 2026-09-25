@@ -5669,17 +5669,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/page/integrationContracts\".PAGE_SPEC_STRIDE"
     },
     {
-      "name": "PageCacheHolder",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/src/streaming/pageCache.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/streaming/pageCache\".PageCacheHolder"
-    },
-    {
       "name": "pageCarriesClusterError",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/contracts/geometry.ts",

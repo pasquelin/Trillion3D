@@ -21,12 +21,7 @@ export const manifestTableBytes = (pages: Iterable<{ url: string }>) => {
 
 /** A session's hold on the cache: what it reserves off the total, and how it evicts — past its
  *  pins and its transfers — when the total shrinks. */
-export interface PageCacheHolder {
-  /** Bytes the session reserves off the total: its manifest tables and its transfer queue. */
-  reservedBytes: number;
-  /** Evicts pages by last use until they fit, past the session's pins and transfers. */
-  evict(): void;
-}
+type Holder = { reservedBytes: number; evict(): void };
 
 const checkBytes = (bytes: number) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('INVALID_PAGE_CACHE_BUDGET');
@@ -49,7 +44,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   const pages = new Map<string, Uint8Array>();
   let bytes = 0,
     total = cpuBytes,
-    holder: PageCacheHolder | undefined;
+    holder: Holder | undefined;
   const drop = (url: string) => {
     const held = pages.get(url);
     if (!held) return;
@@ -106,7 +101,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       evict();
     },
     /** A session reads through the cache until the returned release; one at a time. */
-    hold(next: PageCacheHolder) {
+    hold(next: Holder) {
       holder = next;
       return () => {
         if (holder === next) holder = undefined;

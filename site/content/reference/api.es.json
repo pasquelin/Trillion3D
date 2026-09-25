@@ -1146,7 +1146,7 @@
   },
   "createPageStreamer": {
     "summary": "Lecturas acotadas, por prioridad y sin duplicado.",
-    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola. La caché es `kept` cuando el llamador entrega una (`pageCache.ts`): el lector reserva entonces sus tablas de manifiesto y su cola de transferencias del total de CPU de la caché, descarta lo que el catálogo ya no nombra con ese tamaño, y deja allí las páginas al liberarse, para la siguiente sesión."
+    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola."
   },
   "createPathGovernor": {
     "summary": "Un regulador."
@@ -4266,13 +4266,6 @@
   },
   "pageCarriesClusterError": {
     "summary": "Un clúster que lleva su propia banda de error en pantalla no necesita jerarquía: la elección es una prueba plana por página."
-  },
-  "PageCacheHolder": {
-    "summary": "La reserva de una sesión sobre la caché: lo que aparta del total y cómo desaloja — sin tocar sus páginas fijadas ni sus transferencias — cuando el total baja.",
-    "members": {
-      "reservedBytes": "Bytes que la sesión aparta del total: sus tablas de manifiesto y su cola de transferencias.",
-      "evict": "Desaloja páginas por último uso hasta que quepan, sin tocar las páginas fijadas ni las transferencias de la sesión."
-    }
   },
   "PageCutPage": {
     "summary": "Una página escrita por un `cut`: sus bytes de índice y de geometría, sus huellas, y su descriptor.",
