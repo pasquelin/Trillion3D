@@ -6,13 +6,14 @@ import {
 import type { DepthCamera } from '../camera/depthConvention.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import { lineClip } from './shader/lineWgsl.ts';
-import type { VisPage } from './types.ts';
+import { spriteAt } from './shader/spriteWgsl.ts';
+import type { VisMaterial, VisPage } from './types.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 
 /** World vertex of the last projected point, and its clip-space point: re-read at once, never
  *  kept. A world matrix is affine, fourth row `(0, 0, 0, 1)`: the base's affine transform is then
  *  bit for bit the projective one, whose `1 / w` is 1. */
-const worldScratch = new Float64Array(3);
+const worldScratch = new Float64Array(4);
 const clipScratch = new Float64Array(4);
 const alongScratch = new Float64Array(4);
 const viewportScratch = new Float64Array(2);
@@ -53,14 +54,14 @@ export function projectVisibilityVertex(
   width: number,
   height: number,
   line?: LineCorners,
+  sprite?: VisMaterial['sprite'],
 ) {
-  const v = transformAffinePoint(
-    worldScratch,
-    matrix.elements,
-    position.getX(vi),
-    position.getY(vi),
-    position.getZ(vi),
-  );
+  const x = position.getX(vi),
+    y = position.getY(vi);
+  // A sprite's corner turns to face the camera (`spriteAt`), as in every GPU raster.
+  const v = sprite
+    ? spriteAt(worldScratch, cam.viewProjection, matrix.elements, x, y, sprite)
+    : transformAffinePoint(worldScratch, matrix.elements, x, y, position.getZ(vi));
   const clip = transformHomogeneousPoint(clipScratch, cam.viewProjection, v[0], v[1], v[2]);
   // A line quad's corner leaves its segment on screen, as in every GPU raster.
   if (line) {
@@ -130,7 +131,8 @@ export function barycentricAt(
 }
 
 /** A projected triangle of a page; a line page's corners widened on screen at `pixelRatio` image
- *  pixels per CSS pixel, as every GPU raster widens them (`LineCorners`). */
+ *  pixels per CSS pixel, as every GPU raster widens them (`LineCorners`), a sprite page's turned
+ *  to face the camera. */
 export function triangleAt(
   page: VisPage,
   triangleIndex: number,
@@ -146,10 +148,13 @@ export function triangleAt(
   const lineWidth = page.material.lineWidth ?? 0,
     along = page.attributes.normal;
   const line = lineWidth > 0 && along ? { along, width: lineWidth, pixelRatio } : undefined;
-  const m = page.matrix;
-  const a = projectVisibilityVertex(m, position, index[base], cam, width, height, line);
-  const b = projectVisibilityVertex(m, position, index[base + 1], cam, width, height, line);
-  const c = projectVisibilityVertex(m, position, index[base + 2], cam, width, height, line);
+  const m = page.matrix,
+    sprite = page.material.sprite;
+  const corner = (i: number) =>
+    projectVisibilityVertex(m, position, index[i], cam, width, height, line, sprite);
+  const a = corner(base),
+    b = corner(base + 1),
+    c = corner(base + 2);
   if (!a || !b || !c) return null;
   return {
     a,

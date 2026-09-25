@@ -1749,7 +1749,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -1813,7 +1814,8 @@
       "wireframe": "三角形の辺だけを描く。",
       "flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "size": "点マテリアルの、点の大きさ。",
-      "sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -2039,6 +2041,50 @@
       "translateOnAxis": "ノードを自分自身の`axis`に沿って動かす。",
       "getWorldDirection": "ノードがワールド内でどちらを向いているか。",
       "localBounds": "このノード自身の内容が占めるボックス、ローカルフレームで; 普通のノードは何も持たない。"
+    }
+  },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "中程度の平織り綿、kg/m²：布の目付は 0.15 から 0.25。",
+    "description": "布はどの質量でも同じように落ちる。重さはピンと触れるものにかかる。体積の外皮もそうした布とみなす。"
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "宣言値：地面で静止した体積がつぶれて乗る平均断面の割合。どの凸形状でも面積の 4 分の 1（コーシー）。そこで内部の気体が重さを支える。",
+    "description": "既定の圧力は `4·m·g / (share·area)` となる。`SOFT_AREAL_DENSITY` の外皮なら 31 Pa。割合が半分なら圧力は 2 倍。外皮が静止体積の 1 割以内に保てる最大を決して超えない。"
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "10 mm のポリアミドロープ、kg/m：メーカーの表では 0.06 から 0.07。"
+  },
+  "SoftBodyCommon": {
+    "summary": "柔体として `obj.physics` が受け付けるもの。頂点が一つずつシミュレーションされる。",
+    "members": {
+      "pins": "その場に固定するジオメトリの頂点インデックス：旗の竿、ロープのフック。",
+      "mass": "キログラム。各頂点が受け持つ面積（ロープは長さ）に応じて頂点に配分する。省略時は m² あたり `SOFT_AREAL_DENSITY`（ロープは m あたり `SOFT_LINEAR_DENSITY`）。",
+      "stretch": "辺を引いたときの伸びやすさ、m/N（剛性の逆数）。0 は決して伸びない。",
+      "bend": "折ったときの曲がりやすさ、rad/(N·m)（ロープは m/N）。`Infinity` は自由に折れる。"
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "柔体のオプション：布、ロープ、または気体の圧力をもつ体積。"
+  },
+  "SoftBodyType": {
+    "summary": "柔体：布（三角形、開いている）、ロープ（頂点、それぞれ次とつながる）、または体積（閉じた三角形、内部の気体で支えられる）。"
+  },
+  "SoftSettings": {
+    "summary": "読み取り後の柔体のオプション。すべての既定値が埋められている。",
+    "members": {
+      "type": "種類。",
+      "pins": "その場に固定されたジオメトリの頂点。",
+      "mass": "キログラム。`undefined` は既定の密度による。",
+      "stretch": "m/N。",
+      "bend": "rad/(N·m)。ロープは m/N。",
+      "pressure": "Pa。`undefined` は体積の既定の圧力（`SOFT_FOOTPRINT`）。"
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "体積のオプション：内部の気体で支えられる閉じたメッシュ。",
+    "members": {
+      "type": "体積。",
+      "pressure": "静止時の空気より高い気体の圧力、Pa。押されると体積が減るにつれて上がる（ボイルの法則）。三角形は外向きでなければならない。省略時は、体積の重さを平均断面の `SOFT_FOOTPRINT` に乗せる圧力、それより小さければ外皮が保てる最大。外皮が静止体積の 1 割以内に保てる最大を超えると拒否される。"
     }
   },
   "TransformNode": {
@@ -3887,8 +3933,8 @@
       "physics": "物理の上限（物体、三角形、装飾物体、メモリ）。開始時に一度読まれ、超えると `PHYSICS_BUDGET` になる。",
       "raycastTrees": "`raycast` が三角形ツリーのために保持する CPU メモリのバイト数。ページ上のすべてのワールドで共有されます。超えると最も長く使われていないツリーが破棄されます。設定すると上限が変わります。",
       "gpu": "ワールドが保持できる GPU メモリのバイト数（全プール合計）。設定すると分割規則（`split`）で各プールを引き直す。シャドウプールを下回る合計は拒否される（`GPU_BUDGET_UNDER_SHADOW_POOL`）。マシンから読み取ることはない。",
-      "cpu": "ワールドが保持できる CPU メモリのバイト数：まず影ページテーブルのホストミラー、次にデコード済みページとエンジンのカットテーブル。次のシーン読み込みで反映される。ミラーを超えない合計は拒否される（`CPU_BUDGET_UNDER_SHADOW_MIRROR`）。マシンから読み取ることはない。",
-      "split": "二つの合計の分け方：影プールとバウンスプローブを最大サイズで確保し、残りを半分ずつジオメトリとテクスチャのプールへ（それぞれ上限まで）。CPU 合計は影テーブルのホストミラーを先に取り、残りをデコード済みページのキャッシュが使う。プールを個別に設定する前の、規則による値。"
+      "cpu": "ワールドが保持できる CPU メモリのバイト数：まず影ページテーブルのホストミラー、次にデコード済みページ、マニフェストの表、転送キュー、エンジンのカットテーブルの合計。変更は即座に反映され、収まるまでページが最終使用の古い順に出ていく。ミラーを超えない合計は拒否される（`CPU_BUDGET_UNDER_SHADOW_MIRROR`）。マシンから読み取ることはない。",
+      "split": "二つの合計の分け方：影プールとバウンスプローブを最大サイズで確保し、残りを半分ずつジオメトリとテクスチャのプールへ（それぞれ上限まで）。CPU 合計は影テーブルのホストミラーを先に取り、残りすべてをデコード済みページのキャッシュが使い、現在のセッションはその中にマニフェストの表、転送キュー、エンジンのカットテーブルを確保する。プールを個別に設定する前の、規則による値。"
     }
   },
   "world.diagnostic": {
@@ -5584,7 +5630,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5623,7 +5670,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5662,7 +5710,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5701,7 +5750,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5740,7 +5790,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5779,7 +5830,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5818,7 +5870,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5857,7 +5910,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5896,7 +5950,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5935,7 +5990,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -5974,7 +6030,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -6013,7 +6070,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -6028,7 +6086,7 @@
     }
   },
   "material.sprite": {
-    "summary": "常にカメラの方を向く、平らな画像。",
+    "summary": "いつもカメラのほうを向く平らな絵（`object.sprite`）。絵が透けているところは透け、`rotation` だけ画像の中で回り、`sizeAttenuation` が false でなければ遠くで小さくなる。",
     "parameters": {
       "parameters": "ページがマテリアルのメンバーに渡せるもの; どのフィールドも省略可能。",
       "parameters.color": "ベースカラー。",
@@ -6052,7 +6110,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -6091,7 +6150,8 @@
       "parameters.wireframe": "三角形の辺だけを描く。",
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
-      "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
+      "parameters.sizeAttenuation": "点とスプライトが距離とともに小さくなるかどうか。",
+      "parameters.rotation": "スプライトの絵を画像の中でどれだけ回すか。ラジアンで、反時計回り。",
       "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の線分の長さ。線に沿ったワールド単位。",
       "parameters.gapSize": "2 つの線分の間の隙間の長さ。線に沿ったワールド単位。",
@@ -6224,9 +6284,9 @@
     }
   },
   "object.sprite": {
-    "summary": "`+z`を向いた、スプライト種別の単位正方形。",
+    "summary": "カメラがどこを向いても、いつもカメラのほうを向く平らな絵。スプライトのスケールの大きさで、マテリアルの `rotation` だけ画像の中で回った単位正方形。",
     "parameters": {
-      "material": "その正方形が何を表示するか。"
+      "material": "正方形に映すもの。`material.sprite`。"
     }
   },
   "orthographicProjection": {
@@ -6822,7 +6882,7 @@
       "renderOrder": "透けて見えるもの同士での描く順番。",
       "userData": "ページ自身のデータ、JSON 形式。",
       "children": "その下のノード、順番どおり。",
-      "mesh": "`geometries` と `materials` の中の番号、そして三角形の読み方。",
+      "mesh": "`geometries` と `materials` の中の番号、三角形の読み方、そしてスプライトの中心。",
       "light": "ライトの種類、色、数値、向き、プローブの係数。",
       "model": "コンパイル済みモデル。読み込んだマニフェストのアドレスで記録し、中身を埋め込むことはありません。"
     }
@@ -6957,7 +7017,8 @@
       "threads": "シミュレーションを進めるスレッド数（物理ワーカーのものを含む）。1 を超えるにはクロスオリジン分離されたページ（共有メモリ）が必要で、それ以外では 1 つで進みます。マシンの論理コア数からページの分を引いた数を超えません。",
       "bodyPairs": "1 ステップで境界が重なる物体の組。密な山では 1 物体あたり約 4 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
       "contactConstraints": "1 ステップで解かれる接触中の組。落ち着いた山では 1 物体あたり約 2 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
-      "contactEvents": "1 ステップが報告する接触イベント（`enter`、`leave`）。上限を超えた `enter` は捨てられて数えられ（`world.physics.stats.droppedEvents`）、その `leave` は送られません。`leave` は遅れるだけです。"
+      "contactEvents": "1 ステップが報告する接触イベント（`enter`、`leave`）。上限を超えた `enter` は捨てられて数えられ（`world.physics.stats.droppedEvents`）、その `leave` は送られません。`leave` は遅れるだけです。",
+      "softVertices": "すべての柔体の同時頂点数（布、ロープ、体積）。各頂点は毎ステップ解かれ、ページへ読み戻される。1 ステップあたり 12 バイト。"
     }
   },
   "GRAVITY_PRESETS": {
@@ -6979,7 +7040,7 @@
     "summary": "一つの物体の物理。`obj.physics` が持つ、物体が何でありどう動くかの生きた記録。",
     "description": "書き込みは次のステップでシミュレーションに届く。`velocity` は最後のステップが残した値を読む。",
     "members": {
-      "type": "物体の動き方。変えるには `obj.physics` を設定し直す。",
+      "type": "物体の動き方、またはどの柔体か。変えるには `obj.physics` を設定し直す。",
       "shape": "宣言された形（あれば）。",
       "sensor": "物体が接触を知らせるだけか。",
       "ccd": "連続衝突がオンか。",
@@ -6994,7 +7055,9 @@
       "applyImpulse": "物体を即座に押す。重心を通る N·s の力積。物体を起こす。",
       "wake": "物体を起こす。眠っていてもいなくても。",
       "on": "この物体の接触イベントで `handler` を呼ぶ。",
-      "listens": "接触ハンドラーが設定されているか。"
+      "listens": "接触ハンドラーが設定されているか。",
+      "soft": "柔体の設定。すべての既定値が埋められている。剛体では `null`。",
+      "vertices": "最後のティックが残した柔体の頂点。ジオメトリの頂点ごとの `x, y, z` を、ジオメトリ自身の座標系で。剛体では `null`、最初のティックまでも `null`。"
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7033,7 +7096,8 @@
       "threads": "シミュレーションを進めるスレッド数（物理ワーカーのものを含む）。1 を超えるにはクロスオリジン分離されたページ（共有メモリ）が必要で、それ以外では 1 つで進みます。マシンの論理コア数からページの分を引いた数を超えません。",
       "bodyPairs": "1 ステップで境界が重なる物体の組。密な山では 1 物体あたり約 4 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
       "contactConstraints": "1 ステップで解かれる接触中の組。落ち着いた山では 1 物体あたり約 2 組。それより多いステップは接触を取りこぼし、`PHYSICS_BUDGET` を出します。",
-      "contactEvents": "1 ステップが報告する接触イベント（`enter`、`leave`）。上限を超えた `enter` は捨てられて数えられ（`world.physics.stats.droppedEvents`）、その `leave` は送られません。`leave` は遅れるだけです。"
+      "contactEvents": "1 ステップが報告する接触イベント（`enter`、`leave`）。上限を超えた `enter` は捨てられて数えられ（`world.physics.stats.droppedEvents`）、その `leave` は送られません。`leave` は遅れるだけです。",
+      "softVertices": "すべての柔体の同時頂点数（布、ロープ、体積）。各頂点は毎ステップ解かれ、ページへ読み戻される。1 ステップあたり 12 バイト。"
     }
   },
   "PhysicsHost": {
@@ -7059,7 +7123,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "`obj.physics` に設定できるもの。"
+    "summary": "`obj.physics` に設定できるもの：剛体、または柔体（`SoftBodyOptions`）。"
   },
   "PhysicsShape": {
     "summary": "ジオメトリから推定した形が合わないときの衝突形状。",
@@ -7503,6 +7567,14 @@
       "car": "2 本以上の車軸に 3 輪以上。前輪が操舵され、`drive` の車輪が駆動されます。",
       "motorcycle": "2 輪、前輪が操舵、後輪が駆動。自分で直立を保ちます。",
       "tracked": "左右 2 本の履帯に載った車輪。各履帯は最後尾の車輪で駆動されます。片側の履帯を遅くして曲がり、停止中はその場で旋回します。"
+    }
+  },
+  "Sprite": {
+    "summary": "いつもカメラのほうを向く平らな絵。どのレンダラーも描くときに、スプライトの位置を中心にして画像のほうへ回す単位正方形。",
+    "description": "大きさは `x` と `y` のワールドスケール。画像の平面での回転はマテリアルの `rotation`。自分自身の回転は読まれない。スプライトは影を落とさない。",
+    "members": {
+      "isSprite": "いつも `true`。スプライトをほかのメッシュと見分ける。",
+      "center": "スプライトの位置に置かれる絵の点。`(0.5, 0.5)` は真ん中、`(0, 0)` は左下の角、`(0.5, 0)` は下の辺の真ん中。"
     }
   }
 }
