@@ -170,6 +170,7 @@ pub(crate) mod reduce;
 mod tally;
 #[cfg(test)]
 mod tests;
+mod vanished;
 
 pub use attributes::DagAttributes;
 use bounds::*;
