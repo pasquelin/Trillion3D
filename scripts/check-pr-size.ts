@@ -20,6 +20,7 @@ const diff = spawnSync(
   { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
 );
 // A failing diff stops the gate instead of counting zero lines.
+if (diff.error) throw diff.error;
 if (diff.status !== 0) process.exit(diff.status ?? 1);
 // A binary file shows "-" and counts no line.
 const added = diff.stdout
