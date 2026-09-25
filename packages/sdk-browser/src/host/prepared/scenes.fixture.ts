@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
-import type { GraphNode } from '../graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import * as K from './sceneKinds.fixture.ts';
 
 const site = new URL('../../../../../site/assets/', import.meta.url);
@@ -162,9 +162,9 @@ function read(value: unknown, ranks: Ranks): unknown {
 }
 
 /** The graph as the engine reads it, by name and by shape, whichever library built it. */
-export function describeShape(root: GraphNode | THREE.Object3D, ranks: Ranks) {
+export function describeShape(root: Object3D | THREE.Object3D, ranks: Ranks) {
   const out: unknown[] = [];
-  (root as GraphNode).traverse((node) => {
+  (root as Object3D).traverse((node) => {
     const o = node as unknown as Record<string, unknown> & THREE.Mesh & THREE.SpotLight;
     const { meshes, primitives } = ranks(o) ?? {};
     const kind = K.nodeKind(o),

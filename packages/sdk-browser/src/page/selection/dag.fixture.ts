@@ -13,7 +13,7 @@ export function dagFixture() {
   geometry.setAttribute('position', G.floatAttribute(positions, 3));
   geometry.setIndex(G.indices([...Array(12).keys()]));
   const mesh = G.mesh(geometry, G.basicSurface({ side: G.DOUBLE_SIDE }));
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   source.add(mesh);
   const leftSphere = [-1, 0, 0, 1.2],
     rightSphere = [1, 0, 0, 1.2],

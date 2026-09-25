@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { GraphGroup } from '../../host/graph/mesh.ts';
-import { GraphNode } from '../../host/graph/node.ts';
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
@@ -47,8 +46,8 @@ function world() {
       },
     ],
   };
-  const root = new GraphGroup();
-  const core = new GraphNode();
+  const root = new Group();
+  const core = new Object3D();
   core.position.set(0, 10, 0);
   root.add(core);
   const links: RowLink[] = [
@@ -114,7 +113,7 @@ test('a row holds the world matrix the engine composes for the same node under i
   await opened(cells, everywhere);
   ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
   cells.frame([0, 0, 0], everywhere, port, noBudget);
-  const child = new GraphNode();
+  const child = new Object3D();
   pose(child, node(5000, 0));
   core.add(child);
   const expected = [...hostWorldChainInto(new Float64Array(16), child)];

@@ -4,12 +4,13 @@ import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphGroup, GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
+import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
 import { GraphCamera } from '../../host/graph/camera.ts';
 import { readHostDrawCamera } from '../../camera/world.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphAttribute } from '../../host/graph/attributes.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
@@ -90,7 +91,7 @@ test('a mesh under a translated and rotated group draws where the reference draw
     node.rotation.set(r[0], r[1], r[2]);
   };
   const scene = new GraphScene(),
-    group = new GraphGroup(),
+    group = new Group(),
     child = mesh(3, 0),
     witness = new three.Group(),
     witnessChild = new three.Mesh();

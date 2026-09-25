@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GraphGroup } from '../../host/graph/mesh.ts';
-import { GraphNode } from '../../host/graph/node.ts';
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createCellBoxes } from './boxes.ts';
 import { createPartitionCells } from './cells.ts';
 import { placedMesh } from './rows.ts';
@@ -29,8 +28,8 @@ function world() {
       { ...cells[1], parents: [[0, [5000, 0, 0, 5001, 1, 1]] as const] },
     ],
   };
-  const root = new GraphGroup();
-  const core = new GraphNode();
+  const root = new Group();
+  const core = new Object3D();
   root.add(core);
   const body = (url: string) =>
     new TextEncoder().encode(
