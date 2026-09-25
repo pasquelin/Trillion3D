@@ -9,14 +9,13 @@ const LIGHT_VIEWS = 4096;
  *  pages of one view share one caster selection. */
 const viewKeyOf = (pool: ShadowPool, page: number) =>
   pool.slice[page] * LIGHT_VIEWS + pool.view[page];
-/** A page's place in the list: its coarseness — the coarsest first, what a finer page falls back
- *  to should its frame stop short —, then its light and view. A view has one rank: its pages stay contiguous. */
+/** A page's place in the list: its coarseness, the coarsest first, then its light and view. A
+ *  view has one rank: its pages stay contiguous. */
 const listKeyOf = (pool: ShadowPool, page: number) =>
   ((RANKS / 2 - pool.rank[page]) * MAX_SHADOW_SLICES + pool.slice[page]) * LIGHT_VIEWS +
   pool.view[page];
-/** Ages a sort key tells apart, so that every key stays an exact float, under 2^53: twice that
- *  span in all, the floors' ages above the others', so the floors lead every list. Far past the
- *  bound below: it never reorders pages that stayed read. */
+/** Ages a sort key tells apart, so that every key stays an exact float, under 2^53, twice over:
+ *  a floor's above every other page's. Far past the bound below. */
 const AGES = 2048;
 
 /** Host bytes the admission of a `pages`-page pool allocates: its list, view keys and sort keys. */
@@ -24,39 +23,36 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
 
 /**
  * THE PAGES A FRAME DRAWS: every stale page the latest request report named — what the image
- * reads now —, the coarsest first, all of them in the frame that marks them: no per-frame cap
- * defers a page and shows a coarser one meanwhile (#665). The cost is held by caching — a page is
- * drawn only once it is marked, and it is marked only when what it holds changed (`invalidate.ts`)
- * or it was just mapped (`requests.ts`) —, and the pool is the only memory limit: what it cannot hold is refused at allocation and
- * published as memory (`requests.counts.refused`), never shown as current.
+ * reads now —, all of them, in the frame that marks them. There is no per-frame page cap, no
+ * millisecond budget and no priority: the cost is held by caching — a page is drawn only once it
+ * is marked, and it is marked only when what it holds changed (`invalidate.ts`) or it was just
+ * mapped (`requests.ts`) —, and the pool is the only limit: what it cannot hold is refused at
+ * allocation and published as memory (`requests.counts.refused`), never shown as current.
  *
  * A stale page nobody reads is not drawn: it costs nothing, and is drawn the frame someone asks for
  * it. It waits unreadable (`pool.withdraw`, the one staleness mechanism): a pass that reads without
  * asking — blend, water — would otherwise read its old depth for as long as no report names it.
  *
- * While nothing waits, the list holds the pages the coarsest rank first — the coverage a finer
- * page falls back to lands before it —, then light by light and view by view, each view's pages in
- * page order: what the light cut selects casters for once. The GPU draws it in the batches its
- * buffers hold (`batchEnd`). All arrays are allocated once.
+ * While nothing waits, the list holds the pages the coarsest first — every light's floor, what a
+ * reader falls back to last, leading —, then light view by light view, each view's pages in page
+ * order: what the light cut selects casters for once. The GPU draws it in the batches its
+ * buffers hold (`batchEnd`), every batch in the frame. All arrays are allocated once.
  *
- * The floors — what every reader falls back to last — lead every list, pending or not (`isFloor`),
- * the oldest first among them: a frame the memory guard stops still draws them.
- *
- * NO PAGE WAITS FOREVER. A frame that does not draw the whole list — batches past the most its
- * memory holds, the one guard left, or a batch that cannot be encoded — stops at a page and
- * leaves the rest pending (`reset(stopped)`, `plan.reissue`). Until a frame draws its whole list
- * again, the list orders the pages by age first — the frames since each turned stale
- * (`pool.sinceFrame`), the oldest first —, then as above. The pages ahead of a pending page turned
- * stale before it, or in its frame: no page that turns stale later passes it, whatever its view,
- * so they are fewer each frame, never more. A frame draws at least one page per batch, so a page
- * that stays read is drawn within ⌈pool pages / pages a frame draws⌉ + 1 frames of being listed.
+ * NO PAGE WAITS FOREVER. A frame that cannot draw the whole list — its batches past the most its
+ * memory holds, a batch that cannot be encoded — stops at a page and leaves the rest pending
+ * (`reset(stopped)`, `plan.reissue`). Until a frame draws its whole list again, the list orders
+ * the pages by age first — the frames since each turned stale (`pool.sinceFrame`), the oldest
+ * first, the floors ahead —, then as above. The pages ahead of a pending page turned stale before it, or in its
+ * frame: no page that turns stale later passes it, whatever its view, so they are fewer each
+ * frame, never more. A frame draws at least one page per batch, so a page that stays read is
+ * drawn within ⌈pool pages / batches a frame draws⌉ + 1 frames of being listed: 25 for the
+ * largest pool (4 096 pages, `MAX_SHADOW_BATCHES` 171), when every batch holds one page.
  */
 export function createShadowAdmission(poolPages: number) {
   const list = new Int32Array(poolPages),
     /** The light view of each listed page (`viewKeyOf`), read by the batch cut and the runs. */
     keys = new Int32Array(poolPages),
-    /** One exact sort key per admitted page: its age, then its list key (`listKeyOf`), then the
-     *  page. */
+    /** One exact sort key per admitted page: its age, then `listKeyOf`, then the page. */
     order = new Float64Array(poolPages),
     /** A sort key's weight of one frame of age: a multiple of the pool's pages, past the span of
      *  list keys, a sun level negative or not. */
@@ -95,8 +91,8 @@ export function createShadowAdmission(poolPages: number) {
       // An empty list is drawn whole: nothing waits any more.
       if (!count) waiting = false;
       for (let i = 0; i < count; i++) {
-        // A key is negative for its age or a negative sun level or rank: the page is its
-        // remainder, taken positive.
+        // A key is negative for its age or a negative sun level: the page is its remainder, taken
+        // positive.
         list[i] = ringOf(order[i], poolPages);
         keys[i] = viewKeyOf(pool, list[i]);
       }
