@@ -1,6 +1,11 @@
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
 import { DIRECT_LIGHTING_WGSL } from '../direct/lightingWgsl.ts';
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts';
+import {
+  BOUNCE_SURFACE_BINDING,
+  MIRROR_LIGHTING_WGSL,
+  bounceReflectionWgsl,
+} from '../../bounce/reflectWgsl.ts';
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
@@ -90,8 +95,8 @@ ${DIRECT_LIGHTING_WGSL}
 ${contractSurface('')}`;
 /**
  * The same program, plus bounced light: probe irradiance multiplied by the pixel's diffuse
- * albedo, added to the direct. It is a separate program, not a branch, so a session without
- * bounce runs exactly the previous shader, bit for bit.
+ * albedo, and what a mirror reflects (#31), added to the direct. It is a separate program, not a
+ * branch, so a session without bounce runs exactly the previous shader, bit for bit.
  */
 export const BOUNCE_LIGHTING_SHADER = `
 ${VIEW_WGSL}
@@ -100,8 +105,10 @@ ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${DIRECT_LIGHTING_WGSL}
 ${BOUNCE_APPLY_WGSL}
+${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
+${MIRROR_LIGHTING_WGSL}
 ${contractSurface(
-  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)',
+  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
 /**

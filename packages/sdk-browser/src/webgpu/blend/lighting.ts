@@ -21,5 +21,6 @@ export function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
     proxy: contract.proxy ?? placeholders.proxy,
+    surfaceCache: contract.surfaceCache ?? placeholders.surfaceCache,
   };
 }
