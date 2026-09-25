@@ -1972,6 +1972,16 @@
       "Look for": "Şuna bak"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Opaklığı kaydırın: ortadaki camın gölgesi onu izler, 0'da yok, 1'de tam.",
+    "controls": {
+      "opacity": "Opaklık",
+      "sunHeight": "Güneş yüksekliği"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Ortadaki camın opaklığı"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin ve kaymak için buzun üstünde tuşları bırakın.",
     "controls": {

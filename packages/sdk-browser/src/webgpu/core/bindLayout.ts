@@ -90,6 +90,10 @@ export const BLEND_BINDINGS = {
    *  the six maps and their factors. They do not depend on the frame, so a draw no longer has a
    *  dynamic offset or a bind group of its own. */
   items: 25,
+  /** The shadow pool's transmittance layer: what the translucent casters let through, and the
+   *  nearest of their depths. */
+  shadowTransmittance: 26,
+  shadowTranslucentDepth: 27,
 };
 
 /**

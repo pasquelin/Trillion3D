@@ -26,7 +26,10 @@ import {
   BLEND_EXPAND_SHADER,
   blendExpandDispatch,
 } from '../../../packages/sdk-browser/src/webgpu/blend/expandWgsl.ts';
-import { blendExpandBindEntries } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
+import {
+  blendExpandBindEntries,
+  EXPAND_BINDING,
+} from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
 import { DRAW_UNPAGED, planEntry } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
 import { etalementGpu } from './scatterKernelGpu.ts';
 import { graine } from '../../../bench/core/index.ts';
@@ -129,6 +132,7 @@ for (const entree of entrees) {
     clusters: Array.from(entree.clusters),
     scratchWords: entree.order.length + Math.ceil(entree.order.length / EXPAND_GROUP),
     layoutEntries: blendExpandBindEntries(),
+    bindings: EXPAND_BINDING,
     noms: BLEND_EXPAND_ENTRIES,
     lancements: blendExpandDispatch([], entree.order.length, entree.runCount),
     uniBytes: UNI_WORDS * 4,
