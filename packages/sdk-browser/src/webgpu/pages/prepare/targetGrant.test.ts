@@ -21,19 +21,22 @@ import { requestFrameTargets } from './targetGrant.ts';
 const COLOR = 'Trillion3D display color';
 type Backend = WebgpuPagesBackend & { pendingFrame(): Promise<boolean> };
 
-/** A quad backend drawn once at 32 × 32, on a device that answers the display colour made at
- *  48 × 48 with `refuse`, told whether the Hi-Z pyramid is alive; then resized to 48 × 48. */
-async function resized(refuse: (hizAlive: boolean) => boolean) {
+/** A quad backend drawn once at 32 × 32, on a device that answers the `label` target made at
+ *  48 × 48 with `answer`, told whether the Hi-Z pyramid is alive; then resized to 48 × 48. */
+async function resized(
+  answer: (raise: (message: string) => void, hizAlive: boolean) => unknown,
+  label = COLOR,
+) {
   installGpuGlobals();
   const scene = quadScene();
   const gpu = refusing(
     'createTexture',
-    COLOR,
+    label,
     (raise, { size }) => {
       const hizAlive = gpu.textures.some(
         (texture) => texture.format === 'r32float' && !texture.label && !texture.destroyed,
       );
-      if (size?.width === 48 && refuse(hizAlive)) raise('Out of memory');
+      if (size?.width === 48) answer(raise, hizAlive);
     },
     {
       packed: packDagSelection(
@@ -73,7 +76,7 @@ async function resized(refuse: (hizAlive: boolean) => boolean) {
 
 test('a refused target grant holds the frame, then draws it complete', async () => {
   let refusals = 1;
-  const s = await resized(() => refusals-- > 0);
+  const s = await resized((raise) => refusals-- > 0 && raise('Out of memory'));
   try {
     // The device answers only once the frame has been asked.
     let answer = () => {};
@@ -103,7 +106,7 @@ test('a refused target grant holds the frame, then draws it complete', async () 
 
 test('under pressure, Hi-Z goes first: the targets are granted without it, all others kept', async () => {
   // The device lacks what Hi-Z holds: the targets fit once it is released.
-  const s = await resized((hizAlive) => hizAlive);
+  const s = await resized((raise, hizAlive) => hizAlive && raise('Out of memory'));
   try {
     s.backend.render(s.cam);
     assert.equal(await s.backend.pendingFrame(), true);
@@ -132,7 +135,7 @@ test('under pressure, Hi-Z goes first: the targets are granted without it, all o
 });
 
 test('an impossible target is refused by name, the frame held, never a lost device', async () => {
-  const s = await resized(() => true);
+  const s = await resized((raise) => raise('Out of memory'));
   try {
     const draws = s.gpu.draws.length;
     s.backend.render(s.cam);
@@ -173,32 +176,22 @@ test('targets that fit ask nothing of the device and keep no promise: the steady
 });
 
 test('a visibility target the device cannot make is refused by name, once, the mode kept', async () => {
-  installGpuGlobals();
-  const { device } = refusing('createTexture', 'Trillion3D visibility', (_, { size }) => {
-    if (size?.width === 48) throw new TypeError('refused');
-  });
-  const events: BackendDiagnostic[] = [];
-  const viewport: [number, number] = [32, 32];
-  const { fixture, backend } = quadBackend(device, {
-    viewport,
-    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
-  });
+  const s = await resized(() => {
+    throw new TypeError('refused');
+  }, 'Trillion3D visibility');
   try {
-    await backend.prepare();
-    backend.render(camera());
-    const { materials } = backend.capabilities;
-    viewport[0] = viewport[1] = 48;
+    const { materials } = s.backend.capabilities;
     for (let i = 0; i < 3; i++) {
-      backend.render(camera());
-      await (backend as Backend).pendingFrame();
+      s.backend.render(s.cam);
+      await s.backend.pendingFrame();
     }
-    const refused = events.filter((event) => event.phase === 'frame-targets-refused');
+    const refused = s.said('frame-targets-refused');
     assert.equal(refused.length, 1, 'asked once, not every frame');
     assert.equal(refused[0]?.context.code, 'WEBGPU_FRAME_TARGETS_REFUSED');
     assert.deepEqual([refused[0]?.context.width, refused[0]?.context.height], [48, 48]);
-    assert.equal(backend.metrics().frameHeld, true, 'the previous image stays');
-    assert.equal(backend.capabilities.materials, materials, 'the visibility buffer is kept');
+    assert.equal(s.backend.metrics().frameHeld, true, 'the previous image stays');
+    assert.equal(s.backend.capabilities.materials, materials, 'the visibility buffer is kept');
   } finally {
-    disposeQuadRun(backend, fixture);
+    s.dispose();
   }
 });
