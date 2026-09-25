@@ -22,7 +22,8 @@ disagreement is reported to the maintainer.
    an extreme case (a 🔴 critical defect no issue covers; a closed issue that covers it is
    reopened instead), and tells the boss. Existing issues come first: a new need joins an open
    issue (a To-do item or a comment), and over any seven days the issues the CTO opens and reopens
-   stay fewer than those closed as completed; a boss's request is never refused for that balance.
+   stay fewer than those closed as completed; neither a boss's request nor an extreme case is
+   refused for that balance.
    No other agent opens an issue, not even to split one. What a pull request does not deliver
    stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
    open. A regression reopens the measured issue with `measure ko`; a finding reopens

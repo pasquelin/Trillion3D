@@ -16,4 +16,5 @@ project with more quality per token and fewer returns.
    each with its expected gain, its risk to quality (none is acceptable) and how it will be
    measured afterwards.
 3. **Change nothing.** No code, rule, role, skill, label or issue. The CTO applies the proposals
-   that lose no product quality, optimisation or performance; any other waits for the boss.
+   that lose no product quality, optimisation or performance; one that could lose some waits for
+   the boss.

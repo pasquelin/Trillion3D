@@ -19,12 +19,13 @@ question: never a running account of agent events.
    - one **lead** per domain with work (geometry, lighting, compiler, physics, sdk; a bug goes to
      its domain);
    - the **architect** (the `architecture` domain; keep it off areas where a lead has an open PR);
-   - the **analyst**, at the start of the session and then every two hours; apply at once every
-     proposal that loses no product quality, optimisation or performance (the engine first); put
-     any other to the boss;
+   - the **analyst**, at the start of the session and then every two hours, its brief giving the
+     time of its last run; apply at once, as a boss's adjustment (below), every proposal that
+     loses no product quality, optimisation or performance (the engine first); put one that could
+     lose some to the boss;
    - one **measurer** when `to measure` has work, and one **acceptance** agent when merges are
      not yet `audited`;
-   - a priority orders the work (its lead starts first, never waiting for a slot) and never leaves
+   - a priority orders the work (its lead starts first, before any other agent) and never leaves
      the other roles unstaffed.
 3. **Brief.** Every brief carries, in this order:
    - the role and the repository root (the main checkout, never written to; worktrees in
@@ -41,8 +42,9 @@ question: never a running account of agent events.
      then ends with a report of at most six lines;
    - a background agent cannot answer a permission prompt nor wait for an answer: a denied tool
      or an open question is written on the issue and put in its report, never worked around.
-4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. Subagents run in
-   the foreground, so their results reach the agent that started them; should one reach you
+4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. The agents you start
+   run in the background; their own `coder` and `reviewer` run in the foreground, so each result
+   reaches the lead or architect that started it; should one reach you
    instead, `SendMessage` that agent a short summary so it resumes. An agent that ends wakes you:
    read its report, then start the next agent for that role if work remains.
 
@@ -50,9 +52,11 @@ question: never a running account of agent events.
 
 - **Activity:** every domain with work has a live lead agent. A lead that ended is replaced by a
   fresh one on the rest of its list; a stuck one gets a `SendMessage`, then is stopped and
-  replaced (its state is in GitHub labels). Never run two leads on one domain.
+  replaced (its state is in GitHub labels). Never run two leads on one domain. The analyst is
+  started again once two hours have passed since its last run.
 - **Flow:** one agent at a time per lead; at most 3 open PRs per lead, resume at 2; one lead
-  per issue. Name to each lead its green-but-unmerged, red, conflicting or stale PRs.
+  per issue. Name to each lead its green-but-unmerged, red, conflicting or stale PRs; a PR open
+  more than two hours is unblocked by its lead before any new coder.
 - **Closure:** a merged PR whose issue stays open with no finding → have it closed. Count issues
   opened, closed and reopened since the last pass.
 - **Quality:** the audit-ko rate per lead (reopened ÷ merged). Above 1 in 10 → that lead's next
