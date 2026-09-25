@@ -7,6 +7,7 @@ import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { REST_COMPACT_PASS } from '../gpu/raster/restCompact.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
+import { SHADOW_TRANSMITTANCE_PASS } from '../gpu/shadow/transmittance.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
 import type { StageAdd } from './profiler.ts';
@@ -66,6 +67,7 @@ const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D transparent compaction': ['transparents', 'other'],
   [SHADOW_PASS]: ['shadows', 'other', 'raster'],
   [SHADOW_LAYER_PASS]: ['shadows', 'other', 'raster'],
+  [SHADOW_TRANSMITTANCE_PASS]: ['shadows', 'other', 'raster'],
   [LIGHT_CUT_PASS]: ['shadowCasters', 'other', 'cull'],
   'Trillion3D shadow cull': ['shadows', 'other', 'cull'],
   'Trillion3D shadow page pyramids': ['shadows', 'other', 'cull'],
