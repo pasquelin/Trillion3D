@@ -164,11 +164,14 @@ test('an image is composed with the share it read, one group per pair (#349)', a
     resized = { views: () => flags } as unknown as SurfaceBuffer;
   lighting.bind(resized, h.view(), hdr, false);
   lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
+  // The effect chain's target without TAA has no share of its own: it reads the flags.
+  const target = h.view();
+  lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, { color: target });
   // A composition group reads three resources; the lighting groups read more.
   const composed = h.bindGroups
     .map((group) => Array.from(group.entries))
     .filter((entries) => entries.length === 3);
-  assert.equal(composed.length, 4, 'each history, the lit image, then its new flags, bound once');
+  assert.equal(composed.length, 5, 'each history, the lit image, its new flags, the effect target');
   assert.deepEqual(
     composed.map((entries) => [entries[0]!.resource, entries[2]!.resource]),
     [
@@ -176,6 +179,7 @@ test('an image is composed with the share it read, one group per pair (#349)', a
       [images[1].color, images[1].share],
       [hdr, h.surface.views()[3]],
       [hdr, flags[3]],
+      [target, flags[3]],
     ],
   );
   lighting.dispose();

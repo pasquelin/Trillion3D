@@ -58,7 +58,10 @@ test('the explicit capture binds the drawing buffer, samples it, composes, then 
       },
       check: () => {},
       diagnose: () => {},
-      compose: Object.assign(() => void steps.push('compose'), { dispose() {} }),
+      compose: Object.assign(() => void steps.push('compose'), {
+        dispose() {},
+        effectBytes: () => 0,
+      }),
     });
     capture();
     assert.deepEqual(
@@ -102,7 +105,7 @@ function presentation(options: object, background: unknown) {
     },
     check: () => {},
     diagnose: (_phase, _message, context) => found.push((context ?? {}) as Record<string, unknown>),
-    compose: Object.assign(() => {}, { dispose() {} }),
+    compose: Object.assign(() => {}, { dispose() {}, effectBytes: () => 0 }),
   });
   capture();
   const raised = found.filter((entry) => entry.kind === 'presentation');
