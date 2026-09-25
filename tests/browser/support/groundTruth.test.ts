@@ -11,7 +11,6 @@ import { groundTruth, truthGap, truthVerdict, type TruthView } from './groundTru
 const SIZE = 24;
 const CLEAR = 0x2a303c,
   BEHIND = 0x6a3d9a;
-const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 const behind = { place: new Matrix4().makeTranslation(0, 0, -1), half: 2, colour: BEHIND };
 
 /** A face-on view of the square wearing a 2×1 map of these two texels, `repeat` times each way. */
@@ -24,7 +23,7 @@ const view = (texels: number[][], extra: Partial<TruthView> = {}, repeat = 1): T
     width: texels.length,
     height: 1,
     srgb: true,
-    uv: IDENTITY.map((value, i) => (i === 0 || i === 4 ? value * repeat : value)),
+    uv: [repeat, 0, 0, 0, repeat, 0, 0, 0, 1],
   },
   alphaTest: 0,
   clear: CLEAR,
@@ -41,7 +40,7 @@ test('the square shows its texel, the clear colour lies around it, a silhouette 
   assert.deepEqual(rgb(truth.rgba, 0, 0), backgroundRgb(CLEAR));
   assert.equal(truth.edge[CENTRE * SIZE + CENTRE], 0);
   assert.equal(truth.edge[0], 0);
-  const edges = truth.edge.reduce((sum, edge) => sum + edge, 0);
+  const edges = truth.edge.filter(Boolean).length;
   assert.ok(edges > 0 && edges < SIZE * 4, `${edges} edge pixels: one ring round the square`);
   const turned = new Matrix4().makeRotationX((-75 * Math.PI) / 180);
   const grazing = groundTruth(view([red, red], { square: { place: turned, half: 1 } }), 4);
@@ -122,7 +121,7 @@ test('a perfect one-read sampler is the truth where the map is magnified', () =>
     };
     const truth = groundTruth(magnified);
     assert.deepEqual(truthGap(groundTruth(magnified, 1).rgba, truth), { pixels: 0, max: 0 });
-    const judged = truth.edge.length - truth.edge.reduce((sum, edge) => sum + edge, 0);
+    const judged = truth.edge.length - truth.edge.filter(Boolean).length;
     assert.ok(judged > 3000, `${judged} pixels judged: the square fills the view's middle`);
   }
 });
