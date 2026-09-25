@@ -7,20 +7,24 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 ## Loop
 
 1. **Pick.** First count your open pull requests: at 3, take no issue and unblock them (red CI,
-   conflict with `develop`, unanswered review) until you are back at 2. Then the open issues of
-   your domain labelled `measure ko` or `audit ko`, then 🔴 critical ones (the children of a
-   programme such as #483 in its order), then the oldest open one without `in progress` or
-   `in review`
-   (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it;
-   if another lead took it meanwhile, pick again. Then
-   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
-2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), with a brief that
-   names the issue, the files to read and, when the batch needs one, the live example below;
-   nothing else. It returns a pull request. A batch that adds or changes something a page can
-   show asks for that live example in the same pull request: `site/examples/`, the engine's
-   public API alone, an existing example extended rather than a second one written. Its
-   thumbnail needs Chrome: the measurer captures it after the merge and opens its pull request,
-   which you merge.
+   conflict with `develop`, unanswered review) until you are back at 2. Below 3, first hold your
+   open ones to AGENTS.md rule 11 (a coder resolves what `gh pr update-branch` cannot), or name in
+   your report the one that waits on the boss. Then the open issues of your domain labelled
+   `measure ko` or `audit ko`, then 🔴 critical ones (the children and To-do items of a programme
+   such as #483, in its order), then the oldest open one without `in progress` or `in review`
+   (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it; if
+   another lead took it meanwhile, pick again. Then `gh issue edit <n> --add-label "in progress"`
+   and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
+   comment `taken by lead <domain>: <item>` alone, and no step below labels the parent, since
+   labels claim a whole issue; an item another lead's comment claims is taken.
+2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
+   (`run_in_background: false`, as every subagent you start) so its result comes back to you, with a
+   brief that names the issue, the files to read and, when the batch needs one, the live example
+   below; nothing else. It returns a pull request. A batch that adds or changes something a page can
+   show asks for that live example in the same pull request: `site/examples/`, the engine's public
+   API alone, an existing example extended rather than a second one written. Its thumbnail needs
+   Chrome: the measurer captures it after the merge, in its stint's one thumbnail pull request
+   (`docs/roles/measurer.md` step 7), which you name ready.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
 3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
    (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
@@ -28,11 +32,12 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: bring the branch up to date with
    `develop` (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
-   (`gh pr checks <pr> --watch`), then `gh pr merge <pr> --merge --delete-branch`. A red check,
-   or a point of "Before merge" missed, goes back to step 3.
-5. **Hand over.** `gh issue edit <n> --remove-label "in review"`, add `to measure` for an engine
-   batch (`packages/`, compiler, format, shaders, a published number) or an example whose
-   thumbnail is missing, then `gh issue close <n>`.
+   (`gh pr checks <pr> --watch`), then name it ready to the CTO, who merges it (AGENTS.md
+   §Roles). A red check, or a point of "Before merge" missed, goes back to step 3.
+5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
+   `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
+   an example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
+   request says `Part of #<n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
@@ -67,7 +72,9 @@ merges keep coming back `audit ko` is stopped by the CTO.
    issue and accepted by the maintainer before the merge. No path draws a mode or a light as
    something else, and none silently drops it: a mode a path cannot draw is refused with an error.
 4. **Reuse** (AGENTS.md rule 6). Search before accepting a new function, class, table or public
-   entry point. A second copy of an existing one, under any name, is sent back.
+   entry point: its line says every new exported symbol was searched in the graph
+   (`graphify query`, or a bounded search where `graphify-out/` is absent) with no twin found. A
+   second copy of an existing one, under any name, is sent back.
 5. **Docs follow the code.** A changed public member updates `docs/SDK.md`, the API reference
    and every translation. The pull request body describes this diff and closes this issue.
 6. **Measured first** (CONTRIBUTING.md §Measure before optimising). An optimisation states the

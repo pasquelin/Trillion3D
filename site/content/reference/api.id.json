@@ -7114,8 +7114,8 @@
     "summary": "Apa yang diberikan kontak kepada pendengarnya: objek lain, impuls, dan titik sentuh.",
     "members": {
       "other": "Objek yang tersentuh; `null` setelah keluar dari adegan.",
-      "impulse": "N·s: kecepatan mendekat sepanjang normal kali massa tereduksi pasangan, diperkirakan sebelum solver; 0 pada `leave`.",
-      "point": "Titik kontak, kerangka dunia; titik asal pada `leave`."
+      "impulse": "N·s: kecepatan mendekat sepanjang normal kali massa tereduksi pasangan, diperkirakan sebelum solver (di sisi benda lunak: kecepatan rata-ratanya dan massa verteksnya yang menyentuh); 0 pada `leave`, dan antara benda lunak dan sensor.",
+      "point": "Titik kontak, kerangka dunia (untuk benda lunak: rata-rata verteksnya yang menyentuh, pusatnya di depan sensor); titik asal pada `leave`."
     }
   },
   "ContactEventName": {
