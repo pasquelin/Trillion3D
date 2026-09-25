@@ -8382,7 +8382,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -8686,7 +8686,7 @@
       {
         "name": "linewidth?",
         "type": "number | undefined",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "dashSize?",
@@ -27129,7 +27129,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27314,7 +27314,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27499,7 +27499,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27684,7 +27684,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27869,7 +27869,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28054,7 +28054,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28239,7 +28239,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28424,7 +28424,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28609,7 +28609,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28794,7 +28794,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28979,7 +28979,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29164,7 +29164,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29349,7 +29349,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29534,7 +29534,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
