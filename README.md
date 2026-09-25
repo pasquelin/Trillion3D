@@ -174,6 +174,12 @@ test — gates each pull request in CI ([`quality.yml`](.github/workflows/qualit
 test:gpu` adds the proofs on a real GPU. The gates, one by one: [docs/TESTS.md](docs/TESTS.md#4-quality-gates).
 The rules a contribution follows: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## How the project is run
+
+Trillion3D is built by a small company of AI sessions — a CTO, leads per domain, measurement,
+acceptance, an architect and an analyst — run by one maintainer. [docs/COMPANY.md](docs/COMPANY.md)
+explains every role and how to run it from any clone; the contribution workflow never requires it.
+
 ## Documentation
 
 Every document, and what it is for, is listed once in [docs/README.md](docs/README.md). The
