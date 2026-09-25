@@ -6,11 +6,16 @@ import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts';
 import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts';
 import type { StreamPage } from './types.ts';
 import { servedPages } from './servedPages.fixture.ts';
+import { sha256Hex } from '../measurement/sha256Hex.ts';
 
 const TRANSFER = 64;
 
-const open = (pages: StreamPage[], cache: ReturnType<typeof createPageCache>) =>
-  createPageStreamerWith(pages, 'http://cache/', {
+const open = (
+  pages: StreamPage[],
+  cache: ReturnType<typeof createPageCache>,
+  base = 'http://cache/',
+) =>
+  createPageStreamerWith(pages, base, {
     cache,
     workerCount: 1,
     maxTransferBytes: TRANSFER,
@@ -106,7 +111,7 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
   streamer.dispose();
 });
 
-test("a streamer's own cache leaves with it; a kept one stays, minus pages the catalogue resized", async () => {
+test("a streamer's own cache leaves with it; a kept one stays, minus pages cooked again", async () => {
   const { pages } = await servedPages(['a.bin', 'b.bin']);
   const own = open(pages, undefined as never);
   await own.request(['a.bin']);
@@ -116,10 +121,46 @@ test("a streamer's own cache leaves with it; a kept one stays, minus pages the c
   const first = open(pages, kept);
   await first.request(['a.bin', 'b.bin']);
   first.dispose();
-  const resized = [pages[0], { ...pages[1], bytes: 16 }];
-  const second = open(resized, kept);
+  const cooked = [pages[0], { ...pages[1], sha256: 'another fingerprint' }];
+  const second = open(cooked, kept);
   assert.equal(second.has('a.bin'), true);
   assert.equal(second.has('b.bin'), false, 'another page under the same url is not served');
   second.dispose();
   assert.throws(() => createPageCache(0), /INVALID_PAGE_CACHE_BUDGET/);
+});
+
+test('a kept page is served only as the file it was read as: its address and its fingerprint', async () => {
+  const file = async (value: number) => {
+    const bytes = new Uint8Array(12).fill(value);
+    return { bytes, sha256: await sha256Hex(bytes.buffer) };
+  };
+  const [one, two] = await Promise.all([file(1), file(2)]);
+  // Two scenes, each with its own `p.bin` of 12 bytes.
+  const served = new Map([
+    ['http://a/p.bin', one],
+    ['http://b/p.bin', two],
+  ]);
+  const fetched: string[] = [];
+  globalThis.fetch = async (url) => (
+    fetched.push(String(url)),
+    new Response(served.get(String(url))!.bytes)
+  );
+  const kept = createPageCache();
+  const read = async (base: string, { sha256 }: { sha256: string }) => {
+    const streamer = open([{ url: 'p.bin', bytes: 12, sha256 }], kept, base);
+    const [value] = await streamer.readBytes('p.bin');
+    streamer.dispose();
+    return value;
+  };
+  assert.equal(await read('http://a/', one), 1);
+  assert.equal(await read('http://b/', two), 2, "another scene's page under the same name");
+  // The second scene's folder cooked again: the same address, another file of the same size.
+  served.set('http://b/p.bin', one);
+  assert.equal(await read('http://b/', one), 1, 'the same address, another fingerprint');
+  assert.equal(await read('http://b/', one), 1);
+  assert.deepEqual(
+    fetched,
+    ['http://a/p.bin', 'http://b/p.bin', 'http://b/p.bin'],
+    'the same file is not fetched again',
+  );
 });
