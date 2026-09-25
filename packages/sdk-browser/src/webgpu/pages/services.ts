@@ -11,6 +11,7 @@ import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
 import { createPageParents } from '../residency/admission.ts';
 import { createShadowTier } from '../residency/shadowTier.ts';
+import { createGroupClosure } from '../cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
@@ -18,6 +19,7 @@ import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts'
 import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
 import type { WebgpuPagesCore } from './runtime.ts';
+import { noteResidenceChange } from '../shadow/bounds.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
 
@@ -39,6 +41,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     onOffsetChange: (page, words) => (
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
+      blendCasters.follow(page),
       rt.lights.residence.notePool(page, packedPages.length)
     ),
   });
@@ -60,7 +63,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.
   const commit = createWebgpuRowCommit(rows, writePageRow);
-  const { syncRows, syncRowsFromCut, rowsOwed } = createWebgpuRowSync(
+  const { syncRows, syncRowsFromCut, rowsOwed, blendCasters } = createWebgpuRowSync(
     rows,
     mirror,
     packedPages,
@@ -74,6 +77,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       run.gate.resourcesChanged(),
       rt.lights.residence.noteRow(rows.pageIndexOf(rec) ?? -1, packedPages.length)
     ),
+    // A blended caster's opacity moved: the shadow pages under it are drawn again.
+    (rec) => noteResidenceChange(rt.lights, rec),
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
@@ -130,11 +135,14 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     diagnosticFailure: diag.diagnosticFailure,
   });
   const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
+  /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
+  const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   const shadowTier = createShadowTier({
     packedPages,
     keyCount: tracking.keyCount,
     keyOf: tracking.keyOf,
     room,
+    closeOver: closure.closeOver,
   });
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
@@ -168,11 +176,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  const publication = createWebgpuCutPublication(rt, residencySets);
+  const publication = createWebgpuCutPublication(rt, residencySets, closure);
   return {
     syncRows,
     syncRowsFromCut,
     rowsOwed,
+    blendCasters,
     pageSource,
     hasBytes,
     poolHolds,
@@ -183,6 +192,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     shadowTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
+    /** Bytes of the cut's host tables — group closure and the rule's readiness — once prepared. */
+    hostTableBytes: () => closure.hostBytes + (rt.run.gpuSelection?.hostBytes ?? 0),
     ...publication,
   };
 }

@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 9;
+export const PHYSICS_LAYOUT_VERSION = 13;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -28,6 +28,10 @@ export const OP = {
   joint: 18,
   unjoint: 19,
   motor: 20,
+  /** The vehicles' (`vehicleLayout.ts`). */ vehicle: 21,
+  unvehicle: 22,
+  drive: 23,
+  /** The soft bodies' (`softLayout.ts`). */ soft: 24,
 } as const;
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */
@@ -126,12 +130,16 @@ export const GENERATIONS = 128;
 
 /**
  * Words of the fixed part of ADD: `op, engine id, motion, layer, shape, flags, px, py, pz, qx, qy,
- * qz, qw, a, b, c, mass, density, friction, restitution, gravityScale, vertexCount, indexCount`,
+ * qz, qw, a, b, c, mass, density, friction, restitution, gravityScale, linearDamping,
+ * angularDamping, vertexCount, indexCount`,
  * followed by `vertexCount × 3` floats and `indexCount` indices. `a, b, c` are the primitive's
  * sizes (box half extents; sphere radius; capsule and cylinder half height, radius); a mass of 0
  * takes `density × volume`.
  */
-export const ADD_WORDS = 23;
+export const ADD_WORDS = 25;
+/** The simulation's own damping, per second, linear and angular alike: what ADD carries for a
+ *  body that sets none (Jolt's). */
+export const DAMPING = 0.05;
 
 /**
  * Words of VIEW: `op, eye x, y, z, facing x, y, z, halfCone, range`. Distance decides what is

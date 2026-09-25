@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Selalu `true`: membedakan sebuah atribut buffer dari yang lain.",
       "type": "Bagaimana nilainya dideklarasikan; sebuah atribut half-float disimpan pada presisi float.",
-      "normalized": "Apakah bilangan bulat dibaca sebagai nilai antara 0 dan 1.",
       "version": "Dinaikkan setiap penulisan yang dideklarasikan: apa yang dibandingkan dunia untuk melihat konten berubah.",
       "array": "Angka-angkanya sendiri.",
-      "itemSize": "Berapa angka yang menjadi milik satu vertex: 3 untuk sebuah posisi.",
       "count": "Berapa banyak vertex yang dijelaskan angka-angkanya.",
-      "needsUpdate": "`attribute.needsUpdate = true` setelah menulis `array`: dunia membacanya ulang.",
-      "getComponent": "Angka `component` dari vertex `index`.",
-      "getX": "Angka pertama dari vertex `i`.",
-      "getY": "Angka kedua dari vertex `i`.",
-      "getZ": "Angka ketiga dari vertex `i`.",
-      "getW": "Angka keempat dari vertex `i`.",
-      "setXYZ": "Menulis tiga angka untuk vertex `i`.",
-      "setXY": "Menulis dua angka untuk vertex `i`.",
-      "setX": "Menulis angka pertama vertex `i`.",
-      "clone": "Atribut baru dengan salinan angka-angkanya."
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi.",
+      "clone": "Atribut baru dengan salinan angka, tipenya, normalisasinya, dan namanya.",
+      "kind": "Atribut ini memiliki buffernya sendiri.",
+      "updateRanges": "Rentang `array` yang ditulis sejak unggahan terakhir, dikirim tersendiri.",
+      "addUpdateRange": "Menandai `count` angka mulai dari `start` sebagai tertulis.",
+      "clearUpdateRanges": "Melupakan rentang tertulis setelah diunggah."
     }
   },
   "BufferNumbers": {
@@ -279,7 +273,7 @@
     "summary": "Periode tenggang antara permintaan pembatalan kooperatif di stdin dan penghentian paksa."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Format cache luar yang dibutuhkan untuk BLEND berkelompok; manifest sumber menyimpan formatnya sendiri."
+    "summary": "Format cache luar yang dibutuhkan untuk BLEND berkelompok (6 sebelum `selectedNodes` menjadi hitungan); manifest sumber menyimpan formatnya sendiri."
   },
   "COLUMN_KIND": {
     "summary": "Bagaimana setiap kolom manifest biner disimpan: desimal, bilangan bulat, atau byte.",
@@ -722,7 +716,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identitas cache untuk galat DAG per-cluster: galat QEM grup diproyeksikan lewat bola grup."
+    "summary": "Identitas cache untuk galat DAG per klaster: galat QEM absolut grup atas posisi, normal, dan koordinat tekstur, dibatasi pada bentang grup; cache v1 ditolak."
   },
   "DEFAULT_SCOPE": {
     "summary": "Cakupan tempat sebuah model dikompilasi saat tidak ada yang disebutkan: streaming per halaman."
@@ -996,7 +990,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Format cache yang dibaca runtime ini.",
-    "description": "Format 5 membawa `scene-tables.json`, tabel node dan material tempat scene yang disiapkan diperiksa; format 3 dan 4 tidak punya produk seperti itu dan ditolak lewat nomornya, bukan dibaca separuh."
+    "description": "Format 5 menambahkan `scene-tables.json`, tabel node dan material tempat scene yang disiapkan diperiksa; format 7 membawa `selectedNodes` sebagai hitungan, bukan daftar (#404). Format yang lebih lama ditolak lewat nomornya, bukan dibaca separuh."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Jumlah float untuk keenam bidang sebuah frustum."
@@ -1076,8 +1070,8 @@
       "transparentDrawCalls": "Panggilan gambar tembus pandang.",
       "transparentSubmittedTriangles": "Segitiga tembus pandang yang dikirim.",
       "coverageReady": "Fallback GPU awal yang lengkap tersedia; null pada backend tanpa jaminan ini.",
-      "coverageBudgetLimited": "Detail yang diminta tidak bisa hidup bersama fallback yang dipaku dalam anggaran halaman GPU.",
-      "budgetPixelError": "Batas bawah galat layar yang dipaksakan anggaran halaman GPU pada potongan itu, dalam piksel: `0` saat detail yang diminta muat, kalau tidak ambang batas lebih kasar tempat gambar digambar. Null pada mesin tanpa anggaran halaman.",
+      "coverageBudgetLimited": "Detail yang diminta butuh lebih banyak halaman daripada yang muat di anggaran halaman GPU: sisanya digambar lebih kasar.",
+      "budgetPixelError": "Hanya WebGL2: batas bawah galat layar yang dipaksakan anggaran halamannya pada potongan itu, dalam piksel — `0` saat detail yang diminta muat, kalau tidak ambang batas lebih kasar tempat gambar digambar. Tidak ada di WebGPU, tempat residensi saja yang membuat gambar lebih kasar. Null pada mesin tanpa anggaran halaman.",
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
@@ -1487,7 +1481,10 @@
       "array": "Angka setiap vertex, dikemas satu demi satu.",
       "stride": "Berapa banyak angka yang diambil tiap vertex.",
       "count": "Berapa banyak vertex yang dikemasnya.",
-      "attribute": "Satu atribut dibaca keluar dari kemasan itu, sebagai atribut float miliknya sendiri."
+      "attribute": "Satu atribut dibaca keluar dari kemasan itu, sebagai atributnya sendiri.",
+      "kind": "Satu penyimpanan yang dilihat beberapa atribut.",
+      "version": "Dinaikkan oleh `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
     }
   },
   "Intersection": {
@@ -1794,10 +1791,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga-segitiganya.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "parameters.depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
@@ -1870,10 +1869,12 @@
       "wireframe": "Hanya menggambar tepi segitiga-segitiganya.",
       "flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "size": "Ukuran sebuah titik, untuk material points.",
-      "sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "linewidth": "Lebar sebuah garis.",
-      "dashSize": "Panjang sebuah dash.",
-      "gapSize": "Panjang celah antara dua dash.",
+      "sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan itu.",
       "depthWrite": "Apakah permukaan itu menulis kedalamannya, menyembunyikan yang digambar setelahnya.",
       "depthTest": "Apakah permukaan itu tersembunyi di belakang yang sudah lebih dekat.",
@@ -2097,6 +2098,52 @@
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Katun tenun sedang, kg/m²: berat kain berkisar 0,15 sampai 0,25.",
+    "description": "Kain jatuh sama pada massa berapa pun; ia menekan pinnya dan apa yang ditemuinya. Kulit sebuah volume dianggap kain seperti itu."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Dinyatakan: bagian penampang rata-ratanya — seperempat luasnya, untuk bentuk cembung apa pun (Cauchy) — tempat volume yang diam di tanah melesak, gasnya menahan beratnya di sana.",
+    "description": "Tekanan bawaannya lalu `4·m·g / (share·area)`: 31 Pa untuk kulit `SOFT_AREAL_DENSITY`. Setengah bagian, dua kali tekanan. Tak pernah melewati tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Tali poliamida 10 mm, kg/m: tabel pembuat memberi 0,06 sampai 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Apa yang diterima `obj.physics` untuk benda lunak: verteksnya disimulasikan satu per satu.",
+    "description": "Materi dan tarikannya seperti benda kaku; tanpa redaman sudut, bentuk, sensor, CCD, maupun puing.",
+    "members": {
+      "damping": "Bagian kecepatan titik-titiknya yang hilang per detik, `dv/dt = −c·v`, 0 ke atas.",
+      "pins": "Indeks verteks geometri yang ditahan di tempatnya: tiang bendera, kait tali.",
+      "mass": "Kilogram, dibagi ke verteks menurut luas (tali: panjang) yang ditanggung masing-masing; bila dihilangkan, `SOFT_AREAL_DENSITY` per m² (tali: `SOFT_LINEAR_DENSITY` per m).",
+      "stretch": "Seberapa rusuk mengalah saat ditarik, m/N (kebalikan kekakuannya): 0 tak pernah meregang.",
+      "bend": "Seberapa ia mengalah saat dilipat, rad/(N·m) (tali: m/N); `Infinity` melipat bebas."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Opsi benda lunak: kain, tali, atau volume dengan tekanan gasnya."
+  },
+  "SoftBodyType": {
+    "summary": "Benda lunak: kain (segitiganya, terbuka), tali (verteksnya, masing-masing tersambung ke berikutnya), atau volume (segitiganya yang tertutup, ditopang gas di dalamnya)."
+  },
+  "SoftSettings": {
+    "summary": "Opsi benda lunak setelah dibaca: setiap bawaan terisi.",
+    "members": {
+      "type": "Apa ia.",
+      "pins": "Verteks geometri yang ditahan di tempatnya.",
+      "mass": "Kilogram, `undefined` untuk massa dari kepadatan bawaan.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), m/N untuk tali.",
+      "pressure": "Pa; `undefined` untuk tekanan bawaan volume (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Opsi volume: mesh tertutup yang ditopang gas di dalamnya.",
+    "members": {
+      "type": "Sebuah volume.",
+      "pressure": "Tekanan gas di atas tekanan udara saat diam, Pa; bila ditekan, naik saat volume turun (hukum Boyle). Segitiga harus menghadap keluar. Bila dihilangkan, tekanan yang meletakkan berat volume pada `SOFT_FOOTPRINT` penampang rata-ratanya, atau tekanan terbesar yang ditahan kulitnya bila lebih kecil. Ditolak di atas tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
+    }
+  },
   "TransformNode": {
     "summary": "Simpul adegan yang dibaca melalui matriks referensi, disimpan di pohon transformasi mesin.",
     "members": {
@@ -2287,10 +2334,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Yang dikembalikan sebuah `cut`: halamannya, dan grid posisi tempat mereka dikuantisasi.",
+    "summary": "Yang dikembalikan sebuah `cut`: halamannya, dan grid tempat mereka dikuantisasi.",
     "members": {
       "pages": "Halaman yang ditulis.",
       "positionExponent": "Langkah grid posisi, sebagai pangkat dua.",
+      "uvExponent": "Langkah grid koordinat tekstur, sebagai pangkat dua.",
       "maxPositionError": "Galat posisi terbesar pada grid itu."
     }
   },
@@ -2848,7 +2896,7 @@
       "renderOrder": "Urutan gambarnya di antara benda-benda tembus pandang.",
       "userData": "Data milik halaman sendiri, sebagai JSON.",
       "children": "Node di bawahnya, secara berurutan.",
-      "mesh": "Urutan di `geometries` dan `materials`, serta cara segitiga dibaca.",
+      "mesh": "Peringkat di `geometries` dan `materials`, cara segitiga dibaca, dan pusat sebuah sprite.",
       "light": "Jenis cahaya, warna, angka, arah bidikan, dan koefisien probe-nya.",
       "model": "Model terkompilasi, lewat alamat manifest tempat ia dimuat: tidak pernah disalin ke dalam."
     }
@@ -3995,8 +4043,8 @@
       "transparentDrawCalls": "Panggilan gambar tembus pandang.",
       "transparentSubmittedTriangles": "Segitiga tembus pandang yang dikirim.",
       "coverageReady": "Fallback GPU awal yang lengkap tersedia; null pada backend tanpa jaminan ini.",
-      "coverageBudgetLimited": "Detail yang diminta tidak bisa hidup bersama fallback yang dipaku dalam anggaran halaman GPU.",
-      "budgetPixelError": "Batas bawah galat layar yang dipaksakan anggaran halaman GPU pada potongan itu, dalam piksel: `0` saat detail yang diminta muat, kalau tidak ambang batas lebih kasar tempat gambar digambar. Null pada mesin tanpa anggaran halaman.",
+      "coverageBudgetLimited": "Detail yang diminta butuh lebih banyak halaman daripada yang muat di anggaran halaman GPU: sisanya digambar lebih kasar.",
+      "budgetPixelError": "Hanya WebGL2: batas bawah galat layar yang dipaksakan anggaran halamannya pada potongan itu, dalam piksel — `0` saat detail yang diminta muat, kalau tidak ambang batas lebih kasar tempat gambar digambar. Tidak ada di WebGPU, tempat residensi saja yang membuat gambar lebih kasar. Null pada mesin tanpa anggaran halaman.",
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
@@ -5452,10 +5500,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5466,7 +5516,7 @@
     }
   },
   "material.lineDashed": {
-    "summary": "Menggambar garis putus-putus.",
+    "summary": "Menggambar garis putus-putus: `dashSize` digambar, lalu `gapSize` dibiarkan kosong, sepanjang garis.",
     "parameters": {
       "parameters": "Yang boleh dilewatkan sebuah halaman ke anggota material; setiap bidang opsional.",
       "parameters.color": "Warna dasar.",
@@ -5490,10 +5540,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5528,10 +5580,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5566,10 +5620,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5604,10 +5660,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5642,10 +5700,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5680,10 +5740,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5718,10 +5780,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5756,10 +5820,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5794,10 +5860,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5832,10 +5900,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5870,10 +5940,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5908,10 +5980,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -5922,7 +5996,7 @@
     }
   },
   "material.sprite": {
-    "summary": "Sebuah gambar datar yang selalu menghadap kamera.",
+    "summary": "Gambar datar yang selalu menghadap kamera (`object.sprite`), tembus pandang di bagian gambarnya yang tembus pandang, diputar di dalam gambar oleh `rotation` dan lebih kecil di kejauhan kecuali `sizeAttenuation` bernilai false.",
     "parameters": {
       "parameters": "Yang boleh dilewatkan sebuah halaman ke anggota material; setiap bidang opsional.",
       "parameters.color": "Warna dasar.",
@@ -5946,10 +6020,12 @@
       "parameters.wireframe": "Hanya menggambar tepi segitiga.",
       "parameters.flatShading": "Memberi setiap segitiga satu bayangan datar, menampilkan facet-nya.",
       "parameters.size": "Ukuran sebuah titik, untuk material points.",
-      "parameters.sizeAttenuation": "Apakah titik mengecil dengan jarak.",
-      "parameters.linewidth": "Lebar sebuah garis.",
-      "parameters.dashSize": "Panjang sebuah dash.",
-      "parameters.gapSize": "Panjang celah di antara dua dash.",
+      "parameters.sizeAttenuation": "Apakah titik dan sprite mengecil seiring jarak.",
+      "parameters.rotation": "Seberapa jauh gambar sebuah sprite diputar di dalam gambar, dalam radian, berlawanan arah jarum jam.",
+      "parameters.linewidth": "Lebar sebuah garis dalam piksel CSS, sama pada jarak berapa pun.",
+      "parameters.dashSize": "Panjang satu garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.gapSize": "Panjang celah di antara dua garis putus, dalam satuan dunia sepanjang garis.",
+      "parameters.scale": "Seberapa jauh jarak sepanjang garis putus-putus direntangkan: 2 menggambar garis dan celah setengah panjangnya.",
       "parameters.vertexColors": "Apakah `color` per-vertex geometri mewarnai permukaan.",
       "parameters.depthWrite": "Apakah permukaan menulis kedalamannya, menyembunyikan apa yang digambar setelahnya.",
       "parameters.depthTest": "Apakah permukaan bersembunyi di belakang apa yang sudah lebih dekat.",
@@ -6243,9 +6319,9 @@
     }
   },
   "object.sprite": {
-    "summary": "Sebuah persegi satuan menghadap `+z`, dalam jenis sprite.",
+    "summary": "Gambar datar yang selalu menghadap kamera, ke mana pun kamera melihat: persegi satuan, sebesar skala sprite dan diputar di dalam gambar oleh `rotation` materialnya.",
     "parameters": {
-      "material": "Yang ditampilkan persegi."
+      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`."
     }
   },
   "orthographicProjection": {
@@ -6680,13 +6756,13 @@
     "members": {
       "geometryPoolCeiling": "Kolam terbesar yang boleh diminta sebuah dunia: anggaran awal mesin.",
       "texturePoolCeiling": "Kolam tekstur terbesar yang boleh diminta sebuah dunia, dalam byte.",
-      "geometryPool": "Byte memori GPU untuk halaman geometri; atur untuk mengubah amplop, dalam sisa yang ditinggalkan `gpu` di samping bayangan dan pool tekstur.",
-      "texturePool": "Byte memori GPU untuk halaman tekstur, `null` pada mesin tanpa pool tekstur (WebGL2); atur untuk mengubah amplop, dalam sisa yang ditinggalkan `gpu` di samping bayangan dan pool geometri.",
+      "geometryPool": "Byte memori GPU untuk halaman geometri; atur untuk mengubah amplop, dalam sisa yang ditinggalkan `gpu` di samping bayangan, probe pantulan, dan pool tekstur.",
+      "texturePool": "Byte memori GPU untuk halaman tekstur, `null` pada mesin tanpa pool tekstur (WebGL2); atur untuk mengubah amplop, dalam sisa yang ditinggalkan `gpu` di samping bayangan, probe pantulan, dan pool geometri.",
       "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya.",
       "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Total di bawah pool bayangan ditolak (`GPU_BUDGET_UNDER_SHADOW_POOL`). Tidak pernah dibaca dari mesin.",
-      "cpu": "Byte memori CPU yang boleh ditahan dunia: pertama cermin host tabel halaman bayangan, lalu halaman terdekode; diterapkan pada pemuatan adegan berikutnya. Total yang tidak melebihi cermin ditolak (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Tidak pernah dibaca dari mesin.",
-      "split": "Cara kedua total dibagi: pool bayangan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU. Hasil aturan, sebelum sebuah pool diatur sendiri."
+      "cpu": "Byte memori CPU yang boleh ditahan dunia: pertama cermin host tabel halaman bayangan, lalu halaman terdekode, tabel manifesnya, antrean transfernya, dan tabel potongan mesin bersama-sama. Perubahan langsung berlaku: halaman keluar berdasarkan penggunaan terakhir sampai muat. Total yang tidak melebihi cermin ditolak (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Tidak pernah dibaca dari mesin.",
+      "split": "Cara kedua total dibagi: pool bayangan dan probe pantulan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU, seluruhnya, dan di dalamnya sesi yang berjalan mencadangkan tabel manifes, antrean transfernya, dan tabel potongan mesin. Hasil aturan, sebelum sebuah pool diatur sendiri."
     }
   },
   "world.camera": {
@@ -6984,7 +7060,8 @@
       "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
       "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
       "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
-      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda.",
+      "softVertices": "Verteks semua benda lunak sekaligus (kain, tali, volume). Masing-masing diselesaikan setiap langkah dan dibaca kembali oleh halaman, 12 byte per langkah."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7010,11 +7087,12 @@
     "summary": "Fisika satu objek, seperti dipegang `obj.physics`: catatan hidup tentang apa benda itu dan apa yang dilakukannya.",
     "description": "Penulisan sampai ke simulasi pada langkah berikutnya; `velocity` membaca apa yang ditinggalkan langkah terakhir.",
     "members": {
-      "type": "Cara benda bergerak; tetapkan ulang `obj.physics` untuk mengubahnya.",
+      "type": "Cara benda bergerak, atau benda lunak apa ia; tetapkan ulang `obj.physics` untuk mengubahnya.",
       "shape": "Bentuk yang dinyatakan, jika ada.",
       "sensor": "Apakah benda hanya melaporkan kontak.",
       "ccd": "Apakah tabrakan kontinu aktif.",
       "decorative": "Apakah benda adalah puing dekoratif.",
+      "damping": "Bagian kecepatannya yang hilang dengan sendirinya setiap detik, linear dan sudut (`dv/dt = −c·v`).",
       "velocity": "Kecepatan linear, m/s, seperti ditinggalkan langkah terakhir; tulis untuk melempar benda.",
       "asleep": "Apakah benda tidur: diam, dan tidak disimulasikan sampai sesuatu membangunkannya.",
       "mass": "Massa dalam kilogram; `undefined` memakai massa jenis material kali volume.",
@@ -7024,7 +7102,9 @@
       "applyImpulse": "Mendorong benda seketika, impuls dalam N·s melalui pusat massanya; membangunkannya.",
       "wake": "Membangunkan benda, tidur atau tidak.",
       "on": "Memanggil `handler` pada peristiwa kontak benda ini.",
-      "listens": "Apakah ada penangan kontak."
+      "listens": "Apakah ada penangan kontak.",
+      "soft": "Pengaturan benda lunak, setiap bawaan terisi; `null` untuk benda kaku.",
+      "vertices": "Verteks benda lunak seperti yang ditinggalkan tick terakhir: `x, y, z` per verteks geometrinya, dalam kerangka geometri itu sendiri; `null` untuk benda kaku, dan sampai tick pertamanya."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7049,7 +7129,8 @@
       "ccd": "Tabrakan kontinu, untuk benda kecil cepat yang bisa menembus dinding tipis.",
       "decorative": "Puing: hanya bertemu dunia statis, dan hanya disimulasikan dalam jangkauan dan terlihat. Dibatasi `budget.physics.decorative`.",
       "friction": "Mengganti gesekan material, 0 ke atas.",
-      "restitution": "Mengganti pantulan material, 0 sampai 1."
+      "restitution": "Mengganti pantulan material, 0 sampai 1.",
+      "damping": "Seberapa banyak kecepatan yang hilang dari benda dengan sendirinya, per detik, seperti oleh udara dan gelinding: `dv/dt = −c·v`, 0 ke atas, linear dan sudut terpisah; 0 menyimpan semuanya. Ditetapkan saat benda dibuat: setel ulang `obj.physics` untuk mengubahnya."
     }
   },
   "PhysicsBudget": {
@@ -7062,7 +7143,8 @@
       "threads": "Thread yang memajukan simulasi, termasuk milik worker fisika. Di atas 1 butuh halaman yang terisolasi lintas asal (memori bersama); selain itu simulasi berjalan pada satu. Tidak pernah lebih dari inti logis mesin dikurangi milik halaman.",
       "bodyPairs": "Pasangan benda yang batasnya bertumpuk dalam satu langkah. Tumpukan padat memuat sekitar empat per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
       "contactConstraints": "Pasangan yang bersentuhan yang diselesaikan dalam satu langkah. Tumpukan yang diam memuat sekitar dua per benda; langkah yang menemukan lebih banyak melewatkan kontak dan memunculkan `PHYSICS_BUDGET`.",
-      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda."
+      "contactEvents": "Peristiwa kontak (`enter`, `leave`) yang dilaporkan satu langkah. `enter` yang melampauinya dibuang dan dihitung (`world.physics.stats.droppedEvents`), dan `leave`-nya tidak pernah dikirim; `leave` hanya ditunda.",
+      "softVertices": "Verteks semua benda lunak sekaligus (kain, tali, volume). Masing-masing diselesaikan setiap langkah dan dibaca kembali oleh halaman, 12 byte per langkah."
     }
   },
   "PhysicsHost": {
@@ -7088,7 +7170,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Apa yang bisa diisikan ke `obj.physics`."
+    "summary": "Apa yang dapat diterima `obj.physics`: benda kaku, atau benda lunak (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Bentuk tabrakan, bila yang disimpulkan dari geometri tidak cocok.",
@@ -7140,6 +7222,7 @@
       "bodies": "Benda yang dipegang simulasi.",
       "active": "Benda aktif setelah tick terakhir.",
       "stepMs": "Milidetik worker per langkah tetap, tick terakhir: jam worker, tidak pernah dijumlahkan dengan jam halaman.",
+      "stepMaxMs": "Milidetik worker dari langkah tetap paling lambat pada tick terakhir: langkah lambat yang disembunyikan rata-rata.",
       "mainMs": "Milidetik halaman yang dipakai fisika pada bingkai terakhir (tahap CPU `physics`).",
       "poses": "Pose yang dikirim tick terakhir.",
       "events": "Peristiwa kontak yang dikirim tick terakhir.",
@@ -7199,19 +7282,6 @@
       "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
       "handbrake": "Apakah rem tangan ditarik."
     }
-  },
-  "GraphAttribute": {
-    "members": {
-      "count": "Berapa banyak vertex.",
-      "array": "Penyimpanannya.",
-      "kind": "Atribut ini memiliki buffernya sendiri.",
-      "version": "Dinaikkan oleh `needsUpdate`.",
-      "updateRanges": "Rentang `array` yang ditulis sejak unggahan terakhir, dikirim tersendiri.",
-      "addUpdateRange": "Menandai `count` angka mulai dari `start` sebagai tertulis.",
-      "clearUpdateRanges": "Melupakan rentang tertulis setelah diunggah.",
-      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
-    },
-    "summary": "Atribut yang memiliki penyimpanannya: `itemSize` angka per verteks, berurutan."
   },
   "GraphGeometry": {
     "members": {
@@ -7307,34 +7377,6 @@
       "rotation": "Rotasi, dalam radian."
     },
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
-  },
-  "GraphArray": {
-    "summary": "Array bertipe yang disimpan sebuah atribut."
-  },
-  "GraphElements": {
-    "summary": "Salah satu dari dua jenis atribut."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Atribut yang melihat `itemSize` angka pada `offset` dari setiap verteks buffer berselang-seling.",
-    "members": {
-      "kind": "Atribut ini melihat buffer bersama.",
-      "data": "Buffer yang dilihatnya.",
-      "offset": "Tempat angka-angkanya dimulai di setiap verteks.",
-      "array": "Penyimpanan tempat elemen berada.",
-      "count": "Berapa banyak verteks.",
-      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Satu penyimpanan yang dilihat beberapa atribut, satu verteks setiap `stride` angka.",
-    "members": {
-      "kind": "Satu penyimpanan yang dilihat beberapa atribut.",
-      "count": "Berapa banyak verteks.",
-      "version": "Dinaikkan oleh `needsUpdate`.",
-      "array": "Penyimpanan.",
-      "stride": "Angka per verteks.",
-      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
-    }
   },
   "GraphMesh": {
     "summary": "Node yang digambar: geometri dan permukaannya, atau satu permukaan per grup geometri.",
@@ -7436,6 +7478,150 @@
       "pulley": "Tali dari `a` melewati dua roda (`over`) turun ke `b`: satu naik saat yang lain turun.",
       "gear": "Dua roda yang berputar bersama menurut `ratio`, masing-masing pada pasaknya sendiri (`axis`, `axisB`) dan ditahan engselnya sendiri (roda sebagai `a`-nya); bila `ratio` atau 1 / `ratio` bulat, gigi-giginya juga menjaga fase saat dibuat.",
       "rackAndPinion": "Pinion `a` yang berputar pada `axis` menggerakkan batang gigi `b` sepanjang `axisB`, masing-masing ditahan engsel atau peluncurnya sendiri (benda sebagai `a`-nya), giginya tetap pada fase saat dibuat."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Atribut yang melihat `itemSize` angka pada `offset` dari setiap verteks buffer berselang-seling.",
+    "members": {
+      "isInterleavedBufferAttribute": "Selalu `true`: membedakan tampilan berselang-seling dari yang lain.",
+      "kind": "Atribut ini melihat buffer bersama.",
+      "data": "Buffer yang dilihatnya.",
+      "offset": "Tempat angka-angkanya dimulai di setiap verteks.",
+      "array": "Penyimpanan tempat elemen berada.",
+      "count": "Berapa banyak vertex yang dijelaskan angka-angkanya.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi.",
+      "clone": "Angka miliknya sendiri, disalin keluar dari kemasan ke atribut yang memilikinya."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Salah satu dari dua jenis atribut: memiliki penyimpanannya sendiri atau melihat penyimpanan berselang-seling."
+  },
+  "VertexElements": {
+    "summary": "Elemen-elemen dari satu atribut vertex, dibaca dan ditulis per komponen.",
+    "members": {
+      "name": "Nama yang dikenal untuk sebuah target morph; kosong untuk yang lain.",
+      "itemSize": "Berapa angka yang menjadi milik satu vertex: 3 untuk sebuah posisi.",
+      "normalized": "Apakah bilangan bulat dibaca sebagai nilai antara 0 dan 1.",
+      "array": "Penyimpanan tempat elemen berada.",
+      "count": "Berapa banyak vertex yang dijelaskan angka-angkanya.",
+      "stored": "Angka `component` dari vertex `index` seperti yang disimpan; bilangan bulat ternormalisasi tanpa diskalakan.",
+      "getComponent": "Angka `component` dari vertex `index`, dibaca sebagai angka yang diwakilinya.",
+      "setComponent": "Menulis angka `component` dari vertex `index`.",
+      "getX": "Angka pertama dari vertex `i`.",
+      "getY": "Angka kedua dari vertex `i`.",
+      "getZ": "Angka ketiga dari vertex `i`.",
+      "getW": "Angka keempat dari vertex `i`.",
+      "setX": "Menulis angka pertama vertex `i`.",
+      "setY": "Menulis angka kedua vertex `i`.",
+      "setZ": "Menulis angka ketiga vertex `i`.",
+      "setW": "Menulis angka keempat vertex `i`.",
+      "setXY": "Menulis dua angka untuk vertex `i`.",
+      "setXYZ": "Menulis tiga angka untuk vertex `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Tiga mesin tempat kendaraan bermula, menurut jenis.",
+    "members": {
+      "car": "Chevrolet Corvette C5: penggerak roda belakang, 0,32 N·m per kilogram, enam gigi.",
+      "motorcycle": "Yamaha XJ900 beserta pengendaranya: 0,26 N·m per kilogram, enam gigi.",
+      "tracked": "Sebuah M1 Abrams: turbin gas, 0,083 N·m per kilogram, empat gigi."
+    }
+  },
+  "Vehicle": {
+    "summary": "Sebuah kendaraan: bodi yang dibawa di atas roda oleh batasan kendaraan Jolt, dengan mesin, girboks, diferensial, suspensi, dan batang anti-guling, dibuat oleh `vehicle.*` dan ditambahkan ke simulasi oleh `world.physics.add`.",
+    "description": "Ia sebuah `VehicleDriver`: `world.controls.vehicle = car` mengemudikannya.",
+    "parameters": {
+      "options": "Yang diterima `vehicle.*`: roda, dan berapa pun nilai mesin (`VehicleSpec`).",
+      "options.wheels": "Roda: mesh, anak dari bodi, masing-masing diletakkan di pusatnya seperti bertumpu di tanah datar, porosnya sepanjang x bodi. Jari-jari dan lebarnya dibaca dari batasnya. Bodi menghadap −z: roda depan berbelok.",
+      "options.torquePerKg": "Torsi puncak mesin per kilogram bodi, N·m/kg.",
+      "options.idleRPM": "Putaran langsam mesin, rpm.",
+      "options.maxRPM": "Garis merah mesin, rpm.",
+      "options.torqueCurve": "Hingga lima titik `[rpm / maxRPM, torsi / puncak]`, pecahan putaran menaik.",
+      "options.gears": "Hingga enam rasio gigi maju, gigi pertama lebih dulu.",
+      "options.reverse": "Rasio gigi mundur.",
+      "options.finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
+      "options.shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
+      "options.shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
+      "options.clutch": "Torsi kopling per rad/s selip, N·m·s; hanya mobil dan motor, ditolak pada kendaraan rantai: mesinnya menggerakkan rantai tanpa kopling (pengendali kendaraan rantai Jolt).",
+      "options.suspensionFrequency": "Frekuensi suspensi, Hz.",
+      "options.suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
+      "options.suspensionTravel": "Jarak tempuh roda dari regangan penuh hingga tekanan penuh, m; lebih panjang daripada amblesan yang diminta frekuensi suspensi di Bumi, `9.81 / (2π suspensionFrequency)²`, atau ditolak: di luar itu bodi bertumpu pada penahannya.",
+      "options.antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang. Hanya mobil: ditolak pada sepeda motor (kedua rodanya tidak berbagi gandar) dan kendaraan rantai (rodanya tidak membawa batang).",
+      "options.turnRadius": "Jari-jari belok pada setir penuh, meter. Ditolak pada kendaraan rantai, yang berbelok dengan rantainya.",
+      "options.steerTime": "Detik dari tengah hingga setir penuh.",
+      "options.brakeGrip": "Gesekan saat rem mengunci roda.",
+      "options.drive": "Roda penggerak sebuah mobil. Ditolak pada sepeda motor (roda belakangnya penggerak) dan kendaraan rantai (roda paling belakang tiap rantai penggerak).",
+      "options.trackTurn": "Kecepatan rantai dalam kendaraan rantai saat berbelok sambil bergerak, dibanding rantai luar; saat diam ia berputar di tempat dengan rantai dalam terbalik, berapa pun rasio ini. Ditolak pada mobil atau sepeda motor.",
+      "options.maxLean": "Kemiringan terbesar sebuah motor, dalam radian. Ditolak pada mobil atau kendaraan rantai."
+    },
+    "members": {
+      "kind": "Apa kendaraan itu.",
+      "body": "Bodi yang dibawa roda.",
+      "wheels": "Roda, anak dari bodi.",
+      "spec": "Mesinnya: milik jenisnya (`VEHICLE_SPECS`), dengan opsi di atasnya.",
+      "input": "Pedal dan setir yang diterimanya sekarang.",
+      "speed": "Meter per detik ke depan setelah langkah terakhir, negatif ke belakang.",
+      "rpm": "Putaran mesin per menit setelah langkah terakhir.",
+      "gear": "Gigi setelah langkah terakhir: 1 ke atas maju, −1 mundur, 0 netral.",
+      "drive": "Menerima pedal dan setir setiap kali sebuah tombol mengubahnya, saat mulai dikemudikan, dan semuanya lepas saat berhenti dikemudikan."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Kendaraan fisika, masing-masing di atas batasan kendaraan Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Yang diterima `vehicle.*`: roda, dan berapa pun nilai mesin (`VehicleSpec`).",
+    "members": {
+      "wheels": "Roda: mesh, anak dari bodi, masing-masing diletakkan di pusatnya seperti bertumpu di tanah datar, porosnya sepanjang x bodi. Jari-jari dan lebarnya dibaca dari batasnya. Bodi menghadap −z: roda depan berbelok."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Terbuat dari apa sebuah kendaraan: mesin, girboks, suspensi, kemudi, dan rem, tiap nilai bawaan milik mesin sungguhan (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Torsi puncak mesin per kilogram bodi, N·m/kg.",
+      "idleRPM": "Putaran langsam mesin, rpm.",
+      "maxRPM": "Garis merah mesin, rpm.",
+      "torqueCurve": "Hingga lima titik `[rpm / maxRPM, torsi / puncak]`, pecahan putaran menaik.",
+      "gears": "Hingga enam rasio gigi maju, gigi pertama lebih dulu.",
+      "reverse": "Rasio gigi mundur.",
+      "finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
+      "shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
+      "shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
+      "clutch": "Torsi kopling per rad/s selip, N·m·s; hanya mobil dan motor, ditolak pada kendaraan rantai: mesinnya menggerakkan rantai tanpa kopling (pengendali kendaraan rantai Jolt).",
+      "suspensionFrequency": "Frekuensi suspensi, Hz.",
+      "suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
+      "suspensionTravel": "Jarak tempuh roda dari regangan penuh hingga tekanan penuh, m; lebih panjang daripada amblesan yang diminta frekuensi suspensi di Bumi, `9.81 / (2π suspensionFrequency)²`, atau ditolak: di luar itu bodi bertumpu pada penahannya.",
+      "antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang. Hanya mobil: ditolak pada sepeda motor (kedua rodanya tidak berbagi gandar) dan kendaraan rantai (rodanya tidak membawa batang).",
+      "turnRadius": "Jari-jari belok pada setir penuh, meter. Ditolak pada kendaraan rantai, yang berbelok dengan rantainya.",
+      "steerTime": "Detik dari tengah hingga setir penuh.",
+      "brakeGrip": "Gesekan saat rem mengunci roda.",
+      "drive": "Roda penggerak sebuah mobil. Ditolak pada sepeda motor (roda belakangnya penggerak) dan kendaraan rantai (roda paling belakang tiap rantai penggerak).",
+      "trackTurn": "Kecepatan rantai dalam kendaraan rantai saat berbelok sambil bergerak, dibanding rantai luar; saat diam ia berputar di tempat dengan rantai dalam terbalik, berapa pun rasio ini. Ditolak pada mobil atau sepeda motor.",
+      "maxLean": "Kemiringan terbesar sebuah motor, dalam radian. Ditolak pada mobil atau kendaraan rantai."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "Mesin awal setiap jenis kendaraan.",
+    "members": {
+      "car": "Chevrolet Corvette C5: penggerak roda belakang, 0,32 N·m per kilogram, enam gigi.",
+      "motorcycle": "Yamaha XJ900 beserta pengendaranya: 0,26 N·m per kilogram, enam gigi.",
+      "tracked": "M1 Abrams: turbin gas, 0,083 N·m per kilogram, empat gigi."
+    }
+  },
+  "vehicle": {
+    "summary": "Keluarga `vehicle`: sebuah bodi dan rodanya, dikemudikan oleh `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Tiga roda atau lebih pada dua poros atau lebih, yang depan berbelok, yang `drive` menggerakkan.",
+      "motorcycle": "Dua roda, yang depan berbelok, yang belakang menggerakkan; ia tetap tegak sendiri.",
+      "tracked": "Roda di dua rantai, kiri dan kanan, masing-masing digerakkan roda paling belakangnya; berbelok dengan memperlambat satu rantai, dan berputar di tempat saat diam."
+    }
+  },
+  "Sprite": {
+    "summary": "Gambar datar yang selalu menghadap kamera: persegi satuan yang diputar setiap renderer ke arah gambar saat menggambar, di sekitar posisi sprite.",
+    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan.",
+    "members": {
+      "isSprite": "Selalu `true`: membedakan sprite dari mesh lain mana pun.",
+      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya."
     }
   }
 }

@@ -21,8 +21,8 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      // Waits for #359: `material.lineDashed` cuts its line into `dashSize` dashes and `gapSize`
-      // gaps, measured along the line; until then every orbit draws solid.
+      // `material.lineDashed` cuts its line into `dashSize` dashes and `gapSize` gaps, measured
+      // along the line from its first vertex.
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
       import { controls, readout } from '../runtime/kit.js';
 

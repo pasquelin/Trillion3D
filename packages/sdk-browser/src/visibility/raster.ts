@@ -1,7 +1,8 @@
 import { signedArea, type Projected } from './projection.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
-import { refreshSurface, surfaceSide } from '../page/surface.ts';
+import { refreshSurface, surfaceSide, type PageSurface } from '../page/surface.ts';
+import { lineDash } from './shader/lineWgsl.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
 import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
 import {
@@ -14,6 +15,7 @@ import {
 } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { HostAttributes } from '../host/resources.ts';
+import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 
 /** Interpolated alpha of the vertex colours; a three-component colour reads an alpha of one. */
 function vertexAlpha(
@@ -24,6 +26,41 @@ function vertexAlpha(
   if (color.itemSize < 4) return 1;
   const a = (i: number) => color.getComponent(i, 3);
   return a(tri.i0) * bary.w0 + a(tri.i1) * bary.w1 + a(tri.i2) * bary.w2;
+}
+
+/**
+ * What drops a pixel of a page's triangle, as the GPU rasters drop it, or nothing: a dashed line's
+ * gaps (`lineDash`) at the distance its first coordinate carries, then a masked surface's cutout,
+ * the base map alpha times the vertex alpha (`maskKeep`, `./shader/pageWgsl.ts`).
+ */
+function cutout(
+  page: VisPage,
+  tri: NonNullable<ReturnType<typeof triangleAt>>,
+  mat: PageSurface,
+  color: HostAttributes[string] | undefined,
+  transformed: boolean,
+) {
+  const uv = page.attributes.uv,
+    dashed = mat.dashSize !== undefined && !!uv,
+    masked = mat.alphaTest > 0 && (!!mat.map || !!color);
+  if (!dashed && !masked) return undefined;
+  return (_x: number, _y: number, w0: number, w1: number, w2: number) => {
+    const bary = perspectiveBary(tri.a, tri.b, tri.c, { w0, w1, w2 });
+    const u = uv
+      ? uv.getX(tri.i0) * bary.w0 + uv.getX(tri.i1) * bary.w1 + uv.getX(tri.i2) * bary.w2
+      : 0;
+    if (dashed && !lineDash(u, mat.dashSize!, mat.gapSize ?? 0)) return false;
+    if (!masked) return true;
+    let alpha = color ? vertexAlpha(color, tri, bary) : 1;
+    const rgba = mat.map && textureRgba(mat.map);
+    if (!rgba) return !color || alpha >= mat.alphaTest;
+    const v = uv
+      ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
+      : 0;
+    const texel = mapTexel(rgba, mat.map!, u, v, transformed);
+    alpha *= rgba.data[texel + 3] / 255;
+    return alpha >= mat.alphaTest;
+  };
 }
 
 function fillIds(
@@ -78,8 +115,14 @@ function fillIds(
 }
 
 /** CPU visbuffer: packed IDs plus NDC z (background at the far value). Engine depth is
- *  reversed, so the GREATEST wins; at equal depth, the first write stays. */
-export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: [number, number]) {
+ *  reversed, so the GREATEST wins; at equal depth, the first write stays. A line page's quads are
+ *  widened at `pixelRatio` image pixels per CSS pixel, as the GPU rasters widen them. */
+export function rasterVisibility(
+  pages: VisPage[],
+  cam: EngineCamera,
+  viewport: [number, number],
+  pixelRatio = DEFAULT_PIXEL_RATIO,
+) {
   const [width, height] = viewport,
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
@@ -103,42 +146,12 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     const color = mat.vertexColors ? page.attributes.color : undefined;
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
-      const tri = triangleAt(page, t, cam, width, height);
+      const tri = triangleAt(page, t, cam, width, height, pixelRatio);
       if (!tri) continue;
       const area = signedArea(tri.a, tri.b, tri.c);
       if (side !== 'double' && (positif ? area <= 0 : area >= 0)) continue;
-      if (mat.alphaTest > 0 && (mat.map || color)) {
-        const uv = page.attributes.uv;
-        fillIds(
-          ids,
-          depth,
-          width,
-          height,
-          tri.a,
-          tri.b,
-          tri.c,
-          packVisibilityId(pageIndex, t),
-          (x, y, w0, w1, w2) => {
-            const bary = perspectiveBary(tri.a, tri.b, tri.c, { w0, w1, w2 });
-            // The base map alpha times the vertex alpha, as the reference cuts
-            // (`maskKeep`, `./shader/pageWgsl.ts`).
-            let alpha = color ? vertexAlpha(color, tri, bary) : 1;
-            const rgba = mat.map && textureRgba(mat.map);
-            if (!rgba) return !color || alpha >= mat.alphaTest;
-            const u = uv
-              ? uv.getX(tri.i0) * bary.w0 + uv.getX(tri.i1) * bary.w1 + uv.getX(tri.i2) * bary.w2
-              : 0;
-            const v = uv
-              ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
-              : 0;
-            const texel = mapTexel(rgba, mat.map!, u, v, transformed);
-            alpha *= rgba.data[texel + 3] / 255;
-            return alpha >= mat.alphaTest;
-          },
-        );
-        continue;
-      }
-      fillIds(ids, depth, width, height, tri.a, tri.b, tri.c, packVisibilityId(pageIndex, t));
+      const keep = cutout(page, tri, mat, color, transformed);
+      fillIds(ids, depth, width, height, tri.a, tri.b, tri.c, packVisibilityId(pageIndex, t), keep);
     }
   }
   for (let i = 0; i < depth.length; i++) if (depth[i] === -Infinity) depth[i] = DEPTH_CLEAR;
@@ -149,6 +162,7 @@ export function rasterVisibilityIds(
   pages: VisPage[],
   cam: EngineCamera,
   viewport: [number, number],
+  pixelRatio = DEFAULT_PIXEL_RATIO,
 ) {
-  return rasterVisibility(pages, cam, viewport).ids;
+  return rasterVisibility(pages, cam, viewport, pixelRatio).ids;
 }

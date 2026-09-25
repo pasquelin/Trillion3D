@@ -9,6 +9,7 @@ import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { SHADOW_REQUEST_WORDS } from '../../lighting/direct/shadowWgsl.ts';
+import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
 
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
@@ -42,7 +43,7 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * and the shading reads the placeholder.
  */
 export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
-  let texture: GPUTexture | undefined;
+  let texture: GPUTexture | undefined, transmittance: ShadowTransmittance | undefined;
   // Also storage: the occlusion test of the moving casters reads each region's matrix there.
   const faceUniform = device.createBuffer({
     label: 'Trillion3D shadow faces v1',
@@ -63,6 +64,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     { records, facePacked } = pack;
   const release = () => {
     texture?.destroy();
+    transmittance?.dispose();
     faceUniform.destroy();
     dataBuffer.destroy();
     requestBuffer.destroy();
@@ -106,11 +108,30 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       layout: faceLayout,
       entries: [{ binding: 0, resource: { buffer: faceUniform, size: FACE_BYTES } }],
     });
+    /**
+     * The pool's texture, `poolSide²` pages, made but not taken: what the grant allocates under
+     * its out-of-memory check (`poolGrants.ts`). `COPY_SRC` is there only for the proof: the host
+     * can reread the pool and compare its fingerprint between two runs. No frame pass copies it.
+     */
+    const makePool = (poolSide: number) =>
+      device.createTexture({
+        label: 'Trillion3D shadow depth atlas v1',
+        size: [poolSide * SHADOW_PAGE, poolSide * SHADOW_PAGE, 1],
+        format: 'depth32float',
+        usage:
+          GPUTextureUsage.RENDER_ATTACHMENT |
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_SRC,
+      });
     const atlas = {
       /** Texels a side, zero until the pool is sized. */
       size: 0,
       get texture() {
         return texture;
+      },
+      /** The transmittance layer (`transmittance.ts`), from the first blended caster on. */
+      get transmittance() {
+        return transmittance;
       },
       view: undefined as GPUTextureView | undefined,
       dataBuffer,
@@ -123,26 +144,32 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceUniform,
       faceStride: FACE_STRIDE,
       allocationBytes: SHADOW_BUFFER_BYTES,
-      /**
-       * Creates the pool's texture, `poolSide²` pages: once, before the first page is drawn.
-       * `COPY_SRC` is there only for the proof: the host can reread the pool and compare its
-       * fingerprint between two runs. No frame pass copies it.
-       */
-      sizePool(poolSide: number) {
+      makePool,
+      /** Takes the pool's texture — the one the device granted, or one made now: once, before the
+       *  first page is drawn. */
+      sizePool(poolSide: number, granted: GPUTexture = makePool(poolSide)) {
         if (texture) throw new Error('the shadow pool is sized once');
         atlas.size = poolSide * SHADOW_PAGE;
-        texture = device.createTexture({
-          label: 'Trillion3D shadow depth atlas v1',
-          size: [atlas.size, atlas.size, 1],
-          format: 'depth32float',
-          usage:
-            GPUTextureUsage.RENDER_ATTACHMENT |
-            GPUTextureUsage.TEXTURE_BINDING |
-            GPUTextureUsage.COPY_SRC,
-        });
-        atlas.view = texture.createView();
+        texture = granted;
+        atlas.view = granted.createView();
         atlas.allocationBytes += shadowAtlasBytes(poolSide);
         pack.setPoolSide(poolSide);
+      },
+      /** Creates the transmittance layer, cleared by `encoder`, once the pool is sized: the
+       *  first frame a blended caster holds a row. */
+      ensureTransmittance(encoder: GPUCommandEncoder) {
+        if (transmittance || !texture) return transmittance;
+        const side = atlas.size / SHADOW_PAGE;
+        transmittance = createShadowTransmittance(
+          device,
+          module,
+          [pageLayout, faceLayout],
+          atlas.view!,
+          side,
+          encoder,
+        );
+        atlas.allocationBytes += transmittance.bytes;
+        return transmittance;
       },
       writePage: pack.writePage,
       writeLamp: pack.writeLamp,

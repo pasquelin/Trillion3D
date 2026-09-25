@@ -1,5 +1,5 @@
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
-import { buildRenderPipeline } from '../../lighting/deferred/program.ts';
+import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 

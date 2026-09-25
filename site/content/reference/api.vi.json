@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Luôn là `true`: phân biệt một thuộc tính bộ đệm với bất cứ thứ gì khác.",
       "type": "Cách các giá trị được khai báo; một thuộc tính half-float được giữ ở độ chính xác float.",
-      "normalized": "Các số nguyên có được đọc thành giá trị giữa 0 và 1 hay không.",
       "version": "Tăng lên ở mỗi lần ghi đã khai báo: đó là điều mà thế giới so sánh để biết nội dung đã thay đổi.",
       "array": "Chính các con số đó.",
-      "itemSize": "Có bao nhiêu số thuộc về một đỉnh: 3 cho một vị trí.",
       "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
-      "needsUpdate": "`attribute.needsUpdate = true` sau khi ghi `array`: thế giới sẽ đọc lại nó.",
-      "getComponent": "Số `component` của đỉnh `index`.",
-      "getX": "Số đầu tiên của đỉnh `i`.",
-      "getY": "Số thứ hai của đỉnh `i`.",
-      "getZ": "Số thứ ba của đỉnh `i`.",
-      "getW": "Số thứ tư của đỉnh `i`.",
-      "setXYZ": "Ghi ba số cho đỉnh `i`.",
-      "setXY": "Ghi hai số cho đỉnh `i`.",
-      "setX": "Ghi số đầu tiên của đỉnh `i`.",
-      "clone": "Một thuộc tính mới với bản sao các con số."
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại.",
+      "clone": "Một thuộc tính mới với bản sao các số, kiểu, chuẩn hóa và tên của chúng.",
+      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
+      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
+      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
+      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên."
     }
   },
   "BufferNumbers": {
@@ -279,7 +273,7 @@
     "summary": "Khoảng thời gian gia hạn giữa một yêu cầu hủy hợp tác trên stdin và việc buộc dừng."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm; các tệp kê khai nguồn giữ định dạng riêng của chúng."
+    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm (là 6 trước khi `selectedNodes` trở thành một số đếm); các tệp kê khai nguồn giữ định dạng riêng của chúng."
   },
   "COLUMN_KIND": {
     "summary": "Cách mỗi cột của tệp kê khai nhị phân được lưu trữ: số thập phân, số nguyên hay byte.",
@@ -722,7 +716,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Danh tính bộ nhớ đệm cho các lỗi DAG theo từng cụm: lỗi QEM của nhóm được chiếu qua hình cầu của nhóm."
+    "summary": "Định danh bộ nhớ đệm cho lỗi DAG theo cụm: lỗi QEM tuyệt đối của nhóm trên vị trí, pháp tuyến và tọa độ texture, giới hạn theo kích thước nhóm; bộ nhớ đệm v1 bị từ chối."
   },
   "DEFAULT_SCOPE": {
     "summary": "Phạm vi mà một mô hình được biên dịch khi không có phạm vi nào được nêu tên: được truyền tải theo trang."
@@ -996,7 +990,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Định dạng bộ nhớ đệm mà thời gian chạy này đọc.",
-    "description": "Định dạng 5 mang theo `scene-tables.json`, các bảng node và vật liệu mà cảnh đã chuẩn bị được đối chiếu với; định dạng 3 và 4 không có sản phẩm như vậy và bị từ chối theo đúng số hiệu của chúng thay vì đọc dở dang."
+    "description": "Định dạng 5 đã thêm `scene-tables.json`, các bảng node và vật liệu mà cảnh đã chuẩn bị được đối chiếu với; định dạng 7 mang `selectedNodes` dưới dạng số đếm, không phải danh sách (#404). Các định dạng cũ hơn bị từ chối theo số hiệu của chúng thay vì đọc dở dang."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Số lượng số thực cho sáu mặt phẳng của một khối nhìn."
@@ -1076,8 +1070,8 @@
       "transparentDrawCalls": "Số lệnh gọi vẽ trong suốt.",
       "transparentSubmittedTriangles": "Số tam giác trong suốt đã gửi.",
       "coverageReady": "Phương án dự phòng GPU ban đầu đầy đủ có sẵn; rỗng trên các backend không có sự đảm bảo này.",
-      "coverageBudgetLimited": "Mức chi tiết được yêu cầu không thể cùng tồn tại với phương án dự phòng đã ghim trong ngân sách trang GPU.",
-      "budgetPixelError": "Sàn sai số màn hình mà ngân sách trang GPU áp đặt lên lát cắt, tính bằng điểm ảnh: `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Rỗng trên các bộ máy không có ngân sách trang.",
+      "coverageBudgetLimited": "Mức chi tiết được yêu cầu cần nhiều trang hơn số ngân sách trang GPU chứa được: phần còn lại được vẽ thô hơn.",
+      "budgetPixelError": "Chỉ WebGL2: sàn sai số màn hình mà ngân sách trang của nó áp đặt lên lát cắt, tính bằng điểm ảnh — `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Không có trên WebGPU, nơi chỉ riêng việc thường trú làm hình ảnh thô đi. Rỗng trên các bộ máy không có ngân sách trang.",
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
@@ -1487,7 +1481,10 @@
       "array": "Các con số của từng đỉnh, được đóng gói lần lượt.",
       "stride": "Mỗi đỉnh chiếm bao nhiêu con số.",
       "count": "Nó đóng gói bao nhiêu đỉnh.",
-      "attribute": "Một thuộc tính được đọc ra khỏi gói đó, như thuộc tính số thực của riêng nó."
+      "attribute": "Một thuộc tính được đọc ra khỏi gói đó, như thuộc tính của riêng nó.",
+      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
+      "version": "Tăng bởi `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
     }
   },
   "Intersection": {
@@ -1794,10 +1791,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc độ phẳng, để lộ các mặt phẳng của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm (points).",
-      "parameters.sizeAttenuation": "Các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Độ rộng của một đường thẳng.",
-      "parameters.dashSize": "Độ dài của một nét gạch.",
-      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không.",
@@ -1870,10 +1869,12 @@
       "wireframe": "Chỉ vẽ các cạnh của tam giác.",
       "flatShading": "Cho mỗi tam giác một sắc độ phẳng, để lộ các mặt phẳng của nó.",
       "size": "Kích thước của một chấm, cho vật liệu điểm (points).",
-      "sizeAttenuation": "Các chấm có nhỏ dần theo khoảng cách hay không.",
-      "linewidth": "Độ rộng của một đường thẳng.",
-      "dashSize": "Độ dài của một nét gạch.",
-      "gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
+      "sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "depthWrite": "Bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "depthTest": "Bề mặt có ẩn sau những gì đã gần hơn hay không.",
@@ -2097,6 +2098,52 @@
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Vải bông dệt trung bình, kg/m²: định lượng vải từ 0,15 đến 0,25.",
+    "description": "Tấm vải rơi như nhau với mọi khối lượng; nó đè lên các ghim và những gì nó gặp. Lớp vỏ của một khối được coi là tấm vải như thế."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Được khai báo: phần tiết diện trung bình — một phần tư diện tích của nó, với mọi hình lồi (Cauchy) — mà khối nằm yên trên mặt đất lún xuống, khí bên trong đỡ trọng lượng của nó ở đó.",
+    "description": "Áp suất mặc định khi đó là `4·m·g / (share·area)`: 31 Pa cho lớp vỏ `SOFT_AREAL_DENSITY`. Nửa phần, gấp đôi áp suất. Nó không bao giờ vượt quá mức lớn nhất mà lớp vỏ giữ được trong một phần mười thể tích nghỉ."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Dây polyamide 10 mm, kg/m: bảng của nhà sản xuất cho 0,06 đến 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Những gì `obj.physics` nhận cho một vật mềm: các đỉnh được mô phỏng từng cái một.",
+    "description": "Vật chất và lực kéo như của một vật rắn; không có giảm chấn góc, hình dạng, cảm biến, CCD hay mảnh vụn.",
+    "members": {
+      "damping": "Phần tốc độ của các đỉnh mất đi mỗi giây, `dv/dt = −c·v`, từ 0 trở lên.",
+      "pins": "Chỉ số các đỉnh của hình học được giữ nguyên chỗ: cán cờ, móc dây.",
+      "mass": "Kilôgam, chia cho các đỉnh theo diện tích (dây: chiều dài) mà mỗi đỉnh mang; nếu bỏ qua, `SOFT_AREAL_DENSITY` mỗi m² (dây: `SOFT_LINEAR_DENSITY` mỗi m).",
+      "stretch": "Một cạnh chịu giãn bao nhiêu khi bị kéo, m/N (nghịch đảo độ cứng): 0 không bao giờ giãn.",
+      "bend": "Nó chịu gập bao nhiêu, rad/(N·m) (dây: m/N); `Infinity` gập tự do."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Tùy chọn của vật mềm: tấm vải, sợi dây, hoặc khối với áp suất khí của nó."
+  },
+  "SoftBodyType": {
+    "summary": "Vật mềm: tấm vải (các tam giác, hở), sợi dây (các đỉnh, mỗi đỉnh nối với đỉnh kế tiếp) hoặc khối (các tam giác kín, được khí bên trong đỡ)."
+  },
+  "SoftSettings": {
+    "summary": "Tùy chọn của vật mềm sau khi đọc: mọi giá trị mặc định đã điền.",
+    "members": {
+      "type": "Nó là gì.",
+      "pins": "Các đỉnh của hình học được giữ nguyên chỗ.",
+      "mass": "Kilôgam, `undefined` cho khối lượng theo mật độ mặc định.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), với dây là m/N.",
+      "pressure": "Pa; `undefined` cho áp suất mặc định của khối (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Tùy chọn của khối: một lưới kín được khí bên trong đỡ.",
+    "members": {
+      "type": "Một khối.",
+      "pressure": "Áp suất của khí cao hơn áp suất không khí khi nghỉ, Pa; khi bị ép, nó tăng lên khi thể tích giảm (định luật Boyle). Các tam giác phải hướng ra ngoài. Nếu bỏ qua, áp suất đặt trọng lượng của khối lên `SOFT_FOOTPRINT` tiết diện trung bình của nó, hoặc mức lớn nhất mà lớp vỏ giữ được nếu nhỏ hơn. Bị từ chối khi vượt mức lớn nhất mà lớp vỏ giữ được trong một phần mười thể tích nghỉ."
+    }
+  },
   "TransformNode": {
     "summary": "Một nút cảnh được đọc qua các ma trận của bản tham chiếu, lưu trong cây biến đổi của engine.",
     "members": {
@@ -2287,10 +2334,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Những gì một `cut` trả về: các trang của nó, và lưới vị trí mà chúng được lượng tử hóa trên đó.",
+    "summary": "Những gì một `cut` trả về: các trang của nó, và các lưới mà chúng được lượng tử hóa trên đó.",
     "members": {
       "pages": "Các trang đã ghi.",
       "positionExponent": "Bước lưới của các vị trí, dưới dạng lũy thừa của hai.",
+      "uvExponent": "Bước lưới của các tọa độ kết cấu, dưới dạng lũy thừa của hai.",
       "maxPositionError": "Sai số vị trí lớn nhất trên lưới đó."
     }
   },
@@ -2848,7 +2896,7 @@
       "renderOrder": "Thứ tự vẽ của nó giữa các vật trong suốt.",
       "userData": "Dữ liệu riêng của trang, dưới dạng JSON.",
       "children": "Các node bên dưới nó, theo thứ tự.",
-      "mesh": "Thứ hạng trong `geometries` và `materials`, và cách đọc các tam giác.",
+      "mesh": "Thứ hạng trong `geometries` và `materials`, cách đọc các tam giác, và tâm của một sprite.",
       "light": "Loại, màu, các con số, hướng chiếu và hệ số probe của một ánh sáng.",
       "model": "Một mô hình đã biên dịch, theo địa chỉ manifest mà nó được nạp từ đó: không bao giờ chép vào trong."
     }
@@ -3995,8 +4043,8 @@
       "transparentDrawCalls": "Số lệnh gọi vẽ trong suốt.",
       "transparentSubmittedTriangles": "Số tam giác trong suốt đã gửi.",
       "coverageReady": "Phương án dự phòng GPU ban đầu đầy đủ có sẵn; rỗng trên các backend không có sự đảm bảo này.",
-      "coverageBudgetLimited": "Mức chi tiết được yêu cầu không thể cùng tồn tại với phương án dự phòng đã ghim trong ngân sách trang GPU.",
-      "budgetPixelError": "Sàn sai số màn hình mà ngân sách trang GPU áp đặt lên lát cắt, tính bằng điểm ảnh: `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Rỗng trên các bộ máy không có ngân sách trang.",
+      "coverageBudgetLimited": "Mức chi tiết được yêu cầu cần nhiều trang hơn số ngân sách trang GPU chứa được: phần còn lại được vẽ thô hơn.",
+      "budgetPixelError": "Chỉ WebGL2: sàn sai số màn hình mà ngân sách trang của nó áp đặt lên lát cắt, tính bằng điểm ảnh — `0` khi mức chi tiết yêu cầu vừa đủ, nếu không là ngưỡng thô hơn mà hình ảnh được vẽ ở đó. Không có trên WebGPU, nơi chỉ riêng việc thường trú làm hình ảnh thô đi. Rỗng trên các bộ máy không có ngân sách trang.",
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
@@ -5452,10 +5500,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5466,7 +5516,7 @@
     }
   },
   "material.lineDashed": {
-    "summary": "Vẽ các đường đứt nét.",
+    "summary": "Vẽ đường đứt nét: vẽ `dashSize`, rồi để trống `gapSize`, dọc theo đường.",
     "parameters": {
       "parameters": "Những gì một trang có thể truyền cho một thành viên vật liệu; mọi trường đều tùy chọn.",
       "parameters.color": "Màu cơ bản.",
@@ -5490,10 +5540,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5528,10 +5580,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5566,10 +5620,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5604,10 +5660,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5642,10 +5700,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5680,10 +5740,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5718,10 +5780,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5756,10 +5820,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5794,10 +5860,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5832,10 +5900,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5870,10 +5940,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5908,10 +5980,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -5922,7 +5996,7 @@
     }
   },
   "material.sprite": {
-    "summary": "Một bức ảnh phẳng luôn hướng về camera.",
+    "summary": "Một hình phẳng luôn quay về phía camera (`object.sprite`), trong suốt ở chỗ hình của nó trong suốt, được xoay trong ảnh theo `rotation` và nhỏ hơn ở xa trừ khi `sizeAttenuation` là false.",
     "parameters": {
       "parameters": "Những gì một trang có thể truyền cho một thành viên vật liệu; mọi trường đều tùy chọn.",
       "parameters.color": "Màu cơ bản.",
@@ -5946,10 +6020,12 @@
       "parameters.wireframe": "Chỉ vẽ các cạnh của các tam giác.",
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
-      "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
-      "parameters.dashSize": "Chiều dài của một nét gạch.",
-      "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
+      "parameters.sizeAttenuation": "Các điểm và sprite có nhỏ đi theo khoảng cách hay không.",
+      "parameters.rotation": "Hình của một sprite được xoay bao nhiêu trong ảnh, tính bằng radian, ngược chiều kim đồng hồ.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
+      "parameters.dashSize": "Độ dài một nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.gapSize": "Độ dài khoảng trống giữa hai nét, tính bằng đơn vị thế giới dọc theo đường.",
+      "parameters.scale": "Khoảng cách dọc theo đường đứt nét được kéo giãn bao nhiêu: 2 vẽ nét và khoảng trống ngắn bằng một nửa.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "parameters.depthWrite": "Liệu bề mặt có ghi độ sâu của nó hay không, che khuất những gì được vẽ sau nó.",
       "parameters.depthTest": "Liệu bề mặt có ẩn phía sau những gì đã gần hơn hay không.",
@@ -6243,9 +6319,9 @@
     }
   },
   "object.sprite": {
-    "summary": "Một hình vuông đơn vị hướng về `+z`, thuộc loại sprite.",
+    "summary": "Một hình phẳng luôn quay về phía camera, dù camera nhìn hướng nào: một hình vuông đơn vị, lớn bằng tỉ lệ của sprite và được xoay trong ảnh theo `rotation` của vật liệu.",
     "parameters": {
-      "material": "Những gì hình vuông hiển thị."
+      "material": "Những gì hình vuông hiển thị: một `material.sprite`."
     }
   },
   "orthographicProjection": {
@@ -6680,13 +6756,13 @@
     "members": {
       "geometryPoolCeiling": "Các bể lớn nhất mà một thế giới có thể yêu cầu: các ngân sách khởi đầu của bộ máy.",
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
-      "geometryPool": "Số byte bộ nhớ GPU dành cho trang hình học; đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng và pool kết cấu.",
-      "texturePool": "Số byte bộ nhớ GPU dành cho trang kết cấu, `null` trên engine không có pool kết cấu (WebGL2); đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng và pool hình học.",
+      "geometryPool": "Số byte bộ nhớ GPU dành cho trang hình học; đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng, các probe ánh sáng dội và pool kết cấu.",
+      "texturePool": "Số byte bộ nhớ GPU dành cho trang kết cấu, `null` trên engine không có pool kết cấu (WebGL2); đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng, các probe ánh sáng dội và pool hình học.",
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
       "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn pool bóng đổ bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy.",
-      "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: trước hết là bản sao phía host của bảng trang bóng, rồi các trang đã giải mã; áp dụng ở lần tải cảnh kế tiếp. Tổng không vượt quá bản sao bị từ chối (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Không bao giờ đọc từ máy.",
-      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
+      "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: trước hết là bản sao phía host của bảng trang bóng, rồi các trang đã giải mã, các bảng manifest, hàng đợi truyền của chúng và các bảng lát cắt của engine cộng lại. Một thay đổi áp dụng ngay: các trang rời đi theo lần dùng cuối cho đến khi vừa. Tổng không vượt quá bản sao bị từ chối (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Không bao giờ đọc từ máy.",
+      "split": "Cách chia hai tổng: pool bóng và các probe ánh sáng dội ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU, toàn bộ, và trong phần đó phiên hiện tại dành riêng các bảng manifest, hàng đợi truyền của nó và các bảng lát cắt của engine. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {
@@ -6984,7 +7060,8 @@
       "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
-      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7010,11 +7087,12 @@
     "summary": "Vật lý của một vật, như `obj.physics` giữ: bản ghi sống về vật là gì và làm gì.",
     "description": "Việc ghi đến mô phỏng ở bước kế tiếp; `velocity` đọc những gì bước cuối để lại.",
     "members": {
-      "type": "Cách vật di chuyển; gán lại `obj.physics` để thay đổi.",
+      "type": "Cách vật di chuyển, hoặc nó là vật mềm nào; gán lại `obj.physics` để thay đổi.",
       "shape": "Hình đã khai báo, nếu có.",
       "sensor": "Vật có chỉ báo va chạm không.",
       "ccd": "Va chạm liên tục có bật không.",
       "decorative": "Vật có phải mảnh vụn trang trí không.",
+      "damping": "Phần tốc độ vật tự mất mỗi giây, tuyến tính và góc (`dv/dt = −c·v`).",
       "velocity": "Vận tốc thẳng, m/s, như bước cuối để lại; ghi vào để ném vật.",
       "asleep": "Vật có đang ngủ không: đứng yên, và không được mô phỏng cho tới khi có gì đánh thức.",
       "mass": "Khối lượng tính bằng kilôgam; `undefined` lấy mật độ vật liệu nhân thể tích.",
@@ -7024,7 +7102,9 @@
       "applyImpulse": "Đẩy vật ngay, một xung lực tính bằng N·s qua khối tâm; đánh thức nó.",
       "wake": "Đánh thức vật, dù đang ngủ hay không.",
       "on": "Gọi `handler` khi có sự kiện va chạm của vật này.",
-      "listens": "Có trình xử lý va chạm nào không."
+      "listens": "Có trình xử lý va chạm nào không.",
+      "soft": "Thiết lập của một vật mềm, mọi giá trị mặc định đã điền; `null` với vật cứng.",
+      "vertices": "Các đỉnh của vật mềm như tick cuối để lại: `x, y, z` cho mỗi đỉnh của hình học, trong hệ riêng của hình học; `null` với vật cứng, và cho đến tick đầu tiên của nó."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7049,7 +7129,8 @@
       "ccd": "Va chạm liên tục, cho vật nhỏ nhanh có thể xuyên qua tường mỏng.",
       "decorative": "Mảnh vụn: chỉ gặp thế giới tĩnh, và chỉ được mô phỏng khi trong tầm và trong tầm nhìn. Giới hạn bởi `budget.physics.decorative`.",
       "friction": "Thay ma sát của vật liệu, từ 0 trở lên.",
-      "restitution": "Thay độ nảy của vật liệu, từ 0 đến 1."
+      "restitution": "Thay độ nảy của vật liệu, từ 0 đến 1.",
+      "damping": "Vật tự mất bao nhiêu tốc độ mỗi giây, như do không khí và lăn: `dv/dt = −c·v`, từ 0 trở lên, tuyến tính và góc riêng; 0 giữ nguyên tất cả. Đặt khi tạo vật: gán lại `obj.physics` để đổi."
     }
   },
   "PhysicsBudget": {
@@ -7062,7 +7143,8 @@
       "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
-      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
     }
   },
   "PhysicsHost": {
@@ -7088,7 +7170,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Những gì có thể gán cho `obj.physics`."
+    "summary": "Những gì `obj.physics` có thể nhận: một vật cứng, hoặc một vật mềm (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Một hình va chạm, khi hình suy ra từ hình học không phù hợp.",
@@ -7140,6 +7222,7 @@
       "bodies": "Các vật mà mô phỏng giữ.",
       "active": "Số vật còn chạy sau tick cuối.",
       "stepMs": "Mili giây worker mỗi bước cố định, tick cuối: đồng hồ của worker, không bao giờ cộng với đồng hồ trang.",
+      "stepMaxMs": "Mili giây worker của bước cố định chậm nhất trong tick cuối: một bước chậm mà giá trị trung bình che mất.",
       "mainMs": "Mili giây trang mà vật lý dùng ở khung cuối (giai đoạn CPU `physics`).",
       "poses": "Tư thế mà tick cuối gửi về.",
       "events": "Sự kiện va chạm mà tick cuối gửi về.",
@@ -7200,25 +7283,6 @@
       "handbrake": "Phanh tay có đang kéo không."
     }
   },
-  "GraphArray": {
-    "summary": "Các mảng có kiểu mà một thuộc tính giữ."
-  },
-  "GraphAttribute": {
-    "summary": "Một thuộc tính sở hữu vùng lưu trữ của nó: `itemSize` số mỗi đỉnh, nối tiếp nhau.",
-    "members": {
-      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
-      "count": "Có bao nhiêu đỉnh.",
-      "version": "Tăng bởi `needsUpdate`.",
-      "array": "Nơi lưu trữ.",
-      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
-      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
-      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
-    }
-  },
-  "GraphElements": {
-    "summary": "Một trong hai loại thuộc tính."
-  },
   "GraphGeometry": {
     "summary": "Các thuộc tính mà một lưới vẽ, danh sách tam giác đánh chỉ mục chúng, các mục tiêu morph di chuyển chúng, cùng hộp và hình cầu cục bộ tính trên chúng.",
     "members": {
@@ -7243,28 +7307,6 @@
       "toNonIndexed": "Một hình học vẽ cùng các tam giác mà không có chỉ mục: mỗi góc là một đỉnh riêng.",
       "computeBoundingBox": "Tính hộp cục bộ trên mọi đỉnh.",
       "computeBoundingSphere": "Tính hình cầu cục bộ: tâm ở hộp, chạm tới đỉnh xa nhất."
-    }
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
-    "members": {
-      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
-      "data": "Bộ đệm mà nó xem.",
-      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
-      "array": "Vùng lưu trữ chứa các phần tử.",
-      "count": "Bao nhiêu đỉnh.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem, mỗi `stride` số là một đỉnh.",
-    "members": {
-      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
-      "count": "Bao nhiêu đỉnh.",
-      "version": "Tăng bởi `needsUpdate`.",
-      "array": "Vùng lưu trữ.",
-      "stride": "Số lượng số mỗi đỉnh.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
     }
   },
   "GraphMesh": {
@@ -7436,6 +7478,150 @@
       "pulley": "Một sợi dây từ `a` vắt qua hai bánh xe (`over`) xuống `b`: vật này lên khi vật kia xuống.",
       "gear": "Hai bánh xe quay cùng nhau theo `ratio`, mỗi bánh quanh chốt riêng (`axis`, `axisB`) và được giữ bởi bản lề riêng (bánh xe là `a` của nó); khi `ratio` hoặc 1 / `ratio` là số nguyên, răng của chúng cũng giữ pha lúc được tạo.",
       "rackAndPinion": "Bánh răng nhỏ `a` quay quanh `axis` đẩy thanh răng `b` dọc `axisB`, mỗi cái được giữ bởi bản lề hoặc khớp trượt riêng (vật là `a` của nó), răng giữ đúng pha lúc được tạo."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
+    "members": {
+      "isInterleavedBufferAttribute": "Luôn là `true`: phân biệt một khung nhìn xen kẽ với bất cứ thứ gì khác.",
+      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
+      "data": "Bộ đệm mà nó xem.",
+      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại.",
+      "clone": "Các số của riêng nó, được sao ra khỏi gói vào một thuộc tính sở hữu chúng."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Một trong hai loại thuộc tính: sở hữu bộ nhớ của mình hoặc xem một bộ nhớ xen kẽ."
+  },
+  "VertexElements": {
+    "summary": "Các phần tử của một thuộc tính đỉnh, được đọc và ghi theo từng thành phần.",
+    "members": {
+      "name": "Tên mà một mục tiêu morph được biết đến; để trống với các thuộc tính khác.",
+      "itemSize": "Có bao nhiêu số thuộc về một đỉnh: 3 cho một vị trí.",
+      "normalized": "Các số nguyên có được đọc thành giá trị giữa 0 và 1 hay không.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
+      "stored": "Số `component` của đỉnh `index` như được lưu trữ; một số nguyên chuẩn hóa chưa được co giãn.",
+      "getComponent": "Số `component` của đỉnh `index`, được đọc như số mà nó biểu thị.",
+      "setComponent": "Ghi số `component` của đỉnh `index`.",
+      "getX": "Số đầu tiên của đỉnh `i`.",
+      "getY": "Số thứ hai của đỉnh `i`.",
+      "getZ": "Số thứ ba của đỉnh `i`.",
+      "getW": "Số thứ tư của đỉnh `i`.",
+      "setX": "Ghi số đầu tiên của đỉnh `i`.",
+      "setY": "Ghi số thứ hai của đỉnh `i`.",
+      "setZ": "Ghi số thứ ba của đỉnh `i`.",
+      "setW": "Ghi số thứ tư của đỉnh `i`.",
+      "setXY": "Ghi hai số cho đỉnh `i`.",
+      "setXYZ": "Ghi ba số cho đỉnh `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Ba cỗ máy mà các phương tiện bắt đầu từ đó, theo loại.",
+    "members": {
+      "car": "Một chiếc Chevrolet Corvette C5: dẫn động cầu sau, 0,32 N·m mỗi kilôgam, sáu số.",
+      "motorcycle": "Một chiếc Yamaha XJ900 cùng người lái: 0,26 N·m mỗi kilôgam, sáu số.",
+      "tracked": "Một chiếc M1 Abrams: tua-bin khí, 0,083 N·m mỗi kilôgam, bốn số."
+    }
+  },
+  "Vehicle": {
+    "summary": "Một phương tiện: một thân được ràng buộc phương tiện của Jolt đỡ trên bánh xe, với động cơ, hộp số, vi sai, hệ treo và thanh cân bằng, tạo bằng `vehicle.*` và thêm vào mô phỏng bằng `world.physics.add`.",
+    "description": "Nó là một `VehicleDriver`: `world.controls.vehicle = car` lái nó.",
+    "parameters": {
+      "options": "Những gì `vehicle.*` nhận: các bánh xe, và bao nhiêu giá trị của cỗ máy tùy ý (`VehicleSpec`).",
+      "options.wheels": "Các bánh xe: lưới là con của thân, mỗi cái đặt tại tâm như khi nằm trên mặt đất phẳng, trục dọc theo x của thân. Bán kính và bề rộng được đọc từ giới hạn của nó. Thân hướng về −z: các bánh phía trước đánh lái.",
+      "options.torquePerKg": "Mô-men cực đại của động cơ trên mỗi kilôgam thân, N·m/kg.",
+      "options.idleRPM": "Vòng tua không tải của động cơ, vòng/phút.",
+      "options.maxRPM": "Vạch đỏ của động cơ, vòng/phút.",
+      "options.torqueCurve": "Tối đa năm điểm `[rpm / maxRPM, mô-men / đỉnh]`, tỉ lệ vòng tua tăng dần.",
+      "options.gears": "Tối đa sáu tỉ số số tiến, số một trước.",
+      "options.reverse": "Tỉ số của số lùi.",
+      "options.finalDrive": "Tỉ số truyền cuối (bộ giảm tốc bánh sao của xe bánh xích).",
+      "options.shiftUpRPM": "Hộp số lên số khi vượt mức này, vòng/phút.",
+      "options.shiftDownRPM": "Và về số thấp dưới mức này, vòng/phút.",
+      "options.clutch": "Mô-men ly hợp trên mỗi rad/s trượt, N·m·s; chỉ cho ô tô và xe máy, bị từ chối với xe bánh xích: động cơ dẫn động xích không qua ly hợp (bộ điều khiển xe bánh xích của Jolt).",
+      "options.suspensionFrequency": "Tần số hệ treo, Hz.",
+      "options.suspensionDamping": "Tỉ số giảm chấn, từ 0 (không có) đến 1 (tới hạn).",
+      "options.suspensionTravel": "Hành trình bánh xe từ duỗi hết đến nén hết, m; phải dài hơn độ lún mà tần số hệ treo đòi hỏi trên Trái Đất, `9.81 / (2π suspensionFrequency)²`, nếu không bị từ chối: vượt quá đó thân xe tì lên các vấu chặn.",
+      "options.antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có. Chỉ cho ô tô: bị từ chối trên xe máy (hai bánh không chung trục) và xe bánh xích (các bánh không mang thanh).",
+      "options.turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét. Bị từ chối trên xe bánh xích, vốn rẽ bằng xích.",
+      "options.steerTime": "Số giây từ giữa đến đánh lái hết cỡ.",
+      "options.brakeGrip": "Ma sát mà tại đó phanh khóa bánh xe.",
+      "options.drive": "Các bánh chủ động của ô tô. Bị từ chối trên xe máy (bánh sau là bánh chủ động) và xe bánh xích (bánh sau cùng của mỗi xích là bánh chủ động).",
+      "options.trackTurn": "Tốc độ xích trong của xe bánh xích khi rẽ lúc đang chạy, so với xích ngoài; khi đứng yên nó xoay tại chỗ, xích trong quay ngược, bất kể tỉ số này. Bị từ chối trên ô tô hoặc xe máy.",
+      "options.maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian. Bị từ chối trên ô tô hoặc xe bánh xích."
+    },
+    "members": {
+      "kind": "Phương tiện là gì.",
+      "body": "Thân mà các bánh xe đỡ.",
+      "wheels": "Các bánh xe, con của thân.",
+      "spec": "Cỗ máy: của loại xe đó (`VEHICLE_SPECS`), với các tùy chọn đè lên.",
+      "input": "Bàn đạp và vô-lăng nó đang nhận.",
+      "speed": "Mét mỗi giây tiến về trước sau bước cuối, âm khi lùi.",
+      "rpm": "Số vòng quay mỗi phút của động cơ sau bước cuối.",
+      "gear": "Số sau bước cuối: từ 1 trở lên là tiến, −1 là lùi, 0 là số không.",
+      "drive": "Nhận bàn đạp và vô-lăng mỗi khi một phím thay đổi chúng, khi bắt đầu được lái, và tất cả được nhả khi thôi được lái."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Các phương tiện của vật lý, mỗi cái trên ràng buộc phương tiện của Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Những gì `vehicle.*` nhận: các bánh xe, và bao nhiêu giá trị của cỗ máy tùy ý (`VehicleSpec`).",
+    "members": {
+      "wheels": "Các bánh xe: lưới là con của thân, mỗi cái đặt tại tâm như khi nằm trên mặt đất phẳng, trục dọc theo x của thân. Bán kính và bề rộng được đọc từ giới hạn của nó. Thân hướng về −z: các bánh phía trước đánh lái."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Phương tiện được làm từ gì: động cơ, hộp số, hệ treo, lái và phanh, mỗi giá trị mặc định là của một cỗ máy thật (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Mô-men cực đại của động cơ trên mỗi kilôgam thân, N·m/kg.",
+      "idleRPM": "Vòng tua không tải của động cơ, vòng/phút.",
+      "maxRPM": "Vạch đỏ của động cơ, vòng/phút.",
+      "torqueCurve": "Tối đa năm điểm `[rpm / maxRPM, mô-men / đỉnh]`, tỉ lệ vòng tua tăng dần.",
+      "gears": "Tối đa sáu tỉ số số tiến, số một trước.",
+      "reverse": "Tỉ số của số lùi.",
+      "finalDrive": "Tỉ số truyền cuối (bộ giảm tốc bánh sao của xe bánh xích).",
+      "shiftUpRPM": "Hộp số lên số khi vượt mức này, vòng/phút.",
+      "shiftDownRPM": "Và về số thấp dưới mức này, vòng/phút.",
+      "clutch": "Mô-men ly hợp trên mỗi rad/s trượt, N·m·s; chỉ cho ô tô và xe máy, bị từ chối với xe bánh xích: động cơ dẫn động xích không qua ly hợp (bộ điều khiển xe bánh xích của Jolt).",
+      "suspensionFrequency": "Tần số hệ treo, Hz.",
+      "suspensionDamping": "Tỉ số giảm chấn, từ 0 (không có) đến 1 (tới hạn).",
+      "suspensionTravel": "Hành trình bánh xe từ duỗi hết đến nén hết, m; phải dài hơn độ lún mà tần số hệ treo đòi hỏi trên Trái Đất, `9.81 / (2π suspensionFrequency)²`, nếu không bị từ chối: vượt quá đó thân xe tì lên các vấu chặn.",
+      "antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có. Chỉ cho ô tô: bị từ chối trên xe máy (hai bánh không chung trục) và xe bánh xích (các bánh không mang thanh).",
+      "turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét. Bị từ chối trên xe bánh xích, vốn rẽ bằng xích.",
+      "steerTime": "Số giây từ giữa đến đánh lái hết cỡ.",
+      "brakeGrip": "Ma sát mà tại đó phanh khóa bánh xe.",
+      "drive": "Các bánh chủ động của ô tô. Bị từ chối trên xe máy (bánh sau là bánh chủ động) và xe bánh xích (bánh sau cùng của mỗi xích là bánh chủ động).",
+      "trackTurn": "Tốc độ xích trong của xe bánh xích khi rẽ lúc đang chạy, so với xích ngoài; khi đứng yên nó xoay tại chỗ, xích trong quay ngược, bất kể tỉ số này. Bị từ chối trên ô tô hoặc xe máy.",
+      "maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian. Bị từ chối trên ô tô hoặc xe bánh xích."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "Cỗ máy khởi đầu của mỗi loại phương tiện.",
+    "members": {
+      "car": "Chevrolet Corvette C5: dẫn động cầu sau, 0,32 N·m mỗi kilôgam, sáu số.",
+      "motorcycle": "Yamaha XJ900 cùng người lái: 0,26 N·m mỗi kilôgam, sáu số.",
+      "tracked": "M1 Abrams: tua-bin khí, 0,083 N·m mỗi kilôgam, bốn số."
+    }
+  },
+  "vehicle": {
+    "summary": "Họ `vehicle`: một thân và các bánh xe của nó, được `world.controls` `'vehicle'` lái.",
+    "members": {
+      "car": "Ba bánh trở lên trên hai trục trở lên, bánh trước đánh lái, bánh theo `drive` là chủ động.",
+      "motorcycle": "Hai bánh, bánh trước đánh lái, bánh sau chủ động; nó tự giữ thăng bằng.",
+      "tracked": "Bánh xe trên hai dải xích, trái và phải, mỗi dải được bánh sau cùng dẫn động; nó rẽ bằng cách làm chậm một dải xích, và quay tại chỗ khi đứng yên."
+    }
+  },
+  "Sprite": {
+    "summary": "Một hình phẳng luôn quay về phía camera: một hình vuông đơn vị mà mọi bộ vẽ xoay về phía ảnh khi vẽ, quanh vị trí của sprite.",
+    "description": "Kích thước của nó là tỉ lệ thế giới trên `x` và `y`; góc xoay trong mặt phẳng ảnh là `rotation` của vật liệu; góc xoay riêng của nó không được đọc. Sprite không đổ bóng.",
+    "members": {
+      "isSprite": "Luôn là `true`: phân biệt sprite với mọi mesh khác.",
+      "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới."
     }
   }
 }

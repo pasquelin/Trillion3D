@@ -47,14 +47,12 @@ export type SelectionResult = {
   requestPriorities?: number[];
   frustumRejected: number;
   lodLevel: number;
-  complete?: boolean;
   drawablePageIds?: number[];
-  /** Triangle totals HELD BY THE GPU, where the verdict is given: the whole cut, what goes to
-   *  draw, the hole — a wanted cluster whose bytes or row are missing — and the blend share.
-   *  `selected − drawn − uncovered = 0`. The only source of these totals: the CPU sums none. */
+  /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
+   *  counter, read as both `selected` and `drawn` — and its blend share. The only source of these
+   *  totals: the CPU sums none. */
   selectedTriangles: number;
   drawnTriangles: number;
-  uncoveredTriangles: number;
   transparentTriangles: number;
   /** True when the cut exceeded the sample cap: the lists are truncated, and the frame must go
    *  back through the CPU cut rather than adopt them (`../dag/layout.ts`). */
@@ -80,6 +78,8 @@ export type GpuSelection = {
   /** Index in u32 words of the current-frame drawable page mask. */
   readonly maskOffset: number;
   readonly pageCount: number;
+  /** Bytes of its host tables, sized by the placements' pages: the CPU budget holds them. */
+  readonly hostBytes: number;
   readonly worldRevision: number;
   /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved. */
   updateWorlds(worldMatrices: Float32Array, posesMoved?: boolean): boolean;

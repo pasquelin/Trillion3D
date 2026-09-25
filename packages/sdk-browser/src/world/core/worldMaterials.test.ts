@@ -14,7 +14,7 @@ test('600 frames of a live emissive intensity repaint one entry in place', () =>
   for (let frame = 0; frame < 600; frame++) {
     lamp.emissiveIntensity = 1.5 + Math.sin(frame);
     assert.equal(table.entryOf(lamp), entry, `frame ${frame} keeps the entry`);
-    assert.deepEqual(table.takeRepainted(), [entry]);
+    assert.deepEqual(table.takeRepainted(), [{ entry, values: true }]);
     assert.equal(entry.material.emissiveIntensity, lamp.emissiveIntensity, 'the value follows');
   }
   lamp.color.set(0x00ff00);
@@ -81,7 +81,11 @@ test('a map’s sampling or placement repaints its entry, a new offset vector he
     assert.equal(map[counter], count + 1, `${write}: counted as ${counter}`);
     assert.equal(map.version, version, 'no picture to send');
     assert.equal(table.entryOf(paint), entry, 'the entry kept');
-    assert.deepEqual(table.takeRepainted(), [entry], `${write}: repainted`);
+    assert.deepEqual(
+      table.takeRepainted(),
+      [{ entry, values: false }],
+      `${write}: repainted, no value`,
+    );
   }
 });
 
@@ -98,4 +102,27 @@ test('a replaced placement vector is let go, and writing the same one back moves
   assert.equal(map.placement, placement, 'the same vector: no write');
   map.repeat.set(3, 3);
   assert.equal(map.placement, placement + 1, 'the new vector is');
+});
+
+// #359: a dashed line's dash, gap and scale are values: written at run time, they repaint its
+// entry in place (#335); a mesh material's copy never gains a dash field it did not declare.
+test('a dash, a gap or a scale written at run time repaints the entry in place', () => {
+  const table = createWorldMaterials();
+  const ink = material.lineDashed({ dashSize: 0.3, gapSize: 0.2 });
+  const entry = table.entryOf(ink);
+  for (const [field, value] of [
+    ['dashSize', 0.5],
+    ['gapSize', 0.1],
+    ['scale', 2],
+  ] as const) {
+    ink[field] = value;
+    assert.equal(table.entryOf(ink), entry, field);
+    assert.deepEqual(table.takeRepainted(), [{ entry, values: true }]);
+    assert.equal(entry.material[field], value);
+  }
+  const paint = material.meshStandard();
+  const painted = table.entryOf(paint);
+  paint.roughness = 0.4;
+  assert.equal(table.entryOf(paint), painted);
+  assert.equal('dashSize' in painted.material, false);
 });

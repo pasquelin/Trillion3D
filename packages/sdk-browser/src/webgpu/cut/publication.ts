@@ -2,6 +2,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutDelta } from './delta.ts';
 import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
+import type { GroupClosure } from './groupClosure.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
@@ -25,6 +26,7 @@ const coverageWatcher = (pending: CutPending) => (page: number) => pending.touch
 export function createWebgpuCutPublication(
   rt: WebgpuPagesCore,
   residencySets: WebgpuResidencySets,
+  closure: GroupClosure,
 ) {
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout;
@@ -33,12 +35,15 @@ export function createWebgpuCutPublication(
   // only a copy of it, and only when the image adopts the readback that produced it.
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
-  const cutPending = createCutPending(packedPages, cutDelta);
+  // What the cache is asked for is the cut closed over its groups (`groupClosure.ts`); what the
+  // image waits for is the part of it the pool accepted.
+  const cutPending = createCutPending(packedPages, closure.delta, residencySets.accepts);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
   rows.watchTouched(coverageWatcher(cutPending));
   const publishCut = () => {
-    residencySets.applyCut(cutDelta);
+    closure.apply(cutDelta);
+    residencySets.applyCut(closure.delta);
     cutPending.apply();
   };
   const publishDrawn = () => residencySets.applyDrawn(drawnDelta);
@@ -72,14 +77,12 @@ export function createWebgpuCutPublication(
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
     run.cutHeld = metrics.cutHeld;
-    gpu.cutIncomplete = metrics.incomplete;
     gpu.cutTruncated = metrics.truncated;
     // An adoption that rewrites the lists ages them, at render as in the drain.
     if (metrics.listsRewritten) run.cutEpoch++;
     if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
-    run.uncoveredTriangles = metrics.uncoveredTriangles;
     run.submittedTriangles = metrics.selectedTriangles;
     run.drawnTriangles = metrics.drawnTriangles;
     run.blendPagedTriangles = metrics.transparentTriangles;

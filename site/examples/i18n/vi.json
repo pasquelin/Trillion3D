@@ -1972,6 +1972,16 @@
       "Look for": "Hãy xem"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Kéo độ mờ đục: bóng của tấm kính giữa đổi theo, mất hẳn ở 0 và đậm hẳn ở 1.",
+    "controls": {
+      "opacity": "Độ mờ đục",
+      "sunHeight": "Độ cao mặt trời"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Độ mờ đục của tấm kính giữa"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng, và thả phím trên băng để trượt.",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "Thang máy",
       "load": "Quả nặng",
       "rope": "Dây đã chạy"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W hoặc ↑ để tăng ga, S hoặc ↓ để phanh rồi lùi, A D hoặc ← → để lái, Space kéo phanh tay. Chọn ô tô, xe máy hoặc xe tăng trong bảng.",
+    "controls": {
+      "vehicle": "Phương tiện",
+      "reset": "Đặt lại trên bánh xe"
+    },
+    "readouts": {
+      "speed": "Tốc độ",
+      "gear": "Số",
+      "rpm": "Động cơ (vòng/phút)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "xe thể thao",
+        "motorcycle": "xe máy",
+        "tracked": "xe tăng"
+      }
+    },
+    "words": {
+      "credit": "Thung lũng được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "Lá cờ treo trên cột và các sợi dây đung đưa dưới xà. Làm lá cờ cứng lại, hoặc để dây giãn ra.",
+    "controls": {
+      "stiff": "Cờ cứng",
+      "stretch": "Độ giãn của dây",
+      "again": "Lại",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "vertices": "Đỉnh",
+      "step": "Bước"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Thả các khối mềm lên bậc thềm. Chỉnh áp suất khí của chúng, hoặc 0 để dùng mặc định.",
+    "controls": {
+      "pressure": "Áp suất (Pa)",
+      "drop": "Thả",
+      "again": "Lại",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "volumes": "Khối",
+      "awake": "Đang chạy"
     }
   }
 }

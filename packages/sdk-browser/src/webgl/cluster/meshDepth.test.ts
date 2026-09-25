@@ -3,21 +3,27 @@ import assert from 'node:assert/strict';
 import { depthOf, placementsCentre } from './meshDepth.ts';
 import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
-import { GraphAttribute } from '../../host/graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 
 // Issue #275: an instanced mesh is sorted by the union of its placements' spheres, grown as the
 // reference grows it, never by its geometry's sphere alone.
 test('an instanced mesh sorts on the union of its placement spheres, as the reference computes it', async () => {
-  const { InstancedMesh, BufferGeometry, BufferAttribute, Matrix4, Quaternion, Vector3 } =
-    await import('three');
+  const {
+    InstancedMesh,
+    BufferGeometry,
+    BufferAttribute: WitnessAttribute,
+    Matrix4,
+    Quaternion,
+    Vector3,
+  } = await import('three');
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3]);
   const count = 7;
   const reference = new BufferGeometry();
-  reference.setAttribute('position', new BufferAttribute(positions, 3));
+  reference.setAttribute('position', new WitnessAttribute(positions, 3));
   const witness = new InstancedMesh(reference, undefined, count);
   const geometry = new GraphGeometry();
-  geometry.setAttribute('position', new GraphAttribute(positions, 3));
+  geometry.setAttribute('position', new BufferAttribute(positions, 3));
   const placed = new GraphInstancedMesh(geometry, new GraphSurface('standard'), count);
   const matrix = new Matrix4();
   for (let i = 0; i < count; i++) {

@@ -627,7 +627,8 @@
           "<code>limits</code> chặn khớp lại: radian cho bản lề, mét cho ray trượt. Một <code>spring</code> làm điểm chặn mềm đi.",
           "Một <code>motor</code> đưa bản lề hoặc ray trượt tới một vận tốc hay một vị trí. Đổi <code>joint.motor</code> bất cứ lúc nào.",
           "<code>breakForce</code> là lực kéo, tính bằng newton, mà vượt quá thì khớp đứt: <code>joint.broken</code> thành true và <code>joint.on('break', …)</code> được gọi.",
-          "Các khớp nâng cao ràng buộc chuyển động với nhau: <code>joint.gear(a, b, { ratio })</code> quay hai bánh xe gắn bản lề như một bộ truyền, <code>joint.rackAndPinion</code> biến phép xoay thành phép trượt, <code>joint.pulley(a, b, { over })</code> treo hai vật trên một sợi dây, <code>joint.path(a, b, { path })</code> giữ toa xe trên đường ray, còn <code>swingTwist</code> và <code>sixDof</code> tạo khớp vai và khớp theo ý bạn."
+          "Các khớp nâng cao ràng buộc chuyển động với nhau: <code>joint.gear(a, b, { ratio })</code> quay hai bánh xe gắn bản lề như một bộ truyền, <code>joint.rackAndPinion</code> biến phép xoay thành phép trượt, <code>joint.pulley(a, b, { over })</code> treo hai vật trên một sợi dây, <code>joint.path(a, b, { path })</code> giữ toa xe trên đường ray, còn <code>swingTwist</code> và <code>sixDof</code> tạo khớp vai và khớp theo ý bạn.",
+          "Phương tiện là một thân đặt trên bánh xe: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> hoặc <code>vehicle.tracked</code>, bánh xe là các lưới đặt trên thân ở chỗ chúng tì xuống. Thêm nó bằng <code>world.physics.add</code> và lái bằng bàn phím: <code>world.controls.vehicle = car</code>, rồi <code>world.controls.kind = 'vehicle'</code>. Động cơ, hộp số, hệ treo và phanh lấy từ một cỗ máy thật; <code>car.speed</code>, <code>car.gear</code> và <code>car.rpm</code> cho biết nó chạy ra sao."
         ],
         "tryIt": "Mở cửa và ngăn kéo, rồi thả hòn đá lên cầu. Giảm độ bền của cầu và dựng lại: nó gãy dưới chính sức nặng của mình."
       },
@@ -1508,10 +1509,10 @@
       "controllers-in-vr": "Bộ điều khiển trong VR",
       "ar-on-the-table": "AR trên bàn",
       "shadows-case-by-case": "Bóng đổ, từng trường hợp",
+      "shadows-through-see-through-panes": "Bóng đổ qua những tấm kính trong",
       "a-walker-among-balls": "Người đi bộ giữa những quả bóng"
     },
     "missing": {
-      "dashed-lines": "đường đứt nét",
       "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
       "a-line-that-draws-itself": "phạm vi vẽ hình học",
@@ -1660,9 +1661,8 @@
       "a-software-rasteriser": "API tính toán GPU",
       "sound-from-the-gpu": "API tính toán GPU",
       "breaking-things": "tích hợp vật lý",
-      "cloth-and-rope": "tích hợp vật lý",
-      "soft-bodies": "tích hợp vật lý",
-      "drive-a-car": "tích hợp vật lý",
+      "cloth-and-rope": "hình học được ghi lại mỗi khung hình",
+      "soft-bodies": "hình học được ghi lại mỗi khung hình",
       "a-room-in-vr": "phiên WebXR",
       "a-360-photo-in-vr": "phiên WebXR",
       "vr-composition-layers": "phiên WebXR: lớp",

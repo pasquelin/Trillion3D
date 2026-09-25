@@ -9,26 +9,16 @@ import {
   MOTION,
   physicsBudgetError,
   physicsMatterOf,
+  isSoftType,
   resolveShape,
   type CommandWriter,
   type PhysicsBudget,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
-import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
-import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-
-const position = new Vector3(),
-  turn = new Quaternion();
-
-/** A node's world position and quaternion, in scratch every caller shares: read them at once. */
-export function worldPoseOf(node: Object3D) {
-  node.updateWorldMatrix(true, false);
-  node.getWorldPosition(position);
-  node.getWorldQuaternion(turn);
-  return { position: position.elements, quaternion: turn.elements };
-}
+import { worldPoseOf, worldScaleOf } from './bodyFrame.ts';
+import { addSoftBody } from './softBodies.ts';
 
 /** A mesh the simulation holds a body for. */
 export type Bodied = Mesh & { physics: NonNullable<Mesh['physics']> };
@@ -65,8 +55,10 @@ export function createPhysicsBodies(
    *  every add and removal, so no record names a slot's next body or an empty slot. */
   const generation = new Uint8Array(budget.bodies);
   const free: number[] = [];
-  const triangles = new Map<number, number>();
-  const count = { bodies: 0, decorative: 0, triangles: 0 };
+  /** What each slot's body counts against the budget beyond itself; a soft body's vertex map. */
+  const claimed = new Map<number, { triangles: number; softVertices: number }>();
+  const softMaps: (Uint32Array | null)[] = [];
+  const count = { bodies: 0, decorative: 0, triangles: 0, softVertices: 0 };
   /** Decorative bodies taken out once asleep: their mesh stays where it came to rest. */
   const retired = new WeakSet<Bodied['physics']>();
   const check = (key: keyof typeof count, more: number) => {
@@ -76,26 +68,22 @@ export function createPhysicsBodies(
   const add = (mesh: Bodied) => {
     const p = mesh.physics;
     if (p._host) return;
-    if (p.type === 'dynamic' && mesh.parent !== root)
+    if (p.type !== 'static' && p.type !== 'kinematic' && mesh.parent !== root)
       throw new EngineError(
         'PHYSICS_NESTED',
-        'A dynamic body must be a direct child of the scene: the simulation owns its world pose.',
+        'A dynamic or soft body must be a direct child of the scene: the simulation owns its world pose.',
         { name: mesh.name },
       );
     check('bodies', 1);
     if (p.decorative) check('decorative', 1);
-    // The world pose as the transform tree composes it; the scale, axis by axis up the chain.
-    const pose = worldPoseOf(mesh);
-    const size = { x: 1, y: 1, z: 1 };
-    for (let node: Object3D | null = mesh; node; node = node.parent) {
-      size.x *= node.scale.x;
-      size.y *= node.scale.y;
-      size.z *= node.scale.z;
-    }
-    const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
+    // The world pose as the transform tree composes it.
+    const pose = worldPoseOf(mesh),
+      size = worldScaleOf(mesh);
     const matter = physicsMatterOf(mesh.material);
+    if (isSoftType(p.type))
+      return hold(mesh, addSoftBody(writer, mesh, pose, size, matter, claim, softMaps));
+    const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
     const id = claim(shape.triangles);
-    const index = id & BODY_INDEX;
     writer.add({
       id,
       motion: MOTION[p.type],
@@ -110,24 +98,33 @@ export function createPhysicsBodies(
       friction: p.friction ?? matter.friction,
       restitution: p.restitution ?? matter.restitution,
       gravityScale: p.gravityScale,
+      damping: [p.damping.linear, p.damping.angular],
       vertices: shape.vertices,
       indices: shape.indices,
       parts: shape.parts,
     });
+    hold(mesh, id & BODY_INDEX);
+  };
+  /** A slot's body made: the mesh that holds it. */
+  const hold = (mesh: Bodied, index: number) => {
+    const p = mesh.physics;
     meshes[index] = mesh;
     held[index] = p;
     if (p.decorative) count.decorative++;
     p._attach(host, index, state);
   };
-  /** A slot and its engine id, counted against the budget with `tris` triangles; no mesh yet. */
-  const claim = (tris: number) => {
+  /** A slot and its engine id, counted against the budget with `triangles` triangles and
+   *  `softVertices` soft-body vertices; no mesh yet. */
+  const claim = (triangles: number, softVertices = 0) => {
     check('bodies', 1);
-    check('triangles', tris);
+    check('triangles', triangles);
+    check('softVertices', softVertices);
     const index = free.pop() ?? meshes.push(null) - 1;
     const next = (generation[index] = (generation[index] + 1) % GENERATIONS);
     count.bodies++;
-    if (tris) triangles.set(index, tris);
-    count.triangles += tris;
+    if (triangles || softVertices) claimed.set(index, { triangles, softVertices });
+    count.triangles += triangles;
+    count.softVertices += softVertices;
     return index | (next << GENERATION_SHIFT);
   };
   /** A slot's body removed, and the slot freed for the next. */
@@ -137,8 +134,10 @@ export function createPhysicsBodies(
     generation[index] = (generation[index] + 1) % GENERATIONS;
     free.push(index);
     count.bodies--;
-    count.triangles -= triangles.get(index) ?? 0;
-    triangles.delete(index);
+    count.triangles -= claimed.get(index)?.triangles ?? 0;
+    count.softVertices -= claimed.get(index)?.softVertices ?? 0;
+    claimed.delete(index);
+    softMaps[index] = null;
   };
   const removeAt = (index: number) => {
     const mesh = meshes[index],
@@ -160,6 +159,8 @@ export function createPhysicsBodies(
     add,
     removeAt,
     meshOf,
+    /** Each geometry vertex's simulated vertex, for the soft body in slot `index`. */
+    softMap: (index: number) => softMaps[index] ?? null,
     /** A body no mesh holds — a cooked tile (`tiles.ts`) —: its slot, then its removal. */
     claim,
     release,

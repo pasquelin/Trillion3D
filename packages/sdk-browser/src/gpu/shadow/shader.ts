@@ -12,16 +12,25 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
+import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
+import { BLEND_TRANSMITTANCE_WGSL, TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
 
 /**
  * Shadow depth passes. Group 0 is that of the visibility-buffer raster, but for one binding:
  * same page table, same cluster selection, same indirect buffer. Only the matrix changes, and
  * it comes from group 1 with a dynamic offset — one face per offset.
  *
- * The fragment stage writes nothing: it exists only to discard. An opacity-mask material —
+ * The depth's fragment stage writes nothing: it exists only to discard. An opacity-mask material —
  * foliage, grille, lattice — casts the shadow of its cutout and not the full silhouette of its
  * cluster, because the mask test is the raster's (`MASK_KEEP_WGSL`), read at the map level the
  * shadow texel asks for — its derivatives, not the camera's.
+ *
+ * A blended cluster casts from a row only this pass reads (`FLAG_BLEND_CASTER`,
+ * `../../webgpu/row/blendCasters.ts`), and never into the depth: `shadow_vs` skips its row, and
+ * `shadow_blend_vs` draws it alone, into the transmittance layer (`transmittance.ts`), at half the
+ * pool's resolution, where `shadow_blend_fs` writes the share of the light it lets through — and,
+ * in the depth-only draw of the same list, its depth. What the pool's opaque depth hides from the
+ * light, at all four of its texels, it discards.
  *
  * It also discards the emitter envelope: a light that declares a radius accepts no depth from a
  * surface closer to its centre than that radius. The rule is Euclidean distance to the centre,
@@ -40,6 +49,7 @@ ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
 struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
+@group(2) @binding(0) var shadowOpaque:texture_depth_2d;
 struct ShadowOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_GEOMETRY_WGSL}
@@ -47,12 +57,17 @@ ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(true)}
 ${MASK_KEEP_WGSL}
-@vertex fn shadow_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+${BLEND_TRANSMITTANCE_WGSL}
+/** A caster's corner, or none when its row is not of the kind drawn: \`blended\` casters alone
+ *  into the transmittance layer, the others alone into the depth. */
+fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  var out:ShadowOut;
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);
- if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
+ let kind=(page.flags&${FLAG_BLEND_CASTER}u)!=0u;
+ // A sprite casts no shadow, as the reference's: its quad faces the camera, never the light.
+ if(vertexIndex>=page.indexCount||kind!=blended||page.sprite.y!=0.0){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
  let h=pageHeader(page);
  let id=pageCorner(page,h,vertexIndex);
  let vertex=pagePosition(page,h,id);
@@ -63,12 +78,40 @@ ${MASK_KEEP_WGSL}
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
 }
-/** Writes no colour: the pass has no target. It only discards the envelope and the cutout. */
+@vertex fn shadow_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ return shadowVertex(vertexIndex,instanceIndex,false);
+}
+@vertex fn shadow_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ return shadowVertex(vertexIndex,instanceIndex,true);
+}
+/** False on the emitter envelope and on a cutout's hole: what no caster keeps. */
+fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
+ let radius=shadow.emitter.w;
+ if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){return false;}
+ return maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0);
+}
+/** Writes no colour: it only discards the envelope and the cutout. */
 @fragment fn shadow_fs(in:ShadowOut){
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- let radius=shadow.emitter.w;
- if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
- if(!maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0)){discard;}
+ if(!shadowKeep(in,gx,gy)){discard;}
+}
+/** True when the pool's opaque depth is nearer the light than \`p\` at the four texels of its
+ *  half-resolution texel: reversed depth, so the farthest of them is the least. */
+fn shadowHiddenByOpaque(p:vec4f)->bool{
+ let q=vec2i(p.xy)*2;
+ let far=min(min(textureLoad(shadowOpaque,q,0),textureLoad(shadowOpaque,q+vec2i(1,0),0)),min(textureLoad(shadowOpaque,q+vec2i(0,1),0),textureLoad(shadowOpaque,q+vec2i(1,1),0)));
+ return p.z<far;
+}
+/** A blended caster's texel of the transmittance layer, blended multiplicatively; the depth-only
+ *  draw masks its colour and keeps its depth. */
+@fragment fn shadow_blend_fs(in:ShadowOut)->@location(0) vec4f{
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);
+ if(!shadowKeep(in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
+ return blendTransmittance(pages[in.instance],in.uv,gx,gy);
+}
+/** The transmittance of a page cleared: all the light, no translucent caster. */
+@fragment fn shadow_clear_fs()->@location(0) vec4f{
+ return ${TRANSMITTANCE_CLEAR_WGSL};
 }
 /** Resets the slice to FAR without clearing the rest of the atlas. Face depth is reverse-Z
  *  like the camera's (\`../../camera/depthConvention.ts\`): far is zero. */

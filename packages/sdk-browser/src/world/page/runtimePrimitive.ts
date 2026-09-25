@@ -1,9 +1,7 @@
 import type { Page, Primitive } from '../../../../sdk-core/src/index.ts';
+import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 import { cutPagesOffThread } from '../../page/decode/host.ts';
-
-/** Texture coordinates sit on the format's fixed grid of 2^-14. */
-const UV_EXPONENT = -14;
 
 /** A runtime primitive, and the addresses its pages are served from until it is released. */
 export type RuntimePrimitive = { primitive: Primitive; urls: string[] };
@@ -15,24 +13,39 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
   return { url, sha256, bytes: bytes.byteLength };
 }
 
-/** The pages of a cut, served at addresses of their own: the primitive a manifest lists. */
-function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
+/** What the cut triangles are, beside faces (`DrawnTriangles`). */
+type DrawnKind = { lines?: boolean; spriteRadius?: number };
+
+/** The box and ball of a page: its own, or for a sprite's quad, which the rasters turn to face
+ *  the camera about its origin (`drawnSprite`), the cube and ball of its radius there — what
+ *  holds the quad whichever way it turns, as the reference culls a sprite by that ball. */
+function bounds(page: PageCutPayload['pages'][number], radius: number | undefined) {
+  if (radius === undefined) return { min: page.min, max: page.max, sphere: page.sphere };
+  return {
+    min: [-radius, -radius, -radius],
+    max: [radius, radius, radius],
+    sphere: [0, 0, 0, radius],
+  };
+}
+
+/** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
+ *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`). */
+function servePrimitive(cut: PageCutPayload, kind: DrawnKind): RuntimePrimitive {
   const urls: string[] = [];
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
     ...served(page.index, page.indexSha256, urls),
     count: page.count,
-    min: page.min,
-    max: page.max,
+    ...bounds(page, kind.spriteRadius),
     role: 'exact',
     start: page.start,
     level: 0,
     lodError: 0,
-    sphere: page.sphere,
     parentError: null,
     parentSphere: null,
     group: null,
     source: null,
+    ...(kind.lines ? { depthLayer: LINE_DEPTH_LAYER } : {}),
     geometry: {
       ...served(page.geometry, page.geometrySha256, urls),
       vertexCount: page.vertexCount,
@@ -50,7 +63,7 @@ function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
     structure: { version: 1, roots: pages.map((page) => page.id), groups: [] },
     quantization: {
       positionExponent: cut.positionExponent,
-      uvExponent: UV_EXPONENT,
+      uvExponent: cut.uvExponent,
       maxPositionError: cut.maxPositionError,
     },
   };
@@ -63,6 +76,9 @@ function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
  * then enter the session like a compiled model's: read by the streamer at their address, held
  * in the same pools under the same budgets, evicted by the same rules.
  */
-export async function cutRuntimePrimitive(packed: ArrayBuffer): Promise<RuntimePrimitive> {
-  return servePrimitive(await cutPagesOffThread(packed));
+export async function cutRuntimePrimitive(
+  packed: ArrayBuffer,
+  kind: DrawnKind,
+): Promise<RuntimePrimitive> {
+  return servePrimitive(await cutPagesOffThread(packed), kind);
 }

@@ -324,10 +324,10 @@
       "controllers-in-vr": "Manettes en VR",
       "ar-on-the-table": "AR sur la table",
       "shadows-case-by-case": "Les ombres, cas par cas",
+      "shadows-through-see-through-panes": "Des ombres à travers des vitres",
       "a-walker-among-balls": "Un marcheur parmi les balles"
     },
     "missing": {
-      "dashed-lines": "lignes pointillées",
       "floating-crates": "géométrie réécrite à chaque image",
       "thick-lines": "lignes épaisses",
       "a-line-that-draws-itself": "plage de dessin d’une géométrie",
@@ -476,9 +476,8 @@
       "a-software-rasteriser": "API de calcul GPU",
       "sound-from-the-gpu": "API de calcul GPU",
       "breaking-things": "intégration d’un moteur physique",
-      "cloth-and-rope": "intégration d’un moteur physique",
-      "soft-bodies": "intégration d’un moteur physique",
-      "drive-a-car": "intégration d’un moteur physique",
+      "cloth-and-rope": "géométrie réécrite à chaque image",
+      "soft-bodies": "géométrie réécrite à chaque image",
       "a-room-in-vr": "session WebXR",
       "a-360-photo-in-vr": "session WebXR",
       "vr-composition-layers": "session WebXR : calques",
@@ -1078,7 +1077,8 @@
           "<code>limits</code> arrête la liaison : en radians pour une charnière, en mètres pour une glissière. Un <code>spring</code> rend la butée souple.",
           "Un <code>motor</code> entraîne une charnière ou une glissière vers une vitesse ou une position. Changez <code>joint.motor</code> quand vous voulez.",
           "<code>breakForce</code> est la traction, en newtons, au-delà de laquelle la liaison rompt : <code>joint.broken</code> passe à vrai et <code>joint.on('break', …)</code> est appelé.",
-          "Les liaisons avancées lient les mouvements : <code>joint.gear(a, b, { ratio })</code> fait tourner deux roues sur charnière comme un seul train, <code>joint.rackAndPinion</code> change une rotation en glissement, <code>joint.pulley(a, b, { over })</code> suspend deux charges à une même corde, <code>joint.path(a, b, { path })</code> garde un wagon sur sa voie, et <code>swingTwist</code> et <code>sixDof</code> font des épaules et des liaisons sur mesure."
+          "Les liaisons avancées lient les mouvements : <code>joint.gear(a, b, { ratio })</code> fait tourner deux roues sur charnière comme un seul train, <code>joint.rackAndPinion</code> change une rotation en glissement, <code>joint.pulley(a, b, { over })</code> suspend deux charges à une même corde, <code>joint.path(a, b, { path })</code> garde un wagon sur sa voie, et <code>swingTwist</code> et <code>sixDof</code> font des épaules et des liaisons sur mesure.",
+          "Un véhicule est un corps sur des roues : <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> ou <code>vehicle.tracked</code>, ses roues étant des maillages posés sur le corps là où elles reposent. Ajoutez-le avec <code>world.physics.add</code> et conduisez-le au clavier : <code>world.controls.vehicle = car</code>, puis <code>world.controls.kind = 'vehicle'</code>. Son moteur, sa boîte, sa suspension et ses freins sont ceux d’une vraie machine ; <code>car.speed</code>, <code>car.gear</code> et <code>car.rpm</code> disent comment il roule."
         ],
         "tryIt": "Ouvrez la porte et le tiroir, puis lâchez la pierre sur le pont. Baissez la solidité du pont et reconstruisez-le : il cède sous son propre poids."
       },

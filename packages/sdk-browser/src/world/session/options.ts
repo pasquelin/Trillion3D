@@ -51,8 +51,11 @@ export interface MeasuredWorldOptions {
   backends?: BackendFactory[];
   maxResidentPages?: number;
   maxCachedPages?: number;
-  /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
-  maxCachedBytes?: number;
+  /** The decoded-page cache the session reads through, and the CPU total it counts against: the
+   *  world's, kept across its sessions, so a session reopened fetches nothing it holds. Set by the
+   *  world itself (its CPU total is `world.budget.cpu`); a session without one reads through a
+   *  cache of its own. */
+  pageCache?: import('../../streaming/pageCache.ts').PageCache;
   pixelError?: number;
   lodAdaptive?: boolean;
   /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */

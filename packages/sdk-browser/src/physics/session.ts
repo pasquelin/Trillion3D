@@ -1,19 +1,19 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import {
-  CommandWriter,
-  type Joint,
-  type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts';
+import { CommandWriter, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
 import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createPhysicsBodies, flagsOf, hasBody, worldPoseOf } from './bodies.ts';
+import { createPhysicsBodies, hasBody } from './bodies.ts';
+import { placeBodies } from './placeBodies.ts';
 import { emitContacts } from './contacts.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { emptyPhysicsStats, eventsAt, type FromPhysics, type PhysicsResults } from './protocol.ts';
 import { createSessionHost } from './sessionHost.ts';
 import { startPhysicsWorker } from './sessionWorker.ts';
 import { createPhysicsJoints } from './joints.ts';
+import type { createJointList } from './jointList.ts';
+import { createPhysicsVehicles } from './vehicles.ts';
+import { receiveSoft } from './softBodies.ts';
 import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
@@ -29,13 +29,12 @@ export function createPhysicsSession(
   budget: Readonly<PhysicsBudget>,
   invalidate: () => void,
   failed: (error: EngineError, fatal?: boolean) => void,
-  /** The joints `world.physics.add` holds: made once their bodies are simulated. */
-  wanted: ReadonlySet<Joint> = new Set(),
+  /** The joints and vehicles `world.physics.add` holds: made once their bodies are simulated. */
+  wanted: Pick<ReturnType<typeof createJointList>, 'joints' | 'vehicles'>,
 ) {
   const writer = new CommandWriter();
   const stale = new Set<Object3D>();
-  let dirty = true,
-    ready = false;
+  let [dirty, ready] = [true, false];
   const host = createSessionHost(
     writer,
     () => bodies.meshes,
@@ -48,7 +47,8 @@ export function createPhysicsSession(
   const poses = createPhysicsPoses(budget.bodies, root);
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
-  /** A body out of the simulation (asleep decorative, refused) takes its joints out with it. */
+  const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
+  /** A body leaving the simulation (asleep decorative, refused) takes its joints and vehicles. */
   const retire = (index: number) => {
     bodies.retire(index);
     dirty = true;
@@ -76,16 +76,17 @@ export function createPhysicsSession(
     const words = new Uint32Array(m.buffer);
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
-    const moved = poses.receive(words, m.poses, posed, ms);
+    const moved = poses.receive(words, m.poses, posed, ms) + receiveSoft(m.soft, bodies).length;
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
     waves.received(m.water, m.active, began, m.waterEpoch);
     if (m.character) character.hear?.(m.character);
+    vehicles.receive(m.vehicles);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
-    const changed = moved > 0 || m.active !== stats.active || m.character !== null;
+    const changed = moved > 0 || m.active !== stats.active || !!m.character || !!m.vehicles;
     Object.assign(stats, { active: m.active, poses: m.poses, events: m.events });
     stats.droppedEvents += m.dropped;
     stats.bodies = bodies.count.bodies;
-    stats.stepMs = m.steps ? m.stepMs / m.steps : stats.stepMs;
+    if (m.steps) Object.assign(stats, { stepMs: m.stepMs / m.steps, stepMaxMs: m.stepMaxMs });
     worker.postMessage({ type: 'buffer', buffer: m.buffer }, [m.buffer]);
     received += performance.now() - began;
     if (changed) invalidate();
@@ -143,13 +144,7 @@ export function createPhysicsSession(
     },
     /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
-      node.traverse((child) => {
-        if (!hasBody(child) || child.physics._host !== host) return;
-        const { position, quaternion } = worldPoseOf(child);
-        const move = child.physics.type === 'kinematic' ? 'moveKinematic' : 'teleport';
-        writer[move](child.physics._index, position, quaternion);
-        writer.flags(child.physics._index, flagsOf(child));
-      });
+      placeBodies(node, host, writer);
       tiles.moved(node);
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
@@ -157,7 +152,8 @@ export function createPhysicsSession(
       touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
-        joints.reconcile(wanted);
+        joints.reconcile(wanted.joints);
+        vehicles.reconcile(wanted.vehicles);
         tiles.scan(root);
         stale.clear();
         dirty = false;
@@ -187,6 +183,7 @@ export function createPhysicsSession(
     dispose() {
       tiles.clear();
       joints.clear();
+      vehicles.clear();
       bodies.clear();
       poses.clear();
       writer.take();

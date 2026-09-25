@@ -1972,6 +1972,16 @@
       "Look for": "Observe"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Arraste a opacidade: a sombra do vidro do meio acompanha, nula em 0 e cheia em 1.",
+    "controls": {
+      "opacity": "Opacidade",
+      "sunHeight": "Altura do sol"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacidade do vidro do meio"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Clique para olhar em volta, depois ande com W A S D e salte com Espaço: suba a escada e a rampa, ande na plataforma, empurre as caixas e solte as teclas no gelo para deslizar.",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "Elevador",
       "load": "Pesos",
       "rope": "Corda corrida"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W ou ↑ acelera, S ou ↓ trava e depois dá ré, A D ou ← → viram, Espaço puxa o freio de mão. Escolha o carro, a moto ou o tanque no painel.",
+    "controls": {
+      "vehicle": "Veículo",
+      "reset": "Pôr de volta sobre as rodas"
+    },
+    "readouts": {
+      "speed": "Velocidade",
+      "gear": "Marcha",
+      "rpm": "Motor (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "carro esportivo",
+        "motorcycle": "moto",
+        "tracked": "tanque"
+      }
+    },
+    "words": {
+      "credit": "Vale modelado em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "A bandeira pende do mastro e as cordas balançam sob a viga. Torna a bandeira rígida, ou deixa as cordas esticar.",
+    "controls": {
+      "stiff": "Bandeira rígida",
+      "stretch": "Estiramento das cordas",
+      "again": "De novo",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "vertices": "Vértices",
+      "step": "Passo"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Larga volumes moles no degrau. Ajusta a pressão do gás deles, ou 0 para a padrão.",
+    "controls": {
+      "pressure": "Pressão (Pa)",
+      "drop": "Largar",
+      "again": "De novo",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "volumes": "Volumes",
+      "awake": "Acordados"
     }
   }
 }

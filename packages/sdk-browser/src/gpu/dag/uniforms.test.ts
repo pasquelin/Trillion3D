@@ -20,18 +20,19 @@ const HEAD_ORACLE = 4;
 /**
  * The readback reduced to what both sides can carry. `drawablePageIds` is normalised — the oracle
  * only wrote the key when a mask existed, the reused readback always carries it. Fields that only
- * one of the two produces — `truncated`, `requestPriorities` that only the oracle publishes, and
+ * one of the two produces — `truncated`, `requestPriorities` that only the oracle publishes,
+ * `complete` that only the oracle still reads (the cut rule leaves no surface undrawn, #486), and
  * the four totals — are STRIPPED and asserted separately: comparing them would ask a side for
  * something it never knew.
  */
-const champs = (releve: Partial<SelectionResult> | null) => {
+const champs = (releve: (Partial<SelectionResult> & { complete?: boolean }) | null) => {
   if (!releve) return releve;
   const {
     truncated: _t,
+    complete: _c,
     requestPriorities: _r,
     selectedTriangles: _s,
     drawnTriangles: _d,
-    uncoveredTriangles: _u,
     transparentTriangles: _p,
     ...reste
   } = releve;
@@ -128,15 +129,14 @@ test('the sort stays stable on a massive readback where almost everything is tie
   }
 });
 
-test('triangle totals are reread as the GPU posted them', () => {
+test('triangle totals are reread as the GPU posted them, the one drawn counter under both names', () => {
+  // Words 6 and 7 are reserved: whatever they hold, the drawn total is the selected one.
   const { neuf } = paire([3, 0, 0, 0, 900, 90, 700, 200], [10, 20, 30]);
   const releve = lire(neuf)!;
   assert.equal(releve.selectedTriangles, 900);
   assert.equal(releve.transparentTriangles, 90);
-  assert.equal(releve.drawnTriangles, 700);
-  assert.equal(releve.uncoveredTriangles, 200);
-  // The invariant the CPU documented, now held by the GPU.
-  assert.equal(releve.selectedTriangles - releve.drawnTriangles - releve.uncoveredTriangles, 0);
+  assert.equal(releve.drawnTriangles, 900);
+  assert.equal('uncoveredTriangles' in releve, false, 'no uncovered counter is read');
 });
 
 test('a normal readback without a mask matches the reference field for field', () => {
@@ -146,17 +146,8 @@ test('a normal readback without a mask matches the reference field for field', (
     pageIds: [10, 20, 30],
     frustumRejected: 42,
     lodLevel: 2,
-    complete: true,
     drawablePageIds: undefined,
   });
-});
-
-test('the incomplete flag (bit 1 of word 3) is reported the same way by both sides', () => {
-  const { neuf, oracle } = paire([1, 0, 0, 2], [7]);
-  assert.equal(lire(neuf)!.complete, false);
-  const attendu = lireOracle(oracle);
-  assert.ok(attendu);
-  assert.equal(attendu.complete, false);
 });
 
 test('a page count larger than the buffer holds is clamped identically, with and without a mask', () => {

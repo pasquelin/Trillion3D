@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
+import { irradianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
 
 /**
  * The Lambert constant, 1/π, that both bounce passes apply to probe irradiance: the
@@ -57,18 +58,12 @@ fn probeCell(slot:u32)->vec3i{
  return vec3i(i32(probes[slot+PROBE_CELL].w),i32(probes[slot+PROBE_CELL+1u].w),i32(probes[slot+PROBE_CELL+2u].w));
 }
 /**
- * Irradiance of an order-2 spherical-harmonics basis, convolved with the cosine lobe:
- * π·Y₀₀ for the constant term, (2π/3)·Y₁ₘ for the three linear terms, (π/4)·Y₂ₘ for the five
- * quadratic terms. Never negative — a truncated basis can go below zero where true
- * irradiance cannot.
+ * Irradiance of the probe's order-2 spherical harmonics, convolved with the cosine lobe — the
+ * basis the scene environment evaluates (\`IRRADIANCE_TERMS\`). Never negative — a truncated
+ * basis can go below zero where true irradiance cannot.
  */
 fn shIrradiance(slot:u32,n:vec3f)->vec3f{
- var total=probes[slot].xyz*0.8862269;
- total+=(probes[slot+1u].xyz*n.x+probes[slot+2u].xyz*n.y+probes[slot+3u].xyz*n.z)*1.0233267;
- total+=(probes[slot+4u].xyz*(n.x*n.y)+probes[slot+5u].xyz*(n.y*n.z)+probes[slot+7u].xyz*(n.x*n.z))*0.8580854;
- total+=probes[slot+6u].xyz*(3.0*n.z*n.z-1.0)*0.2477078;
- total+=probes[slot+8u].xyz*(n.x*n.x-n.y*n.y)*0.4290427;
- return max(vec3f(0.0),total);
+ return max(vec3f(0.0),${irradianceShader((k) => `probes[slot+${k}u].xyz`, 'n')});
 }
 /**
  * Mean distance the probe measured in a direction, interpolated among its six axes.

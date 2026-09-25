@@ -5,6 +5,7 @@ import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
 import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
@@ -20,7 +21,6 @@ export function settledRt() {
     cutHeld: true,
     overBudget: false,
     coverageBudgetLimited: false,
-    uncoveredTriangles: 0,
     noOccluderHistory: false,
     deferredDrops: new Set<string>(),
     frame: 0,
@@ -41,7 +41,6 @@ export function settledRt() {
     blendSubmittedTriangles: 0,
     blendFrustumRejected: 0,
     occluderSignature: 0,
-    budgetPixelError: 0,
   };
   const rows = {
     rowsChanged: false,
@@ -102,9 +101,9 @@ export function settledRt() {
 }
 
 /**
- * Fake GPUDevice whose `createRenderPipelineAsync` distinguishes the variant by the module name
- * (set by `createCheckedShaderModule` via `${label}_LIGHTING` / `${label}_COMPOSE`): UNLIT resolves
- * at once, DIRECT and BOUNCE stay pending until `finishCompilation()` (or `failCompilation()`) has
+ * A device whose `createRenderPipelineAsync` distinguishes the variant by the module name (set by
+ * `createCheckedShaderModule` via `${label}_LIGHTING` / `${label}_COMPOSE`): UNLIT resolves at
+ * once, DIRECT and BOUNCE stay pending until `finishCompilation()` (or `failCompilation()`) has
  * been called, exactly like a real compilation that lasts several frames.
  */
 export function deferredLightingHarness() {
@@ -113,24 +112,13 @@ export function deferredLightingHarness() {
     resolveGate = resolve;
     rejectGate = reject;
   });
-  const device = {
-    createBuffer: () => ({ destroy() {} }),
-    createShaderModule: (desc: { label?: string }) => ({
-      label: desc.label,
-      getCompilationInfo: async () => ({ messages: [] }),
-    }),
-    createBindGroupLayout: () => ({}),
-    createTexture: () => ({ createView: () => ({}), destroy() {} }),
-    createSampler: () => ({}),
-    createPipelineLayout: () => ({}),
-    async createRenderPipelineAsync(descriptor: { fragment?: { module?: { label?: string } } }) {
-      const label = descriptor.fragment?.module?.label ?? '';
-      if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate;
-      return {};
-    },
-    createBindGroup: () => ({}),
-    queue: { writeBuffer() {} },
-  } as unknown as GPUDevice;
+  const { device } = fakeDevice();
+  const compile = device.createRenderPipelineAsync;
+  device.createRenderPipelineAsync = async (descriptor) => {
+    const label = descriptor.fragment?.module.label ?? '';
+    if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate;
+    return compile(descriptor);
+  };
   return {
     device,
     finishCompilation: () => resolveGate(),

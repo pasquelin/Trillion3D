@@ -17,15 +17,20 @@ import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
 import { forEachDirtyRun } from '../../row/dirty.ts';
+import { uploadRowCorners } from '../../visibility/corners.ts';
+import { refreshDrawItemWords } from '../../visibility/itemWords.ts';
+import { visLayerTop } from '../../visibility/uniforms.ts';
+import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
-/** The row table spans every row a page can claim, so it is allocated once and never resized. */
+/** The row table spans every row a page can claim — the visibility rows, then the blended
+ *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once and never resized. */
 export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt,
-    { rows, drawSlots } = rt.layout;
+    { rows } = rt.layout;
   if (rows.pageTableFloats) return;
-  const bytes = Math.max(PAGE_INFO_STRIDE, drawSlots * PAGE_INFO_STRIDE);
+  const bytes = Math.max(PAGE_INFO_STRIDE, rows.casterSlots * PAGE_INFO_STRIDE);
   rows.pageTableFloats = new Float32Array(bytes / 4);
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
   vis.pageTable?.destroy();
@@ -34,6 +39,23 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
     size: bytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
+}
+
+/**
+ * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears
+ * the marks. Both encode paths call it: the fallback draw clears the marks too, and a witness it
+ * skipped — draw records, spheres, mobility, corners — would keep another occupant's words once
+ * the visibility pass comes back on the same targets (#198). Each costs the rows that changed.
+ */
+export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { rows } = rt.layout;
+  refreshDrawItemWords(rt, visLayerTop(rt.vis), rt.vis.gpuDraw);
+  if (rt.lights.cull) {
+    uploadClusterSpheres(rt, device);
+    uploadRowMobility(rt, device, rows.dirtyFrom, rows.dirtyTo);
+  }
+  uploadRowCorners(rt);
+  uploadDirtyRows(rt);
 }
 
 /** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
@@ -120,7 +142,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     }
   }
   if (!gpu.pipelineBack) return 0;
-  uploadDirtyRows(rt);
+  followDirtyRows(rt, device);
   if (!rows.packedCount) {
     const encoder = createRenderEncoder(rt, device);
     encodeClear(rt, encoder);

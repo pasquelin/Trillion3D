@@ -19,6 +19,7 @@ const PHYSICS = new Set([
   'create-and-dispose',
   'hinges-and-joints',
   'gears-and-pulleys',
+  'drive-a-car',
   'fly-over-a-model-town',
 ]);
 

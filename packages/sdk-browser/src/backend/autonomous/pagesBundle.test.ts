@@ -55,7 +55,7 @@ function fixture() {
     };
   });
   const metadata = {
-    errorModel: 'dag-group-qem-v1',
+    errorModel: 'dag-group-qem-v2',
     clusterStrategy: 'dag-groups',
     geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
     primitives: [
@@ -77,7 +77,7 @@ function fixture() {
 test('two pages packed in one bundle each receive their own decoded geometry', async () => {
   const { metadata, bytes } = fixture();
   const geometry = new G.GraphGeometry();
-  geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(18), 3));
+  geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(18), 3));
   const material = G.basicSurface({ side: G.DOUBLE_SIDE });
   const mesh = G.mesh(geometry, material),
     source = new G.Group();

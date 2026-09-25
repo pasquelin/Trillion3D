@@ -46,7 +46,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies);
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context.pixelRatio);
   // The engine's own lighting: the cache's radiometric light table where it declares one, the
   // source graph's lights otherwise (`../../lighting/contractLightingApi.ts`). A transmissive
   // surface is not paged: it is a copy the program draws whole (`hostPageScene`).
@@ -166,10 +166,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       gate.resourcesChanged();
       sync();
     },
-    refreshMaterials() {
-      // The pages draw the repainted surfaces themselves; a vertex-coloured twin is a clone.
-      for (const [original, twin] of colorMaterials) colouredHostSurface(original, twin);
-      gate.sceneChanged();
+    refreshMaterials(values = true) {
+      // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
+      if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
+      (values ? gate.sceneChanged : gate.resourcesChanged)();
     },
     metrics() {
       return {

@@ -11,15 +11,19 @@
  * of the cut instead of it.
  *
  * Its offsets in `work` are those from before: each queue carries a counter AND a group
- * count, since it was read indirectly, and everything that follows is shifted by that.
+ * count, since it was read indirectly, and everything that follows is shifted by that. What
+ * surrounds the descent — prepare, candidates, mask, compaction — is the shipped kernels, so the
+ * oracle follows their layout and their stages: the cut rule decides in the mask, with no
+ * escalation round before it (#486).
  */
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts';
+import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import {
   DAG_UNIFORM_BYTES,
   VIEW_WORD_ROWS,
 } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
-import { ESCALATION_ROUNDS } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 export { DAG_LEVEL_WGSL_AVANT } from './cut-dispatches-wgsl.ts';
 
 /** What `ressourcesAvant` reads of the bench's packed scene: the same fields the shipped
@@ -42,8 +46,6 @@ const NOYAUX_AVANT = [
   'dagPrepare',
   'dagClearDrawn',
   'dagWanted',
-  'dagEscalate',
-  'dagCheck',
   'dagMask',
   'dagDrawPrefix',
   'dagDrawScatter',
@@ -60,7 +62,7 @@ export function ressourcesAvant(
   const pageCount = packed.pageCount,
     worldCount = Math.max(1, packed.worldCount);
   const blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP);
-  const base = worldCount * 2 + blockCount * 2;
+  const base = blockCount * 2;
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
   // The frame words are the shipped ones: the frozen descent reads the same records.
   const frameData = primitiveFrameWords(packed);
@@ -69,19 +71,23 @@ export function ressourcesAvant(
     if (source) device.queue.writeBuffer(buffer, 0, source);
     return buffer;
   };
-  const buffers = [
-    tampon(64, packed.clusters),
-    tampon(64, packed.nodes),
+  // Only the descent is frozen: the rest of the shader, and so its group 0, is the shipped one,
+  // so each buffer sits under its WGSL name and `namedBufferEntries` lays it at that binding.
+  const buffers = {
+    clusters: { buffer: tampon(64, packed.clusters) },
+    nodes: { buffer: tampon(64, packed.nodes) },
     // The uniform array, and the per-view words and widest-view word the shipped prepare resets,
     // around the frozen descent.
-    tampon(DAG_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
-    tampon(Math.max(16, (packed.nodeCount * 2 + pageCount * 4) * 4)),
-    tampon(readbackBytes),
-    tampon(Math.max(8, (base + 10 + worldCount * 2 + VIEW_WORD_ROWS + 1) * 4)),
-    tampon(64, packed.worlds),
-    tampon(16, frameData),
-    tampon(48, packed.pageCones),
-  ];
+    views: {
+      buffer: tampon(DAG_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
+    },
+    flags: { buffer: tampon(Math.max(16, (packed.nodeCount * 2 + pageCount * 4) * 4)) },
+    out: { buffer: tampon(readbackBytes) },
+    work: { buffer: tampon(Math.max(8, (base + 10 + VIEW_WORD_ROWS + 1) * 4)) },
+    worlds: { buffer: tampon(64, packed.worlds) },
+    frames: { buffer: tampon(16, frameData) },
+    cold: { buffer: tampon(48, packed.pageCones) },
+  };
   const dispatchArgs = device.createBuffer({
     size: 16,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
@@ -92,10 +98,9 @@ export function ressourcesAvant(
   const etape = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   return {
-    buffers,
-    uniforms: buffers[2],
-    output: buffers[4],
-    work: buffers[5],
+    uniforms: buffers.views.buffer,
+    output: buffers.out.buffer,
+    work: buffers.work.buffer,
     dispatchArgs,
     zeros,
     worldCount,
@@ -110,7 +115,7 @@ export function ressourcesAvant(
     niveaux: [etape('dagLevel0'), etape('dagLevel1')],
     bindGroup: device.createBindGroup({
       layout,
-      entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
+      entries: namedBufferEntries(DAG_BINDING, buffers),
     }),
   };
 }
@@ -156,8 +161,6 @@ export function encodeAvant(
     vif.setPipeline(pipeline);
     vif.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   };
-  for (let ronde = 0; ronde < ESCALATION_ROUNDS; ronde++) surListe(noyaux.dagEscalate);
-  surListe(noyaux.dagCheck);
   surListe(noyaux.dagMask);
   vif.setPipeline(noyaux.dagDrawPrefix);
   vif.dispatchWorkgroups(1);

@@ -19,19 +19,9 @@ fn height(x: f32, z: f32) -> f32 {
 /// texture coordinates a terrain generator writes.
 fn terrain_fixture(simplification: &str) -> (PathBuf, Options) {
     let side = QUADS + 1;
-    let mut bin = Vec::new();
-    let mut views = Vec::new();
-    let mut accessors = Vec::new();
+    let mut buffer = GltfBuffer::default();
     let mut meshes = Vec::new();
     let mut nodes = Vec::new();
-    let mut push = |bytes: Vec<u8>, accessor: Value| {
-        views.push(json!({"buffer":0,"byteOffset":bin.len(),"byteLength":bytes.len()}));
-        bin.extend(bytes);
-        let mut accessor = accessor;
-        accessor["bufferView"] = json!(views.len() - 1);
-        accessors.push(accessor);
-        accessors.len() - 1
-    };
     for tile in 0..2 {
         let origin = tile as f32 * QUADS as f32 * SPACING;
         let (mut positions, mut normals, mut uvs) = (Vec::new(), Vec::new(), Vec::new());
@@ -54,30 +44,30 @@ fn terrain_fixture(simplification: &str) -> (PathBuf, Options) {
                 .collect::<Vec<u8>>()
         };
         let count = side * side;
-        let position = push(
+        let position = buffer.push(
             floats(&positions),
             json!({"componentType":5126,"type":"VEC3","count":count}),
         );
-        let normal = push(
+        let normal = buffer.push(
             floats(&normals),
             json!({"componentType":5126,"type":"VEC3","count":count}),
         );
-        let uv = push(
+        let uv = buffer.push(
             floats(&uvs),
             json!({"componentType":5126,"type":"VEC2","count":count}),
         );
-        let index = push(
+        let index = buffer.push(
             indices.iter().flat_map(|v| v.to_le_bytes()).collect(),
             json!({"componentType":5125,"type":"SCALAR","count":indices.len()}),
         );
         meshes.push(json!({"primitives":[{"attributes":{"POSITION":position,"NORMAL":normal,"TEXCOORD_0":uv},"indices":index,"material":0}]}));
         nodes.push(json!({"mesh":tile,"translation":[origin,0.0,0.0]}));
     }
-    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"terrain.bin","byteLength":bin.len()}],
-        "bufferViews":views,"accessors":accessors,"meshes":meshes,"nodes":nodes,"scenes":[{"nodes":[0,1]}],"scene":0,
+    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"terrain.bin","byteLength":buffer.bin.len()}],
+        "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":meshes,"nodes":nodes,"scenes":[{"nodes":[0,1]}],"scene":0,
         "materials":[{"pbrMetallicRoughness":{"baseColorTexture":{"index":0},"metallicFactor":0.0}}],
         "textures":[{"source":0}],"images":[{"uri":"terrain.png"}]});
-    let (root, mut options) = gltf_fixture("terrain", &gltf, &bin, 2 * QUADS * QUADS * 2);
+    let (root, mut options) = gltf_fixture("terrain", &gltf, &buffer.bin, 2 * QUADS * QUADS * 2);
     fs::write(
         options.source.join("terrain.png"),
         png_sized(8, [90, 120, 60, 255]),

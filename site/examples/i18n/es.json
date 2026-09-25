@@ -1972,6 +1972,16 @@
       "Look for": "Fíjate en"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Desliza la opacidad: la sombra del cristal central la sigue, nula en 0 y plena en 1.",
+    "controls": {
+      "opacity": "Opacidad",
+      "sunHeight": "Altura del sol"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacidad del cristal central"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas y suelta las teclas sobre el hielo para deslizarte.",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "Ascensor",
       "load": "Pesos",
       "rope": "Cuerda recorrida"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W o ↑ acelera, S o ↓ frena y luego da marcha atrás, A D o ← → giran, Espacio tira del freno de mano. Elige el coche, la moto o el tanque en el panel.",
+    "controls": {
+      "vehicle": "Vehículo",
+      "reset": "Volver a ponerlo sobre sus ruedas"
+    },
+    "readouts": {
+      "speed": "Velocidad",
+      "gear": "Marcha",
+      "rpm": "Motor (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "deportivo",
+        "motorcycle": "moto",
+        "tracked": "tanque"
+      }
+    },
+    "words": {
+      "credit": "Valle modelado en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "La bandera cuelga de su mástil y las cuerdas se balancean bajo la viga. Pon rígida la bandera, o deja que las cuerdas se estiren.",
+    "controls": {
+      "stiff": "Bandera rígida",
+      "stretch": "Estiramiento de cuerdas",
+      "again": "Otra vez",
+      "slowMotion": "Cámara lenta"
+    },
+    "readouts": {
+      "vertices": "Vértices",
+      "step": "Paso"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Suelta volúmenes blandos sobre el escalón. Ajusta la presión de su gas, o 0 para la de por defecto.",
+    "controls": {
+      "pressure": "Presión (Pa)",
+      "drop": "Soltar",
+      "again": "Otra vez",
+      "slowMotion": "Cámara lenta"
+    },
+    "readouts": {
+      "volumes": "Volúmenes",
+      "awake": "Despiertos"
     }
   }
 }

@@ -142,8 +142,12 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
       { ...slim, schema: FORMAT_VERSION, formatVersion: CLUSTERED_BLEND_FORMAT_VERSION },
       'UNSUPPORTED_FORMAT',
     ],
-    [{ ...slim, schema: 1, formatVersion: 1 }, 'UNSUPPORTED_FORMAT'],
+    ...[1, 5, 6].map((v) => [
+      { ...slim, schema: v, formatVersion: v, selectedNodes: [0] },
+      'UNSUPPORTED_FORMAT', // formats 5 and 6 wrote `selectedNodes` as a list (#404)
+    ]),
     [{ ...slim, errorModel: 'bounds-diagonal-boundary-v1' }, 'STALE_CACHE'],
+    [{ ...slim, errorModel: 'dag-group-qem-v1' }, 'STALE_CACHE'],
     [{ ...slim, errorModel: undefined }, 'STALE_CACHE'],
   ] as [unknown, string][])
     assert.throws(

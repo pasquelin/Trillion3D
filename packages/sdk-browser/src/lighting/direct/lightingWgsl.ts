@@ -1,7 +1,7 @@
 import { residentProxyWgsl } from '../../bounce/nodeWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
-import { IRRADIANCE_BAND } from '../../../../sdk-core/src/scene/core/environment.ts';
+import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
@@ -9,8 +9,14 @@ import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFar
 import { INVERSE_PI } from '../shaderConstants.ts';
 import { FOG_WGSL } from '../fogShader.ts';
 
-/** Shadow bindings of the opaque resolve: records and page table, then the request buffer. */
-export const CONTRACT_SHADOW_BINDINGS = { data: 8, requests: 14 };
+/** Shadow bindings of the opaque resolve: records and page table, the request buffer, and the
+ *  transmittance layer's two textures — on the numbers the water composite reads them at too. */
+export const CONTRACT_SHADOW_BINDINGS = {
+  data: 8,
+  requests: 14,
+  transmittance: 18,
+  translucentDepth: 19,
+};
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -28,11 +34,12 @@ const lightingBase = (
   proxyBinding: number,
   shadowBinding: number,
   requestBinding: number | null,
+  transmittanceBinding: number,
 ) => `
 ${DIRECT_LIGHT_WGSL}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
 ${sunFarShadowWgsl(requestBinding !== null)}
-${directShadowWgsl(shadowBinding, requestBinding)}
+${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
 ${FOG_WGSL}
@@ -50,9 +57,7 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let e=directLights.environment;
- var E=e[0].rgb*${IRRADIANCE_BAND.constant}+(e[1].rgb*N.y+e[2].rgb*N.z+e[3].rgb*N.x)*${IRRADIANCE_BAND.linear};
- E+=(e[4].rgb*N.x*N.y+e[5].rgb*N.y*N.z+e[7].rgb*N.x*N.z)*${IRRADIANCE_BAND.quadraticCross};
- E+=e[6].rgb*(${IRRADIANCE_BAND.quadraticZ}*N.z*N.z-${IRRADIANCE_BAND.quadraticZOffset})+e[8].rgb*${IRRADIANCE_BAND.quadraticDifference}*(N.x*N.x-N.y*N.y);
+ let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
@@ -83,7 +88,7 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * over every light of the tile, character for character.
  */
 export const DIRECT_LIGHTING_WGSL = `
-${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests)}
+${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
 /** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
@@ -113,8 +118,12 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  * With no list — a device that could not fit the tile pass —, the loop falls back on the
  * declared lights, bounded by `MAX_LIGHTS`, a constant known before the frame (X2).
  */
-export const declaredLightingWgsl = (proxyBinding: number, shadowBinding: number) => `
-${lightingBase(proxyBinding, shadowBinding, null)}
+export const declaredLightingWgsl = (
+  proxyBinding: number,
+  shadowBinding: number,
+  transmittanceBinding: number,
+) => `
+${lightingBase(proxyBinding, shadowBinding, null, transmittanceBinding)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  let tilesX=u32(uni.lightTiles.x);
  let tilesY=u32(uni.lightTiles.y);

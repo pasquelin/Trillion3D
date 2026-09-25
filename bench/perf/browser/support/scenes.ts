@@ -18,7 +18,7 @@ const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 /** A page of triangles as `coupe` produces it: geometry, material and its world-space box. */
 export interface ScenePage {
   array: Uint32Array;
-  attributes: { position: G.GraphAttribute };
+  attributes: { position: G.BufferAttribute };
   matrix: G.Matrix4;
   material: PageSurface;
   clusterId: string;
@@ -93,7 +93,7 @@ function page(
     if (!Number.isFinite(min[axe])) min[axe] = 0;
     if (!Number.isFinite(max[axe])) max[axe] = 0;
   }
-  const attributes = { position: new G.GraphAttribute(positions, 3) };
+  const attributes = { position: new G.BufferAttribute(positions, 3) };
   return {
     array: indices,
     attributes,

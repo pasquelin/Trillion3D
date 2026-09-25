@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { chooseBackends, resolveTextureSource } from './defaultBackends.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
@@ -17,7 +18,7 @@ const metadata = {
   autonomousScene: 'scene.gltf',
   textures: { url: 'textures/v5' },
 } as unknown as ClusterManifest;
-const device = {} as unknown as GPUDevice;
+const { device } = fakeDevice();
 
 /** Runs `body` on a runtime that reads bitmaps, or on one that has no `createImageBitmap` at
  *  all — node has none of its own, so both states are installed here and then withdrawn. */

@@ -134,7 +134,8 @@ export function rowMaterial(
   if (map) flags |= FLAG_HAS_MAP;
   if (geo?.hasNormal) flags |= FLAG_HAS_NORMAL;
   if (geo?.hasTangent) flags |= FLAG_HAS_TANGENT;
-  if (mat.alphaTest > 0) flags |= FLAG_MASK;
+  // A dashed line cuts its gaps where a masked surface cuts its cutout (`maskKeep`).
+  if (mat.alphaTest > 0 || mat.dashSize !== undefined) flags |= FLAG_MASK;
   if (mat.backSide) flags |= FLAG_BACK;
   if (rough || metal) flags |= FLAG_HAS_ORM;
   if (normal) flags |= FLAG_HAS_NORMAL_MAP;

@@ -11,16 +11,34 @@ import {
 } from './pageRowMaterial.ts';
 import {
   assertVisibilityPageTriangles,
+  FLAG_BLEND_CASTER,
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
+import { blendCoverage } from '../../gpu/shadow/transmittance.ts';
+import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
+/** The Hi-Z slot of a row never culled (`neverCulled`): none, which every reader of the verdict
+ *  draws unjudged (`HIZ_REJECTED_WGSL`, `rowVerdict`). */
+export const NO_HIZ_SLOT = 0xffffffff;
+/** Stamps rank `row` as the Hi-Z slot of the row at `base`, unless the row has none. */
+export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
+  if (ints[base + ROW_HIZ_SLOT_WORD] !== NO_HIZ_SLOT) ints[base + ROW_HIZ_SLOT_WORD] = row;
+}
 /** Row words of the colour map's atlas slot and of the material flags: what the shadow pass
  *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
 export const ROW_MAP_LAYER_WORD = 22,
   ROW_FLAGS_WORD = 23;
+/** Row word of a blended caster's coverage (`PageInfo.blendCoverage`): the light it stops. */
+export const ROW_BLEND_COVERAGE_WORD = 57;
+/** Row word of the width a line page's quads widen to (`PageInfo.lineWidth`); zero for triangles. */
+export const ROW_LINE_WIDTH_WORD = 61;
+/** Row words of a dashed line's dash and gap (`PageInfo.dash`, `lineDash`); zero on any other row. */
+export const ROW_DASH_WORD = 28;
+/** Row words of a sprite's turn and size rule (`PageInfo.sprite`, `spriteAt`); zero on any other row. */
+export const ROW_SPRITE_WORD = 36;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */
@@ -72,25 +90,34 @@ export function createPageRowWriter(resources: PageRowResources) {
     floats[base + 16] = mat.baseColor[0];
     floats[base + 17] = mat.baseColor[1];
     floats[base + 18] = mat.baseColor[2];
-    floats[base + 19] = mat.alphaTest > 0 ? mat.alphaTest : 1;
+    // The cutout's threshold (`maskKeep`): a dashed line without an alpha test cuts its gaps alone.
+    floats[base + 19] = mat.alphaTest > 0 ? mat.alphaTest : mat.dashSize !== undefined ? 0 : 1;
     floats[base + 20] = mat.metalness;
     floats[base + 21] = mat.roughness;
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
     assertVisibilityPageTriangles(indexCount / 3, rec.url);
     ints[base + ROW_MAP_LAYER_WORD] = maps.map;
-    ints[base + ROW_FLAGS_WORD] = maps.flags;
+    // A blended cluster's row is a shadow caster's alone (`blendCasters.ts`): its flag and its
+    // coverage are what the shadow raster reads of it.
+    ints[base + ROW_FLAGS_WORD] = rec.transparent ? maps.flags | FLAG_BLEND_CASTER : maps.flags;
+    if (rec.transparent) floats[base + ROW_BLEND_COVERAGE_WORD] = blendCoverage(mat);
     ints[base + 24] = offsetWords;
     ints[base + ROW_INDEX_WORDS] = indexCount;
     ints[base + 26] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
+    // A dashed line's dash and gap (`PageInfo.dash`), zero on every other row.
+    floats[base + ROW_DASH_WORD] = mat.dashSize ?? 0;
+    floats[base + ROW_DASH_WORD + 1] = mat.gapSize ?? 0;
     ints[base + 30] = constants.hashOf(rec.clusterId);
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
-    // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image.
-    ints[base + ROW_HIZ_SLOT_WORD] = row;
+    // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image. A
+    // row never culled reads none.
+    ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;
     ints[base + 34] = maps.normal;
     floats[base + 35] = mat.normalScale;
+    writeSpriteWords(floats, base + ROW_SPRITE_WORD, mat.sprite);
     ints[base + 42] = maps.ao;
     floats[base + 43] = mat.aoIntensity;
     ints[base + 46] = maps.emissive;
@@ -102,6 +129,7 @@ export function createPageRowWriter(resources: PageRowResources) {
     // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
     // layer 0, one calculation source for the hardware path and the software raster alike.
     ints[base + 60] = depthLayerUnits(rec.depthLayer);
+    floats[base + ROW_LINE_WIDTH_WORD] = mat.lineWidth ?? 0;
     // Row placement: the temporal pass reads the pixel motion matrix there. A page without a
     // placement does not exist in a WebGPU layout: that is an invariant, not zero.
     if (rec.placementIndex === undefined) throw new Error('PAGE_PLACEMENT_MISSING');

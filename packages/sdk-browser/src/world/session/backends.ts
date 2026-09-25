@@ -1,5 +1,5 @@
 import type { HostTexture } from '../../host/resources.ts';
-import { DEFAULT_CLEAR_COLOR, isCancelled } from '../../backend/common.ts';
+import { DEFAULT_CLEAR_COLOR, DEFAULT_PIXEL_RATIO, isCancelled } from '../../backend/common.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
@@ -92,6 +92,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     preparationStep: (step) => diagnose('backend-preparation-step', step, { kind: 'preparation' }),
     diagnosticDetail: diagnosticChannel.detail,
     viewport,
+    // The ratio the drawing buffer was sized at (`devicePixels`), live: a resize rewrites it.
+    pixelRatio: () => options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
     gpuDevice,
     webglContext,
     gpuCanvas: directGpu ? canvas : undefined,
@@ -192,5 +194,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   }
   if (preload !== 'all') indices.clear();
   if (!backends.length) throw new Error('No backend');
+  // The engines' own scene-sized tables come out of the same CPU share as the decoded pages.
+  streamer.reserve(backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0));
   return { viewport, context };
 }

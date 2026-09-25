@@ -1,4 +1,5 @@
 import { EngineError } from '../contracts/cache.ts';
+import type { SoftBodyOptions } from './soft.ts';
 
 /** How a body moves: never, by the page (`kinematic`, pushing what it meets), or by the simulation. */
 export type PhysicsType = 'static' | 'dynamic' | 'kinematic';
@@ -50,10 +51,14 @@ export interface PhysicsBodyOptions {
   friction?: number;
   /** Overrides the material's restitution (bounciness), 0 to 1. */
   restitution?: number;
+  /** How much of its speed the body loses by itself, per second, as air and rolling do:
+   *  `dv/dt = −c·v`, 0 and up, linear and angular apart; 0 keeps every bit. Set when the body is
+   *  made: set `obj.physics` again to change it. @defaultValue { linear: 0.05, angular: 0.05 } */
+  damping?: { linear?: number; angular?: number };
 }
 
-/** What `obj.physics` may be set to. */
-export type PhysicsOption = PhysicsType | PhysicsBodyOptions;
+/** What `obj.physics` may be set to: a rigid body, or a soft one (`SoftBodyOptions`). */
+export type PhysicsOption = PhysicsType | PhysicsBodyOptions | SoftBodyOptions;
 
 /** Named gravities, in m/s² along −y. */
 export const GRAVITY_PRESETS = {
@@ -118,6 +123,11 @@ export interface PhysicsBudget {
    * than the machine's logical cores minus the page's own.
    */
   threads: number;
+  /**
+   * Vertices of every soft body at once (cloths, ropes, volumes). Each one is solved every step
+   * and read back to the page, 12 bytes a step.
+   */
+  softVertices: number;
 }
 
 /** The engine's default physics budgets. */
@@ -130,6 +140,8 @@ export const DEFAULT_PHYSICS_BUDGET: Readonly<PhysicsBudget> = Object.freeze({
   contactConstraints: 32768,
   contactEvents: 4096,
   threads: 8,
+  // Declared: four cloths of 64 × 64 vertices; the step's cost grows with it, linearly.
+  softVertices: 16384,
 });
 
 /** A fixed step of 60 Hz: the simulation's clock, whatever the display's rate. */

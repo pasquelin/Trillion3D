@@ -1,17 +1,14 @@
 import {
-  BODY_INDEX,
-  GENERATION_SHIFT,
-  GENERATIONS,
   JOINT,
-  MISS,
   MOTOR,
   type CommandWriter,
   type Joint,
   type JointMotor,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { hasBody, type createPhysicsBodies } from './bodies.ts';
+import type { createPhysicsBodies } from './bodies.ts';
 import { framesOf, sixDofAxis } from './jointFrames.ts';
+import { createSimulatedIds, engineIdOf } from './simulatedIds.ts';
 
 const motorOf = (motor: JointMotor | null) => ({
   mode: motor ? MOTOR[motor.mode] : MOTOR.off,
@@ -32,9 +29,7 @@ export function createPhysicsJoints(
 ) {
   /** The engine ids each made joint connects. */
   const made = new Map<Joint, { a: number; b: number }>();
-  const slots: (Joint | null)[] = [];
-  const generation: number[] = [];
-  const free: number[] = [];
+  const slots = createSimulatedIds<Joint>();
   const host: NonNullable<Joint['_host']> = {
     motor(joint) {
       writer.motor(joint._id, motorOf(joint.motor));
@@ -42,18 +37,10 @@ export function createPhysicsJoints(
     },
   };
   /** The engine id of a joint end: `MISS` for the world, -1 while its body is not simulated. */
-  const idOf = (node: Object3D | null) => {
-    if (!node) return MISS;
-    const index = hasBody(node) ? node.physics._index : -1;
-    if (index < 0) return -1;
-    const id = index | (bodies.generation[index] << GENERATION_SHIFT);
-    return bodies.meshOf(id) === node ? id : -1;
-  };
+  const idOf = (node: Object3D | null) => engineIdOf(bodies, node);
   const drop = (joint: Joint) => {
     writer.unjoint(joint._id);
-    const index = joint._id & BODY_INDEX;
-    slots[index] = null;
-    free.push(index);
+    slots.release(joint._id);
     made.delete(joint);
     joint._host = null;
     joint._id = -1;
@@ -63,9 +50,7 @@ export function createPhysicsJoints(
       b = idOf(joint.b);
     if (a < 0 || b < 0 || joint._host) return;
     const frames = (joint._frames ??= framesOf(joint));
-    const index = free.pop() ?? slots.push(null) - 1;
-    generation[index] = ((generation[index] ?? 0) + 1) % GENERATIONS;
-    const id = index | (generation[index] << GENERATION_SHIFT);
+    const id = slots.take(joint);
     const { limits, spring } = joint.options;
     // A distance keeps its length, or stays within the limits from 0 up to its length, or up to
     // the minimum when that is further; a pulley's rope slackens down to 0; the others have none.
@@ -85,7 +70,6 @@ export function createPhysicsJoints(
       breakForce: joint.options.breakForce ?? 0,
       extra: frames.extra,
     });
-    slots[index] = joint;
     made.set(joint, { a, b });
     joint._host = host;
     joint._id = id;
@@ -100,7 +84,7 @@ export function createPhysicsJoints(
     /** The joints the simulation broke, by id: out, and told. */
     broke(ids: readonly number[]) {
       for (const id of ids) {
-        const joint = slots[id & BODY_INDEX];
+        const joint = slots.at(id);
         if (!joint || joint._id !== id) continue;
         drop(joint);
         joint._break();

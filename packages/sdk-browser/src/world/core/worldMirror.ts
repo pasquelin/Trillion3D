@@ -19,7 +19,7 @@ import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/dra
 import type { PlacementRows } from '../../placement/rows.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
-import { GraphAttribute } from '../../host/graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphMesh } from '../../host/graph/mesh.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
@@ -27,16 +27,25 @@ import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 
-/** The geometry of drawn triangles, under the attribute names a mesh reads. */
+/** The geometry of drawn triangles, under the attribute names a mesh reads. A sprite's quad is
+ *  bounded as its pages are (`runtimePrimitive.ts`): by the cube and ball of its radius about its
+ *  origin, which hold it whichever way the rasters turn it. */
 function hostGeometry(drawn: DrawnTriangles) {
   const geometry = new GraphGeometry();
-  geometry.setAttribute('position', new GraphAttribute(drawn.positions, 3));
-  geometry.setAttribute('normal', new GraphAttribute(drawn.normals, 3));
-  if (drawn.uvs) geometry.setAttribute('uv', new GraphAttribute(drawn.uvs, 2));
-  if (drawn.colors) geometry.setAttribute('color', new GraphAttribute(drawn.colors, 4));
-  geometry.setIndex(new GraphAttribute(drawn.indices, 1));
+  geometry.setAttribute('position', new BufferAttribute(drawn.positions, 3));
+  geometry.setAttribute('normal', new BufferAttribute(drawn.normals, 3));
+  if (drawn.uvs) geometry.setAttribute('uv', new BufferAttribute(drawn.uvs, 2));
+  if (drawn.colors) geometry.setAttribute('color', new BufferAttribute(drawn.colors, 4));
+  geometry.setIndex(new BufferAttribute(drawn.indices, 1));
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
+  const radius = drawn.spriteRadius;
+  if (radius !== undefined) {
+    geometry.boundingBox!.min.set(-radius, -radius, -radius);
+    geometry.boundingBox!.max.set(radius, radius, radius);
+    geometry.boundingSphere!.center.set(0, 0, 0);
+    geometry.boundingSphere!.radius = radius;
+  }
   return geometry;
 }
 
@@ -59,16 +68,24 @@ export function buildWorldMirror(input: MirrorInput) {
   const geometries = new Map<Cut, GraphGeometry>(),
     // One surface per material, and a second one when the material asks for vertex colours and
     // is worn by geometries with and without them: the material decides, as in the reference
-    // (`material.vertexColors`), and a geometry with no colour has none to tint by.
+    // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
+    // it is worn by lines: the line surface is widened and lifted (`hostSurface`). A fourth when
+    // it is worn by a sprite: the sprite surface turns its quad to the camera.
     surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    const tinted = !!material.vertexColors && !!cut.drawn.colors;
+    const tinted = !!material.vertexColors && !!cut.drawn.colors,
+      reading = cut.drawn.lines
+        ? 'lines'
+        : cut.drawn.spriteRadius !== undefined
+          ? 'sprite'
+          : 'faces';
     let worn = surfaces.get(material);
     if (!worn) surfaces.set(material, (worn = []));
-    const surface = (worn[+tinted] ??= hostSurface(material, tinted, textures));
+    const rank = reading === 'lines' ? 2 : reading === 'sprite' ? 3 : +tinted;
+    const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {

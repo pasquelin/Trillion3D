@@ -1972,6 +1972,16 @@
       "Look for": "注目"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "不透明度を動かすと、真ん中のガラスの影もそれに合わせて変わります。0 で消え、1 で濃い影に。",
+    "controls": {
+      "opacity": "不透明度",
+      "sunHeight": "太陽の高さ"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "真ん中のガラスの不透明度"
+    }
+  },
   "walk-with-collisions": {
     "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押し、氷の上でキーを離して滑ってみよう。",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "リフト",
       "load": "おもり",
       "rope": "ロープの移動"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W か ↑ で加速、S か ↓ でブレーキ、止まるとバック、A D か ← → でハンドル、スペースでサイドブレーキ。パネルで車・バイク・戦車を選べます。",
+    "controls": {
+      "vehicle": "乗り物",
+      "reset": "車輪の上に戻す"
+    },
+    "readouts": {
+      "speed": "速度",
+      "gear": "ギア",
+      "rpm": "エンジン (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "スポーツカー",
+        "motorcycle": "バイク",
+        "tracked": "戦車"
+      }
+    },
+    "words": {
+      "credit": "この例のためにコードでモデリングした谷、CC0 — assets/examples/CREDITS.md を参照"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "旗は竿から垂れ、ロープは梁の下で揺れる。旗を硬くするか、ロープを伸ばしてみよう。",
+    "controls": {
+      "stiff": "硬い旗",
+      "stretch": "ロープの伸び",
+      "again": "もう一度",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "vertices": "頂点",
+      "step": "ステップ"
+    }
+  },
+  "soft-bodies": {
+    "banner": "やわらかい体積を段の上に落とそう。気体の圧力を決める。0 なら既定値。",
+    "controls": {
+      "pressure": "圧力 (Pa)",
+      "drop": "落とす",
+      "again": "もう一度",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "volumes": "体積",
+      "awake": "動作中"
     }
   }
 }

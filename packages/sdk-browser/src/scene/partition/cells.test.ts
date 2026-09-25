@@ -11,8 +11,8 @@ type PartitionIo = Parameters<PartitionCells['frame']>[2];
 import { placedMesh, type RowLink } from './rows.ts';
 
 /** Two cells of one mesh, one near the origin and one 5 km away; the second hangs under a moved
- *  core node. */
-function world() {
+ *  core node, or under the scene root when `far` is null. */
+function world(far: number | null = 0) {
   const node = (x: number, parent: number | null) => ({
     parent,
     mesh: 7,
@@ -23,7 +23,7 @@ function world() {
   });
   const bodies: Record<string, unknown> = {
     'near.json': { version: 1, nodes: [node(1, null), node(3, null)] },
-    'far.json': { version: 1, nodes: [node(5000, 0)] },
+    'far.json': { version: 1, nodes: [node(5000, far)] },
   };
   const partition: TablePartition = {
     version: 1,
@@ -41,7 +41,10 @@ function world() {
         url: 'far.json',
         sha256: '',
         bytes: 1,
-        parents: [[0, [5000, -10, 0, 5010, -5, 5]]], // under the core node, 10 m up
+        // Under the core node, 10 m up, or at the same place under the root.
+        parents: [
+          far === null ? [null, [5000, 0, 0, 5010, 5, 5]] : [0, [5000, -10, 0, 5010, -5, 5]],
+        ],
         meshes: [[7, 1]],
       },
     ],
@@ -90,7 +93,7 @@ const everywhere = 1e5;
 const opened = (cells: PartitionCells, reach: number, owned = true) =>
   cells.prime([1e9, 0, 0], reach, () => Promise.reject(new Error('nothing is read')), owned);
 /** No arrival budget: what a test places never depends on the time the machine takes. */
-const noBudget = Infinity;
+const noBudget = { admits: () => true, spend() {} };
 const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)];
 
 test('the cells a camera needs are asked nearest first, then placed on rows once read', async () => {
@@ -144,7 +147,7 @@ test('a cell past its reach gives its rows back, parked, for the next cell to ta
 });
 
 test('the rows are sized at open for the reach, and a reach past them tells the owner once', async () => {
-  const { cells, links, bytes } = world();
+  const { cells, links, bytes } = world(null);
   const { port, held, outgrown } = io(bytes);
   held.add('https://cache.test/key/near.json');
   await opened(cells, 100);

@@ -21,7 +21,8 @@ export function streamCutResidency(
   const lightCut = rt.lights.lightCut,
     asked = lightCut?.reports.takeRequests();
   if (asked) services.shadowTier.offerIds(asked);
-  // Never throttled: this cut meets the budget by growing its screen error.
+  // Never throttled: past the budget the queue keeps the coarsest pages, and the rest is drawn by
+  // its nearest resident ancestor.
   services.queueCutResidency(false);
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
@@ -41,9 +42,9 @@ export function streamCutResidency(
 }
 
 /**
- * Sending the selection of an image waiting for coverage. Nothing is drawn from an incomplete
- * sample, but the wait cannot settle for rereading it: without a new send, the same sample comes
- * back every image and the cut stays stuck on it, camera still, even once the missing bytes have
+ * Sending the selection of an image waiting for its root cover. Nothing is drawn before it, but the
+ * wait cannot settle for rereading the last sample: without a new send, the same sample comes back
+ * every image and the cut stays stuck on it, camera still, even once the missing bytes have
  * arrived. Selection submits its own command buffer here; no draw pass goes with it.
  *
  * Returns false when the send fails: the wait then has no way left to produce the sample it hopes

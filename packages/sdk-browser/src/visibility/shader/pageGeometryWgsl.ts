@@ -1,6 +1,8 @@
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts';
 import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR } from '../types.ts';
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts';
+import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts';
+import { SPRITE_WGSL } from './spriteWgsl.ts';
 import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
 
 const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
@@ -27,6 +29,9 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  */
 export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}
+${LINE_CLIP_WGSL}
+${LINE_DASH_WGSL}
+${SPRITE_WGSL}
 ${clusterDecodeWgsl('indices')}
 fn pageHeader(page:PageInfo)->ClusterHeader{
  var h:ClusterHeader;
@@ -42,6 +47,26 @@ fn pageCorner(page:PageInfo,h:ClusterHeader,corner:u32)->u32{
 fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(${QUANTIZED}){return clusterPosition(h,page.pageOffset,vertex);}
  return vertPos(page.vertexBase,vertex);
+}
+/** Clip position \`clip\` of a corner of a line page (\`page.lineWidth\` above zero), widened on
+ *  screen (\`lineClip\`); \`vp\` takes the page's local space to clip space. A line page is a
+ *  quantized page the world cut at run time: a row without one keeps no direction, and no width. */
+fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f)->vec4f{
+ var along=vec3f(0.0);
+ if(${QUANTIZED}){along=clusterNormal(h,page.pageOffset,vertex);}
+ return lineClip(clip,vp*vec4f(along,0.0),page.lineWidth,uni.viewport.xy,uni.pixelRatio);
+}
+/** World position of a corner \`p\` of a sprite page (\`page.sprite.y\` not zero): its quad turned
+ *  to face the camera (\`spriteAt\`). The camera raster draws it, the resolve rebuilds it, the
+ *  shadow passes never draw it: the reference's sprite casts no shadow. */
+fn pageSprite(page:PageInfo,p:vec3f)->vec4f{return spriteAt(uni.viewProj,page.world,p.xy,page.sprite);}
+/** Clip position of a page vertex under \`vp\`: every raster's, a line page's widened on screen,
+ *  a sprite page's turned to the camera. */
+fn pageClip(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
+ if(page.sprite.y!=0.0){return uni.viewProj*pageSprite(page,pagePosition(page,h,vertex));}
+ let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);
+ if(page.lineWidth>0.0){return pageLine(page,h,vertex,vp,clip);}
+ return clip;
 }
 /** First texture coordinate of a page vertex. */
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{

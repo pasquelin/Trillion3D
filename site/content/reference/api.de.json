@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Immer `true`: unterscheidet ein Pufferattribut von allem anderen.",
       "type": "Wie die Werte deklariert wurden; ein Attribut in Halbfließkommazahlen wird in Fließkommagenauigkeit gehalten.",
-      "normalized": "Ob sich die Ganzzahlen als Werte zwischen 0 und 1 lesen.",
       "version": "Bei jedem deklarierten Schreibvorgang erhöht: das, was die Welt vergleicht, um zu sehen, dass sich der Inhalt geändert hat.",
       "array": "Die Zahlen selbst.",
-      "itemSize": "Wie viele Zahlen zu einem Scheitelpunkt gehören: 3 für eine Position.",
       "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
-      "needsUpdate": "`attribute.needsUpdate = true`, nachdem `array` geschrieben wurde: die Welt liest es dann erneut.",
-      "getComponent": "Die Zahl `component` des Scheitelpunkts `index`.",
-      "getX": "Die erste Zahl des Scheitelpunkts `i`.",
-      "getY": "Die zweite Zahl des Scheitelpunkts `i`.",
-      "getZ": "Die dritte Zahl des Scheitelpunkts `i`.",
-      "getW": "Die vierte Zahl des Scheitelpunkts `i`.",
-      "setXYZ": "Schreibt drei Zahlen für den Scheitelpunkt `i`.",
-      "setXY": "Schreibt zwei Zahlen für den Scheitelpunkt `i`.",
-      "setX": "Schreibt die erste Zahl des Scheitelpunkts `i`.",
-      "clone": "Ein neues Attribut mit einer Kopie der Zahlen."
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch.",
+      "clone": "Ein neues Attribut mit einer Kopie der Zahlen, ihres Typs, ihrer Normalisierung und des Namens.",
+      "kind": "Das Attribut besitzt seinen Puffer.",
+      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
+      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
+      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen."
     }
   },
   "BufferNumbers": {
@@ -767,7 +761,7 @@
     "description": "Was die öffentliche API zurückgibt, ist eine dieser Kopien: ein Host, der in die erhaltene Kopie schreibt, ändert nichts in der Engine, und ein Host, der ein bereits gesendetes Licht ändert, ändert ebenfalls nichts — die Speicherung hat ihre eigene Kopie beim Eingang geprüft. Die Kopie wird dort erstellt, wo der Host liest, nie auf dem Bildpfad: die Backends lesen den gehaltenen Datensatz und den angeordneten Puffer, und kopieren nichts."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Erforderliches externes Cache-Format für BLEND in Clustern; Quellmanifeste behalten ihr eigenes Format."
+    "summary": "Erforderliches externes Cache-Format für BLEND in Clustern (6, bevor `selectedNodes` eine Anzahl wurde); Quellmanifeste behalten ihr eigenes Format."
   },
   "clusterErrorAtDepth": {
     "summary": "Derselbe projizierte Fehler, wenn die Entfernung des Zentrums zur Sichtachse und seine Tiefe (Sicht-−z) bereits bekannt sind: ein Knoten, der Boden und Decke auf derselben Kugel festlegt, teilt sich seine Tiefe."
@@ -1277,7 +1271,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Cache-Identität für DAG-Fehler pro Cluster: der QEM-Fehler der Gruppe, projiziert durch die Gruppenkugel."
+    "summary": "Cache-Identität für DAG-Fehler pro Cluster: absoluter QEM-Fehler der Gruppe über Positionen, Normalen und Texturkoordinaten, begrenzt auf die Ausdehnung der Gruppe; ein v1-Cache wird abgelehnt."
   },
   "DagReport": {
     "summary": "Bericht des DAG einer Primitive; nur seine Warnungen werden von der Engine genutzt.",
@@ -1701,7 +1695,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Cache-Format, das diese Engine liest.",
-    "description": "Format 5 trägt `scene-tables.json`, die Knoten- und Materialtabellen, gegen die die vorbereitete Szene geprüft wird; die Formate 3 und 4 haben dieses Produkt nicht und werden anhand ihrer Nummer abgelehnt, statt halb gelesen zu werden."
+    "description": "Format 5 hat `scene-tables.json` hinzugefügt, die Knoten- und Materialtabellen, gegen die die vorbereitete Szene geprüft wird; Format 7 trägt `selectedNodes` als Anzahl, nicht als Liste (#404). Ältere Formate werden anhand ihrer Nummer abgelehnt, statt halb gelesen zu werden."
   },
   "FrameInfo": {
     "summary": "Was ein Bild-Hook erhält: die Sekunden seit dem letzten Bild und seit dem Start der Welt.",
@@ -1746,8 +1740,8 @@
       "transparentDrawCalls": "Durchsichtige Zeichenaufrufe.",
       "transparentSubmittedTriangles": "Gesendete durchsichtige Dreiecke.",
       "coverageReady": "Der vollständige anfängliche GPU-Rückfall ist verfügbar; null für Engines ohne diese Garantie.",
-      "coverageBudgetLimited": "Das angeforderte Detail kann nicht mit dem im GPU-Seitenbudget angehefteten Rückfall koexistieren.",
-      "budgetPixelError": "Mindestfehler auf dem Bildschirm, den das GPU-Seitenbudget dem Schnitt auferlegt, in Pixeln: `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Null für Engines ohne Seitenbudget.",
+      "coverageBudgetLimited": "Das angeforderte Detail braucht mehr Seiten, als das GPU-Seitenbudget fasst: der Rest wird gröber gezeichnet.",
+      "budgetPixelError": "Nur WebGL2: Mindestfehler auf dem Bildschirm, den sein Seitenbudget dem Schnitt auferlegt, in Pixeln — `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Fehlt unter WebGPU, wo allein die Residenz das Bild vergröbert. Null für Engines ohne Seitenbudget.",
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
@@ -2510,7 +2504,10 @@
       "array": "Die Zahlen jedes Scheitelpunkts, nacheinander angeordnet.",
       "stride": "Wie viele Zahlen jeder Scheitelpunkt einnimmt.",
       "count": "Wie viele Scheitelpunkte er verpackt.",
-      "attribute": "Ein aus dem Paket extrahiertes Attribut, als eigenständiges Fließkomma-Attribut."
+      "attribute": "Ein aus dem Paket extrahiertes Attribut, als eigenständiges Attribut.",
+      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
+      "version": "Von `needsUpdate` erhöht.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
     }
   },
   "invertMatrix4": {
@@ -3019,10 +3016,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3057,10 +3056,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3095,10 +3096,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3133,10 +3136,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3171,10 +3176,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3209,10 +3216,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3247,10 +3256,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3285,10 +3296,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3323,10 +3336,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3361,10 +3376,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3399,10 +3416,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3413,7 +3432,7 @@
     }
   },
   "material.lineDashed": {
-    "summary": "Zeichnet gestrichelte Linien.",
+    "summary": "Zeichnet gestrichelte Linien: `dashSize` gezeichnet, dann `gapSize` leer gelassen, entlang der Linie.",
     "parameters": {
       "parameters": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
       "parameters.color": "Die Grundfarbe.",
@@ -3437,10 +3456,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3451,7 +3472,7 @@
     }
   },
   "material.sprite": {
-    "summary": "Ein flaches Bild, das sich immer zur Kamera dreht.",
+    "summary": "Ein flaches Bild, das immer zur Kamera zeigt (`object.sprite`), durchsichtig, wo sein Bild es ist, im Bild um `rotation` gedreht und in der Ferne kleiner, außer wenn `sizeAttenuation` false ist.",
     "parameters": {
       "parameters": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
       "parameters.color": "Die Grundfarbe.",
@@ -3475,10 +3496,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3513,10 +3536,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3571,10 +3596,12 @@
       "parameters.wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "parameters.flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "parameters.size": "Größe eines Punkts, für das Punktmaterial.",
-      "parameters.sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "parameters.linewidth": "Breite einer Linie.",
-      "parameters.dashSize": "Länge eines Strichs.",
-      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "parameters.sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "parameters.rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "parameters.linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "parameters.dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "parameters.gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "parameters.scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "parameters.vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "parameters.depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "parameters.depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -3634,10 +3661,12 @@
       "wireframe": "Zeichnet nur die Kanten der Dreiecke.",
       "flatShading": "Gibt jedem Dreieck einen einzigen flachen Farbton, um seine Facetten zu zeigen.",
       "size": "Größe eines Punkts, für das Punktmaterial.",
-      "sizeAttenuation": "Ob Punkte mit der Entfernung kleiner werden.",
-      "linewidth": "Breite einer Linie.",
-      "dashSize": "Länge eines Strichs.",
-      "gapSize": "Länge der Lücke zwischen zwei Strichen.",
+      "sizeAttenuation": "Ob Punkte und Sprites mit der Entfernung kleiner werden.",
+      "rotation": "Wie weit das Bild eines Sprites in der Bildebene gedreht ist, in Radiant, gegen den Uhrzeigersinn.",
+      "linewidth": "Breite einer Linie in CSS-Pixeln, in jeder Entfernung gleich.",
+      "dashSize": "Länge eines Strichs, in Welteinheiten entlang der Linie.",
+      "gapSize": "Länge der Lücke zwischen zwei Strichen, in Welteinheiten entlang der Linie.",
+      "scale": "Wie stark die Strecke entlang einer gestrichelten Linie gedehnt wird: 2 zeichnet Striche und Lücken halb so lang.",
       "vertexColors": "Ob die `color`-Liste pro Scheitelpunkt der Geometrie die Oberfläche färbt.",
       "depthWrite": "Ob die Oberfläche ihre Tiefe schreibt und verdeckt, was danach gezeichnet wird.",
       "depthTest": "Ob sich die Oberfläche hinter dem versteckt, was bereits näher ist.",
@@ -4118,9 +4147,9 @@
     }
   },
   "object.sprite": {
-    "summary": "Ein Quadrat von einer Einheit, zu `+z` gedreht, von der Art Sprite.",
+    "summary": "Ein flaches Bild, das immer zur Kamera zeigt, wohin sie auch schaut: ein Einheitsquadrat, groß wie die Skalierung des Sprites und im Bild gedreht um die `rotation` seines Materials.",
     "parameters": {
-      "material": "Was das Quadrat zeigt."
+      "material": "Was das Quadrat zeigt: ein `material.sprite`."
     }
   },
   "Object3D": {
@@ -4162,6 +4191,52 @@
       "translateOnAxis": "Verschiebt den Knoten entlang seiner eigenen `axis`.",
       "getWorldDirection": "In welche Richtung der Knoten in der Welt schaut.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
+    }
+  },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Eine mittlere gewebte Baumwolle, kg/m²: Stoffgewichte reichen von 0,15 bis 0,25.",
+    "description": "Ein Tuch fällt bei jeder Masse gleich; es wiegt gegen seine Nadeln und das, was es trifft. Die Haut eines Volumens gilt als solches Tuch."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Festgelegt: der Anteil seines mittleren Querschnitts — ein Viertel seiner Fläche, für jede konvexe Form (Cauchy) —, auf den ein ruhendes Volumen am Boden absinkt, wobei sein Gas dort sein Gewicht trägt.",
+    "description": "Sein Standarddruck ist dann `4·m·g / (share·area)`: 31 Pa für eine Haut von `SOFT_AREAL_DENSITY`. Halber Anteil, doppelter Druck. Er übersteigt nie das Höchste, was seine Haut innerhalb eines Zehntels seines Ruhevolumens hält."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Ein 10-mm-Polyamidseil, kg/m: Herstellertabellen geben 0,06 bis 0,07 an."
+  },
+  "SoftBodyCommon": {
+    "summary": "Was `obj.physics` für einen weichen Körper annimmt: seine Eckpunkte werden einzeln simuliert.",
+    "description": "Seine Materie und sein Zug wie bei einem starren Körper; keine Winkeldämpfung, keine Form, kein Sensor, kein CCD, keine Trümmer.",
+    "members": {
+      "damping": "Der Anteil der Geschwindigkeit seiner Eckpunkte, der pro Sekunde verloren geht, `dv/dt = −c·v`, 0 und mehr.",
+      "pins": "Indizes der Eckpunkte der Geometrie, die an ihrem Platz gehalten werden: die Stange einer Fahne, der Haken eines Seils.",
+      "mass": "Kilogramm, über die Eckpunkte nach der Fläche (beim Seil: der Länge) verteilt, die jeder trägt; weggelassen `SOFT_AREAL_DENSITY` je m² (beim Seil `SOFT_LINEAR_DENSITY` je m).",
+      "stretch": "Wie sehr eine Kante unter Zug nachgibt, m/N (der Kehrwert ihrer Steifigkeit): 0 dehnt sich nie.",
+      "bend": "Wie sehr es beim Falten nachgibt, rad/(N·m) (beim Seil: m/N); `Infinity` faltet frei."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Die Optionen eines weichen Körpers: ein Tuch, ein Seil oder ein Volumen mit dem Druck seines Gases."
+  },
+  "SoftBodyType": {
+    "summary": "Ein weicher Körper: ein Tuch (seine Dreiecke, offen), ein Seil (seine Eckpunkte, jeder mit dem nächsten verbunden) oder ein Volumen (seine geschlossenen Dreiecke, vom Gas darin gehalten)."
+  },
+  "SoftSettings": {
+    "summary": "Die Optionen eines weichen Körpers, einmal gelesen: jeder Standardwert gesetzt.",
+    "members": {
+      "type": "Was er ist.",
+      "pins": "Die festgehaltenen Eckpunkte der Geometrie.",
+      "mass": "Kilogramm, `undefined` für die der Standarddichte.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), bei einem Seil m/N.",
+      "pressure": "Pa; `undefined` für den Standarddruck eines Volumens (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Die Optionen eines Volumens: ein geschlossenes Netz, vom Gas darin gehalten.",
+    "members": {
+      "type": "Ein Volumen.",
+      "pressure": "Der Druck des Gases über dem der Luft in Ruhe, Pa; zusammengedrückt steigt er, wenn das Volumen sinkt (Boyle-Gesetz). Die Dreiecke müssen nach außen zeigen. Weggelassen, der Druck, der das Gewicht des Volumens auf `SOFT_FOOTPRINT` seines mittleren Querschnitts legt, oder das Höchste, was seine Haut hält, wenn weniger. Abgelehnt über dem Höchsten, was seine Haut innerhalb eines Zehntels seines Ruhevolumens hält."
     }
   },
   "TransformNode": {
@@ -4326,10 +4401,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Was ein `cut` zurückgibt: seine Seiten, und das Positionsraster, auf dem sie quantisiert wurden.",
+    "summary": "Was ein `cut` zurückgibt: seine Seiten, und die Raster, auf denen sie quantisiert wurden.",
     "members": {
       "pages": "Die geschriebenen Seiten.",
       "positionExponent": "Schritt des Positionsrasters, als Zweierpotenz.",
+      "uvExponent": "Schritt des Rasters der Texturkoordinaten, als Zweierpotenz.",
       "maxPositionError": "Größter Positionsfehler auf diesem Raster."
     }
   },
@@ -6413,13 +6489,13 @@
     "members": {
       "geometryPoolCeiling": "Die größten Reservoirs, die eine Welt anfordern kann: die Startbudgets der Engine.",
       "texturePoolCeiling": "Das größte Textur-Reservoir, das eine Welt anfordern kann, in Bytes.",
-      "geometryPool": "Bytes GPU-Speicher für Geometrieseiten; setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Textur-Pool lässt.",
-      "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten und dem Geometrie-Pool lässt.",
+      "geometryPool": "Bytes GPU-Speicher für Geometrieseiten; setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten, den Bounce-Sonden und dem Textur-Pool lässt.",
+      "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten, den Bounce-Sonden und dem Geometrie-Pool lässt.",
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
       "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter dem Schatten-Pool wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
-      "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten, beim nächsten Laden einer Szene übernommen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
-      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
+      "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten, ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine zusammen. Eine Änderung gilt sofort: Seiten gehen nach letzter Nutzung, bis sie passen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool und die Bounce-Sonden in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe, ganz, und darin reserviert die laufende Sitzung ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {
@@ -6524,8 +6600,8 @@
       "transparentDrawCalls": "Durchsichtige Zeichenaufrufe.",
       "transparentSubmittedTriangles": "Gesendete durchsichtige Dreiecke.",
       "coverageReady": "Der vollständige anfängliche GPU-Rückfall ist verfügbar; null für Engines ohne diese Garantie.",
-      "coverageBudgetLimited": "Das angeforderte Detail kann nicht mit dem im GPU-Seitenbudget angehefteten Rückfall koexistieren.",
-      "budgetPixelError": "Mindestfehler auf dem Bildschirm, den das GPU-Seitenbudget dem Schnitt auferlegt, in Pixeln: `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Null für Engines ohne Seitenbudget.",
+      "coverageBudgetLimited": "Das angeforderte Detail braucht mehr Seiten, als das GPU-Seitenbudget fasst: der Rest wird gröber gezeichnet.",
+      "budgetPixelError": "Nur WebGL2: Mindestfehler auf dem Bildschirm, den sein Seitenbudget dem Schnitt auferlegt, in Pixeln — `0`, wenn das angeforderte Detail passt, sonst die gröbere Schwelle, mit der das Bild gezeichnet wird. Fehlt unter WebGPU, wo allein die Residenz das Bild vergröbert. Null für Engines ohne Seitenbudget.",
       "frameHeld": "Wahr, wenn das Bild gehalten wurde: weder die Szene, noch die Ansicht, noch die Ressourcen haben sich bewegt, keine asynchrone Arbeit stand aus, und keine CPU-Phase lief. Die angezeigten Pixel sind die des Ursprungsbildes, bitgenau. Was das gehaltene Bild GETAN hat, wird so veröffentlicht, wie es ist, nie vom letzten vollständigen Rendering kopiert: `drawCalls`, `triangles`, `submittedTriangles` und `totalSubmittedTriangles` zählen nur die Präsentation, und die CPU- und GPU-Dauern pro Phase sind null, wenn die Phase nicht lief, `null`, wenn nichts sie stoppte. Eine Engine, deren Bild eine vom Vergleichs-Adapter gezeichnete Szene ist, zählt, was dieser Adapter in diesem Bild gesendet hat — nichts, für ein gehaltenes Bild. Was das gehaltene Bild ZEIGT, wird weiterhin durch den Schnitt beschrieben, den es erneut anzeigt: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` und `residentPages` sind die des Ursprungsbildes, da es derselbe Schnitt ist. Fehlt bei einer Engine, die ihre Bilder nicht hält.",
       "streamingError": "Anhaltender Ladefehler; fehlgeschlagene URLs verlangen nach drei Versuchen ein Neuladen des Explorers.",
       "gpuPassMs": "Letzte GPU-Pass-Messung dieser Engine; null, wenn das Gerät keine Zeitstempel kann.",
@@ -6848,7 +6924,7 @@
       "renderOrder": "Seine Zeichenreihenfolge unter den durchsichtigen Dingen.",
       "userData": "Die eigenen Daten der Seite, als JSON.",
       "children": "Die Knoten darunter, der Reihe nach.",
-      "mesh": "Nummern in `geometries` und `materials` und wie die Dreiecke gelesen werden.",
+      "mesh": "Ränge in `geometries` und `materials`, wie die Dreiecke gelesen werden, und der Mittelpunkt eines Sprites.",
       "light": "Art, Farben, Zahlen, Ausrichtung und Sondenkoeffizienten eines Lichts.",
       "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet."
     }
@@ -6983,7 +7059,8 @@
       "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
       "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
       "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
-      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert.",
+      "softVertices": "Eckpunkte aller weichen Körper zugleich (Tücher, Seile, Volumen). Jeder wird in jedem Schritt gelöst und von der Seite zurückgelesen, 12 Bytes pro Schritt."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7009,11 +7086,12 @@
     "summary": "Die Physik eines Objekts, wie `obj.physics` sie hält: ein lebender Datensatz dessen, was der Körper ist und tut.",
     "description": "Schreibvorgänge erreichen die Simulation beim nächsten Schritt; `velocity` liest, was der letzte Schritt ließ.",
     "members": {
-      "type": "Wie sich der Körper bewegt; setze `obj.physics` neu, um es zu ändern.",
+      "type": "Wie der Körper sich bewegt, oder welcher weiche Körper er ist; setze `obj.physics` neu, um es zu ändern.",
       "shape": "Die angegebene Form, falls es eine gab.",
       "sensor": "Ob der Körper nur Kontakte meldet.",
       "ccd": "Ob kontinuierliche Kollision an ist.",
       "decorative": "Ob der Körper dekorativer Trümmer ist.",
+      "damping": "Der Anteil seiner Geschwindigkeit, den er pro Sekunde von selbst verliert, linear und im Drehen (`dv/dt = −c·v`).",
       "velocity": "Lineare Geschwindigkeit, m/s, wie der letzte Schritt sie ließ; schreibe sie, um den Körper zu werfen.",
       "asleep": "Ob der Körper schläft: in Ruhe und nicht mehr simuliert, bis ihn etwas weckt.",
       "mass": "Masse in Kilogramm; `undefined` nimmt die Dichte des Materials mal das Volumen.",
@@ -7023,7 +7101,9 @@
       "applyImpulse": "Stößt den Körper sofort an, ein Impuls in N·s durch seinen Schwerpunkt; weckt ihn.",
       "wake": "Weckt den Körper, ob schlafend oder nicht.",
       "on": "Ruft `handler` bei einem Kontaktereignis dieses Körpers auf.",
-      "listens": "Ob ein Kontakt-Handler gesetzt ist."
+      "listens": "Ob ein Kontakt-Handler gesetzt ist.",
+      "soft": "Die Einstellungen eines weichen Körpers, jeder Standardwert gesetzt; `null` für einen starren Körper.",
+      "vertices": "Die Eckpunkte eines weichen Körpers, wie der letzte Tick sie ließ: `x, y, z` je Eckpunkt seiner Geometrie, im eigenen Rahmen der Geometrie; `null` für einen starren Körper und bis zu seinem ersten Tick."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7048,7 +7128,8 @@
       "ccd": "Kontinuierliche Kollision, für schnelle kleine Körper, die sonst dünne Wände durchdringen.",
       "decorative": "Trümmer: trifft nur die statische Welt und wird nur in Reichweite und im Blick simuliert. Begrenzt durch `budget.physics.decorative`.",
       "friction": "Überschreibt die Reibung des Materials, ab 0.",
-      "restitution": "Überschreibt den Rückprall des Materials, 0 bis 1."
+      "restitution": "Überschreibt den Rückprall des Materials, 0 bis 1.",
+      "damping": "Wie viel seiner Geschwindigkeit der Körper pro Sekunde von selbst verliert, wie durch Luft und Rollen: `dv/dt = −c·v`, 0 und mehr, linear und im Drehen getrennt; 0 behält alles. Beim Erzeugen gesetzt: `obj.physics` neu setzen, um es zu ändern."
     }
   },
   "PhysicsBudget": {
@@ -7061,7 +7142,8 @@
       "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
       "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
       "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
-      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert."
+      "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert.",
+      "softVertices": "Eckpunkte aller weichen Körper zugleich (Tücher, Seile, Volumen). Jeder wird in jedem Schritt gelöst und von der Seite zurückgelesen, 12 Bytes pro Schritt."
     }
   },
   "PhysicsHost": {
@@ -7087,7 +7169,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Was `obj.physics` erhalten kann."
+    "summary": "Was `obj.physics` annehmen kann: einen starren Körper oder einen weichen (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Eine Kollisionsform, wenn die aus der Geometrie abgeleitete nicht passt.",
@@ -7139,6 +7221,7 @@
       "bodies": "Körper, die die Simulation hält.",
       "active": "Wache Körper nach dem letzten Tick.",
       "stepMs": "Worker-Millisekunden pro festem Schritt, letzter Tick: die Uhr des Workers, nie zu der der Seite addiert.",
+      "stepMaxMs": "Worker-Millisekunden des langsamsten festen Schritts des letzten Ticks: ein langsamer Schritt, den der Mittelwert verbirgt.",
       "mainMs": "Seiten-Millisekunden der Physik im letzten Bild (die CPU-Stufe `physics`).",
       "poses": "Posen, die der letzte Tick zurückgab.",
       "events": "Kontaktereignisse, die der letzte Tick zurückgab.",
@@ -7198,19 +7281,6 @@
       "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
       "handbrake": "Ob die Handbremse gezogen ist."
     }
-  },
-  "GraphAttribute": {
-    "members": {
-      "count": "Wie viele Scheitelpunkte.",
-      "array": "Die Speicherung.",
-      "kind": "Das Attribut besitzt seinen Puffer.",
-      "version": "Von `needsUpdate` erhöht.",
-      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
-      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
-      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    },
-    "summary": "Ein Attribut mit eigenem Speicher: `itemSize` Zahlen pro Vertex, hintereinander."
   },
   "GraphGeometry": {
     "members": {
@@ -7306,34 +7376,6 @@
       "rotation": "Die Rotation, in Radiant."
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
-  },
-  "GraphArray": {
-    "summary": "Die typisierten Arrays, die ein Attribut hält."
-  },
-  "GraphElements": {
-    "summary": "Eine der beiden Attributarten."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
-    "members": {
-      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
-      "data": "Der Puffer, den es betrachtet.",
-      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
-      "array": "Der Speicher, in dem die Elemente liegen.",
-      "count": "Wie viele Vertices.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Ein Speicher, den mehrere Attribute betrachten, ein Vertex alle `stride` Zahlen.",
-    "members": {
-      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
-      "count": "Wie viele Vertices.",
-      "version": "Von `needsUpdate` erhöht.",
-      "array": "Der Speicher.",
-      "stride": "Zahlen pro Vertex.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    }
   },
   "GraphMesh": {
     "summary": "Ein gezeichneter Knoten: eine Geometrie und ihre Oberfläche, oder eine Oberfläche pro Geometriegruppe.",
@@ -7435,6 +7477,150 @@
       "pulley": "Ein Seil von `a` über zwei Rollen (`over`) hinunter zu `b`: Das eine steigt, wenn das andere sinkt.",
       "gear": "Zwei Räder, die sich im Verhältnis `ratio` zusammen drehen, jedes um seinen eigenen Stift (`axis`, `axisB`) und von seinem eigenen Scharnier gehalten (das Rad als dessen `a`); ist `ratio` oder 1 / `ratio` ganzzahlig, behalten ihre Zähne auch die Phase, in der sie gemacht wurden.",
       "rackAndPinion": "Ein Ritzel `a`, das sich um `axis` dreht, treibt eine Zahnstange `b` entlang `axisB`, jedes von seinem eigenen Scharnier oder Schiebegelenk gehalten (der Körper als dessen `a`), ihre Zähne in der Phase gehalten, in der sie gemacht wurden."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
+    "members": {
+      "isInterleavedBufferAttribute": "Immer `true`: unterscheidet eine verschachtelte Ansicht von allem anderen.",
+      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
+      "data": "Der Puffer, den es betrachtet.",
+      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch.",
+      "clone": "Seine eigenen Zahlen, aus dem Paket in ein Attribut kopiert, das sie besitzt."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Eine der beiden Attributarten: mit eigenem Speicher oder als Ansicht eines verschachtelten Speichers."
+  },
+  "VertexElements": {
+    "summary": "Die Elemente eines Vertex-Attributs, komponentenweise gelesen und geschrieben.",
+    "members": {
+      "name": "Der Name, unter dem ein Morph-Ziel bekannt ist; leer für die anderen.",
+      "itemSize": "Wie viele Zahlen zu einem Scheitelpunkt gehören: 3 für eine Position.",
+      "normalized": "Ob sich die Ganzzahlen als Werte zwischen 0 und 1 lesen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
+      "stored": "Die Zahl `component` des Scheitelpunkts `index`, wie sie gespeichert ist; eine normalisierte Ganzzahl unskaliert.",
+      "getComponent": "Die Zahl `component` des Scheitelpunkts `index`, gelesen als die Zahl, für die sie steht.",
+      "setComponent": "Schreibt die Zahl `component` des Scheitelpunkts `index`.",
+      "getX": "Die erste Zahl des Scheitelpunkts `i`.",
+      "getY": "Die zweite Zahl des Scheitelpunkts `i`.",
+      "getZ": "Die dritte Zahl des Scheitelpunkts `i`.",
+      "getW": "Die vierte Zahl des Scheitelpunkts `i`.",
+      "setX": "Schreibt die erste Zahl des Scheitelpunkts `i`.",
+      "setY": "Schreibt die zweite Zahl des Scheitelpunkts `i`.",
+      "setZ": "Schreibt die dritte Zahl des Scheitelpunkts `i`.",
+      "setW": "Schreibt die vierte Zahl des Scheitelpunkts `i`.",
+      "setXY": "Schreibt zwei Zahlen für den Scheitelpunkt `i`.",
+      "setXYZ": "Schreibt drei Zahlen für den Scheitelpunkt `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Die drei Maschinen, mit denen Fahrzeuge beginnen, nach Art.",
+    "members": {
+      "car": "Eine Chevrolet Corvette C5: Hinterradantrieb, 0,32 N·m pro Kilogramm, sechs Gänge.",
+      "motorcycle": "Eine Yamaha XJ900 mit Fahrer: 0,26 N·m pro Kilogramm, sechs Gänge.",
+      "tracked": "Ein M1 Abrams: eine Gasturbine, 0,083 N·m pro Kilogramm, vier Gänge."
+    }
+  },
+  "Vehicle": {
+    "summary": "Ein Fahrzeug: ein Körper, den Jolts Fahrzeug-Constraint auf Rädern trägt, mit Motor, Getriebe, Differenzialen, Federung und Stabilisatoren, erzeugt von `vehicle.*` und mit `world.physics.add` in die Simulation gebracht.",
+    "description": "Es ist ein `VehicleDriver`: `world.controls.vehicle = car` fährt es.",
+    "parameters": {
+      "options": "Was `vehicle.*` annimmt: die Räder und beliebig viele Werte der Maschine (`VehicleSpec`).",
+      "options.wheels": "Die Räder: Meshes, Kinder des Körpers, jedes an seiner Mitte platziert, wie es auf ebenem Boden steht, die Achse entlang der x-Achse des Körpers. Radius und Breite werden aus seinen Grenzen gelesen. Der Körper blickt nach −z: die vorderen Räder lenken.",
+      "options.torquePerKg": "Spitzendrehmoment des Motors pro Kilogramm des Körpers, in N·m/kg.",
+      "options.idleRPM": "Die Leerlaufdrehzahl des Motors, in U/min.",
+      "options.maxRPM": "Die Höchstdrehzahl des Motors, in U/min.",
+      "options.torqueCurve": "Bis zu fünf Punkte `[rpm / maxRPM, Moment / Spitze]`, Drehzahlanteile steigend.",
+      "options.gears": "Bis zu sechs Vorwärtsgänge, der erste zuerst.",
+      "options.reverse": "Die Übersetzung des Rückwärtsgangs.",
+      "options.finalDrive": "Die Übersetzung des Achsantriebs (die Untersetzung am Turas eines Kettenfahrzeugs).",
+      "options.shiftUpRPM": "Das Getriebe schaltet darüber hoch, in U/min.",
+      "options.shiftDownRPM": "Und schaltet darunter zurück, in U/min.",
+      "options.clutch": "Kupplungsmoment je rad/s Schlupf, N·m·s; nur für Autos und Motorräder, bei einem Kettenfahrzeug abgelehnt: sein Motor treibt die Ketten ohne Kupplung an (Jolts Kettenfahrzeug-Controller).",
+      "options.suspensionFrequency": "Federungsfrequenz, in Hz.",
+      "options.suspensionDamping": "Dämpfungsgrad, von 0 (keine) bis 1 (kritisch).",
+      "options.suspensionTravel": "Federweg von voller Ausfederung bis voller Einfederung, m; länger als die Einfederung, die die Federfrequenz auf der Erde verlangt, `9.81 / (2π suspensionFrequency)²`, sonst abgelehnt: darüber hinaus ruht der Aufbau auf seinen Anschlägen.",
+      "options.antiRoll": "Die Steifigkeit jedes Stabilisators im Verhältnis zu den Federn seiner Achse; 0 heißt keiner. Nur für Autos: abgelehnt bei einem Motorrad (seine zwei Räder teilen keine Achse) und einem Kettenfahrzeug (seine Räder tragen keine Stabilisatoren).",
+      "options.turnRadius": "Der Wendekreisradius bei vollem Einschlag, in Metern. Abgelehnt bei einem Kettenfahrzeug, das über seine Ketten lenkt.",
+      "options.steerTime": "Sekunden von der Mitte bis zum vollen Lenkeinschlag.",
+      "options.brakeGrip": "Die Reibung, bei der die Bremsen die Räder blockieren.",
+      "options.drive": "Die angetriebenen Räder eines Autos. Abgelehnt bei einem Motorrad (sein Hinterrad treibt an) und einem Kettenfahrzeug (das hinterste Rad jeder Kette treibt an).",
+      "options.trackTurn": "Die Geschwindigkeit der inneren Kette eines Kettenfahrzeugs beim Lenken in Fahrt, bezogen auf die äußere; im Stand dreht es auf der Stelle, die innere Kette rückwärts, unabhängig von diesem Verhältnis. Abgelehnt bei einem Auto oder Motorrad.",
+      "options.maxLean": "Die größte Schräglage eines Motorrads, in Radiant. Abgelehnt bei einem Auto oder Kettenfahrzeug."
+    },
+    "members": {
+      "kind": "Was das Fahrzeug ist.",
+      "body": "Der Körper, den die Räder tragen.",
+      "wheels": "Die Räder, Kinder des Körpers.",
+      "spec": "Die Maschine: die seiner Art (`VEHICLE_SPECS`), die Optionen darüber.",
+      "input": "Die Pedale und das Lenkrad, die es gerade erhält.",
+      "speed": "Meter pro Sekunde vorwärts nach dem letzten Schritt, rückwärts negativ.",
+      "rpm": "Die Motordrehzahl nach dem letzten Schritt.",
+      "gear": "Der Gang nach dem letzten Schritt: ab 1 vorwärts, −1 rückwärts, 0 Leerlauf.",
+      "drive": "Erhält Pedale und Lenkrad, wann immer eine Taste sie ändert, wenn es gefahren zu werden beginnt, und alles losgelassen, wenn es nicht mehr gefahren wird."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Die Fahrzeuge der Physik, jedes auf Jolts Fahrzeug-Constraint."
+  },
+  "VehicleOptions": {
+    "summary": "Was `vehicle.*` annimmt: die Räder und beliebig viele Werte der Maschine (`VehicleSpec`).",
+    "members": {
+      "wheels": "Die Räder: Meshes, Kinder des Körpers, jedes an seiner Mitte platziert, wie es auf ebenem Boden steht, die Achse entlang der x-Achse des Körpers. Radius und Breite werden aus seinen Grenzen gelesen. Der Körper blickt nach −z: die vorderen Räder lenken."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Woraus ein Fahrzeug besteht: Motor, Getriebe, Federung, Lenkung und Bremsen, jeder Standardwert der einer echten Maschine (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Spitzendrehmoment des Motors pro Kilogramm des Körpers, in N·m/kg.",
+      "idleRPM": "Die Leerlaufdrehzahl des Motors, in U/min.",
+      "maxRPM": "Die Höchstdrehzahl des Motors, in U/min.",
+      "torqueCurve": "Bis zu fünf Punkte `[rpm / maxRPM, Moment / Spitze]`, Drehzahlanteile steigend.",
+      "gears": "Bis zu sechs Vorwärtsgänge, der erste zuerst.",
+      "reverse": "Die Übersetzung des Rückwärtsgangs.",
+      "finalDrive": "Die Übersetzung des Achsantriebs (die Untersetzung am Turas eines Kettenfahrzeugs).",
+      "shiftUpRPM": "Das Getriebe schaltet darüber hoch, in U/min.",
+      "shiftDownRPM": "Und schaltet darunter zurück, in U/min.",
+      "clutch": "Kupplungsmoment je rad/s Schlupf, N·m·s; nur für Autos und Motorräder, bei einem Kettenfahrzeug abgelehnt: sein Motor treibt die Ketten ohne Kupplung an (Jolts Kettenfahrzeug-Controller).",
+      "suspensionFrequency": "Federungsfrequenz, in Hz.",
+      "suspensionDamping": "Dämpfungsgrad, von 0 (keine) bis 1 (kritisch).",
+      "suspensionTravel": "Federweg von voller Ausfederung bis voller Einfederung, m; länger als die Einfederung, die die Federfrequenz auf der Erde verlangt, `9.81 / (2π suspensionFrequency)²`, sonst abgelehnt: darüber hinaus ruht der Aufbau auf seinen Anschlägen.",
+      "antiRoll": "Die Steifigkeit jedes Stabilisators im Verhältnis zu den Federn seiner Achse; 0 heißt keiner. Nur für Autos: abgelehnt bei einem Motorrad (seine zwei Räder teilen keine Achse) und einem Kettenfahrzeug (seine Räder tragen keine Stabilisatoren).",
+      "turnRadius": "Der Wendekreisradius bei vollem Einschlag, in Metern. Abgelehnt bei einem Kettenfahrzeug, das über seine Ketten lenkt.",
+      "steerTime": "Sekunden von der Mitte bis zum vollen Lenkeinschlag.",
+      "brakeGrip": "Die Reibung, bei der die Bremsen die Räder blockieren.",
+      "drive": "Die angetriebenen Räder eines Autos. Abgelehnt bei einem Motorrad (sein Hinterrad treibt an) und einem Kettenfahrzeug (das hinterste Rad jeder Kette treibt an).",
+      "trackTurn": "Die Geschwindigkeit der inneren Kette eines Kettenfahrzeugs beim Lenken in Fahrt, bezogen auf die äußere; im Stand dreht es auf der Stelle, die innere Kette rückwärts, unabhängig von diesem Verhältnis. Abgelehnt bei einem Auto oder Motorrad.",
+      "maxLean": "Die größte Schräglage eines Motorrads, in Radiant. Abgelehnt bei einem Auto oder Kettenfahrzeug."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "Die Maschine, mit der jede Fahrzeugart beginnt.",
+    "members": {
+      "car": "Eine Chevrolet Corvette C5: Hinterradantrieb, 0,32 N·m pro Kilogramm, sechs Gänge.",
+      "motorcycle": "Eine Yamaha XJ900 mit Fahrer: 0,26 N·m pro Kilogramm, sechs Gänge.",
+      "tracked": "Ein M1 Abrams: eine Gasturbine, 0,083 N·m pro Kilogramm, vier Gänge."
+    }
+  },
+  "vehicle": {
+    "summary": "Die Familie `vehicle`: ein Körper und seine Räder, gefahren von `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Drei Räder oder mehr auf zwei Achsen oder mehr, die vorderen gelenkt, die von `drive` angetrieben.",
+      "motorcycle": "Zwei Räder, das vordere gelenkt, das hintere angetrieben; es hält sich selbst aufrecht.",
+      "tracked": "Räder auf zwei Ketten, links und rechts, jede von ihrem hintersten Rad angetrieben; es lenkt, indem es eine Kette verlangsamt, und dreht im Stand auf der Stelle."
+    }
+  },
+  "Sprite": {
+    "summary": "Ein flaches Bild, das immer zur Kamera zeigt: ein Einheitsquadrat, das jeder Renderer beim Zeichnen zum Bild dreht, um die Position des Sprites.",
+    "description": "Seine Größe ist seine Weltskalierung auf `x` und `y`; seine Drehung in der Bildebene ist die `rotation` seines Materials; seine eigene Drehung wird nicht gelesen. Ein Sprite wirft keinen Schatten.",
+    "members": {
+      "isSprite": "Immer `true`: unterscheidet ein Sprite von jedem anderen Mesh.",
+      "center": "Der Punkt des Bildes, der auf der Position des Sprites liegt: `(0.5, 0.5)` seine Mitte, `(0, 0)` seine linke untere Ecke, `(0.5, 0)` die Mitte seiner unteren Kante."
     }
   }
 }

@@ -324,10 +324,10 @@
       "controllers-in-vr": "VRのコントローラー",
       "ar-on-the-table": "テーブルの上のAR",
       "shadows-case-by-case": "影をケースごとに",
+      "shadows-through-see-through-panes": "透けるガラスが落とす影",
       "a-walker-among-balls": "ボールの中を歩く人"
     },
     "missing": {
-      "dashed-lines": "破線",
       "floating-crates": "毎フレーム書き換えるジオメトリ",
       "thick-lines": "太い線",
       "a-line-that-draws-itself": "ジオメトリの描画範囲",
@@ -476,9 +476,8 @@
       "a-software-rasteriser": "GPU計算API",
       "sound-from-the-gpu": "GPU計算API",
       "breaking-things": "物理エンジンとの連携",
-      "cloth-and-rope": "物理エンジンとの連携",
-      "soft-bodies": "物理エンジンとの連携",
-      "drive-a-car": "物理エンジンとの連携",
+      "cloth-and-rope": "毎フレーム書き換えるジオメトリ",
+      "soft-bodies": "毎フレーム書き換えるジオメトリ",
       "a-room-in-vr": "WebXRセッション",
       "a-360-photo-in-vr": "WebXRセッション",
       "vr-composition-layers": "WebXRセッション:レイヤー",
@@ -1078,7 +1077,8 @@
           "<code>limits</code> でジョイントを止めます。蝶番はラジアン、スライダーはメートル。<code>spring</code> で止まり方がやわらかくなります。",
           "<code>motor</code> は蝶番やスライダーを速度または位置へ動かします。<code>joint.motor</code> はいつでも変えられます。",
           "<code>breakForce</code> はジョイントが切れる引っ張りの強さ(ニュートン)です。切れると <code>joint.broken</code> が true になり、<code>joint.on('break', …)</code> が呼ばれます。",
-          "高度なジョイントは動きどうしを結びつけます。<code>joint.gear(a, b, { ratio })</code> は蝶番の 2 つの車輪を 1 つの歯車列として回し、<code>joint.rackAndPinion</code> は回転をすべりに変え、<code>joint.pulley(a, b, { over })</code> は 1 本のロープに 2 つの荷物を吊るし、<code>joint.path(a, b, { path })</code> はトロッコを軌道に乗せ、<code>swingTwist</code> と <code>sixDof</code> で肩や自分だけのジョイントが作れます。"
+          "高度なジョイントは動きどうしを結びつけます。<code>joint.gear(a, b, { ratio })</code> は蝶番の 2 つの車輪を 1 つの歯車列として回し、<code>joint.rackAndPinion</code> は回転をすべりに変え、<code>joint.pulley(a, b, { over })</code> は 1 本のロープに 2 つの荷物を吊るし、<code>joint.path(a, b, { path })</code> はトロッコを軌道に乗せ、<code>swingTwist</code> と <code>sixDof</code> で肩や自分だけのジョイントが作れます。",
+          "乗り物は車輪に載ったボディです。<code>vehicle.car(body, { wheels })</code>、<code>vehicle.motorcycle</code>、<code>vehicle.tracked</code> で作り、車輪は接地する位置でボディに置いたメッシュです。<code>world.physics.add</code> で加え、キーボードで運転します: <code>world.controls.vehicle = car</code>、続いて <code>world.controls.kind = 'vehicle'</code>。エンジン、ギアボックス、サスペンション、ブレーキは実在の機械のもので、<code>car.speed</code>、<code>car.gear</code>、<code>car.rpm</code> で走りがわかります。"
         ],
         "tryIt": "ドアと引き出しを開けて、石を橋に落としてみよう。橋の強さを下げて作り直すと、自分の重さで壊れます。"
       },

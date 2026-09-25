@@ -93,5 +93,17 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
         : [1, 1, 1],
     vertexColors: first.vertexColors === true,
     model,
+    lineWidth: typeof first.lineWidth === 'number' ? first.lineWidth : 0,
+    ...(typeof first.dashSize === 'number'
+      ? { dashSize: first.dashSize, gapSize: first.gapSize ?? 0 }
+      : {}),
+    ...(first.sprite === true
+      ? {
+          sprite: {
+            rotation: first.rotation ?? 0,
+            sizeAttenuation: first.sizeAttenuation !== false,
+          },
+        }
+      : {}),
   };
 }

@@ -1,5 +1,6 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { openMeasuredWorld, createMeasuredWorldJob } from '../../measurement/measurement.ts';
 import { resolveExplorerTarget } from './target.ts';
 import { directWebgpu, interactiveOptions, interactiveSize } from './interactiveOptions.ts';
@@ -94,7 +95,7 @@ test('hidden or invalid initial viewports fail with an actionable error', () => 
 });
 
 test('#274: the direct-GPU decision reads the chosen backends, not the host list', () => {
-  const device = {} as GPUDevice;
+  const { device } = fakeDevice();
   // A session that named nothing now gets the WebGPU raster by default, and it presents its own
   // surface: no WebGL2 surface is built under it.
   assert.equal(directWebgpu(options, [webgpuPagesBackend], device), true);

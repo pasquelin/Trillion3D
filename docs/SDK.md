@@ -451,8 +451,9 @@ world.controls.pushStrength = 400; // a stronger push
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
 `handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
-with `drive` can be driven; the physics' own vehicles arrive with #501. Setting `kind = 'vehicle'`
-while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
+with `drive` can be driven, the physics' own vehicles first (`vehicle.car`, see [Physics](#physics)).
+Setting `kind = 'vehicle'` while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move
+the camera: a page follows the vehicle with it.
 
 ### Picking, moving and saving
 
@@ -675,6 +676,18 @@ material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPP
 materials included. The former aliases of the node, `HostNode`,
 `HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
 
+The engine's geometries hold the same vertex attributes as a world's `Geometry`: a
+`BufferAttribute` owning its numbers, or an `InterleavedBufferAttribute` viewing `itemSize` numbers
+at `offset` of each vertex of an `InterleavedBuffer` (`VertexAttribute` names either).
+`new BufferAttribute(array, itemSize, normalized)` reads an integer attribute declared normalised
+as its value over the largest of its type, and writes it back the same way; `needsUpdate = true`
+bumps `version` (the buffer's, for a view), which the renderer compares before uploading the same
+bytes again, and `addUpdateRange` limits that upload to the numbers written. `clone()` copies the
+numbers, their type, normalisation and name; a view's clone owns its numbers. The former engine
+classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` and the types
+`GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
+`InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
@@ -839,7 +852,9 @@ Nothing lights an opaque surface except a light the host declared. There is no f
 no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
+a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
+`material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
+nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
@@ -913,11 +928,16 @@ changed with `light.visible = false`, `model.remove(light)` or `light.intensity 
 second — another application, another tab —, so a budget measured at start-up would be wrong five
 minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both 512 MiB by
 default: the geometry pool (cluster page slots, the root cover always resident) and the texture pool
-(virtual-texture tiles, every texture's tail always resident). The WebGL2 engine holds the same
-geometry budget, drawn by the same rule: its cut draws coarser beyond it, and the pages no frame
-keeps leave oldest first. While a view refines, the pool can go past its budget by at most the
-ancestors still drawn in place of the pages replacing them, and is back under it at the next cut
-once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
+(virtual-texture tiles, every texture's tail always resident). A live texture — a video, a canvas
+redrawn every frame — keeps one working texture of its own size, and those bytes are texture memory
+too: the metric `textureLiveBytes` reports them, and they are taken out of the texture budget. The
+texture pool is drawn from the declared budget less `textureLiveBytes` — the pool a budget write
+reports carries that difference —, while the budget recorded stays the declared one: the pool is
+drawn again, tiles kept, when a texture turns live and at every budget written after. The WebGL2
+engine holds the same geometry budget, drawn by the same rule: its cut draws coarser beyond it, and
+the pages no frame keeps leave oldest first. While a view refines, the pool can go past its budget
+by at most the ancestors still drawn in place of the pages replacing them, and is back under it at
+the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `geometryPoolAllocatedBytes` is `null`). It has no texture pool:
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
@@ -925,12 +945,19 @@ once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
-- GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
-  in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
-  each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
-  a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
+- GPU: the shadow pool first, at its largest (the largest screen's side, its static layer and its
+  transmittance layer), then the bounce probes at their largest; the rest in two halves, geometry
+  and textures, each capped at its ceiling. At the defaults the split gives each pool its own
+  default, so a page that sets nothing sees no change. The shadows and the probes never shrink: a
+  total under the two is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below
+  512 MiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
+  share, whatever the screen.
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
-  decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
+  decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
+  reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
+  and its transfer queue, and the engine's cut tables (group closure and residency readiness,
+  sized by the scene's placed pages) once the scene is prepared. A change applies at once: pages
+  leave by last use until they fit, save those the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
@@ -947,22 +974,39 @@ their floors (the root cover, one texture layer per lane), which they never go b
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
-What a view asks beyond a pool is shown **coarser**, never refused: the cut raises its screen error
-until the cover fits, a texture tile shows its coarser level. The frame metrics say so —
-`coverageBudgetLimited`, `budgetPixelError` (the rung the image is drawn at, `0` when the requested
-detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
+What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU the pages that do not
+fit stay out and their surface is drawn by its nearest resident ancestor, on WebGL2 the cut raises
+its screen error until the cover fits, and a texture tile shows its coarser level. The frame metrics
+say so — `coverageBudgetLimited`, `budgetPixelError` (WebGL2: the threshold the image is drawn at,
+`0` when the requested detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
 is too small for that view). A value that cannot be held as given is brought to what can be, and
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
-`device-limit`, `ceiling`, or `null`. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the
-device cannot hold even the root cover.
+`device-limit`, `ceiling`, or `null`. What is refused, by name, is only this:
+
+- a value that is not a whole number of bytes above zero: `INVALID_GPU_BUDGET`,
+  `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET`;
+- a total under its fixed share, above: `GPU_BUDGET_UNDER_SHADOW_POOL`,
+  `CPU_BUDGET_UNDER_SHADOW_MIRROR`;
+- a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`;
+- a pool floor the device refuses at prepare: `WEBGPU_GEOMETRY_POOL_REFUSED`,
+  `WEBGPU_TEXTURE_POOL_REFUSED`, below;
+- a texture pool too small for the tails its textures keep resident whole, one tile each: more
+  textures in one lane than its layers hold tiles (900 a layer), at prepare or when
+  `world.budget.texturePool` shrinks the pool: `TEXTURE_POOL_TAILS`.
 
 **Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
 allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
 device refuses it, the pool
-is drawn again at half its bytes, down to its floor (the root cover, one layer per lane). The pool
-in place is only ever replaced by one the device grants. A rebalance throws nothing: the frame
-goes on, coarser where the smaller pool no longer holds the view. The
-`gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
+is drawn again at half its bytes, down to its floor (the root cover, one layer per lane, the
+smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
+casts a shadow, and that frame is held until the device answers: the previous image stays, or
+nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
+are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
+coarser where the smaller pool no longer holds the view, and no exception reaches the page. When
+the device refuses even the smallest shadow pool, the shadowed mode cannot be drawn: it is refused
+by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and the session goes on
+without shadows. Shadows are never lost silently.
+The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
 granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
 
 At prepare there is no pool in place to keep, so a floor the device refuses is refused by name,
@@ -976,6 +1020,13 @@ never allocated at the full request outside the check:
   (`material-pipeline-failed`, the code in `context.error`) and the pages draw with the fallback
   pass; on a GPU canvas, which needs that pipeline, preparation fails with
   `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`.
+
+WebGL2 has no out-of-memory check to allocate under: nothing there is absorbed. It reserves no
+pool — each page's buffers are made as the page arrives — and it does not read `gl.getError()` after
+an allocation, so a refused one is not seen by the engine. A browser that answers it by losing the
+context takes the WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing
+is drawn while the context is lost. That out of memory on WebGL2 costs one level and never a hole
+is not proven yet.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
@@ -1049,7 +1100,7 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
-gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
+gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
   its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
@@ -1061,7 +1112,10 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
   A material carries `physics: 'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'` and its own
   `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
-  override both.
+  override both. `damping: { linear, angular }` is the share of its speed a body loses by itself
+  each second (`dv/dt = −c·v`, the simulation's 0.05 each when left out, 0 keeps every bit; a
+  negative one throws `RangeError`); set at creation, like `sensor`. A body declares its own air
+  and rolling loss there (live: [ride a roller coaster](../site/examples/ride-a-roller-coaster.html)).
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
@@ -1089,7 +1143,11 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   its motor drives. `joint.path(a, b, { path, loop, follow })` runs `a` along a smooth track
   through the points of `path` (at least two, fixed to `b` or the world), turning with it unless
   `follow` is `false`; its motor drives `a` at a speed along the track, or to a point of it (1.5:
-  halfway between the second and the third). `joint.pulley(a, b, { over, ratio })` hangs `a` and
+  halfway between the second and the third). A track fixed in the world does no work: its bends
+  turn `a` without slowing it, and a body with no damping keeps its energy along it to within one
+  step of gravity's work. Not on a track fixed to a moving body, nor for a body held off its centre
+  while it spins: there each bend still takes v²·dt / R² of its kinetic energy per second (v its
+  speed, R the bend's radius, dt the step). `joint.pulley(a, b, { over, ratio })` hangs `a` and
   `b` on one rope over two wheels in the world, the rope from 0 up to its length unless `limits`
   says otherwise. `joint.gear(a, b, { axis, axisB, ratio })` turns `b` `ratio` times per turn of
   `a` (the teeth of `a` over those of `b`), the other way round; `joint.rackAndPinion(pinion,
@@ -1101,6 +1159,57 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   `1 / ratio` whole — it wraps each hinge's angle to one turn); any other gear ties the speeds
   only, and may slip by a fraction of a tooth under load. Live example:
   [gears and pulleys](../site/examples/gears-and-pulleys.html).
+- **Vehicles.** `vehicle.car | motorcycle | tracked(body, { wheels, ...spec })` puts a dynamic
+  body on wheels with Jolt's own vehicle constraint — engine, automatic gearbox, differentials,
+  suspension and anti-roll bars — and `world.physics.add(v)` makes it once its body is simulated
+  (`remove(v)` takes it out, the body left without wheels). The wheels are meshes, children of the
+  body, placed at their centre as they rest on flat ground, the axle along the body's x; each one's
+  radius and width are read from its bounds, and the simulation turns, steers and lifts it on its
+  suspension every tick. As Jolt's own vehicle samples build theirs, the body's centre of mass is
+  lowered to the bottom of its shape, midway between its wheels, and given back when the vehicle
+  leaves. The body faces −z: the forward wheels steer. A car has three wheels or
+  more, one differential per driven axle (`drive: 'front' | 'rear' | 'all'`) and the handbrake on
+  its rear wheels; a motorcycle two, driven at the rear, and it leans into a turn; a tracked
+  vehicle two or more a side, each track driven by its rearmost wheel, steered by slowing one
+  track and pivoting on the spot at a standstill. A vehicle is a `VehicleDriver`:
+  `world.controls.vehicle = v` drives it with the keys; `v.drive(input)` from code does the same.
+  The brake pedal stops it, then backs it up; the throttle stops one rolling back first. `v.speed`
+  (m/s forward), `v.gear` (−1 reverse, 0 neutral) and `v.rpm` read the last step. Each kind is a
+  real machine (`VEHICLE_SPECS`: a Corvette C5, a Yamaha XJ900, an M1 Abrams), every number
+  sourced in `vehicleSpec.ts`: the engine's torque per kilogram of the body (`torquePerKg`), its
+  torque curve, idle and redline, the gear ratios, shift points and final drive, the suspension's
+  frequency, damping and travel, the anti-roll bars, the turning radius the steering lock is read
+  from, the time a hand takes to full lock, the brakes' grip, a motorcycle's lean and a track's
+  turn; any of them is an option. A wheel that is not a child of the body, a wrong wheel count or
+  more than six gears throws `RangeError`, and so does an option its kind would ignore (a car's
+  `trackTurn` or `maxLean`; a motorcycle's `drive`, `trackTurn` or `antiRoll`; a tracked
+  vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
+  longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
+- **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
+  bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
+  a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
+  out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
+  Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex
+  indices held where they are. `mass` is spread over the vertices by the area (a rope: the length)
+  each holds; left out, a medium woven cotton (`SOFT_AREAL_DENSITY`, 0.2 kg/m²) or a 10 mm
+  polyamide rope (`SOFT_LINEAR_DENSITY`, 0.065 kg/m). `stretch` and `bend` are how much an edge
+  gives when pulled and a fold when bent (compliances, the inverse of stiffness; Jolt's own
+  defaults: 0 never stretches, `Infinity` folds freely). A volume's default pressure rests its
+  weight on a quarter of its mean cross-section (`SOFT_FOOTPRINT`, declared), or the most its skin
+  holds if less. A pressure past what its skin holds within a tenth of its rest volume is refused
+  with a `RangeError`: its edges give by their `stretch` and by the solver's own compliance, one
+  substep squared over a vertex's mass, so a light, finely cut skin holds less. `friction`,
+  `restitution`, `gravityScale` and `damping: { linear }` act as on a rigid body, on each vertex;
+  `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
+  (its vertices do not turn). A soft body is a
+  direct child of the scene; moved by the page, it is made again there; it takes no velocity,
+  impulse, joint or vehicle, and sends no contact event. Rigid bodies and the character collide
+  with its vertices: the character is turned aside or stopped, never pushing it; a rigid body
+  much heavier than the skin it lands on can push between its vertices; soft bodies pass through
+  each other (Jolt collides them with rigid bodies only). `mesh.physics.vertices` reads its
+  vertices as the last tick left them, `x, y, z` per geometry vertex in the geometry's frame. The
+  drawn mesh does not follow them yet: it waits for geometry written every frame to be uploaded
+  in place (#573).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
@@ -1115,10 +1224,11 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
-  `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
-  bodies.
+  `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
+  every soft body at once (declared: four cloths of 64 × 64).
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
-  `stats.stepMs`, on its own clock: the two are never added.
+  `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
+  own clock: the two are never added.
 - **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
   physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
   streams its tiles in, restored from Jolt's binary state, around the eye up to `camera.far` and
@@ -1140,17 +1250,22 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
 
 - `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
   and non-standard glTF extensions are not drawn.
-- Specular environment-map IBL, area lights and screen-space reflections are not implemented; the
-  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)).
+- Specular environment-map IBL and screen-space reflections are not implemented; the
+  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
+  with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
-- A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
-  implemented.
+- A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
+  session on it and rebuilds from its decoded-page cache, fetching no page or bundle it still holds.
+  `gpu-device-recovered` says the time from the loss to the first frame drawn after it
+  (`recoveryMs`). Baked texture levels are read again, and cross-API fallback is not implemented.
+- Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
+  lost device.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
   cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
   landing, which then runs in slow motion for a short moment; the page's `physics` stage is
   0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
   The renderer's own work for 10,000 moved instances is measured apart (#432). Joints and cooked
-  colliders are here (above), not measured at this scale; advanced joints arrive with #500, the
-  physics' own vehicles with #501, soft bodies with #399.
+  colliders are here (above), not measured at this scale, nor are advanced joints and vehicles;
+  soft bodies arrive with #399.
