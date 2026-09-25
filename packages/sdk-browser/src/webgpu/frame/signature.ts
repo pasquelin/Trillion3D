@@ -1,12 +1,12 @@
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Number of values in the frame signature; see `sampleWebgpuFrame`. */
-export const HOLD_SIGNATURE_VALUES = 24;
+export const HOLD_SIGNATURE_VALUES = 23;
 
 /**
- * Everything a frame produced that can be observed, in twenty-four numbers.
+ * Everything a frame produced that can be observed, in twenty-three numbers.
  *
- * Two consecutive frames whose three revisions and these twenty-four numbers match have done
+ * Two consecutive frames whose three revisions and these twenty-three numbers match have done
  * exactly the same work: same rows, same occluder/tested partition, same draw calls, same
  * triangles, same occlusion verdicts, same shadows. That covers states that converge without
  * being written — the occluder history the tested half of the frame feeds, verdicts reread
@@ -40,5 +40,4 @@ export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   into[20] = lights.shadowsUpdated;
   into[21] = lights.shadowFaces;
   into[22] = hiz ? hiz.rejected : -1;
-  into[23] = run.budgetPixelError;
 }

@@ -37,10 +37,6 @@ export function createWebgpuCutAdopter(options: {
      *  at render: a drain replays one after the fact, so every reader of these lists must know they
      *  moved under it, not only that the current frame held them. */
     listsRewritten: false,
-    /** True when the adopted shown list declares incomplete coverage: a page the kernel wants to
-     *  draw has not arrived yet. The frame WAITS for that page, it does not drop GPU selection —
-     *  the CPU fallback is reserved for a real selection failure. */
-    incomplete: false,
     /** True when the adopted shown list is TRUNCATED: the cut did not fit under the shown-list
      *  ceiling. No difference is taken from it — a truncated list would exit pages that are still
      *  in the cut — and the frame goes back through the CPU cut, the only one that knows how to
@@ -61,14 +57,13 @@ export function createWebgpuCutAdopter(options: {
   let shownCut: GpuCut | null = null;
   /** Age of the drawable id sequence: it advances every time a shown list publishes another one,
    *  adopted or not. `shownSeq` is that of the sequence `shown` is actually made from: a shown list
-   *  applied then rejected — different uniforms, incomplete coverage — separates them, and that is
+   *  applied then rejected — different uniforms — separates them, and that is
    *  what forbids holding `shown` on a sequence the frame never adopted. */
   let drawnSeq = 0,
     shownSeq = -1;
   const adopt = () => {
     metrics.cutHeld = false;
     metrics.listsRewritten = false;
-    metrics.incomplete = false;
     metrics.truncated = false;
     const selection = options.selection(),
       cut = selection?.peek();
@@ -100,10 +95,6 @@ export function createWebgpuCutAdopter(options: {
     metrics.cutHeld = !metrics.listsRewritten && cut.worldRevision === selection?.worldRevision;
     metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
-    if (cut.result.complete === false) {
-      metrics.incomplete = true;
-      return false;
-    }
     // `shown` is a function of the drawable id sequence alone: a new shown list that republishes
     // the SAME sequence `shown` is made from yields the same records, at the same ranks, and neither
     // `shown` nor its copy `drawn` is remade. The comparison is on the age of the adopted sequence,
