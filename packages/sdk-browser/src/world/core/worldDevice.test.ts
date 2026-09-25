@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { probeWorldRenderer } from '../capability/worldReady.ts';
-import { holdWorldDevice } from './worldDevice.ts';
+import { holdWorldDevice, worldRecovered } from './worldDevice.ts';
+import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts';
+import { createPageCache } from '../../streaming/pageCache.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 const canvas = {} as HTMLCanvasElement;
@@ -32,20 +34,31 @@ test('an adapter that refuses its device leaves the world on WebGL2', async () =
 test('a lost device is asked for again, and the session reopened on the new one', async () => {
   const devices = [fakeDevice(), fakeDevice()];
   let asked = 0,
-    reopened = 0;
+    reopened = 0,
+    lostAt = NaN;
   const probe = async () => ({
     renderer: 'webgpu' as const,
     gpuDevice: devices[asked++].device,
   });
-  const held = holdWorldDevice(canvas, undefined, () => reopened++, probe);
+  const held = holdWorldDevice(
+    canvas,
+    undefined,
+    (at) => {
+      reopened++;
+      lostAt = at;
+    },
+    probe,
+  );
   await held.ready;
   assert.equal(held.gpuDevice, devices[0].device);
   const warn = console.warn;
   console.warn = () => {};
+  const before = performance.now();
   devices[0].lose({ reason: 'unknown', message: 'driver reset' });
   for (let turn = 0; turn < 10 && !reopened; turn++) await new Promise(setImmediate);
   console.warn = warn;
   assert.equal(reopened, 1);
+  assert.ok(lostAt >= before && lostAt <= performance.now(), 'the reopen is told when it was lost');
   assert.equal(held.gpuDevice, devices[1].device);
   // The world's own disposal destroys its device, and a loss by `destroy` asks for nothing.
   held.dispose();
@@ -87,4 +100,31 @@ test('a session opened while a device is asked again waits on it, and a WebGL2 g
   for (let turn = 0; turn < 10 && !reopened; turn++) await new Promise(setImmediate);
   assert.equal(reopened, 1, 'the session reopens, and reports the refusal');
   held.dispose();
+});
+
+test('a recovered world reopens its session and says the time to its first frame, once', async () => {
+  const said: Array<{ phase: string; context: Record<string, unknown> }> = [];
+  const stop = listenWorldNotices((notice) => said.push(notice as (typeof said)[number]));
+  const notices = createWorldNotices();
+  const hooks = new Set<() => void>();
+  const frames = {
+    add: (hook: () => void) => (hooks.add(hook), () => void hooks.delete(hook)),
+    draw: () => [...hooks].forEach((hook) => hook()),
+  };
+  const cache = createPageCache();
+  cache.touch('kept.bin', new Uint8Array(4));
+  let renewed = 0;
+  worldRecovered({ renew: () => renewed++ }, frames, notices, cache, performance.now() - 5);
+  assert.equal(renewed, 1, 'the session reopens on the device granted again');
+  frames.draw();
+  frames.draw();
+  await new Promise(setImmediate);
+  notices.close();
+  stop();
+  assert.deepEqual(
+    said.map((notice) => notice.phase),
+    ['gpu-device-recovered'],
+  );
+  assert.ok(Number(said[0].context.recoveryMs) >= 5);
+  assert.equal(said[0].context.keptPages, 1);
 });
