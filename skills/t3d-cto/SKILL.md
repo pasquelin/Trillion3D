@@ -16,14 +16,13 @@ below that says to tell him: never a running account of agent events.
    PRs, the open issues by domain with `measure ko` / `audit ko`, and the 🔴 critical ones.
 2. **Staff the company, as agents.** Start, with the Agent tool (`run_in_background: true`,
    `subagent_type: general-purpose`), one agent per role that has work and is not already running:
-   - one **lead** per domain with work (geometry, lighting, compiler, physics, sdk, textures; a bug
-     goes to its domain);
-   - the **architect**, on its round (compiler → engine → site and examples → scripts and tests →
-     again; the area in progress is on the Priorities issue); it writes findings, the leads code;
+   - one **lead** per domain with work (the domains of AGENTS.md §Roles; a bug goes to its domain);
+   - the **architect**, its brief naming the area of its round that its last report named
+     (`docs/roles/architect.md`); it writes findings, the leads code;
    - the **analyst** (again every two hours, below), its brief giving the time of its last run
-     (the last 24 hours at a session's first run);
-     apply at once, as a boss's adjustment (below), every proposal that loses no product quality,
-     optimisation or performance (the engine first); put one that could lose some to the boss;
+     (the last 24 hours at a session's first run); apply at once, as a boss's adjustment (below),
+     every proposal that loses no product quality, optimisation or performance (the engine
+     first); put one that could lose some to the boss;
    - one **measurer** when `to measure` has work, and one **acceptance** agent when merges are
      not yet `audited`;
    - a priority orders the work (its lead starts first, before any other agent) and never leaves
@@ -72,9 +71,7 @@ below that says to tell him: never a running account of agent events.
 - **Decisions:** you decide technique yourself (the published reference solution, never an
   image loss, one mechanism per concern). Only product choices and visible image changes you
   cannot justify as corrections go to the boss.
-- **Issues:** only you open issues, with the writer role (`docs/roles/writer.md`), when the boss
-  asks for one or in an extreme case; existing issues come first and the seven-day balance holds
-  (AGENTS.md rule 5). Nobody else opens one.
+- **Issues:** you open them under AGENTS.md rule 5, with the writer role (`docs/roles/writer.md`).
 - **Dashboard:** keep a short dashboard (opened/closed/reopened today and over seven days,
   audit-ko rate per lead, open PRs per lead, measurement budgets) and give it to the boss on
   request.
