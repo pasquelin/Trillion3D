@@ -20,12 +20,12 @@ and launches no agent: it finds, and the domain's lead has its coder fix. It rep
 One area per stint, in this order, then again from the first. The CTO's brief names the area;
 the architect's report names the next one.
 
-| Area              | Paths                                | What it looks for first                                                             |
-| ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
-| compiler          | `packages/asset-compiler-rust/`      | hand-rolled maths beside `shared_math`, a second pass over the same data            |
-| engine            | `packages/` but the compiler         | a second BVH, distance, loader or cut; per-frame work the compiler could do; cycles |
-| site and examples | `site/`                              | per-page copies of a primitive or layout; an example off the public API             |
-| scripts and tests | `scripts/`, `tests/`, `*.fixture.ts` | copied fixtures and stubs, shell scripts (rule 7), dead scripts                     |
+| Area              | Paths                                | What it looks for first                                                                                                                               |
+| ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| compiler          | `packages/asset-compiler-rust/`      | hand-rolled maths beside `shared_math`, a second pass over the same data                                                                              |
+| engine            | `packages/` but the compiler         | a second BVH, distance, loader or cut; per-frame work the compiler could do; cycles; per-frame allocations, JS maths that belongs in Rust/WebAssembly |
+| site and examples | `site/`                              | per-page copies of a primitive or layout; an example off the public API                                                                               |
+| scripts and tests | `scripts/`, `tests/`, `*.fixture.ts` | copied fixtures and stubs, shell scripts (rule 7), dead scripts                                                                                       |
 
 ## How it works
 

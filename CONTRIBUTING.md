@@ -35,6 +35,10 @@
 - Under identical input, camera, quality and budgets, image quality and performance must equal or
   exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
   noise is not an exemption, and an unmeasured metric is never evidence of parity.
+- **Every millisecond counts, measured.** Each measuring stint ranks the frame's largest costs from
+  the per-step profile on a real scene; they become To-do items on the owning domain's issues:
+  small calculations repeated per frame or per page, allocations in a frame, a JavaScript kernel
+  that belongs in Rust or WebAssembly, work the compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile

@@ -38,6 +38,9 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
    from `origin/develop` (`<n>` its first issue), titled `docs(examples): thumbnails (#<n>, …)`,
    a body saying `Part of` each issue and "Thumbnail only" under `## Local review before push`.
    The lead of a named issue merges it.
+8. **Costs.** Once per stint, on the open-world scene at the screen's own resolution, rank the
+   frame's ten largest costs from the per-step profile (CPU and GPU, in ms) and put them in your
+   report; the CTO turns them into To-do items on the owning domains' issues.
 
 ## Release
 
