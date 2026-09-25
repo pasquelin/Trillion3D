@@ -18,6 +18,9 @@ export interface SavedGeometry {
   index?: number[];
   /** Index ranges drawn with one material each. */
   groups?: { start: number; count: number; materialIndex: number }[];
+  /** `'host'` for a loaded scene's vertices, read at their value (`Geometry._owner`); unset for
+   *  the world's. */
+  owner?: 'host';
 }
 
 /** A material: its kind and every parameter, colours as linear `[r, g, b]`. */

@@ -6906,7 +6906,8 @@
       "recipe": "Le membre de la famille et chacun des arguments avec lesquels il l’a construite.",
       "attributes": "Chaque liste par sommet, quand aucun appel ne reconstruit la forme.",
       "index": "Quels sommets forment chaque triangle.",
-      "groups": "Plages d’index dessinées chacune avec un matériau."
+      "groups": "Plages d’index dessinées chacune avec un matériau.",
+      "owner": "`'host'` pour les sommets d’une scène chargée, lus à leur valeur (`Geometry._owner`) ; absent pour ceux du monde."
     }
   },
   "SavedMaterial": {
