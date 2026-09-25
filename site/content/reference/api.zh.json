@@ -7094,6 +7094,7 @@
       "bodies": "模拟持有的物体。",
       "active": "最近一次 tick 后仍活动的物体。",
       "stepMs": "worker 每个固定步的毫秒数，最近一次 tick：worker 自己的时钟，从不与页面时钟相加。",
+      "stepMaxMs": "上一个 tick 中最慢固定步的 worker 毫秒数：平均值掩盖的慢步。",
       "mainMs": "物理在最近一帧占用的页面毫秒数（CPU 阶段 `physics`）。",
       "poses": "最近一次 tick 返回的姿态。",
       "events": "最近一次 tick 返回的接触事件。",
