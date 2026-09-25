@@ -29,7 +29,7 @@ export function createCookedSoftBodies(
 ) {
   /** The slots of each open model's soft bodies. */
   const held = new Map<Model, number[]>();
-  async function add(model: Model, soft: CookedSoftBody) {
+  async function add(model: Model, slots: number[], soft: CookedSoftBody) {
     // Refused before its bytes are fetched: a scale is read from the model alone.
     const { scale } = tilePose({ model, instance: soft });
     const at = soft.scale;
@@ -50,8 +50,8 @@ export function createCookedSoftBodies(
         `Soft body settings ${soft.settings.url}: ${response.status}.`,
       );
     const cooked = new Uint8Array(await response.arrayBuffer());
-    const slots = held.get(model);
-    if (!slots) return;
+    // Forgotten, or opened again, meanwhile: this opening's bodies are no longer wanted.
+    if (held.get(model) !== slots) return;
     // Posed again once fetched: the model may have moved meanwhile, and the pose is scratch.
     const { position, quaternion } = tilePose({ model, instance: soft });
     const p = new ObjectPhysics(soft.physics);
@@ -59,6 +59,7 @@ export function createCookedSoftBodies(
     const id = bodies.claim(0, soft.vertices);
     writeSoft(writer, {
       ...{ id, position, quaternion, scale: at },
+      // As `addSoftBody` maps a page-built body's (`softBodies.ts`).
       ...{
         friction: p.friction ?? matter.friction,
         restitution: p.restitution ?? matter.restitution,
@@ -76,9 +77,12 @@ export function createCookedSoftBodies(
   return {
     /** Makes the soft bodies `model` was cooked with. */
     open(model: Model, softBodies: readonly CookedSoftBody[] = []) {
-      held.set(model, []);
+      // Opened again: the bodies of the last opening out, none held twice.
+      forget(model);
+      const slots: number[] = [];
+      held.set(model, slots);
       for (const soft of softBodies)
-        add(model, soft).catch((error) => failed(error as EngineError));
+        add(model, slots, soft).catch((error) => failed(error as EngineError));
     },
     /** A model left the scene: its soft bodies out. */
     forget,

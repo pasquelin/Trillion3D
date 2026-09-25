@@ -30,6 +30,14 @@ pub(super) fn declared_soft(node: &Value) -> Option<(&'static str, &Value)> {
 /// The options of a `kind` once read, each number 0 and up (`softSettings`); the page's words
 /// otherwise.
 fn read(kind: &'static str, option: &Value) -> std::result::Result<SoftDeclared, String> {
+    for name in ["shape", "sensor", "ccd", "decorative"] {
+        if option.get(name).is_some() {
+            return Err(format!("A soft body takes no {name}."));
+        }
+    }
+    if option.pointer("/damping/angular").is_some() {
+        return Err("A soft body takes no angular damping: its vertices do not turn.".into());
+    }
     let number = |name: &str| match option.get(name) {
         None => Ok(None),
         Some(value) => match value.as_f64() {
@@ -50,7 +58,12 @@ fn read(kind: &'static str, option: &Value) -> std::result::Result<SoftDeclared,
         mass: number("mass")?,
         stretch: number("stretch")?.unwrap_or(0.0),
         bend: number("bend")?.unwrap_or(f64::INFINITY),
-        pressure: number("pressure")?,
+        // As on the page, a cloth's or a rope's pressure is not read: it holds no gas.
+        pressure: if kind == "volume" {
+            number("pressure")?
+        } else {
+            None
+        },
     })
 }
 
