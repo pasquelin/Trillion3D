@@ -15,7 +15,7 @@ const center = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
 };
 
 const inputs = () => {
-  const geometry = new G.GraphGeometry(),
+  const geometry = new G.Geometry(),
     material = G.basicSurface(),
     matrix = drawMatrix();
   geometry.setAttribute(

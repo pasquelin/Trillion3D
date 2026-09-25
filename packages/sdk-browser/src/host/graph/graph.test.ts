@@ -12,10 +12,10 @@ import { GraphInstancedMesh, GraphMesh } from './mesh.ts';
 import { GraphCamera } from './camera.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { GraphGeometry } from './geometry.ts';
 import { GraphSurface } from './surface.ts';
 import { GraphTexture } from './texture.ts';
 import { hookHostNode } from '../scene/hooks.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 test('a posed chain resolves to the reference world matrices, aim and decomposition included', () => {
   const [a, b, c] = [new Group(), new Object3D(), new GraphCamera({ fov: 47, aspect: 1.6 })];
@@ -83,7 +83,7 @@ test('angles and quaternion follow each other, and a watch hears either face', (
 test('a geometry bounds itself as the reference does, morph targets included', () => {
   const positions = new Float32Array([0, 0, 0, 1, 2, 3, -4, 0.5, 2]);
   const morph = new Float32Array([0.5, -1, 0, 0, 0, 2, 1, 1, 1]);
-  const geometry = new GraphGeometry().setAttribute('position', new BufferAttribute(positions, 3));
+  const geometry = new Geometry().setAttribute('position', new BufferAttribute(positions, 3));
   geometry.morphAttributes.position = [new BufferAttribute(morph, 3)];
   geometry.morphTargetsRelative = true;
   const reference = new THREE.BufferGeometry();
@@ -127,7 +127,7 @@ test('a texture transform, a surface family and a copied light hold the referenc
     [spot.angle, spot.penumbra, spot.decay, spot.distance, spot.position.x, spot.position.y],
   );
   assert.notEqual(copy.target, light.target, 'a copied light aims at a copy of the target');
-  const mesh = new GraphMesh(new GraphGeometry(), surface);
+  const mesh = new GraphMesh(new Geometry(), surface);
   assert.equal(mesh.clone().material, surface, 'a copied mesh shares its surface');
 });
 
@@ -135,7 +135,7 @@ test('a copied geometry owns its buffers, and a triangle list spells every corne
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0]),
     order = new Uint16Array([0, 1, 2, 2, 1, 3]),
     shades = new Uint8Array([0, 64, 128, 255]);
-  const geometry = new GraphGeometry().setIndex(new BufferAttribute(order, 1));
+  const geometry = new Geometry().setIndex(new BufferAttribute(order, 1));
   geometry.setAttribute('position', new BufferAttribute(positions, 3));
   geometry.setAttribute('shade', new BufferAttribute(shades, 1, true));
   const reference = new THREE.BufferGeometry().setIndex(new THREE.BufferAttribute(order, 1));
@@ -171,7 +171,7 @@ test('the ambient, rectangle and probe lights copy themselves whole', () => {
 });
 
 test('an instanced mesh holds one matrix per placement and gives them back once', () => {
-  const mesh = new GraphInstancedMesh(new GraphGeometry(), new GraphSurface('standard'), 3);
+  const mesh = new GraphInstancedMesh(new Geometry(), new GraphSurface('standard'), 3);
   assert.equal(mesh.instanceMatrix.array.length, 48);
   assert.equal(mesh.count, 3);
   let released = 0;

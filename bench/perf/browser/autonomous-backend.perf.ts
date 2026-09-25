@@ -9,7 +9,7 @@ import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backen
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
 
 const HOSTILES = [...HOSTILE_FLOATS, 1.7976931348623157e308];
-const geometrie = new G.GraphGeometry();
+const geometrie = new G.Geometry();
 const materiau = G.basicSurface();
 
 interface Monde {

@@ -1980,11 +1980,11 @@
     }
   },
   "Geometry": {
-    "summary": "Die reine Form: benannte Attribute pro Scheitelpunkt, ein optionaler Dreiecksindex, Materialgruppen.",
+    "summary": "Nur die Form: benannte Attribute pro Eckpunkt, ein optionaler Dreiecksindex, Materialgruppen, die Morph-Ziele, die sie bewegen, und der gezeichnete Bereich.",
     "members": {
       "isGeometry": "Immer `true`: unterscheidet eine Geometrie von allem anderen.",
       "type": "Die Art der Geometrie, `'Geometry'`.",
-      "attributes": "Die Listen pro Scheitelpunkt, nach Namen: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Die Listen pro Eckpunkt nach Namen: `position`, `normal`, `uv`, `color`; jede besitzt ihre Zahlen oder liest einen verschachtelten Puffer.",
       "index": "Welche Scheitelpunkte jedes Dreieck bilden, drei Zahlen pro Dreieck; `null` liest sie der Reihe nach.",
       "groups": "Indexbereiche, gezeichnet mit `material[materialIndex]`, wenn ein Mesh mehrere trägt.",
       "boundingBox": "Die Box um jeden Scheitelpunkt, sobald berechnet; `null` davor.",
@@ -1999,8 +1999,8 @@
       "addGroup": "Zeichnet `count` Indizes ab `start` mit dem Material Nummer `materialIndex` des Meshes.",
       "clearGroups": "Entfernt jede Materialgruppe.",
       "computeVertexNormals": "Glatte Normalen: jeder Scheitelpunkt mittelt die Flächen, die ihn teilen, gewichtet nach ihrer Fläche.",
-      "computeBoundingBox": "Misst die Box um jeden Scheitelpunkt und hält sie in `boundingBox`.",
-      "computeBoundingSphere": "Misst die Kugel um jeden Scheitelpunkt und hält sie in `boundingSphere`.",
+      "computeBoundingBox": "Misst den Quader um jeden Eckpunkt und jede Form, die ein Morph-Ziel ihr gibt, und behält ihn in `boundingBox`; eine normalisierte Position wird in ihrem Maßstab gemessen.",
+      "computeBoundingSphere": "Misst die Kugel, die auf dem Quader zentriert ist und den fernsten Eckpunkt, gemorpht oder nicht, erreicht, und behält sie in `boundingSphere`.",
       "applyMatrix4": "Verschiebt jede Position, dreht jede Normale: es ist die Geometrie, die sich ändert, keine Pose.",
       "translate": "Verschiebt jeden Scheitelpunkt um `(x, y, z)`.",
       "rotateX": "Dreht jeden Scheitelpunkt um die x-Achse, um `angle` Radiant.",
@@ -2008,8 +2008,17 @@
       "rotateZ": "Dreht jeden Scheitelpunkt um die z-Achse, um `angle` Radiant.",
       "scale": "Streckt jeden Scheitelpunkt um `(x, y, z)`.",
       "center": "Verschiebt die Geometrie, sodass ihre Box am Ursprung zentriert ist.",
-      "clone": "Eine neue Geometrie mit Kopien jeder Liste.",
-      "dispose": "Vergisst diejenigen, die sie halten: eine freigegebene Geometrie wird von niemandem gezeichnet."
+      "clone": "Eine neue Geometrie mit Kopien jeder Liste, ihren Gruppen, ihrem Bereich, ihren Daten und Grenzen und dem Rezept, das sie noch baut.",
+      "dispose": "Gibt die Geometrie zurück: führt jeden Freigabe-Hook einmal aus, vergisst ihre Halter und den Raycast-Baum; eine freigegebene Geometrie wird von niemandem gezeichnet oder getroffen.",
+      "kind": "Was die Ressource ist, woran ein Leser der Szene Ressourcen unterscheidet.",
+      "name": "Ihr Name.",
+      "morphAttributes": "Pro gemorphtem Attribut ein Attribut je Morph-Ziel.",
+      "morphTargetsRelative": "Wahr, wenn ein Morph-Ziel Verschiebungen statt Positionen enthält.",
+      "drawRange": "Der gezeichnete Bereich des Index.",
+      "userData": "Freier Platz für die Daten dessen, der die Geometrie gebaut hat.",
+      "released": "Aufgerufen, wenn die Geometrie zurückgegeben wird: worauf die eigene Kopie eines Renderers hört.",
+      "getIndex": "Die Dreiecksliste oder `null`.",
+      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Eckpunkt."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2378,9 +2387,6 @@
       "width": "Breite in Pixeln.",
       "height": "Höhe in Pixeln."
     }
-  },
-  "HostGeometry": {
-    "summary": "Eine Host-Geometrie: ihre Attribute, und die lokale Box, die der Host darüber berechnet hat."
   },
   "HostMaterial": {
     "summary": "Ein Host-Material, so wie die Engine es liest: die Oberflächenparameter, die jedes Host-Material teilt, einmal an der Grenze in das `VisMaterial` der Engine gelesen; nur `sideOf` liest `side`."
@@ -7235,32 +7241,6 @@
       "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
       "handbrake": "Ob die Handbremse gezogen ist."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Ihre Scheitelpunktattribute.",
-      "boundingBox": "Die vom Host berechnete lokale Box.",
-      "kind": "Was die Ressource ist.",
-      "name": "Ihr Name.",
-      "index": "Die Dreiecksliste, oder `null`, um die Vertices der Reihe nach zu zeichnen.",
-      "morphAttributes": "Pro verformtem Attribut ein Attribut pro Morph-Ziel.",
-      "morphTargetsRelative": "Wahr, wenn ein Morph-Ziel Verschiebungen statt Positionen hält.",
-      "groups": "Bereiche des Index, jeweils mit einer Oberfläche gezeichnet.",
-      "drawRange": "Der gezeichnete Bereich des Index.",
-      "boundingSphere": "Die lokale Kugel, sobald berechnet oder deklariert.",
-      "userData": "Freier Platz für die Daten dessen, der die Geometrie gebaut hat.",
-      "getIndex": "Die Dreiecksliste.",
-      "setIndex": "Setzt die Dreiecksliste.",
-      "getAttribute": "Das Attribut dieses Namens.",
-      "setAttribute": "Benennt ein Attribut.",
-      "deleteAttribute": "Vergisst ein Attribut.",
-      "hasAttribute": "Ob sie ein Attribut dieses Namens hat.",
-      "clone": "Eine Geometrie mit Kopien jedes Puffers, ihrer Gruppen, ihres Bereichs und ihrer Grenzen.",
-      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Vertex.",
-      "computeBoundingBox": "Berechnet die lokale Box über alle Vertices.",
-      "computeBoundingSphere": "Berechnet die lokale Kugel: auf der Box zentriert, bis zum entferntesten Vertex."
-    },
-    "summary": "Die Attribute, die ein Mesh zeichnet, die Dreiecksliste, über die sie indiziert werden, die Morph-Ziele, die sie bewegen, sowie die darüber berechnete lokale Box und Kugel."
   },
   "GraphNode": {
     "members": {

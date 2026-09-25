@@ -1106,11 +1106,11 @@
     }
   },
   "Geometry": {
-    "summary": "纯粹的形状本身:具名的逐顶点属性、可选的三角形索引、材质分组。",
+    "summary": "只有形状：命名的逐顶点属性、可选的三角形索引、材质组、使其变化的变形目标，以及绘制的范围。",
     "members": {
       "isGeometry": "始终为 `true`:用来把几何体和其他对象区分开来。",
       "type": "该几何体的种类,`'Geometry'`。",
-      "attributes": "按名称组织的逐顶点列表:`position`、`normal`、`uv`、`color`。",
+      "attributes": "按名称的逐顶点列表：`position`、`normal`、`uv`、`color`；每个列表拥有自己的数字，或读取一个交错缓冲区。",
       "index": "构成每个三角形的顶点,每个三角形三个数字;`null` 表示按顺序读取。",
       "groups": "当一个网格携带多种材质时,用 `material[materialIndex]` 绘制的索引范围。",
       "boundingBox": "计算之后得到的、包住每个顶点的包围盒;计算之前为 `null`。",
@@ -1125,8 +1125,8 @@
       "addGroup": "使用网格的材质编号 `materialIndex`,从 `start` 开始绘制 `count` 个索引。",
       "clearGroups": "移除所有材质分组。",
       "computeVertexNormals": "平滑法线:每个顶点按面积加权,对共享它的各个面求平均。",
-      "computeBoundingBox": "计算包住每个顶点的包围盒,并保存到 `boundingBox`。",
-      "computeBoundingSphere": "计算包住每个顶点的包围球,并保存到 `boundingSphere`。",
+      "computeBoundingBox": "测量包住每个顶点以及变形目标赋予它的每个形状的盒子，并保存在 `boundingBox` 中；归一化的位置按其比例测量。",
+      "computeBoundingSphere": "测量以盒子为中心、到达最远顶点（无论是否变形）的球，并保存在 `boundingSphere` 中。",
       "applyMatrix4": "移动每一个位置,旋转每一个法线:改变的是几何体本身,而不是它的姿态。",
       "translate": "把每个顶点平移 `(x, y, z)`。",
       "rotateX": "把每个顶点绕 x 轴旋转 `angle` 弧度。",
@@ -1134,8 +1134,17 @@
       "rotateZ": "把每个顶点绕 z 轴旋转 `angle` 弧度。",
       "scale": "把每个顶点按 `(x, y, z)` 缩放。",
       "center": "移动这个几何体,使其包围盒以原点为中心。",
-      "clone": "一个新的几何体,包含每个列表的副本。",
-      "dispose": "释放持有者:被释放的几何体不会再被任何东西绘制。"
+      "clone": "一个新的几何体，带有每个列表、其组、范围、数据和边界的副本，以及仍能构建它的配方。",
+      "dispose": "归还几何体：每个释放钩子只运行一次，忘记持有者和射线树；已释放的几何体没有人绘制，也没有射线命中。",
+      "kind": "资源是什么，场景的读者据此区分资源。",
+      "name": "它的名字。",
+      "morphAttributes": "每个变形属性，每个变形目标一个属性。",
+      "morphTargetsRelative": "当变形目标保存的是位移而不是位置时为真。",
+      "drawRange": "绘制的索引范围。",
+      "userData": "供构建几何体者存放数据的自由空间。",
+      "released": "几何体被归还时调用：渲染器自己的副本所监听的内容。",
+      "getIndex": "三角形列表，或 `null`。",
+      "toNonIndexed": "绘制相同三角形但不带索引的几何体：每个角都是自己的顶点。"
     }
   },
   "GeometryPageDescriptor": {
@@ -1353,9 +1362,6 @@
       "width": "宽度,单位像素。",
       "height": "高度,单位像素。"
     }
-  },
-  "HostGeometry": {
-    "summary": "一个宿主几何体:它的属性,以及宿主基于这些属性计算出的局部包围盒。"
   },
   "HostMaterial": {
     "summary": "引擎读取到的宿主材质:所有宿主材质共有的表面参数,在边界处一次性读入引擎的 `VisMaterial`;只有 `side` 单独由 `sideOf` 读取。"
@@ -7234,32 +7240,6 @@
       "brake": "刹车踏板，0 到 1。",
       "steer": "方向盘，−1 左打到底到 1 右打到底。",
       "handbrake": "手刹是否拉起。"
-    }
-  },
-  "GraphGeometry": {
-    "summary": "网格绘制的属性、为其建立索引的三角形列表、移动它们的变形目标，以及在其上计算的局部包围盒和包围球。",
-    "members": {
-      "kind": "资源是什么。",
-      "name": "它的名称。",
-      "index": "三角形列表，或为 `null` 以按顺序绘制顶点。",
-      "attributes": "它的顶点属性。",
-      "morphAttributes": "每个变形属性，每个变形目标一个属性。",
-      "morphTargetsRelative": "变形目标保存位移而非位置时为真。",
-      "groups": "各自以一个表面绘制的索引范围。",
-      "drawRange": "所绘制的索引范围。",
-      "boundingBox": "宿主计算出的局部包围盒。",
-      "boundingSphere": "局部包围球，计算或声明之后。",
-      "userData": "供构建该几何体者存放数据的自由空间。",
-      "getIndex": "三角形列表。",
-      "setIndex": "设置三角形列表。",
-      "getAttribute": "该名称的属性。",
-      "setAttribute": "按名称设置一个属性。",
-      "deleteAttribute": "忘记一个属性。",
-      "hasAttribute": "是否有该名称的属性。",
-      "clone": "持有每个缓冲区、其分组、范围和边界副本的几何体。",
-      "toNonIndexed": "不用索引绘制相同三角形的几何体：每个角都是独立的顶点。",
-      "computeBoundingBox": "计算覆盖所有顶点的局部包围盒。",
-      "computeBoundingSphere": "计算局部包围球：以包围盒为中心，延伸到最远的顶点。"
     }
   },
   "GraphMesh": {

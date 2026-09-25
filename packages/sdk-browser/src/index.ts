@@ -82,7 +82,6 @@ export type {
   HostDiagnosticGeometry,
   HostDiagnosticMaterial,
   HostDisposable,
-  HostGeometry,
   HostMaterial,
   HostMaterials,
   HostMesh,
@@ -95,7 +94,6 @@ export type {
 export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 /** The engine's own scene graph (`host/graph/`): the classes every `Host*` name above stands for,
  *  the nodes, geometries, surfaces and textures a loaded scene hands back. */
-export type { GraphGeometry } from './host/graph/geometry.ts';
 export type { GraphMesh } from './host/graph/mesh.ts';
 export type { GraphNode } from './host/graph/node.ts';
 export type { GraphNodeKind } from './host/graph/nodeKind.ts';

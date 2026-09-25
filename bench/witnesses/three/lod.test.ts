@@ -36,7 +36,7 @@ test('THREE.LOD includes transparent simplification and merges its mixed cover i
   material.dispose();
 });
 test('THREE.LOD keeps one exact level for source-ordered transparent pages', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3));
   geometry.setIndex(G.indices([0, 1, 2]));
   const material = G.basicSurface({ transparent: true }),

@@ -1,8 +1,4 @@
-import type {
-  HostDiagnosticGeometry,
-  HostGeometry,
-} from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { HostGraphGeometry } from '../../../packages/sdk-browser/src/host/scene/graphResources.ts';
+import type { HostDiagnosticGeometry } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { geometryBytes } from '../../../packages/sdk-browser/src/scene/meshes.ts';
 import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
@@ -10,12 +6,13 @@ import type { ExactPagesRenderState } from './render.ts';
 import type { WebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 import { ClusterBatches } from './batches/batches.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 /** A transparent copy the host renderer draws whole, as its triangles are counted. */
 type CountedCopy = {
   readonly geometry: {
     getIndex(): { readonly count: number } | null;
-    getAttribute(name: string): { readonly count: number };
+    getAttribute(name: string): { readonly count: number } | undefined;
   };
   readonly userData: Record<string, unknown>;
 };
@@ -28,7 +25,7 @@ type MetricsContext = {
   counters: { pagesDetached: number };
   materials: { disposeMaterials: () => void };
   allPages: PageRec[];
-  disposeGeometry(geometry: HostGeometry): void;
+  disposeGeometry(geometry: Geometry): void;
   /** The display graph the pages hang on, emptied with the engine. */
   scene: { clear(): void };
   /** The frame gate, released with the scene: the host graph keeps no hook of this engine. */
@@ -63,12 +60,13 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         metricsSeen.clear();
         bytes = 0;
         for (const rec of attached)
-          if (rec.geometry) bytes += geometryBytes(rec.geometry as HostGraphGeometry, metricsSeen);
+          if (rec.geometry) bytes += geometryBytes(rec.geometry as Geometry, metricsSeen);
       }
       const transparentSubmittedTriangles = blendCopies.reduce(
         (sum, copy) =>
           sum +
-          (copy.geometry.getIndex()?.count ?? copy.geometry.getAttribute('position').count) / 3,
+          (copy.geometry.getIndex()?.count ?? copy.geometry.getAttribute('position')?.count ?? 0) /
+            3,
         0,
       );
       return {

@@ -71,7 +71,7 @@ test('a page mesh built here is a node the host graph accepts, posed and ordered
 
 test('a page geometry carries the box the page declares, its index and its component counts', () => {
   const geometry = hostPageGeometry(page(), itemSize, [0, 0, -1], [1, 1, 2]);
-  const host = geometry as unknown as G.GraphGeometry;
+  const host = geometry as unknown as G.Geometry;
   assert.deepEqual(host.getIndex()!.array, new Uint32Array([0, 1, 2]));
   assert.deepEqual(
     [geometry.attributes.position.itemSize, geometry.attributes.uv.itemSize],

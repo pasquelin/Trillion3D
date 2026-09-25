@@ -9,12 +9,11 @@
  */
 import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
 import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basic.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { resolveCameraWorld } from '../../camera/world.ts';
 import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphCamera } from './camera.ts';
-import { GraphGeometry } from './geometry.ts';
 import { GraphMesh } from './mesh.ts';
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
 import { GraphTexture } from './texture.ts';
@@ -35,7 +34,7 @@ export {
   InterleavedBuffer,
 } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 export { GraphCamera } from './camera.ts';
-export { GraphGeometry } from './geometry.ts';
+export { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 export { GraphLight } from './light.ts';
 export { GraphMesh } from './mesh.ts';
 export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -58,7 +57,7 @@ export const DEPTH_LESS = 2;
 
 /** A drawn node: an empty geometry and an unlit surface unless given. */
 export const mesh = (
-  geometry: GraphGeometry = new GraphGeometry(),
+  geometry: Geometry = new Geometry(),
   material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
 ) => new GraphMesh(geometry, material);
 
@@ -121,11 +120,11 @@ export function canvasTexture(canvas: unknown) {
 }
 
 /**
- * The core's primitive as a geometry of the graph, stored as the reference stores its own: 32-bit
+ * A copy of the core's primitive, stored as the reference stores its own: 32-bit
  * floats per vertex, a 16- or 32-bit triangle list, and its groups.
  */
 function graphGeometry(source: Geometry) {
-  const geometry = new GraphGeometry();
+  const geometry = new Geometry();
   for (const [name, attribute] of Object.entries(source.attributes))
     geometry.setAttribute(name, floatAttribute(attribute.array, attribute.itemSize));
   if (source.index) geometry.setIndex(indices(Array.from(source.index.array)));

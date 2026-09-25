@@ -9,7 +9,7 @@ import {
 } from '../../host/pageObjects.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
-import type { HostGeometry, HostMaterial, HostMaterials } from '../../host/resources.ts';
+import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
 import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -146,7 +146,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     )
       throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
     if (recs[0] && !recs[0].array) state.residentPages++;
-    let rowedGeometry: HostGeometry | undefined;
+    let rowedGeometry: ReturnType<typeof hostPageGeometry> | undefined;
     for (const rec of recs) {
       release(rec);
       // Records placed by rows share the page: its geometry, its box and the check of it.

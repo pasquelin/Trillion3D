@@ -1980,11 +1980,11 @@
     }
   },
   "Geometry": {
-    "summary": "La forma sola: atributos nombrados por vértice, un índice de triángulos opcional, grupos de materiales.",
+    "summary": "Solo la forma: atributos por vértice con nombre, un índice de triángulos opcional, grupos de materiales, los objetivos de morph que la mueven y el rango que se dibuja.",
     "members": {
       "isGeometry": "Siempre `true`: distingue una geometría de todo lo demás.",
       "type": "El tipo de la geometría, `'Geometry'`.",
-      "attributes": "Las listas por vértice, por nombre: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Las listas por vértice, por nombre: `position`, `normal`, `uv`, `color`; cada una posee sus números o lee un búfer entrelazado.",
       "index": "Qué vértices forman cada triángulo, tres números por triángulo; `null` los lee en orden.",
       "groups": "Rangos de índices dibujados con `material[materialIndex]` cuando una malla lleva varios.",
       "boundingBox": "La caja alrededor de cada vértice, una vez calculada; `null` antes.",
@@ -1999,8 +1999,8 @@
       "addGroup": "Dibuja `count` índices desde `start` con el material número `materialIndex` de la malla.",
       "clearGroups": "Retira cada grupo de material.",
       "computeVertexNormals": "Normales suaves: cada vértice promedia las caras que lo comparten, ponderadas por su área.",
-      "computeBoundingBox": "Mide la caja alrededor de cada vértice y la guarda en `boundingBox`.",
-      "computeBoundingSphere": "Mide la esfera alrededor de cada vértice y la guarda en `boundingSphere`.",
+      "computeBoundingBox": "Mide la caja alrededor de cada vértice y de cada forma que le da un objetivo de morph, y la guarda en `boundingBox`; una posición normalizada se mide a su escala.",
+      "computeBoundingSphere": "Mide la esfera centrada en la caja que alcanza el vértice más lejano, con morph o sin él, y la guarda en `boundingSphere`.",
       "applyMatrix4": "Mueve cada posición, gira cada normal: es la geometría la que cambia, no una pose.",
       "translate": "Mueve cada vértice en `(x, y, z)`.",
       "rotateX": "Gira cada vértice alrededor del eje x, `angle` radianes.",
@@ -2008,8 +2008,17 @@
       "rotateZ": "Gira cada vértice alrededor del eje z, `angle` radianes.",
       "scale": "Estira cada vértice en `(x, y, z)`.",
       "center": "Mueve la geometría para que su caja quede centrada en el origen.",
-      "clone": "Una nueva geometría con copias de cada lista.",
-      "dispose": "Olvida a quienes la sostienen: una geometría liberada no la dibuja nadie."
+      "clone": "Una nueva geometría con copias de cada lista, sus grupos, rango, datos y límites, y la receta que aún la construye.",
+      "dispose": "Devuelve la geometría: ejecuta cada gancho de liberación una vez, olvida a quienes la sostienen y el árbol de raycast; nadie dibuja ni apunta a una geometría liberada.",
+      "kind": "Qué es el recurso, como un lector de la escena distingue los recursos.",
+      "name": "Su nombre.",
+      "morphAttributes": "Por cada atributo con morph, un atributo por objetivo de morph.",
+      "morphTargetsRelative": "Verdadero cuando un objetivo de morph guarda desplazamientos, no posiciones.",
+      "drawRange": "El rango del índice que se dibuja.",
+      "userData": "Espacio libre para los datos de quien construyó la geometría.",
+      "released": "Se llaman cuando la geometría se devuelve: lo que escucha la copia propia de un renderizador.",
+      "getIndex": "La lista de triángulos, o `null`.",
+      "toNonIndexed": "Una geometría que dibuja los mismos triángulos sin índice: cada esquina es un vértice propio."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2378,9 +2387,6 @@
       "width": "Ancho en píxeles.",
       "height": "Alto en píxeles."
     }
-  },
-  "HostGeometry": {
-    "summary": "Una geometría del host: sus atributos, y la caja local que el host calculó sobre ella."
   },
   "HostMaterial": {
     "summary": "Un material del host tal como lo lee el motor: los parámetros de superficie que comparte todo material del host, leídos una vez en la frontera hacia el `VisMaterial` del motor; solo `sideOf` lee `side`."
@@ -7235,32 +7241,6 @@
       "steer": "Volante, de −1 todo a la izquierda a 1 todo a la derecha.",
       "handbrake": "Si el freno de mano está echado."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Sus atributos de vértices.",
-      "boundingBox": "La caja local calculada por el host.",
-      "kind": "Qué es el recurso.",
-      "name": "Su nombre.",
-      "index": "La lista de triángulos, o `null` para dibujar los vértices en orden.",
-      "morphAttributes": "Por cada atributo deformado, un atributo por objetivo de morph.",
-      "morphTargetsRelative": "Verdadero cuando un objetivo de morph guarda desplazamientos, no posiciones.",
-      "groups": "Rangos del índice dibujados cada uno con una superficie.",
-      "drawRange": "El rango del índice que se dibuja.",
-      "boundingSphere": "La esfera local, una vez calculada o declarada.",
-      "userData": "Espacio libre para los datos de quien construyó la geometría.",
-      "getIndex": "La lista de triángulos.",
-      "setIndex": "Fija la lista de triángulos.",
-      "getAttribute": "El atributo con ese nombre.",
-      "setAttribute": "Nombra un atributo.",
-      "deleteAttribute": "Olvida un atributo.",
-      "hasAttribute": "Si tiene un atributo con ese nombre.",
-      "clone": "Una geometría con copias de cada búfer, sus grupos, su rango y sus límites.",
-      "toNonIndexed": "Una geometría que dibuja los mismos triángulos sin índice: cada esquina es un vértice propio.",
-      "computeBoundingBox": "Calcula la caja local sobre todos los vértices.",
-      "computeBoundingSphere": "Calcula la esfera local: centrada en la caja, hasta el vértice más lejano."
-    },
-    "summary": "Los atributos que dibuja una malla, la lista de triángulos que los indexa, los objetivos de morph que los mueven, y la caja y la esfera locales calculadas sobre ellos."
   },
   "GraphNode": {
     "members": {
