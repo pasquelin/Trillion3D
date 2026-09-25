@@ -34,7 +34,7 @@ function placed() {
   });
   const mobility = createShadowMobility();
   mobility.ensure(roots.length, 1, (rank) => roots[rank].world.elements);
-  return (moves: number[][], touched: (min: number[], max: number[]) => void) => {
+  return (moves: number[][], touched: (min: ArrayLike<number>, max: ArrayLike<number>) => void) => {
     for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x;
     const last = BOXES.length - 1;
     return followPlacementRows(
@@ -53,7 +53,8 @@ function placed() {
 test('a written range stales each root that moved, apart, and none left where it stands', () => {
   const write = placed(),
     boxes: number[][] = [];
-  const collect = (min: number[], max: number[]) => boxes.push([...min, ...max]);
+  const collect = (min: ArrayLike<number>, max: ArrayLike<number>) =>
+    boxes.push([...Array.from(min), ...Array.from(max)]);
   assert.equal(
     write(
       [
