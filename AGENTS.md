@@ -40,6 +40,10 @@ disagreement is reported to the maintainer.
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
+11. **Small, short-lived pull requests.** One step of an issue per pull request; a larger batch is
+    split into `Part of` PRs merged one after another. A lead brings its conflicting PRs up to date
+    at every pick, never lets two of its PRs wait on the same files, and unblocks a PR open more
+    than two hours before any new coder.
 
 ## Roles
 

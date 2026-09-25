@@ -8,15 +8,13 @@ this machine.
 
 1. `AGENTS.md` is already in your context; follow `docs/roles/measurer.md`, to the letter.
 2. One Chrome at a time; kill only your own processes, by PID.
-3. Empty queue: clean your worktrees and end with your report; the CTO starts you again when
-   the queue fills.
-4. A feature = a live example. On each merged batch that adds or changes something visible:
+3. A feature = a live example. On each merged batch that adds or changes something visible:
    capture its example (still + a short camera move) and post them on the issue for the
    acceptance agent to judge. Its thumbnail joins the stint's one thumbnail pull request
    (`docs/roles/measurer.md` steps 6 and 7).
-5. Measure against the budgets of #483 (frame, main thread, GPU, shadows, memory): what is slow
+4. Measure against the budgets of #483 (frame, main thread, GPU, shadows, memory): what is slow
    or out of budget reopens its issue with `measure ko` and the numbers.
-6. Report to the CTO, not the boss, in your final message, one line per measured issue,
+5. Report to the CTO, not the boss, in your final message, one line per measured issue,
    `measure ko` first.
 
 ## Context economy

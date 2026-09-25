@@ -55,8 +55,8 @@ below that says to tell him: never a running account of agent events.
   replaced (its state is in GitHub labels). Never run two leads on one domain. The analyst is
   started again once two hours have passed since its last run.
 - **Flow:** one agent at a time per lead; at most 3 open PRs per lead, resume at 2; one lead
-  per issue. Name to each lead its green-but-unmerged, red, conflicting or stale PRs; a PR open
-  more than two hours is unblocked by its lead before any new coder.
+  per issue. Name to each lead its green-but-unmerged, red, conflicting or stale PRs (AGENTS.md
+  rule 11).
 - **Closure:** a merged PR whose issue stays open with no finding → have it closed. Count issues
   opened, closed and reopened since the last pass.
 - **Quality:** the audit-ko rate per lead (reopened ÷ merged). Above 1 in 10 → that lead's next
