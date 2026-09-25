@@ -61,9 +61,6 @@ fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
 fn pageWinding(page:PageInfo)->f32{return determinant(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));}
 ${PAGE_GEOMETRY_WGSL}
-fn vertex(vp:mat4x4f,page:PageInfo,h:ClusterHeader,index:u32)->vec4f{
- return vp*vec4f(pagePosition(page,h,index),1.0);
-}
 ${EDGE_WGSL}
 ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
