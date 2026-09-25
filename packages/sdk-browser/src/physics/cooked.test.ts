@@ -6,7 +6,6 @@ import {
   DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
   HIT_WORDS,
-  JOLT_COMMIT,
   PHYSICS_MATERIALS,
   SHAPE,
   type BodyRecord,
@@ -16,7 +15,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import { body, castDown, startModule } from './module.fixture.ts';
 import { physicsRaycast } from './raycast.ts';
 import type { PhysicsSession } from './session.ts';
-import { landed, streamedModel } from './tiles.fixture.ts';
+import { cooked, landed, place, streamedModel, tile } from './tiles.fixture.ts';
 
 /** The golden tile the compiler's cook writes (`physics_cook/tests.rs`): a 2 × 2 m quad rising
  *  from (0, 0) to (2, 1) along x, in native Jolt's binary state. */
@@ -73,29 +72,6 @@ async function streamed(file: object, triangles = DEFAULT_PHYSICS_BUDGET.triangl
   };
 }
 
-/** A two-triangle tile at `x` along its collider. */
-const tile = (x = 0) => ({
-  url: `t${x}.bin`,
-  sha256: 'a'.repeat(64),
-  bytes: 1,
-  triangles: 2,
-  bounds: [x, 0, -1, x + 2, 1, 1],
-});
-/** Collider `collider` placed by its own node, ten metres apart, with the matter it declares. */
-const place = (collider: number, matter = {}) => ({
-  node: collider,
-  collider,
-  position: [collider * 10, 0, 0],
-  rotation: [0, 0, 0, 1],
-  scale: [1, 1, 1],
-  ...matter,
-});
-const cooked = (colliders: object[], instances: object[]) => ({
-  formatVersion: 2,
-  jolt: JOLT_COMMIT,
-  colliders,
-  instances,
-});
 const down = new Ray(new Vector3(1, 5, 0), new Vector3(0, -1, 0));
 
 test('tiles past budget.physics.triangles are refused by name, the nearest loaded', async () => {

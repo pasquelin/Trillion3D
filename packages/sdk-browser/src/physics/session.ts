@@ -103,8 +103,9 @@ export function createPhysicsSession(
       casts.get(data.id)?.(data.hits);
       casts.delete(data.id);
     } else {
-      // Bodies whose shape the module refused leave the simulation; the world runs on, unless the
-      // error is fatal: then the simulation stopped, and the world ends this session.
+      // Bodies whose shape the module refused leave the simulation, tiles and cooked soft bodies
+      // too; the world runs on, unless the error is fatal: then the world ends this session.
+      for (const id of data.bodies ?? []) tiles.refused(id);
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
       for (const mesh of refused) retire(mesh.physics._index);
       const names = refused.map((mesh) => mesh.name);

@@ -124,7 +124,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
   exceptions. Split by responsibility, preserve public contracts. Gate: `pnpm run check:lines`.
-- `pnpm run check:duplicates` rejects blocks ≥8 lines and ≥64 tokens across JS/TS/Rust, and
+- `pnpm run check:duplicates` rejects blocks ≥8 lines and ≥64 tokens across TS/TSX/Rust, and
   `pnpm run check:helpers` a small helper copied, name, signature and body alike, into a second
   module of the same package or crate. Resolve every finding before integration; share logic only
   for identical behavior.

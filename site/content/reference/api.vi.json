@@ -1645,12 +1645,9 @@
       "spotEdgeSoftness": "Độ rộng của cạnh được làm mềm của một hình nón spot, tính bằng đơn vị cosin: chống lại hiện tượng răng cưa từng bậc.",
       "sunFarShadowOffsetMetres": "Độ lệch của gốc tia bóng đổ xa dọc theo pháp tuyến, tính bằng mét. Nó chỉ có tác dụng rời khỏi mặt phẳng của bề mặt được chiếu sáng; phương thuốc thực sự chống lại hiện tượng tự đổ bóng là điểm bắt đầu dọc theo tia, ở dưới đây.",
       "sunFarShadowStartCells": "Điểm bắt đầu của tia bóng đổ xa dọc theo hướng riêng của nó, tính bằng các ô của vật thay thế (proxy). Điểm được chiếu sáng đến từ hình học chi tiết, vật che khuất đến từ vật thay thế thô: nơi vật thay thế nằm trên bề mặt thật, một tia bắt đầu từ số không sẽ va vào chính bề mặt mà nó chiếu sáng. Một ô của vật thay thế là mức tỉ lệ mà dưới đó vật thay thế không nói lên điều gì; bắt đầu từ đó sẽ bỏ qua sự tiếp xúc giả đó mà không tạo ra một bóng đổ giả. Hệ quả được nêu rõ: một vật che khuất gần hơn một ô dọc theo tia sẽ không mang bóng đổ xa, và vật đó vẫn ở lại với các mức clipmap.",
-      "shadowDepthBias": "Độ lệch bóng đổ tính bằng mét, không bao giờ tính bằng đơn vị độ sâu: độ sâu được chiếu của một lát cực kỳ phi tuyến, một hằng số trong độ sâu đã chuẩn hóa sẽ là mét gần nguồn sáng và milimét ở xa. Shader đưa những mét đó trở lại thành độ sâu tại điểm đang xét.",
-      "shadowSlopeBias": "Độ lệch theo độ dốc, tính bằng mét trên mỗi đơn vị `tan(acos(N·L))`, giới hạn bởi `shadowSlopeBiasMax`.",
-      "shadowSlopeBiasMax": "Độ lệch theo độ dốc lớn nhất.",
       "shadowNearFraction": "Mặt phẳng gần của một lát: một phân số của tầm, không bao giờ nhỏ hơn sàn này.",
       "shadowNearMin": "Khoảng cách bóng đổ gần nhất.",
-      "shadowNormalOffsetTexels": "Độ lệch của điểm lấy mẫu dọc theo pháp tuyến, tính bằng texel của lát. Đây là thứ khép kín đường nối giữa hai mặt của một nguồn sáng điểm và loại bỏ hiện tượng mụn ở góc xiên; nó tính bằng texel chứ không phải mét để giữ tỉ lệ với độ phân giải mà nguồn sáng đó đạt được.",
+      "shadowNormalOffsetTexels": "Độ lệch của điểm lấy mẫu dọc theo pháp tuyến, tính bằng texel của bản đồ được đọc: nửa texel, phần dư cho những gì không phải mặt phẳng của bề mặt nhận — độ cong của nó trong một texel, việc làm tròn cả hai độ sâu. Độ dốc của bề mặt nhận được phủ bởi một phần dư độ sâu trên tầm với của PCF, và quá 45° bởi một độ lệch bổ sung, cùng đơn vị texel (`shadowDepthMargin`, `shadowNormalTexels`): không độ lệch nào là một độ dài của cảnh.",
       "shadowPagesPerBatch": "Số trang bóng một lô GPU vẽ: kích thước bộ đệm của một lô, không bao giờ là giới hạn của khung hình. Một khung hình vẽ mọi trang nó đánh dấu, trong bao nhiêu lô cần thiết.",
       "lampFaceSize": "Cạnh của mip mịn nhất của một mặt đèn, tính bằng texel: 32 × 32 trang 128 (bể: `shadowPoolSide`).",
       "shadowRequestCap": "Số trang ảo mà phép tô bóng được yêu cầu mỗi khung hình; phần còn lại yêu cầu lại ở khung sau.",
@@ -2541,6 +2538,19 @@
     "members": {
       "source": "Nơi các trang được đọc từ đó.",
       "workers": "Có bao nhiêu worker lấy và giải mã các trang cùng lúc."
+    }
+  },
+  "PageStreamerOptions": {
+    "summary": "Cách một bộ đọc trang đọc (`createPageStreamer`).",
+    "description": "Bên cạnh các trang, bộ nhớ đệm của nó dành chỗ cho các bảng manifest và hàng đợi truyền; mỗi thành phần đều có giá trị mặc định.",
+    "members": {
+      "signal": "Hủy mọi lượt đọc khi bị dừng.",
+      "workerCount": "Số lượt đọc chạy cùng lúc; mặc định 8.",
+      "maxPages": "Số trang tối đa giữ cùng lúc; khi vắng thì chỉ giới hạn theo byte.",
+      "onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
+      "maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
+      "onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
+      "maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB."
     }
   },
   "PanZoomCameraControls": {
@@ -4763,7 +4773,17 @@
   },
   "createPageStreamer": {
     "summary": "Các lần đọc có giới hạn, ưu tiên và không trùng lặp.",
-    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại."
+    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại.",
+    "parameters": {
+      "options": "Cách một bộ đọc trang đọc (`createPageStreamer`). Bên cạnh các trang, bộ nhớ đệm của nó dành chỗ cho các bảng manifest và hàng đợi truyền; mỗi thành phần đều có giá trị mặc định.",
+      "options.signal": "Hủy mọi lượt đọc khi bị dừng.",
+      "options.workerCount": "Số lượt đọc chạy cùng lúc; mặc định 8.",
+      "options.maxPages": "Số trang tối đa giữ cùng lúc; khi vắng thì chỉ giới hạn theo byte.",
+      "options.onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
+      "options.maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
+      "options.onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
+      "options.maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Một bộ điều tiết."
@@ -6835,7 +6855,7 @@
       "texturePool": "Số byte bộ nhớ GPU dành cho trang kết cấu, `null` trên engine không có pool kết cấu (WebGL2); đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng, các probe ánh sáng dội và pool hình học.",
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
-      "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn pool bóng đổ bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy.",
+      "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn ba phần cố định — pool bóng đổ, đầu dò ánh sáng dội và đích hiệu ứng — bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy.",
       "canvas": "Canvas lớn nhất mà thế giới khai báo, tính bằng pixel của bộ đệm vẽ: các đích của chuỗi hiệu ứng được dành sẵn theo kích thước của nó (`split.effectTargets`); mặc định 3840 × 2160, và `gpu` mặc định chỉ tăng thêm đúng phần dành sẵn đó. Đặt nó để chia lại mọi pool theo quy tắc. Canvas vẽ lớn hơn vẫn được kết xuất trọn vẹn: chẩn đoán báo `effect targets over budget` kèm số byte vượt phần dành sẵn.",
       "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: trước hết là bản sao phía host của bảng trang bóng, rồi các trang đã giải mã, các bảng manifest, hàng đợi truyền của chúng và các bảng lát cắt của engine cộng lại. Một thay đổi áp dụng ngay: các trang rời đi theo lần dùng cuối cho đến khi vừa. Tổng không vượt quá bản sao bị từ chối (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Không bao giờ đọc từ máy.",
       "split": "Cách chia hai tổng: pool bóng và các probe ánh sáng dội ở kích thước lớn nhất, các đích của chuỗi hiệu ứng trên `canvas` đã khai báo, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU, toàn bộ, và trong phần đó phiên hiện tại dành riêng các bảng manifest, hàng đợi truyền của nó và các bảng lát cắt của engine. Kết quả của quy tắc, trước khi một pool được đặt riêng."

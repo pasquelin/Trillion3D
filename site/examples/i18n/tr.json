@@ -2111,5 +2111,19 @@
       "volumes": "Hacimler",
       "awake": "Uyanık"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "Bayrak modeliyle birlikte önceden hesaplandı: model yüklenirken geri yüklenir ve hemen direğinden sarkar. Görmek için yeniden yükleyin.",
+    "controls": {
+      "again": "Yeniden",
+      "slowMotion": "Ağır çekim"
+    },
+    "readouts": {
+      "bodies": "Cisimler",
+      "step": "Adım"
+    },
+    "words": {
+      "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
   }
 }

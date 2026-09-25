@@ -59,7 +59,7 @@
     "format": "prettier --ignore-path .gitignore --ignore-path .prettierignore --write \"**/*.{ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml",
     "format:check": "prettier --ignore-path .gitignore --ignore-path .prettierignore --check \"**/*.{ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml -- --check && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml -- --check",
     "check:lines": "node scripts/check-file-lines.ts",
-    "check:duplicates": "jscpd packages scripts tests bench site --format typescript,rust --no-tips",
+    "check:duplicates": "jscpd packages scripts tests bench site --format typescript,rust,tsx --no-tips",
     "check:helpers": "node scripts/check-helpers.ts",
     "check:unused": "knip",
     "validate": "node scripts/validate.ts",

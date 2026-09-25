@@ -14,7 +14,7 @@ import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './feedback.ts';
 const WORKGROUP = 8;
 const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
-const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,pad:u32,}
+export const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,pad:u32,}
 @group(0) @binding(0) var requests:texture_2d<u32>;
 @group(0) @binding(1) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(0) @binding(2) var<uniform> uni:ReduceUni;

@@ -1,4 +1,5 @@
 import {
+  checkGeometryPoolBudget,
   checkTexturePoolBudget,
   type GeometryPool,
   type MemoryBudgets,
@@ -6,6 +7,7 @@ import {
 } from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import {
+  budgetBeside,
   geometryProbe,
   grantedGeometryPool,
   grantedTexturePool,
@@ -14,6 +16,21 @@ import {
   textureProbe,
 } from '../../residency/poolGrants.ts';
 import type { TexturePool } from '../../residency/memoryBudgets.ts';
+import { vertexBytesOf } from './metrics.ts';
+
+/**
+ * A geometry budget less the vertex buffers held beside its slots (`vertexBytesOf`, #487):
+ * `geometryAllocationBytes` counts both, so the slots are drawn and granted from `bytes` and the
+ * two never sum past the budget; `declared` records on the pool drawn the budget the host set.
+ */
+export function geometryBudgetBeside(rt: WebgpuPagesRuntime, budgetBytes: number) {
+  checkGeometryPoolBudget(budgetBytes);
+  const { bytes, deducted } = budgetBeside(budgetBytes, vertexBytesOf(rt.gpu, rt.vis));
+  return {
+    bytes,
+    declared: (pool: GeometryPool) => ({ ...pool, budgetBytes: pool.budgetBytes + deducted }),
+  };
+}
 
 /**
  * Changes memory pools mid-session, like the reference's variables — but without emptying what they
@@ -55,8 +72,7 @@ export async function setWebgpuMemoryBudgets(
       // A live texture's working texture (#362) is texture memory too: the pool is drawn from
       // what the budget leaves it, the budget recorded staying the one declared.
       const live = vis.textures?.sources.liveBytes ?? 0,
-        deducted = Math.min(live, budgets.texturePoolBytes - 1),
-        bytes = budgets.texturePoolBytes - deducted;
+        { bytes, deducted } = budgetBeside(budgets.texturePoolBytes, live);
       pools.liveBytes = live;
       let pool: TexturePool | undefined = pools.poolFor(bytes);
       if (!sameLayers(pool, pools.pool) && vis.textures && device && !run.lost)
@@ -72,7 +88,7 @@ export async function setWebgpuMemoryBudgets(
     }
   }
   if (budgets.geometryPoolBytes !== undefined) {
-    const bytes = budgets.geometryPoolBytes;
+    const { bytes, declared } = geometryBudgetBeside(rt, budgets.geometryPoolBytes);
     let pool: GeometryPool | undefined = setup.geometryPoolFor(bytes);
     if (pool.slots !== setup.slots && gpu.cache && device && !run.lost)
       pool = await probed(
@@ -90,7 +106,7 @@ export async function setWebgpuMemoryBudgets(
       }
       evictedPages = evicted.length;
     }
-    if (pool) setup.geometryPool = pool;
+    if (pool) setup.geometryPool = declared(pool);
   }
   // Origin of the resource change: what the image holds has changed place or size.
   run.gate.resourcesChanged();

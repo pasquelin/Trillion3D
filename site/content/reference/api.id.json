@@ -1645,12 +1645,9 @@
       "spotEdgeSoftness": "Lebar tepi yang dihaluskan sebuah kerucut spot, dalam satuan kosinus: melawan staircasing.",
       "sunFarShadowOffsetMetres": "Offset asal sinar bayangan-jauh sepanjang normal, dalam meter. Ini hanya berfungsi meninggalkan bidang permukaan bercahaya; obat sesungguhnya melawan self-shadowing adalah mulai sepanjang sinar, di bawah.",
       "sunFarShadowStartCells": "Mulai sinar bayangan-jauh sepanjang arahnya sendiri, dalam sel proxy. Titik bercahaya berasal dari geometri halus, pengoklusi dari proxy kasar: di mana proxy duduk di atas permukaan sungguhan, sebuah sinar dimulai dari nol akan mengenai permukaan yang diteranginya. Sel proxy adalah skala di bawahnya proxy tidak mengatakan apa-apa; mulai dari sana melewati kontak palsu itu tanpa menciptakan sebuah bayangan. Konsekuensinya bernama: pengoklusi lebih dekat dari satu sel sepanjang sinar tidak membawa bayangan jauh, dan yang itu tetap dengan tingkat-tingkat clipmap.",
-      "shadowDepthBias": "Bias bayangan dalam meter, tidak pernah dalam satuan kedalaman: kedalaman terproyeksi sebuah irisan sangat tidak linear, sebuah konstanta dalam kedalaman ternormalisasi akan berupa meter dekat cahaya dan milimeter jauh darinya. Shader membawa meter itu kembali ke kedalaman pada titik yang dipertimbangkan.",
-      "shadowSlopeBias": "Bias kemiringan, dalam meter per satuan `tan(acos(N·L))`, dibatasi `shadowSlopeBiasMax`.",
-      "shadowSlopeBiasMax": "Bias kemiringan terbesar.",
       "shadowNearFraction": "Bidang dekat sebuah irisan: sebuah pecahan dari rentang, tidak pernah kurang dari batas bawah ini.",
       "shadowNearMin": "Jarak bayangan terdekat.",
-      "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel irisan. Ini yang menutup jahitan antara dua muka sebuah point light dan menghapus acne serong; ini dalam texel bukan meter supaya tetap sebanding dengan resolusi yang didapat cahaya itu.",
+      "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel peta yang dibaca: setengah texel, margin untuk apa yang bukan bidang penerima — lengkungannya di dalam satu texel, pembulatan kedua kedalaman. Kemiringan penerima ditutup oleh margin kedalaman sepanjang jangkauan PCF, dan lewat 45° oleh offset tambahan, dalam texel yang sama (`shadowDepthMargin`, `shadowNormalTexels`): tidak ada bias yang berupa panjang dari adegan.",
       "shadowPagesPerBatch": "Halaman bayangan yang digambar satu batch GPU: ukuran buffer satu batch, tidak pernah batas sebuah frame. Sebuah frame menggambar setiap halaman yang ditandainya, dalam sebanyak mungkin batch yang diperlukan.",
       "lampFaceSize": "Sisi mip terhalus dari muka lampu, dalam texel: 32 × 32 halaman berukuran 128 (pool: `shadowPoolSide`).",
       "shadowRequestCap": "Halaman virtual yang boleh diminta shading per bingkai; sisanya meminta lagi pada bingkai berikutnya.",
@@ -2541,6 +2538,19 @@
     "members": {
       "source": "Tempat halaman dibaca.",
       "workers": "Berapa banyak worker mengambil dan menguraikan halaman sekaligus."
+    }
+  },
+  "PageStreamerOptions": {
+    "summary": "Cara pembaca halaman membaca (`createPageStreamer`).",
+    "description": "Di samping halamannya, cache-nya mencadangkan tabel manifes dan antrean transfernya; setiap anggota punya nilai bawaan.",
+    "members": {
+      "signal": "Membatalkan setiap pembacaan setelah dihentikan.",
+      "workerCount": "Pembacaan yang berjalan bersamaan; bawaan 8.",
+      "maxPages": "Halaman terbanyak yang disimpan sekaligus; jika tidak ada, dibatasi oleh byte saja.",
+      "onEvict": "Mendengar setiap halaman yang keluar dari cache.",
+      "maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
+      "onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
+      "maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB."
     }
   },
   "PanZoomCameraControls": {
@@ -4763,7 +4773,17 @@
   },
   "createPageStreamer": {
     "summary": "Pembacaan terbatas, terprioritaskan dan tanpa duplikat.",
-    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi baik oleh entri maupun byte; entri yang di-pin bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menahannya."
+    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi baik oleh entri maupun byte; entri yang di-pin bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menahannya.",
+    "parameters": {
+      "options": "Cara pembaca halaman membaca (`createPageStreamer`). Di samping halamannya, cache-nya mencadangkan tabel manifes dan antrean transfernya; setiap anggota punya nilai bawaan.",
+      "options.signal": "Membatalkan setiap pembacaan setelah dihentikan.",
+      "options.workerCount": "Pembacaan yang berjalan bersamaan; bawaan 8.",
+      "options.maxPages": "Halaman terbanyak yang disimpan sekaligus; jika tidak ada, dibatasi oleh byte saja.",
+      "options.onEvict": "Mendengar setiap halaman yang keluar dari cache.",
+      "options.maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
+      "options.onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
+      "options.maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Sebuah governor."
@@ -6835,7 +6855,7 @@
       "texturePool": "Byte memori GPU untuk halaman tekstur, `null` pada mesin tanpa pool tekstur (WebGL2); atur untuk mengubah amplop, dalam sisa yang ditinggalkan `gpu` di samping bayangan, probe pantulan, dan pool geometri.",
       "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya.",
-      "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Total di bawah pool bayangan ditolak (`GPU_BUDGET_UNDER_SHADOW_POOL`). Tidak pernah dibaca dari mesin.",
+      "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Total di bawah tiga bagian tetap — pool bayangan, probe pantulan, dan target efek — ditolak (`GPU_BUDGET_UNDER_SHADOW_POOL`). Tidak pernah dibaca dari mesin.",
       "canvas": "Kanvas terbesar yang dinyatakan dunia, dalam piksel buffer gambar: target rantai efek dicadangkan pada ukurannya (`split.effectTargets`); 3840 × 2160 secara bawaan, dan `gpu` bawaan hanya bertambah sebesar cadangan itu. Atur untuk membagi ulang setiap pool menurut aturan. Kanvas yang digambar lebih besar tetap dirender utuh: diagnostik menyebut `effect targets over budget` beserta byte yang melewati cadangan.",
       "cpu": "Byte memori CPU yang boleh ditahan dunia: pertama cermin host tabel halaman bayangan, lalu halaman terdekode, tabel manifesnya, antrean transfernya, dan tabel potongan mesin bersama-sama. Perubahan langsung berlaku: halaman keluar berdasarkan penggunaan terakhir sampai muat. Total yang tidak melebihi cermin ditolak (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Tidak pernah dibaca dari mesin.",
       "split": "Cara kedua total dibagi: pool bayangan dan probe pantulan pada ukuran terbesarnya, target rantai efek pada `canvas` yang dinyatakan, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU, seluruhnya, dan di dalamnya sesi yang berjalan mencadangkan tabel manifes, antrean transfernya, dan tabel potongan mesin. Hasil aturan, sebelum sebuah pool diatur sendiri."

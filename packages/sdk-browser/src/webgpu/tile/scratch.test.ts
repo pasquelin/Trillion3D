@@ -12,6 +12,8 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { GraphTexture } from '../../host/graph/graph.fixture.ts';
+import { CoverageReaders } from '../../texture/coverage.ts';
+import type { PageSurface } from '../../page/surface.ts';
 
 type HostTexture = InstanceType<typeof GraphTexture>;
 
@@ -41,7 +43,6 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
     height,
     format: 'rgba8unorm',
     errorCode: 'NONE',
-    coverage: false,
   });
   return { copies, rows };
 }
@@ -139,7 +140,6 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     height: 2,
     format: 'rgba8unorm',
     errorCode: 'NONE',
-    coverage: false,
   });
   for (let frame = 0; frame < 60; frame++) {
     pixels[4] = frame;
@@ -162,8 +162,10 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
     const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 });
     host.premultiplyAlpha = premultiplyAlpha;
     const map = importHostTexture(host);
+    const readers = new CoverageReaders();
+    readers.read({ map, alphaTest: coverage ? 0.5 : 0, transparent: false } as PageSurface);
     const size = { width: 1, height: 2, format: 'rgba8unorm' } as const;
-    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage });
+    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage: readers });
     return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
   assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted');

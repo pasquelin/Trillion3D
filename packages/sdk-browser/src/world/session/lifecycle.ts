@@ -8,7 +8,7 @@ import type { HostCamera } from '../../camera/world.ts';
 import type { createExplorerHostState, ExplorerHostState } from '../render/hostState.ts';
 import type { ExplorerSession } from './session.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';

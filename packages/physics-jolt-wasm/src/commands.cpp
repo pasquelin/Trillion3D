@@ -134,8 +134,8 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       continue;
     }
     if (!slot.used) return (world.error = UNKNOWN_BODY, false);
-    // A soft body is moved by its vertices alone.
-    if (slot.soft && (op == TELEPORT || op == MOVE_KINEMATIC || op == VELOCITY || op == IMPULSE)) {
+    // A soft body is moved by its vertices alone, but for a teleport that carries them.
+    if (slot.soft && (op == MOVE_KINEMATIC || op == VELOCITY || op == IMPULSE)) {
       w += SIZES[op];
       continue;
     }
@@ -151,7 +151,8 @@ bool runCommands(const uint32_t *w, uint32_t count) {
         break;
       }
       case TELEPORT:
-        bodies.SetPositionAndRotation(slot.id, RVec3(vec3(w + 2)), quat(w + 5), EActivation::Activate);
+        if (slot.soft) teleportSoft(slot, vec3(w + 2), quat(w + 5));
+        else bodies.SetPositionAndRotation(slot.id, RVec3(vec3(w + 2)), quat(w + 5), EActivation::Activate);
         break;
       case MOVE_KINEMATIC:
         if (world.dt > 0) bodies.MoveKinematic(slot.id, RVec3(vec3(w + 2)), quat(w + 5), world.dt);

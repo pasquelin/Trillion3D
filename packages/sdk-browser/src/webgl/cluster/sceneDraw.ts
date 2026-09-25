@@ -12,6 +12,7 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
 import { depthOf } from './meshDepth.ts';
+import { meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
@@ -109,6 +110,7 @@ export function createSceneDraw(
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       if (!opened) throw new Error('Draw before render');
       owner ??= new WebglClusterOwner(gl);
+      if (!owner.censused) owner.census(meshes(display));
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
       owner.pixelRatio = pixelRatio();
       scene.onBeforeRender?.();

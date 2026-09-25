@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createExplorerMetrics } from './metrics.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 const streamer = {
   stats: () => ({

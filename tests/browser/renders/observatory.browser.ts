@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
+import { galleryMounts, openGalleryScene } from '../support/renderHarness.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
 
 // `firstPixels`/`lastPixels` only exist in the page this harness evaluates code in, never in Node;
@@ -20,9 +20,7 @@ declare global {
 const root = resolve(import.meta.dirname, '../../..');
 const output = measureOutput('observatory');
 await mkdir(output, { recursive: true });
-const { server, port } = await startServer({
-  mounts: [...sdkMounts(root), { prefix: '/site/', dir: resolve(root, 'site') }],
-});
+const { server, port } = await startServer({ mounts: galleryMounts(root) });
 const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
 try {
@@ -36,7 +34,7 @@ try {
     id: 'observatory',
     width: 800,
     height: 520,
-    manifestUrl: '/site/assets/gallery/signature-architecture/cache/native/full/manifest.json',
+    folder: 'site/assets/gallery/signature-architecture',
     texturePoolBytes: 128 * 1024 * 1024,
     position: [19, 13, 22],
     target: [0, 3, 0],
