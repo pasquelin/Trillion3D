@@ -1,9 +1,9 @@
 /** The version of this engine's package. */
 export const SDK_VERSION = '0.2.0';
-/** Cache format this runtime reads. Format 5 carries `scene-tables.json`, the node and material
- *  tables the prepared scene is checked against; formats 3 and 4 have no such product and are
- *  refused by their number rather than half-read. */
-export const FORMAT_VERSION = 5;
+/** Cache format this runtime reads. Format 5 added `scene-tables.json`, the node and material
+ *  tables the prepared scene is checked against; format 7 carries `selectedNodes` as a count, not
+ *  a list (#404). Earlier formats are refused by their number rather than half-read. */
+export const FORMAT_VERSION = 7;
 /**
  * Cutout response sheet, mirroring `packages/asset-compiler-rust/src/cutout.rs`.
  *
@@ -14,8 +14,9 @@ export const FORMAT_VERSION = 5;
 export const CUTOUT_SHEET_FILE = 'decoupes.json';
 /** The version of the cut-out answer sheet this runtime reads. */
 export const CUTOUT_SHEET_VERSION = 1;
-/** Outer cache format required for clustered BLEND; source manifests keep their own format. */
-export const CLUSTERED_BLEND_FORMAT_VERSION = 6;
+/** Outer cache format required for clustered BLEND (6 before `selectedNodes` became a count);
+ *  source manifests keep their own format. */
+export const CLUSTERED_BLEND_FORMAT_VERSION = 8;
 /**
  * Cache identity for per-cluster DAG errors: absolute group QEM error over positions, normals and
  * texture coordinates, clamped to the group's extent; a v1 cache is refused.
