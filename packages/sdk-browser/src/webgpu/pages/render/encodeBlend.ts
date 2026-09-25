@@ -16,6 +16,7 @@ import { encodeDirectLights } from './encodeLights.ts';
 import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
+import { encodeEffects } from './encodeEffects.ts';
 import { directLightResources, wantsContractLighting } from '../prepare/lightResources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -164,7 +165,13 @@ export function encodeSurfaceLighting(
   encodeBlend(rt, device, encoder, uniformBase);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // image as-is when this image does not accumulate.
-  const composed = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
+  // The effect chain follows: its passes read the resolved image and hand composition the last.
+  const composed = encodeEffects(
+    rt,
+    device,
+    encoder,
+    encodeTaaPass(rt, device, encoder, cam, gpu.hdrView),
+  );
   // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
   // pass stays the same, one colour target aside — that is what isolates presentation.
   const presentation =

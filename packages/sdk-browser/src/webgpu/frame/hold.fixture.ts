@@ -5,6 +5,7 @@ import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
@@ -91,7 +92,11 @@ export function settledRt() {
       presenter: undefined as unknown,
       colorTexture: undefined as unknown,
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
+      effects: undefined as { loading: boolean } | undefined,
+      effectsRevision: 0,
     },
+    // No effect chain unless a test gives one (`world.effects`).
+    context: {} as { effects?: EffectChain },
     sunFar: { pending: undefined as Promise<unknown> | undefined, gpu: undefined as unknown },
   };
   return rt as unknown as WebgpuPagesRuntime & typeof rt;

@@ -1,0 +1,103 @@
+// The effect chain on the WebGPU path (#349): a held frame redisplays the image the chain drew and
+// does no work of its own; a change of the chain breaks the hold; a diagnostic view and a capture
+// show the engine's image without it; its targets count with the frame's.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts';
+import { effect } from '../../../../../sdk-core/src/world/effect/index.ts';
+import { holdWebgpuFrame, keepWebgpuFrame } from '../../frame/hold.ts';
+import { settledRt } from '../../frame/hold.fixture.ts';
+import { encodeEffects } from './encodeEffects.ts';
+import { metricsOf } from '../io/metrics.ts';
+import { createWebgpuRunState } from '../state/run.ts';
+import { createWebgpuVisState } from '../state/vis.ts';
+import { createWebgpuBlendState } from '../../blend/state.ts';
+import { createWebgpuLightState } from '../state/lights.ts';
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
+import type { WebgpuPagesRuntime } from '../runtime.ts';
+
+const input = {} as GPUTextureView;
+/** Counts the passes the chain begins. */
+let begun = 0;
+const encoder = {
+  beginRenderPass: () => (begun++, { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }),
+} as unknown as GPUCommandEncoder;
+
+/** A settled runtime drawing `chain`, in the beauty view, with no pass drawn yet. */
+function drawing(chain: EffectChain) {
+  const rt = settledRt();
+  rt.context.effects = chain;
+  Object.assign(rt.run, { diagnostic: 'beauty' });
+  Object.assign(rt.gpu, { targetSize: [8, 4] });
+  return rt;
+}
+
+/** Two identical complete frames, each encoding the chain: what arms the hold. */
+function drawTwice(rt: ReturnType<typeof drawing>, device: GPUDevice) {
+  for (let i = 0; i < 2; i++) {
+    rt.run.gpuDrawCalls = 2; // what a frame counts from, before its passes
+    encodeEffects(rt, device, encoder, input);
+    rt.run.frame++;
+    keepWebgpuFrame(rt);
+  }
+}
+
+test('a held frame with a chain does no work; a change of the chain draws it again', async () => {
+  const { device } = fakeDevice();
+  const chain = new EffectChain(),
+    bloom = effect.bloom();
+  const rt = drawing(chain);
+  chain.add(bloom);
+  encodeEffects(rt, device, encoder, input);
+  while (rt.gpu.effects!.loading) await new Promise((resolve) => setImmediate(resolve));
+  drawTwice(rt, device);
+  const drawn = begun;
+  assert.ok(drawn > 0, 'the full frames drew the bloom');
+  assert.equal(holdWebgpuFrame(rt, device), true, 'still: the image the chain drew is redisplayed');
+  assert.equal(holdWebgpuFrame(rt, device), true);
+  assert.equal(begun, drawn, 'held frames draw no pass of the chain');
+  bloom.intensity = 0.3;
+  assert.equal(holdWebgpuFrame(rt, device), false, 'a setting changed: the image is out of date');
+  assert.equal(rt.run.frameHeld, false);
+});
+
+test('compiling programs keep the frame from being held', () => {
+  const { device } = fakeDevice();
+  const chain = new EffectChain().add(effect.bloom());
+  const rt = drawing(chain);
+  drawTwice(rt, device);
+  assert.equal(rt.gpu.effects!.loading, true);
+  assert.equal(holdWebgpuFrame(rt, device), false, 'the image lacks the chain it will have');
+});
+
+test('a diagnostic view, a capture and an empty chain make nothing and hand the input on', () => {
+  const { device, textures } = fakeDevice();
+  const chain = new EffectChain();
+  const rt = drawing(chain);
+  assert.equal(encodeEffects(rt, device, encoder, input), input);
+  assert.equal(rt.gpu.effects, undefined, 'an empty chain has no targets and no programs');
+  chain.add(effect.bloom());
+  Object.assign(rt.run, { diagnostic: 'normals' });
+  assert.equal(encodeEffects(rt, device, encoder, input), input);
+  Object.assign(rt.run, { diagnostic: 'beauty' });
+  rt.capture.capturing = true;
+  assert.equal(encodeEffects(rt, device, encoder, input), input);
+  assert.deepEqual([rt.gpu.effects, textures.length], [undefined, 0]);
+  assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same');
+});
+
+test('the targets of the chain count in the frame target bytes', () => {
+  const rt = {
+    run: createWebgpuRunState(),
+    gpu: { positionBuffers: new Map(), targetBytes: 1000, effects: { bytes: 24 } },
+    vis: createWebgpuVisState(),
+    timing: {},
+    blendState: createWebgpuBlendState(),
+    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
+    setup: { geometryPool: { slots: 0 }, texturePool: {} },
+    lights: createWebgpuLightState(32),
+  } as unknown as WebgpuPagesRuntime;
+  assert.equal(metricsOf(rt).gpuFrameTargetBytes, 1024);
+  rt.gpu.effects = undefined;
+  assert.equal(metricsOf(rt).gpuFrameTargetBytes, 1000);
+});

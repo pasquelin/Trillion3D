@@ -75,7 +75,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     gpuAllocatedBytes: ledger?.bytes ?? null,
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
     gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
-    gpuFrameTargetBytes: gpu.targetBytes || null,
+    gpuFrameTargetBytes: gpu.targetBytes + (gpu.effects?.bytes ?? 0) || null,
     geometryPoolBytes: geometryPool.budgetBytes,
     geometryPoolSlots: geometryPool.slots,
     geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
@@ -156,6 +156,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   gpu.deferred?.dispose();
   gpu.temporal?.dispose();
   gpu.temporal = undefined;
+  gpu.effects?.dispose();
+  gpu.effects = undefined;
   rt.lights.tiles?.dispose();
   rt.lights.shadows?.dispose();
   rt.lights.pageRequests?.dispose();

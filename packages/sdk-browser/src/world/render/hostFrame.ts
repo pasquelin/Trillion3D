@@ -41,6 +41,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
       loaded: state.loaded,
       pageBytesRead: state.pageBytesRead,
       streamingError: streaming.error,
+      effectBytes: compose.effectBytes(),
     }),
   );
   const streaming = createExplorerStreaming(session, { streamer, geometryUrls, backends, state });
