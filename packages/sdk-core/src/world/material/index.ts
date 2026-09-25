@@ -35,8 +35,8 @@ export const material = {
   points: kind('points', { size: 1, sizeAttenuation: true }),
   /** Draws lines in one colour. */
   line: kind('line', { linewidth: 1 }),
-  /** Draws dashed lines. */
-  lineDashed: kind('lineDashed', { linewidth: 1, dashSize: 3, gapSize: 1 }),
+  /** Draws dashed lines: `dashSize` drawn, then `gapSize` left empty, along the line. */
+  lineDashed: kind('lineDashed', { linewidth: 1, dashSize: 3, gapSize: 1, scale: 1 }),
   /** A flat picture that always faces the camera. */
   sprite: kind('sprite'),
   /** Invisible, except where shadows fall on it. */

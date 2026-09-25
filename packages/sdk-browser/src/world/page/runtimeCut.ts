@@ -6,7 +6,8 @@
  * no worker lives. The triangles travel as one buffer (`packDrawn`), and the pages come back as
  * bytes with their descriptors and digests: serving them at an address is the caller's.
  */
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage, UV_EXPONENT } from '../../../../page-codec/geometryPage.ts';
+import { gridExponentFor } from '../../../../page-codec/pageGrids.ts';
 import type { PageAttributes } from '../../../../page-codec/pageAttributes.ts';
 import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
 import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
@@ -58,7 +59,11 @@ export function unpackDrawn(buffer: ArrayBuffer): DrawnTriangles {
  * Cuts drawn triangles into single-level clusters of the format's size, in index order, each
  * written as its index page and its quantized geometry page (`encodeGeometryPage`), with no
  * simplification — every cluster is a root, drawn as it is. The position grid is the one the
- * compiler takes from the primitive's own extent: 2^16 steps across its widest axis.
+ * compiler takes from the primitive's own extent: 2^16 steps across its widest axis. Texture
+ * coordinates sit on the format's 2^-14, or on the finest grid the widest cluster's range fits
+ * when it does not — a dashed line's distance along it (`drawn.ts`) spans past 1024 units on a
+ * long line: every page is cut, none refused, and each coordinate stays within a 32-bit float's
+ * own step of that range.
  */
 export async function cutDrawnTriangles(drawn: DrawnTriangles): Promise<PageCutPayload> {
   const { positions, normals, uvs, colors, indices } = drawn;
@@ -74,11 +79,15 @@ export async function cutDrawnTriangles(drawn: DrawnTriangles): Promise<PageCutP
     ...(uvs ? { TEXCOORD_0: { itemSize: 2, array: uvs } } : {}),
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
   };
+  const ranges = [...clusters(indices, positions.length / 3)];
+  const uvExponent = uvs
+    ? gridExponentFor(widestUvSpan(uvs, indices, ranges), UV_EXPONENT)
+    : UV_EXPONENT;
   const cut = [];
   let maxPositionError = 0;
-  for (const [start, end] of clusters(indices, positions.length / 3)) {
+  for (const [start, end] of ranges) {
     const corners = indices.slice(start, end);
-    const page = encodeGeometryPage(corners, attributes, positionExponent);
+    const page = encodeGeometryPage(corners, attributes, positionExponent, uvExponent);
     maxPositionError = Math.max(maxPositionError, page.quantizationError);
     const box = new Float64Array(6);
     boxEmpty(box, 0);
@@ -105,7 +114,24 @@ export async function cutDrawnTriangles(drawn: DrawnTriangles): Promise<PageCutP
       uncompressedBytes: page.uncompressedBytes,
     })),
   );
-  return { pages, positionExponent, maxPositionError };
+  return { pages, positionExponent, uvExponent, maxPositionError };
+}
+
+/** The widest range of either texture coordinate over the corners of one cluster. */
+function widestUvSpan(uvs: Float32Array, indices: Uint32Array, ranges: [number, number][]) {
+  let widest = 0;
+  for (const [start, end] of ranges)
+    for (let c = 0; c < 2; c++) {
+      let lo = Infinity,
+        hi = -Infinity;
+      for (let i = start; i < end; i++) {
+        const value = uvs[indices[i] * 2 + c];
+        lo = Math.min(lo, value);
+        hi = Math.max(hi, value);
+      }
+      widest = Math.max(widest, hi - lo);
+    }
+  return widest;
 }
 
 /** Index ranges of consecutive triangles, each within the cluster's triangle and vertex bounds.

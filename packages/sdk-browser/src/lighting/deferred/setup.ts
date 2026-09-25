@@ -9,6 +9,7 @@ import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
+import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 import { SHADOW_TRANSMITTANCE_FORMAT } from '../../gpu/shadow/transmittance.ts';
 
 /**
@@ -69,12 +70,17 @@ export function deferredLayoutEntries(
       visibility: GPUShaderStage.FRAGMENT,
       buffer: { type: 'storage' },
     });
-  // Probe grid and their coefficients: bound only by the bounce program, so a session
-  // without bounce keeps exactly the previous layout.
+  // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
+  // bounce program, so a session without bounce keeps exactly the previous layout.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      {
+        binding: BOUNCE_SURFACE_BINDING,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'read-only-storage' },
+      },
     );
   return entries;
 }
@@ -96,14 +102,11 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
 }
 
 /**
- * Contract substitute resources: an empty tile list, shadow records that hold no light and an
- * empty page table, a request buffer nothing reads back, a one-texel pool — which stands for the
- * translucent depth too — and transmittance layer, and a probe grid at
- * zero. A device that refuses the real atlas thus keeps valid
- * bindings, and the light simply stays without shadow instead of failing the frame; a frame
- * without bounce reads a grid whose probe count is zero, hence an indirect irradiance of
- * exactly zero. The blend pass borrows the same substitutes: one definition of what an
- * absent resource is worth.
+ * Contract substitute resources: an empty tile list, shadow records with no light and an empty
+ * page table, a request buffer nothing reads, a one-texel pool (the translucent depth too) and
+ * transmittance layer, a probe grid at zero and an empty surface cache. A device that refuses
+ * the real atlas keeps valid bindings, the light simply unshadowed; a frame without bounce reads
+ * zero probes, hence zero indirect light. The blend pass borrows the same substitutes.
  */
 export function createDeferredPlaceholders(device: GPUDevice) {
   const tiles = device.createBuffer({
@@ -157,6 +160,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
+  // One texel of zero: the water composite binds it while bounce is off, and reads none.
+  const surfaceCache = device.createBuffer({
+    label: 'Trillion3D empty bounce surface cache',
+    size: 16,
+    usage: GPUBufferUsage.STORAGE,
+  });
   // The absent proxy: a header of zeros, which the shader reads as a tree with no node and as
   // an absent distant shadow. Both lighting passes bind the same one, so a session without
   // proxy renders exactly the same image on opaque and on blend.
@@ -174,6 +183,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     sampler,
     bounceGrid,
     probes,
+    surfaceCache,
     proxy,
     dispose() {
       tiles.destroy();
@@ -183,6 +193,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       transmittance.destroy();
       bounceGrid.destroy();
       probes.destroy();
+      surfaceCache.destroy();
       proxy.destroy();
     },
   };

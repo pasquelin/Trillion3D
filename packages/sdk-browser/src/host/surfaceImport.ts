@@ -94,5 +94,8 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     vertexColors: first.vertexColors === true,
     model,
     lineWidth: typeof first.lineWidth === 'number' ? first.lineWidth : 0,
+    ...(typeof first.dashSize === 'number'
+      ? { dashSize: first.dashSize, gapSize: first.gapSize ?? 0 }
+      : {}),
   };
 }

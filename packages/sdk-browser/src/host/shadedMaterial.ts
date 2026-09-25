@@ -56,6 +56,9 @@ export type HostShadedMaterial = HostMaterial & {
   readonly wireframe?: boolean;
   /** Width in CSS pixels of the lines the surface draws; zero when it draws triangles. */
   readonly lineWidth?: number;
+  /** A dashed line's dash and gap along the line, in world units; absent on any other surface. */
+  readonly dashSize?: number;
+  readonly gapSize?: number;
   readonly envMap?: HostMap;
   readonly lightMap?: HostMap;
   readonly bumpMap?: HostMap;

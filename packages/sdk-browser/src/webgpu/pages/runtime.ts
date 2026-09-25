@@ -90,7 +90,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     unsupported: [
       'material extensions, skinning and morph targets in WebGPU',
       'per-texture transforms, UV channels and sampler modes',
-      'environment maps, area lights and light probes',
+      'environment maps and light probes',
       'contract scene lights with shadow atlas',
       'indirect draw',
       'occlusion culling',
