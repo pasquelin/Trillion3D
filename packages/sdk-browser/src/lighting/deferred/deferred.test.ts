@@ -152,25 +152,31 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
 test('an image is composed with the share it read, one group per pair (#349)', async () => {
   const h = gpuHarness(),
     lighting = await createDeferredLighting(h.device, {} as GPUBuffer);
-  lighting.bind(h.surface, h.view(), h.view(), false);
-  const target = h.view(),
-    shares = [h.view(), h.view()];
-  const before = h.bindGroups.length;
-  // One target is written from the TAA histories, whose shares alternate.
+  const hdr = h.view();
+  lighting.bind(h.surface, h.view(), hdr, false);
+  // The two TAA histories, each its colour beside its share, written in turn.
+  const images = [0, 1].map(() => ({ color: h.view(), share: h.view() }));
   for (let frame = 0; frame < 4; frame++)
-    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, {
-      color: target,
-      share: shares[frame % 2],
-    });
-  for (let frame = 0; frame < 2; frame++)
-    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
-  const made = h.bindGroups.slice(before).map((group) => Array.from(group.entries));
-  assert.equal(made.length, 3, 'two shares, then the lit image with its flags, each bound once');
+    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, images[frame % 2]);
+  for (let frame = 0; frame < 2; frame++) lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
+  // A new surface under the same lit image: its flags are read, not the old surface's.
+  const flags = [h.view(), h.view(), h.view(), h.view()],
+    resized = { views: () => flags } as unknown as SurfaceBuffer;
+  lighting.bind(resized, h.view(), hdr, false);
+  lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
+  // A composition group reads three resources; the lighting groups read more.
+  const composed = h.bindGroups
+    .map((group) => Array.from(group.entries))
+    .filter((entries) => entries.length === 3);
+  assert.equal(composed.length, 4, 'each history, the lit image, then its new flags, bound once');
   assert.deepEqual(
-    made.slice(0, 2).map((entries) => entries[2]!.resource),
-    shares,
+    composed.map((entries) => [entries[0]!.resource, entries[2]!.resource]),
+    [
+      [images[0].color, images[0].share],
+      [images[1].color, images[1].share],
+      [hdr, h.surface.views()[3]],
+      [hdr, flags[3]],
+    ],
   );
-  assert.equal(made[2][2]!.resource, h.surface.views()[3], 'no share: the flags');
-  assert.ok(made.slice(0, 2).every((entries) => entries[0]!.resource === target));
   lighting.dispose();
 });
