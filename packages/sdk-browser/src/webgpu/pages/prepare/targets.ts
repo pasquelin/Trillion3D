@@ -47,15 +47,8 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
  *  The view's history goes with them, never under a capture, which leaves it whole. */
 export function releaseTargets(rt: WebgpuPagesRuntime) {
   const { gpu, vis, capture } = rt;
-  for (const texture of [
-    gpu.colorTexture,
-    gpu.depthTexture,
-    gpu.hdrTexture,
-    gpu.feedbackTexture,
-    vis.visTexture,
-    vis.materialDepthTexture,
-  ])
-    texture?.destroy();
+  const textures = [gpu.colorTexture, gpu.depthTexture, gpu.hdrTexture, gpu.feedbackTexture];
+  for (const texture of [...textures, vis.visTexture, vis.materialDepthTexture]) texture?.destroy();
   gpu.colorTexture = gpu.depthTexture = gpu.hdrTexture = gpu.feedbackTexture = undefined;
   gpu.colorView = gpu.depthView = gpu.hdrView = gpu.feedbackView = undefined;
   gpu.targetBytes = 0;
@@ -107,8 +100,7 @@ export function makeTargets(
   const allocationBytes = targetBytes + ensureTaaTargets(rt, width, height);
   gpu.targetBytes = allocationBytes;
   gpu.targetSize = [width, height];
-  // The visibility targets are frame targets too: one the device cannot make refuses the set by
-  // name (`targetGrant.ts`), and the mode is kept.
+  // Visibility targets too: one the device cannot make refuses the set, the mode kept.
   vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled);
   vis.visView = vis.visTexture.createView();
   // Each pixel's material class, as the depth every class pass tests against.
