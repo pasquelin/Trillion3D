@@ -31,7 +31,9 @@ function context(answers: Record<string, unknown> = {}) {
         found.push([units.get(`TEXTURE0${uniforms('source').at(-1)}`), into[3], into[4]]);
     return found;
   };
-  return { ...gl, draws, rules: () => uniforms('weighted') };
+  const box = (name: string) =>
+    name === 'generateMipmap' ? 'box ' : name === 'drawArrays' ? 'draw ' : '';
+  return { ...gl, draws, chains: () => gl.names().map(box).join('').trim() };
 }
 type Named = { uniform: string };
 /** A 4×4 map with mips, a masked surface wearing it, and a binder whose frame has begun. */
@@ -83,7 +85,8 @@ test('a chain follows the coverage rule of its readers, switched after its image
   binder.bind(2, map, true, undefined, false);
   binder.file(G.standardSurface({ map: host }));
   image();
-  assert.deepEqual(gl.rules(), [1, 0, 1, 1, 0, 0], 'masked, opaque, masked, an opaque reader');
+  // Masked, opaque (the box alone), masked over its chain, linear-tagged, data, an opaque reader.
+  assert.equal(gl.chains(), 'box draw draw box draw draw box draw draw box box');
   [1, 2].forEach(() => binder.beginFrame());
   const held = gl.of('createTexture').length - gl.of('deleteTexture').length;
   assert.equal(held, 3, 'three chains, the scratches returned after an image with no reduction');
@@ -106,7 +109,8 @@ test('a still scene files each surface once across frames, a hidden opaque one i
     draw.render({} as HostCamera);
     draw.drawHostGeometry(createHostDrawCamera(), output);
   }
-  assert.deepEqual([read.mock.callCount(), follow.mock.callCount()], [2, 3]);
-  assert.deepEqual(gl.rules(), [0], 'plain: the hidden reader is opaque');
+  const filed = read.mock.calls.filter((call) => call.result).length;
+  assert.deepEqual([filed, follow.mock.callCount()], [2, 3]);
+  assert.equal(gl.chains(), 'box', 'plain, the box chain: the hidden reader is opaque');
   draw.dispose();
 });
