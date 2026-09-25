@@ -43,6 +43,7 @@ export function truthOf(
     !map ||
     fixture.lit ||
     fixture.back ||
+    surface.transparent ||
     surface.family !== 'basic' ||
     (surface.color as G.Color).getHex() !== 0xffffff ||
     map.flipY ||
@@ -51,8 +52,8 @@ export function truthOf(
     map.wrapT !== G.HOST_WRAP_REPEAT
   )
     throw new Error(
-      `${fixture.name}: the ground truth reads a white unlit front face wearing an unflipped, ` +
-        'repeated, bilinear map',
+      `${fixture.name}: the ground truth reads an opaque white unlit front face wearing an ` +
+        'unflipped, repeated, bilinear map',
     );
   map.updateMatrix();
   const canvas = map.image as HTMLCanvasElement;

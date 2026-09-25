@@ -146,7 +146,7 @@ const readOf = (lx: number, ly: number, granted: number) => {
 
 // #443: the hardware rule (EXT_texture_filter_anisotropic): N taps, the ratio rounded up within the
 // grant, at the level log2(Pmax / N) — 2.5 texels read with 3 taps log2(3) lower, not log2(2.5).
-// Only a footprint within 1 % of round (`ANISOTROPY_SLACK`) reads once, at the isotropic level.
+// A ratio within 0.01 of whole (`ANISOTROPY_SLACK`) reads as whole: face-on, one isotropic read.
 test('an anisotropic read takes its ratio in taps, up to the grant, its level shared among them', () => {
   for (const [lx, ly, granted, taps] of [
     [16 * 16, 1, MAX_ANISOTROPY, 16],
@@ -155,8 +155,9 @@ test('an anisotropic read takes its ratio in taps, up to the grant, its level sh
     [64 * 64, 1, MAX_ANISOTROPY, 16],
     [16 * 16, 1, 4, 4],
     [2.5 * 2.5, 1, MAX_ANISOTROPY, 3],
-    [3.005 * 3.005, 1, MAX_ANISOTROPY, 4],
+    [3.005 * 3.005, 1, MAX_ANISOTROPY, 3],
     [12.5 * 12.5, 1, MAX_ANISOTROPY, 13],
+    [4 * 4 * 1.000001, 1, MAX_ANISOTROPY, 4],
   ])
     assert.deepEqual(readOf(lx, ly, granted), [taps, Math.log2(taps)], `${lx} × ${ly} texels²`);
 });
