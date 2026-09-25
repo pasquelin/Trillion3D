@@ -1,12 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  addGpuPasses,
-  directLightTimings,
-  gpuPassStageOf,
-  gpuShadowPartOf,
-  shadowPagesGpuMs,
-} from './mapping.ts';
+import { addGpuPasses, directLightTimings, gpuPassStageOf, gpuShadowPartOf } from './mapping.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
@@ -169,14 +163,4 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
     ]),
   );
   assert.deepEqual(deposits, [['transparents', 6]]);
-});
-
-// The light cuts run for the pages a frame draws: the shadow budget pays for them too.
-test("the shadow budget's duration holds the pages' draw and their light cuts", () => {
-  const drawn = { name: SHADOW_PASS, gpuMs: 0.5 },
-    cut = { name: LIGHT_CUT_PASS, gpuMs: 0.25 };
-  assert.equal(shadowPagesGpuMs(sample([drawn, cut])), 0.75);
-  assert.equal(shadowPagesGpuMs(sample([drawn])), 0.5);
-  assert.equal(shadowPagesGpuMs(sample([drawn, { ...cut, gpuMs: null }])), null);
-  assert.equal(shadowPagesGpuMs(sample([])), null);
 });
