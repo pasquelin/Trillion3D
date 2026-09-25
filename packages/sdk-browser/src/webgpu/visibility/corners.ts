@@ -24,10 +24,12 @@ export function createCornerUploadHold() {
  */
 export function uploadRowCorners(rt: WebgpuPagesRuntime) {
   const { rows, cornerHold } = rt.layout;
-  // No partition reads the marks this image clears: the hold then names no age, and the partition
-  // that reads next asks for every drawable row again, whatever changed in between (#198).
+  // No partition reads the marks this image clears: the hold goes back to holding nothing, and the
+  // partition that reads next forgets every drawable row's history and receives its corners again,
+  // whatever changed in between (#198).
   if (!rt.vis.gpuPartition) {
     cornerHold.epoch = -1;
+    cornerHold.count = 0;
     return;
   }
   const stale = cornerHold.epoch !== rows.tableEpoch;
