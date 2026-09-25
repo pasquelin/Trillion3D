@@ -147,7 +147,7 @@ test('hostSurface carries the blending, and a composing mode draws transparent',
 // and sits one coplanar layer over the faces the lines lie on; the same material on faces does not.
 test('a line surface carries its pixel width, both sides and one coplanar layer', () => {
   const ink = material.line({ color: 0x000000, linewidth: 3 });
-  const lines = hostSurface(ink, false, new Map(), true);
+  const lines = hostSurface(ink, false, new Map(), 'lines');
   assert.equal(lines.lineWidth, 3);
   assert.equal(lines.side, hostSide('double'));
   assert.equal(lines.forceSinglePass, true);
@@ -155,7 +155,7 @@ test('a line surface carries its pixel width, both sides and one coplanar layer'
   assert.equal(lines.polygonOffsetFactor, 0);
   assert.equal(lines.polygonOffsetUnits, -depthLayerUnits(LINE_DEPTH_LAYER));
   assert.equal(importHostSurface(lines)?.lineWidth, 3, 'the engine record reads the width');
-  const wire = hostSurface(material.meshStandard({ wireframe: true }), false, new Map(), true);
+  const wire = hostSurface(material.meshStandard({ wireframe: true }), false, new Map(), 'lines');
   assert.equal(wire.lineWidth, 1, 'a wireframe without a width draws one pixel wide');
   const faces = hostSurface(ink, false, new Map());
   assert.equal(faces.lineWidth, undefined);
@@ -168,7 +168,7 @@ test('a line surface carries its pixel width, both sides and one coplanar layer'
 // reference's dash is infinite, every pixel drawn: a dash of zero, the one `lineDash` keeps whole.
 test('a dashed line surface carries its dash and gap, and a repaint writes them', () => {
   const ink = material.lineDashed({ dashSize: 0.3, gapSize: 0.2, scale: 2 });
-  const lines = hostSurface(ink, false, new Map(), true);
+  const lines = hostSurface(ink, false, new Map(), 'lines');
   assert.deepEqual([lines.dashSize, lines.gapSize], [0.15, 0.1]);
   assert.deepEqual(
     [importHostSurface(lines)?.dashSize, importHostSurface(lines)?.gapSize],
