@@ -8,20 +8,7 @@ import { setWebgpuMemoryBudgets } from '../io/memory.ts';
 import { texturePoolFor } from '../../residency/memoryBudgets.ts';
 import { laneCounts, poolEncoding } from '../../../texture/blockFormats.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
-
-/** The shared test device, refusing as out of memory every `kind` creation whose label holds
- *  `label`. */
-function refusing(kind: 'createTexture' | 'createBuffer', label: string) {
-  const gpu = mockGpu();
-  const device = gpu.device as unknown as Record<string, (d: { label?: string }) => unknown>;
-  const make = device[kind];
-  device[kind] = function (this: unknown, descriptor: { label?: string }) {
-    const made = make.call(this, descriptor);
-    if (descriptor.label?.includes(label)) gpu.raise('Out of memory');
-    return made;
-  };
-  return gpu;
-}
+import { refusing } from './refusing.fixture.ts';
 
 test('a texture pool refused even at its floor at prepare is refused by name, never allocated in full', async () => {
   installGpuGlobals();
@@ -55,6 +42,34 @@ test('a geometry pool refused even at its root cover at prepare is refused by na
   const { fixture, backend } = quadBackend(device);
   try {
     await assert.rejects(backend.prepare(), /WEBGPU_GEOMETRY_POOL_REFUSED/);
+  } finally {
+    backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+});
+
+test('a geometry concatenation that fails at prepare drops to the reduced mode, the pool still granted', async () => {
+  installGpuGlobals();
+  const gpu = mockGpu();
+  const device = gpu.device as unknown as Record<string, (d: { label?: string }) => unknown>;
+  const make = device.createBuffer;
+  device.createBuffer = function (this: unknown, descriptor: { label?: string }) {
+    if (descriptor.label?.startsWith('Trillion3D transparent geometry'))
+      throw new RangeError('refused');
+    return make.call(this, descriptor);
+  };
+  const events: BackendDiagnostic[] = [];
+  const { fixture, backend } = quadBackend(gpu.device, {
+    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+  });
+  try {
+    await backend.prepare();
+    const failure = events.find((event) => event.phase === 'material-pipeline-failed');
+    assert.match(String(failure?.context.error), /refused/);
+    assert.ok(backend.metrics().geometryPoolSlots! > 0, 'the page cache is granted');
+    const ready = events.find((event) => event.phase === 'render-capabilities');
+    assert.equal(ready?.context.visibilityBuffer, false, 'the visibility buffer is dropped');
   } finally {
     backend.dispose();
     fixture.geometry.dispose();

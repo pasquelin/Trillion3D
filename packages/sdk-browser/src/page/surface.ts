@@ -63,7 +63,7 @@ function fill(into: PageSurface, material: HostMaterials): PageSurface {
 /**
  * The engine record of a host declaration, built at its first page and reread when the host
  * rewrites the declaration in place. Called at the boundaries that hold a host material — the
- * collection, a witness that repaints its pages — and nowhere else.
+ * collection, a witness that repaints its pages, the WebGL2 binder's frame — and nowhere else.
  */
 export function surfaceOf(material: HostMaterials): PageSurface {
   const kept = held.get(material as object);

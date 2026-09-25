@@ -153,3 +153,29 @@ fn a_cluster_whose_parents_exceed_a_forced_bound_is_refused_with_the_page_named(
     assert_eq!(error.code, "PAGE_DEPENDENCY_BOUND");
     assert!(error.message.contains("Page 3"), "{error}");
 }
+
+#[test]
+fn a_refusal_in_the_second_primitive_of_a_cook_names_its_mesh_and_primitive() {
+    // Page ids restart at 0 in every primitive, so a refusal names its primitive; a float index
+    // accessor makes the second primitive of the cook fail.
+    let (root, options) = fixture();
+    let mut gltf = read_gltf(&options);
+    let accessors = gltf["accessors"].as_array_mut().expect("accessors");
+    let float_indices = accessors.len();
+    accessors.push(json!({"bufferView":1,"componentType":5126,"type":"SCALAR","count":3}));
+    gltf["meshes"][0]["primitives"]
+        .as_array_mut()
+        .expect("primitives")
+        .push(json!({"attributes":{"POSITION":0},"indices":float_indices}));
+    write_gltf(&options, &gltf, None);
+    let error = compile(&options, |_| {}).expect_err("refused");
+    assert_eq!(error.code, "INVALID_GLTF");
+    assert!(error.message.starts_with("Mesh 0 primitive 1: "), "{error}");
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn a_cancellation_met_inside_a_primitive_keeps_its_message() {
+    let cancelled = CompilerError::new("CANCELLED", "Compilation cancelled").within(0, 1);
+    assert_eq!(cancelled.message, "Compilation cancelled");
+}

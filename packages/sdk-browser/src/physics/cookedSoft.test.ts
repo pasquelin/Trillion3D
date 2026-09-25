@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
+  BODY_INDEX,
   DEFAULT_PHYSICS_BUDGET,
-  JOLT_COMMIT,
+  FLAG,
   OP,
   SOFT_WORDS,
   type CookedSoftBody,
@@ -12,7 +13,7 @@ import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { createCookedSoftBodies } from './cookedSoft.ts';
 import { startModule } from './module.fixture.ts';
 import { addSoft, at, FLAT, settle, softWorld } from './soft.fixture.ts';
-import { landed, streamedModel } from './tiles.fixture.ts';
+import { cooked, landed, streamedModel } from './tiles.fixture.ts';
 
 /** The golden cooked cloth (`physics_cook/soft_tests.rs`): 1 m of 2 × 2 squares in the xy plane,
  *  its vertices row by row from (−0.5, −0.5), pinned at its top corners, bend 0.01 rad/(N·m). */
@@ -53,13 +54,7 @@ test('a cooked cloth restores to the settings the page builds: laid flat, it swi
  *  flat 2 m up, streamed within `softVertices`: the words written, the bodies, the errors. */
 async function opened(softVertices = DEFAULT_PHYSICS_BUDGET.softVertices, scale = 1) {
   const bytes = await golden();
-  const file = {
-    formatVersion: 2,
-    jolt: JOLT_COMMIT,
-    colliders: [],
-    instances: [],
-    softBodies: [cookedCloth(bytes.length)],
-  };
+  const file = cooked([], [], [cookedCloth(bytes.length)]);
   return { ...(await streamedModel(file, bytes, { softVertices }, scale)), bytes };
 }
 
@@ -97,23 +92,65 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
   assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
 
-test('a model moved after its cooked cloth landed takes it along; rescaled, has it refused', async () => {
-  const { model, writer, bodies, tiles, errors, fetched } = await opened();
-  writer.take();
-  model.position.set(5, 0, 0);
-  model.updateMatrixWorld(true);
-  tiles.moved(model);
+test('a model moved frame after frame carries its cooked cloth along, never made again', async () => {
+  const { model, writer, bodies, tiles, fetched } = await opened();
+  const index = writer.take()[1] & BODY_INDEX;
+  for (let x = 1; x <= 5; x++) {
+    model.position.set(x, 0, 0);
+    model.updateMatrixWorld(true);
+    tiles.moved(model);
+  }
   await landed();
   const words = writer.take();
-  assert.deepEqual([words[0], words[2]], [OP.remove, OP.soft], 'out, and made again');
-  assert.equal(fetched.filter((f) => f === 'cloth.bin').length, 1, 'from the settings it holds');
-  assert.deepEqual([...new Float32Array(words.buffer, 4 * 4, 3)], [5, 2, 0], 'where it now is');
+  // TELEPORT is 9 words, FLAGS 3: one of each a frame, no REMOVE, no SOFT.
+  assert.equal(words.length, 5 * 12, 'a teleport and its flags a frame, nothing else');
+  for (let at = 0; at < words.length; at += 12)
+    assert.deepEqual(
+      [...words.subarray(at, at + 2), ...words.subarray(at + 9, at + 12)],
+      [...[OP.teleport, index], ...[OP.flags, index, 0]],
+    );
+  assert.deepEqual([...new Float32Array(words.buffer, 50 * 4, 3)], [5, 2, 0], 'where it now is');
+  assert.equal(tiles.modelOf(index), model, 'the same body');
+  assert.equal(bodies.count.softVertices, 9);
+  assert.equal(fetched.filter((f) => f === 'cloth.bin').length, 1, 'its settings fetched once');
+});
+
+test('a model rescaled has its cooked cloth released and refused by name, once; made again once back at its scale', async () => {
+  const { model, writer, bodies, tiles, errors, fetched } = await opened();
+  const index = writer.take()[1] & BODY_INDEX;
   model.scale.setScalar(2);
   model.updateMatrixWorld(true);
   tiles.moved(model);
+  tiles.moved(model);
   await landed();
   assert.deepEqual(codes(errors), ['PHYSICS_FAILED']);
+  assert.deepEqual([...writer.take()], [OP.remove, index], 'released, not teleported');
   assert.equal(bodies.count.softVertices, 0, 'no body left at the old scale');
+  assert.equal(tiles.modelOf(index), null);
+  model.scale.setScalar(1);
+  model.updateMatrixWorld(true);
+  tiles.moved(model);
+  await landed();
+  assert.equal(writer.take()[0], OP.soft, 'back at its scale, made again');
+  assert.equal(bodies.count.softVertices, 9);
+  assert.equal(fetched.filter((f) => f === 'cloth.bin').length, 1, 'from the settings it holds');
+  assert.deepEqual(codes(errors), ['PHYSICS_FAILED']);
+});
+
+test('a cooked cloth takes the flags a page-built one does, its model’s visibility its own', async () => {
+  const { model, writer, bodies } = await opened();
+  writer.take();
+  const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail);
+  model.visible = false;
+  softs.open(model, [cookedCloth(1)]);
+  await landed();
+  const made = writer.take();
+  const index = made[1] & BODY_INDEX;
+  assert.equal(made[0], OP.soft);
+  assert.deepEqual([...made.subarray(-3)], [OP.flags, index, FLAG.hidden], 'made hidden');
+  model.visible = true;
+  softs.moved(model);
+  assert.deepEqual([...writer.take().subarray(-3)], [OP.flags, index, 0], 'shown again');
 });
 
 test('a cooked soft body past the budget, or its model scaled from its cook, is refused by name', async () => {
@@ -123,4 +160,9 @@ test('a cooked soft body past the budget, or its model scaled from its cook, is 
   const scaled = await opened(undefined, 2);
   assert.deepEqual(codes(scaled.errors), ['PHYSICS_FAILED']);
   assert.equal(scaled.bodies.count.softVertices, 0);
+  scaled.model.scale.setScalar(1);
+  scaled.model.updateMatrixWorld(true);
+  scaled.tiles.moved(scaled.model);
+  await landed();
+  assert.equal(scaled.bodies.count.softVertices, 9, 'placed back at its scale, it is made');
 });
