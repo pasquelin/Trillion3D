@@ -113,8 +113,8 @@ fn no_part_of_signature_architecture_leaves_a_cut_under_its_extent() {
     let read = |id: &Value| accessor(gltf, bin, id.as_u64().expect("accessor") as usize, None);
     let mut defects = Vec::new();
     for primitive in scene.result["primitives"].as_array().expect("primitives") {
-        let index = primitive["primitive"].as_u64().expect("primitive") as usize;
-        let written = &gltf["meshes"][0]["primitives"][index];
+        let at = |key: &str| primitive[key].as_u64().expect(key) as usize;
+        let written = &gltf["meshes"][at("mesh")]["primitives"][at("primitive")];
         let positions = read(&written["attributes"]["POSITION"]).and_then(|a| a.collect_f32());
         let indices = read(&written["indices"]).and_then(|a| a.collect_u32());
         let (positions, indices) = (positions.expect("positions"), indices.expect("indices"));
