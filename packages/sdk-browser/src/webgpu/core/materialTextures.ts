@@ -13,9 +13,19 @@ const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Textu
 };
 
 /**
+ * Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends by
+ * that alpha — `normal` and `additive` weigh the source colour by it, while `none`, `subtractive`
+ * and `multiply` draw the colour under alpha 0 as it is (`../../scene/materialBlending.ts`).
+ */
+const alphaIsCoverage = (mat: PageSurface) =>
+  mat.alphaTest > 0 ||
+  (mat.transparent && (mat.blending === 'normal' || mat.blending === 'additive'));
+
+/**
  * Census every colour and data texture once, in a stable slot order, and, per colour texture,
- * whether EVERY reader takes its alpha for coverage — the map of a masked or blended surface,
- * never an emissive map: the decision `collect.rs` takes for the compiler's `Coverage` chain (#42).
+ * whether EVERY reader takes its alpha for coverage — the map of a masked or alpha-blended
+ * surface, never an emissive map: the decision `collect.rs` takes for the compiler's `Coverage`
+ * chain (#42).
  */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],
@@ -38,7 +48,7 @@ export function collectWebgpuMaterialTextures(
   const collect = (mat: PageSurface) => {
     if (seen.has(mat)) return;
     seen.add(mat);
-    readColor(mat.map, mat.transparent || mat.alphaTest > 0);
+    readColor(mat.map, alphaIsCoverage(mat));
     readColor(mat.emissiveMap, false);
     addData(mat.roughnessMap);
     addData(mat.metalnessMap);
