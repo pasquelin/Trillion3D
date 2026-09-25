@@ -14,7 +14,9 @@ disagreement is reported to the maintainer.
    other role runs the fast gates only. One Chrome on the machine at a time.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
    browsers of other sessions and of the maintainer run on the same machine.
-4. **One branch, one worktree, one session.** Never commit on `develop` or `main`, never write in
+4. **One branch, one worktree, one session.** Never commit on `develop` or `main`; a lead merges
+   into `develop` on green CI and the reviewer's OK, and nothing reaches `main` without the boss's
+   word, never write in
    the shared checkout, never touch another session's worktree. Every worktree lives in
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
