@@ -121,6 +121,8 @@ export function createDagLightCut(resources: DagResources) {
   };
   const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
+  /** A cut ran since the requests were last copied: the next one appends to its list. */
+  let listed = false;
   const reports = createLightCutReports(own, output, outputBytes);
   const redraws = createLightCutRedraws(own, output, capacity);
   return {
@@ -130,7 +132,9 @@ export function createDagLightCut(resources: DagResources) {
     pageCount,
     /** Where the mask kernel logs the pages each view draws: what the shadow cull reads. */
     drawnLog,
-    /** Encodes the frame's cut: the first `count` of `views`, in one traversal. */
+    /** Encodes a batch's cut: the first `count` of `views`, in one traversal. The frame's first
+     *  cut starts the request list; each later one appends to it (`VIEW_APPEND`), read once the
+     *  frame's batches are all encoded (`encodeReports`). */
     encode(
       encoder: GPUCommandEncoder,
       views: ArrayLike<{ uniforms: DagViewUniforms }>,
@@ -138,6 +142,8 @@ export function createDagLightCut(resources: DagResources) {
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
       cutViews.count = light.views = count;
+      cutViews.append = listed;
+      listed = true;
       for (let v = 0; v < count; v++) {
         const block = uniformData.subarray(v * DAG_VIEW_WORDS, (v + 1) * DAG_VIEW_WORDS);
         writeDagUniforms(block, packed, views[v].uniforms, residentCut, cutViews);
@@ -149,6 +155,13 @@ export function createDagLightCut(resources: DagResources) {
         encoder.copyBufferToBuffer(resources.frames, 0, frames, 0, resources.frameData.byteLength);
       }
       encodeDagKernels(encoder, view);
+    },
+    /** Copies the requests every cut appended since the last copy, once the frame's batches are
+     *  encoded; returns the settlement, or undefined when no cut ran or every slot is read. */
+    encodeReports(encoder: GPUCommandEncoder) {
+      if (!listed) return undefined;
+      listed = false;
+      return reports.encodeReadback(encoder);
     },
     /** Its requests, read back after submission (`lightCutReports.ts`). */
     reports,

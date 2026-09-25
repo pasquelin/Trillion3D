@@ -12,10 +12,11 @@ import {
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
 import type { DagViewUniforms } from './types.ts';
-import { VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
+import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
 
-/** The views one cut runs, the views its buffers hold, and the capacity of each descent queue. */
-export type DagCutViews = { count: number; capacity: number; queueCap: number };
+/** A light cut's views: how many it runs, how many it holds, its queues' bound, and whether it
+ *  appends to the requests an earlier batch of the frame listed (`VIEW_APPEND`). */
+export type DagCutViews = { count: number; capacity: number; queueCap: number; append?: boolean };
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -83,7 +84,7 @@ export function writeDagUniforms(
   ints[61] = views?.capacity ?? 1;
   ints[62] = views?.queueCap ?? packed.nodeCount;
   const light = uniforms.light;
-  ints[54] = light ? VIEW_LIGHT | VIEW_PAGES : 0;
+  ints[54] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
   if (!light) return;
   ints[55] = light.rows;
   ints[56] = light.mask[0];
