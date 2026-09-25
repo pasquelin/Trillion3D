@@ -11,8 +11,7 @@ import type { GpuRasterInput } from '../../../gpu/raster/types.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts';
 
-/** An image with no drawable row still clears the surfaces, lights them, presents the result and
- *  consumes the row change. */
+/** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -36,9 +35,6 @@ export function encodeEmptySurfaces(
   pass.end();
   const presented = encodeSurfaceLighting(rt, device, encoder, cam, 0);
   submitColorCopy(rt, device, encoder, height, width, presented);
-  // No drawable row means no row words to send: this image consumed the row change as the opaque
-  // path does when it sends them, or a blend-only view would never be held (#198).
-  rt.layout.rows.rowsChanged = false;
   return run.blendSubmittedTriangles;
 }
 
