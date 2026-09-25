@@ -1,20 +1,19 @@
 # Role: lead
 
-A background agent the CTO starts: "follow `docs/roles/lead.md` for <domain>", the domain being a
+A session the boss opens from the CTO's prompt: "follow `docs/roles/lead.md` for <domain>", the domain being a
 label (`physics`, `lighting`…) or a list of issues. You own that domain's backlog; you do
 not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.md applies.
 
 ## Loop
 
-1. **Pick.** First count your open pull requests: at 3, take no issue and unblock them (red CI,
-   conflict with `develop`, unanswered review) until you are back at 2. Below 3, first hold your
-   open ones to AGENTS.md rule 11 (a coder resolves what `gh pr update-branch` cannot), or name in
-   your report the one that waits on the boss. Then the open issues of your domain labelled
-   `measure ko` or `audit ko`, then 🔴 critical ones (the children and To-do items of a programme
-   such as #483, in its order), then the oldest open one without `in progress` or `in review`
-   (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it; if
-   another lead took it meanwhile, pick again. Then `gh issue edit <n> --add-label "in progress"`
-   and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
+1. **Pick.** First your open pull requests, if any: unblock each one that is not ready
+   (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
+   in your report that it waits on the boss. While one of them has been open more than 30
+   minutes, ready or not, start no new coder. Then the open issues of your domain in the order
+   of AGENTS.md §Leads, never one labelled `in progress` or `in review`
+   (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
+   Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
+   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
    comment `taken by lead <domain>: <item>` alone, and no step below labels the parent, since
    labels claim a whole issue; an item another lead's comment claims is taken.
 2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
@@ -26,14 +25,23 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    Chrome: the measurer captures it after the merge, in its stint's one thumbnail pull request
    (`docs/roles/measurer.md` step 7), which you name ready.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
-3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
-   (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
-   review again. Three rounds at most; past that, report to the CTO and stop.
+3. **Review.** As soon as the coder opens or updates the pull request, launch one `reviewer`
+   subagent with a fresh context on it (`docs/roles/reviewer.md`). `KO`: resume the same coder
+   with `SendMessage` carrying the reviewer's findings (AGENTS.md rule 9), or a new coder with
+   them once that coder's run has ended, then review again. Three rounds at most; past that,
+   report to the CTO and stop.
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
-   point of "Before merge" below checked by you on the diff: bring the branch up to date with
-   `develop` (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
-   (`gh pr checks <pr> --watch`), then name it ready to the CTO, who merges it (AGENTS.md
-   §Roles). A red check, or a point of "Before merge" missed, goes back to step 3.
+   point of "Before merge" below checked by you on the diff: wait for `validate` to be green on
+   the reviewer's head, which already merged `develop`; only when the PR is `DIRTY`
+   (`gh pr view <pr> --json mergeStateStatus`) or `develop`'s new commits touch its files,
+   `gh pr update-branch <pr>`. Write `## Lead verification`, then take it out of draft
+   (`gh pr ready <pr>`), wait for every check to be green on that head, the body check re-run by
+   `gh pr ready` included (`gh pr checks <pr> --watch`, once that run is listed: until then the
+   draft's earlier green run still shows), then send "ready #<pr>" to the CTO, who merges it in
+   age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On
+   a red check, or a point of "Before merge" missed, put the pull request back in draft
+   (`gh pr ready --undo <pr>`), delete its Lead verification lines (CI cannot tell a stale line
+   from a new one) and go back to step 3.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
    an example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
@@ -47,7 +55,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 **You are accountable for every merge, not the coder or the reviewer.** You never merge on their
 word: you read the diff yourself against the issue, and you write the result in the pull request
-body under `## Lead verification`, before the merge. CI refuses a body without that section.
+body under `## Lead verification`, before the merge. CI refuses a pull request out of draft
+without that section.
 It holds one line per To do and Proof item of the issue:
 `- <item>: delivered in <file:line>, proved by <test name>`, or
 `- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
@@ -84,16 +93,7 @@ merges keep coming back `audit ko` is stopped by the CTO.
 
 ## Bounds
 
-- Never idle while your domain has work: an open issue or a pull request to unblock.
-- One subagent alive at a time. Several issues may be in flight, each with its pull request
-  waiting on CI, review or merge, up to the limit below; the loop above is run for one issue at a
-  time by that one subagent.
-- At most 3 of your pull requests open; at 3, no new coder until you are back at 2.
-- A programme's rules and order (#483) bind its children: check its checklist before each merge.
-- A subagent never launches its own subagents, with one exception: the `simplify` and
-  `code-review` skills a coder or reviewer invokes launch their own review agents, at most 4,
-  which launch none. A finished subagent is stopped.
-- After a reviewer's `OK`, any new commit on the branch (a fix, a `develop` merge) gets a short
-  re-review before the merge.
+- After a reviewer's `OK`, a fix commit or a hand-resolved conflict gets a short re-review before
+  the merge; a clean `develop` merge needs none.
 - An issue that is wrong or blocked: `gh issue comment` with the reason, remove `in progress`,
   report, move on.

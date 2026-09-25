@@ -446,7 +446,6 @@
       "sound-in-space": "audio posicional",
       "tone-mapping-compared": "elección del operador de tone mapping",
       "a-first-post-effect": "cadena de posproceso",
-      "a-glow-around-lights": "posproceso: resplandor (bloom)",
       "glow-on-chosen-objects": "posproceso: resplandor selectivo",
       "depth-of-field": "posproceso: profundidad de campo",
       "motion-blur": "posproceso: desenfoque de movimiento",

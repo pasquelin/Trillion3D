@@ -100,6 +100,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,
+    effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
@@ -110,12 +111,10 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
       options.diagnosticGpuVariant,
       diagnosticChannel.detail,
     ),
-    shadowBudgetMs: options.shadowBudgetMs,
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
-    // Bounced light stays off by default: its measured step holds 1.1 to 1.3 ms on Emerald,
-    // above the one-millisecond bar, and the host turns it on explicitly.
+    // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
@@ -194,7 +193,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   }
   if (preload !== 'all') indices.clear();
   if (!backends.length) throw new Error('No backend');
-  // The engines' own scene-sized tables come out of the same CPU share as the decoded pages.
-  streamer.reserve(backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0));
+  // The engines' host tables, which follow the view, come out of the decoded pages' CPU share.
+  streamer.reserve(() => backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0));
   return { viewport, context };
 }

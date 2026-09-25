@@ -115,6 +115,14 @@
       "takes": "ăn"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Kéo để nhìn quanh. Tắt quầng sáng để xem đèn khi không có nó, hoặc mở rộng nó.",
+    "controls": {
+      "glow": "Quầng sáng",
+      "intensity": "Cường độ",
+      "radius": "Độ lan"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Kéo để nhìn quanh. Đung đưa chiếc đèn lồng và xem ánh sáng di chuyển.",
     "controls": {

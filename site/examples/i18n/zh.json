@@ -115,6 +115,14 @@
       "takes": "吃子"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "拖动四处看看。关掉光晕看看没有它的灯，或者把它调宽。",
+    "controls": {
+      "glow": "光晕",
+      "intensity": "强度",
+      "radius": "扩散"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "拖动四处看看。摇一摇灯笼，看光怎么动。",
     "controls": {

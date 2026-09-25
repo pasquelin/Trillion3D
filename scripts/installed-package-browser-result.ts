@@ -1,6 +1,7 @@
 import type { EvaluatedInstalledPage } from './installed-package-browser-page.ts';
 import type { DecodeWorkerResult, IntegrationWorkerResult } from './installed-package-workers.ts';
 import type { RequestRecord } from './installed-package-server.ts';
+import { INSTALLED_SCENE_TRIANGLES } from './installed-package-scene.ts';
 
 interface CommonWorkerMessage {
   translation: number[];
@@ -17,6 +18,17 @@ export interface InstalledBrowserProof {
   requests: RequestRecord[];
   moduleRequestCount: number;
   browserVersion: string;
+}
+
+/**
+ * No hole at full residency (#483 rule 1): at a zero pixel error with every page the view reads
+ * resident, the frame draws the scene at full detail, each source triangle once. A hole draws
+ * fewer, a coarser stand-in fewer, a surface drawn twice more: each moves `drawnTriangles` off the
+ * scene's own count (`INSTALLED_SCENE_TRIANGLES`), which the engine does not report. An
+ * unpublished count fails the check rather than passing it.
+ */
+export function drawsItsWholeCut(metrics: Record<string, number | null> | undefined) {
+  return metrics?.drawnTriangles === INSTALLED_SCENE_TRIANGLES;
 }
 
 export function installedBrowserResult({
@@ -43,9 +55,7 @@ export function installedBrowserResult({
   if (errors.length) throw new Error(`installed browser errors: ${errors.join('; ')}`);
   if (
     !(metrics?.pagesDecodedOffThread > 0) ||
-    !(metrics?.selectedTriangles > 0) ||
-    metrics.selectedTriangles !== metrics.drawnTriangles ||
-    metrics.uncoveredTriangles !== 0 ||
+    !drawsItsWholeCut(metrics) ||
     capture.aaDifferentPixels !== 0 ||
     !decode?.ok ||
     !decode.wasm ||
