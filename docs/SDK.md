@@ -1121,7 +1121,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   frequency, damping and travel, the anti-roll bars, the turning radius the steering lock is read
   from, the time a hand takes to full lock, the brakes' grip, a motorcycle's lean and a track's
   turn; any of them is an option. A wheel that is not a child of the body, a wrong wheel count or
-  more than six gears throws `RangeError`. Live example: [drive a car](../site/examples/drive-a-car.html).
+  more than six gears throws `RangeError`, and so does an option its kind would ignore (a car's
+  `trackTurn` or `maxLean`; a motorcycle's `drive`, `trackTurn` or `antiRoll`; a tracked
+  vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
+  longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its

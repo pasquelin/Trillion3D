@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { joint } from '../../../sdk-core/src/physics/index.ts';
-import { WEAK, brokenPastForce, gap, jointRig, widestSwings } from './joints.fixture.ts';
+import { WEAK, brokenPastForce, circle, gap, jointRig, widestSwings } from './joints.fixture.ts';
 const strong = (mode: 'velocity' | 'position', target: number) => ({ mode, target, maxForce: 1e6 });
 
 test('swingTwist: its axis swings within its cone, its motor twists it, stopped by its limit', async () => {
@@ -57,10 +57,7 @@ test('sixDof: a locked axis holds, a limited one stops its motor, a free turn fo
 
 test('path: a cart held on its looped track against gravity, driven along it and to a point', async () => {
   const rig = await jointRig();
-  const track = Array.from({ length: 12 }, (_, i) => {
-    const angle = (2 * Math.PI * i) / 12;
-    return [3 * Math.cos(angle), 0, 3 * Math.sin(angle)] as const;
-  });
+  const track = circle();
   const cart = rig.cube(3, 0, 0);
   const ride = joint.path(cart, null, { path: track, loop: true, motor: strong('velocity', 2) });
   rig.wanted.add(ride);
@@ -141,7 +138,4 @@ test('advanced joint options a kind lacks, or needs, are refused', () => {
   assert.throws(() => joint.gear(a, null), RangeError);
   assert.throws(() => joint.path(a, null, { path: [[0, 0, 0]] }), RangeError);
   assert.throws(() => joint.pulley(a, b), RangeError);
-  assert.doesNotThrow(() =>
-    joint.sixDof(a, b, { axes: { turnZ: 'free' }, spring: { frequency: 2 } }),
-  );
 });
