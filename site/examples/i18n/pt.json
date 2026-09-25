@@ -1956,6 +1956,16 @@
       "Look for": "Observe"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Arraste a opacidade: a sombra do vidro do meio acompanha, nula em 0 e cheia em 1.",
+    "controls": {
+      "opacity": "Opacidade",
+      "sunHeight": "Altura do sol"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacidade do vidro do meio"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Clique para olhar em volta, depois ande com W A S D e salte com Espaço: suba a escada e a rampa, ande na plataforma, empurre as caixas e solte as teclas no gelo para deslizar.",
     "controls": {

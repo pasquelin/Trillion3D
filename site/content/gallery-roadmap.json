@@ -541,6 +541,11 @@
       "file": "examples/shadows-case-by-case.html"
     },
     {
+      "id": "shadows-through-see-through-panes",
+      "theme": "lights",
+      "file": "examples/shadows-through-see-through-panes.html"
+    },
+    {
       "id": "flat-shadows-on-the-floor",
       "theme": "lights",
       "file": "examples/flat-shadows-on-the-floor.html"
