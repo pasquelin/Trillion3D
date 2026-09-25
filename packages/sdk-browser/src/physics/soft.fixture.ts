@@ -11,6 +11,9 @@ import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { body, startModule, type Module } from './module.fixture.ts';
 
+/** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
+export const FLAT = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+
 /** A committed module with Earth's gravity and a floor in slot 0, its top at y = 0, turned by
  *  `quaternion` about its centre. */
 export async function softWorld(quaternion = [0, 0, 0, 1]) {
@@ -34,7 +37,7 @@ export function addSoft(
   const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
   const writer = new CommandWriter();
   writeSoft(writer, {
-    ...{ id: 1 | (1 << 24), flags: 0, position, quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
+    ...{ id: 1 | (1 << 24), position, quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
     ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
     ...{ settings, record, ...words },
   });
