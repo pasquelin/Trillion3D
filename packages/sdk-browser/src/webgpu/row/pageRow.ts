@@ -27,6 +27,8 @@ export const ROW_MAP_LAYER_WORD = 22,
 export const ROW_BLEND_COVERAGE_WORD = 57;
 /** Row word of the width a line page's quads widen to (`PageInfo.lineWidth`); zero for triangles. */
 export const ROW_LINE_WIDTH_WORD = 61;
+/** Row words of a dashed line's dash and gap (`PageInfo.dash`, `lineDash`); zero on any other row. */
+export const ROW_DASH_WORD = 28;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */
@@ -78,7 +80,8 @@ export function createPageRowWriter(resources: PageRowResources) {
     floats[base + 16] = mat.baseColor[0];
     floats[base + 17] = mat.baseColor[1];
     floats[base + 18] = mat.baseColor[2];
-    floats[base + 19] = mat.alphaTest > 0 ? mat.alphaTest : 1;
+    // The cutout's threshold (`maskKeep`): a dashed line without an alpha test cuts its gaps alone.
+    floats[base + 19] = mat.alphaTest > 0 ? mat.alphaTest : mat.dashSize !== undefined ? 0 : 1;
     floats[base + 20] = mat.metalness;
     floats[base + 21] = mat.roughness;
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
@@ -92,6 +95,9 @@ export function createPageRowWriter(resources: PageRowResources) {
     ints[base + ROW_INDEX_WORDS] = indexCount;
     ints[base + 26] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
+    // A dashed line's dash and gap (`PageInfo.dash`), zero on every other row.
+    floats[base + ROW_DASH_WORD] = mat.dashSize ?? 0;
+    floats[base + ROW_DASH_WORD + 1] = mat.gapSize ?? 0;
     ints[base + 30] = constants.hashOf(rec.clusterId);
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
     // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image.
