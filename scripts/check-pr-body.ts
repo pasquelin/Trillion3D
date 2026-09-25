@@ -21,7 +21,7 @@ function section(lines: string[], title: string): string[] {
 /** The first rule the body breaks, or undefined when it passes. */
 export function bodyProblem(raw: string, draft: boolean): string | undefined {
   const body = raw.replace(/<!--[\s\S]*?-->/g, '');
-  if (/^\s*part of #\d+/im.test(body))
+  if (/\bpart of #\d+/i.test(body))
     return 'The body says "Part of #<issue>": one pull request closes one issue; an issue too big for one goes back to the CTO, who splits it (AGENTS.md rule 5).';
   if (!/^Closes #\d+/m.test(body)) return 'The body must start with "Closes #<issue>".';
   const lines = body.split('\n');
@@ -36,7 +36,7 @@ export function bodyProblem(raw: string, draft: boolean): string | undefined {
   )
     return 'The section "Lead verification" is missing or empty: the lead maps every To-do item to its file and test before marking the pull request ready.';
   for (const name of REVIEW_LINES) {
-    const line = new RegExp(`^[-* ]*${name}:\\s*\\S`);
+    const line = new RegExp(`^[-* ]*\`?${name}\`?:\\s*\\S`);
     if (!review.some((l) => line.test(l)))
       return `The section "Local review before push" has no "${name}:" line: write what that pass found and fixed.`;
   }
