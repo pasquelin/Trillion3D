@@ -1,13 +1,14 @@
 /**
- * Runs a line function of a shader (`lineWgsl.ts`: `lineClip`, `lineDash`) on the CPU: a small
- * reader of the few statements and expressions they are written in — declarations, one early
- * return, arithmetic on scalars and vectors, swizzles, `select`, `?:`, `length`, `floor` and the
- * vector constructors. The tests then measure what the real text does, in WGSL and in GLSL,
- * instead of a copy of its formula.
+ * Runs a function of a shader (`lineWgsl.ts`: `lineClip`, `lineDash`; `spriteWgsl.ts`:
+ * `spriteAt`) on the CPU: a small reader of the few statements and expressions they are written
+ * in — declarations, compound assignments, one guarded return or assignment, arithmetic on
+ * scalars, vectors and column-major matrices, column indexing, swizzles, `select`, `?:`,
+ * `length`, `normalize`, `floor`, `cos`, `sin` and the vector constructors. The tests then measure
+ * what the real text does, in WGSL and in GLSL, instead of a copy of its formula.
  */
-type Value = number | number[] | boolean;
+type Value = number | number[] | number[][] | boolean;
 
-const TOKEN = /\s*(\d+\.?\d*|[A-Za-z_]\w*|&&|\|\||==|!=|<=|>=|[-+*/(),.<>?:!])/y;
+const TOKEN = /\s*(\d+\.?\d*|[A-Za-z_]\w*|&&|\|\||==|!=|<=|>=|[-+*/(),.<>?:![\]])/y;
 
 function tokens(text: string) {
   const out: string[] = [];
@@ -28,11 +29,18 @@ const lift = (a: Value, b: Value, f: (x: number, y: number) => number): Value =>
   }
   return f(a as number, b as number);
 };
+/** A column-major matrix times a vector: the sum of its columns, each by one coordinate. */
+const product = (m: number[][], v: number[]) =>
+  m[0].map((_, row) => m.reduce((sum, column, c) => sum + column[row] * v[c], 0));
+const isMatrix = (v: Value): v is number[][] => Array.isArray(v) && Array.isArray(v[0]);
 const AXES = 'xyzw';
 const CALLS: Record<string, (...args: Value[]) => Value> = {
   select: (a, b, c) => (c ? b : a),
   length: (v) => Math.hypot(...(v as number[])),
+  normalize: (v) => (v as number[]).map((x) => x / Math.hypot(...(v as number[]))),
   floor: (v) => Math.floor(v as number),
+  cos: (v) => Math.cos(v as number),
+  sin: (v) => Math.sin(v as number),
 };
 const vector = (...args: Value[]) => args.flat() as number[];
 
@@ -65,7 +73,7 @@ function evaluate(text: string, scope: Record<string, Value>): Value {
     '>=': (a, b) => (a as number) >= (b as number),
     '+': (a, b) => lift(a, b, (x, y) => x + y),
     '-': (a, b) => lift(a, b, (x, y) => x - y),
-    '*': (a, b) => lift(a, b, (x, y) => x * y),
+    '*': (a, b) => (isMatrix(a) ? product(a, b as number[]) : lift(a, b, (x, y) => x * y)),
     '/': (a, b) => lift(a, b, (x, y) => x / y),
   };
   const level = (rank: number): Value => {
@@ -88,8 +96,12 @@ function evaluate(text: string, scope: Record<string, Value>): Value {
       return lift(0, unary(), (x, y) => x - y);
     }
     let value = primary();
-    while (peek() === '.') {
-      take();
+    while (peek() === '.' || peek() === '[') {
+      if (take() === '[') {
+        value = (value as number[][])[level(0) as number];
+        take(']');
+        continue;
+      }
       const picked = [...take()].map((axis) => (value as number[])[AXES.indexOf(axis)]);
       value = picked.length === 1 ? picked[0] : picked;
     }
@@ -135,9 +147,21 @@ function topLevel(text: string) {
   return [...parts, text.slice(start)];
 }
 
+/** Runs one declaration or assignment — `a*=b` included — into `scope`. */
+function assign(statement: string, scope: Record<string, Value>) {
+  const declared = statement.replace(/^(let|var|float|vec[234])\s+/, '');
+  for (const part of topLevel(declared)) {
+    const [name, ...expression] = part.split('=');
+    const value = evaluate(expression.join('='), scope),
+      target = name.trim().replace(/[-+*/]$/, ''),
+      op = name.trim().slice(target.length);
+    scope[target] = op ? evaluate(`${target}${op}(${expression.join('=')})`, scope) : value;
+  }
+}
+
 /** The function `source` declares, run on its arguments: `lineClip` returns a clip position,
- *  `lineDash` whether the pixel is drawn. */
-export function runLineText<Result = number[]>(source: string) {
+ *  `lineDash` whether the pixel is drawn, `spriteAt` a sprite's corner. */
+export function runShaderText<Result = number[]>(source: string) {
   const open = source.indexOf('{');
   const params = topLevel(source.slice(source.indexOf('(') + 1, source.indexOf(')')));
   const names = params.map((p) => p.trim().split(/[\s:]+/)[p.includes(':') ? 0 : 1]);
@@ -155,12 +179,13 @@ export function runLineText<Result = number[]>(source: string) {
         if (evaluate(guarded[1], scope)) return evaluate(guarded[2], scope) as Result;
         continue;
       }
-      if (statement.startsWith('return ')) return evaluate(statement.slice(7), scope) as Result;
-      const declared = statement.replace(/^(let|var|float|vec[234])\s+/, '');
-      for (const part of topLevel(declared)) {
-        const [name, ...expression] = part.split('=');
-        scope[name.trim()] = evaluate(expression.join('='), scope);
+      const when = statement.match(/^if\((.*?)\)\{?(.*?)\}?$/);
+      if (when) {
+        if (evaluate(when[1], scope)) assign(when[2], scope);
+        continue;
       }
+      if (statement.startsWith('return ')) return evaluate(statement.slice(7), scope) as Result;
+      assign(statement, scope);
     }
     throw new Error('the line function returned nothing');
   };

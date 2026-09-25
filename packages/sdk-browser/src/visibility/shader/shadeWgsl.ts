@@ -19,7 +19,9 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  let h=pageHeader(page);
  let i0=pageCorner(page,h,tri*3u);let i1=pageCorner(page,h,tri*3u+1u);let i2=pageCorner(page,h,tri*3u+2u);
  let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
- let w0=page.world*vec4f(p0,1.0);let w1=page.world*vec4f(p1,1.0);let w2=page.world*vec4f(p2,1.0);
+ var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
+ // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.
+ if(page.sprite.y!=0.0){w0=pageSprite(page,p0);w1=pageSprite(page,p1);w2=pageSprite(page,p2);}
  var c0=uni.viewProj*w0;var c1=uni.viewProj*w1;var c2=uni.viewProj*w2;
  // A line page's triangle is the quad the rasters widened (\`pageLine\`): its corners are read the same way.
  if(page.lineWidth>0.0){let vp=uni.viewProj*page.world;c0=pageLine(page,h,i0,vp,c0);c1=pageLine(page,h,i1,vp,c1);c2=pageLine(page,h,i2,vp,c2);}

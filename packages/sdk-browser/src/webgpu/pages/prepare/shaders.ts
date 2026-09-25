@@ -2,6 +2,7 @@ import { ACES_WGSL } from '../../../lighting/toneMappingWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../../diagnostic/trianglePalette.ts';
 import { clusterDecodeWgsl } from '../../../cluster/decodeWgsl.ts';
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from '../../../visibility/shader/lineWgsl.ts';
+import { SPRITE_WGSL } from '../../../visibility/shader/spriteWgsl.ts';
 
 /** The surface colour carries its alpha: the opaque draw writes 1 there, a transparent one its
  *  opacity, which the blend pipeline of its mode reads (`BLEND_EQUATIONS`).
@@ -11,17 +12,19 @@ import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from '../../../visibility/shader/lineW
  *  (`lineClip`), in the `viewport` of the image and at the host's `pixelRatio`; a line page is a
  *  quantized page, and a float-position slot keeps no direction and no width, as in the rasters.
  *  `dash` above zero cuts a dashed line page's gaps (`lineDash`) at the distance its first
- *  coordinate carries. */
+ *  coordinate carries. `sprite` turns a sprite's quad to face the camera (`spriteAt`), as every
+ *  raster does; zero draws the triangles as they are. */
 export const FALLBACK_WIREFRAME = 1,
   FALLBACK_CLUSTER_PAGE = 2;
 
-export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,lineWidth:f32,pixelRatio:f32,viewport:vec2f,dash:vec2f,}
+export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,lineWidth:f32,pixelRatio:f32,viewport:vec2f,dash:vec2f,sprite:vec2f,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read> positions:array<f32>;
 @group(0) @binding(2) var<uniform> uni:Uniforms;
 ${clusterDecodeWgsl('indices')}
 ${LINE_CLIP_WGSL}
 ${LINE_DASH_WGSL}
+${SPRITE_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) bary:vec3f,@location(2) view:vec3f,@location(3) @interpolate(flat) tri:u32,@location(4) lineDistance:f32,}
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32)->VSOut{
  var out:VSOut;
@@ -41,6 +44,7 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  let world=uni.world*vec4f(local,1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;out.tri=0u;
  if(uni.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(uni.world*vec4f(along,0.0)),uni.lineWidth,uni.viewport,uni.pixelRatio);}
+ if(uni.sprite.y!=0.0){let s=spriteAt(uni.viewProj,uni.world,local.xy,uni.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
  out.lineDistance=lineDistance;
  if((uni.mode&${FALLBACK_WIREFRAME}u)!=0u){out.tri=stableTriangleId(uni.pad1,vertexIndex/3u);}
  let corner=vertexIndex%3u;

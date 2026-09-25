@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LINE_DASH_GLSL, LINE_DASH_WGSL, lineDash } from './lineWgsl.ts';
-import { runLineText } from './lineClip.fixture.ts';
+import { runShaderText } from './shaderText.fixture.ts';
 import { MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
@@ -17,8 +17,8 @@ import { ROW_DASH_WORD } from '../../webgpu/row/pageRow.ts';
 
 type Dash = (at: number, dash: number[]) => boolean;
 const DASHES: Record<string, Dash> = {
-  wgsl: runLineText<boolean>(LINE_DASH_WGSL),
-  glsl: runLineText<boolean>(LINE_DASH_GLSL),
+  wgsl: runShaderText<boolean>(LINE_DASH_WGSL),
+  glsl: runShaderText<boolean>(LINE_DASH_GLSL),
   cpu: (at, [dashSize, gapSize]) => lineDash(at, dashSize, gapSize),
 };
 
@@ -78,12 +78,12 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   assert.ok(rasterSource(4, 16).includes('if(!maskKeep(page,tc.xy,tc.z,gx,gy,stipple)){return;}'));
   // The transparent pass.
   assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL));
-  assert.match(BLEND_ITEM_WGSL, /emissive:vec4f,dash:vec2f,\}/);
+  assert.match(BLEND_ITEM_WGSL, /emissive:vec4f,dash:vec2f,sprite:vec2f,\}/);
   assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);'));
   assert.ok(BLEND_SHADER.includes(' if(!lineDash(in.uv.x,in.alphaAo.zw)){discard;}'));
   // The opaque fallback.
   assert.ok(FALLBACK_SHADER.includes(LINE_DASH_WGSL));
-  assert.ok(FALLBACK_SHADER.includes('viewport:vec2f,dash:vec2f,}'));
+  assert.ok(FALLBACK_SHADER.includes('viewport:vec2f,dash:vec2f,sprite:vec2f,}'));
   assert.ok(FALLBACK_SHADER.includes('lineDistance=clusterUv(h,uni.pageOffset,'));
   assert.ok(FALLBACK_SHADER.includes(' if(!lineDash(in.lineDistance,uni.dash)){discard;}'));
   // WebGL2.

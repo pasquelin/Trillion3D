@@ -16,6 +16,7 @@ import {
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
 import { blendCoverage } from '../../gpu/shadow/transmittance.ts';
+import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -29,6 +30,8 @@ export const ROW_BLEND_COVERAGE_WORD = 57;
 export const ROW_LINE_WIDTH_WORD = 61;
 /** Row words of a dashed line's dash and gap (`PageInfo.dash`, `lineDash`); zero on any other row. */
 export const ROW_DASH_WORD = 28;
+/** Row words of a sprite's turn and size rule (`PageInfo.sprite`, `spriteAt`); zero on any other row. */
+export const ROW_SPRITE_WORD = 36;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */
@@ -106,6 +109,7 @@ export function createPageRowWriter(resources: PageRowResources) {
     ints[base + 33] = maps.metal;
     ints[base + 34] = maps.normal;
     floats[base + 35] = mat.normalScale;
+    writeSpriteWords(floats, base + ROW_SPRITE_WORD, mat.sprite);
     ints[base + 42] = maps.ao;
     floats[base + 43] = mat.aoIntensity;
     ints[base + 46] = maps.emissive;
