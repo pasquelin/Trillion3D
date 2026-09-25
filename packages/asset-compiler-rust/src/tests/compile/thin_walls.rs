@@ -46,8 +46,7 @@ fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":buffer.bin.len()}],
         "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":[{"primitives":primitives}],"nodes":[{"mesh":0}],
         "scenes":[{"nodes":[0]}],"scene":0,"materials":materials});
-    let triangles = meshes.iter().map(|m| m.indices.len() / 3).sum();
-    gltf_fixture(tag, &gltf, &buffer.bin, triangles)
+    gltf_fixture(tag, &gltf, &buffer.bin)
 }
 
 /// The chalet cooked with simplification, without texture families: the cut is the subject.
@@ -115,7 +114,7 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
     }
 }
 /// Digest of what the chalet cooks to: every page, its objects by digest, its errors and bounds.
-const CHALET_COOK: &str = "eb37bb46548abf6f40e7879f8a2545f49e093e6077f2e50c9dd79561f9050e93";
+const CHALET_COOK: &str = "b2dc03df97011a5e876b40f01621566367619c965d785983711696a89072aba5";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
 /// it. A different digest on one platform alone is a cook that is not portable (the C++ of
