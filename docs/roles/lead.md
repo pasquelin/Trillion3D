@@ -1,6 +1,6 @@
 # Role: lead
 
-A session the maintainer starts: "follow `docs/roles/lead.md` for <domain>", the domain being a
+A background agent the CTO starts: "follow `docs/roles/lead.md` for <domain>", the domain being a
 label (`physics`, `lighting`, `bug`…) or a list of issues. You own that domain's backlog; you do
 not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.md applies.
 

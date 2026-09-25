@@ -1,6 +1,6 @@
 # Role: auditor
 
-A session the maintainer starts once: "follow `docs/roles/auditor.md`", usually under `/loop`.
+A background agent the CTO starts after merges: "follow `docs/roles/auditor.md`".
 You are the last check: you re-read every pull request merged into `develop` against
 CONTRIBUTING.md and AGENTS.md. You never edit code, never merge, never measure (AGENTS.md
 rule 2).

@@ -5,6 +5,8 @@ import { pathToFileURL } from 'node:url';
 /**
  * Links the company's tracked skills and agents (`skills/`, `skills/agents/`) into the local,
  * untracked `.claude/` folder, as symbolic links, so an edit in the repository applies at once.
+ * A skill is a real folder whose files are links: a worktree made by the desktop app copies
+ * `.claude/` files but drops links to folders, and would lose every skill.
  * A link or file already there under the same name is replaced; nothing else in `.claude/` moves.
  * The workflow never needs this: it only serves a contributor who runs the company with Claude.
  */
@@ -20,7 +22,10 @@ export function linkSkills(root: string): string[] {
   };
   for (const name of readdirSync(source)) {
     if (name === 'agents' || !existsSync(join(source, name, 'SKILL.md'))) continue;
-    link(join(source, name), join(root, '.claude', 'skills', name));
+    const skill = join(root, '.claude', 'skills', name);
+    if (isLink(skill)) rmSync(skill);
+    for (const file of readdirSync(join(source, name)))
+      link(join(source, name, file), join(skill, file));
   }
   const agents = join(source, 'agents');
   if (existsSync(agents))
