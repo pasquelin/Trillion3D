@@ -62,6 +62,17 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
   return { pool, made };
 }
 
+/**
+ * A budget that pays first for the bytes held beside its pool, outside it: a live texture's
+ * working texture (#362), the vertex buffers beside the geometry slots (#487). The pool is drawn
+ * and granted from `bytes`, what the budget leaves them, so a refusal halves the pool alone; the
+ * budget recorded is the pool's plus `deducted`, the one declared.
+ */
+export function budgetBeside(budgetBytes: number, heldBytes: number) {
+  const deducted = Math.min(heldBytes, budgetBytes - 1);
+  return { bytes: budgetBytes - deducted, deducted };
+}
+
 /** The geometry pool the device grants for `budgetBytes`, by the session's own rule; `make`
  *  allocates the pool itself, or its probe (`geometryProbe`). */
 export const grantedGeometryPool = <R extends Made>(

@@ -39,8 +39,7 @@ export function createTileScratch(
     height: number;
     format: GPUTextureFormat;
     errorCode: string;
-    /** The colour census's readers, asked at each reduction whether the mips weigh their colours
-     *  by alpha; none for a data texture. */
+    /** The colour census's readers, whose rule each reduction asks; none for a data texture. */
     coverage?: CoverageReaders;
   },
 ): TileScratch {
