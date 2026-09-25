@@ -14,6 +14,7 @@ test('the scenes modelled in code rebuild their committed sources byte for byte'
       'a-model-from-usdz',
       'detail-by-pixel-error',
       'ten-thousand-objects',
+      'terrain',
       'terrain-tiles',
     ],
     out = await mkdtemp(join(tmpdir(), 'example-scenes-'));
