@@ -47,11 +47,10 @@ export type SelectionResult = {
   requestPriorities?: number[];
   frustumRejected: number;
   lodLevel: number;
-  complete?: boolean;
   drawablePageIds?: number[];
-  /** Triangle totals HELD BY THE GPU, where the verdict is given: the whole cut, what goes to
-   *  draw, the hole — a wanted cluster whose bytes or row are missing — and the blend share.
-   *  `selected − drawn − uncovered = 0`. The only source of these totals: the CPU sums none. */
+  /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws, twice —
+   *  `selected` and `drawn` —, its blend share, and the uncovered share, zero since the rule never
+   *  leaves a surface undrawn. The only source of these totals: the CPU sums none. */
   selectedTriangles: number;
   drawnTriangles: number;
   uncoveredTriangles: number;

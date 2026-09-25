@@ -14,12 +14,11 @@ import { DAG_NODE_FLOATS } from '../types.ts';
 import {
   NODE_CEIL,
   NODE_CHILD_COUNT,
-  NODE_FLAGS,
   NODE_FLOOR,
   NODE_FLOOR_SPHERE,
-  NODE_HAS_ROOT,
   NODE_MAX,
   NODE_MIN,
+  NODE_OPEN,
   NODE_SPHERE,
   NODE_WORLD,
 } from '../packNodes.ts';
@@ -169,10 +168,10 @@ export function dagNodeVerdict(
 }
 
 /**
- * The subtree error FLOOR, projected as the kernel projects it (`../shader/levelWgsl.ts`,
+ * The subtree error FLOOR, projected as the kernel projects it (`../shader/floorWgsl.ts`,
  * `errorFloor`): above the threshold none of its clusters is fine enough and the cut
- * takes none. A subtree that carries a cluster nothing replaces is exempt — the pinned
- * fallback draws it without consulting a threshold — and returns zero, so never prunes.
+ * takes none. An open subtree — it holds a cluster whose finer group is not resident, which the
+ * cut rule may draw whatever its error — returns zero, so never prunes.
  */
 export function dagNodeFloor(
   f: DagViewFrames,
@@ -182,7 +181,7 @@ export function dagNodeFloor(
 ) {
   const base = n * DAG_NODE_FLOATS,
     w = ints[base + NODE_WORLD];
-  if (ints[base + NODE_FLAGS] & NODE_HAS_ROOT) return 0;
+  if (ints[base + NODE_OPEN] !== 0) return 0;
   return errorFloorAt(
     nodes[base + NODE_FLOOR],
     viewDepthOf(
