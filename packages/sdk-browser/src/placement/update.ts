@@ -58,7 +58,8 @@ const moved = new Float64Array(BOX_VALUES),
  * root, the box each moved or flipped root left and entered, and whether it was moving already: a
  * row of the range left where it stands — a pose written again unchanged, a row between two
  * written ones — touches nothing, and two roots far apart are two boxes, never the room between
- * them (as far as the plan's box list holds them apart, `changes.ts`). Returns whether a drawn root moved: a still scene pays nothing downstream.
+ * them (as far as the plan's box list holds them apart, `changes.ts`). Returns whether a drawn
+ * root moved: a still scene pays nothing downstream.
  */
 export function followPlacementRows<T>(
   roots: readonly ClusterRoot<T>[],
