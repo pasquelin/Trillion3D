@@ -63,6 +63,16 @@ export async function createWebgpuBlendPipelines(
         visibility: GPUShaderStage.FRAGMENT,
         sampler: { type: 'comparison' },
       },
+      {
+        binding: b.shadowTransmittance,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float' },
+      },
+      {
+        binding: b.shadowTranslucentDepth,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'depth' },
+      },
       { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
