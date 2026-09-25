@@ -54,17 +54,17 @@ only to it, tests the result and sets priorities. Every other role is a **backgr
 CTO starts with the Agent tool and supervises; the boss never opens another session. Each role is
 `docs/roles/<role>.md`, and its skill in `skills/` is the agent's brief.
 
-| Role       | Started by | Does                                                                                                                                      | Never                                                        |
-| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
-| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                               | writes code, measures                                        |
-| coder      | lead       | implements one issue, opens the pull request                                                                                              | merges, measures                                             |
-| reviewer   | lead, CTO  | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                             |
-| architect  | CTO        | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue            | codes, owns a pull request, measures                         |
-| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; what could lose quality waits for the boss |
-| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                           |
-| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                 |
-| writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                              |
+| Role       | Started by | Does                                                                                                                                                        | Never                                                        |
+| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| CTO        | boss       | sets the priority labels of the leads' issues from the boss's words, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
+| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                                                 | writes code, measures                                        |
+| coder      | lead       | implements one issue, opens the pull request                                                                                                                | merges, measures                                             |
+| reviewer   | lead, CTO  | the real `simplify` and `code-review` skills, then the acceptance list                                                                                      | merges, measures                                             |
+| architect  | CTO        | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue                              | codes, owns a pull request, measures                         |
+| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                                          | changes anything; what could lose quality waits for the boss |
+| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                                       | edits code, merges                                           |
+| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                                          | edits code, merges, measures                                 |
+| writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                                    | codes, measures                                              |
 
 Domains: geometry, lighting, compiler, physics, sdk, textures. A script or test belongs to the
 domain whose code it checks; `site/`, the examples and anything else but the company's rules to sdk.
