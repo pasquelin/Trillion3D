@@ -7,13 +7,12 @@
  * The cost is the second opaque pass, paid only by a frame that carries a transmissive copy.
  */
 import { refuseCluster } from './refusal.ts';
+import { halfFloatTargets } from '../core/renderTarget.ts';
 import type { SceneColour, WebglClusterScene } from './lights.ts';
-
-const BACKDROP_EXTENSIONS = ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'];
 
 /** Names the missing capability when the context cannot render a half-float backdrop. */
 export function backdropFormatReason(gl: WebGL2RenderingContext) {
-  if (BACKDROP_EXTENSIONS.some((name) => gl.getExtension(name))) return;
+  if (halfFloatTargets(gl)) return;
   return 'transmission needs a half-float backdrop (EXT_color_buffer_half_float)';
 }
 

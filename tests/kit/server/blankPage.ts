@@ -1,18 +1,22 @@
-import { createServer, type Server } from 'node:http';
-import { serverPort } from './staticServer.ts';
+import type { Server } from 'node:http';
+import { contentType, listen, reply, staticServer } from '../../../scripts/static-server.ts';
 
 /**
  * A server that answers every request with an empty HTML page titled `title`: the origin a GPU
- * proof opens before it injects its own modules. Resolves once it listens, with the port it got.
+ * proof opens before it injects its own modules. With a `script`, the page loads it from
+ * `/page.js`. Resolves once it listens, with the port it got.
  */
-export async function blankPageServer(title: string): Promise<{ server: Server; port: number }> {
-  const server = createServer((_request, response) => {
-    response.writeHead(200, { 'content-type': 'text/html' });
-    response.end(`<!doctype html><title>${title}</title>`);
+export async function blankPageServer(
+  title: string,
+  script: string | null = null,
+): Promise<{ server: Server; port: number }> {
+  const tag = script ? '<script src="/page.js"></script>' : '';
+  const html = `<!doctype html><title>${title}</title>${tag}`;
+  const server = staticServer({
+    answer: (request, response) =>
+      script && request.url === '/page.js'
+        ? reply(response, 200, contentType('.js'), script)
+        : reply(response, 200, contentType('.html'), html),
   });
-  await new Promise<void>((ready: () => void, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', ready);
-  });
-  return { server, port: serverPort(server) };
+  return { server, port: await listen(server) };
 }
