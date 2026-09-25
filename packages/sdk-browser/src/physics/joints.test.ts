@@ -155,9 +155,9 @@ test('breaking: a step visits the joints a finite force breaks, whatever the oth
   for (let i = 0; i < 40; i++)
     rig.wanted.add(joint.point(anchor, null, i % 2 ? { breakForce: Infinity } : {}));
   const perStep = () => {
-    const before = rig.breakVisits();
+    const before = rig.visits.break();
     rig.run(1);
-    return rig.breakVisits() - before;
+    return rig.visits.break() - before;
   };
   assert.equal(perStep(), 0, 'forty unbreakable joints: no visit');
   const breakable = joint.point(anchor, null, { breakForce: 1e6 });
