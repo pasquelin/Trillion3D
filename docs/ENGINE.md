@@ -817,9 +817,9 @@ assets under `.mesure/assets/` ([TESTS.md](TESTS.md)). The material proof
 (`tests/browser/renders/witness-materials.browser.ts`) renders twelve fixtures against the WebGL2
 witness within one level per channel, except blending over an opaque surface, where the engine
 blends in linear radiance and the witness in display space: the fixture declares that 45-level gap
-and holds the engine inside it. The grazing fixtures are also cast on the CPU with 256 rays a pixel
-reading the map's base level (`tests/browser/support/groundTruth.ts`): a ground truth with no mip
-level and no footprint. At 16× the engine stays within CONTRIBUTING's tolerance of it — pixels over
+and holds the engine inside it. The grazing fixtures are also cast on the CPU, the map's base level
+averaged along each pixel's minified axis and cut once (`tests/browser/support/groundTruth.ts`):
+a perfect anisotropic read, with no mip level and no footprint cap. At 16× the engine stays within CONTRIBUTING's tolerance of it — pixels over
 one level, silhouettes aside: 0, 4 on the foliage cut-out — and no farther from it than the witness
 (#443). A successful proof run is not a full-scene parity verdict, and it measures no performance.
 The CPU shading oracle encodes linear lighting to sRGB without ACES; it does not replace the
