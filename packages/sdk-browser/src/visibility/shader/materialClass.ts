@@ -1,5 +1,6 @@
 import {
   FLAG_DOUBLE,
+  FLAG_HAS_COLOR,
   FLAG_HAS_MAP,
   FLAG_HAS_NORMAL,
   FLAG_HAS_TANGENT,
@@ -34,12 +35,14 @@ export const CLASS_FEATURE = {
   /** A map read through its filter rule (`FLAG_SAMPLED`): without it, the class compiles the
    *  default read alone. */
   HAS_SAMPLING: 2048,
+  /** The base colour is multiplied by the vertex colour (`FLAG_HAS_COLOR`). */
+  HAS_VERTEX_COLOR: 4096,
 } as const;
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE;
 /** Keys addressable: one more bit than the highest feature; key + 1 stays exact as a depth. */
-export const MATERIAL_CLASS_KEYS = 4096;
+export const MATERIAL_CLASS_KEYS = 8192;
 /** Depth denominator: a power of two, so every class depth `(key + 1) / units` is exact in `f32`. */
-export const CLASS_DEPTH_UNITS = 8192;
+export const CLASS_DEPTH_UNITS = 16384;
 /** Format of the material-depth target: exact for every class depth, like the opaque depth. */
 export const MATERIAL_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
 
@@ -68,6 +71,7 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps) {
   if (flags & FLAG_DOUBLE) key |= f.DOUBLE_SIDED;
   if (flags & FLAG_HAS_TANGENT) key |= f.HAS_TANGENT;
   if (flags & FLAG_SAMPLED) key |= f.HAS_SAMPLING;
+  if (flags & FLAG_HAS_COLOR) key |= f.HAS_VERTEX_COLOR;
   return key;
 }
 

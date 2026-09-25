@@ -9,11 +9,11 @@ import {
 import type { ClusterBatchStats, ClusterDrawOwner } from './batches.ts';
 import { firstMaterial } from '../../../../packages/sdk-browser/src/scene/materialSide.ts';
 import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
-import type { GraphNode } from '../../../../packages/sdk-browser/src/host/graph/node.ts';
 import type { ClusterDrawScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
+import type { Object3D } from '../../../../packages/sdk-core/src/world/object/object3d.ts';
 
 /** A scene copy of the witness: a mesh of no graph, its world resolved by the draw itself. */
-export type BatchCopy = SceneCopy & Pick<GraphNode, 'updateWorldMatrix'>;
+export type BatchCopy = SceneCopy & Pick<Object3D, 'updateWorldMatrix'>;
 
 /** Submissions a material asks for this frame: none while hidden, otherwise its passes. */
 const passCount = (material: WholeMesh['material']) =>

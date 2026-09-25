@@ -644,6 +644,7 @@
       "top": "Bord du haut de la boîte orthographique.",
       "bottom": "Bord du bas de la boîte orthographique.",
       "projection": "`'perspective'` rend petit ce qui est loin ; `'orthographic'` garde toutes les tailles.",
+      "copy": "Prend les valeurs de nœud de `source` et, d’une caméra, son optique ; sa propre `projection` reste.",
       "updateProjectionMatrix": "Gardé pour les pages écrites pour un moteur de rendu qui en a besoin : chaque écriture d’optique redessine déjà.",
       "set": "Place l’œil en `pose.position`, qui regarde `pose.target`, avec le champ qu’elle donne.",
       "rayThrough": "Le rayon du monde qui passe par un point de l’image, selon la projection du moteur (`engineCamera.ts`) : depuis l’œil le long de la vue pour une caméra en perspective, droit dans l’axe de la vue depuis la boîte pour une caméra orthographique. Sa direction est un vecteur unitaire."
@@ -2395,10 +2396,6 @@
   "HostGeometry": {
     "summary": "Une géométrie de l’hôte : ses attributs, et la boîte locale que l’hôte a calculée dessus."
   },
-  "HostGraphNode": {
-    "summary": "Un nœud du graphe de l’hôte tel que le voit un parcours : son identité, sa pose locale, la matrice du monde que l’hôte a résolue pour lui, et sa chaîne.",
-    "description": "Le moteur calcule ses PROPRES matrices du monde à partir des poses locales (`../world/tree.ts`) ; `matrixWorld` est lue là où c’est la résolution propre à l’HÔTE qu’une frontière lui rend. POURQUOI `HostPlaced` (`../resources.ts`) DÉCRIT AUSSI UN NŒUD PLACÉ. Les deux ne sont pas une copie : ils s’appuient sur les deux résolutions différentes qu’offre un hôte. `HostPlaced` demande `updateWorldMatrix(ancestors, descendants)` — la chaîne d’UN nœud, ce que remontent un placement et un parcours de visibilité ; celui-ci demande `updateMatrixWorld(force)` — le SOUS-ARBRE sous un nœud, ce que résolvent en un appel un parcours, une union de limites et une réplication. Un hôte qui n’offre que l’une des deux ne satisfait que le contrat auquel il répond, donc aucun ne peut remplacer l’autre."
-  },
   "HostMaterial": {
     "summary": "Un matériau de l’hôte tel que le lit le moteur : les paramètres de surface que partage tout matériau de l’hôte, lus une fois à la frontière dans le `VisMaterial` du moteur ; seul `sideOf` lit `side`."
   },
@@ -2407,9 +2404,6 @@
   },
   "HostMesh": {
     "summary": "Un maillage de l’hôte, tenu par son identité : l’enregistrement de dessin, la table transparente et les ensembles de sélection nomment la surface qu’a placée l’hôte."
-  },
-  "HostNode": {
-    "summary": "Un nœud du graphe de scène de l’hôte, tenu par son identité et par les deux champs dont un parcours a besoin."
   },
   "HostNodeMatrix": {
     "summary": "Les mêmes seize flottants, MODIFIABLES terme à terme : la pose qu’une frontière remet sur un nœud de l’hôte ou sur une caméra de l’hôte qu’elle restaure.",
@@ -2461,9 +2455,6 @@
   },
   "HostTexture": {
     "summary": "Une texture de l’hôte : l’image que l’hôte a décodée et l’état d’échantillonnage qu’il a déclaré, tenue aussi par son identité."
-  },
-  "HostTraversable": {
-    "summary": "Un nœud de l’hôte que le moteur parcourt : le sous-arbre en dessous, lui d’abord, dans l’ordre propre à l’hôte."
   },
   "HostVector": {
     "summary": "Trois nombres d’une pose, tels que l’hôte les range et qu’une frontière les remet.",
@@ -2741,6 +2732,7 @@
       "height": "Hauteur d’une lumière rectangulaire.",
       "radius": "Rayon de la sphère qui émet ; `emitterRadius` dans le stockage du moteur.",
       "kind": "Quel genre de lumière c’est : `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Prend les valeurs de nœud de `source` et, d’une lumière, ses nombres, couleurs, coefficients et visée ; son propre `kind` reste.",
       "needsUpdate": "`light.needsUpdate = true` après avoir écrit `sh` sur place : le monde le relit.",
       "lookAt": "Vise un point du monde avec la lumière : une lumière directionnelle ou un spot y déplace sa `target` — sa direction en découle —, et le nœud tourne aussi, ce qui oriente un rectangle."
     }
@@ -4125,6 +4117,8 @@
       "remove": "Retire des enfants de ce nœud.",
       "destroy": "Libère le nœud et tout ce qui est dessous tout de suite, plutôt qu’à leur collecte.",
       "removeFromParent": "Retire le nœud de son parent.",
+      "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire.",
       "clear": "Retire tous les enfants de ce nœud.",
       "traverse": "Appelle `fn` sur ce nœud et tous ceux en dessous.",
       "traverseVisible": "Appelle `fn` sur chaque nœud visible à partir d’ici.",
@@ -4137,11 +4131,7 @@
       "rotateY": "Tourne le nœud autour de son propre axe y.",
       "rotateZ": "Tourne le nœud autour de son propre axe z.",
       "translateOnAxis": "Déplace le nœud le long de son propre `axis`.",
-      "getWorldPosition": "Où se tient le nœud dans le monde.",
-      "getWorldQuaternion": "Comment le nœud est tourné dans le monde.",
       "getWorldDirection": "Le sens dans lequel le nœud regarde dans le monde.",
-      "localToWorld": "Un point du repère du nœud, dans le monde.",
-      "worldToLocal": "Un point du monde, dans le repère du nœud.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
     }
   },
@@ -4152,7 +4142,11 @@
       "matrixWorld": "Matrice dans le monde telle que composée en dernier (`updateMatrixWorld`), une vue sur l’arbre.",
       "matrixAutoUpdate": "Faux quand `matrix` EST la pose et que rien ne la recompose.",
       "matrixWorldNeedsUpdate": "Levé quand la matrice locale a changé et que la matrice du monde n’a pas suivi.",
-      "updateMatrixWorld": "Compose la matrice dans le monde de ce nœud et de ses descendants, en prenant celle du parent telle quelle."
+      "updateMatrixWorld": "Compose la matrice dans le monde de ce nœud et de ses descendants, en prenant celle du parent telle quelle.",
+      "getWorldPosition": "Où se tient le nœud dans le monde.",
+      "getWorldQuaternion": "Comment le nœud est tourné dans le monde.",
+      "localToWorld": "Un point du repère du nœud, dans le monde.",
+      "worldToLocal": "Un point du monde, dans le repère du nœud."
     }
   },
   "OcclusionFrameMetrics": {
@@ -6395,8 +6389,8 @@
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
       "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous le réservoir d’ombres est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
-      "cpu": "Octets de mémoire CPU que les pages décodées du monde peuvent tenir ; pris au prochain chargement de scène.",
-      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le cache de pages décodées prend le total CPU. Ce que donne la règle, avant un réservoir réglé seul."
+      "cpu": "Octets de mémoire CPU que le monde peut tenir : d’abord le miroir hôte de la table des pages d’ombre, puis les pages décodées ; pris au prochain chargement de scène. Un total qui ne dépasse pas le miroir est refusé (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Jamais lu sur la machine.",
+      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU. Ce que donne la règle, avant un réservoir réglé seul."
     }
   },
   "world.diagnostic": {
@@ -7203,14 +7197,9 @@
   "GraphNode": {
     "members": {
       "serial": "Le numéro du nœud, unique dans la session.",
-      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint.",
-      "parent": "Son parent.",
-      "children": "Les nœuds que celui-ci tient, dans l’ordre.",
-      "traverse": "Le sous-arbre sous le nœud, lui d’abord, dans l’ordre propre à l’hôte.",
-      "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
-      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
+      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint."
     },
-    "summary": "Un nœud du graphe : son nom, sa pose, sa matrice du monde, son parent et ses enfants."
+    "summary": "Un nœud du graphe : le nœud du cœur, distingué par son `kind`, copié par le `clone` du cœur."
   },
   "GraphSurface": {
     "members": {
@@ -7315,7 +7304,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Ce qu’est un nœud du graphe : un nœud nu, la racine, un groupe, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
+    "summary": "Ce qu’est un nœud du graphe : la racine, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",

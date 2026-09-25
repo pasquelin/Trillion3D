@@ -1,4 +1,4 @@
-import { FLAG_SAMPLED } from '../types.ts';
+import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
 import { TAA_SAMPLES } from '../../taa/jitter.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 
@@ -109,17 +109,26 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  * same way. The shadows, which no temporal pass averages, pass zero: their test is the hard
  * threshold, to the bit.
  *
+ * `vertexAlpha` is the interpolated alpha of the vertex colours (`pageMaskAlpha`), one on a row
+ * that reads none: the reference multiplies the diffuse alpha by it before its alpha test.
+ * Shadows pass one, as the reference's depth material reads no vertex colour.
+ *
  * The host shader declares `uvs`, the colour pool and its page table, then inserts
  * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
  * `maskAlphaWgsl(...)` before this block.
  */
-export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f,stipple:f32)->bool{
- if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
+export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f,stipple:f32)->bool{
+ if((page.flags&128u)==0u){return true;}
+ // A row that reads no colour is cut by its base map alone, never by an interpolated one, which
+ // need not round back to one exactly.
+ let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
+ if((page.flags&8u)==0u){return !coloured||vertexAlpha>=page.baseColor.w;}
  // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
  // level and made the quad opaque during loading.
- let alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);
+ var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);
+ if(coloured){alpha*=vertexAlpha;}
  if(stipple==0.0){return alpha>=page.baseColor.w;}
  let size=colorSlot(page.mapIndex).size;
  return alpha>=page.baseColor.w+stipple*saturate(atlasLod(ddx*size,ddy*size));

@@ -30,7 +30,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   const material = G.basicSurface(),
     meshA = G.mesh(geoA, material),
     meshB = G.mesh(geoB, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(meshA, meshB);
   const {
     metadata: metadataPartial,
