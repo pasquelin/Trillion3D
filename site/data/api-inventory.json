@@ -3200,6 +3200,7 @@
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/savedGeometry.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "packages/sdk-browser/src/world/session/disposeSource.ts",
         "scripts/docs/examples/mesh.ts",
