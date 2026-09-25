@@ -55,8 +55,6 @@ export interface Texture {
   readonly flipY: boolean;
   /** Whether colour is pre-multiplied. */
   readonly premultiplyAlpha: boolean;
-  /** Whether smaller copies are made. */
-  readonly generateMipmaps: boolean;
   /** How its numbers are read. */
   readonly colorSpace: TextureColorSpace;
   /** UV transform of the sampler, `KHR_texture_transform` composed into a 3 × 3 matrix stored
@@ -72,6 +70,14 @@ export const AFFINE = [0, 1, 3, 4, 6, 7] as const;
  *  applied, on the CPU twins and on both GPU paths. */
 export function uvTransformed(m: ArrayLike<number>) {
   return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0;
+}
+
+/**
+ * Whether `filter` reads a mip chain: the one rule of both GPU paths (#732), whose chain exists
+ * exactly then — no other flag builds or withholds it, so a mip filter never reads an empty level.
+ */
+export function mipFiltered(filter: TextureFilter) {
+  return filter !== 'nearest' && filter !== 'linear';
 }
 
 /**
