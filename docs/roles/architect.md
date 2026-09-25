@@ -21,8 +21,8 @@ and reports to the CTO.
 1. Survey through the knowledge graph (`graphify-out/GRAPH_REPORT.md`, `graphify query|path`) and
    the gates (`check:duplicates`, `check:helpers`, `check:unused`, `check:lines`), plus import
    cycles and repository size.
-2. Propose a ranked list to the CTO, compiler first, with evidence. The CTO opens the issues,
-   labelled `architecture`.
+2. Propose a ranked list to the CTO, compiler first, with evidence. The CTO adds each item
+   to an open `architecture` issue, or opens one only as AGENTS.md rule 5 allows.
 3. Deliver one issue at a time. Behaviour does not change: 0 px, the same tests, performance no
    worse. A pull request removes more lines than it adds, or says why not. It never touches an
    area where another lead has an open pull request.
