@@ -11,24 +11,27 @@ use super::*;
 /// first level makes twelve of which four (33 %). An eighth sits between the two.
 const DAG_ROOT_SHARE: usize = 8;
 
-/// One published row per DAG level: clusters, triangles, roots, errors.
+/// One published row per DAG level: clusters, triangles, roots and the triangles they draw — what
+/// the level adds to the root cover, a budget's floor (#484) — errors.
 pub(super) fn level_report(dag: &[crate::dag::DagCluster], depth: usize) -> Vec<Value> {
     let mut stats = Vec::new();
     for level in 0..=depth {
         let mut errors: Vec<f64> = Vec::new();
-        let mut triangles = 0usize;
-        let mut roots = 0usize;
+        let (mut triangles, mut roots, mut root_triangles) = (0usize, 0usize, 0usize);
         for cluster in dag.iter().filter(|c| c.level == level) {
             errors.push(cluster.lod_error);
             triangles += cluster.triangles();
-            roots += usize::from(cluster.is_root());
+            if cluster.is_root() {
+                roots += 1;
+                root_triangles += cluster.triangles();
+            }
         }
         if errors.is_empty() {
             continue;
         }
         let clusters = errors.len();
         let (min, median, max) = super::compiler_primitive_dag::level_error_stats(&mut errors);
-        stats.push(json!({"level":level,"clusters":clusters,"triangles":triangles,"roots":roots,"errorMin":min,"errorMedian":median,"errorMax":max}));
+        stats.push(json!({"level":level,"clusters":clusters,"triangles":triangles,"roots":roots,"rootTriangles":root_triangles,"errorMin":min,"errorMedian":median,"errorMax":max}));
     }
     stats
 }
