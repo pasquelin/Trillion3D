@@ -10,22 +10,16 @@ run by the measurer after the merge.
    `git worktree add .worktrees/<n>-<short-name> -b <n>-<short-name> origin/develop`, then
    `pnpm install` there — it links AGENTS.md and `docs/roles/` into the tree. Work only there.
 3. Code and test as CONTRIBUTING.md requires: one test per changed behaviour, no dead code, 200
-   lines per file, English everywhere. Then review your diff twice, **with the real skills, invoked
-   through the Skill tool, never imitated by hand**: first the `simplify` skill (it launches its
-   own review agents, at most 4, which launch none), then the `code-review` skill with `--fix`,
-   then a read against the issue's To do and Proof. Apply what they find.
+   lines per file, English everywhere. Then read your diff against the issue's To do and Proof.
+   You do not run `simplify` or `code-review`: the reviewer runs them once, with a fresh context
+   (AGENTS.md rule 11: one review pass keeps a pull request under the hour).
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, then the group your diff touches —
    `pnpm run validate --group quick` (sources), `--group typescript` (build and products),
    `--group native` (Rust and the unit suite).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
 6. Push, then `gh pr create --base develop` with the body on `.github/PULL_REQUEST_TEMPLATE.md`:
    `Closes #<n>` (or `Part of #<n>` when the brief leaves part of the issue out), what changed,
-   the proof run, and under "Local review before push" one line
-   `/simplify: <what it found and what you fixed>` and one line `/code-review: <same>`, copied from
-   the skills' own reports (CI refuses a body without them). The reviewer completes that section.
-   Run `scripts/check-pr-body.sh < <body file>` before `gh pr create`: it stops at the missing
-   `## Lead verification`, which the lead writes before merging, so check the `/simplify:` and
-   `/code-review:` lines yourself.
+   the proof run, and "Local review before push" left for the reviewer.
 7. Return the pull request URL and what remains unproven. Stop there.
 
 On a fix round, the lead's brief lists the findings: fix them on the same branch, rerun step 4,
