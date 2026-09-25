@@ -64,6 +64,7 @@ export async function openMeasuredWorld(
       resources,
       progress,
       scene: source?.scene,
+      placeCamera: source?.placeCamera,
     });
     const runtime = createExplorerHostRuntime(session, { prepared, resources, backends });
     disposeRuntime = runtime.dispose;

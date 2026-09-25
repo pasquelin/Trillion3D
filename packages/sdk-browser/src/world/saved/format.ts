@@ -1,3 +1,4 @@
+import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 
 /** The name a saved scene carries, and the one version of its layout this runtime reads. */
@@ -86,8 +87,8 @@ export interface SavedScene {
   formatVersion: number;
   /** The background colour, or `null`. */
   background: [number, number, number] | null;
-  /** The fog, or `null`. */
-  fog: { color: [number, number, number]; near: number; far: number } | null;
+  /** The fog, its colour in linear components, or `null`. */
+  fog: SceneFog | null;
   /** The camera saved with the scene, or `null`. */
   camera: SavedCamera | null;
   /** Every shape, once, however many meshes wear it. */

@@ -33,7 +33,7 @@ export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.ma
  * and its optics, at the shape of the canvas. The session's camera is its own object; the world's
  * is copied onto it number by number, never handed in.
  */
-export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
+function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   camera.updateWorldMatrix(true, false);
   camera.matrixWorld.decompose(position, rotation, scale);
   into.position.set(position.x, position.y, position.z);
@@ -62,6 +62,12 @@ export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number
     );
   into.updateMatrixWorld();
 }
+
+/** Puts a session's camera on the page's `camera()`, at the shape of `canvas`: before the session
+ *  reads anything for its first frame, then before every frame. */
+export const followPageCamera =
+  (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
+    copyWorldCamera(camera(), into, drawnAspect(canvas));
 
 const view = new Float64Array(4);
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of

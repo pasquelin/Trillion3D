@@ -2120,7 +2120,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -2533,7 +2533,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -4365,6 +4365,17 @@
       }
     ],
     "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held, a stick input set or a drag pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
+  },
+  {
+    "id": "Fog",
+    "module": "packages/sdk-browser/src/world/core/sceneFog.ts",
+    "exports": ["Fog"],
+    "section": "world",
+    "kind": "Type",
+    "title": "Fog",
+    "signature": "type Fog = | (Omit<SceneLinearFog, 'color'> & { color: Color })\n  | (Omit<SceneExponentialFog, 'color'> & { color: Color })",
+    "summary": "Fog over every surface: linear from `near` to `far`, or thickening with distance by `density`, thinning out with height above `baseHeight` when `heightFalloff` is set.",
+    "description": "The colour is light the fog scatters toward the eye, exposed and tone-mapped like a surface's."
   },
   {
     "id": "FrameInfo",
@@ -11098,12 +11109,12 @@
     "section": "math",
     "kind": "Type",
     "title": "Path",
-    "signature": "class Path extends Curve\nnew Path(points?: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "class Path extends Curve\nnew Path(points?: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through every point, parameterised by arc length.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "default": "[]",
         "desc": ""
       }
@@ -12446,8 +12457,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "SCENE_ENVIRONMENT_FLOATS",
-    "signature": "const SCENE_ENVIRONMENT_FLOATS: 36",
-    "summary": "Floats of the environment in the GPU buffer.",
+    "signature": "const SCENE_ENVIRONMENT_FLOATS: 44",
+    "summary": "Floats of the environment in the GPU buffer: the coefficients, then the fog's block.",
     "description": ""
   },
   {
@@ -12982,8 +12993,8 @@
       },
       {
         "name": "fog",
-        "type": "{ color: [number, number, number]; near: number; far: number; } | null",
-        "desc": "The fog, or `null`."
+        "type": "SceneFog | null",
+        "desc": "The fog, its colour in linear components, or `null`."
       },
       {
         "name": "camera",
@@ -13064,14 +13075,14 @@
         "desc": "A picture of the surroundings that shiny surfaces reflect; `null` for none."
       },
       {
-        "name": "fog",
-        "type": "{ color: Color; near: number; far: number; } | null",
-        "desc": "Fog that fades objects into `color` between `near` and `far`; `null` for none."
-      },
-      {
         "name": "background",
         "type": "Color | null",
         "desc": "What fills the image behind every object: a colour, or `null` for the default. A change shows at the next frame, the session kept: a new colour set here, or the one held written through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g` or `.b` is not heard: set `background` again after one. A picture, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one."
+      },
+      {
+        "name": "fog",
+        "type": "Fog | null",
+        "desc": "Fog over every surface, opaque and transparent, on both renderers; `null`, the default, for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`, distances from the camera; `{ color, density }` thickens by `density` per unit of distance; add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the next frame: a new fog set here, or its colour written through its methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range — `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`)."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
@@ -13115,8 +13126,57 @@
         "name": "irradiance?",
         "type": "readonly number[] | undefined",
         "desc": "The irradiance arriving from every direction, as 27 numbers: nine coefficients, each an RGB triple, in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absent, or all zero, nothing lights a surface but the declared lamps."
+      },
+      {
+        "name": "fog?",
+        "type": "SceneFog | undefined",
+        "desc": "Distance or height fog over every surface (`SceneFog`); absent, none."
       }
     ],
+    "description": ""
+  },
+  {
+    "id": "SceneExponentialFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneExponentialFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneExponentialFog",
+    "signature": "interface SceneExponentialFog",
+    "summary": "Fog thickening with distance: `density` per scene unit; with `heightFalloff`, it thins out above `baseHeight`, divided by e every `1 / heightFalloff` units up.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "density",
+        "type": "number",
+        "desc": "Extinction per scene unit, at `baseHeight`; ≥ 0."
+      },
+      {
+        "name": "heightFalloff?",
+        "type": "number | undefined",
+        "desc": "How fast the density falls off with height, per scene unit; 0, the default, keeps it uniform at every height."
+      },
+      {
+        "name": "baseHeight?",
+        "type": "number | undefined",
+        "desc": "The height the density is `density` at; 0 by default."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SceneFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneFog",
+    "signature": "type SceneFog = SceneLinearFog | SceneExponentialFog",
+    "summary": "Distance or height fog, as the lighting reads it.",
     "description": ""
   },
   {
@@ -13248,6 +13308,11 @@
         "desc": "Bumped when the set of lights changes."
       },
       {
+        "name": "transportEpoch",
+        "type": "number",
+        "desc": "Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not light transport, so what caches transported light (the bounce probes) keeps it."
+      },
+      {
         "name": "environment",
         "type": "SceneEnvironment | undefined",
         "desc": "The scene's environment."
@@ -13320,6 +13385,34 @@
     "signature": "type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce'",
     "summary": "What the host asks to see.",
     "description": "`lit` is real lighting and that alone; `unlit` is the raw-albedo diagnostic view — material colour as-is, with no light, no ambient and no emission — for geometry benches that compare images pixel-exact. `auto`, the default, yields `unlit` as long as no light is declared and `lit` as soon as there is one. `bounce` is the third diagnostic view: indirect irradiance alone, multiplied by exposure and output as linear values without ACES or sRGB. This is what the harness compares to the compiler oracle; it is not an image to look at, and it is black without a rigged bounce."
+  },
+  {
+    "id": "SceneLinearFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneLinearFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneLinearFog",
+    "signature": "interface SceneLinearFog",
+    "summary": "Fog that starts at `near` and hides everything from `far` on, distances from the eye.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "near",
+        "type": "number",
+        "desc": "Distance from the eye where the fog starts."
+      },
+      {
+        "name": "far",
+        "type": "number",
+        "desc": "Distance from the eye where nothing but the fog is seen."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "SceneLink",
@@ -14308,7 +14401,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -15080,7 +15173,7 @@
       {
         "name": "flags",
         "type": "GPUTexture",
-        "desc": "0 background, 1 unlit, 2 reads, 3 display-space diagnostic."
+        "desc": "0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view."
       },
       {
         "name": "views()",
@@ -30375,12 +30468,12 @@
     "section": "math",
     "kind": "Function",
     "title": "math.path()",
-    "signature": "math.path(points: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "math.path(points: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through the points, 2D points lying in the `z = 0` plane.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "desc": "The corners, 2D or 3D."
       }
     ],

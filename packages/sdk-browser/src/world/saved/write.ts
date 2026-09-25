@@ -1,3 +1,4 @@
+import { sceneFogOf, type Fog } from '../core/sceneFog.ts';
 import { MATERIAL_BOOKKEEPING } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
@@ -22,7 +23,7 @@ import {
 type SceneLike = Object3D & {
   background: unknown;
   environment: unknown;
-  fog: { color: Color; near: number; far: number } | null;
+  fog: Fog | null;
 };
 
 /** A linear colour, or a point a light aims at. */
@@ -135,12 +136,11 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
     return saved;
   };
   const children = scene.children.filter((c) => !isHelper(c)).map(node);
-  const fog = scene.fog;
   return {
     format: SCENE_FORMAT,
     formatVersion: SCENE_FORMAT_VERSION,
     background: background && rgb(background),
-    fog: fog && { color: rgb(fog.color), near: fog.near, far: fog.far },
+    fog: sceneFogOf(scene.fog) ?? null,
     camera: camera ? saveCamera(camera) : null,
     geometries: [...geometries.keys()].map(saveGeometry),
     materials: [...materials.keys()].map(saveMaterial),

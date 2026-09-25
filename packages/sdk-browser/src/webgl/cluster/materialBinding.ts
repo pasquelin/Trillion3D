@@ -98,6 +98,9 @@ export function bindClusterMaterial(
     backSide = side === undefined ? mat.backSide : side === 'back';
   // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).
   uniforms.i1(35, 'depthShaded', mat.model === SURFACE_MODEL.depth ? 1 : 0);
+  // A diagnostic view's surface is shown as it is, never through the fog
+  // (`../../host/pageDiagnostics.ts`).
+  uniforms.i1(38, 'fogFree', (material as { fog?: boolean }).fog === false ? 1 : 0);
   // Which faces turn their normal toward the eye: none, the back faces of a surface drawn from
   // behind, or both, whose normal map's tangents then turn with them.
   uniforms.i1(34, 'faceSides', doubleSided ? 2 : backSide ? 1 : 0);
