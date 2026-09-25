@@ -1,4 +1,8 @@
-import type { CookedInstance, CookedTile } from '../../../sdk-core/src/physics/index.ts';
+import type {
+  CookedInstance,
+  CookedPhysics,
+  CookedTile,
+} from '../../../sdk-core/src/physics/index.ts';
 import { boxTransform } from '../../../sdk-core/src/math/primitives/box.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
@@ -12,6 +16,9 @@ import { resolveCameraWorld } from '../camera/world.ts';
 export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
 export const isModel = (node: Object3D): node is Model =>
   (node as { isLoadedModel?: boolean }).isLoadedModel === true;
+
+/** Where a node of the model places what was cooked for it, in the model's frame. */
+type CookedPlacement = Pick<CookedInstance, 'position' | 'rotation' | 'scale'>;
 
 /** One cooked tile placed by one instance: its world box, and whether its body is in. */
 export interface Placed {
@@ -38,9 +45,30 @@ const place = new Matrix4(),
   size = new Vector3(),
   bounds = new Box3();
 
-/** A tile's world pose — its model's world matrix times its instance — as position, turn, scale
- *  (scratch shared by every caller: read them at once). */
-export function tilePose(p: Placed) {
+/** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out. */
+export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {
+  return cooked.instances.flatMap((instance) => {
+    const { tiles, material } = cooked.colliders[instance.collider];
+    return tiles.map((tile) => {
+      const box = new Float64Array(6);
+      const p: Placed = {
+        model,
+        instance,
+        tile,
+        material: material ?? -1,
+        box,
+        id: -1,
+        loading: false,
+      };
+      locate(p);
+      return p;
+    });
+  });
+}
+
+/** A tile's — or a cooked soft body's — world pose: its model's world matrix times its placement,
+ *  as position, turn, scale (scratch shared by every caller: read them at once). */
+export function tilePose(p: { model: Model; instance: CookedPlacement }) {
   const { position: t, rotation: r, scale: s } = p.instance;
   position.set(t[0], t[1], t[2]);
   local.compose(position, turn.set(r[0], r[1], r[2], r[3]), size.set(s[0], s[1], s[2]));

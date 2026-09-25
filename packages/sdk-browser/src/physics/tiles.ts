@@ -12,7 +12,16 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
-import { isModel, locate, moversOf, tilePose, type Model, type Placed } from './tilePlace.ts';
+import { createCookedSoftBodies } from './cookedSoft.ts';
+import {
+  isModel,
+  locate,
+  moversOf,
+  placedOf,
+  tilePose,
+  type Model,
+  type Placed,
+} from './tilePlace.ts';
 import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts';
 
 /** Tile fetches in flight at once. */
@@ -33,6 +42,7 @@ export function createTileStreamer(
 ) {
   const models = new Map<Model, Placed[] | null>();
   const byIndex = new Map<number, Placed>();
+  const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
     refused = false;
   async function open(model: Model) {
@@ -41,24 +51,9 @@ export function createTileStreamer(
     // A model compiled before the cook has no file: it collides nowhere, as before.
     if (!response.ok) return;
     const cooked = readCookedPhysics(await response.json());
-    const placed: Placed[] = [];
-    for (const instance of cooked.instances) {
-      const { tiles, material } = cooked.colliders[instance.collider];
-      for (const tile of tiles) {
-        const p: Placed = {
-          model,
-          instance,
-          tile,
-          material: material ?? -1,
-          box: new Float64Array(6),
-          id: -1,
-          loading: false,
-        };
-        locate(p);
-        placed.push(p);
-      }
-    }
-    if (models.has(model)) models.set(model, placed);
+    if (!models.has(model)) return;
+    models.set(model, placedOf(model, cooked));
+    softs.open(model, cooked.softBodies);
     invalidate();
   }
   const evict = (p: Placed) => {
@@ -121,6 +116,7 @@ export function createTileStreamer(
       for (const [model, placed] of models)
         if (!seen.has(model)) {
           placed?.forEach(evict);
+          softs.forget(model);
           models.delete(model);
         }
     },
@@ -174,9 +170,10 @@ export function createTileStreamer(
         }
       });
     },
-    /** Every tile out (physics turned off). */
+    /** Every tile and cooked soft body out (physics turned off). */
     clear() {
       for (const placed of models.values()) placed?.forEach(evict);
+      softs.clear();
       models.clear();
     },
   };
