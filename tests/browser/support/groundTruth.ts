@@ -35,7 +35,7 @@ interface TruthMap {
 }
 
 /** A square facing +z in its own frame, of half-side `half`, placed in the world by `place`. */
-export interface TruthSquare {
+interface TruthSquare {
   place: Matrix4;
   half: number;
 }
