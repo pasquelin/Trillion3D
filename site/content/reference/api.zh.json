@@ -7210,6 +7210,14 @@
       "maxLean": "摩托车的最大倾角，弧度。"
     }
   },
+  "VehicleSpecs": {
+    "summary": "每种载具起步时的机器。",
+    "members": {
+      "car": "雪佛兰科尔维特 C5：后轮驱动，每千克 0.32 N·m，六个挡位。",
+      "motorcycle": "雅马哈 XJ900 及其骑手：每千克 0.26 N·m，六个挡位。",
+      "tracked": "M1 艾布拉姆斯：燃气轮机，每千克 0.083 N·m，四个挡位。"
+    }
+  },
   "vehicle": {
     "summary": "`vehicle` 家族：由 `world.controls` `'vehicle'` 驾驶的车身及其车轮。",
     "members": {

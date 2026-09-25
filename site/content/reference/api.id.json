@@ -7211,6 +7211,14 @@
       "maxLean": "Kemiringan terbesar sebuah motor, dalam radian."
     }
   },
+  "VehicleSpecs": {
+    "summary": "Mesin awal setiap jenis kendaraan.",
+    "members": {
+      "car": "Chevrolet Corvette C5: penggerak roda belakang, 0,32 N·m per kilogram, enam gigi.",
+      "motorcycle": "Yamaha XJ900 beserta pengendaranya: 0,26 N·m per kilogram, enam gigi.",
+      "tracked": "M1 Abrams: turbin gas, 0,083 N·m per kilogram, empat gigi."
+    }
+  },
   "vehicle": {
     "summary": "Keluarga `vehicle`: sebuah bodi dan rodanya, dikemudikan oleh `world.controls` `'vehicle'`.",
     "members": {

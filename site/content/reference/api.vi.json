@@ -7211,6 +7211,14 @@
       "maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian."
     }
   },
+  "VehicleSpecs": {
+    "summary": "Cỗ máy khởi đầu của mỗi loại phương tiện.",
+    "members": {
+      "car": "Chevrolet Corvette C5: dẫn động cầu sau, 0,32 N·m mỗi kilôgam, sáu số.",
+      "motorcycle": "Yamaha XJ900 cùng người lái: 0,26 N·m mỗi kilôgam, sáu số.",
+      "tracked": "M1 Abrams: tua-bin khí, 0,083 N·m mỗi kilôgam, bốn số."
+    }
+  },
   "vehicle": {
     "summary": "Họ `vehicle`: một thân và các bánh xe của nó, được `world.controls` `'vehicle'` lái.",
     "members": {

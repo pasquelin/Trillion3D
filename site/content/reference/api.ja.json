@@ -7210,6 +7210,14 @@
       "maxLean": "バイクの最大バンク角（ラジアン）。"
     }
   },
+  "VehicleSpecs": {
+    "summary": "各種類の乗り物が最初に持つ機械。",
+    "members": {
+      "car": "シボレー・コルベット C5：後輪駆動、1 キログラムあたり 0.32 N·m、6 速。",
+      "motorcycle": "ヤマハ XJ900 とライダー：1 キログラムあたり 0.26 N·m、6 速。",
+      "tracked": "M1 エイブラムス：ガスタービン、1 キログラムあたり 0.083 N·m、4 速。"
+    }
+  },
   "vehicle": {
     "summary": "`vehicle` ファミリー：ボディとその車輪を `world.controls` `'vehicle'` で運転します。",
     "members": {

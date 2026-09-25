@@ -7210,6 +7210,14 @@
       "maxLean": "Die größte Schräglage eines Motorrads, in Radiant."
     }
   },
+  "VehicleSpecs": {
+    "summary": "Die Maschine, mit der jede Fahrzeugart beginnt.",
+    "members": {
+      "car": "Eine Chevrolet Corvette C5: Hinterradantrieb, 0,32 N·m pro Kilogramm, sechs Gänge.",
+      "motorcycle": "Eine Yamaha XJ900 mit Fahrer: 0,26 N·m pro Kilogramm, sechs Gänge.",
+      "tracked": "Ein M1 Abrams: eine Gasturbine, 0,083 N·m pro Kilogramm, vier Gänge."
+    }
+  },
   "vehicle": {
     "summary": "Die Familie `vehicle`: ein Körper und seine Räder, gefahren von `world.controls` `'vehicle'`.",
     "members": {
