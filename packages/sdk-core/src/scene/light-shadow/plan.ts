@@ -71,7 +71,7 @@ export function createShadowPlan(poolSide: number) {
     get deferredChanges() {
       return changes.deferred || thresholds.pending;
     },
-    /** The frame plans no shadow: the held boxes enter the list at once. */
+    /** The frame plans no shadow: the held union enters the list at once. */
     releaseDeferred: changes.releaseDeferred,
     /** Turns off per-page invalidation: a moving object stales every page of the lights it
      *  touches. On by default. */
