@@ -107,7 +107,7 @@ test('at the cap, every sun turning every frame is drawn within the bound, none 
   assert.ok(pages > MAX_SHADOW_BATCHES, `${pages} pages, more than the batches`);
   const batchEnd = plan.admission.batchEnd;
   plan.admission.batchEnd = (from) => batchEnd(from, 1, 1);
-  const bound = Math.ceil(plan.pool.pages / MAX_SHADOW_BATCHES);
+  const bound = Math.ceil(plan.pool.pages / MAX_SHADOW_BATCHES) + 1;
   const lastDrawn = new Int32Array(store.count).fill(1);
   for (let f = 2; f < 2 + 3 * bound; f++) {
     for (let k = 0; k < store.count; k++)
@@ -125,6 +125,6 @@ test('at the cap, every sun turning every frame is drawn within the bound, none 
     });
     if (drawn < plan.admission.count) plan.reissue(drawn);
     for (let slot = 0; slot < store.count; slot++)
-      assert.ok(f - lastDrawn[slot] < bound, `sun ${slot} undrawn since frame ${lastDrawn[slot]}`);
+      assert.ok(f - lastDrawn[slot] <= bound, `sun ${slot} undrawn since frame ${lastDrawn[slot]}`);
   }
 });

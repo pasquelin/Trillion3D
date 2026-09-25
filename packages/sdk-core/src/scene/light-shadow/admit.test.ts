@@ -67,3 +67,21 @@ test('a frame that drew its whole list lists the next by view, whatever the page
   admission.run(pool, table, 0, pool.pages + 1);
   assert.deepEqual([...admission.list], [0, 1, 2, 3], 'the oldest first');
 });
+
+// A frame whose list is empty draws nothing and closes nothing: it is drawn whole, and the pages
+// marked after it are listed by view again.
+test('an empty list ends the wait: the next list is by view', () => {
+  const pool = createShadowPool(2),
+    table = createShadowTable(pool.pages),
+    admission = createShadowAdmission(pool.pages);
+  pool.beginAllocation(0);
+  for (let entry = 0; entry < pool.pages; entry++)
+    pool.view[pool.take(table, entry, 0, 0, entry)] = entry % 2;
+  admission.run(pool, table, 0, pool.pages);
+  admission.reset(1);
+  // No page is read by the report of frame 1: the list is empty, and no one closes it.
+  assert.equal(admission.run(pool, table, 1, pool.pages + 1), 0, 'nothing read');
+  pool.requested.fill(1);
+  admission.run(pool, table, 1, pool.pages + 2);
+  assert.deepEqual([...admission.keys], [0, 0, 1, 1], 'one run a view');
+});
