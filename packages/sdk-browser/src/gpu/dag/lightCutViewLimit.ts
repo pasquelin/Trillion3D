@@ -2,8 +2,8 @@
  * The light views one batch draws in, bisected between the most views a batch drew whole and the
  * fewest a batch dropped work with: a drop at `L` views never swings the limit between `L` and
  * `L / 2`, it settles on the largest count that fits, never below one. What dropped depends on the
- * clusters the views kept from the resident catalogue: a residency change forgets the drop, never
- * what fitted — once the camera rests (`lightCutRedraws.ts`).
+ * clusters the views kept from the resident catalogue: `forgetDrop` lets the limit grow back, and
+ * keeps what fitted.
  */
 export function createViewLimit(viewCap: number) {
   let fits = 0,
@@ -18,7 +18,7 @@ export function createViewLimit(viewCap: number) {
         if (fits >= drops) drops = viewCap + 1;
       }
     },
-    residencyChanged() {
+    forgetDrop() {
       drops = viewCap + 1;
     },
     get value() {

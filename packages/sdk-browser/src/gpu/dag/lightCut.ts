@@ -2,7 +2,7 @@ import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
 import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
 import { createLightCutReports } from './lightCutReports.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
-import { encodeDagKernels, type DagView } from './encode.ts';
+import { encodeAskedBest, encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
@@ -142,7 +142,7 @@ export function createDagLightCut(resources: DagResources) {
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
       // The frame's first cut starts its list, and forgets what the last frame asked for.
-      if (!listed) encoder.clearBuffer(work, layout.asked * 4, layout.askedWords * 4);
+      if (!listed) encoder.clearBuffer(work, layout.askedAt * 4, layout.askedWords * 4);
       cutViews.count = light.views = count;
       cutViews.append = listed;
       listed = true;
@@ -163,6 +163,7 @@ export function createDagLightCut(resources: DagResources) {
     encodeReports(encoder: GPUCommandEncoder) {
       if (!listed) return undefined;
       listed = false;
+      encodeAskedBest(encoder, view, pageCount);
       const settle = reports.encodeReadback(encoder);
       redraws.reported(settle !== undefined);
       return settle;

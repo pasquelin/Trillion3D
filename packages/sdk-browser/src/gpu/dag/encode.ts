@@ -145,3 +145,16 @@ function encodeOnce(
   }
   live.end();
 }
+
+/**
+ * Once a frame's light cuts are all encoded: each page their list names takes the best request its
+ * views made of it (`dagAskedBest`, `shader/snapshotWgsl.ts`), before the list is copied. `pages`
+ * is the catalogue, which bounds the list.
+ */
+export function encodeAskedBest(encoder: GPUCommandEncoder, view: DagView, pages: number) {
+  const pass = encoder.beginComputePass({ label: LIGHT_CUT_PASS });
+  pass.setBindGroup(0, view.bindGroup);
+  pass.setPipeline(view.askedBestPipeline);
+  pass.dispatchWorkgroups(Math.max(1, Math.ceil(pages / WORKGROUP)));
+  pass.end();
+}

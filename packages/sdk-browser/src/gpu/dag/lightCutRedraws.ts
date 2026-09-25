@@ -156,7 +156,7 @@ export function createLightCutRedraws(
       if (!moved) return;
       moved = false;
       epoch++;
-      limit.residencyChanged();
+      limit.forgetDrop();
       for (const page of waiting) again(page, false);
       waiting.clear();
     },
