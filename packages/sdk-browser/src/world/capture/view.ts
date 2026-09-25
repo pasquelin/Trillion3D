@@ -9,6 +9,8 @@ type Inputs = {
   active: () => RenderBackend;
   check: () => void;
   compose: ReturnType<typeof createFrameComposer>;
+  /** Asks the loop for the view again; nothing where the host leads the frames. */
+  redraw: () => void;
 };
 
 /**
@@ -18,11 +20,14 @@ type Inputs = {
  * render target of that size, the camera shaped to it for that one draw and put back.
  */
 export function createExplorerCaptureView(inputs: Inputs) {
-  const { camera, context, active: getActive, check, compose } = inputs;
+  const { camera, context, active: getActive, check, compose, redraw } = inputs;
   return async (width: number, height: number): Promise<Uint8Array> => {
     check();
     const active = getActive();
-    if (active.captureColorView) return active.captureColorView(camera, { width, height });
+    // The view is put back without what frames build up — the effect chain, the temporal
+    // accumulation, the water —: the loop draws it again, gone idle or not.
+    if (active.captureColorView)
+      return active.captureColorView(camera, { width, height }).finally(redraw);
     const gl = context;
     if (!gl) throw new Error('CAPTURE_VIEW_UNSUPPORTED');
     const target = createWebglRenderTarget(gl, width, height);
