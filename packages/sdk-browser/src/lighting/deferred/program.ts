@@ -30,10 +30,11 @@ export interface DeferredSources {
   direct: boolean;
   bounce?: boolean;
 }
-/** What composition reads: a colour and its accumulated share, else the lit image's flags. */
-export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView };
 /** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export type AccumulatedImage = Required<ComposedImage>;
+export interface AccumulatedImage {
+  color: GPUTextureView;
+  share: GPUTextureView;
+}
 export interface DeferredBindings {
   uniform: GPUBuffer;
   directLights: GPUBuffer;
@@ -97,36 +98,35 @@ export async function createDeferredProgram(
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One per colour and share read (an image drawn from TAA reads either share); weak, and keyed
-  // by every view the group reads, so a new surface or lit image needs no reset.
-  type Composition = (typeof compositions)['still'] & { group: GPUBindGroup };
+  // One per colour and share read; weak, and keyed by every view the group reads, so a new surface
+  // or lit image needs no reset.
+  type Composition = { group: GPUBindGroup; draw: GPURenderPipeline; present: GPURenderPipeline };
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
     get lightGroup() {
       return lightGroup;
     },
-    /** The pipelines and group reading the lit image and its surface flags, or `image` and its
-     *  as-is share; `undefined` before `bind`. */
-    composition(image?: ComposedImage) {
-      const view = image?.color ?? boundHdr;
+    /** The pipelines and group reading the lit image and its surface flags, or an accumulated
+     *  image and its as-is share; `undefined` before `bind`. */
+    composition(accumulated?: AccumulatedImage) {
+      const view = accumulated?.color ?? boundHdr;
       if (!view || !boundSurface) return undefined;
-      const accumulated = image?.share,
-        share = accumulated ?? boundSurface.views()[3];
+      const share = accumulated?.share ?? boundSurface.views()[3];
       let byShare = composed.get(view);
       if (!byShare) composed.set(view, (byShare = new WeakMap()));
       const kept = byShare.get(share);
       if (kept) return kept;
-      const kind = compositions[accumulated ? 'accumulated' : 'still'];
+      const { layout, draw, present } = compositions[accumulated ? 'accumulated' : 'still'];
       const group = device.createBindGroup({
-        layout: kind.layout,
+        layout,
         entries: [
           { binding: 0, resource: view },
           { binding: 1, resource: { buffer: bindings.uniform } },
           { binding: 2, resource: share },
         ],
       });
-      const composition = { ...kind, group };
+      const composition = { group, draw, present };
       byShare.set(share, composition);
       return composition;
     },

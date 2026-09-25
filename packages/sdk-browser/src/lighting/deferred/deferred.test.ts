@@ -163,14 +163,14 @@ test('an image is composed with the share it read, one group per pair (#349)', a
       share: shares[frame % 2],
     });
   for (let frame = 0; frame < 2; frame++)
-    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, { color: target });
+    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
   const made = h.bindGroups.slice(before).map((group) => Array.from(group.entries));
-  assert.equal(made.length, 3, "two shares, then the still image's flags, each bound once");
+  assert.equal(made.length, 3, 'two shares, then the lit image with its flags, each bound once');
   assert.deepEqual(
     made.slice(0, 2).map((entries) => entries[2]!.resource),
     shares,
   );
   assert.equal(made[2][2]!.resource, h.surface.views()[3], 'no share: the flags');
-  assert.ok(made.every((entries) => entries[0]!.resource === target));
+  assert.ok(made.slice(0, 2).every((entries) => entries[0]!.resource === target));
   lighting.dispose();
 });
