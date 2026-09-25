@@ -121,8 +121,7 @@ export async function copyStatics(source: string, out: string, published = false
   await prune(out, [...STATIC_ENTRIES, ...METADATA_ENTRIES, ...BUILT_FOLDERS]);
 }
 
-/** Builds the whole site from `root` into `out`, the API files and the scene caches it serves
- * generated first when stale (the deploy compiles the caches before, `pages.yml`); only the
+/** Builds the whole site from `root` into `out`, stale API files and caches first; only the
  * deployed build is `published`, and carries the audience measurement (`measurement.ts`). */
 export async function buildSite(root = ROOT, out = SITE_OUTPUT, published = false) {
   await generateApiFiles();
