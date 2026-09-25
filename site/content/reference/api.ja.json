@@ -266,6 +266,13 @@
       "out": "`6 · n`個の数値: 変換後のボックス。"
     }
   },
+  "BudgetCanvas": {
+    "summary": "予算が宣言する最大のキャンバス：エフェクトチェーンのターゲットはそのサイズで予約される。",
+    "members": {
+      "width": "描画バッファのピクセル単位の幅。",
+      "height": "描画バッファのピクセル単位の高さ。"
+    }
+  },
   "BufferAttribute": {
     "summary": "頂点ごとの値を持つ型つき配列で、頂点あたり`itemSize`個の数値を持つ: ページコーデックの`PageAttribute`(`page-codec/pageAttributes.ts`)であり、ページがそこに何を書き込むかを表す。",
     "members": {

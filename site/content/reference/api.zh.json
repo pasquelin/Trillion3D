@@ -266,6 +266,13 @@
       "out": "`6 · n` 个数字:变换后的包围盒。"
     }
   },
+  "BudgetCanvas": {
+    "summary": "预算声明的最大画布：效果链的目标按其尺寸预留。",
+    "members": {
+      "width": "绘制缓冲区的宽度，以像素计。",
+      "height": "绘制缓冲区的高度，以像素计。"
+    }
+  },
   "BufferAttribute": {
     "summary": "一个按顶点存值的类型化数组,每个顶点占 `itemSize` 个数字:对应页面编解码器的 `PageAttribute`(`page-codec/pageAttributes.ts`),说明一个页面往里写入的是什么。",
     "members": {

@@ -15,6 +15,13 @@
       "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Die größte Leinwand, die ein Budget angibt: Die Ziele der Effektkette werden in ihrer Größe reserviert.",
+    "members": {
+      "width": "Breite in Pixeln des Zeichenpuffers.",
+      "height": "Höhe in Pixeln des Zeichenpuffers."
+    }
+  },
   "adaptivePixelError": {
     "summary": "Die adaptive Schwelle steigt mit der Kamerageschwindigkeit, damit eine bewegte Ansicht vereinfachen kann; eine unbewegte Ansicht behält den Basis-pixelError."
   },

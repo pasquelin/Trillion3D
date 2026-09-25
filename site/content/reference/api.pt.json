@@ -266,6 +266,13 @@
       "out": "`6 · n` números: caixas transformadas."
     }
   },
+  "BudgetCanvas": {
+    "summary": "A maior tela que um orçamento declara: os alvos da cadeia de efeitos são reservados no seu tamanho.",
+    "members": {
+      "width": "Largura em pixels do buffer de desenho.",
+      "height": "Altura em pixels do buffer de desenho."
+    }
+  },
   "BufferAttribute": {
     "summary": "Um array tipado de valores por vértice, `itemSize` números por vértice: o `PageAttribute` do codec de página (`page-codec/pageAttributes.ts`), com o que uma página escreve nele.",
     "members": {

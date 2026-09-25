@@ -15,6 +15,13 @@
       "clipTime": "En qué punto del clip está la acción, según su modo de bucle."
     }
   },
+  "BudgetCanvas": {
+    "summary": "El lienzo más grande que declara un presupuesto: los destinos de la cadena de efectos se reservan a su tamaño.",
+    "members": {
+      "width": "Ancho en píxeles del búfer de dibujo.",
+      "height": "Alto en píxeles del búfer de dibujo."
+    }
+  },
   "adaptivePixelError": {
     "summary": "El umbral adaptativo sube con la velocidad de la cámara para que una vista en movimiento pueda simplificar; una vista inmóvil conserva el pixelError base."
   },
