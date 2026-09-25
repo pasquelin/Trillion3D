@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shadows through see-through panes</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #cfd8e3;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A row of glass panes standing in the sun, from fully clear to fully solid. Each pane is a
+      // blended material: its shadow on the floor is as dark as the pane is opaque. The engine keeps
+      // the pane out of the opaque image and only lets its opacity through the shadow pass.
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#cfd8e3');
+      const floor = object.mesh(geometry.box(16, 0.2, 10), material.meshStandard({ color: '#e9e2d4', roughness: 0.9 }));
+      floor.position.y = -0.1;
+      world.scene.add(floor);
+
+      // Five panes at opacity 0, ¼, ½, ¾ and 1, each on a small oak foot.
+      const oak = material.meshStandard({ color: '#8a5a33', roughness: 0.7 });
+      const panes = [0, 0.25, 0.5, 0.75, 1].map((opacity, k) => {
+        const x = (k - 2) * 2.6;
+        const foot = object.mesh(geometry.box(1.8, 0.16, 0.4), oak);
+        foot.position.set(x, 0.08, 0);
+        const glass = material.meshStandard({ color: '#9fd3ff', roughness: 0.1, transparent: true, opacity, depthWrite: false });
+        const pane = object.mesh(geometry.box(1.6, 2.4, 0.04), glass);
+        pane.position.set(x, 1.36, 0);
+        world.scene.add(foot, pane);
+        return pane;
+      });
+
+      const sun = light.directional({ intensity: 3, color: '#fff1dc', castShadow: true });
+      world.scene.add(sun, light.hemisphere({ color: '#bcd4ff', groundColor: '#9c8a70', intensity: 0.6 }));
+      world.camera.position.set(0, 4.5, 11);
+      world.camera.lookAt(0, 0.8, -1.5);
+      world.controls.target.set(0, 0.8, -1.5);
+
+      const shown = readout('Opacity of the middle pane');
+      controls({ opacity: [0, 1, 0.5, 0.05], sunHeight: [15, 75, 40] }, (values) => {
+        // The middle pane follows the slider: at 0 its shadow is gone, at 1 it is an opaque one.
+        panes[2].material.opacity = values.opacity;
+        shown(values.opacity.toFixed(2));
+        // The sun stands behind the panes, so their shadows fall toward the camera.
+        const rise = math.degToRad(values.sunHeight);
+        sun.position.set(6, Math.tan(rise) * 10, -10);
+        world.invalidate();
+      }, world);
+      world.invalidate();
+    </script>
+  </body>
+</html>

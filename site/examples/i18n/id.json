@@ -1956,6 +1956,16 @@
       "Look for": "Perhatikan"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Geser opasitas: bayangan kaca tengah mengikutinya, hilang di 0 dan penuh di 1.",
+    "controls": {
+      "opacity": "Opasitas",
+      "sunHeight": "Tinggi matahari"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opasitas kaca tengah"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya, dan lepaskan tombol di atas es untuk meluncur.",
     "controls": {

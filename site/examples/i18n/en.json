@@ -1956,6 +1956,16 @@
       "Look for": "Look for"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Drag the opacity: the middle pane's shadow fades with it, gone at 0 and solid at 1.",
+    "controls": {
+      "opacity": "Opacity",
+      "sunHeight": "Sun height"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacity of the middle pane"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Click to look around, then walk with W A S D and jump with Space: climb the stairs and the ramp, ride the platform, push the boxes, and let go of the keys on the ice to slide.",
     "controls": {
