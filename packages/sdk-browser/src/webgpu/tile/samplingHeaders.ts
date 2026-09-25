@@ -92,11 +92,10 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
  */
 function coverageRules(atlas: WebgpuTileAtlas) {
   const hosts = new Map<number, { map: Texture; readers: CoverageReaders; rule: boolean }>();
-  atlas.textures.forEach(({ source }, slot) => {
-    if (source.kind !== 'host' || !source.coverage) return;
-    const { map, coverage: readers } = source;
-    hosts.set(slot, { map, readers, rule: readers.weighs(map) });
-  });
+  for (const [slot, { source }] of atlas.textures.entries())
+    if (source.kind === 'host' && source.coverage)
+      hosts.set(slot, { map: source.map, readers: source.coverage, rule: false });
+  for (const host of hosts.values()) host.rule = host.readers.weighs(host.map);
   const census = new Set([...hosts.values()].map((host) => host.readers));
   return {
     follow() {
