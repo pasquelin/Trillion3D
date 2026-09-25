@@ -111,7 +111,6 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
       options.diagnosticGpuVariant,
       diagnosticChannel.detail,
     ),
-    shadowBudgetMs: options.shadowBudgetMs,
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
