@@ -70,7 +70,7 @@ export function drawnTriangles(
     const out = new Float32Array(position.count * width);
     for (let v = 0; v < position.count; v++)
       for (let c = 0; c < width; c++)
-        out[v * width + c] = c < a.itemSize ? readComponent(a, v, c) : 1;
+        out[v * width + c] = c < a.itemSize ? readComponent(geometry, a, v, c) : 1;
     return out;
   };
   const drawn = {

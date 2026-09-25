@@ -16,6 +16,9 @@ export class Geometry {
   readonly kind = 'geometry' as const;
   /** The kind of the geometry, `'Geometry'`. */
   type = 'Geometry';
+  /** Who built it: the world (a page, the default) or the host (a loaded scene); what reads a
+   *  normalised integer list it owns as stored or at its value (`readsStored`). */
+  readonly owner: 'world' | 'host';
   /** Its name. */
   name = '';
   /** The per-vertex lists by name: `position`, `normal`, `uv`, `color`; each owns its numbers or
@@ -46,6 +49,10 @@ export class Geometry {
   version = 0;
   /** Who draws this geometry: every mesh holding it hears its changes. */
   readonly _listeners = new Set<() => void>();
+
+  constructor(owner: 'world' | 'host' = 'world') {
+    this.owner = owner;
+  }
 
   /** Tells every holder the geometry changed; the bounds are forgotten when its positions did. */
   _changed(moved = true) {
@@ -122,7 +129,7 @@ export class Geometry {
   }
   /** Moves every position, turns every normal: the geometry itself changes, not a pose. */
   applyMatrix4(m: Matrix4) {
-    transformVertices(this.attributes, m);
+    transformVertices(this, m);
     return this._changed();
   }
   /** Moves every vertex by `(x, y, z)`. */
@@ -168,9 +175,9 @@ export class Geometry {
     copy.groups.length = 0;
     return copy;
   }
-  /** A new geometry of the same name, groups, range and data, its attributes made by `own`. */
+  /** A new geometry of the same owner, name, groups, range and data, its lists made by `own`. */
   private shaped(own: (attribute: VertexAttribute) => BufferAttribute) {
-    const copy = new Geometry();
+    const copy = new Geometry(this.owner);
     copy.name = this.name;
     for (const [name, attribute] of Object.entries(this.attributes))
       copy.setAttribute(name, own(attribute));

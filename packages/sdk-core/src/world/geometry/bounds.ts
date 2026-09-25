@@ -5,7 +5,8 @@
  * morphed) through `getComponent`, at the value it stands for.
  */
 import { boxEmpty, boxExpandByPoint } from '../../math/primitives/box.ts';
-import type { VertexAttribute } from '../buffer/attribute.ts';
+import type { BufferAttribute, VertexAttribute } from '../buffer/attribute.ts';
+import type { Geometry } from './geometry.ts';
 import { Box3 } from '../math/box3.ts';
 import { Vector3 } from '../math/vector3.ts';
 import type { Sphere } from '../math/volumes.ts';
@@ -119,11 +120,23 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
   return sphere;
 }
 
-/** Number `component` of vertex `index` as the world's geometry reads it: stored, a normalised
- *  integer unscaled, when the attribute owns its list, as the world has always drawn it; through
- *  `getComponent`, at the value it stands for, when it views an interleaved buffer. */
-export const readComponent = (attribute: VertexAttribute, index: number, component: number) =>
-  attribute.kind === 'attribute'
+/** Whether `geometry` reads `attribute` as its stored numbers, a normalised integer unscaled: a
+ *  list a world geometry owns, as the world has always drawn, edged and turned it. A host
+ *  geometry's lists are read at the value they stand for, as the host always read them, and so
+ *  is a view of an interleaved buffer, as `readPoints` and `spanBox` read it. */
+export const readsStored = (
+  geometry: Pick<Geometry, 'owner'>,
+  attribute: VertexAttribute,
+): attribute is BufferAttribute => geometry.owner === 'world' && attribute.kind === 'attribute';
+
+/** Number `component` of vertex `index` of `attribute` as `geometry` reads it (`readsStored`). */
+export const readComponent = (
+  geometry: Pick<Geometry, 'owner'>,
+  attribute: VertexAttribute,
+  index: number,
+  component: number,
+) =>
+  readsStored(geometry, attribute)
     ? attribute.stored(index, component)
     : attribute.getComponent(index, component);
 
