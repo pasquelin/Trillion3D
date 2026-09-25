@@ -85,7 +85,7 @@ pub(super) fn rotation_matrix([x, y, z, w]: [f64; 4]) -> Mat4 {
 }
 
 /// `matrix` when the node carries one, otherwise translation · rotation · scale, as glTF defines it.
-fn local_matrix(node: &Value) -> Result<Mat4> {
+pub(super) fn local_matrix(node: &Value) -> Result<Mat4> {
     if let Some(values) = numbers(node.get("matrix"), 16, "matrix")? {
         let mut matrix = IDENTITY;
         matrix.copy_from_slice(&values);

@@ -17,7 +17,7 @@ import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphGeometry } from '../graph/geometry.ts';
-import { type GraphAttribute } from '../graph/attributes.ts';
+import { type BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { normalisedScale, preparedAccessors } from './accessors.ts';
 
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
@@ -126,7 +126,7 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
         geometry.setAttribute(name, attributeOf(declared.attributes[semantic]));
     }
     if (declared.indices !== null)
-      geometry.setIndex(attributeOf(declared.indices) as GraphAttribute);
+      geometry.setIndex(attributeOf(declared.indices) as BufferAttribute);
     bound(geometry, declared);
     morph(geometry, declared, attributeOf);
     geometries.set(key, geometry);

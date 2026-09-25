@@ -1,4 +1,4 @@
-import { FLAG_SAMPLED } from '../types.ts';
+import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
 import { TAA_SAMPLES } from '../../taa/jitter.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 
@@ -11,13 +11,14 @@ import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 /** The six `pad*Uv` are the atlas uv scales that virtual textures made useless: a texture is
  *  read in its own space. They stay at zero, never read, until the record is recompacted
  *  (Textures backlog). */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,padBaseUv:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,padRoughUv:vec2f,padMetalUv:vec2f,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5:u32,placement:u32,materialClass:u32,}`;
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,padBaseUv:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,padRoughUv:vec2f,padMetalUv:vec2f,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,}`;
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `stipple` is the
  *  temporal rank of the cutout stipple plus one, zero when the image does not accumulate
- *  (`STIPPLE_WGSL`). Its size is `VIS_UNIFORM_BYTES`. */
-export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,stipple:u32,}`;
+ *  (`STIPPLE_WGSL`). `pixelRatio` is the host's image pixels per CSS pixel, the scale of a line's
+ *  width (`lineWgsl.ts`). Its size is `VIS_UNIFORM_BYTES`. */
+export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,stipple:u32,pixelRatio:f32,}`;
 
 /** Description of a cluster, followed by the uniform of a page-geometry pass. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
@@ -109,17 +110,26 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  * same way. The shadows, which no temporal pass averages, pass zero: their test is the hard
  * threshold, to the bit.
  *
+ * `vertexAlpha` is the interpolated alpha of the vertex colours (`pageMaskAlpha`), one on a row
+ * that reads none: the reference multiplies the diffuse alpha by it before its alpha test.
+ * Shadows pass one, as the reference's depth material reads no vertex colour.
+ *
  * The host shader declares `uvs`, the colour pool and its page table, then inserts
  * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
  * `maskAlphaWgsl(...)` before this block.
  */
-export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f,stipple:f32)->bool{
- if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
+export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f,stipple:f32)->bool{
+ if((page.flags&128u)==0u){return true;}
+ // A row that reads no colour is cut by its base map alone, never by an interpolated one, which
+ // need not round back to one exactly.
+ let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
+ if((page.flags&8u)==0u){return !coloured||vertexAlpha>=page.baseColor.w;}
  // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
  // level and made the quad opaque during loading.
- let alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);
+ var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);
+ if(coloured){alpha*=vertexAlpha;}
  if(stipple==0.0){return alpha>=page.baseColor.w;}
  let size=colorSlot(page.mapIndex).size;
  return alpha>=page.baseColor.w+stipple*saturate(atlasLod(ddx*size,ddy*size));
