@@ -34,10 +34,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap = bootstrap.slice();
   const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
-  const cap =
-      context.maxResidentPages ??
-      context.residentPagesDefault ??
-      Math.max(1024, bootstrapUrls.size),
+  const pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
+    cap = context.maxResidentPages ?? pageDefault,
     scene = hostPageScene(blendCopies);
   // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
   const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] },
@@ -68,16 +66,18 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
-  // The display graph's page ceiling: the host's, or the default raised to the root cover, as the
-  // pool raises its budget to it — a transparent page hangs one mesh per row that places it.
-  const ceiling = () => context.maxResidentPages ?? Math.max(cap, heldFloor.meshes());
+  // The display graph's page ceiling: the host's, which refuses a larger root cover by name, or the
+  // default raised to the cover, as the pool raises its budget to it (#527).
+  const hostCeiling = context.maxResidentPages ?? Infinity,
+    ceiling = () => context.maxResidentPages ?? Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...tables,
     baseRoots,
     basePages,
     baseBootstrap,
     geometryStore,
-    cap,
+    hostCeiling,
+    coverMeshes: heldFloor.meshes,
     sceneChanged: gate.sceneChanged,
     coverChanged: heldFloor.changed,
   });
@@ -128,7 +128,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
-      if (heldFloor.meshes() > ceiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      if (heldFloor.meshes() > hostCeiling) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       await Promise.all(
         [...bootstrapUrls].map(async (url) => {
           context.signal?.throwIfAborted();
