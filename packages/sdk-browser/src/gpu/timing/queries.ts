@@ -1,3 +1,4 @@
+import { PART_ALIGN } from './encoder.ts';
 import { MAX_SHADOW_BATCHES } from '../shadow/batchBudget.ts';
 import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
 
@@ -5,7 +6,7 @@ import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
 export const PARTS = 4;
 /** Passes of one shadow batch at most: its light cut's three, a region cull per face under the CPU
  *  cut, then the static layer, the page pyramids, the occlusion, the atlas and the transmittance. */
-const SHADOW_BATCH_PASSES = 3 + DAG_MAX_VIEWS + 5;
+export const SHADOW_BATCH_PASSES = 3 + DAG_MAX_VIEWS + 5;
 /** Passes of an image outside its shadow batches, every encoder together. */
 const IMAGE_PASSES = 256;
 /**
@@ -16,4 +17,4 @@ const IMAGE_PASSES = 256;
  */
 export const TIMED_PASSES = IMAGE_PASSES + MAX_SHADOW_BATCHES * SHADOW_BATCH_PASSES;
 /** Timestamps: a pair per pass, and each part's start aligned for its resolve. */
-export const QUERY_COUNT = 2 * TIMED_PASSES + PARTS * 32;
+export const QUERY_COUNT = 2 * TIMED_PASSES + PARTS * PART_ALIGN;

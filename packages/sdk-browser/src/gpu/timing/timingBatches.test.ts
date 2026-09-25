@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from '../../../../../tests/kit/gpu/timingDevice.ts';
 import { createGpuTiming } from './timing.ts';
-import { QUERY_COUNT, TIMED_PASSES } from './queries.ts';
+import { QUERY_COUNT, SHADOW_BATCH_PASSES, TIMED_PASSES } from './queries.ts';
 import { MAX_SHADOW_BATCHES } from '../shadow/batchBudget.ts';
 import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
 import { LIGHT_CUT_PASS } from '../dag/encode.ts';
@@ -40,7 +40,7 @@ test('a frame of the most shadow batches is timed whole, its cull and raster spl
   await timer.flush();
   const [sample] = samples;
   assert.equal(sample.truncated, false, 'every pass timed');
-  assert.equal(sample.passes.length, 1 + MAX_SHADOW_BATCHES * (3 + DAG_MAX_VIEWS + 5) + 200);
+  assert.equal(sample.passes.length, 1 + MAX_SHADOW_BATCHES * SHADOW_BATCH_PASSES + 200);
   assert.ok(sample.passes.length <= TIMED_PASSES);
   const { gpuShadowsMs, gpuShadowCullMs, gpuShadowRasterMs } = directLightTimings(sample);
   assert.ok(gpuShadowsMs !== null && gpuShadowCullMs !== null && gpuShadowRasterMs !== null);
