@@ -85,7 +85,7 @@ export function createDagResidencyUpload(resources: {
       );
     }
   };
-  return (next: ArrayLike<number>, changes?: ResidencyChanges) => {
+  const apply = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
     const settled = readiness.apply(next, changes);
     if (!settled.pages.length && !settled.nodes.length) return false;
     changed.pages.set(settled.pages);
@@ -102,4 +102,8 @@ export function createDagResidencyUpload(resources: {
     upload(nodes, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length);
     return true;
   };
+  /** Bytes of the host tables: the readiness and this upload's change lists. */
+  const hostBytes =
+    readiness.hostBytes + touched.byteLength + ranges.byteLength + changed.pages.byteLength;
+  return Object.assign(apply, { hostBytes });
 }

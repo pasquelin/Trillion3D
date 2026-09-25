@@ -13,18 +13,25 @@ import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts';
  *
  * The set only moves here of what moves: the pages the cut difference names, and those whose
  * bytes just arrived or left — which the rank journal already names. `records` is the list of
- * missing records, and it alone is walked: the rule that turns them into addresses is everyone's
- * (`collectPendingUrls`), not a copy. Membership in the cut is that of the difference, to which
- * this set is attached once and for all.
+ * missing records the pool accepted, and only the missing ones are walked: the rule that turns
+ * them into addresses is everyone's (`collectPendingUrls`), not a copy. Membership in the cut is
+ * that of the difference, to which this set is attached once and for all.
  */
 export type CutPending = ReturnType<typeof createCutPending>;
 
-export function createCutPending(packedPages: readonly PageRec[], delta: IdDelta) {
+export function createCutPending(
+  packedPages: readonly PageRec[],
+  delta: IdDelta,
+  accepted: (rec: PageRec) => boolean = () => true,
+) {
   /** Records of the missing pages, held at their key rank by the set itself. */
   const records: PageRec[] = [];
   const missing = createDenseKeySet(packedPages.length, records);
   /** Ranks of the set: read straight from the array, the call is reserved for what moves. */
   const slots = missing.slots;
+  /** The missing records the pool accepted: the only ones an image waits for and the host fetches.
+   *  A page past the page budget never gets a slot, so waiting for it would never settle. */
+  const awaited: PageRec[] = [];
   /** The records a cut record's closure names (`PageRec.dependencies`): their bytes arriving or
    *  leaving moves cut records the journal does not name. */
   const named = new Uint8Array(Math.max(1, packedPages.length));
@@ -44,17 +51,19 @@ export function createCutPending(packedPages: readonly PageRec[], delta: IdDelta
       for (let i = missing.count - 1; i >= 0; i--)
         if (!awaitsClosure(records[i])) missing.remove(missing.list[i]);
     settle = rescan = false;
+    awaited.length = 0;
+    for (let i = 0; i < missing.count; i++) if (accepted(records[i])) awaited.push(records[i]);
   };
   return {
-    /** Records still awaited, their own bytes or those of their closure, and their count: the held
-     *  image only reads that count. */
+    /** Records the pool accepted that still await their bytes or those of their closure, and their
+     *  count: the held image only reads that count. */
     get records() {
       reconcile();
-      return records;
+      return awaited;
     },
     get count() {
       reconcile();
-      return missing.count;
+      return awaited.length;
     },
     /** The difference that has just been applied: exits first, entries next. */
     apply() {
