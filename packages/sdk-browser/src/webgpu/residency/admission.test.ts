@@ -6,7 +6,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
 import { createPageParents } from './admission.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
-import { lruCache, pageOf } from './residentEnsurer.fixture.ts';
+import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts';
 import { linkBundleDependencies } from '../../page/selection/bundleDependencies.ts';
 import { RequestStamps, collectPendingUrls } from '../../page/selection/selection.ts';
 import { createCutDelta } from '../cut/delta.ts';
@@ -46,18 +46,7 @@ function ensurerOver(
     loads: string[] = [];
   const load = cache.load;
   cache.load = async (url: string) => (loads.push(url), load(url));
-  const ensure = createWebgpuResidentEnsurer({
-    getCache: () => cache as never,
-    tracking,
-    bootstrapKey: new Uint8Array(tracking.keyCount),
-    hasBytes: () => true,
-    parentsOf: () => [],
-    isLost: () => false,
-    traceEnabled: false,
-    traceDiagnostic: () => {},
-    lowerTiers: () => [],
-    ...options,
-  });
+  const ensure = createWebgpuResidentEnsurer({ ...ensurerOptions(tracking, cache), ...options });
   const want = (...wanted: PageRec[]) => {
     for (const page of wanted) tracking.wanted.add(tracking.keyOf(page), page);
     return ensure(wanted, 1, 1);

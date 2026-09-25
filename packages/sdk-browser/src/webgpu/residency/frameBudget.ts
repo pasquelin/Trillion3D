@@ -8,7 +8,7 @@ import { STREAMING_FRAME_MS } from '../../backend/common.ts';
  * nor page events get any chance to pass. A `MessageChannel` is a real task, without the four-
  * millisecond ceiling a nested `setTimeout` eventually suffers.
  */
-export const yieldToEventLoop = () =>
+const yieldToEventLoop = () =>
   new Promise<void>((done) => {
     const channel = new MessageChannel();
     channel.port1.onmessage = () => {
@@ -19,7 +19,7 @@ export const yieldToEventLoop = () =>
   });
 
 /** The next display frame, or the next task where nothing is displayed. */
-export const nextDisplayFrame = () =>
+const nextDisplayFrame = () =>
   typeof requestAnimationFrame === 'function'
     ? new Promise<void>((done) => requestAnimationFrame(() => done()))
     : yieldToEventLoop();

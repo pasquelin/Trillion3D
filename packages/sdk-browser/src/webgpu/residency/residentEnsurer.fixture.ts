@@ -55,6 +55,22 @@ export function lruCache(slots: number) {
   };
 }
 
+/** An ensurer's options over `cache`: no cover, every page's bytes at hand, no parents, no tier. */
+export const ensurerOptions = (
+  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  cache: unknown,
+): Parameters<typeof createWebgpuResidentEnsurer>[0] => ({
+  getCache: () => cache as never,
+  tracking,
+  bootstrapKey: new Uint8Array(tracking.keyCount),
+  hasBytes: () => true,
+  parentsOf: () => [],
+  isLost: () => false,
+  traceEnabled: false,
+  traceDiagnostic: () => {},
+  lowerTiers: () => [],
+});
+
 /** An ensurer over `cache` whose caster tier is `shadowPages`, and whose tier ahead is `aheadPages`. */
 export const tierEnsurer = (
   tracking: ReturnType<typeof createWebgpuPageTracking>,
@@ -64,14 +80,7 @@ export const tierEnsurer = (
   budget?: FrameBudget,
 ) =>
   createWebgpuResidentEnsurer({
-    getCache: () => cache as never,
-    tracking,
-    bootstrapKey: new Uint8Array(tracking.keyCount),
-    hasBytes: () => true,
-    parentsOf: () => [],
-    isLost: () => false,
-    traceEnabled: false,
-    traceDiagnostic: () => {},
+    ...ensurerOptions(tracking, cache),
     lowerTiers: () => [shadowPages(), aheadPages()],
     budget,
   });
