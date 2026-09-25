@@ -81,8 +81,8 @@ export function createPageStreamerWith(
     abortError,
   };
   const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
-  // A kept page the catalogue names at another size is another page: it leaves before the first read.
-  store.dropResized(catalog);
+  // A kept page read under this name as another file leaves before the first read.
+  store.dropForeign(catalog, base);
   const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
   const release = store.hold({ reserved, evict });
   if (kept) evict();

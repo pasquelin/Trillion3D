@@ -19,6 +19,10 @@ export const manifestTableBytes = (pages: Iterable<{ url: string }>) => {
   return bytes;
 };
 
+/** What a file is cached as: its absolute address and its fingerprint. A name alone is not one:
+ *  another scene, another base or the same folder cooked again may reuse it at the same size. */
+export const cacheIdentity = (address: string, sha256: string) => `${address}#${sha256}`;
+
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
  *  and how it evicts — past its pins and its transfers — when the total shrinks. */
 type Holder = { reserved(): number; evict(): void };
@@ -43,6 +47,8 @@ const checkBytes = (bytes: number) => {
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
+  /** What each page was read as (`cacheIdentity`), by its url. */
+  const identities = new Map<string, string>();
   /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
    *  cancellation that is the cache's, not a session's. */
   let slot:
@@ -60,6 +66,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     if (!held) return;
     bytes -= held.byteLength;
     pages.delete(url);
+    identities.delete(url);
   };
   /** Pages leave by last use until they fit: through the session in place, which keeps its pins
    *  and its transfers, or all of them evictable when none reads. */
@@ -92,17 +99,22 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get budgetBytes() {
       return Math.max(0, total - cache.reservedBytes);
     },
-    /** Puts `array` as the most recently used page at `url`. */
-    touch(url: string, array: Uint8Array) {
+    /** Puts `array`, read as `identity`, as the most recently used page at `url`. */
+    touch(url: string, array: Uint8Array, identity = identities.get(url)) {
       drop(url);
       pages.set(url, array);
       bytes += array.byteLength;
+      if (identity !== undefined) identities.set(url, identity);
     },
     drop,
-    /** Drops every page `sizes` names at another size: another page under the same url. */
-    dropResized(sizes: ReadonlyMap<string, { bytes: number }>) {
-      for (const [url, held] of pages)
-        if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
+    /** Drops every page read as another file than the one `catalog` names at its url under
+     *  `base`, so a session is never served another scene's page under the same name. */
+    dropForeign(catalog: ReadonlyMap<string, { sha256: string }>, base: string) {
+      for (const url of pages.keys()) {
+        const page = catalog.get(url);
+        if (page && identities.get(url) !== cacheIdentity(new URL(url, base).href, page.sha256))
+          drop(url);
+      }
     },
     /**
      * The read of the file `key` names, of `bytes` bytes — the scene's resident proxy —, kept whole
@@ -152,6 +164,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear();
+      identities.clear();
       release(true);
       bytes = 0;
     },
