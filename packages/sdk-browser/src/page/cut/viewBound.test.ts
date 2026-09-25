@@ -5,9 +5,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ruleDag } from './cutRule.fixture.ts';
-import { stripCamera } from './cutRuleBackends.fixture.ts';
+import { placements, stripCamera } from './cutRuleBackends.fixture.ts';
 import { selectVisiblePages } from './cut.ts';
-import { heldHostBytes } from './held.ts';
+import { createHeldBytes } from './held.ts';
 import { createGroupClosure } from './groupClosure.ts';
 import { packDagSelection } from '../../gpu/dag/pack.ts';
 import { uploadResidency } from '../../gpu/dag/readiness.fixture.ts';
@@ -16,26 +16,13 @@ import { createCutDelta } from '../../webgpu/cut/delta.ts';
 import { createCutPending } from '../../webgpu/cut/pending.ts';
 import { createWebgpuPageTracking } from '../../webgpu/row/pageTracking.ts';
 import { createWebgpuResidencySets } from '../../webgpu/residency/sets.ts';
-import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
-const dag = ruleDag(64),
-  n = dag.pages.length;
+const dag = ruleDag(64);
 
 /** `copies` placements of the DAG along -x, each a strip of its own pages; the first is in view. */
 function world(copies: number) {
-  const roots = Array.from({ length: copies }, (_, r) => {
-    const elements = Float64Array.from(IDENTITY_ELEMENTS);
-    elements[12] = -1e5 * r;
-    const pages = dag.pages.map((page, p) => ({
-      ...page,
-      url: `r${r}/${page.url}`,
-      placementIndex: r,
-      packedIndex: r * n + p,
-    }));
-    const worldBox = r ? Float64Array.of(-1e5 * r, -2, -2, -1e5 * r + 64, 2, 2) : undefined;
-    return { world: { elements }, pages, culling: dag.culling, structure: dag.structure, worldBox };
-  }) as unknown as ClusterRoot<PageRec>[];
+  const roots = placements(dag, copies, 1e5);
   const packed = roots.flatMap((root) => root.pages);
   const inView = (page: PageRec) => page.placementIndex === 0;
   return { roots, packed, inView };
@@ -45,6 +32,8 @@ function world(copies: number) {
 function tables(copies: number) {
   const { roots, packed, inView } = world(copies);
   const ids = (list: readonly PageRec[]) => list.map((page) => page.packedIndex!);
+  const held = createHeldBytes();
+  held.track(roots);
   // The CPU cut — the WebGPU CPU path and the WebGL2 image — with the pool holding the view.
   const cut = selectVisiblePages(roots, stripCamera(dag), {
     pixelError: 0.1,
@@ -53,7 +42,7 @@ function tables(copies: number) {
     isResident: inView,
   });
   assert.ok(cut.wanted.length > 0 && cut.wanted.every(inView), 'the view wants its placement');
-  const cpuReadiness = heldHostBytes(roots);
+  const cpuReadiness = held.bytes;
   // The GPU kernel's host: the rule's readiness and its upload's change lists.
   const gpuPacked = packDagSelection(roots);
   const gpuReadiness = uploadResidency(
@@ -113,7 +102,9 @@ test("a placement's readiness follows what the pool holds of it, not its size", 
         culling: strip.culling,
         structure: strip.structure,
       };
-    const roots = strip.pages.filter((page) => page.group === null);
+    const roots = strip.pages.filter((page) => page.group === null),
+      held = createHeldBytes();
+    held.track([root]);
     selectVisiblePages([root as unknown as ClusterRoot<PageRec>], stripCamera(strip), {
       pixelError: 0.1,
       viewport: [1280, 720],
@@ -124,7 +115,7 @@ test("a placement's readiness follows what the pool holds of it, not its size", 
       packDagSelection([root as unknown as ClusterRoot<PageRec>]),
       Uint8Array.from(strip.pages, (page) => (page.group === null ? 1 : 0)),
     );
-    return { roots: roots.length, cpu: heldHostBytes([root]), gpu: gpu.hostBytes };
+    return { roots: roots.length, cpu: held.bytes, gpu: gpu.hostBytes };
   };
   const small = bytes(64),
     large = bytes(1024);

@@ -29,7 +29,9 @@ export function createDagReadiness(packed: PackedDag) {
   const dirty = new Set<number>();
   const pages: number[] = [],
     nodes: number[] = [];
-  let w = 0;
+  let w = 0,
+    /** Every placement's `hostBytes`, kept as a running total: each settle adds what moved. */
+    hostBytes = 0;
   const onPage = (page: number) => pages.push(packed.cutLinks[w].pageBase + page),
     onNode = (node: number) => {
       const at = packed.cutLinks[w].nodeBase + node;
@@ -41,7 +43,10 @@ export function createDagReadiness(packed: PackedDag) {
   const settle = () => {
     pages.length = 0;
     nodes.length = 0;
-    for (const touched of dirty) worlds[(w = touched)].settle(onPage, onNode);
+    for (const touched of dirty) {
+      worlds[(w = touched)].settle(onPage, onNode);
+      hostBytes += worlds[w].takeBytesMoved();
+    }
     dirty.clear();
     return { pages: sortedUnique(pages), nodes: sortedUnique(nodes) };
   };
@@ -67,9 +72,10 @@ export function createDagReadiness(packed: PackedDag) {
       const at = pageWorlds[page];
       return worlds[at].isChildReady(page - packed.cutLinks[at].pageBase);
     },
-    /** Bytes of the host tables: each placement's state, sized by its resident pages. */
+    /** Bytes of the host tables: each placement's state, sized by its resident pages. Read in
+     *  constant time, whatever the number of placements (#483 rule 7). */
     get hostBytes() {
-      return worlds.reduce((bytes, world) => bytes + world.hostBytes, 0);
+      return hostBytes;
     },
     /** Reads `resident` at the pages `changes` names — every page when it names none reliably —,
      *  and settles: what is handed over is what moved from the state with nothing resident. */

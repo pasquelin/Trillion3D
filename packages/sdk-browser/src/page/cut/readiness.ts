@@ -49,6 +49,9 @@ export function createCutReadiness(
     work: number[] = [];
   const touchedPages: number[] = [],
     touchedNodes: number[] = [];
+  const bytes = () => resident.byteLength + groupReady.byteLength + closed.byteLength;
+  /** The bytes `takeBytesMoved` last handed over. */
+  let reported = 0;
   const isReady = (page: number) => {
     const owner = structure ? structure.owners[page] : -1;
     return owner >= 0 ? groupReady.get(owner) !== 0 : resident.get(page) !== 0;
@@ -102,7 +105,15 @@ export function createCutReadiness(
     },
     /** Bytes of the state: what the resident pages hold, never the catalogue. */
     get hostBytes() {
-      return resident.byteLength + groupReady.byteLength + closed.byteLength;
+      return bytes();
+    },
+    /** What `hostBytes` gained, or lost when negative, since the last call: what a running total
+     *  of many readinesses adds, so that it is read without walking them (#483 rule 7). */
+    takeBytesMoved() {
+      const now = bytes(),
+        moved = now - reported;
+      reported = now;
+      return moved;
     },
     /** Records page `page`'s residency; `settle` propagates it. True when it changed. */
     set(page: number, value: boolean) {
