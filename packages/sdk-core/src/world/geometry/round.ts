@@ -1,6 +1,5 @@
-import { withRecipe } from './geometry.ts';
 import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
-import { GeometryBuilder, normalize, pieces } from './builder.ts';
+import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
 
 type V3 = [number, number, number];

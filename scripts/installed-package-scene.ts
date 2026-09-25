@@ -2,7 +2,17 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Run } from './installed-package-contracts.ts';
 
-function writeInstalledScene(directory: string, variant = 0, columns = 96, rows = 48): string {
+const COLUMNS = 96,
+  ROWS = 48;
+/** Triangles of the installed scene at full detail: two per grid cell, each placed once. */
+export const INSTALLED_SCENE_TRIANGLES = COLUMNS * ROWS * 2;
+
+function writeInstalledScene(
+  directory: string,
+  variant = 0,
+  columns = COLUMNS,
+  rows = ROWS,
+): string {
   mkdirSync(directory, { recursive: true });
   const lines: string[] = [];
   for (let row = 0; row <= rows; row++)
