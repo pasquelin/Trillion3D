@@ -8,6 +8,8 @@
  * proportion to its radiance.
  */
 
+import { shaderFloat } from '../lighting/shaderConstants.ts';
+
 /** One bilinear tap: an offset in texels of the level read, and its weight. */
 export type BloomTap = readonly [x: number, y: number, weight: number];
 
@@ -84,9 +86,6 @@ export function bloomBlend(intensity: number, levels: number) {
   return { keep: 1 - intensity, glow: levels ? intensity / levels : 0 };
 }
 
-/** A float literal both shading languages read. */
-const literal = (value: number) => (Number.isInteger(value) ? `${value}.0` : `${value}`);
-
 /**
  * The taps as shader text: `sample(offset)` is the language's bilinear read at `uv` plus that
  * offset times `step`, and each read is weighted and summed into `c`.
@@ -97,6 +96,9 @@ export function bloomTapText(
   vec2: string,
 ) {
   return taps
-    .map(([x, y, w]) => `c+=${sample(`${vec2}(${literal(x)},${literal(y)})`)}*${literal(w)};`)
+    .map(
+      ([x, y, w]) =>
+        `c+=${sample(`${vec2}(${shaderFloat(x)},${shaderFloat(y)})`)}*${shaderFloat(w)};`,
+    )
     .join('\n');
 }
