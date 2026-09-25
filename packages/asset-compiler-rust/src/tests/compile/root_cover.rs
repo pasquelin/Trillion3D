@@ -4,6 +4,7 @@
 //! columns, and a fan of faces turned from the light filled every arch opening. The cook refuses
 //! a parent error below a child's, so a cook that passes keeps its errors monotone.
 use super::chalet_fixture::{push_box, push_log};
+use super::dag_dependency_scenes::cook_site_scene;
 use super::silhouette::{page_indices, Mesh};
 use super::thin_walls::mesh_fixture;
 use super::*;
@@ -71,15 +72,8 @@ fn read<T>(gltf: &Value, bin: &[u8], accessor: &Value, decode: fn([u8; 4]) -> T)
 
 #[test]
 fn the_root_cover_of_signature_architecture_holds_every_part_on_the_model() {
-    let folder = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../site/assets/gallery/signature-architecture/source");
-    let gltf: Value =
-        serde_json::from_slice(&fs::read(folder.join("geometry.gltf")).expect("gltf"))
-            .expect("json");
-    let bin = fs::read(folder.join("geometry.bin")).expect("bin");
-    let (root, mut options) = gltf_fixture("geometry", &gltf, &bin);
-    options.texture_formats = Vec::new();
-    let result = compile(&options, |_| {}).expect("compile");
+    let folder = "site/assets/gallery/signature-architecture/source";
+    let (root, options, gltf, bin, result) = cook_site_scene(folder, "geometry.gltf", "geometry");
     let objects = options.cache.join("native/objects");
     let mut defects = Vec::new();
     for primitive in result["primitives"].as_array().expect("primitives") {
