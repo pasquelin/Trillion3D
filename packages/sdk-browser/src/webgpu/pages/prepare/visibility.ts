@@ -9,6 +9,7 @@ import {
 import { visUniformSlots } from '../../visibility/uniforms.ts';
 import { MAX_DEPTH_LAYER, depthLayerUnits } from '../../../../../sdk-core/src/index.ts';
 import { createGpuHiz } from '../../../gpu/hiz/hiz.ts';
+import { validationScope } from '../../../gpu/core/errorScope.ts';
 import { createGpuDraw } from '../../../gpu/draw/draw.ts';
 import { createGpuPartition } from '../../../gpu/partition/factory.ts';
 import { createGpuRestCompact } from '../../../gpu/raster/restCompact.ts';
@@ -64,7 +65,15 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   vis.zeroFlags = shaders.zeroFlags;
   vis.visUniform = shaders.visUniform;
   const { visModule, shadeModule } = shaders;
-  vis.gpuHiz = await createGpuHiz(gpuDevice, Math.max(1, width), Math.max(1, height), drawSlots);
+  // Hi-Z is a frame target: made under the out-of-memory check, and left out when refused — its
+  // absence changes no image (`targetGrant.ts`).
+  const hiz = await validationScope(
+    gpuDevice,
+    () => createGpuHiz(gpuDevice, Math.max(1, width), Math.max(1, height), drawSlots),
+    'out-of-memory',
+  );
+  if (hiz.error) hiz.value?.dispose();
+  vis.gpuHiz = hiz.error ? undefined : hiz.value;
   let rasterPipelines;
   try {
     if (!vis.gpuHiz || !vis.visBindGroupLayout) throw new Error('HIZ_UNAVAILABLE');

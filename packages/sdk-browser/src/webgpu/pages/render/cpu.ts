@@ -4,7 +4,6 @@ import { applyTemporalHiz, resetHizCounts } from '../../../hiz/hiz.ts';
 import { pageAddress } from '../../row/pageSlots.ts';
 import { appendAll, markDrawnDiverged, partitionByPass, triangleSum } from '../helpers.ts';
 import { publishCpuProfile } from './cpuSteps.ts';
-import { ensureTargets } from '../prepare/targets.ts';
 import { encodeDraws } from './encodeDraws.ts';
 import { traceCpuFrame, traceCpuFrameWaiting, traceCpuSelection } from './trace.ts';
 import {
@@ -13,7 +12,6 @@ import {
   traceAdmission,
   traceDrawnVerify,
   traceQueueReconstruct,
-  traceTargetsEnsured,
 } from './steps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
@@ -150,10 +148,6 @@ export function renderCpuCut(
   // drop out here — `hizRejectedTriangles` counts it.
   run.drawnTriangles = run.selectedTriangles;
   traceDrawnVerify(rt, performance.now() - drawnVerifyStarted);
-  const [width, height] = viewport ?? gpu.targetSize,
-    targetStarted = performance.now();
-  ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
-  traceTargetsEnsured(rt, width, height, targetStarted);
   logFirstCpuRenderPath(rt);
   const encodeStart = performance.now();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, cam);
