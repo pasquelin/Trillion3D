@@ -1,24 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { prepareExplorerBackends } from './backends.ts';
+import { probeBackendContext } from './backends.fixture.ts';
 import { createExplorerPageSources } from './pageSources.ts';
+import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import { createPageCache } from '../../streaming/pageCache.ts';
 import { servedPages } from '../../streaming/servedPages.fixture.ts';
 import {
+  PROXY_TRIANGLE_FLOATS,
+  SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
   type ClusterManifest,
 } from '../../../../sdk-core/src/index.ts';
-import type { BackendContext } from '../../backend/types.ts';
-import type { ExplorerSession } from './session.ts';
 
 const base = 'http://localhost/cache/';
 
-/** A one-triangle proxy file, and the manifest that names it. */
+/** A one-triangle proxy file with no node, and the manifest that names it. */
 async function servedProxy() {
-  const words = new Uint32Array(4 + 9 + 1);
+  // The header, one triangle, its albedo.
+  const words = new Uint32Array(SCENE_PROXY_HEADER_WORDS + PROXY_TRIANGLE_FLOATS + 1);
   words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 1, 0]);
-  new Float32Array(words.buffer, 16, 9).set([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  new Float32Array(words.buffer, SCENE_PROXY_HEADER_WORDS * 4, PROXY_TRIANGLE_FLOATS).set([
+    0, 0, 0, 1, 0, 0, 0, 1, 0,
+  ]);
   const { pages, fetched } = await servedPages(['proxy.bin'], new Uint8Array(words.buffer));
   const proxy = {
     ...pages[0],
@@ -36,8 +40,7 @@ async function openSession(
   pageCache: ReturnType<typeof createPageCache>,
   root = base,
 ) {
-  const diagnosticChannel = { enabled: false, detail: 'summary', emit: () => {} };
-  const options = { manifestUrl: `${root}manifest.json`, pageCache, importedLights: false };
+  const options = { manifestUrl: `${root}manifest.json`, pageCache };
   const pageSources = await createExplorerPageSources(
     metadata,
     options,
@@ -45,35 +48,11 @@ async function openSession(
     undefined,
     true,
     [],
-    diagnosticChannel as never,
+    createDiagnosticChannel(undefined),
     () => {},
   );
-  let context: BackendContext | undefined;
-  const session = {
-    canvas: { width: 4, height: 4 },
-    options,
-    scope: 'full',
-    metadata,
-    diagnosticChannel,
-    emit: () => {},
-    diagnose: () => {},
-  } as unknown as ExplorerSession;
-  await prepareExplorerBackends(session, {
-    source: {} as never,
-    associations: new Map(),
-    textureIndices: new Map(),
-    pageSources,
-    directGpu: false,
-    factories: [
-      (seen) => {
-        context = seen;
-        return { id: 'probe', prepare: async () => {}, dispose: () => {} } as never;
-      },
-    ],
-    backends: [],
-    base: root,
-  });
-  return { context: context!, close: () => pageSources.streamer.dispose() };
+  const context = await probeBackendContext(metadata, pageSources, { options, base: root });
+  return { context, close: () => pageSources.streamer.dispose() };
 }
 
 test('a session reopened after a device loss reads the resident proxy from the kept cache, fetching it once', async () => {
@@ -104,4 +83,18 @@ test('another scene the world loads reads its own proxy, not the one kept under 
   await second.context.readSceneProxy!();
   assert.deepEqual(fetched, [`${base}proxy.bin`, `${other}proxy.bin`]);
   second.close();
+});
+
+test('a proxy whose bytes are not the announced ones fails, naming the file and what differs', async () => {
+  const { metadata } = await servedProxy();
+  const announced = '0'.repeat(64);
+  metadata.proxy!.sha256 = announced;
+  const session = await openSession(metadata, createPageCache());
+  await assert.rejects(
+    session.context.readSceneProxy!(),
+    new RegExp(
+      `${base}proxy\\.bin after 3 attempts: .*SHA-256 [0-9a-f]{64}, ${announced} announced`,
+    ),
+  );
+  session.close();
 });
