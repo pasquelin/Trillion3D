@@ -37,7 +37,7 @@ export function decodeManifestBinary(
       groupOutput,
       structureRoot,
     },
-    bundles: { bundleWords, bundleShaText },
+    bundles,
     previews,
     cullingNodes,
     urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
@@ -52,7 +52,7 @@ export function decodeManifestBinary(
     groupOutput,
     structureRoot,
   };
-  const cursors = { node: 0, group: 0, child: 0, output: 0, root: 0, bundle: 0 };
+  const cursors = { node: 0, group: 0, child: 0, output: 0, root: 0, bundle: 0, dependency: 0 };
   let page = 0;
   const primitives: Primitive[] = slim.primitives.map((entry) => {
     const binary = entry.binary;
@@ -122,8 +122,7 @@ export function decodeManifestBinary(
     const structure = decodeStructure(binary, groupColumns, cursors);
     const streams = decodeStreams(
       binary,
-      bundleWords,
-      bundleShaText,
+      bundles,
       { prefix: bundlePrefix, suffix: bundleSuffix },
       cursors,
     );

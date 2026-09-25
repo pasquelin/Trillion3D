@@ -8,6 +8,11 @@ import {
   DEFAULT_GPU_BUDGET,
   SHADOW_POOL_BYTES,
 } from '../../residency/memoryBudget.ts';
+import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import {
+  SHADOW_TABLE_ENTRIES,
+  shadowPoolSide,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
@@ -66,6 +71,13 @@ test("the default totals split into each pool's own default", () => {
     pageCache: DEFAULT_CPU_BUDGET,
   });
   assert.equal(handle.geometryPool, DEFAULT_GEOMETRY_POOL_BUDGET);
+});
+
+test('the shadow share counts the fixed page table, the same on every screen', () => {
+  assert.ok(SHADOW_BUFFER_BYTES >= SHADOW_TABLE_ENTRIES * 4);
+  const pool = 2 * shadowAtlasBytes(shadowPoolSide(Infinity, Infinity));
+  assert.equal(SHADOW_POOL_BYTES, pool + SHADOW_BUFFER_BYTES);
+  assert.equal(budget('webgpu', null).split.shadowPool, SHADOW_POOL_BYTES);
 });
 
 test('a GPU total redraws every pool by the split, and the pools never sum past it', () => {

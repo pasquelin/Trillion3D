@@ -895,7 +895,9 @@
       "texturePreviewSha": "La huella de cada vista previa de textura.",
       "texturePreviewPixels": "Los píxeles de las vistas previas.",
       "texturePreviewBc7": "Los bloques BC7 de las vistas previas.",
-      "texturePreviewAstc": "Los bloques ASTC de las vistas previas."
+      "texturePreviewAstc": "Los bloques ASTC de las vistas previas.",
+      "bundleDependencyCount": "Cuántos paquetes necesita cada paquete.",
+      "bundleDependency": "Los paquetes que necesita cada paquete, hasta las raíces."
     }
   },
   "ColumnKind": {
@@ -1073,7 +1075,8 @@
       "bundles": "Paquetes.",
       "previews": "Vistas previas de texturas.",
       "previewBytes": "Bytes de la columna de píxeles, cada nivel de cada entrada puesto a continuación.",
-      "previewBlockBytes": "Bytes de cada columna de bloques: el final de las cadenas conservadas, comprimida, en bloques enteros, entradas seguidas, nada para una cadena que la familia dejó sin pérdida."
+      "previewBlockBytes": "Bytes de cada columna de bloques: el final de las cadenas conservadas, comprimida, en bloques enteros, entradas seguidas, nada para una cadena que la familia dejó sin pérdida.",
+      "bundleDependencies": "Dependencias de los paquetes, las listas de todos los paquetes una tras otra."
     }
   },
   "CpuStepSummary": {
@@ -2772,7 +2775,6 @@
       "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels de porción. Esto cierra la costura entre dos caras de una luz puntual y quita el acné rasante; está en texels y no en metros para permanecer proporcional a la resolución que ha obtenido la luz.",
       "shadowPagesPerFrame": "Páginas de sombra dibujadas como máximo por imagen: el tope del búfer, nunca un ajuste de calidad. El presupuesto en milisegundos casi siempre se detiene antes; este tope es solo un límite último, y el único en un dispositivo sin reloj de GPU.",
       "lampFaceSize": "Lado del mip más fino de una cara de lámpara, en téxeles: 32 × 32 páginas de 128 (el pool: `shadowPoolSide`).",
-      "shadowTableEntries": "Entradas de la tabla de páginas de sombra, una palabra por página virtual: un búfer fijo de 4 MiB. Cabe en él dieciséis soles o 128 luces puntuales; una luz que no encuentra sitio se queda sin sombra, y se cuenta.",
       "shadowRequestCap": "Páginas virtuales que el sombreado puede pedir por imagen; el resto vuelve a pedirlas en la siguiente.",
       "sunLevels": "Niveles de clipmap de una luz direccional. El nivel `L` tiene téxeles de `2^L` metros, y un píxel lee el nivel cuyo téxel no supera su propia huella: dieciséis niveles cubren una razón lejos/cerca de 2^15. Más allá del último nivel, toma el relevo la sombra lejana.",
       "sunLevelPages": "Páginas por lado de la extensión de un nivel de clipmap alrededor de la cámara. Es una capacidad, no un ajuste: cada píxel lee su propia densidad mientras `height / tan(halfFovY)` no pase de `sunLevelPages · shadowPage / 2` = 4096 (un lienzo 4K con un campo vertical de 55°); más allá, los píxeles exteriores leen el nivel siguiente, a la mitad de densidad."
@@ -5295,6 +5297,10 @@
   "Side": {
     "summary": "Qué caras dibuja un material: `'front'`, `'back'` o `'double'`."
   },
+  "SixDofAxis": {
+    "summary": "Los ejes de una unión de seis grados de libertad: deslizar a lo largo de `x`, `y`, `z` y girar alrededor de ellos.",
+    "description": "`x` sigue el `axis` de la unión, `y` queda tan cerca del arriba del mundo como puede siendo perpendicular a él."
+  },
   "sideOf": {
     "summary": "El lado que declara un material del host, leído una vez en la frontera hacia la enumeración propia del motor."
   },
@@ -5374,7 +5380,8 @@
       "version": "Versión del formato.",
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
-      "pages": "Cuántos paquetes."
+      "pages": "Cuántos paquetes.",
+      "maxDependencies": "Mayor número de dependencias de un paquete: el límite que publica el compilador."
     }
   },
   "SlimStructure": {
@@ -5509,7 +5516,8 @@
       "url": "Dónde se lee.",
       "sha256": "Huella de sus bytes.",
       "bytes": "Su tamaño.",
-      "count": "Clústeres que contiene."
+      "count": "Clústeres que contiene.",
+      "dependencies": "Los paquetes que guardan los padres de sus clusters, hasta las raíces siempre cargadas, en orden: se instala después de cada uno de ellos."
     }
   },
   "StreamCatalogue": {
@@ -5519,7 +5527,8 @@
       "version": "Versión del formato.",
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
-      "pages": "Cada paquete."
+      "pages": "Cada paquete.",
+      "maxDependencies": "Mayor número de dependencias de un paquete, tal como lo publicó el compilador."
     }
   },
   "StreamPage": {
@@ -7276,20 +7285,27 @@
     "description": "Se mantiene mientras ambos cuerpos se simulan y hasta que se rompe.",
     "parameters": {
       "options": "Lo que acepta `joint.*`. Puntos y ejes están en el mundo y se leen cuando la unión se crea por primera vez.",
-      "options.anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia en `a`.",
-      "options.anchorB": "El extremo de una distancia en `b`.",
-      "options.axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono.",
-      "options.limits": "Bisagra, corredera, distancia y cono: cuánto se mueve. Una distancia conserva por defecto su longitud.",
-      "options.spring": "Bisagra, corredera y distancia: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
-      "options.motor": "Bisagra y corredera: un motor, modificable en cualquier momento con `joint.motor`.",
-      "options.breakForce": "Newtons de tirón a partir de los cuales la unión se rompe; si se omite, nunca."
+      "options.anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia o de la cuerda de una polea en `a`.",
+      "options.anchorB": "El extremo de una distancia o de la cuerda de una polea en `b`.",
+      "options.axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono o de una rótula con torsión, la `x` de una unión de seis grados de libertad, el eje de un engranaje o de un piñón (`a`).",
+      "options.axisB": "El eje de un engranaje en `b`, el riel de una cremallera (`b`).",
+      "options.limits": "Bisagra, corredera, distancia, cono, rótula con torsión y polea: cuánto se mueve. Una distancia conserva por defecto su longitud; la cuerda de una polea va de 0 a su longitud.",
+      "options.axes": "Los ejes de una unión de seis grados de libertad que se mueven, libremente (`'free'`) o dentro de límites; los demás quedan bloqueados.",
+      "options.spring": "Bisagra, corredera, distancia y seis grados de libertad: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
+      "options.motor": "Bisagra, corredera, rótula con torsión (su torsión), seis grados de libertad y camino: un motor, modificable en cualquier momento con `joint.motor`.",
+      "options.path": "La vía de un camino: al menos dos puntos, de `b` (o del mundo) tal como están al crearla; `a` empieza en el punto de la vía más cercano a `anchor`.",
+      "options.loop": "La vía de un camino se cierra sobre sí misma.",
+      "options.follow": "El `a` de un camino gira con la vía, como un vagón, en vez de libremente, como una cuenta.",
+      "options.over": "Las dos ruedas de una polea en el mundo: la cuerda de `a` sube hasta la primera, la de `b` hasta la segunda.",
+      "options.ratio": "En un engranaje, las vueltas de `b` por vuelta de `a` (los dientes de `a` entre los de `b`), en sentido contrario; en un piñón, los radianes por metro de cremallera, 1 / su radio; en una polea, los metros de cuerda de `b` por metro de la de `a`.",
+      "options.breakForce": "Newtons de tirón a partir de los cuales la unión se rompe (N·m de par entre los dientes de un engranaje o de una cremallera); si se omite, nunca."
     },
     "members": {
       "kind": "Qué es la unión.",
       "a": "El primer cuerpo.",
       "b": "El segundo cuerpo, o `null` para el mundo.",
       "options": "Con qué se creó.",
-      "motor": "El motor de una bisagra o una corredera; `null` la deja girar o deslizar libremente.",
+      "motor": "El motor de una bisagra, una corredera, una rótula con torsión, una unión de seis grados de libertad o un camino; `null` la deja moverse libremente.",
       "broken": "Si se rompió: tirada más allá de su `breakForce`. Una unión rota ya no sujeta nada.",
       "on": "Llama a `handler` cuando la unión se rompe."
     }
@@ -7298,31 +7314,40 @@
     "summary": "Las uniones entre cuerpos, cada una una restricción propia de Jolt."
   },
   "JointLimits": {
-    "summary": "Cuánto puede moverse una unión: radianes para una bisagra, metros para una corredera o una distancia, el semiángulo del cono (`max`) para un cono.",
+    "summary": "Cuánto puede moverse una unión: radianes para una bisagra o un giro, metros para una corredera, una distancia o la cuerda de una polea, el medio ángulo del cono (`max`) para un cono.",
     "members": {
-      "min": "El de una bisagra de −π a 0, el de una corredera 0 o menos.",
-      "max": "El de una bisagra de 0 a π, el de una corredera 0 o más."
+      "min": "El de una bisagra de −π a 0, el de una corredera 0 o menos; la torsión de una rótula con torsión desde −π.",
+      "max": "El de una bisagra de 0 a π, el de una corredera 0 o más; la torsión de una rótula con torsión hasta π.",
+      "swing": "El cono de una rótula con torsión: cuánto oscila su `axis`, un medio ángulo de hasta π."
     }
   },
   "JointMotor": {
-    "summary": "El motor de una bisagra o una corredera: lleva la unión a una velocidad o a una posición.",
+    "summary": "El motor de una unión: la lleva a una velocidad o a una posición.",
     "members": {
-      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianes o metros desde donde se creó la unión.",
+      "mode": "`'velocity'`: rad/s o m/s; `'position'`: radianes o metros desde donde se creó la unión — en un camino, el punto a lo largo de él (1.5: a medio camino entre el segundo y el tercero).",
       "target": "La velocidad o la posición que alcanzar.",
-      "maxForce": "N·m para una bisagra, N para una corredera; si se omite, sin límite."
+      "maxForce": "N·m para un giro, N para un deslizamiento; si se omite, sin límite.",
+      "axis": "El eje que mueve, en una unión de seis grados de libertad."
     }
   },
   "JointOptions": {
     "summary": "Lo que acepta `joint.*`.",
     "description": "Puntos y ejes están en el mundo y se leen cuando la unión se crea por primera vez.",
     "members": {
-      "anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia en `a`.",
-      "anchorB": "El extremo de una distancia en `b`.",
-      "axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono.",
-      "limits": "Bisagra, corredera, distancia y cono: cuánto se mueve. Una distancia conserva por defecto su longitud.",
-      "spring": "Bisagra, corredera y distancia: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
-      "motor": "Bisagra y corredera: un motor, modificable en cualquier momento con `joint.motor`.",
-      "breakForce": "Newtons de tirón a partir de los cuales la unión se rompe; si se omite, nunca."
+      "anchor": "Dónde se unen los cuerpos: el eje de una bisagra, la rótula de una unión puntual, el extremo de una distancia o de la cuerda de una polea en `a`.",
+      "anchorB": "El extremo de una distancia o de la cuerda de una polea en `b`.",
+      "axis": "El eje de una bisagra, el riel de una corredera, el centro de un cono o de una rótula con torsión, la `x` de una unión de seis grados de libertad, el eje de un engranaje o de un piñón (`a`).",
+      "axisB": "El eje de un engranaje en `b`, el riel de una cremallera (`b`).",
+      "limits": "Bisagra, corredera, distancia, cono, rótula con torsión y polea: cuánto se mueve. Una distancia conserva por defecto su longitud; la cuerda de una polea va de 0 a su longitud.",
+      "axes": "Los ejes de una unión de seis grados de libertad que se mueven, libremente (`'free'`) o dentro de límites; los demás quedan bloqueados.",
+      "spring": "Bisagra, corredera, distancia y seis grados de libertad: pasados los límites, un resorte la devuelve en lugar de un muro; `frequency` en Hz, `damping` de 0 (nada) a 1 (crítico).",
+      "motor": "Bisagra, corredera, rótula con torsión (su torsión), seis grados de libertad y camino: un motor, modificable en cualquier momento con `joint.motor`.",
+      "path": "La vía de un camino: al menos dos puntos, de `b` (o del mundo) tal como están al crearla; `a` empieza en el punto de la vía más cercano a `anchor`.",
+      "loop": "La vía de un camino se cierra sobre sí misma.",
+      "follow": "El `a` de un camino gira con la vía, como un vagón, en vez de libremente, como una cuenta.",
+      "over": "Las dos ruedas de una polea en el mundo: la cuerda de `a` sube hasta la primera, la de `b` hasta la segunda.",
+      "ratio": "En un engranaje, las vueltas de `b` por vuelta de `a` (los dientes de `a` entre los de `b`), en sentido contrario; en un piñón, los radianes por metro de cremallera, 1 / su radio; en una polea, los metros de cuerda de `b` por metro de la de `a`.",
+      "breakForce": "Newtons de tirón a partir de los cuales la unión se rompe (N·m de par entre los dientes de un engranaje o de una cremallera); si se omite, nunca."
     }
   },
   "joint": {
@@ -7333,7 +7358,13 @@
       "hinge": "Un eje en `anchor` a lo largo de `axis`: una puerta, una rueda. `limits` en radianes.",
       "slider": "Un riel a lo largo de `axis`: un cajón, un pistón. `limits` en metros.",
       "distance": "Mantiene `anchor` en `a` y `anchorB` en `b` a su distancia, o dentro de `limits`.",
-      "cone": "Una rótula cuyo `axis` oscila dentro de un cono de semiángulo `limits.max`."
+      "cone": "Una rótula cuyo `axis` oscila dentro de un cono de semiángulo `limits.max`.",
+      "swingTwist": "Un hombro: `axis` oscila dentro de un cono de medio ángulo `limits.swing` y se tuerce sobre sí mismo entre `limits.min` y `max`; su motor mueve la torsión.",
+      "sixDof": "Seis ejes, cada uno bloqueado, libre o limitado (`axes`): cualquier unión entre las demás.",
+      "path": "`a` recorre una vía suave que pasa por `path`, fija a `b` o al mundo: una montaña rusa.",
+      "pulley": "Una cuerda de `a` sobre dos ruedas (`over`) hasta `b`: uno sube cuando el otro baja.",
+      "gear": "Dos ruedas que giran juntas según `ratio`, cada una sobre su propio eje (`axis`, `axisB`) y sujeta por su bisagra (la rueda como su `a`); cuando `ratio` o 1 / `ratio` es entero, sus dientes también conservan la fase en que se hicieron.",
+      "rackAndPinion": "Un piñón `a` que gira alrededor de `axis` mueve una cremallera `b` a lo largo de `axisB`, cada uno sujeto por su bisagra o su corredera (el cuerpo como su `a`), sus dientes en la fase en que se hicieron."
     }
   }
 }

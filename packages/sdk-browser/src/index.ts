@@ -39,6 +39,7 @@ export {
   type JointLimits,
   type JointMotor,
   type JointOptions,
+  type SixDofAxis,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
 export type { WaterSpec, WaveSpec, WaterSurface } from '../../sdk-core/src/fluids/index.ts';

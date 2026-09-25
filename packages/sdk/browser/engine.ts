@@ -117,7 +117,8 @@ export type {
   JointLimits,
   JointMotor,
   JointOptions,
-} from '../../sdk-core/src/physics/joint.ts';
+  SixDofAxis,
+} from '../../sdk-core/src/physics/jointOptions.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';

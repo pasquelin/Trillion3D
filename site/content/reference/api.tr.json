@@ -309,7 +309,9 @@
       "texturePreviewSha": "Her doku önizlemesinin parmak izi.",
       "texturePreviewPixels": "Önizlemelerin pikselleri.",
       "texturePreviewBc7": "Önizlemelerin BC7 blokları.",
-      "texturePreviewAstc": "Önizlemelerin ASTC blokları."
+      "texturePreviewAstc": "Önizlemelerin ASTC blokları.",
+      "bundleDependencyCount": "Her paketin kaç pakete ihtiyaç duyduğu.",
+      "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -653,7 +655,8 @@
       "bundles": "Paketler.",
       "previews": "Doku önizlemeleri.",
       "previewBytes": "Piksel sütununun baytları, her girdinin her seviyesi birleştirilmiş.",
-      "previewBlockBytes": "Her blok sütununun baytları: tutulan zincirlerin sıkıştırılmış kuyrukları, bütün bloklar, bitişik girdiler, ailenin kayıpsız bıraktığı bir zincir için hiçbir şey."
+      "previewBlockBytes": "Her blok sütununun baytları: tutulan zincirlerin sıkıştırılmış kuyrukları, bütün bloklar, bitişik girdiler, ailenin kayıpsız bıraktığı bir zincir için hiçbir şey.",
+      "bundleDependencies": "Paket bağımlılıkları, tüm paketlerin listeleri art arda."
     }
   },
   "CpuStepSummary": {
@@ -1535,7 +1538,6 @@
       "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, kesit tekselleri cinsinden. Bir nokta ışığın iki yüzü arasındaki dikişi kapatan ve sıyırma sivilcelerini kaldıran şey budur; metre değil teksel cinsindedir, böylece ışığın elde ettiği çözünürlükle orantılı kalır.",
       "shadowPagesPerFrame": "Kare başına en fazla çizilen gölge sayfaları: tampon tavanı, asla bir kalite ayarı değil. Milisaniye bütçesi neredeyse her zaman önce durur; bu tavan yalnızca son bir sınırdır ve GPU saati olmayan bir aygıtta tek sınırdır.",
       "lampFaceSize": "Bir lamba yüzünün en ince mip düzeyinin kenarı, texel olarak: 128’lik 32 × 32 sayfa (havuz: `shadowPoolSide`).",
-      "shadowTableEntries": "Gölge sayfa tablosunun girdileri, sanal sayfa başına bir sözcük: sabit 4 MiB’lık bir tampon. On altı güneş ya da 128 noktasal ışık alır; yer bulamayan bir ışık gölgesiz kalır ve sayılır.",
       "shadowRequestCap": "Gölgelendirmenin kare başına isteyebileceği sanal sayfalar; kalanlar sonraki karede yeniden ister.",
       "sunLevels": "Yönlü bir ışığın clipmap düzeyleri. `L` düzeyinin texelleri `2^L` metredir ve bir piksel, texeli kendi izinden büyük olmayan düzeyi okur: on altı düzey 2^15’lik bir uzak/yakın oranını kapsar. Son düzeyin ötesinde uzak gölge devralır.",
       "sunLevelPages": "Kamera çevresindeki bir clipmap düzeyi alanının kenar başına sayfaları. Bir kapasitedir, ayar değil: `height / tan(halfFovY)` değeri `sunLevelPages · shadowPage / 2` = 4096’yı aşmadıkça her piksel kendi yoğunluğunu okur (55° dikey alanlı 4K bir tuval); ötesinde dış pikseller sonraki düzeyi yarı yoğunlukta okur."
@@ -3018,6 +3020,10 @@
   "Side": {
     "summary": "Bir malzemenin hangi yüzleri çizdiği: `'front'`, `'back'` ya da `'double'`."
   },
+  "SixDofAxis": {
+    "summary": "Altı serbestlik dereceli bir eklemin eksenleri: `x`, `y`, `z` boyunca kayma ve bunların etrafında dönme.",
+    "description": "`x` eklemin `axis`’i boyunca uzanır, `y` ona dik kalarak dünyanın yukarısına olabildiğince yakındır."
+  },
   "SlimClusterManifest": {
     "summary": "Uzun listeleri yanındaki bir ikili dosyada yaşayan bir manifesto.",
     "members": {
@@ -3078,7 +3084,8 @@
       "version": "Format sürümü.",
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
-      "pages": "Kaç paket."
+      "pages": "Kaç paket.",
+      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı: derleyicinin yayımladığı sınır."
     }
   },
   "SlimStructure": {
@@ -3171,7 +3178,8 @@
       "url": "Nereden okunduğu.",
       "sha256": "Baytlarının parmak izi.",
       "bytes": "Boyutu.",
-      "count": "Tuttuğu cluster'lar."
+      "count": "Tuttuğu cluster'lar.",
+      "dependencies": "Kümelerinin ebeveynlerini tutan paketler, her zaman yüklü köklere kadar, artan sırada: her birinden sonra kurulur."
     }
   },
   "StreamCatalogue": {
@@ -3181,7 +3189,8 @@
       "version": "Format sürümü.",
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
-      "pages": "Her paket."
+      "pages": "Her paket.",
+      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı, derleyicinin yayımladığı gibi."
     }
   },
   "StreamPage": {
@@ -7276,20 +7285,27 @@
     "description": "İki cisim de simüle edildikçe ve kırılana dek tutar.",
     "parameters": {
       "options": "`joint.*`'ın kabul ettikleri. Noktalar ve eksenler dünyadadır, eklem ilk oluşturulduğunda okunur.",
-      "options.anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin `a` üzerindeki ucu.",
-      "options.anchorB": "Bir mesafenin `b` üzerindeki ucu.",
-      "options.axis": "Menteşenin pimi, kızağın rayı, koninin ortası.",
-      "options.limits": "Menteşe, kızak, mesafe ve koni: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur.",
-      "options.spring": "Menteşe, kızak ve mesafe: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
-      "options.motor": "Menteşe ve kızak: her an `joint.motor` ile değiştirilebilen bir motor.",
-      "options.breakForce": "Eklemin kırıldığı çekiş (newton); verilmezse hiç kırılmaz."
+      "options.anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin veya makara ipinin `a` üzerindeki ucu.",
+      "options.anchorB": "Bir mesafenin veya makara ipinin `b` üzerindeki ucu.",
+      "options.axis": "Menteşenin pimi, kızağın rayı, koninin veya salınım-burulma ekleminin ortası, altı serbestlik dereceli eklemin `x`’i, bir dişlinin veya pinyonun pimi (`a`).",
+      "options.axisB": "Bir dişlinin `b` üzerindeki pimi, bir kremayerin rayı (`b`).",
+      "options.limits": "Menteşe, kızak, mesafe, koni, salınım-burulma ve makara: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur; makara ipi 0’dan kendi uzunluğuna kadardır.",
+      "options.axes": "Altı serbestlik dereceli bir eklemin hareket eden eksenleri, serbestçe (`'free'`) veya sınırlar içinde; diğerleri kilitlidir.",
+      "options.spring": "Menteşe, kızak, mesafe ve altı serbestlik derecesi: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
+      "options.motor": "Menteşe, kızak, salınım-burulma (burulması), altı serbestlik derecesi ve yol: her an `joint.motor` ile değiştirilebilen bir motor.",
+      "options.path": "Bir yolun rayı: en az iki nokta, kurulduğu andaki hâliyle `b`’nin (veya dünyanın); `a`, rayın `anchor`’a en yakın noktasından başlar.",
+      "options.loop": "Bir yolun rayı kendi üzerine kapanır.",
+      "options.follow": "Bir yolun `a`’sı bir vagon gibi rayla birlikte döner, bir boncuk gibi serbest değil.",
+      "options.over": "Bir makaranın dünyadaki iki tekerleği: `a`’nın ipi birinciye, `b`’ninki ikinciye çıkar.",
+      "options.ratio": "Bir dişlide `a`’nın bir turuna karşılık `b`’nin turları (`a`’nın dişleri bölü `b`’ninkiler), ters yönde; bir pinyonda kremayerin metresi başına radyan, 1 / yarıçapı; bir makarada `a`’nın ipinin metresi başına `b`’nin ipinin metresi.",
+      "options.breakForce": "Eklemin kırıldığı çekiş (newton) (bir dişlinin veya kremayerin dişleri arasında N·m tork); verilmezse hiç kırılmaz."
     },
     "members": {
       "kind": "Eklemin ne olduğu.",
       "a": "Birinci cisim.",
       "b": "İkinci cisim ya da dünya için `null`.",
       "options": "Neyle oluşturulduğu.",
-      "motor": "Menteşenin ya da kızağın motoru; `null` serbestçe dönmesine ya da kaymasına izin verir.",
+      "motor": "Bir menteşenin, kızağın, salınım-burulma ekleminin, altı serbestlik dereceli eklemin veya yolun motoru; `null` eklemi serbest bırakır.",
       "broken": "Kırılıp kırılmadığı: `breakForce` değerinin ötesinde çekildi. Kırık bir eklem artık bir şey tutmaz.",
       "on": "Eklem kırıldığında `handler`'ı çağırır."
     }
@@ -7298,31 +7314,40 @@
     "summary": "Cisimler arasındaki eklemler; her biri Jolt'un kendi kısıtlarından biri."
   },
   "JointLimits": {
-    "summary": "Bir eklemin ne kadar hareket edebileceği: menteşe için radyan, kızak ya da mesafe için metre, koni için koninin yarım açısı (`max`).",
+    "summary": "Bir eklemin ne kadar hareket edebileceği: menteşe veya dönüş için radyan, kızak, mesafe veya makara ipi için metre, koni için koninin yarım açısı (`max`).",
     "members": {
-      "min": "Menteşede −π ile 0 arası, kızakta 0 ya da daha az.",
-      "max": "Menteşede 0 ile π arası, kızakta 0 ya da daha fazla."
+      "min": "Menteşede −π ile 0 arası, kızakta 0 veya daha az; salınım-burulma ekleminin burulması −π’den başlar.",
+      "max": "Menteşede 0 ile π arası, kızakta 0 veya daha fazla; salınım-burulma ekleminin burulması π’ye kadar.",
+      "swing": "Salınım-burulma ekleminin konisi: `axis`’inin ne kadar salındığı, π’ye kadar bir yarım açı."
     }
   },
   "JointMotor": {
-    "summary": "Menteşenin ya da kızağın motoru: eklemi bir hıza ya da konuma sürer.",
+    "summary": "Bir eklemin motoru: eklemi bir hıza veya bir konuma götürür.",
     "members": {
-      "mode": "`'velocity'`: rad/s ya da m/s; `'position'`: eklemin oluşturulduğu yerden radyan ya da metre.",
+      "mode": "`'velocity'`: rad/s veya m/s; `'position'`: eklemin kurulduğu yerden radyan veya metre — bir yolda, yol boyunca nokta (1.5: ikinci ile üçüncü noktanın tam ortası).",
       "target": "Ulaşılacak hız ya da konum.",
-      "maxForce": "Menteşe için N·m, kızak için N; verilmezse sınırsız."
+      "maxForce": "Dönüş için N·m, kayma için N; verilmezse sınır yok.",
+      "axis": "Altı serbestlik dereceli bir eklemde sürdüğü eksen."
     }
   },
   "JointOptions": {
     "summary": "`joint.*`'ın kabul ettikleri.",
     "description": "Noktalar ve eksenler dünyadadır, eklem ilk oluşturulduğunda okunur.",
     "members": {
-      "anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin `a` üzerindeki ucu.",
-      "anchorB": "Bir mesafenin `b` üzerindeki ucu.",
-      "axis": "Menteşenin pimi, kızağın rayı, koninin ortası.",
-      "limits": "Menteşe, kızak, mesafe ve koni: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur.",
-      "spring": "Menteşe, kızak ve mesafe: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
-      "motor": "Menteşe ve kızak: her an `joint.motor` ile değiştirilebilen bir motor.",
-      "breakForce": "Eklemin kırıldığı çekiş (newton); verilmezse hiç kırılmaz."
+      "anchor": "Cisimlerin birleştiği yer: menteşenin pimi, nokta ekleminin bilyesi, bir mesafenin veya makara ipinin `a` üzerindeki ucu.",
+      "anchorB": "Bir mesafenin veya makara ipinin `b` üzerindeki ucu.",
+      "axis": "Menteşenin pimi, kızağın rayı, koninin veya salınım-burulma ekleminin ortası, altı serbestlik dereceli eklemin `x`’i, bir dişlinin veya pinyonun pimi (`a`).",
+      "axisB": "Bir dişlinin `b` üzerindeki pimi, bir kremayerin rayı (`b`).",
+      "limits": "Menteşe, kızak, mesafe, koni, salınım-burulma ve makara: ne kadar hareket ettiği. Bir mesafe varsayılan olarak uzunluğunu korur; makara ipi 0’dan kendi uzunluğuna kadardır.",
+      "axes": "Altı serbestlik dereceli bir eklemin hareket eden eksenleri, serbestçe (`'free'`) veya sınırlar içinde; diğerleri kilitlidir.",
+      "spring": "Menteşe, kızak, mesafe ve altı serbestlik derecesi: sınırların ötesinde bir duvar yerine yay geri çeker; `frequency` Hz cinsinden, `damping` 0 (yok) ile 1 (kritik) arası.",
+      "motor": "Menteşe, kızak, salınım-burulma (burulması), altı serbestlik derecesi ve yol: her an `joint.motor` ile değiştirilebilen bir motor.",
+      "path": "Bir yolun rayı: en az iki nokta, kurulduğu andaki hâliyle `b`’nin (veya dünyanın); `a`, rayın `anchor`’a en yakın noktasından başlar.",
+      "loop": "Bir yolun rayı kendi üzerine kapanır.",
+      "follow": "Bir yolun `a`’sı bir vagon gibi rayla birlikte döner, bir boncuk gibi serbest değil.",
+      "over": "Bir makaranın dünyadaki iki tekerleği: `a`’nın ipi birinciye, `b`’ninki ikinciye çıkar.",
+      "ratio": "Bir dişlide `a`’nın bir turuna karşılık `b`’nin turları (`a`’nın dişleri bölü `b`’ninkiler), ters yönde; bir pinyonda kremayerin metresi başına radyan, 1 / yarıçapı; bir makarada `a`’nın ipinin metresi başına `b`’nin ipinin metresi.",
+      "breakForce": "Eklemin kırıldığı çekiş (newton) (bir dişlinin veya kremayerin dişleri arasında N·m tork); verilmezse hiç kırılmaz."
     }
   },
   "joint": {
@@ -7333,7 +7358,13 @@
       "hinge": "`anchor` noktasında `axis` boyunca bir pim: bir kapı, bir tekerlek. `limits` radyan cinsinden.",
       "slider": "`axis` boyunca bir ray: bir çekmece, bir piston. `limits` metre cinsinden.",
       "distance": "`a` üzerindeki `anchor` ile `b` üzerindeki `anchorB`'yi aralarındaki mesafede ya da `limits` içinde tutar.",
-      "cone": "`axis`'i yarım açısı `limits.max` olan bir koni içinde salınan bilyeli eklem."
+      "cone": "`axis`'i yarım açısı `limits.max` olan bir koni içinde salınan bilyeli eklem.",
+      "swingTwist": "Bir omuz: `axis`, yarım açısı `limits.swing` olan bir koni içinde salınır ve `limits.min` ile `max` arasında kendi etrafında burulur; motoru burulmayı sürer.",
+      "sixDof": "Her biri kilitli, serbest veya sınırlı altı eksen (`axes`): diğerlerinin arasındaki her eklem.",
+      "path": "`a`, `path`’ten geçen, `b`’ye veya dünyaya sabit düzgün bir ray üzerinde gider: bir hız treni.",
+      "pulley": "`a`’dan iki tekerleğin (`over`) üzerinden `b`’ye inen bir ip: biri inerken diğeri çıkar.",
+      "gear": "`ratio` oranında birlikte dönen iki tekerlek, her biri kendi pimi (`axis`, `axisB`) etrafında ve kendi menteşesiyle tutulur (tekerlek onun `a`’sı); `ratio` ya da 1 / `ratio` tam sayıysa dişleri yapıldıkları fazı da korur.",
+      "rackAndPinion": "`axis` etrafında dönen bir pinyon `a`, bir kremayer `b`’yi `axisB` boyunca sürer; her biri kendi menteşesi veya kızağıyla tutulur (cisim onun `a`’sı), dişleri yapıldıkları fazda kalır."
     }
   }
 }
