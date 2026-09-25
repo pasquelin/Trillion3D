@@ -1,6 +1,7 @@
 // A soft body's shared settings as Jolt simulates them, built by one function for the compiler's
 // cook (`cook/cook.cpp`) and the physics worker's SOFT (`src/soft.cpp`): a cooked soft body
-// restores to the settings the page would have built from the same vertices.
+// restores to the settings the page would have built from the same vertices. A change here
+// changes the cook's bytes: it bumps `PHYSICS_COOK_VERSION` (`packages/asset-compiler-rust`).
 #pragma once
 
 #include "words.h"
