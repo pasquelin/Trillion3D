@@ -1,19 +1,22 @@
-// The page table's host side: ranges claimed first-fit and refused when the fixed table is full,
-// and an upload of the words a frame changed, in contiguous runs, nothing when nothing changed.
+// The page table's host side: a fixed span per slice, sized so every shadow light of the
+// contract holds its range, and an upload of the words a frame changed, in contiguous runs,
+// nothing when nothing changed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import { createShadowTable } from './table.ts';
+import { SHADOW_TABLE_STRIDE } from './virtual.ts';
 
-test('ranges are claimed first-fit, a freed hole is reused, and a range too large is refused', () => {
+test('a range starts at its slice span, and an entry names the slice whose range holds it', () => {
   const table = createShadowTable(1024);
-  assert.equal(table.claim(0, 100), true);
-  assert.equal(table.claim(1, 50), true);
-  assert.deepEqual([table.baseOf(0), table.baseOf(1)], [0, 100]);
-  table.release(0);
-  assert.equal(table.claim(2, 60), true);
-  assert.equal(table.baseOf(2), 0, 'the hole the first range left');
-  assert.equal(table.sliceAt(120), 1);
-  assert.equal(table.claim(3, table.entries), false, 'no room for a whole table more');
+  table.claim(0, 100);
+  table.claim(1, 50);
+  assert.deepEqual([table.baseOf(0), table.baseOf(1)], [0, SHADOW_TABLE_STRIDE]);
+  assert.equal(table.sliceAt(SHADOW_TABLE_STRIDE + 49), 1);
+  assert.equal(table.sliceAt(SHADOW_TABLE_STRIDE + 50), -1, 'past the range, inside the span');
+  table.release(1);
+  assert.equal(table.sliceAt(SHADOW_TABLE_STRIDE), -1);
+  assert.equal(table.entries, MAX_SHADOW_SLICES * SHADOW_TABLE_STRIDE);
 });
 
 test('an upload carries the changed words in contiguous runs, and nothing on a still frame', () => {
