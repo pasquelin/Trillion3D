@@ -16,8 +16,7 @@ export async function renderForCapture(
   camera: HostCamera,
   aspect?: number,
 ) {
-  const [width, height] = rt.setup.viewport;
-  await grantFrameTargets(rt, device, Math.max(1, width), Math.max(1, height));
+  await grantFrameTargets(rt, device);
   rt.capture.surfaceRenderAllowed = true;
   // A capture renders from another camera and then restores the image: nothing is held there.
   rt.run.gate.viewReplaced();

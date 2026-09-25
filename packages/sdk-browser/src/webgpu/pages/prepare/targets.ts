@@ -84,8 +84,8 @@ export function makeTargets(
 ) {
   const { gpu, vis, run, capture, diag, blendState } = rt;
   releaseTargets(rt);
-  const usage =
-    GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
+  const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    usage = sampled | GPUTextureUsage.COPY_SRC;
   const target = (label: string, format: GPUTextureFormat, targetUsage = usage) =>
     device.createTexture({ label, size: { width, height }, format, usage: targetUsage });
   gpu.colorTexture = target('Trillion3D display color', 'rgba8unorm');
@@ -95,11 +95,7 @@ export function makeTargets(
     usage | GPUTextureUsage.COPY_DST,
   );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
-  gpu.feedbackTexture = target(
-    'Trillion3D texture feedback target',
-    FEEDBACK_FORMAT,
-    GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-  );
+  gpu.feedbackTexture = target('Trillion3D texture feedback target', FEEDBACK_FORMAT, sampled);
   gpu.feedbackView = gpu.feedbackTexture.createView();
   gpu.surfaces = createSurfaceBuffer(device, width, height);
   gpu.colorView = gpu.colorTexture.createView();
@@ -111,8 +107,7 @@ export function makeTargets(
   gpu.targetBytes = allocationBytes;
   gpu.targetSize = [width, height];
   try {
-    const visUsage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING;
-    vis.visTexture = target('Trillion3D visibility', 'r32uint', visUsage);
+    vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled);
     vis.visView = vis.visTexture.createView();
     // Each pixel's material class, as the depth every class pass tests against.
     vis.materialDepthTexture = target(

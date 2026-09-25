@@ -9,7 +9,8 @@ import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { refusing } from './refusing.fixture.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
-import type { WebgpuPagesBackend } from '../runtime.ts';
+import type { WebgpuPagesBackend, WebgpuPagesRuntime } from '../runtime.ts';
+import { requestFrameTargets } from './targetGrant.ts';
 
 const COLOR = 'Trillion3D display color';
 type Backend = WebgpuPagesBackend & { pendingFrame(): Promise<boolean> };
@@ -152,4 +153,15 @@ test('frame targets refused at prepare are refused by name', async () => {
     fixture.geometry.dispose();
     fixture.material.dispose();
   }
+});
+
+test('targets that fit ask nothing of the device and keep no promise: the steady frame is free', () => {
+  const rt = {
+    setup: { viewport: [32, 32] },
+    gpu: { colorTexture: {}, targetSize: [32, 32], surfaces: {}, targetGrant: undefined },
+    vis: { visEnabled: false },
+  } as unknown as WebgpuPagesRuntime;
+  // A bare device: any creation or error scope would throw.
+  assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
+  assert.equal(rt.gpu.targetGrant, undefined);
 });
