@@ -8,6 +8,7 @@ import type {
 import type { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
+import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import type { ModePipelines } from '../../blend/stagePipelines.ts';
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
@@ -75,6 +76,11 @@ export interface WebgpuGpuState {
   temporal: TemporalAntialiasing | undefined;
   /** Whether the host wants the pass: set at preparation, then by `setTemporalAntialiasing`. */
   temporalWanted: boolean;
+  /** The effect chain's targets and programs, made at the first frame with a pass. */
+  effects: WebgpuEffects | undefined;
+  /** Revision of the chain the last encoded image drew, -1 while its programs compile: another
+   *  one breaks the hold. */
+  effectsRevision: number;
   /** The guide pass, built by the first image that shows a guide (`guidePass.ts`). */
   guides: WebgpuGuidePass | undefined;
   /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
@@ -134,6 +140,8 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     deferred: undefined,
     temporal: undefined,
     temporalWanted: true,
+    effects: undefined,
+    effectsRevision: 0,
     guides: undefined,
     guideRevision: 0,
   };
