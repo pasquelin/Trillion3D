@@ -9,8 +9,8 @@ const LIGHT_VIEWS = 4096;
  *  pages of one view share one caster selection. */
 const viewKeyOf = (pool: ShadowPool, page: number) =>
   pool.slice[page] * LIGHT_VIEWS + pool.view[page];
-/** The most frames a page's age counts: past any bound a frame of one-page batches reaches. Its
- *  heaviest sort key, of the largest pool (4 096 pages), stays exact: under 2^53. */
+/** The most frames a page's age counts, so that the heaviest sort key of the largest pool (4 096
+ *  pages) stays an exact float, under 2^53. Far past the bound below: it never reorders pages. */
 const MAX_AGE = 4095;
 
 /** Host bytes the admission of a `pages`-page pool allocates: its list, view keys and sort keys. */
@@ -28,9 +28,9 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * it. It waits unreadable (`pool.withdraw`, the one staleness mechanism): a pass that reads without
  * asking — blend, water — would otherwise read its old depth for as long as no report names it.
  *
- * The list holds the pages light view by light view, each view's pages in page order: what the
- * light cut selects casters for once. The GPU draws it in the batches its buffers hold
- * (`batchEnd`), every batch in the frame. All arrays are allocated once.
+ * While nothing waits, the list holds the pages light view by light view, each view's pages in
+ * page order: what the light cut selects casters for once. The GPU draws it in the batches its
+ * buffers hold (`batchEnd`), every batch in the frame. All arrays are allocated once.
  *
  * NO PAGE WAITS FOREVER. A frame that cannot draw the whole list — its batches past the most its
  * memory holds, a batch that cannot be encoded — stops at a page and leaves the rest pending
@@ -40,9 +40,7 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * frame: no page that turns stale later passes it, whatever its view, so they are fewer each
  * frame, never more. A frame draws at least one page per batch, so a page that stays read is
  * drawn within ⌈pool pages / batches a frame draws⌉ + 1 frames of being listed: 25 for the
- * largest pool (4 096 pages, `MAX_SHADOW_BATCHES` 171), when every batch holds one page. While
- * nothing waits, the list is the view order alone: pages of one view that turned stale in
- * different frames are not split apart.
+ * largest pool (4 096 pages, `MAX_SHADOW_BATCHES` 171), when every batch holds one page.
  */
 export function createShadowAdmission(poolPages: number) {
   const list = new Int32Array(poolPages),
