@@ -3282,7 +3282,8 @@
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
       "pages": "Berapa banyak bundle.",
-      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel: batas yang diterbitkan kompiler."
+      "maxDependencies": "Daftar dependensi tertutup terpanjang dari sebuah bundel.",
+      "dependencyBound": "Jumlah bundel terbanyak yang memuat induk klaster satu bundel, ditetapkan sebelum pengemasan."
     }
   },
   "SlimStructure": {
@@ -3387,7 +3388,8 @@
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
       "pages": "Setiap bundle.",
-      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel, seperti yang diterbitkan kompiler."
+      "maxDependencies": "Daftar dependensi tertutup terpanjang dari sebuah bundel, seperti yang diterbitkan kompiler.",
+      "dependencyBound": "Jumlah bundel terbanyak yang memuat induk klaster satu bundel, ditetapkan sebelum pengemasan."
     }
   },
   "StreamPage": {

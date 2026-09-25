@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { exampleModules } from './docs/examples/capture.ts';
 import { geometry, light, material, math, object } from '../packages/sdk-browser/src/index.ts';
@@ -6,6 +7,7 @@ import { WaterSurface } from '../packages/sdk-core/src/fluids/waterSurface.ts';
 import type { WaterSpec } from '../packages/sdk-core/src/fluids/buoyancy.ts';
 import type { Object3D } from '../packages/sdk-core/src/world/object/object3d.ts';
 import { seeded } from '../site/examples/kit/random.ts';
+import { roadmapEntries } from '../site/app/examples/list.ts';
 
 type Hook = () => void;
 type Spec = unknown[] | boolean | (() => void);
@@ -14,8 +16,7 @@ type Spec = unknown[] | boolean | (() => void);
  * Runs an example page's module in Node on the engine's own scene objects, with a world that
  * counts the shapes its scene writes to the runtime (`content`). A written shape is cut again and
  * opens the session again (docs/SDK.md, "Live material values"): a page that writes one every
- * frame never keeps a session long enough to draw, the blank render of #522. #573's acceptance
- * check runs `site/examples/floating-crates.html` here and asserts 0 writes per frame.
+ * frame never keeps a session long enough to draw, the blank render of #522.
  */
 async function countShapeWrites(html: string) {
   const [source] = await exampleModules(html);
@@ -93,4 +94,14 @@ test('the shape-write counter counts a rewritten shape and not a moved object', 
     });
   </script>`);
   assert.deepEqual([0.1, 0.2, 0.3, 0.4].map(frame), [1, 0, 1, 0]);
+});
+
+// #573's acceptance: skipped while the roadmap parks floating crates on it, run once unparked.
+const crates = roadmapEntries.find(({ id }) => id === 'floating-crates');
+const parked = crates?.status === 'waiting-engine' && `waits for #${crates.issue}`;
+test('floating crates writes no shape per frame', { skip: parked }, async () => {
+  assert.ok(crates, 'the roadmap has no floating-crates entry');
+  const html = await readFile(new URL(`../site/${crates.file}`, import.meta.url), 'utf8');
+  const frame = await countShapeWrites(html);
+  assert.deepEqual([0.1, 0.2, 0.3].map(frame), [0, 0, 0]);
 });

@@ -1,6 +1,6 @@
 # Role: auditor
 
-A session the maintainer starts once: "follow `docs/roles/auditor.md`", usually under `/loop`.
+A background agent the CTO starts after merges: "follow `docs/roles/auditor.md`".
 You are the last check: you re-read every pull request merged into `develop` against
 CONTRIBUTING.md and AGENTS.md. You never edit code, never merge, never measure (AGENTS.md
 rule 2).
@@ -8,7 +8,8 @@ rule 2).
 ## Loop
 
 1. **Queue.** Merged pull requests into `develop` without the `audited` label, oldest merge first:
-   `gh pr list --base develop --state merged --search "-label:audited" --limit 20`.
+   `gh pr list --base develop --state merged --search "-label:audited" --limit 20`. Empty queue:
+   end with your report (the CTO starts you again after the next merges).
 2. Read `gh pr view <pr>`, its diff, its linked issue and its CI jobs. Read the code the diff
    calls only where a rule needs it; the graph first for cross-module questions.
 3. **Check**, most severe first:
@@ -34,4 +35,4 @@ rule 2).
      request closed several issues, reopen the one each finding concerns. Then
      `gh pr edit <pr> --add-label audited`. The domain's lead takes #<n> again, removes
      `audit ko` and closes it once the findings are fixed.
-5. Back to step 1. Report to the maintainer only the `audit ko` verdicts, one line each.
+5. Back to step 1. Report to the CTO only the `audit ko` verdicts, one line each.
