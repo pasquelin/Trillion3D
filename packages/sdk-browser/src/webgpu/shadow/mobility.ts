@@ -20,7 +20,6 @@ export function createShadowMobility() {
      *  move. */
     poses = new Float64Array(0),
     rows = new Uint32Array(0),
-    promoted = false,
     anyMoving = false,
     wholeRows = true;
   return {
@@ -56,17 +55,9 @@ export function createShadowMobility() {
       else poses.set(world, rank * 16);
       if (moving[rank]) return MOVE_MOVING;
       moving[rank] = 1;
-      promoted = true;
       anyMoving = true;
       wholeRows = true;
       return MOVE_PROMOTED;
-    },
-    /** True when a placement turned moving since the last call: the pages it crossed are staled
-     *  whole, not only their moving casters. */
-    takePromoted() {
-      const was = promoted;
-      promoted = false;
-      return was;
     },
     /**
      * Writes the row words of rows `[from, to]` — every row after a placement turned moving —

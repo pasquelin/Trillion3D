@@ -42,9 +42,9 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * memory holds, a batch that cannot be encoded — stops at a page and leaves the rest pending
  * (`reset(stopped)`, `plan.reissue`). Until a frame draws its whole list again, the list orders
  * the pages by age first — the frames since each turned stale (`pool.sinceFrame`), the oldest
- * first, the floors ahead —, then as above. The pages ahead of a pending page turned stale before it, or in its
- * frame: no page that turns stale later passes it, whatever its view, so they are fewer each
- * frame, never more. A frame draws at least one page per batch, so a page that stays read is
+ * first, the floors ahead of the rest —, then as above. The pages ahead of a pending page are
+ * floors, or turned stale before it or in its frame: no other page that turns stale later passes
+ * it, whatever its view, so they are fewer each frame, never more. A frame draws at least one page per batch, so a page that stays read is
  * drawn within ⌈pool pages / batches a frame draws⌉ + 1 frames of being listed: 25 for the
  * largest pool (4 096 pages, `MAX_SHADOW_BATCHES` 171), when every batch holds one page.
  */
