@@ -5,7 +5,7 @@ import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixtur
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 
-const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
+const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const IDENTITY_MATRIX = new G.Matrix4();
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 

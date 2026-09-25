@@ -22,7 +22,7 @@ const appareil = {
 } as unknown as GPUDevice;
 
 function geometrie(sommets: number, alea: () => number) {
-  const geo = new G.GraphGeometry();
+  const geo = new G.Geometry();
   const pos = new Float32Array(sommets * 3);
   for (let i = 0; i < pos.length; i++) pos[i] = alea() * 2 - 1;
   geo.setAttribute('position', new G.BufferAttribute(pos, 3));
