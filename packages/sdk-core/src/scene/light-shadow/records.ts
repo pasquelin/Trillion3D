@@ -1,8 +1,8 @@
-import { MAX_SHADOW_SLICES, type SceneLight } from '../light/contracts.ts';
+import { LIGHT_KIND, MAX_SHADOW_SLICES, type SceneLight } from '../light/contracts.ts';
 import { sameShadowShape } from '../light/equal.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { castsShadow } from './casters.ts';
-import { tableEntriesOf } from './virtual.ts';
+import { LAMP_FLOOR_MIP, sunFloorLevel, tableEntriesOf } from './virtual.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -48,6 +48,14 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     },
     dropPages,
     free,
+    /** Whether pool page `page` is its light's floor — a sun's last level, a lamp face's one-page
+     *  mip —: what a reader falls back to last. */
+    isFloor(page: number) {
+      const slice = pool.slice[page];
+      return kind[slice] === LIGHT_KIND.directional
+        ? pool.view[page] === sunFloorLevel(sun.finest[slice])
+        : (pool.view[page] & 15) === LAMP_FLOOR_MIP;
+    },
     /** The first free slice: there is one per light the store accepts (`MAX_SHADOW_SLICES`). */
     claim() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
