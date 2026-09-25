@@ -8,10 +8,10 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 1. **Pick.** First count your open pull requests: at 3, take no issue and unblock them (red CI,
    conflict with `develop`, unanswered review) until you are back at 2. Below 3, first bring every
-   conflicting one up to date with `develop` and unblock any open more than two hours. Then the
-   open issues of your domain labelled `measure ko` or `audit ko`, then 🔴 critical ones (the
-   children and To-do items of a programme such as #483, in its order), then the oldest open one
-   without `in progress` or `in review`
+   conflicting one up to date with `develop` (a coder resolves what `gh pr update-branch` cannot)
+   and unblock any open more than two hours, or name in your report the one that waits on the
+   boss. Then the open issues of your domain labelled `measure ko` or `audit ko`, then 🔴 critical
+   ones (the children and To-do items of a programme such as #483, in its order), then the oldest open one without `in progress` or `in review`
    (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it;
    if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
@@ -33,7 +33,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    or a point of "Before merge" missed, goes back to step 3.
 5. **Hand over.** `gh issue edit <n> --remove-label "in review"`, add `to measure` for an engine
    batch (`packages/`, compiler, format, shaders, a published number) or an example whose
-   thumbnail is missing, then `gh issue close <n>`.
+   thumbnail is missing, then `gh issue close <n>` unless the pull request says `Part of #<n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
@@ -47,8 +47,7 @@ body under `## Lead verification`, before the merge. CI refuses a body without t
 It holds one line per To do and Proof item of the issue:
 `- <item>: delivered in <file:line>, proved by <test name>`, or
 `- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
-It then holds one line per point below, checked by you, and a line saying every new exported
-symbol was searched in the graph (`graphify query`) with no twin found.
+It then holds one line per point below, checked by you.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
 every supervision pass. Above 1 in 10, your next three merges each get a second, fresh reviewer.
@@ -69,7 +68,9 @@ merges keep coming back `audit ko` is stopped by the CTO.
    issue and accepted by the maintainer before the merge. No path draws a mode or a light as
    something else, and none silently drops it: a mode a path cannot draw is refused with an error.
 4. **Reuse** (AGENTS.md rule 6). Search before accepting a new function, class, table or public
-   entry point. A second copy of an existing one, under any name, is sent back.
+   entry point: its line says every new exported symbol was searched in the graph
+   (`graphify query`, or a bounded search where `graphify-out/` is absent) with no twin found. A
+   second copy of an existing one, under any name, is sent back.
 5. **Docs follow the code.** A changed public member updates `docs/SDK.md`, the API reference
    and every translation. The pull request body describes this diff and closes this issue.
 6. **Measured first** (CONTRIBUTING.md §Measure before optimising). An optimisation states the
