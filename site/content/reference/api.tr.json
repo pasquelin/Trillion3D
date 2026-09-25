@@ -7094,6 +7094,7 @@
       "bodies": "Simülasyonun tuttuğu cisimler.",
       "active": "Son tikten sonra uyanık cisimler.",
       "stepMs": "Sabit adım başına worker milisaniyesi, son tik: worker’ın saati, sayfanınkine asla eklenmez.",
+      "stepMaxMs": "Son tick'in en yavaş sabit adımının worker milisaniyesi: ortalamanın gizlediği yavaş bir adım.",
       "mainMs": "Son karede fiziğin aldığı sayfa milisaniyesi (`physics` CPU aşaması).",
       "poses": "Son tikin geri gönderdiği pozlar.",
       "events": "Son tikin geri gönderdiği temas olayları.",

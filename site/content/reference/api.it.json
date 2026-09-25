@@ -7094,6 +7094,7 @@
       "bodies": "Corpi che la simulazione tiene.",
       "active": "Corpi svegli dopo l’ultimo tick.",
       "stepMs": "Millisecondi del worker per passo fisso, ultimo tick: l’orologio del worker, mai sommato a quello della pagina.",
+      "stepMaxMs": "Millisecondi del worker del passo fisso più lento dell’ultimo tick: un passo lento che la media nasconde.",
       "mainMs": "Millisecondi di pagina presi dalla fisica nell’ultimo fotogramma (la fase CPU `physics`).",
       "poses": "Pose restituite dall’ultimo tick.",
       "events": "Eventi di contatto restituiti dall’ultimo tick.",

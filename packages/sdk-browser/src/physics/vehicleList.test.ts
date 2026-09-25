@@ -57,7 +57,15 @@ test('world.physics.add makes the vehicle with its body; driving it, its state a
     f.set([12, 4000, 3], 2);
     for (let i = 0; i < 4; i++) f.set([0, 0, 0, 0, 0, 0, 1], VEHICLE_STATE_WORDS + i * 7);
     f.set([-0.8, -0.35, -1.3, 0, Math.sin(0.1), 0, Math.cos(0.1)], VEHICLE_STATE_WORDS);
-    const tick = { poses: 0, events: 0, dropped: 0, steps: 1, seconds: 1 / 60, stepMs: 0 };
+    const tick = {
+      poses: 0,
+      events: 0,
+      dropped: 0,
+      steps: 1,
+      seconds: 1 / 60,
+      stepMs: 0,
+      stepMaxMs: 0,
+    };
     const buffer = new ArrayBuffer(4);
     const results = { type: 'results', buffer, active: 1, character: null, vehicles: state };
     worker.onmessage({ data: { ...tick, ...results } });
