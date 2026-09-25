@@ -2,6 +2,7 @@
 //! vertex, edge midpoint and centroid of one side to the nearest triangle of the other, the largest
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
+use crate::shared_math::{dot, sub};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -12,12 +13,6 @@ const RINGS: i64 = 16;
 fn at(pos: &[f32], index: u32) -> P {
     let i = index as usize * 3;
     [pos[i] as f64, pos[i + 1] as f64, pos[i + 2] as f64]
-}
-fn sub(a: P, b: P) -> P {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-fn dot(a: P, b: P) -> f64 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 fn lerp(a: P, b: P, w: f64) -> P {
     [

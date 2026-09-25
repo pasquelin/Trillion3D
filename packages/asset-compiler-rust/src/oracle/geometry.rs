@@ -3,13 +3,13 @@ use super::scene::World;
 use super::trace::Hit;
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
 
-use crate::shared_math::{cross, dot, scale, sub};
+use crate::shared_math::{cross, dot, length, scale, sub};
 pub fn normalise(a: [f64; 3]) -> [f64; 3] {
-    let length = dot(a, a).sqrt();
-    if length <= 0.0 {
+    let norm = length(a);
+    if norm <= 0.0 {
         a
     } else {
-        scale(a, 1.0 / length)
+        scale(a, 1.0 / norm)
     }
 }
 pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {

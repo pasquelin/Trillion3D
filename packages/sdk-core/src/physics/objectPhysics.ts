@@ -11,9 +11,11 @@ export interface ContactEvent {
    *  scene. */
   other: Object3D | null;
   /** N·s: the approach speed along the normal times the pair's reduced mass, estimated before
-   *  the solver runs; 0 on `leave`. */
+   *  the solver runs (a soft body's side: its mean velocity, and the mass of its vertices that
+   *  touched); 0 on `leave`, and between a soft body and a sensor. */
   impulse: number;
-  /** The contact point, world frame; the origin on `leave`. */
+  /** The contact point, world frame (a soft body's: the mean of its vertices that touched, its
+   *  centre for a sensor); the origin on `leave`. */
   point: { x: number; y: number; z: number };
 }
 /** The events a body reports: first touch with an impulse (`contact`), and touch begun or ended. */

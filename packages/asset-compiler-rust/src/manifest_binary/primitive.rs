@@ -175,6 +175,7 @@ pub(super) fn encode_primitive(
                 json!({"version":integer(streams.get("version"),"primitive.streams.version")?,
      "pinned":integer(streams.get("pinned"),"primitive.streams.pinned")?,
      "bundleBytes":integer(streams.get("bundleBytes"),"primitive.streams.bundleBytes")?,
+     "dependencyBound":integer(streams.get("dependencyBound"),"primitive.streams.dependencyBound")?,
      "maxDependencies":integer(streams.get("maxDependencies"),"primitive.streams.maxDependencies")?,
      "pages":bundles.len()}),
             );

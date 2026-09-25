@@ -1747,7 +1747,7 @@
       "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2.",
       "gpuHostGapMs": "Tiempo de CPU que el mismo fotograma pasó entre dos de sus propios envíos, y cero cuando solo envía una vez. Es tiempo del host, no de GPU, por eso `gpuFrameMs` lo excluye. Nulo cuando no se mide.",
       "uncoveredTriangles": "Triángulos de los clústeres que nombra el corte publicado pero que la imagen no puede dibujar — sin página residente y sin ancestro que cubra. Un agujero real en la imagen: cero es el único valor sano. Nulo cuando un motor no puede decirlo (dibuja el corte que eligió, así que nunca tiene).",
-      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos, menos los clústeres sin página residente que cuenta `uncoveredTriangles`. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado en el mismo paso que `uncoveredTriangles`, al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`. Relación de cobertura esperada en esta medida: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`.",
       "cpuSelectMs": "Tiempo de CPU del corte de clústeres de este fotograma, medido solo alrededor de la selección. Nulo para un motor que no elige su corte en la CPU.",
       "gpuSelectionFallback": "Verdadero cuando el motor tenía una selección de GPU y la abandonó: lo que se mide desde entonces es el corte de repliegue de CPU. Un repliegue también emite el diagnóstico `gpu-selection-fallback`, una vez; el host lo copia tal cual, y está ausente en un motor sin selección de GPU.",
       "cpuSelectNodesTested": "Nodos de la jerarquía sobre los que el corte de este fotograma hizo una prueba — decisión de frustum o de nivel de detalle. Un nodo ya decidido y totalmente visible no recibe ninguna: se recorre, no se prueba. Es la medida del trabajo real de un corte jerárquico; un corte plano prueba cero y recorre cada clúster. Nulo para un motor que no elige su corte en la CPU, o que no lo cuenta.",
@@ -5519,7 +5519,8 @@
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
       "pages": "Cuántos paquetes.",
-      "maxDependencies": "Mayor número de dependencias de un paquete: el límite que publica el compilador."
+      "maxDependencies": "La lista de dependencias cerrada más larga de un paquete.",
+      "dependencyBound": "Máximo de paquetes que contienen los padres de los clústeres de un paquete, fijado antes del empaquetado."
     }
   },
   "SlimStructure": {
@@ -5666,7 +5667,8 @@
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
       "pages": "Cada paquete.",
-      "maxDependencies": "Mayor número de dependencias de un paquete, tal como lo publicó el compilador."
+      "maxDependencies": "La lista de dependencias cerrada más larga de un paquete, tal como la publicó el compilador.",
+      "dependencyBound": "Máximo de paquetes que contienen los padres de los clústeres de un paquete, fijado antes del empaquetado."
     }
   },
   "StreamPage": {
@@ -6606,7 +6608,7 @@
       "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2.",
       "gpuHostGapMs": "Tiempo de CPU que el mismo fotograma pasó entre dos de sus propios envíos, y cero cuando solo envía una vez. Es tiempo del host, no de GPU, por eso `gpuFrameMs` lo excluye. Nulo cuando no se mide.",
       "uncoveredTriangles": "Triángulos de los clústeres que nombra el corte publicado pero que la imagen no puede dibujar — sin página residente y sin ancestro que cubra. Un agujero real en la imagen: cero es el único valor sano. Nulo cuando un motor no puede decirlo (dibuja el corte que eligió, así que nunca tiene).",
-      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos, menos los clústeres sin página residente que cuenta `uncoveredTriangles`. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado en el mismo paso que `uncoveredTriangles`, al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`. Relación de cobertura esperada en esta medida: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`.",
       "cpuSelectMs": "Tiempo de CPU del corte de clústeres de este fotograma, medido solo alrededor de la selección. Nulo para un motor que no elige su corte en la CPU.",
       "gpuSelectionFallback": "Verdadero cuando el motor tenía una selección de GPU y la abandonó: lo que se mide desde entonces es el corte de repliegue de CPU. Un repliegue también emite el diagnóstico `gpu-selection-fallback`, una vez; el host lo copia tal cual, y está ausente en un motor sin selección de GPU.",
       "cpuSelectNodesTested": "Nodos de la jerarquía sobre los que el corte de este fotograma hizo una prueba — decisión de frustum o de nivel de detalle. Un nodo ya decidido y totalmente visible no recibe ninguna: se recorre, no se prueba. Es la medida del trabajo real de un corte jerárquico; un corte plano prueba cero y recorre cada clúster. Nulo para un motor que no elige su corte en la CPU, o que no lo cuenta.",
@@ -7040,8 +7042,8 @@
     "summary": "Lo que un contacto da a sus oyentes: el otro objeto, el impulso y dónde tocó.",
     "members": {
       "other": "El objeto tocado; `null` cuando ha salido de la escena.",
-      "impulse": "N·s: la velocidad de aproximación a lo largo de la normal por la masa reducida del par, estimada antes del solver; 0 en `leave`.",
-      "point": "El punto de contacto, en el marco del mundo; el origen en `leave`."
+      "impulse": "N·s: la velocidad de aproximación a lo largo de la normal por la masa reducida del par, estimada antes del solver (del lado de un cuerpo blando: su velocidad media y la masa de sus vértices que tocaron); 0 en `leave`, y entre un cuerpo blando y un sensor.",
+      "point": "El punto de contacto, en el marco del mundo (el de un cuerpo blando: la media de sus vértices que tocaron, su centro ante un sensor); el origen en `leave`."
     }
   },
   "ContactEventName": {

@@ -86,6 +86,7 @@ export function withBundles(fixture: ReturnType<typeof dagFixture>) {
     version: 1,
     pinned: 1,
     bundleBytes: 65536,
+    dependencyBound: 1,
     maxDependencies: 1,
     pages: [
       {

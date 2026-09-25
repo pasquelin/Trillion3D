@@ -576,7 +576,12 @@ candidate. No frame waits for coverage once the root cover is resident. The CPU 
 (`page/cut/take.ts`) applies the same predicate on the same readiness, kept per placement
 (`page/cut/held.ts`), and prunes its descent on the same open counts, in JavaScript and in its
 WebAssembly node walk (`page-codec-wasm/src/cut.rs`) alike; the WebGPU CPU path, its light cuts and
-the WebGL2 image draw through it, with no fallback of their own.
+the WebGL2 image draw through it, with no fallback of their own. None of these tables is sized by the
+world: the readiness holds the resident pages alone — every other page reads its state with nothing
+resident, derived from the DAG —, and the closure, the cut's differences, the residency sets and
+the pending set hold what the cut names, all in sparse maps (`page/cut/sparseInts.ts`). A world
+sixteen times larger, seen from the same view with the same pool, costs the same bytes
+(`page/cut/viewBound.test.ts`).
 Shared URLs occupy one slot across instances. Two counters say different things:
 
 | Field            | Meaning                                                                                         | Reported by          |

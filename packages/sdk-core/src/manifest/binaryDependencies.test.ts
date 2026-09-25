@@ -19,6 +19,7 @@ test('every bundle keeps its closed dependency list and the published bound thro
     streams.pages.map((bundle) => bundle.dependencies),
     [[], [0]],
   );
+  assert.equal(streams.dependencyBound, 1);
   assert.equal(streams.maxDependencies, 1);
 });
 

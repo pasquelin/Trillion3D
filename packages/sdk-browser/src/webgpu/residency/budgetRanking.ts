@@ -1,4 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
+import { createSparseInts } from '../../page/cut/sparseInts.ts';
 
 const levelOf = (page: PageRec) => page.level ?? 0;
 
@@ -21,24 +22,23 @@ const levelOf = (page: PageRec) => page.level ?? 0;
  * frame to frame, where the shown-list publication order, taken from an atomic counter, used to
  * reshuffle it every frame and rewrite the queue for nothing.
  *
- * Nothing is allocated once the budget and the levels of a scene are known.
+ * Its tables follow the weighed keys, never the catalogue (#483 rule 6), and nothing is allocated
+ * once the budget, the levels and the view of a scene are known.
  */
 export function createBudgetRanking(options: {
-  keyCount: number;
   bootstrapKey: Uint8Array;
   keyOf: (page: PageRec) => number;
 }) {
-  const { keyCount, bootstrapKey, keyOf } = options;
+  const { bootstrapKey, keyOf } = options;
   /** Non-cover pages of the opaque cut, per level: their count, and the list of their keys. */
   let held = new Int32Array(8);
   const lists: Int32Array[] = [];
-  /** Placements holding each key, and where the key sits: a key counts once however many hold it. */
-  const refs = new Int32Array(Math.max(1, keyCount));
-  const slotOf = new Int32Array(Math.max(1, keyCount));
-  /** First placement that named the key: the record through which it will be looked up. */
-  // Filled at construction: an array grown without that stays holed for life, and ranking pays
-  // for it at every read. Same measure as `../cut/delta.ts`, same gesture.
-  const pageOfKey: (PageRec | undefined)[] = new Array(Math.max(1, keyCount)).fill(undefined);
+  /** Beside each level's keys, the first placement that named each: the record it is looked up by. */
+  const pageLists: PageRec[][] = [];
+  /** Placements holding each weighed key, and its slot in its level plus one: a key counts once
+   *  however many hold it. */
+  const refs = createSparseInts(),
+    slotOf = createSparseInts();
   /** The ranked prefix, one entry per page, and the keys beside it. Sized to the budget once. */
   const ranked: PageRec[] = [];
   let keys = new Int32Array(0);
@@ -60,6 +60,16 @@ export function createBudgetRanking(options: {
   };
   return {
     ranked,
+    /** Bytes of the per-key tables and the level lists, all sized by the weighed keys. */
+    get byteLength() {
+      return (
+        refs.byteLength +
+        slotOf.byteLength +
+        held.byteLength +
+        keys.byteLength +
+        lists.reduce((bytes, list) => bytes + (list?.byteLength ?? 0), 0)
+      );
+    },
     get keys() {
       return keys;
     },
@@ -73,26 +83,32 @@ export function createBudgetRanking(options: {
     /** One placement of the opaque cut joins the weighed set; the cover is never weighed. */
     add(page: PageRec) {
       const key = keyOf(page);
-      if (bootstrapKey[key] || refs[key]++ > 0) return;
+      if (bootstrapKey[key] || refs.add(key, 1) > 1) return;
       const level = levelOf(page),
-        list = grow(level);
-      slotOf[key] = held[level];
-      list[held[level]++] = key;
-      pageOfKey[key] = page;
+        list = grow(level),
+        slot = held[level]++;
+      slotOf.set(key, slot + 1);
+      list[slot] = key;
+      (pageLists[level] ??= [])[slot] = page;
       weighed++;
     },
     /** One placement leaves it; the page leaves only with its last placement. */
     remove(page: PageRec) {
       const key = keyOf(page);
-      if (bootstrapKey[key] || refs[key] <= 0 || --refs[key] > 0) return;
+      if (bootstrapKey[key] || refs.get(key) <= 0 || refs.add(key, -1) > 0) return;
       // The level belongs to the page, not the placement: the one that leaves is the one that entered.
       const level = levelOf(page),
-        list = lists[level];
+        list = lists[level],
+        pages = pageLists[level],
+        slot = slotOf.set(key, 0) - 1,
+        end = --held[level];
       // The last key of the level takes the freed slot: the list stays dense, without being sorted.
-      const last = list[--held[level]];
-      list[slotOf[key]] = last;
-      slotOf[last] = slotOf[key];
-      pageOfKey[key] = undefined;
+      if (slot !== end) {
+        list[slot] = list[end];
+        pages[slot] = pages[end];
+        slotOf.set(list[slot], slot + 1);
+      }
+      pages.length = end;
       weighed--;
     },
     /** True when the queue already holds exactly the ranked prefix, in the same order. */
@@ -132,11 +148,11 @@ export function createBudgetRanking(options: {
       let at = 0;
       for (let level = held.length - 1; level >= floor; level--) {
         const list = lists[level],
+          pages = pageLists[level],
           take = level > floor ? held[level] : atCut;
         for (let i = 0; i < take; i++) {
-          const key = list[i];
-          keys[at] = key;
-          ranked[at++] = pageOfKey[key] as PageRec;
+          keys[at] = list[i];
+          ranked[at++] = pages[i];
         }
       }
       length = at;
