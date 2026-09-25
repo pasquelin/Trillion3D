@@ -14,6 +14,8 @@ import { quadScene, camera } from '../../webgpu/pages/testScenes.fixture.ts';
 import { PAGE_INFO_STRIDE } from '../buffer.ts';
 import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts';
 import { NO_HIZ_SLOT, ROW_HIZ_SLOT_WORD, restampHizSlot } from '../../webgpu/row/pageRow.ts';
+import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES } from '../../gpu/hiz/shader.ts';
+import { ST_REJECTED } from '../../gpu/partition/contract.ts';
 import { transparentOcclusionShader } from '../../gpu/core/transparentOcclusionWgsl.ts';
 import { refreshTransparentCorners } from '../../webgpu/transparent/occlusionHost.ts';
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts';
@@ -88,6 +90,18 @@ test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader dr
   restampHizSlot(ints, 0, 7);
   restampHizSlot(ints, 32, 7);
   assert.deepEqual([ints[ROW_HIZ_SLOT_WORD], ints[32 + ROW_HIZ_SLOT_WORD]], [NO_HIZ_SLOT, 7]);
+});
+
+test('the GPU Hi-Z test counts no reject for a row with no Hi-Z slot, which it keeps', () => {
+  const kernel = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn testHiz'));
+  const noVerdict = kernel.indexOf(`pages[row].hizSlot==0x${NO_HIZ_SLOT.toString(16)}u||`),
+    kept = kernel.indexOf('return;}', noVerdict);
+  // The row's slot sends it down the branch that keeps a row the pyramid cannot judge, before
+  // the verdict and the reject counters.
+  assert.ok(noVerdict > 0 && kept > noVerdict);
+  assert.ok(kernel.indexOf(`atomicAdd(&state[${ST_REJECTED}u]`) > kept);
+  assert.ok(HIZ_SHADER.includes('@group(1) @binding(0) var<storage, read> pages:array<PageInfo>;'));
+  assert.equal(HIZ_TEST_PAGES_ENTRIES[0].buffer?.type, 'read-only-storage');
 });
 
 test('the transparent occlusion test rejects no entry a constant-size sprite holds', () => {
