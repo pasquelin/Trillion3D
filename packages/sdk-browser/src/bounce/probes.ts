@@ -1,7 +1,6 @@
 import {
   BOUNCE_PROBES_PER_FRAME,
   BOUNCE_SETTINGS,
-  PROBE_FLOATS,
   bounceBatchOf,
   createBounceBudget,
   createBounceCascades,
@@ -9,7 +8,7 @@ import {
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
 import { bounceGroup, bounceLayout } from './bindings.ts';
-import { ensureBounceFits } from './limits.ts';
+import { bounceProbeBytes, ensureBounceFits } from './limits.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { createBounceSchedule } from './schedule.ts';
 import { createBounceUniform } from './uniform.ts';
@@ -51,7 +50,7 @@ export async function createGpuBounceProbes(
   const occupancy = createBounceOccupancy(proxy, cascades);
   const schedule = createBounceSchedule(cascades, occupancy);
   const budget = createBounceBudget(budgetMs);
-  const probeBytes = Math.max(16, cascades.probes * PROBE_FLOATS * 4);
+  const probeBytes = bounceProbeBytes(cascades.probes);
   // Nothing is created until everything fits: a single binding above a device limit would lose
   // the device on the first frame, and the refusal names which one.
   ensureBounceFits(device, proxy, probeBytes, schedule.queue.byteLength);
