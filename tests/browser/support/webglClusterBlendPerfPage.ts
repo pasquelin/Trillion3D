@@ -23,8 +23,8 @@ function geometry(triangles: number) {
     indices.set([triangle * 3, triangle * 3 + 1, triangle * 3 + 2], triangle * 3);
   }
   const result = new G.GraphGeometry();
-  result.setAttribute('position', new G.GraphAttribute(positions, 3));
-  result.setIndex(new G.GraphAttribute(indices, 1));
+  result.setAttribute('position', new G.BufferAttribute(positions, 3));
+  result.setIndex(new G.BufferAttribute(indices, 1));
   return result;
 }
 
