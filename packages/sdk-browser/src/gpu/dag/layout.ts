@@ -72,9 +72,8 @@ export const selectionListCap = (pageCount: number) =>
  * Readout header, in words, in front of each of its two halves.
  *
  * The first four are the usual — count, trunk reject, reached level, flags. The next
- * four carry the TRIANGLE TOTALS, which only the GPU sums. The kernels hold them where
- * the verdict is spoken: `dagWanted` knows what the cut keeps, `dagMask` knows what goes
- * to draw and what is missing. Their relation stays `selected − drawn − uncovered = 0`.
+ * two carry the TRIANGLE TOTALS, which only the GPU sums where the verdict is spoken, in
+ * `dagMask`: what the cut rule draws, and its blended share. The last two are reserved.
  *
  * That is the condition for the readout to one day stop carrying LISTS: a total
  * held by the GPU survives the disappearance of the list it was the sum of.
@@ -85,12 +84,10 @@ export const OUT_COUNT = 0,
   OUT_LOD_LEVEL = 2,
   OUT_FLAGS = 3,
   OUT_SELECTED_TRIANGLES = 4,
-  OUT_TRANSPARENT_TRIANGLES = 5,
-  OUT_DRAWN_TRIANGLES = 6,
-  OUT_UNCOVERED_TRIANGLES = 7;
+  OUT_TRANSPARENT_TRIANGLES = 5;
 
 /**
- * The four triangle totals placed in the header, in the order THIS file fixes. `dagMask`
+ * The two triangle totals placed in the header, in the order THIS file fixes. `dagMask`
  * writes them on the GPU (`shader/totalsWgsl.ts`); anything that stands in for the GPU
  * must write them the same way, or else adoption — which reads the GPU first — would
  * take an empty header for a frame without triangles.
@@ -100,14 +97,10 @@ export function writeTriangleTotals(
   totaux: {
     selectedTriangles?: number;
     transparentTriangles?: number;
-    drawnTriangles?: number;
-    uncoveredTriangles?: number;
   },
 ) {
   ints[OUT_SELECTED_TRIANGLES] = totaux.selectedTriangles ?? 0;
   ints[OUT_TRANSPARENT_TRIANGLES] = totaux.transparentTriangles ?? 0;
-  ints[OUT_DRAWN_TRIANGLES] = totaux.drawnTriangles ?? 0;
-  ints[OUT_UNCOVERED_TRIANGLES] = totaux.uncoveredTriangles ?? 0;
 }
 
 /** First residency word, behind the working table's word per page: the cut rule's `resident(c)`

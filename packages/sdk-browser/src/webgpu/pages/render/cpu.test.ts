@@ -54,7 +54,6 @@ function banc(options: { ready: boolean; resident: boolean }) {
     submittedTriangles: 0,
     drawnTriangles: 0,
     blendPagedTriangles: 0,
-    uncoveredTriangles: 0,
     frustumRejected: 0,
     lodLevel: 0,
     gpuDrawCalls: 0,
