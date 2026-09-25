@@ -94,7 +94,8 @@ fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
 
 // Behaviour: a node declaring a cloth in `extras.physics` is listed in `physics.json` with its
 // cooked settings, placed by its node, and no static collider stands where it hangs; the floor
-// beside it stays static ground, and a soft body of two primitives is refused by name.
+// beside it stays static ground, and a soft body of two primitives, or one declaring an option the
+// page refuses on a soft body, is refused by name.
 #[test]
 fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
     let (pos, triangles) = cloth();
@@ -108,13 +109,17 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
             {"bufferView":1,"componentType":5125,"type":"SCALAR","count":24}],
         "meshes":[{"primitives":[primitive]},{"primitives":[primitive, primitive]}],
         "nodes":[{"mesh":0,"translation":[0, 2, 0],"extras":{"physics":physics}},{"mesh":0},
-            {"mesh":1,"extras":{"physics":{"type":"cloth"}}}],
+            {"mesh":1,"extras":{"physics":{"type":"cloth"}}},
+            {"mesh":0,"extras":{"physics":{"type":"cloth","sensor":true}}}],
     });
     let root =
         std::path::Path::new(env!("OUT_DIR")).join(format!("soft-cook-{}", std::process::id()));
     let o = crate::texture_preview::tests::options(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
-    let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2]), BTreeMap::from([(0, 0), (1, 1)]));
+    let (chosen, mesh_map) = (
+        BTreeSet::from([0, 1, 2, 3]),
+        BTreeMap::from([(0, 0), (1, 1)]),
+    );
     let scene = DepthLayerScene {
         o: &o,
         g: &g,
@@ -156,7 +161,8 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
     let refused = &written["report"]["softRefused"];
     assert_eq!(
         refused,
-        &json!([{"node":2,"reason":"A soft body is one primitive: its mesh holds 2."}])
+        &json!([{"node":2,"reason":"A soft body is one primitive: its mesh holds 2."},
+            {"node":3,"reason":"A soft body takes no sensor."}])
     );
     std::fs::remove_dir_all(root).unwrap();
 }

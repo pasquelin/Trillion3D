@@ -12,6 +12,7 @@ import {
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
+import { createCookedSoftBodies } from './cookedSoft.ts';
 import { startModule } from './module.fixture.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { addSoft, at, FLAT, settle, softWorld } from './soft.fixture.ts';
@@ -117,6 +118,19 @@ test('a compiled model’s cooked cloth is made from its settings alone and move
   tiles.scan(scene);
   assert.equal(writer.take()[0], OP.remove, 'out with its model');
   assert.equal(bodies.count.softVertices, 0);
+});
+
+test('a model opened again before its settings arrive holds its cooked cloth once', async () => {
+  const { model, writer, bodies } = await opened();
+  writer.take();
+  const soft = { position: [0, 2, 0], rotation: FLAT, scale: [1, 1, 1], node: 0 };
+  const cloth = { ...soft, physics: options, vertices: 9, pressure: 0 };
+  const settings = { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: 1 };
+  const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail);
+  softs.open(model, [{ ...cloth, settings }]);
+  softs.open(model, [{ ...cloth, settings }]);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
 
 test('a cooked soft body past the budget, or its model scaled from its cook, is refused by name', async () => {
