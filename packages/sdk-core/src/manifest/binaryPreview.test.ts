@@ -123,8 +123,28 @@ test('the same texture twice for one atlas, or data before colour, is refused as
   assert.throws(() => encode(backwards), /not ordered by texture and atlas/);
 });
 
+// #42: a coverage chain (word 2) is its texture's colour-atlas entry: it sorts where the plain
+// colour one would, before the data entry, and one texture never carries both colour chains —
+// the reader would have to pick one, and an emissive reader would draw the weighted one.
+test('a coverage chain sorts as the colour entry of its texture, and never beside a plain one', () => {
+  const coverage = { ...preview(3, 8, 8, 1), atlas: 2 };
+  const data = { ...preview(3, 8, 8, 2), atlas: 1 };
+  const { slim, buffer } = encode([coverage, data, preview(4, 8, 8, 3)]);
+  const decoded = decodeManifestBinary(slim, buffer).texturePreviews!;
+  assert.deepEqual(
+    decoded.map((p) => [p.texture, p.atlas]),
+    [
+      [3, 2],
+      [3, 1],
+      [4, 0],
+    ],
+  );
+  assert.throws(() => encode([data, coverage]), /not ordered by texture and atlas/);
+  assert.throws(() => encode([preview(3, 8, 8, 1), coverage]), /not ordered by texture and atlas/);
+});
+
 test('an unknown atlas, or more baked levels than lie above the tail, is refused by both sides', () => {
-  assert.throws(() => encode([{ ...preview(0, 8, 8, 1), atlas: 2 }]), /unknown atlas/);
+  assert.throws(() => encode([{ ...preview(0, 8, 8, 1), atlas: 3 }]), /unknown atlas/);
   assert.throws(
     () => encode([{ ...preview(0, 256, 256, 1), bakedLevels: 3 }]),
     /more levels than lie above its tail/,
