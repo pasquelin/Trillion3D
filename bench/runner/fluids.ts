@@ -1,19 +1,14 @@
-// The fluids bench scene (#418): one ocean, 100 floating bodies, 20 fires and 5 smoke volumes,
-// declared here and built in the page through the public API (`fluidsPage.ts`), on WebGPU or
-// WebGL2 (`--moteur webgpu|webgl2`), with `--scene fluids`.
-//
-// The ocean's waves and the bodies are the physics fixtures (`OCEAN`, `floatingBodies`). What the
-// engine does not draw yet is a THROWAWAY STAND-IN, named as such: the drawn ocean is a flat
-// transmissive sheet at the rest level (#422 draws the waves), a fire is a point light over an
-// emissive cone (#423), a smoke volume nested see-through spheres (#423).
-//
-// Refraction source: the engine reads one only, a copy of the lit image (the WebGPU water pass's
-// backdrop, the WebGL2 cluster program's second opaque pass); no path reads the temporal
-// antialiasing history, so the scene has no switch between the two.
+// The fluids bench scene (#418), `--scene fluids` on `--moteur webgpu|webgl2`: one ocean, 100
+// floating bodies, 20 fires and 5 smoke volumes, declared here and built in the page through the
+// public API (`fluidsPage.ts`). The waves and bodies are the physics fixtures (`OCEAN`,
+// `floatingBodies`); what the engine does not draw yet is a THROWAWAY STAND-IN: a flat
+// transmissive ocean (#422 draws the waves), fires and smoke volumes (#423).
+// The engine has one refraction source, a copy of the lit image (the WebGPU water pass's backdrop,
+// the WebGL2 cluster program's second opaque pass); none reads the temporal antialiasing history,
+// so the scene has no switch between two sources.
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
-import type { WaterSpec } from '../../packages/sdk-core/src/fluids/index.ts';
 import { SHAPE, type BodyRecord } from '../../packages/sdk-core/src/physics/index.ts';
 import type {
   PhysicsPrimitive,
@@ -35,21 +30,8 @@ type Vec3 = [number, number, number];
 
 /** How many of each the scene holds. */
 export const FLUIDS_COUNTS = { oceans: 1, bodies: 100, fires: 20, smokes: 5 } as const;
-
-/** A floating body as the public API takes it: a mesh at `position` with `physics` set. */
-export interface FloatingBody {
-  position: Vec3;
-  density: number;
-  shape: PhysicsShape;
-}
-
-/** What the page builds: the water, the bodies, and where the stand-ins stand. */
-export interface FluidsScene {
-  water: WaterSpec;
-  bodies: FloatingBody[];
-  fires: Vec3[];
-  smokes: Vec3[];
-}
+/** The box of the bodies' grid and the smoke above it, published as the run's bounds. */
+export const FLUIDS_BOUNDS = { min: { x: -2, y: -1, z: -2 }, max: { x: 56, y: 12, z: 56 } };
 
 const primitive = (shape: number, size: readonly number[]): PhysicsPrimitive => {
   if (shape === SHAPE.sphere) return { type: 'sphere', radius: size[0] };
@@ -69,8 +51,8 @@ const publicShape = (body: BodyRecord): PhysicsShape =>
       }
     : primitive(body.shape, body.size);
 
-/** The scene, the same every run: the fixtures' bodies and waves, stand-ins over the same grid. */
-export function fluidsScene(): FluidsScene {
+/** The scene, the same every run: the fixtures' bodies and waves, stand-ins over their grid. */
+export function fluidsScene() {
   const bodies = floatingBodies(FLUIDS_COUNTS.bodies).map((body) => ({
     position: [body.position[0], body.position[1], body.position[2]] as Vec3,
     density: body.density,
@@ -84,46 +66,44 @@ export function fluidsScene(): FluidsScene {
   const smokes = Array.from({ length: FLUIDS_COUNTS.smokes }, (_, i): Vec3 => [3 + i * 12, 8, 27]);
   return { water: { waves: OCEAN, level: 0 }, bodies, fires, smokes };
 }
+export type FluidsScene = ReturnType<typeof fluidsScene>;
 
-/** What one side sends into the page. */
-export interface FluidsPayload {
-  sdkUrl: string;
-  renderer: 'webgpu' | 'webgl2';
-  frames: number;
-  warmup: number;
-  width: number;
-  height: number;
-  temporalAntialiasing: boolean;
-  captureFile: string;
-  scene: FluidsScene;
-}
-
-const RENDERERS: Record<string, FluidsPayload['renderer']> = {
+const RENDERERS: Record<string, 'webgpu' | 'webgl2'> = {
   'webgpu-page-raster': 'webgpu',
   'autonomous-pages-webgl': 'webgl2',
 };
 
+/** What one side sends into the page. */
+function fluidsPayload(side: Side, settings: BenchSettings) {
+  const renderer = RENDERERS[side.engine.id];
+  if (!renderer) throw new Error('--scene fluids draws on --moteur webgpu or webgl2 only');
+  const { frames, warmup, width, height, temporalAntialiasing } = settings;
+  const sdkUrl = sdkEntryUrl(side),
+    captureFile = `${side.name}-fluids.png`,
+    scene = fluidsScene();
+  return {
+    sdkUrl,
+    renderer,
+    frames,
+    warmup,
+    width,
+    height,
+    temporalAntialiasing,
+    captureFile,
+    scene,
+  };
+}
+export type FluidsPayload = ReturnType<typeof fluidsPayload>;
+
 /** One side on the fluids scene: its page run, its capture written, its report row. */
-export async function runFluids(
+async function fluidsRow(
   page: Page,
   side: Side,
   settings: BenchSettings,
   out: string,
   captures: Map<string, Capture>,
 ) {
-  const renderer = RENDERERS[side.engine.id];
-  if (!renderer) throw new Error('--scene fluids draws on --moteur webgpu or webgl2 only');
-  const payload: FluidsPayload = {
-    sdkUrl: sdkEntryUrl(side),
-    renderer,
-    frames: settings.frames,
-    warmup: settings.warmup,
-    width: settings.width,
-    height: settings.height,
-    temporalAntialiasing: settings.temporalAntialiasing,
-    captureFile: `${side.name}-fluids.png`,
-    scene: fluidsScene(),
-  };
+  const payload = fluidsPayload(side, settings);
   const result = await page.evaluate(
     async ({ module, o }) => ((await import(module)) as typeof FluidsPage).measureFluids(o),
     { module: '/runner/fluidsPage.ts', o: payload },
@@ -134,8 +114,7 @@ export async function runFluids(
     await writeFile(join(out, payload.captureFile), encodePng(capture.w, capture.h, capture.body));
   return {
     side: side.name,
-    renderer,
-    counts: FLUIDS_COUNTS,
+    renderer: payload.renderer,
     bodiesSimulated: result.bodies,
     cpuFrameMs: distribution(result.cpuFrameMs),
     gpuFrameMs: result.gpuFrameMs.length ? distribution(result.gpuFrameMs) : null,
@@ -147,8 +126,21 @@ export async function runFluids(
     png: capture ? payload.captureFile : null,
   };
 }
+export type FluidsRow = Awaited<ReturnType<typeof fluidsRow>>;
 
-export type FluidsRow = Awaited<ReturnType<typeof runFluids>>;
+/** Every side on the fluids scene, each on a fresh page (`onFreshPage`). */
+export async function runFluids(
+  sides: Side[],
+  onFreshPage: <T>(run: (page: Page) => Promise<T>) => Promise<T>,
+  settings: BenchSettings,
+  out: string,
+  captures: Map<string, Capture>,
+) {
+  const rows: FluidsRow[] = [];
+  for (const side of sides)
+    rows.push(await onFreshPage((page) => fluidsRow(page, side, settings, out, captures)));
+  return rows;
+}
 
 /** The fluids rows in `resume.md`, p50 / p95 in milliseconds; nothing without a fluids run. */
 export function fluidsLines(rows: FluidsRow[] | undefined) {
@@ -156,15 +148,15 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
   return [
     '## Fluids scene',
     '',
-    `${FLUIDS_COUNTS.bodies} bodies, ${FLUIDS_COUNTS.fires} fire and ${FLUIDS_COUNTS.smokes} smoke stand-ins, one ocean stand-in.`,
-    '',
     '| side | renderer | canvas | bodies | CPU frame | GPU frame | rAF interval | physics step (worker) | physics (page) |',
     '|---|---|---|---|---|---|---|---|---|',
     ...rows.map(
       (r) =>
         `| ${r.side} | ${r.renderer} | ${r.canvas.width}×${r.canvas.height} @${r.canvas.dpr} | ${r.bodiesSimulated} | ` +
-        `${p50p95(r.cpuFrameMs)} | ${p50p95(r.gpuFrameMs)} | ${p50p95(r.rafIntervalMs)} | ` +
-        `${p50p95(r.physicsStepMs)} | ${p50p95(r.physicsMainMs)} |`,
+        [r.cpuFrameMs, r.gpuFrameMs, r.rafIntervalMs, r.physicsStepMs, r.physicsMainMs]
+          .map(p50p95)
+          .join(' | ') +
+        ' |',
     ),
     '',
   ];

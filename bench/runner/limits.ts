@@ -1,22 +1,9 @@
 // The browser limits every bench run records (#418), read in the page through the engine's own
 // capability detection (`detectCapabilities`) and published in `mesure.json` and `resume.md`.
-// Imported by URL in the page (`probeLimits`), by Node for the report (`limitsLines`): no Node
-// module here.
+// Imported by URL in the page (`probeLimits`), by Node to run it (`readLimits`) and for the report
+// (`limitsLines`): no Node module here.
+import type { Page } from 'playwright';
 import type * as SdkBrowser from '../witnesses/measurement.ts';
-
-/** What the probe read. `null` for a renderer the browser does not grant. */
-export interface LimitsProbe {
-  webgl2: {
-    halfFloatColor: boolean;
-    floatColor: boolean;
-    timerQuery: boolean;
-  } | null;
-  /** Each limit: what a device gets without asking (`default`), what the adapter grants. */
-  webgpu: {
-    timestampQuery: boolean;
-    limits: { name: string; default: number | null; adapter: number }[];
-  } | null;
-}
 
 /** The numeric limits of a `GPUSupportedLimits`, by name: its attributes are enumerable. */
 function numbers(limits: object) {
@@ -28,12 +15,16 @@ function numbers(limits: object) {
   return read;
 }
 
-/** The probe from what detection returned: WebGL2 extensions, WebGPU features and limits. */
+/**
+ * The probe from what detection returned: WebGL2 extensions, WebGPU features, and each WebGPU
+ * limit as a device gets it without asking (`default`) and as the adapter grants it. `null` for a
+ * renderer the browser does not grant.
+ */
 export function limitsOf(
   webgl: { extensions: string[] } | null,
   webgpu: { features: Iterable<string>; adapter: object; defaults: object } | null,
-): LimitsProbe {
-  const defaults = webgpu && numbers(webgpu.defaults);
+) {
+  const defaults = webgpu ? numbers(webgpu.defaults) : {};
   return {
     webgl2: webgl && {
       halfFloatColor: webgl.extensions.includes('EXT_color_buffer_half_float'),
@@ -44,12 +35,13 @@ export function limitsOf(
       timestampQuery: [...webgpu.features].includes('timestamp-query'),
       limits: Object.entries(numbers(webgpu.adapter)).map(([name, adapter]) => ({
         name,
-        default: defaults?.[name] ?? null,
+        default: defaults[name] ?? null,
         adapter,
       })),
     },
   };
 }
+export type LimitsProbe = ReturnType<typeof limitsOf>;
 
 /** Runs in the page: detects both renderers, then asks a device with no limit for the defaults. */
 export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
@@ -69,10 +61,18 @@ export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
   return probe;
 }
 
+/** Runs the probe in `page`, which imports this module from the bench's `/runner/`. */
+export const readLimits = (page: Page, sdkUrl: string) =>
+  page.evaluate(
+    async ({ module, url }) =>
+      ((await import(module)) as { probeLimits: typeof probeLimits }).probeLimits(url),
+    { module: '/runner/limits.ts', url: sdkUrl },
+  );
+
 const yes = (value: boolean) => (value ? 'yes' : 'no');
 
 /** The probe in `resume.md`: capabilities, then the WebGPU limits the adapter raises. */
-export function limitsLines(probe: LimitsProbe | null | undefined) {
+export function limitsLines(probe: LimitsProbe | undefined) {
   if (!probe) return ['## Browser limits', '', 'Not probed.', ''];
   const { webgl2, webgpu } = probe;
   const raised = webgpu?.limits.filter((limit) => limit.adapter !== limit.default) ?? [];
