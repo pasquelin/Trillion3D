@@ -1,4 +1,3 @@
-import type { HostGraphNode } from '../../../packages/sdk-browser/src/host/scene/graphNodes.ts';
 import {
   createSelectionResult,
   selectVisiblePages,
@@ -16,6 +15,7 @@ import type {
   HostCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { HostWorldPlacements } from '../../../packages/sdk-browser/src/host/world/placements.ts';
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -61,7 +61,7 @@ const EXACT_CPU_STEPS = Object.values(EXACT_CPU_STEP);
 export function createExactPagesRender(options: {
   state: ExactPagesRenderState;
   context: BackendContext;
-  source: HostGraphNode;
+  source: Object3D;
   /** The transparent copies the host renderer draws whole: what each names is its source. */
   blendCopies: readonly { readonly userData: Record<string, unknown> }[];
   sceneLights: ReturnType<typeof installSceneLighting>;

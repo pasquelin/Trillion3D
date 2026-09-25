@@ -144,7 +144,7 @@ export function mixedBinScene() {
     both = G.basicSurface({ color: 0x00ff00, side: G.DOUBLE_SIDE });
   const meshA = G.mesh(geoA, front),
     meshB = G.mesh(geoB, both),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(meshA, meshB);
   const box = rootPage('0', [-1, -1, 0], [1, 1, 0]);
   return {
