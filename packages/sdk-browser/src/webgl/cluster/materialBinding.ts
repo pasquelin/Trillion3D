@@ -96,6 +96,8 @@ export function bindClusterMaterial(
   uniforms.i1(33, 'flatShaded', (material as { flatShading?: boolean }).flatShading ? 1 : 0);
   // A line surface's width in CSS pixels (`CLUSTER_VERTEX`); zero draws the triangles as they are.
   uniforms.f1(39, 'lineWidth', mat.lineWidth ?? 0);
+  // A dashed line's dash and gap (`CLUSTER_FRAGMENT`); zero keeps every pixel.
+  uniforms.f2(43, 'dash', mat.dashSize ?? 0, mat.gapSize ?? 0);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
   // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).

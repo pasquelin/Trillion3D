@@ -1,7 +1,7 @@
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts';
 import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR } from '../types.ts';
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts';
-import { LINE_CLIP_WGSL } from './lineWgsl.ts';
+import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts';
 import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
 
 const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
@@ -29,6 +29,7 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
 export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}
 ${LINE_CLIP_WGSL}
+${LINE_DASH_WGSL}
 ${clusterDecodeWgsl('indices')}
 fn pageHeader(page:PageInfo)->ClusterHeader{
  var h:ClusterHeader;
