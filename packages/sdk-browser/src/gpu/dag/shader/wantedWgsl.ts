@@ -30,12 +30,14 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,views[vi].pixelError)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- // The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
- // ranks the request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path. A
- // cluster nothing replaces falls back on its own, as that path does.
- var pixels=projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
- if(cluster.parentError<0.0){pixels=projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
- emitOne(i,pixels);
+ emitOne(i,replacementPixels(cluster,e,stretch,focal));
  if(views[0u].residentCut!=0u&&!isResident(i)){noteCoarser();}
+}
+/** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
+ *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.
+ *  A cluster nothing replaces falls back on its own, as that path does. */
+fn replacementPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->f32{
+ if(cluster.parentError<0.0){return projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
+ return projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
 }
 `;

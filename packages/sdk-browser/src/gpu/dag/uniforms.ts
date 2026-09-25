@@ -152,16 +152,16 @@ export function parseDagOutput(
   for (let i = 0; i < count; i++) seaux[requestRank(requestPriority(ints[head + i]))]++;
   // Prefix sum run from the HIGHEST priority to the lowest: the list comes out decreasing
   // without having to reverse it.
-  let place = 0,
-    visible = 0;
+  let place = 0;
   for (let p = REQUEST_PRIORITY_MAX; p >= 0; p--) {
-    if (p === REQUEST_AHEAD - 1) visible = place;
     const tenus = seaux[p];
     seaux[p] = place;
     place += tenus;
   }
-  // The view ahead's requests rank after every visible one: they go straight to their own list.
-  const ahead = scratch.ahead;
+  // The view ahead's requests rank after every visible one: they go straight to their own list,
+  // which starts where the highest rank ahead does.
+  const ahead = scratch.ahead,
+    visible = seaux[REQUEST_AHEAD - 1];
   pageIds.length = visible;
   ahead.length = count - visible;
   for (let i = 0; i < count; i++) {

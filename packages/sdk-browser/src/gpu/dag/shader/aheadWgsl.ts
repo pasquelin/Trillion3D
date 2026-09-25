@@ -23,15 +23,11 @@ export const AHEAD_VIEW = 1;
 export const DAG_AHEAD_WGSL = `const AHEAD_VIEW:u32=${AHEAD_VIEW}u;
 fn aheadOn()->bool{return views[0u].ahead!=0u;}
 /** The view-ahead frustum brought into the primitive's space as \`dagPrepare\` brings the camera's,
- *  then the same box test (\`outsideFrustum\`). A primitive no camera culls is never outside it. */
+ *  then the same box test (\`outsidePlane\`). A primitive no camera culls is never outside it. */
 fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{
  if(unculledOf(w)){return false;}
  let m=transpose(worlds[w]);
- for(var i=0u;i<6u;i++){
-  let plane=m*views[AHEAD_VIEW].planes[i];
-  let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
-  if(dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0){return true;}
- }
+ for(var i=0u;i<6u;i++){if(outsidePlane(m*views[AHEAD_VIEW].planes[i],bmin,bmax)){return true;}}
  return false;
 }
 /** \`levelStep\`'s verdict under the view ahead: inside its frustum, not too fine, not too coarse. */
@@ -48,13 +44,12 @@ fn descendAhead(src:u32,node:CullNode,w:u32){
 }
 /** A page the camera does not request, requested ahead when the view ahead selects it. */
 fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
- if(!aheadOn()){return;}
+ // Past half the sample nothing more is emitted: the tests below would be spent for nothing.
+ if(!aheadOn()||aheadFull()){return;}
  vi=AHEAD_VIEW;
  if((cluster.flags&2u)!=0u||outsideAhead(w,boxMin(r),boxMax(r))){return;}
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,views[vi].pixelError)){return;}
- var pixels=projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
- if(cluster.parentError<0.0){pixels=projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
- emitAhead(i,pixels);
+ emitAhead(i,replacementPixels(cluster,e,stretch,focal));
 }
 `;

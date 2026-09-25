@@ -40,16 +40,15 @@ export function createWebgpuResidentEnsurer({
   traceDiagnostic,
   lowerTiers,
 }: EnsureOptions) {
-  /** The published share of the main thread (`STREAMING_FRAME_MS`): past it, a job yields a task
-   *  and starts a new share — a due frame goes through, and the job resumes without waiting for
-   *  one, so a hidden tab loads too. True when it yielded. Opened only after a yield, never by a
-   *  job: the next job may start in the task the last one ended in. */
+  /** The published share of the main thread (`STREAMING_FRAME_MS`): past it (`budget.admits()`
+   *  false), a job yields a task and starts a new share — a due frame goes through, and the job
+   *  resumes without waiting for one, so a hidden tab loads too. Opened only after a yield, never by
+   *  a job: the next job may start in the task the last one ended in. Read synchronously first, so
+   *  a page within the share costs no promise. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
-  const pace = async () => {
-    if (budget.admits()) return false;
+  const nextShare = async () => {
     await yieldToEventLoop();
     budget.open();
-    return true;
   };
   /** One job's lower tiers in order, each page once: a page an earlier tier names — a caster also
    *  ahead of the camera — is counted and loaded once. A copy: a tier's list is rewritten in place
@@ -103,7 +102,10 @@ export function createWebgpuResidentEnsurer({
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
     // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).
     for (let i = 0; i < lower.length && spare > 0; i++) {
-      if ((await pace()) && cameraWaiting()) return;
+      if (!budget.admits()) {
+        await nextShare();
+        if (cameraWaiting()) return;
+      }
       const rec = lower[i],
         address = pageAddress(rec);
       if (skip(rec) || cache.get(address)) continue;
@@ -166,7 +168,8 @@ export function createWebgpuResidentEnsurer({
       if (!hasBytes(rec) || cache.get(address)) continue;
       // The share: past it the burst resumes after a task, nothing dropped — the page read again
       // against `wanted` and the pool, which a camera that moved in between may have changed.
-      if (await pace()) {
+      if (!budget.admits()) {
+        await nextShare();
         cache = getCache();
         if (isLost() || !cache) throw new Error('WEBGPU_LOST');
         if (!tracking.wanted.has(key) || cache.get(address)) continue;
