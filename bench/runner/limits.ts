@@ -24,6 +24,7 @@ export function limitsOf(
   webgl: { extensions: string[] } | null,
   webgpu: { features: ReadonlySet<string>; adapter: object; defaults: object } | null,
 ) {
+  const defaults = numbers(webgpu?.defaults ?? {});
   return {
     webgl2: webgl && {
       halfFloatColor: webgl.extensions.includes('EXT_color_buffer_half_float'),
@@ -34,7 +35,7 @@ export function limitsOf(
       timestampQuery: webgpu.features.has('timestamp-query'),
       limits: Object.entries(numbers(webgpu.adapter)).map(([name, adapter]) => ({
         name,
-        default: numbers(webgpu.defaults)[name] ?? null,
+        default: defaults[name] ?? null,
         adapter,
       })),
     },
@@ -64,19 +65,24 @@ export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
 
 /** Runs the probe in `page`, which imports this module from the bench's `/runner/`. */
 export const readLimits = (page: Page, sdkUrl: string) =>
-  page.evaluate(
-    async ({ module, url }) =>
-      ((await import(module)) as { probeLimits: typeof probeLimits }).probeLimits(url),
-    { module: '/runner/limits.ts', url: sdkUrl },
-  );
+  page
+    .evaluate(
+      async ({ module, url }) =>
+        ((await import(module)) as { probeLimits: typeof probeLimits }).probeLimits(url),
+      { module: '/runner/limits.ts', url: sdkUrl },
+    )
+    .catch((error: unknown) => ({ failed: String(error) }));
 
 const yes = (value: boolean) => (value ? 'yes' : 'no');
 
 /** The probe in `resume.md`: capabilities, then the WebGPU limits the adapter raises. */
-export function limitsLines(probe: LimitsProbe | undefined) {
+export function limitsLines(probe: Awaited<ReturnType<typeof readLimits>> | undefined) {
   if (!probe) return [];
+  // A failed probe is said, never fatal: the run it rides with goes on.
+  if ('failed' in probe) return ['## Browser limits', '', `Probe failed: ${probe.failed}`, ''];
   const { webgl2, webgpu } = probe;
-  const raised = webgpu?.limits.filter((limit) => limit.adapter !== limit.default) ?? [];
+  // An unknown default (the device was refused) is not counted as raised.
+  const raised = webgpu?.limits.filter((l) => l.default !== null && l.adapter !== l.default) ?? [];
   return [
     '## Browser limits',
     '',
@@ -91,7 +97,7 @@ export function limitsLines(probe: LimitsProbe | undefined) {
       ? [
           '| WebGPU limit | default | adapter |',
           '|---|---|---|',
-          ...raised.map((l) => `| ${l.name} | ${l.default ?? '—'} | ${l.adapter} |`),
+          ...raised.map((l) => `| ${l.name} | ${l.default} | ${l.adapter} |`),
           '',
         ]
       : []),
