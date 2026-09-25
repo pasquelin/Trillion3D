@@ -44,6 +44,7 @@ const publicShape = (
         parts: (body.parts ?? []).map((part) => ({
           ...primitive(part.shape, part.size),
           position: vec3(part.position),
+          quaternion: Array.from(part.quaternion) as [number, number, number, number],
         })),
       }
     : primitive(body.shape, body.size);

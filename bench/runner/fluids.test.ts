@@ -44,6 +44,15 @@ test('the report reads the shape the probe returns', () => {
       '- WebGL2: half-float colour no, float colour yes, EXT_disjoint_timer_query_webgl2 yes',
     ),
   );
+  const refused = limitsOf(null, {
+    features: new Set(),
+    adapter: { maxBindGroups: 8 },
+    defaults: {},
+  });
+  assert.ok(
+    limitsLines(refused).includes('- WebGPU: timestamp-query no, 0 of 1 limits above the default'),
+  );
+  assert.equal(limitsLines({ failed: 'lost' })[2], 'Probe failed: lost', 'a failed probe is said');
   const none = limitsLines(limitsOf(null, null));
   assert.ok(none.includes('- WebGL2: unavailable') && none.includes('- WebGPU: unavailable'));
 });
