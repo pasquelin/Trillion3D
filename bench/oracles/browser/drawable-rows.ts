@@ -37,7 +37,7 @@ export function referenceRowState(packedPages: readonly PageRec[], drawSlots: nu
   // The journal of named pages and residencies that moved during the pass: later than
   // batch F, it is not the optimisation this oracle splits, and it is taken as-is so
   // the shared rank sync runs identically on both sides.
-  const journal = createWebgpuRowJournal(packedPages.length);
+  const journal = createWebgpuRowJournal();
   const etat = {
     ...journal,
     residentFlags: new Uint32Array(packedPages.length),

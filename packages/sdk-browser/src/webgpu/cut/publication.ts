@@ -3,6 +3,7 @@ import { createCutDelta } from './delta.ts';
 import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
+import { createHeldBytes } from '../../page/cut/held.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
@@ -37,10 +38,18 @@ export function createWebgpuCutPublication(
   const drawnDelta = createCutDelta(packedPages, drawnPages);
   // What the cache is asked for is the cut closed over its groups (`../../page/cut/groupClosure.ts`); what the
   // image waits for is the part of it the pool accepted.
-  const cutPending = createCutPending(packedPages, closure.delta, residencySets.accepts);
+  const cutPending = createCutPending(
+    packedPages,
+    closure.delta,
+    residencySets.accepts,
+    () => residencySets.acceptedRevision,
+  );
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
   rows.watchTouched(coverageWatcher(cutPending));
+  // The CPU cut's readiness of the placements, a running total: the layout's placements never move.
+  const held = createHeldBytes();
+  held.track(rt.layout.selectionRoots);
   const publishCut = () => {
     closure.apply(cutDelta);
     residencySets.applyCut(closure.delta);
@@ -94,6 +103,18 @@ export function createWebgpuCutPublication(
   return {
     /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending,
+    /** Bytes of the cut's host tables — the group closure, the rule's readiness on the GPU and in
+     *  the CPU cut, the residency sets, the two differences and the pending set —, each sized by
+     *  what the view asks for and the pool holds, never by the catalogue (#483 rule 6), each
+     *  read in constant time, never by walking the placements (#483 rule 7). */
+    hostTableBytes: () =>
+      closure.hostBytes +
+      (run.gpuSelection?.hostBytes ?? 0) +
+      held.bytes +
+      residencySets.hostBytes +
+      cutDelta.hostBytes +
+      drawnDelta.hostBytes +
+      cutPending.hostBytes,
     adoptGpuCut,
     /**
      * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`

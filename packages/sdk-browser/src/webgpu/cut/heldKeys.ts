@@ -1,4 +1,5 @@
 import type { IdDelta } from './delta.ts';
+import { createSparseInts } from '../../page/cut/sparseInts.ts';
 
 /**
  * The keys one cut holds, counted per placement.
@@ -9,32 +10,35 @@ import type { IdDelta } from './delta.ts';
  * whatever the cut is worth.
  */
 export function createHeldKeys(options: {
-  keyCount: number;
-  keyOfPageId: Int32Array;
+  /** The cache key of packed page `id`. */
+  keyOf: (id: number) => number;
   retain: (key: number, id: number) => void;
   release: (key: number) => void;
   onEnter?: (id: number) => void;
   onExit?: (id: number) => void;
 }) {
-  const { keyCount, keyOfPageId, retain, release, onEnter, onExit } = options;
-  // The reference count IS membership: `refs[key] > 0` says exactly "this key is
-  // held". A dense list beside it would say nothing more, and would be paid on each key that
-  // enters or leaves, every frame.
-  const refs = new Int32Array(Math.max(1, keyCount));
+  const { keyOf, retain, release, onEnter, onExit } = options;
+  // The reference count IS membership: a count above zero says exactly "this key is held". A
+  // list beside it would say nothing more, and would be paid on each key that enters or leaves,
+  // every frame. Counts are held for the held keys only: the view's, never the catalogue's.
+  const refs = createSparseInts();
   return {
+    get byteLength() {
+      return refs.byteLength;
+    },
     apply(delta: IdDelta) {
       for (let i = 0; i < delta.exitedCount; i++) {
         const id = delta.exited[i],
-          key = keyOfPageId[id];
+          key = keyOf(id);
         onExit?.(id);
-        if (--refs[key] > 0) continue;
+        if (refs.add(key, -1) > 0) continue;
         release(key);
       }
       for (let i = 0; i < delta.enteredCount; i++) {
         const id = delta.entered[i],
-          key = keyOfPageId[id];
+          key = keyOf(id);
         onEnter?.(id);
-        if (refs[key]++ > 0) continue;
+        if (refs.add(key, 1) > 1) continue;
         retain(key, id);
       }
     },
