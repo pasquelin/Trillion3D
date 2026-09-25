@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { bodyProblem } from '../../scripts/check-pr-body.ts';
 
 const repo = new URL('../../', import.meta.url);
 const env = {
@@ -83,12 +84,6 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
   assert.equal(execFileSync('cat', [join(work, 'local.log')], { encoding: 'utf8' }), 'ran\n');
 });
 
-const checkBody = (body: string, draft = '') =>
-  spawnSync(process.execPath, [new URL('scripts/check-pr-body.ts', repo).pathname], {
-    input: body,
-    encoding: 'utf8',
-    env: { ...process.env, PR_DRAFT: draft },
-  });
 const template = readFileSync(new URL('.github/PULL_REQUEST_TEMPLATE.md', repo), 'utf8');
 const linked = template.replace('Closes #', 'Closes #65');
 const verify = (body: string) =>
@@ -97,42 +92,51 @@ const review = (body: string) =>
   body
     .replace('- Simplification pass:', '- Simplification pass: nothing to change')
     .replace('- Correctness review:', '- Correctness review: one fix');
+const ready = (body: string) => bodyProblem(body, false) ?? '';
+
+test('check-pr-body: the script reads stdin and PR_DRAFT, and exits 1 on a refusal', () => {
+  const run = (body: string, draft: string) =>
+    spawnSync(process.execPath, [new URL('scripts/check-pr-body.ts', repo).pathname], {
+      input: body,
+      encoding: 'utf8',
+      env: { ...process.env, PR_DRAFT: draft },
+    });
+  assert.equal(run(review(linked), 'true').status, 0);
+  const refused = run(review(linked), 'false');
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /"Lead verification" is missing or empty/);
+});
 
 test('check-pr-body: the untouched template is refused, a filled one accepted', () => {
-  assert.match(checkBody(template).stderr, /must start with "Closes #<issue>"/);
-  assert.match(checkBody(linked).stderr, /"Lead verification" is missing or empty/);
+  assert.match(ready(template), /must start with "Closes #<issue>"/);
+  assert.match(ready(linked), /"Lead verification" is missing or empty/);
   const verified = verify(linked);
-  assert.match(checkBody(verified).stderr, /no "Simplification pass:" line/);
+  assert.match(ready(verified), /no "Simplification pass:" line/);
   const filled = review(verified);
-  assert.equal(checkBody(filled).status, 0);
-  const noCorrectness = filled.replace('- Correctness review: one fix', '');
-  assert.match(checkBody(noCorrectness).stderr, /no "Correctness review:" line/);
+  assert.equal(bodyProblem(filled, false), undefined);
+  assert.match(ready(filled.replace(': one fix', ':')), /no "Correctness review:" line/);
+  // The old tool-named lines no longer stand for the review.
+  const tooled = verified.replace(
+    '- Simplification pass:\n- Correctness review:',
+    '- `/simplify`: nothing to change\n- `/code-review`: one fix',
+  );
+  assert.match(ready(tooled), /no "Simplification pass:" line/);
 });
 
 test('check-pr-body: "Part of" is refused, alone or beside "Closes"', () => {
   const filled = review(verify(linked));
   const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
-  assert.match(checkBody(both).stderr, /says "Part of #<issue>".*back to the CTO/);
-  const partOnly = filled.replace('Closes #65', 'Part of #65');
-  assert.equal(checkBody(partOnly).status, 1);
-  assert.doesNotMatch(checkBody(template).stderr, /Part of/);
-});
-
-test('check-pr-body: the old tool-named lines no longer stand for the review', () => {
-  const tooled = verify(linked).replace(
-    '- Simplification pass:\n- Correctness review:',
-    '- `/simplify`: nothing to change\n- `/code-review`: one fix',
-  );
-  assert.match(checkBody(tooled).stderr, /no "Simplification pass:" line/);
+  assert.match(ready(both), /says "Part of #<issue>".*back to the CTO/);
+  assert.match(ready(filled.replace('Closes #65', 'Part of #65')), /says "Part of #<issue>"/);
 });
 
 test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
   const reviewed = review(linked);
-  assert.equal(checkBody(reviewed, 'true').status, 0);
-  assert.match(checkBody(reviewed, 'false').stderr, /"Lead verification" is missing or empty/);
-  assert.equal(checkBody(verify(reviewed), 'false').status, 0);
-  assert.match(checkBody(template, 'true').stderr, /must start with "Closes #<issue>"/);
-  assert.match(checkBody(linked, 'true').stderr, /no "Simplification pass:" line/);
+  assert.equal(bodyProblem(reviewed, true), undefined);
+  assert.match(ready(reviewed), /"Lead verification" is missing or empty/);
+  assert.equal(bodyProblem(verify(reviewed), false), undefined);
+  assert.match(bodyProblem(template, true) ?? '', /must start with "Closes #<issue>"/);
+  assert.match(bodyProblem(linked, true) ?? '', /no "Simplification pass:" line/);
 });
 
 const checkSize = (cwd: string) =>
