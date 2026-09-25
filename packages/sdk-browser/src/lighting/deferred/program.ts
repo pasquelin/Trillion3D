@@ -30,11 +30,10 @@ export interface DeferredSources {
   direct: boolean;
   bounce?: boolean;
 }
+/** What composition reads: a colour and its accumulated share, else the lit image's flags. */
+export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView };
 /** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export interface AccumulatedImage {
-  color: GPUTextureView;
-  share: GPUTextureView;
-}
+export type AccumulatedImage = Required<ComposedImage>;
 export interface DeferredBindings {
   uniform: GPUBuffer;
   directLights: GPUBuffer;
@@ -98,32 +97,38 @@ export async function createDeferredProgram(
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One composition per source read: the lit image or a TAA history, three at most.
-  type Composition = { group: GPUBindGroup; draw: GPURenderPipeline; present: GPURenderPipeline };
-  const composed = new Map<GPUTextureView, Composition>();
+  // One per colour and share read (an image drawn from TAA reads either share); weak.
+  type Composition = (typeof compositions)['still'] & { group: GPUBindGroup };
+  let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
     get lightGroup() {
       return lightGroup;
     },
-    /** The pipelines and group reading the lit image and its surface flags, or an accumulated
-     *  image and its as-is share; `undefined` before `bind`. */
-    composition(accumulated?: AccumulatedImage) {
-      const view = accumulated?.color ?? boundHdr;
+    /** The pipelines and group reading the lit image and its surface flags, or `image` and its
+     *  as-is share; `undefined` before `bind`. */
+    composition(image?: ComposedImage) {
+      const view = image?.color ?? boundHdr;
       if (!view || !boundSurface) return undefined;
-      let composition = composed.get(view);
-      if (!composition) {
-        const { layout, draw, present } = compositions[accumulated ? 'accumulated' : 'still'];
-        const group = device.createBindGroup({
-          layout,
-          entries: [
-            { binding: 0, resource: view },
-            { binding: 1, resource: { buffer: bindings.uniform } },
-            { binding: 2, resource: accumulated?.share ?? boundSurface.views()[3] },
-          ],
-        });
-        composed.set(view, (composition = { group, draw, present }));
+      const share = image?.share ?? boundSurface.views()[3];
+      let byShare = composed.get(view);
+      if (!byShare) {
+        byShare = new WeakMap();
+        composed.set(view, byShare);
       }
+      const kept = byShare.get(share);
+      if (kept) return kept;
+      const kind = compositions[image?.share ? 'accumulated' : 'still'];
+      const group = device.createBindGroup({
+        layout: kind.layout,
+        entries: [
+          { binding: 0, resource: view },
+          { binding: 1, resource: { buffer: bindings.uniform } },
+          { binding: 2, resource: share },
+        ],
+      });
+      const composition = { ...kind, group };
+      byShare.set(share, composition);
       return composition;
     },
     bind(
@@ -141,7 +146,7 @@ export async function createDeferredProgram(
         requests = direct.requests ?? placeholders.requests,
         probes = direct.probes,
         proxy = direct.proxy ?? placeholders.proxy;
-      if (boundHdr !== hdr || boundSurface !== surface) composed.clear();
+      if (boundHdr !== hdr || boundSurface !== surface) composed = new WeakMap();
       boundHdr = hdr;
       if (
         boundSurface === surface &&
@@ -189,7 +194,7 @@ export async function createDeferredProgram(
     release() {
       boundSurface = boundTiles = boundAtlas = boundTransmittance = undefined;
       boundRequests = boundProbes = boundProxy = boundHdr = lightGroup = undefined;
-      composed.clear();
+      composed = new WeakMap();
     },
   };
 }

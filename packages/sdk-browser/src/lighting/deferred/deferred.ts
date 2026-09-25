@@ -9,7 +9,7 @@ import {
 import { createDeferredPlaceholders } from './setup.ts';
 import {
   createDeferredProgram,
-  type AccumulatedImage,
+  type ComposedImage,
   type DeferredProgram,
   type DirectLightResources,
 } from './program.ts';
@@ -154,15 +154,15 @@ export async function createDeferredLighting(
         pass.draw(3);
         pass.end();
       },
-      /** Composes the lit image, or the temporal-antialiasing output when it `accumulated` one. */
+      /** Composes the lit image, or `composed`: the temporal output, or an image drawn from it. */
       compose(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,
         clear: GPUColor,
         presentation?: GPUTextureView,
-        accumulated?: AccumulatedImage,
+        composed?: ComposedImage,
       ) {
-        const composition = active.composition(accumulated);
+        const composition = active.composition(composed);
         if (!composition) throw new Error('SURFACE_NOT_BOUND');
         const colorAttachments: GPURenderPassColorAttachment[] = [
           { view: target, loadOp: 'clear', storeOp: 'store', clearValue: clear },
