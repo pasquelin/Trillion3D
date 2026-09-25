@@ -182,7 +182,8 @@ export class WebglClusterTextures {
       );
   }
   /** A new frame: the host's texture units are unknown, and the readers of the colour maps are
-   *  the surfaces of every mesh it holds, drawn or culled — the rule never follows the view. */
+   *  the surfaces of every visible mesh it holds, in the frustum or not — the rule never follows
+   *  the camera; hiding a reader changes it. */
   beginFrame(meshes: readonly (readonly { material: HostMaterials }[])[]) {
     this.bound.length = 0;
     this.readers.clear();

@@ -118,10 +118,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // (`compiler_tables/materials.rs`): only BLEND and a cutting MASK take coverage.
         // A transmissive BLEND tints what crosses it by its base colour whatever its alpha
         // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
-        let transmits = material
-            .pointer("/extensions/KHR_materials_transmission/transmissionFactor")
-            .and_then(Value::as_f64)
-            .is_some_and(|t| t > 0.0);
+        let transmits = crate::compiler_materials::unsplit_material(Some(material));
         let coverage = (mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0);
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
