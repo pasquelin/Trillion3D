@@ -11,6 +11,7 @@ import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
 import { createPageParents } from '../residency/admission.ts';
 import { createShadowTier } from '../residency/shadowTier.ts';
+import { createGroupClosure } from '../cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
@@ -134,11 +135,14 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     diagnosticFailure: diag.diagnosticFailure,
   });
   const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
+  /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
+  const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   const shadowTier = createShadowTier({
     packedPages,
     keyCount: tracking.keyCount,
     keyOf: tracking.keyOf,
     room,
+    closeOver: closure.closeOver,
   });
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
@@ -172,7 +176,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  const publication = createWebgpuCutPublication(rt, residencySets);
+  const publication = createWebgpuCutPublication(rt, residencySets, closure);
   return {
     syncRows,
     syncRowsFromCut,

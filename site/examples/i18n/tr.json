@@ -2055,5 +2055,27 @@
       "load": "Ağırlıklar",
       "rope": "İp akışı"
     }
+  },
+  "drive-a-car": {
+    "banner": "W veya ↑ gaz verir, S veya ↓ fren yapar sonra geri gider, A D veya ← → direksiyon, Boşluk el frenini çeker. Panelden arabayı, motosikleti veya tankı seç.",
+    "controls": {
+      "vehicle": "Araç",
+      "reset": "Tekerleklerine geri koy"
+    },
+    "readouts": {
+      "speed": "Hız",
+      "gear": "Vites",
+      "rpm": "Motor (dev/dk)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "spor araba",
+        "motorcycle": "motosiklet",
+        "tracked": "tank"
+      }
+    },
+    "words": {
+      "credit": "Vadi bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
   }
 }

@@ -479,7 +479,6 @@
       "breaking-things": "bir fizik motoru entegrasyonu",
       "cloth-and-rope": "bir fizik motoru entegrasyonu",
       "soft-bodies": "bir fizik motoru entegrasyonu",
-      "drive-a-car": "bir fizik motoru entegrasyonu",
       "a-room-in-vr": "WebXR oturumu",
       "a-360-photo-in-vr": "WebXR oturumu",
       "vr-composition-layers": "WebXR oturumu: katmanlar",
@@ -1079,7 +1078,8 @@
           "<code>limits</code> eklemi durdurur: menteşe için radyan, ray için metre. Bir <code>spring</code> dayanağı yumuşatır.",
           "Bir <code>motor</code> menteşeyi ya da rayı bir hıza veya konuma sürer. <code>joint.motor</code>'u istediğin an değiştir.",
           "<code>breakForce</code>, eklemin koptuğu çekiş kuvvetidir (newton): <code>joint.broken</code> doğru olur ve <code>joint.on('break', …)</code> çağrılır.",
-          "Gelişmiş eklemler hareketleri birbirine bağlar: <code>joint.gear(a, b, { ratio })</code> menteşeli iki tekerleği tek bir dişli dizisi gibi döndürür, <code>joint.rackAndPinion</code> dönüşü kaymaya çevirir, <code>joint.pulley(a, b, { over })</code> iki yükü tek bir ipe asar, <code>joint.path(a, b, { path })</code> bir vagonu rayında tutar, <code>swingTwist</code> ve <code>sixDof</code> ise omuzlar ve kendi eklemlerini yapar."
+          "Gelişmiş eklemler hareketleri birbirine bağlar: <code>joint.gear(a, b, { ratio })</code> menteşeli iki tekerleği tek bir dişli dizisi gibi döndürür, <code>joint.rackAndPinion</code> dönüşü kaymaya çevirir, <code>joint.pulley(a, b, { over })</code> iki yükü tek bir ipe asar, <code>joint.path(a, b, { path })</code> bir vagonu rayında tutar, <code>swingTwist</code> ve <code>sixDof</code> ise omuzlar ve kendi eklemlerini yapar.",
+          "Bir araç, tekerlekler üzerindeki bir gövdedir: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> veya <code>vehicle.tracked</code>; tekerlekleri gövdede durdukları yere konmuş ağlardır. <code>world.physics.add</code> ile ekle ve klavyeyle sür: <code>world.controls.vehicle = car</code>, ardından <code>world.controls.kind = 'vehicle'</code>. Motoru, şanzımanı, süspansiyonu ve frenleri gerçek bir makinenin; <code>car.speed</code>, <code>car.gear</code> ve <code>car.rpm</code> nasıl gittiğini söyler."
         ],
         "tryIt": "Kapıyı ve çekmeceyi aç, sonra taşı köprüye bırak. Köprünün dayanımını düşürüp yeniden kur: kendi ağırlığıyla kırılır."
       },

@@ -627,7 +627,8 @@
           "<code>limits</code> जोड़ को रोकता है: कब्ज़े के लिए रेडियन, पटरी के लिए मीटर। <code>spring</code> रुकावट को नरम बनाता है।",
           "<code>motor</code> कब्ज़े या पटरी को किसी गति या स्थिति तक चलाता है। <code>joint.motor</code> को कभी भी बदलें।",
           "<code>breakForce</code> न्यूटन में वह खिंचाव है जिसके पार जोड़ टूट जाता है: <code>joint.broken</code> true हो जाता है और <code>joint.on('break', …)</code> बुलाया जाता है।",
-          "उन्नत जोड़ गतियों को आपस में बाँधते हैं: <code>joint.gear(a, b, { ratio })</code> कब्ज़ों पर लगे दो पहियों को एक गियर-माला की तरह घुमाता है, <code>joint.rackAndPinion</code> घुमाव को खिसकने में बदलता है, <code>joint.pulley(a, b, { over })</code> एक रस्सी पर दो बोझ लटकाता है, <code>joint.path(a, b, { path })</code> डिब्बे को उसकी पटरी पर रखता है, और <code>swingTwist</code> व <code>sixDof</code> कंधे और आपके अपने जोड़ बनाते हैं।"
+          "उन्नत जोड़ गतियों को आपस में बाँधते हैं: <code>joint.gear(a, b, { ratio })</code> कब्ज़ों पर लगे दो पहियों को एक गियर-माला की तरह घुमाता है, <code>joint.rackAndPinion</code> घुमाव को खिसकने में बदलता है, <code>joint.pulley(a, b, { over })</code> एक रस्सी पर दो बोझ लटकाता है, <code>joint.path(a, b, { path })</code> डिब्बे को उसकी पटरी पर रखता है, और <code>swingTwist</code> व <code>sixDof</code> कंधे और आपके अपने जोड़ बनाते हैं।",
+          "वाहन पहियों पर टिका एक बॉडी है: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> या <code>vehicle.tracked</code>; उसके पहिये बॉडी पर वहीं रखे मेश हैं जहाँ वे टिकते हैं। इसे <code>world.physics.add</code> से जोड़ें और कीबोर्ड से चलाएँ: <code>world.controls.vehicle = car</code>, फिर <code>world.controls.kind = 'vehicle'</code>। इसका इंजन, गियरबॉक्स, सस्पेंशन और ब्रेक असली मशीन के हैं; <code>car.speed</code>, <code>car.gear</code> और <code>car.rpm</code> बताते हैं कि यह कैसे चल रहा है।"
         ],
         "tryIt": "दरवाज़ा और दराज़ खोलें, फिर पत्थर पुल पर गिराएँ। पुल की मज़बूती घटाकर उसे फिर बनाएँ: वह अपने ही भार से टूट जाएगा।"
       },
@@ -1663,7 +1664,6 @@
       "breaking-things": "फ़िज़िक्स इंटीग्रेशन",
       "cloth-and-rope": "फ़िज़िक्स इंटीग्रेशन",
       "soft-bodies": "फ़िज़िक्स इंटीग्रेशन",
-      "drive-a-car": "फ़िज़िक्स इंटीग्रेशन",
       "a-room-in-vr": "WebXR सेशन",
       "a-360-photo-in-vr": "WebXR सेशन",
       "vr-composition-layers": "WebXR सेशन: लेयर",

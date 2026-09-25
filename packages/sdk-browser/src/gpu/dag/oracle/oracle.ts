@@ -1,5 +1,5 @@
 import type { PackedDag } from '../types.ts';
-import { CLUSTER_ROOT, CLUSTER_TRANSPARENT, clusterLevel } from '../layout.ts';
+import { CLUSTER_TRANSPARENT, clusterLevel } from '../layout.ts';
 import { bandError, dagRecords, flagsOf, trianglesOf, worldOf } from '../records.ts';
 import type { SelectionResult } from '../../core/selection.ts';
 import type { DagViewUniforms } from '../types.ts';
@@ -7,7 +7,9 @@ import { dagViewFrames } from './math.ts';
 import { dagOracleDescent } from './descent.ts';
 import { quantizeRequestPriority } from '../request.ts';
 import { createDagOraclePredicates } from './predicates.ts';
-import { ESCALATION_ROUNDS, ESCALATION_SLACK } from '../../../page/selection/types.ts';
+
+/** The cut rule's residency, one entry per page (`../readiness.ts`). */
+export type DagCutResidency = { ready: ArrayLike<number>; childReady: ArrayLike<number> };
 
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
@@ -21,10 +23,13 @@ import { ESCALATION_ROUNDS, ESCALATION_SLACK } from '../../../page/selection/typ
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
   uniforms: DagViewUniforms,
-  resident?: Uint32Array,
+  resident?: DagCutResidency,
   cacheCone = false,
 ) {
-  if (resident && resident.length !== packed.pageCount)
+  if (
+    resident &&
+    (resident.ready.length !== packed.pageCount || resident.childReady.length !== packed.pageCount)
+  )
     throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
   // The single decoder of the compact layout: the same one the buffer double rereads, so
   // no field rank is written anywhere but once, in `../layout.ts`.
@@ -33,10 +38,9 @@ export function evaluateDagSelectionKernel(
   // written once: frontier counting rereads them, and neither it nor the oracle can drift alone.
   const frames = dagViewFrames(packed, uniforms);
   const { planes, views, stretches, focal, near, pixelError } = frames;
-  // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict
-  // and the floor top-down pruning dropped per primitive.
-  const { nodeFlags, prunedFloor } = dagOracleDescent(packed, frames);
-  const { coneRejects, visible, bandPixels, selects } = createDagOraclePredicates({
+  // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict.
+  const nodeFlags = dagOracleDescent(packed, frames);
+  const { coneRejects, visible, bandPixels, draws } = createDagOraclePredicates({
     packed,
     records,
     nodeFlags,
@@ -61,114 +65,52 @@ export function evaluateDagSelectionKernel(
   const pageIds: number[] = [];
   /** Priority of each request, at the same rank as `pageIds`: mirror of `quantizePriority`. */
   const priorites: number[] = [];
-  // Totals the GPU holds, replayed in the same place: `dagWanted` for the kept cut and its
-  // blended share, `dagMask` for what goes to draw and for the hole (`../shader/totalsWgsl.ts`).
-  const totaux = { selected: 0, transparent: 0, drawn: 0, uncovered: 0 };
-  /** Mirror of `noteImage` (../shader/totalsWgsl.ts): the three totals on the SAME set. */
-  const note = (i: number, voulu: boolean, dessinee: boolean, trou: boolean) => {
-    if (!voulu) return;
+  // Totals the GPU holds, replayed where `dagMask` notes them (`../shader/totalsWgsl.ts`).
+  const totaux = { drawn: 0, transparent: 0 };
+  const note = (i: number) => {
     const tri = trianglesOf(records, i);
-    totaux.selected += tri;
+    totaux.drawn += tri;
     if (flagsOf(records, i) & CLUSTER_TRANSPARENT) totaux.transparent += tri;
-    if (dessinee) totaux.drawn += tri;
-    if (trou) totaux.uncovered += tri;
   };
   let frustumRejected = 0,
     lodLevel = 0;
-  const thresholds = new Float64Array(Math.max(1, packed.worldCount)).fill(Math.max(pixelError, 0));
-  const missing = new Uint8Array(Math.max(1, packed.worldCount));
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);
     if (!visible(i)) {
       frustumRejected++;
       continue;
     }
-    if (!selects(i, pixelError)) continue;
+    if (!draws(i, pixelError, true, true)) continue;
     if (cone(i, w)) continue;
     const level = clusterLevel(flagsOf(records, i));
     if (level > lodLevel) lodLevel = level;
     // Replacement error, or its own when nothing replaces it: `dagWanted` does the same.
     priorites.push(quantizeRequestPriority(bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1)));
     pageIds.push(i);
-    if (!resident || resident[i]) continue;
-    const parent = bandPixels(i, 1) * ESCALATION_SLACK;
-    if (parent > 0 && Number.isFinite(parent)) thresholds[w] = Math.max(thresholds[w], parent);
-    else missing[w] = 1;
   }
+  // `dagMask`: the cut rule on every live cluster — visible, not rejected by its cone. Without
+  // residency every cluster and every finer group is held, and the drawn cut is the kept one.
   const drawablePageIds: number[] = [];
-  // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU.
-  const classe = () => {
-    const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
-    const pagesTriees = rangs.map((r) => pageIds[r]),
-      prioritesTriees = rangs.map((r) => priorites[r]);
-    pageIds.length = 0;
-    pageIds.push(...pagesTriees);
-    priorites.length = 0;
-    priorites.push(...prioritesTriees);
-  };
-  const publie = (drawable: number[], complete: boolean) => (
-    classe(),
-    {
-      pageIds,
-      requestPriorities: priorites,
-      frustumRejected,
-      lodLevel,
-      complete,
-      drawablePageIds: drawable,
-      selectedTriangles: totaux.selected,
-      transparentTriangles: totaux.transparent,
-      drawnTriangles: totaux.drawn,
-      uncoveredTriangles: totaux.uncovered,
-    } as SelectionResult
-  );
-  if (!resident) {
-    // Without residency, `dagMask` draws everything the cut keeps and digs no hole: the
-    // whole drawable cut IS the kept cut.
-    for (const i of pageIds) note(i, true, true, false);
-    return publie(pageIds.slice(), true);
-  }
-  for (let round = 0; round < ESCALATION_ROUNDS + 1; round++) {
-    let raised = false;
-    for (let i = 0; i < packed.pageCount; i++) {
-      if (resident[i]) continue;
-      const w = worldOf(records, i);
-      if (!visible(i) || !selects(i, thresholds[w]) || cone(i, w)) continue;
-      const parent = bandPixels(i, 1) * ESCALATION_SLACK;
-      if (parent > 0 && Number.isFinite(parent)) {
-        if (parent > thresholds[w]) {
-          thresholds[w] = parent;
-          raised = true;
-        }
-      } else if (!missing[w]) {
-        missing[w] = 1;
-        raised = true;
-      }
-    }
-    if (!raised) break;
-    if (round === ESCALATION_ROUNDS)
-      for (let i = 0; i < packed.pageCount; i++) {
-        if (resident[i]) continue;
-        const w = worldOf(records, i);
-        if (visible(i) && selects(i, thresholds[w]) && !cone(i, w)) missing[w] = 1;
-      }
-  }
-  // A threshold raised above a dropped floor: the coarse levels escalation would need
-  // are not candidates, and the primitive falls back on its pinned coverage.
-  for (let w = 0; w < thresholds.length; w++) if (thresholds[w] > prunedFloor[w]) missing[w] = 1;
-  let complete = true;
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);
     if (!visible(i) || cone(i, w)) continue;
-    // The branch only decides the CANDIDATE; the residency veto is the same rule for both,
-    // and writing it once is what guarantees it stays so.
-    let draw = missing[w] ? !!(flagsOf(records, i) & CLUSTER_ROOT) : selects(i, thresholds[w]);
-    const trou = draw && !resident[i];
-    if (trou) {
-      complete = false;
-      draw = false;
-    }
-    note(i, draw || trou, draw, trou);
-    if (draw) drawablePageIds.push(i);
+    const ready = !resident || !!resident.ready[i],
+      childReady = !resident || !!resident.childReady[i];
+    if (!draws(i, pixelError, ready, childReady)) continue;
+    note(i);
+    drawablePageIds.push(i);
   }
-  return publie(drawablePageIds, complete);
+  // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU.
+  const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
+  return {
+    pageIds: rangs.map((r) => pageIds[r]),
+    requestPriorities: rangs.map((r) => priorites[r]),
+    frustumRejected,
+    lodLevel,
+    drawablePageIds,
+    selectedTriangles: totaux.drawn,
+    transparentTriangles: totaux.transparent,
+    drawnTriangles: totaux.drawn,
+    uncoveredTriangles: 0,
+  } as SelectionResult;
 }
