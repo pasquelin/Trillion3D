@@ -4310,10 +4310,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Ce que renvoie un `cut` : ses pages, et la grille de positions sur laquelle elles ont été quantifiées.",
+    "summary": "Ce que renvoie un `cut` : ses pages, et les grilles sur lesquelles elles ont été quantifiées.",
     "members": {
       "pages": "Les pages écrites.",
       "positionExponent": "Pas de la grille des positions, en puissance de deux.",
+      "uvExponent": "Pas de la grille des coordonnées de texture, en puissance de deux.",
       "maxPositionError": "Plus grande erreur de position sur cette grille."
     }
   },

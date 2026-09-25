@@ -2249,10 +2249,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Những gì một `cut` trả về: các trang của nó, và lưới vị trí mà chúng được lượng tử hóa trên đó.",
+    "summary": "Những gì một `cut` trả về: các trang của nó, và các lưới mà chúng được lượng tử hóa trên đó.",
     "members": {
       "pages": "Các trang đã ghi.",
       "positionExponent": "Bước lưới của các vị trí, dưới dạng lũy thừa của hai.",
+      "uvExponent": "Bước lưới của các tọa độ kết cấu, dưới dạng lũy thừa của hai.",
       "maxPositionError": "Sai số vị trí lớn nhất trên lưới đó."
     }
   },

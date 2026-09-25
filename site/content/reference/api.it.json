@@ -4302,10 +4302,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Ciò che restituisce un `cut`: le sue pagine, e la griglia di posizioni su cui sono state quantizzate.",
+    "summary": "Ciò che restituisce un `cut`: le sue pagine, e le griglie su cui sono state quantizzate.",
     "members": {
       "pages": "Le pagine scritte.",
       "positionExponent": "Passo della griglia delle posizioni, in potenza di due.",
+      "uvExponent": "Passo della griglia delle coordinate di texture, in potenza di due.",
       "maxPositionError": "Errore di posizione più grande su questa griglia."
     }
   },

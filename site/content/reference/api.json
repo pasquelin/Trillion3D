@@ -10290,7 +10290,7 @@
     "kind": "Type",
     "title": "PageCutPayload",
     "signature": "interface PageCutPayload",
-    "summary": "What a `cut` returns: its pages, and the position grid they were quantized on.",
+    "summary": "What a `cut` returns: its pages, and the grids they were quantized on.",
     "members": [
       {
         "name": "pages",
@@ -10301,6 +10301,11 @@
         "name": "positionExponent",
         "type": "number",
         "desc": "Grid step of positions, as a power of two."
+      },
+      {
+        "name": "uvExponent",
+        "type": "number",
+        "desc": "Grid step of texture coordinates, as a power of two."
       },
       {
         "name": "maxPositionError",

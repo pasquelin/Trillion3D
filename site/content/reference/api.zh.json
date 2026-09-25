@@ -2231,10 +2231,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "一次 `cut` 返回的内容:写出的页面,以及它们被量化时所依据的位置网格。",
+    "summary": "一次 `cut` 返回的内容:写出的页面,以及它们被量化时所依据的网格。",
     "members": {
       "pages": "写出的页面。",
       "positionExponent": "位置网格的步长,以 2 的幂次表示。",
+      "uvExponent": "纹理坐标网格的步长,以 2 的幂次表示。",
       "maxPositionError": "该网格上的最大位置误差。"
     }
   },

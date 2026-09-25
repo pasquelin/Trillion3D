@@ -2231,10 +2231,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "`cut`이 반환하는 것: 그 페이지들, 그리고 그것들이 양자화된 위치 격자.",
+    "summary": "`cut`이 반환하는 것: 그 페이지들, 그리고 그것들이 양자화된 격자들.",
     "members": {
       "pages": "써 낸 페이지들.",
       "positionExponent": "위치 격자의 간격, 2의 거듭제곱으로.",
+      "uvExponent": "텍스처 좌표 격자의 간격, 2의 거듭제곱으로.",
       "maxPositionError": "그 격자에서의 최대 위치 오차."
     }
   },

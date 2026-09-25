@@ -4302,10 +4302,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Was ein `cut` zurückgibt: seine Seiten, und das Positionsraster, auf dem sie quantisiert wurden.",
+    "summary": "Was ein `cut` zurückgibt: seine Seiten, und die Raster, auf denen sie quantisiert wurden.",
     "members": {
       "pages": "Die geschriebenen Seiten.",
       "positionExponent": "Schritt des Positionsrasters, als Zweierpotenz.",
+      "uvExponent": "Schritt des Rasters der Texturkoordinaten, als Zweierpotenz.",
       "maxPositionError": "Größter Positionsfehler auf diesem Raster."
     }
   },

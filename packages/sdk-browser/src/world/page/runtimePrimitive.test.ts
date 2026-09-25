@@ -7,6 +7,8 @@ import { cutRuntimePrimitive } from './runtimePrimitive.ts';
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
+import { LINE_DASH_GLSL, LINE_DASH_WGSL, lineDash } from '../../visibility/shader/lineWgsl.ts';
+import { runLineText } from '../../visibility/shader/lineClip.fixture.ts';
 
 /** The depth layer of every page the world cuts from `drawn`. */
 async function layers(drawn: NonNullable<ReturnType<typeof drawnTriangles>>) {
@@ -43,4 +45,40 @@ test('the pages of a dashed line carry its distance along the line', async () =>
     Array.from({ length: 9 }, (_, k) => k * 0.5),
   );
   for (const page of await read(false)) assert.equal(page.attributes.uv, undefined);
+});
+
+// #359: a line longer than the format's texture grid holds on one page (2^24 steps of 2^-14, 1024
+// units) still draws, its dashes at their distances: the cut takes the finest grid its widest
+// cluster fits, never dropping the page. Every dash text reads the decoded distance.
+test('a dashed line past 1024 units keeps its dashes at their distances', async () => {
+  const path = geometry.createBuffer({
+    position: new BufferAttribute(new Float32Array([0, 0, 0, 1500, 0, 0, 3000, 0, 0]), 3),
+  });
+  const cut = await cutDrawnTriangles(drawnTriangles(path, 'lineStrip', { dashed: true })!);
+  assert.equal(cut.pages.length, 1);
+  // 3000 units on the finest grid that holds them, 2^-11; a textured box keeps the format's 2^-14.
+  assert.equal(cut.uvExponent, -11);
+  const box = await cutDrawnTriangles(drawnTriangles(geometry.box(1, 1, 1), 'triangles')!);
+  assert.equal(box.uvExponent, -14);
+  const { uv } = decodeGeometryPage(new Uint8Array(cut.pages[0].geometry)).attributes;
+  const along = [...new Set(Array.from(uv!).filter((_, i) => i % 2 === 0))].sort((a, b) => a - b);
+  assert.deepEqual(along, [0, 1500, 3000]);
+  const runs = [
+    runLineText<boolean>(LINE_DASH_WGSL),
+    runLineText<boolean>(LINE_DASH_GLSL),
+    (at: number, [dashSize, gapSize]: number[]) => lineDash(at, dashSize, gapSize),
+  ];
+  // Across the second segment, as a raster interpolates its corners: dash 0.3, gap 0.2.
+  for (const run of runs)
+    for (const [at, drawn] of [
+      [2000.1, true],
+      [2000.29, true],
+      [2000.35, false],
+      [2999.45, false],
+      [2999.55, true],
+    ] as const) {
+      const t = (at - along[1]) / (along[2] - along[1]);
+      const u = Math.fround(along[1] + t * (along[2] - along[1]));
+      assert.equal(run(u, [0.3, 0.2]), drawn, `at ${at}`);
+    }
 });
