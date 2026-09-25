@@ -17,6 +17,15 @@ import {
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 
+/** True when the camera cut lets every node and page of `root` through: a root never culled
+ *  (`ClusterRoot.unculled`). A light's cut still tests it — a sprite casts no shadow. */
+export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
+  root.unculled === true && !s.light;
+
+/** Six planes no box leaves, `(0, 0, 0, 1)` each: what an open root is walked against, here and
+ *  in the GPU cut's oracle (`dagViewFrames`). */
+export const OPEN_PLANES = Float64Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? 1 : 0));
+
 export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: ClusterRoot<T>) {
   const pages = root.pages;
   const { viewMatrix, clip, planes, pixelScale } = selectionScratch;
@@ -46,6 +55,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix));
   // The engine projection no longer has a far plane: the frustum keeps the one the host declares.
   frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false);
+  if (openToCamera(s, root)) planes.set(OPEN_PLANES);
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
   s.flatForcedList = root.forcedList;

@@ -1,5 +1,5 @@
 import { GeometryBuilder, fromArrays } from './builder.ts';
-import { flatGeometry } from './drawn.ts';
+import { flatGeometry } from './drawnFlat.ts';
 import { signedArea, triangulate } from './triangulate.ts';
 import type { Shape } from '../math/curves.ts';
 

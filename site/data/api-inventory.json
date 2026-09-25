@@ -781,7 +781,8 @@
         "packages/sdk-browser/src/webgpu/blend/worlds.ts",
         "packages/sdk-browser/src/webgpu/core/transformShear.fixture.ts",
         "packages/sdk-browser/src/webgpu/core/transformShear.test.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
+        "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/box\".boxTransform"
@@ -897,6 +898,7 @@
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
@@ -4696,10 +4698,12 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.test.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-examples-water.test.ts",
@@ -4730,6 +4734,7 @@
         "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
@@ -4739,6 +4744,7 @@
         "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "site/app/editor/SurfaceFields.tsx",
         "site/app/editor/objects.ts"
@@ -4768,6 +4774,7 @@
         "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
@@ -4777,6 +4784,7 @@
         "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "site/app/editor/SurfaceFields.tsx",
         "site/app/editor/objects.ts"
@@ -4791,7 +4799,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/material\".MaterialParameters"
     },
@@ -5368,11 +5376,13 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-examples-water.test.ts",
         "scripts/docs-scene-editor.test.ts"
@@ -8178,6 +8188,22 @@
       "affectedConsumers": ["scripts/docs/examples/solids.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/curves\".SplineCurve"
+    },
+    {
+      "name": "Sprite",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/object/sprite.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldCuts.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/write.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/sprite\".Sprite"
     },
     {
       "name": "srgbToLinear",

@@ -1,6 +1,6 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
-import { selectFlat } from './select.ts';
+import { openToCamera, selectFlat } from './select.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
@@ -110,7 +110,11 @@ export function selectVisiblePages<T extends PageRecord>(
       // A parked instance-buffer row places nothing: its root waits in the tables, untested.
       if (root.parked) continue;
       const box = root.worldBox;
-      if (box && frustumExcludesBox(worldPlanes, box[0], box[1], box[2], box[3], box[4], box[5])) {
+      if (
+        box &&
+        !openToCamera(state, root) &&
+        frustumExcludesBox(worldPlanes, box[0], box[1], box[2], box[3], box[4], box[5])
+      ) {
         state.frustumRejected++;
         continue;
       }

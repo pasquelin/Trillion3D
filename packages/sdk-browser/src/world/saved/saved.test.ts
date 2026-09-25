@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../core/scene.ts';
 import type { LoadedModel } from '../core/loadedModel.ts';
-import { object, Object3D } from '../../../../sdk-core/src/world/object/index.ts';
+import { object, Object3D, Sprite } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
+import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import { light } from '../../../../sdk-core/src/world/light/index.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
@@ -165,4 +166,20 @@ test('two scenes read at once are read one after the other, never merged', async
     (child) => (child as { record?: { manifestUrl: string } }).record,
   );
   assert.deepEqual(urls, [{ manifestUrl: 'second' }], 'the second scene alone');
+});
+
+// #364: a sprite comes back a sprite, its centre and its material's turn kept.
+test('a saved sprite is read back a sprite, with its centre and its turn', async () => {
+  const scene = sceneWithLoads([]);
+  const marker = object.sprite(material.sprite({ rotation: 0.6, sizeAttenuation: false }));
+  marker.center.set(0.5, 0);
+  scene.add(marker);
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()));
+  const again = sceneWithLoads([]);
+  await again.fromJSON(saved);
+  const [back] = again.children as (typeof marker)[];
+  assert.ok(back instanceof Sprite);
+  assert.deepEqual([back.center.x, back.center.y], [0.5, 0]);
+  assert.equal((back.material as Material).rotation, 0.6);
+  assert.deepEqual(again.toJSON(), saved);
 });

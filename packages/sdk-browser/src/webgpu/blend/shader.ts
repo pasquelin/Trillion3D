@@ -17,6 +17,7 @@ import { FLAG_HAS_COLOR, FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/bu
 import { VERTEX_COLOR_WGSL } from '../core/vertexColors.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from '../../visibility/shader/lineWgsl.ts';
+import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts';
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
@@ -65,6 +66,7 @@ ${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 ${LINE_CLIP_WGSL}
 ${LINE_DASH_WGSL}
+${SPRITE_WGSL}
 // What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
 // maps, their factors and the flags. They are constant over the call, therefore FLAT — the
 // fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
@@ -116,6 +118,8 @@ ${FACING_WGSL}
  out.position=uni.viewProj*world;out.view=world.xyz;
  // A line quad widens on screen (\`lineClip\`), along the direction its corner's normal carries.
  if(it.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u],0.0)),it.lineWidth,uni.viewport,uni.pixelRatio);}
+ // A sprite's quad turns to face the camera (\`spriteAt\`), about its origin.
+ if(it.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,vec2f(positions[id*3u],positions[id*3u+1u]),it.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
  out.tri=0u;
  out.diagId=0u;
  if((flags&0x1c000000u)!=0u){out.diagId=clusterId;}

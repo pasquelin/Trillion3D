@@ -13,26 +13,39 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
   return { url, sha256, bytes: bytes.byteLength };
 }
 
+/** What the cut triangles are, beside faces (`DrawnTriangles`). */
+type DrawnKind = { lines?: boolean; spriteRadius?: number };
+
+/** The box and ball of a page: its own, or for a sprite's quad, which the rasters turn to face
+ *  the camera about its origin (`drawnSprite`), the cube and ball of its radius there — what
+ *  holds the quad whichever way it turns, as the reference culls a sprite by that ball. */
+function bounds(page: PageCutPayload['pages'][number], radius: number | undefined) {
+  if (radius === undefined) return { min: page.min, max: page.max, sphere: page.sphere };
+  return {
+    min: [-radius, -radius, -radius],
+    max: [radius, radius, radius],
+    sphere: [0, 0, 0, radius],
+  };
+}
+
 /** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
  *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`). */
-function servePrimitive(cut: PageCutPayload, lines: boolean): RuntimePrimitive {
+function servePrimitive(cut: PageCutPayload, kind: DrawnKind): RuntimePrimitive {
   const urls: string[] = [];
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
     ...served(page.index, page.indexSha256, urls),
     count: page.count,
-    min: page.min,
-    max: page.max,
+    ...bounds(page, kind.spriteRadius),
     role: 'exact',
     start: page.start,
     level: 0,
     lodError: 0,
-    sphere: page.sphere,
     parentError: null,
     parentSphere: null,
     group: null,
     source: null,
-    ...(lines ? { depthLayer: LINE_DEPTH_LAYER } : {}),
+    ...(kind.lines ? { depthLayer: LINE_DEPTH_LAYER } : {}),
     geometry: {
       ...served(page.geometry, page.geometrySha256, urls),
       vertexCount: page.vertexCount,
@@ -65,7 +78,7 @@ function servePrimitive(cut: PageCutPayload, lines: boolean): RuntimePrimitive {
  */
 export async function cutRuntimePrimitive(
   packed: ArrayBuffer,
-  lines: boolean,
+  kind: DrawnKind,
 ): Promise<RuntimePrimitive> {
-  return servePrimitive(await cutPagesOffThread(packed), lines);
+  return servePrimitive(await cutPagesOffThread(packed), kind);
 }
