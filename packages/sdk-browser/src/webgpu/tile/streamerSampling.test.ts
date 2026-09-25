@@ -8,6 +8,7 @@ import { createWebgpuTileStreamer } from './streamer.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
 import { tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts';
 import type { HostMaterials, HostTexture } from '../../host/resources.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
@@ -30,24 +31,8 @@ const record = (texture: G.GraphTexture) => importHostTexture(texture as unknown
 /** A streamer over one colour and one data texture, both whole in their tail; counts the page
  *  table writes and the colour signals. */
 function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
-  let tableWrites = 0;
   const signalled: number[][] = [];
-  const device = {
-    createTexture: () => ({ createView: () => ({}), destroy() {}, format: 'rgba8unorm' }),
-    createBuffer: ({ size, label }: { size: number; label?: string }) => ({
-      label,
-      size,
-      destroy() {},
-    }),
-    createCommandEncoder: () => ({ finish: () => ({}) }),
-    queue: {
-      writeTexture() {},
-      submit() {},
-      writeBuffer: (buffer: { label?: string }) => {
-        if (buffer.label?.startsWith('Trillion3D texture pages')) tableWrites++;
-      },
-    },
-  } as never;
+  const { device, writes } = mockGpu();
   const blocks = { bc7: [], astc: [] };
   const whole = (texture?: Texture) => ({
     layout: tileLayout(1, 1),
@@ -71,7 +56,9 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
     },
   });
   textures.prepare();
-  return { textures, writes: () => tableWrites, signalled };
+  const tableWrites = () =>
+    writes.filter((write) => write.label?.startsWith('Trillion3D texture pages')).length;
+  return { textures, writes: tableWrites, signalled };
 }
 
 /** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict; the
@@ -153,7 +140,7 @@ test('a filter changed on a held image releases it, and the image draws it', asy
   const { textures } = streamer([record(colour)], record(host()), () =>
     rt.run.gate.resourcesChanged(),
   );
-  const device = {} as GPUDevice;
+  const { device } = mockGpu();
   for (let i = 0; i < 2; i++) {
     rt.run.frame++;
     keepWebgpuFrame(rt);

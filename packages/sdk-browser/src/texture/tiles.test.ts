@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import {
   entryLevel,
   entryPlace,
@@ -80,7 +81,7 @@ test('the pool budget yields whole layers per lane, and never refuses: it raises
     clamp: 'minimum',
   });
   assert.throws(() => texturePoolFor(0, undefined, demand, rgba8), /INVALID_TEXTURE_POOL_BUDGET/);
-  const device = { limits: { maxTextureArrayLayers: 2 } } as unknown as GPUDevice;
+  const { device } = fakeDevice({ limits: { maxTextureArrayLayers: 2 } });
   assert.deepEqual(texturePoolFor(512 * MiB, device, demand, rgba8), {
     budgetBytes: 512 * MiB,
     layers: { color: lanes(2, 0), data: lanes(2, 0) },
