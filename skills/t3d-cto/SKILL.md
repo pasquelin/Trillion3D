@@ -68,8 +68,8 @@ below that says to tell him: never a running account of agent events.
   to date. Replace or delete the line it changes, never pile a new one beside it: the files stay
   short, since every agent reads them.
 - **Priorities:** the priority labels of the leads' issues are the only order (`docs/roles/cto.md`
-  step 1), and no issue is without a lead. When the boss changes a priority, set the labels
-  first, then message the leads concerned.
+  step 1); every issue but the company's rules, which are yours, belongs to one lead. When the
+  boss changes a priority, set the labels first, then message the leads concerned.
 - **Decisions:** you decide technique yourself (the published reference solution, never an
   image loss, one mechanism per concern). Only product choices and visible image changes you
   cannot justify as corrections go to the boss.
