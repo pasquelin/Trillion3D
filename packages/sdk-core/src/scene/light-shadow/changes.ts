@@ -1,4 +1,4 @@
-import { boxEmpty, boxUnion } from '../../math/primitives/box.ts';
+import { boxEmpty, boxIsEmpty, boxUnion } from '../../math/primitives/box.ts';
 import { keepNumbers } from '../../math/primitives/vector.ts';
 import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts';
 
@@ -92,7 +92,7 @@ export function createShadowChanges() {
     add(lo, hi, movingOnly, false);
   /** The held union enters the list as one box, when one waits. */
   const release = () => {
-    if (defer[0] === Infinity) return;
+    if (boxIsEmpty(defer, 0)) return;
     add(deferMin, deferMax, false, true);
     boxEmpty(defer, 0);
   };
@@ -102,7 +102,7 @@ export function createShadowChanges() {
     },
     /** A representation change waits for the camera to rest: the hold must not close before. */
     get deferred() {
-      return defer[0] !== Infinity;
+      return !boxIsEmpty(defer, 0);
     },
     /**
      * A node has moved: its box enters the list, or joins a neighbour. `movingOnly` says it holds
