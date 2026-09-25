@@ -42,7 +42,7 @@ async function openSession(
   pageCache: ReturnType<typeof createPageCache>,
 ) {
   const diagnosticChannel = { enabled: false, detail: 'summary', emit: () => {} };
-  const options = { pageCache, importedLights: false };
+  const options = { manifestUrl: `${base}manifest.json`, pageCache, importedLights: false };
   const pageSources = await createExplorerPageSources(
     metadata,
     options,
