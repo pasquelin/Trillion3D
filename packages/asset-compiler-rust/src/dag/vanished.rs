@@ -85,8 +85,7 @@ pub(super) fn vanished_error(
     let triangles = source.as_chunks::<3>().0.iter();
     for (tri, local) in triangles.zip(corners.as_chunks::<3>().0) {
         if !alive[join.root(local[0]) as usize] {
-            // A part of `source` lies within one source part: its corners share one extent.
-            extent = extent.max(extents[tri[0] as usize]);
+            extent = tri.iter().fold(extent, |e, &v| e.max(extents[v as usize]));
             removed.extend(tri);
         }
     }
