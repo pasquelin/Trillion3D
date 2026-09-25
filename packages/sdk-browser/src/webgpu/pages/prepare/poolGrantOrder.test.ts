@@ -11,11 +11,14 @@ import { refusing } from './refusing.fixture.ts';
 /** The coarse quad — one root page over two leaves, a pool of three slots at most and one at its
  *  floor — on a device that runs `during` when the geometry pool's first buffer is made, inside
  *  the grant's out-of-memory scope. */
-function granting(during: (raise: (message: string) => void) => void) {
+function granting(
+  during: (raise: (message: string) => void) => void,
+  after: (raise: (message: string) => void) => void = () => {},
+) {
   installGpuGlobals();
   let first = true;
   const gpu = refusing('createBuffer', 'geometry page cache', (raise) => {
-    if (first) during(raise);
+    (first ? during : after)(raise);
     first = false;
   });
   const events: BackendDiagnostic[] = [];
@@ -58,6 +61,23 @@ test('a geometry budget set while the prepare grant is answered is the one the p
     const { geometryPoolBytes, geometryPoolSlots } = backend.metrics();
     assert.equal(geometryPoolBytes, later, 'the later call wins');
     assert.equal(geometryPoolSlots, 1);
+  } finally {
+    backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+});
+
+test('a later budget the device refuses even at its floor keeps the pool it granted', async () => {
+  let set: Promise<unknown> | undefined;
+  const { fixture, backend } = granting(
+    () => (set = backend.setMemoryBudgets!({ geometryPoolBytes: 48 })),
+    (raise) => raise('Out of memory'),
+  );
+  try {
+    await backend.prepare();
+    await set;
+    assert.equal(backend.metrics().geometryPoolSlots, 3, 'the pool first granted stays');
   } finally {
     backend.dispose();
     fixture.geometry.dispose();

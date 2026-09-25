@@ -3,6 +3,9 @@ import { grantedGeometryPool } from '../../residency/poolGrants.ts';
 import { geometryBudgetBeside } from '../io/memory.ts';
 import { throwIfStopped } from '../io/lost.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
+import type { GeometryPool } from '../../../residency/pools.ts';
+
+type GpuPageCache = ReturnType<typeof createGpuPageCache>;
 
 /**
  * The engine's GPU page cache, with its trace hook. Cache events are sampled only if trace is
@@ -37,10 +40,12 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
  * buffers beside it (`geometryBudgetBeside`). Refused even at its floor, the root cover: refused
  * by name, never allocated at the full request outside any scope. Until a pool is granted,
  * `setMemoryBudgets` records its budget on `setup.geometryPool`: one set while the device answers
- * is the later word, and the pool is granted again for it.
+ * is the later word, and is granted in turn. As mid-session, the pool held is only replaced by one
+ * the device grants: a later budget refused even at its floor keeps it.
  */
 export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { setup, gpu, diag } = rt;
+  const { setup, gpu, diag, run, signal } = rt;
+  let held: { pool: GeometryPool; cache: GpuPageCache } | undefined;
   for (;;) {
     const asked = setup.geometryPool.budgetBytes,
       { bytes, declared } = geometryBudgetBeside(rt, asked);
@@ -54,15 +59,13 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
         return { cache, destroy: () => void cache.dispose() };
       },
     );
-    if (!granted) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
-    if (setup.geometryPool.budgetBytes !== asked) {
-      granted.made.destroy();
-      throwIfStopped(rt);
-      continue;
-    }
-    setup.geometryPool = declared(granted.pool);
-    gpu.cache = granted.made.cache;
-    throwIfStopped(rt);
-    return;
+    if (granted) {
+      held?.cache.dispose();
+      held = { pool: declared(granted.pool), cache: granted.made.cache };
+    } else if (!held) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
+    if (!granted || setup.geometryPool.budgetBytes === asked || signal.aborted || run.lost) break;
   }
+  setup.geometryPool = held.pool;
+  gpu.cache = held.cache;
+  throwIfStopped(rt);
 }
