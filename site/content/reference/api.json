@@ -13989,7 +13989,7 @@
     "members": [
       {
         "name": "table",
-        "type": "{ words: Uint32Array<ArrayBuffer>; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (slice: number) => number; claim...",
+        "type": "{ words: Uint32Array<ArrayBuffer>; readonly hostBytes: number; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (sli...",
         "desc": "The page table: one word per virtual page, and the range each light holds in it."
       },
       {
