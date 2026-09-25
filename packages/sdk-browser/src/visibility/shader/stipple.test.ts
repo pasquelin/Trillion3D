@@ -30,7 +30,7 @@ test('both rasters stipple; the shadows pass zero', () => {
   assert.equal(VIS_SHADER.split(STIPPLE_WGSL).length - 1, 1);
   assert.equal(VIS_SHADER.split('gx,gy,stippleOffset(in.position.xy))').length - 1, 2);
   assert.doesNotMatch(SHADOW_DEPTH_SHADER, /stippleOffset/);
-  assert.match(SHADOW_DEPTH_SHADER, /maskKeep\(pages\[in\.instance\],in\.uv,gx,gy,0\.0\)/);
+  assert.match(SHADOW_DEPTH_SHADER, /maskKeep\(pages\[in\.instance\],in\.uv,1\.0,gx,gy,0\.0\)/);
 });
 
 test('the compute raster stipples at its footprint, and keeps the hard cutout otherwise', () => {
@@ -44,10 +44,10 @@ test('the compute raster stipples at its footprint, and keeps the hard cutout ot
   // With one: the footprint of the covering sub-triangle, the offset at this pixel.
   assert.match(
     small,
-    /uvGradients\(t\.a,select\(t\.b,t\.c,second\),select\(t\.c,t\.d,second\),sample,t\.ua,nb,nc,1\.0\/vec3f\(t\.ca\.w,qb\.w,qc\.w\)\);\n {3}gx=g\[0\];gy=g\[1\];stipple=stippleOffset\(sample\);/,
+    /uvGradients\(t\.a,select\(t\.b,t\.c,second\),select\(t\.c,t\.d,second\),sample,t\.ua\.xy,nb\.xy,nc\.xy,1\.0\/vec3f\(t\.ca\.w,qb\.w,qc\.w\)\);\n {3}gx=g\[0\];gy=g\[1\];stipple=stippleOffset\(sample\);/,
   );
-  assert.match(small, /if\(!maskKeep\(page,tc,gx,gy,stipple\)\)\{return;\}/);
-  assert.doesNotMatch(small, /maskKeep\(page,tc,vec2f\(0\.0\)/);
+  assert.match(small, /if\(!maskKeep\(page,tc\.xy,tc\.z,gx,gy,stipple\)\)\{return;\}/);
+  assert.doesNotMatch(small, /maskKeep\(page,tc\.xy,tc\.z,vec2f\(0\.0\)/);
 });
 
 test('the compute raster reads the gradients of the resolve, which are exact at the pixel', () => {
