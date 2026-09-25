@@ -3164,7 +3164,6 @@
         "bench/witnesses/exact/requests.ts",
         "bench/witnesses/three/fromGraph.ts",
         "bench/witnesses/three/fromGraphNodes.ts",
-        "packages/sdk-browser/src/backend/autonomous/geometry.ts",
         "packages/sdk-browser/src/backend/autonomous/heldFloor.ts",
         "packages/sdk-browser/src/backend/autonomous/poolApi.test.ts",
         "packages/sdk-browser/src/cluster/blendCopyContract.ts",
