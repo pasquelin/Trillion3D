@@ -156,19 +156,18 @@ fn a_cluster_whose_parents_exceed_a_forced_bound_is_refused_with_the_page_named(
 
 #[test]
 fn a_refusal_in_the_second_primitive_of_a_cook_names_its_mesh_and_primitive() {
-    // Page ids restart at 0 in every primitive, so every refusal raised while a primitive compiles,
-    // a page's included, names it; a float index accessor forces one on the second primitive.
+    // Page ids restart at 0 in every primitive, so a refusal names its primitive; a float index
+    // accessor makes the second primitive of the cook fail.
     let (root, options) = fixture();
     let mut gltf = read_gltf(&options);
-    let push = |list: &mut Value, item: Value| list.as_array_mut().expect("array").push(item);
-    push(
-        &mut gltf["accessors"],
-        json!({"bufferView":1,"componentType":5126,"type":"SCALAR","count":3}),
-    );
-    push(
-        &mut gltf["meshes"][0]["primitives"],
-        json!({"attributes":{"POSITION":0},"indices":2}),
-    );
+    gltf["accessors"]
+        .as_array_mut()
+        .expect("accessors")
+        .push(json!({"bufferView":1,"componentType":5126,"type":"SCALAR","count":3}));
+    gltf["meshes"][0]["primitives"]
+        .as_array_mut()
+        .expect("primitives")
+        .push(json!({"attributes":{"POSITION":0},"indices":2}));
     write_gltf(&options, &gltf, None);
     let error = compile(&options, |_| {}).expect_err("refused");
     assert_eq!(error.code, "INVALID_GLTF");

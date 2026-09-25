@@ -3,17 +3,6 @@ use super::*;
 pub(super) fn invalid(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_GLTF", message)
 }
-impl CompilerError {
-    /// The same refusal, naming the scene mesh and primitive it was raised in: page ids
-    /// restart at 0 in every primitive, so a page named alone is ambiguous in a cook of several.
-    /// A cancellation is no refusal of that primitive and keeps its message.
-    pub(super) fn within(mut self, mesh: usize, primitive: usize) -> Self {
-        if self.code != "CANCELLED" {
-            self.message = format!("Mesh {mesh} primitive {primitive}: {}", self.message);
-        }
-        self
-    }
-}
 pub(super) fn required_index(v: Option<&Value>, field: &str) -> Result<usize> {
     let raw = v
         .and_then(Value::as_u64)
