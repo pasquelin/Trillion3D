@@ -137,7 +137,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.shadows?.requestBuffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
-  contractResources.transmittance = active ? lights.shadows?.transmittance?.view : undefined;
+  contractResources.transmittance = active ? lights.shadows?.transmittance : undefined;
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined;
