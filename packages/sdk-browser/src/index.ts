@@ -40,6 +40,12 @@ export {
   type JointMotor,
   type JointOptions,
   type SixDofAxis,
+  Vehicle,
+  vehicle,
+  VEHICLE_SPECS,
+  type VehicleKind,
+  type VehicleOptions,
+  type VehicleSpec,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
 export type { WaterSpec, WaveSpec, WaterSurface } from '../../sdk-core/src/fluids/index.ts';

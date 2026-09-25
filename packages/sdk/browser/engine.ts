@@ -144,7 +144,15 @@ export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryB
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts';
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
-export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
+export { vehicle, Vehicle } from '../../sdk-core/src/physics/vehicle.ts';
+export type {
+  VehicleDriver,
+  VehicleInput,
+  VehicleKind,
+  VehicleOptions,
+} from '../../sdk-core/src/physics/vehicle.ts';
+export { VEHICLE_SPECS } from '../../sdk-core/src/physics/vehicleSpec.ts';
+export type { VehicleSpec } from '../../sdk-core/src/physics/vehicleSpec.ts';
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
 export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';

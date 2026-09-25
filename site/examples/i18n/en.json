@@ -2029,5 +2029,27 @@
       "load": "Weights",
       "rope": "Rope run"
     }
+  },
+  "drive-a-car": {
+    "banner": "W or ↑ accelerates, S or ↓ brakes then reverses, A D or ← → steer, Space pulls the handbrake. Pick the car, the motorcycle or the tank in the panel.",
+    "controls": {
+      "vehicle": "Vehicle",
+      "reset": "Put back on its wheels"
+    },
+    "readouts": {
+      "speed": "Speed",
+      "gear": "Gear",
+      "rpm": "Engine (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "sports car",
+        "motorcycle": "motorcycle",
+        "tracked": "tank"
+      }
+    },
+    "words": {
+      "credit": "Valley modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
+    }
   }
 }

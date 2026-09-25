@@ -17312,6 +17312,34 @@
     "description": ""
   },
   {
+    "id": "VEHICLE_SPECS",
+    "module": "packages/sdk-core/src/physics/vehicleSpec.ts",
+    "exports": ["VEHICLE_SPECS"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "VEHICLE_SPECS",
+    "signature": "const VEHICLE_SPECS",
+    "summary": "The three machines a vehicle starts as, by kind.",
+    "members": [
+      {
+        "name": "car",
+        "type": "VehicleSpec",
+        "desc": "A Chevrolet Corvette C5: rear-wheel drive, 0.32 N·m per kilogram, six gears."
+      },
+      {
+        "name": "motorcycle",
+        "type": "VehicleSpec",
+        "desc": "A Yamaha XJ900 and its rider: 0.26 N·m per kilogram, six gears."
+      },
+      {
+        "name": "tracked",
+        "type": "VehicleSpec",
+        "desc": "An M1 Abrams: a gas turbine, 0.083 N·m per kilogram, four gears."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "Vec3",
     "module": "packages/sdk-core/src/lighting/scene/types.ts",
     "exports": ["Vec3"],
@@ -17733,6 +17761,186 @@
     "description": ""
   },
   {
+    "id": "Vehicle",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["Vehicle"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Vehicle",
+    "signature": "class Vehicle implements VehicleDriver\nnew Vehicle(kind: VehicleKind, body: Object3D, options: VehicleOptions): Vehicle",
+    "summary": "A vehicle: a body carried on wheels by Jolt's vehicle constraint, with its engine, gearbox, differentials, suspension and anti-roll bars, made by `vehicle.*` and added to the simulation by `world.physics.add`.",
+    "parameters": [
+      {
+        "name": "kind",
+        "type": "VehicleKind",
+        "desc": ""
+      },
+      {
+        "name": "body",
+        "type": "Object3D",
+        "desc": ""
+      },
+      {
+        "name": "options",
+        "type": "VehicleOptions",
+        "desc": "What `vehicle.*` accepts: the wheels, and any number of the machine's own (`VehicleSpec`)."
+      },
+      {
+        "name": "options.wheels",
+        "type": "readonly Object3D[]",
+        "desc": "The wheels: meshes, children of the body, each placed at its centre as it rests on flat ground, its axle along the body's x. Its radius and width are read from its bounds. The body faces −z: the forward wheels steer."
+      },
+      {
+        "name": "options.torquePerKg?",
+        "type": "number",
+        "desc": "Engine peak torque per kilogram of the body, N·m/kg."
+      },
+      {
+        "name": "options.idleRPM?",
+        "type": "number",
+        "desc": "The engine's idle, rpm."
+      },
+      {
+        "name": "options.maxRPM?",
+        "type": "number",
+        "desc": "The engine's redline, rpm."
+      },
+      {
+        "name": "options.torqueCurve?",
+        "type": "readonly (readonly [number, number])[]",
+        "desc": "Up to five points `[rpm / maxRPM, torque / peak]`, rpm fractions rising."
+      },
+      {
+        "name": "options.gears?",
+        "type": "readonly number[]",
+        "desc": "Up to six forward gear ratios, first gear first."
+      },
+      {
+        "name": "options.reverse?",
+        "type": "number",
+        "desc": "The reverse gear's ratio."
+      },
+      {
+        "name": "options.finalDrive?",
+        "type": "number",
+        "desc": "The final drive's ratio (a tracked vehicle's sprocket reduction)."
+      },
+      {
+        "name": "options.shiftUpRPM?",
+        "type": "number",
+        "desc": "The gearbox shifts up past this, rpm."
+      },
+      {
+        "name": "options.shiftDownRPM?",
+        "type": "number",
+        "desc": "And down below this, rpm."
+      },
+      {
+        "name": "options.clutch?",
+        "type": "number",
+        "desc": "Clutch torque per rad/s of slip, N·m·s."
+      },
+      {
+        "name": "options.suspensionFrequency?",
+        "type": "number",
+        "desc": "Ride frequency, Hz."
+      },
+      {
+        "name": "options.suspensionDamping?",
+        "type": "number",
+        "desc": "Damping ratio, 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "options.suspensionTravel?",
+        "type": "number",
+        "desc": "Wheel travel from full droop to full bump, m."
+      },
+      {
+        "name": "options.antiRoll?",
+        "type": "number",
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+      },
+      {
+        "name": "options.turnRadius?",
+        "type": "number",
+        "desc": "The full-lock turning radius, m."
+      },
+      {
+        "name": "options.steerTime?",
+        "type": "number",
+        "desc": "Seconds from centre to full lock."
+      },
+      {
+        "name": "options.brakeGrip?",
+        "type": "number",
+        "desc": "The friction the brakes lock the wheels at."
+      },
+      {
+        "name": "options.drive?",
+        "type": "'front' | 'all' | 'rear'",
+        "desc": "A car's driven wheels."
+      },
+      {
+        "name": "options.trackTurn?",
+        "type": "number",
+        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+      },
+      {
+        "name": "options.maxLean?",
+        "type": "number",
+        "desc": "A motorcycle's greatest lean, radians."
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "VehicleKind",
+        "desc": "What the vehicle is."
+      },
+      {
+        "name": "body",
+        "type": "Object3D",
+        "desc": "The body the wheels carry."
+      },
+      {
+        "name": "wheels",
+        "type": "readonly Object3D[]",
+        "desc": "The wheels, children of the body."
+      },
+      {
+        "name": "spec",
+        "type": "Readonly<VehicleSpec>",
+        "desc": "The machine: the kind's own (`VEHICLE_SPECS`), with the options over it."
+      },
+      {
+        "name": "input",
+        "type": "Readonly<VehicleInput>",
+        "desc": "The pedals and the wheel it hears now."
+      },
+      {
+        "name": "speed",
+        "type": "number",
+        "desc": "Metres per second forward after the last step, negative backward."
+      },
+      {
+        "name": "rpm",
+        "type": "number",
+        "desc": "The engine's revolutions per minute after the last step."
+      },
+      {
+        "name": "gear",
+        "type": "number",
+        "desc": "The gear after the last step: 1 and up forward, −1 reverse, 0 neutral."
+      },
+      {
+        "name": "drive(input: Readonly<VehicleInput>)",
+        "type": "void",
+        "desc": "Hears the pedals and the wheel, each time a key changes them, when it starts to be driven, and all released when it stops being driven."
+      }
+    ],
+    "description": "It is a `VehicleDriver`: `world.controls.vehicle = car` drives it."
+  },
+  {
     "id": "VehicleDriver",
     "module": "packages/sdk-core/src/physics/vehicle.ts",
     "exports": ["VehicleDriver"],
@@ -17782,6 +17990,148 @@
       }
     ],
     "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
+  },
+  {
+    "id": "VehicleKind",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleKind"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleKind",
+    "signature": "type VehicleKind = 'car' | 'motorcycle' | 'tracked'",
+    "summary": "The vehicles of the physics, each on Jolt's vehicle constraint.",
+    "description": ""
+  },
+  {
+    "id": "VehicleOptions",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleOptions",
+    "signature": "interface VehicleOptions extends Partial<VehicleSpec>",
+    "summary": "What `vehicle.*` accepts: the wheels, and any number of the machine's own (`VehicleSpec`).",
+    "members": [
+      {
+        "name": "wheels",
+        "type": "readonly Object3D[]",
+        "desc": "The wheels: meshes, children of the body, each placed at its centre as it rests on flat ground, its axle along the body's x. Its radius and width are read from its bounds. The body faces −z: the forward wheels steer."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "VehicleSpec",
+    "module": "packages/sdk-core/src/physics/vehicleSpec.ts",
+    "exports": ["VehicleSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleSpec",
+    "signature": "interface VehicleSpec",
+    "summary": "What a vehicle is made of: its engine, gearbox, suspension, steering and brakes, every default a real machine's (`VEHICLE_SPECS`).",
+    "members": [
+      {
+        "name": "torquePerKg",
+        "type": "number",
+        "desc": "Engine peak torque per kilogram of the body, N·m/kg."
+      },
+      {
+        "name": "idleRPM",
+        "type": "number",
+        "desc": "The engine's idle, rpm."
+      },
+      {
+        "name": "maxRPM",
+        "type": "number",
+        "desc": "The engine's redline, rpm."
+      },
+      {
+        "name": "torqueCurve",
+        "type": "readonly (readonly [number, number])[]",
+        "desc": "Up to five points `[rpm / maxRPM, torque / peak]`, rpm fractions rising."
+      },
+      {
+        "name": "gears",
+        "type": "readonly number[]",
+        "desc": "Up to six forward gear ratios, first gear first."
+      },
+      {
+        "name": "reverse",
+        "type": "number",
+        "desc": "The reverse gear's ratio."
+      },
+      {
+        "name": "finalDrive",
+        "type": "number",
+        "desc": "The final drive's ratio (a tracked vehicle's sprocket reduction)."
+      },
+      {
+        "name": "shiftUpRPM",
+        "type": "number",
+        "desc": "The gearbox shifts up past this, rpm."
+      },
+      {
+        "name": "shiftDownRPM",
+        "type": "number",
+        "desc": "And down below this, rpm."
+      },
+      {
+        "name": "clutch",
+        "type": "number",
+        "desc": "Clutch torque per rad/s of slip, N·m·s."
+      },
+      {
+        "name": "suspensionFrequency",
+        "type": "number",
+        "desc": "Ride frequency, Hz."
+      },
+      {
+        "name": "suspensionDamping",
+        "type": "number",
+        "desc": "Damping ratio, 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "suspensionTravel",
+        "type": "number",
+        "desc": "Wheel travel from full droop to full bump, m."
+      },
+      {
+        "name": "antiRoll",
+        "type": "number",
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+      },
+      {
+        "name": "turnRadius",
+        "type": "number",
+        "desc": "The full-lock turning radius, m."
+      },
+      {
+        "name": "steerTime",
+        "type": "number",
+        "desc": "Seconds from centre to full lock."
+      },
+      {
+        "name": "brakeGrip",
+        "type": "number",
+        "desc": "The friction the brakes lock the wheels at."
+      },
+      {
+        "name": "drive",
+        "type": "'front' | 'all' | 'rear'",
+        "desc": "A car's driven wheels."
+      },
+      {
+        "name": "trackTurn",
+        "type": "number",
+        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+      },
+      {
+        "name": "maxLean",
+        "type": "number",
+        "desc": "A motorcycle's greatest lean, radians."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "WaterSpec",
@@ -18467,14 +18817,14 @@
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
       },
       {
-        "name": "add(joint: Joint)",
+        "name": "add(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin), made once both its bodies are simulated and holding until it is removed or breaks; or a vehicle (`vehicle.car(body, { wheels })` and its kin), made once its body is simulated."
       },
       {
-        "name": "remove(joint: Joint)",
+        "name": "remove(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Takes a joint out: the bodies it held move apart freely."
+        "desc": "Takes a joint out, the bodies it held moving apart freely; or a vehicle, its body left without wheels."
       }
     ],
     "description": ""
@@ -19405,14 +19755,14 @@
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
       },
       {
-        "name": "add(joint: Joint)",
+        "name": "add(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin), made once both its bodies are simulated and holding until it is removed or breaks; or a vehicle (`vehicle.car(body, { wheels })` and its kin), made once its body is simulated."
       },
       {
-        "name": "remove(joint: Joint)",
+        "name": "remove(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Takes a joint out: the bodies it held move apart freely."
+        "desc": "Takes a joint out, the bodies it held moving apart freely; or a vehicle, its body left without wheels."
       }
     ],
     "description": ""
@@ -33709,6 +34059,34 @@
       "desc": ""
     },
     "description": "A rejected light never enters the buffer: the contract accepts neither negative intensity, nor zero range, nor a spot without direction, nor a directional light that would claim a position or a range."
+  },
+  {
+    "id": "vehicle",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["vehicle"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "vehicle",
+    "signature": "const vehicle",
+    "summary": "The `vehicle` family: a body and its wheels, driven by `world.controls` `'vehicle'`.",
+    "members": [
+      {
+        "name": "car",
+        "type": "(body: Object3D, options: VehicleOptions) => Vehicle",
+        "desc": "Three wheels or more on two axles or more, the forward ones steered, `drive` driven."
+      },
+      {
+        "name": "motorcycle",
+        "type": "(body: Object3D, options: VehicleOptions) => Vehicle",
+        "desc": "Two wheels, the forward one steered, the rear one driven; it keeps itself upright."
+      },
+      {
+        "name": "tracked",
+        "type": "(body: Object3D, options: VehicleOptions) => Vehicle",
+        "desc": "Wheels on two tracks, left and right, each driven by its rearmost wheel; it steers by slowing one track, and turns on the spot at a standstill."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "viewToRenderOrigin",

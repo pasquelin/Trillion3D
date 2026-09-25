@@ -7135,6 +7135,95 @@
       "handbrake": "Ob die Handbremse gezogen ist."
     }
   },
+  "VEHICLE_SPECS": {
+    "summary": "Die drei Maschinen, mit denen Fahrzeuge beginnen, nach Art.",
+    "members": {
+      "car": "Eine Chevrolet Corvette C5: Hinterradantrieb, 0,32 N·m pro Kilogramm, sechs Gänge.",
+      "motorcycle": "Eine Yamaha XJ900 mit Fahrer: 0,26 N·m pro Kilogramm, sechs Gänge.",
+      "tracked": "Ein M1 Abrams: eine Gasturbine, 0,083 N·m pro Kilogramm, vier Gänge."
+    }
+  },
+  "Vehicle": {
+    "summary": "Ein Fahrzeug: ein Körper, den Jolts Fahrzeug-Constraint auf Rädern trägt, mit Motor, Getriebe, Differenzialen, Federung und Stabilisatoren, erzeugt von `vehicle.*` und mit `world.physics.add` in die Simulation gebracht.",
+    "description": "Es ist ein `VehicleDriver`: `world.controls.vehicle = car` fährt es.",
+    "parameters": {
+      "options": "Was `vehicle.*` annimmt: die Räder und beliebig viele Werte der Maschine (`VehicleSpec`).",
+      "options.wheels": "Die Räder: Meshes, Kinder des Körpers, jedes an seiner Mitte platziert, wie es auf ebenem Boden steht, die Achse entlang der x-Achse des Körpers. Radius und Breite werden aus seinen Grenzen gelesen. Der Körper blickt nach −z: die vorderen Räder lenken.",
+      "options.torquePerKg": "Spitzendrehmoment des Motors pro Kilogramm des Körpers, in N·m/kg.",
+      "options.idleRPM": "Die Leerlaufdrehzahl des Motors, in U/min.",
+      "options.maxRPM": "Die Höchstdrehzahl des Motors, in U/min.",
+      "options.torqueCurve": "Bis zu fünf Punkte `[rpm / maxRPM, Moment / Spitze]`, Drehzahlanteile steigend.",
+      "options.gears": "Bis zu sechs Vorwärtsgänge, der erste zuerst.",
+      "options.reverse": "Die Übersetzung des Rückwärtsgangs.",
+      "options.finalDrive": "Die Übersetzung des Achsantriebs (die Untersetzung am Turas eines Kettenfahrzeugs).",
+      "options.shiftUpRPM": "Das Getriebe schaltet darüber hoch, in U/min.",
+      "options.shiftDownRPM": "Und schaltet darunter zurück, in U/min.",
+      "options.clutch": "Kupplungsmoment pro rad/s Schlupf, in N·m·s.",
+      "options.suspensionFrequency": "Federungsfrequenz, in Hz.",
+      "options.suspensionDamping": "Dämpfungsgrad, von 0 (keine) bis 1 (kritisch).",
+      "options.suspensionTravel": "Federweg des Rades von ganz ausgefedert bis ganz eingefedert, in Metern.",
+      "options.antiRoll": "Die Steifigkeit jedes Stabilisators im Verhältnis zu den Federn seiner Achse; 0 heißt keiner.",
+      "options.turnRadius": "Der Wendekreisradius bei vollem Einschlag, in Metern.",
+      "options.steerTime": "Sekunden von der Mitte bis zum vollen Lenkeinschlag.",
+      "options.brakeGrip": "Die Reibung, bei der die Bremsen die Räder blockieren.",
+      "options.drive": "Die angetriebenen Räder eines Autos.",
+      "options.trackTurn": "Die Geschwindigkeit der inneren Kette eines Kettenfahrzeugs beim Lenken, im Verhältnis zur äußeren.",
+      "options.maxLean": "Die größte Schräglage eines Motorrads, in Radiant."
+    },
+    "members": {
+      "kind": "Was das Fahrzeug ist.",
+      "body": "Der Körper, den die Räder tragen.",
+      "wheels": "Die Räder, Kinder des Körpers.",
+      "spec": "Die Maschine: die seiner Art (`VEHICLE_SPECS`), die Optionen darüber.",
+      "input": "Die Pedale und das Lenkrad, die es gerade erhält.",
+      "speed": "Meter pro Sekunde vorwärts nach dem letzten Schritt, rückwärts negativ.",
+      "rpm": "Die Motordrehzahl nach dem letzten Schritt.",
+      "gear": "Der Gang nach dem letzten Schritt: ab 1 vorwärts, −1 rückwärts, 0 Leerlauf.",
+      "drive": "Erhält Pedale und Lenkrad, wann immer eine Taste sie ändert, wenn es gefahren zu werden beginnt, und alles losgelassen, wenn es nicht mehr gefahren wird."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Die Fahrzeuge der Physik, jedes auf Jolts Fahrzeug-Constraint."
+  },
+  "VehicleOptions": {
+    "summary": "Was `vehicle.*` annimmt: die Räder und beliebig viele Werte der Maschine (`VehicleSpec`).",
+    "members": {
+      "wheels": "Die Räder: Meshes, Kinder des Körpers, jedes an seiner Mitte platziert, wie es auf ebenem Boden steht, die Achse entlang der x-Achse des Körpers. Radius und Breite werden aus seinen Grenzen gelesen. Der Körper blickt nach −z: die vorderen Räder lenken."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Woraus ein Fahrzeug besteht: Motor, Getriebe, Federung, Lenkung und Bremsen, jeder Standardwert der einer echten Maschine (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Spitzendrehmoment des Motors pro Kilogramm des Körpers, in N·m/kg.",
+      "idleRPM": "Die Leerlaufdrehzahl des Motors, in U/min.",
+      "maxRPM": "Die Höchstdrehzahl des Motors, in U/min.",
+      "torqueCurve": "Bis zu fünf Punkte `[rpm / maxRPM, Moment / Spitze]`, Drehzahlanteile steigend.",
+      "gears": "Bis zu sechs Vorwärtsgänge, der erste zuerst.",
+      "reverse": "Die Übersetzung des Rückwärtsgangs.",
+      "finalDrive": "Die Übersetzung des Achsantriebs (die Untersetzung am Turas eines Kettenfahrzeugs).",
+      "shiftUpRPM": "Das Getriebe schaltet darüber hoch, in U/min.",
+      "shiftDownRPM": "Und schaltet darunter zurück, in U/min.",
+      "clutch": "Kupplungsmoment pro rad/s Schlupf, in N·m·s.",
+      "suspensionFrequency": "Federungsfrequenz, in Hz.",
+      "suspensionDamping": "Dämpfungsgrad, von 0 (keine) bis 1 (kritisch).",
+      "suspensionTravel": "Federweg des Rades von ganz ausgefedert bis ganz eingefedert, in Metern.",
+      "antiRoll": "Die Steifigkeit jedes Stabilisators im Verhältnis zu den Federn seiner Achse; 0 heißt keiner.",
+      "turnRadius": "Der Wendekreisradius bei vollem Einschlag, in Metern.",
+      "steerTime": "Sekunden von der Mitte bis zum vollen Lenkeinschlag.",
+      "brakeGrip": "Die Reibung, bei der die Bremsen die Räder blockieren.",
+      "drive": "Die angetriebenen Räder eines Autos.",
+      "trackTurn": "Die Geschwindigkeit der inneren Kette eines Kettenfahrzeugs beim Lenken, im Verhältnis zur äußeren.",
+      "maxLean": "Die größte Schräglage eines Motorrads, in Radiant."
+    }
+  },
+  "vehicle": {
+    "summary": "Die Familie `vehicle`: ein Körper und seine Räder, gefahren von `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Drei Räder oder mehr auf zwei Achsen oder mehr, die vorderen gelenkt, die von `drive` angetrieben.",
+      "motorcycle": "Zwei Räder, das vordere gelenkt, das hintere angetrieben; es hält sich selbst aufrecht.",
+      "tracked": "Räder auf zwei Ketten, links und rechts, jede von ihrem hintersten Rad angetrieben; es lenkt, indem es eine Kette verlangsamt, und dreht im Stand auf der Stelle."
+    }
+  },
   "GraphAttribute": {
     "members": {
       "count": "Wie viele Scheitelpunkte.",

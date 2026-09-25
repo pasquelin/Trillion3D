@@ -481,7 +481,6 @@
       "breaking-things": "integração de um motor de física",
       "cloth-and-rope": "integração de um motor de física",
       "soft-bodies": "integração de um motor de física",
-      "drive-a-car": "integração de um motor de física",
       "a-room-in-vr": "sessão WebXR",
       "a-360-photo-in-vr": "sessão WebXR",
       "vr-composition-layers": "sessão WebXR: camadas",
@@ -1081,7 +1080,8 @@
           "<code>limits</code> detém a junta: radianos para uma dobradiça, metros para um trilho. Um <code>spring</code> torna o batente macio.",
           "Um <code>motor</code> leva uma dobradiça ou um trilho a uma velocidade ou a uma posição. Mude <code>joint.motor</code> quando quiser.",
           "<code>breakForce</code> é a tração, em newtons, a partir da qual a junta se rompe: <code>joint.broken</code> fica verdadeiro e <code>joint.on('break', …)</code> é chamado.",
-          "As juntas avançadas ligam movimentos: <code>joint.gear(a, b, { ratio })</code> gira duas rodas em dobradiças como um só trem, <code>joint.rackAndPinion</code> transforma um giro em deslize, <code>joint.pulley(a, b, { over })</code> pendura duas cargas na mesma corda, <code>joint.path(a, b, { path })</code> mantém um carrinho no trilho, e <code>swingTwist</code> e <code>sixDof</code> criam ombros e juntas sob medida."
+          "As juntas avançadas ligam movimentos: <code>joint.gear(a, b, { ratio })</code> gira duas rodas em dobradiças como um só trem, <code>joint.rackAndPinion</code> transforma um giro em deslize, <code>joint.pulley(a, b, { over })</code> pendura duas cargas na mesma corda, <code>joint.path(a, b, { path })</code> mantém um carrinho no trilho, e <code>swingTwist</code> e <code>sixDof</code> criam ombros e juntas sob medida.",
+          "Um veículo é um corpo sobre rodas: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> ou <code>vehicle.tracked</code>, com as rodas como malhas postas no corpo onde se apoiam. Adicione-o com <code>world.physics.add</code> e dirija-o pelo teclado: <code>world.controls.vehicle = car</code> e depois <code>world.controls.kind = 'vehicle'</code>. Motor, câmbio, suspensão e freios são os de uma máquina real; <code>car.speed</code>, <code>car.gear</code> e <code>car.rpm</code> dizem como ele anda."
         ],
         "tryIt": "Abra a porta e a gaveta, depois solte a pedra sobre a ponte. Diminua a resistência da ponte e reconstrua-a: ela quebra com o próprio peso."
       },

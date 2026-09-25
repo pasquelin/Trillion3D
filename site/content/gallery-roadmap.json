@@ -1486,8 +1486,7 @@
     {
       "id": "drive-a-car",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/drive-a-car.html"
     },
     {
       "id": "a-room-in-vr",
