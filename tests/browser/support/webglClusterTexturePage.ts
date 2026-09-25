@@ -63,8 +63,8 @@ export function textureFixtures(
   indexed.channel = 1;
   indexed.wrapS = G.HOST_WRAP_REPEAT;
   indexed.offset.x = 0.5;
-  mesh.geometry.attributes.uv = new G.GraphAttribute(new Float32Array(6).fill(0.125), 2);
-  mesh.geometry.attributes.uv1 = new G.GraphAttribute(new Float32Array(6).fill(0.375), 2);
+  mesh.geometry.attributes.uv = new G.BufferAttribute(new Float32Array(6).fill(0.125), 2);
+  mesh.geometry.attributes.uv1 = new G.BufferAttribute(new Float32Array(6).fill(0.375), 2);
   const uvMaterial = G.basicSurface({ color: 0xffffff, map: indexed }),
     uv1Transform = draw(renderer, gl, mesh, scene, camera, uvMaterial, pixel);
   mesh.material = previous;
