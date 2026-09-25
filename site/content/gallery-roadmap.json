@@ -1460,6 +1460,13 @@
       "issue": 573
     },
     {
+      "id": "a-cooked-flag",
+      "theme": "physics",
+      "file": "examples/a-cooked-flag.html",
+      "status": "waiting-engine",
+      "issue": 573
+    },
+    {
       "id": "rolling-on-terrain",
       "theme": "physics",
       "file": "examples/rolling-on-terrain.html"
