@@ -5,6 +5,7 @@ import type { EngineCamera } from '../../camera/world.ts';
 import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElements.ts';
 import type { ClusterCut } from '../selection/math.ts';
 import type { PageSurface } from '../surface.ts';
+import type { CutReadiness } from './readiness.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -32,11 +33,9 @@ export interface SelectionState<T extends PageRecord> {
   flatElements: ArrayLike<number>;
   flatStretch: number;
   flatFocal: number;
-  /** The cut rule's residency of this root's pages (`./held.ts`), and the open count of each of
+  /** The cut rule's residency of this root's pages (`./held.ts`), with the open count of each of
    *  its culling nodes; absent when nothing is held, every page then deemed resident. */
-  flatReady?: Uint8Array;
-  flatChildReady?: Uint8Array;
-  flatOpen?: Int32Array;
+  flatHeld?: CutReadiness;
   /** What cone rejection reads of the root and the camera, set at the root's first cone. */
   flatCone: ConeContext;
   /** This root declares it carries cones: the per-cluster path reads `cone`. A root that

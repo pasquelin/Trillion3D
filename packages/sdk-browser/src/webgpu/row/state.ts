@@ -28,7 +28,7 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
   const pageIndexOf = (rec: PageRec) => catalogueIndexOf(packedPages, rec);
 
   /** Pages named by the cache and those whose residency flag just flipped. */
-  const journal = createWebgpuRowJournal(packedPages.length);
+  const journal = createWebgpuRowJournal();
   const residentOffsetWords = new Int32Array(packedPages.length).fill(-1);
   const rowPageIndex = new Int32Array(drawSlots).fill(-1);
   const rowOffsetWords = new Int32Array(drawSlots).fill(-1);

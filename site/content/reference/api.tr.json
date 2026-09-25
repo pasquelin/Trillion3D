@@ -1069,7 +1069,7 @@
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
-      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
       "gpuSelectionFallback": "Motorun bir GPU seçimi olduğunda ve ondan vazgeçtiğinde doğru: o zamandan beri ölçülen şey, yedek CPU kesitidir. Bir yedek de bir kez `gpu-selection-fallback` tanısını yayar; host onu olduğu gibi kopyalar, ve GPU seçimi olmayan bir motorda bulunmaz.",
       "cpuSelectNodesTested": "Bu karenin kesitinin bir test yaptığı hiyerarşi düğümleri — frustum ya da ayrıntı seviyesi kararı. Zaten karar verilmiş ve tamamen görünür bir düğüm hiçbirini almaz: test edilmez, dolaşılır. Bu, hiyerarşik bir kesitin gerçek işinin ölçüsüdür; düz bir kesit bunlardan sıfırını test eder ve her cluster'ı dolaşır. Kesitini CPU'da seçmeyen, ya da onu saymayan bir motorda null.",
@@ -3195,7 +3195,8 @@
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
       "pages": "Kaç paket.",
-      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı: derleyicinin yayımladığı sınır."
+      "maxDependencies": "Bir paketin en uzun kapalı bağımlılık listesi.",
+      "dependencyBound": "Bir paketin kümelerinin ebeveynlerini tutan en fazla paket sayısı, paketlemeden önce sabitlenir."
     }
   },
   "SlimStructure": {
@@ -3300,7 +3301,8 @@
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
       "pages": "Her paket.",
-      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı, derleyicinin yayımladığı gibi."
+      "maxDependencies": "Bir paketin en uzun kapalı bağımlılık listesi, derleyicinin yayımladığı şekliyle.",
+      "dependencyBound": "Bir paketin kümelerinin ebeveynlerini tutan en fazla paket sayısı, paketlemeden önce sabitlenir."
     }
   },
   "StreamPage": {
@@ -4070,7 +4072,7 @@
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
-      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
       "gpuSelectionFallback": "Motorun bir GPU seçimi olduğunda ve ondan vazgeçtiğinde doğru: o zamandan beri ölçülen şey, yedek CPU kesitidir. Bir yedek de bir kez `gpu-selection-fallback` tanısını yayar; host onu olduğu gibi kopyalar, ve GPU seçimi olmayan bir motorda bulunmaz.",
       "cpuSelectNodesTested": "Bu karenin kesitinin bir test yaptığı hiyerarşi düğümleri — frustum ya da ayrıntı seviyesi kararı. Zaten karar verilmiş ve tamamen görünür bir düğüm hiçbirini almaz: test edilmez, dolaşılır. Bu, hiyerarşik bir kesitin gerçek işinin ölçüsüdür; düz bir kesit bunlardan sıfırını test eder ve her cluster'ı dolaşır. Kesitini CPU'da seçmeyen, ya da onu saymayan bir motorda null.",
@@ -7040,8 +7042,8 @@
     "summary": "Bir temasın dinleyicilerine verdiği: diğer nesne, itme ve dokunduğu yer.",
     "members": {
       "other": "Dokunulan nesne; sahneden çıkınca `null`.",
-      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir; `leave` üzerinde 0.",
-      "point": "Temas noktası, dünya çerçevesinde; `leave` üzerinde başlangıç noktası."
+      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir (yumuşak cisim tarafında: ortalama hızı ve dokunan köşelerinin kütlesi); `leave` üzerinde ve yumuşak cisim ile sensör arasında 0.",
+      "point": "Temas noktası, dünya çerçevesinde (yumuşak cisimde: dokunan köşelerinin ortalaması, sensör karşısında merkezi); `leave` üzerinde başlangıç noktası."
     }
   },
   "ContactEventName": {
