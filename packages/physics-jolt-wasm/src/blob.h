@@ -1,6 +1,7 @@
-// Jolt's binary state in memory: the stream a cooked shape is written to by the compiler
-// (`cook/cook.cpp`) and read from by the physics worker (`src/restore.cpp`). One format on both
-// sides: `Shape::SaveWithChildren` / `Shape::sRestoreWithChildren` of the same pinned Jolt.
+// Jolt's binary state in memory: the stream a cooked shape or soft body is written to by the
+// compiler (`cook/cook.cpp`) and read from by the physics worker (`src/restore.cpp`, `src/soft.cpp`).
+// One format on both sides: `Shape::SaveWithChildren` / `sRestoreWithChildren` and
+// `SoftBodySharedSettings::SaveWithMaterials` / `sRestoreWithMaterials` of the same pinned Jolt.
 #pragma once
 
 #include <Jolt/Jolt.h>
