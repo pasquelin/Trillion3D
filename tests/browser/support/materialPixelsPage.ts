@@ -19,7 +19,7 @@ import {
   witnessImage,
   engineImage,
   webgl2Image,
-  holesOf,
+  CLEAR_COLOR,
 } from './materialPixelsRender.ts';
 import type {
   BackendFactory,
@@ -59,10 +59,23 @@ interface Comparison {
   samples: Reading[];
   /** Pixels where the engine shows the background and the reference a surface (`behind`). */
   holes?: number;
-  /** Both renderers against the supersampled ground truth, where the fixture declares one. */
+  /** Both renderers against the ground truth (`groundTruth.ts`), where the fixture declares one. */
   truth?: TruthReading;
   /** Each renderer's image, by its name, and the ground truth's. */
   images: Record<string, string>;
+}
+
+/** The display background, one 8-bit step either way per channel. */
+const CLEAR_RGB = [16, 8, 0].map((shift) => (CLEAR_COLOR >> shift) & 255);
+const isClear = (pixels: ArrayLike<number>, i: number) =>
+  CLEAR_RGB.every((c, k) => Math.abs(pixels[i + k] - c) <= 1);
+
+/** Pixels where `engine` shows the background and `reference` does not. */
+function holesOf(reference: ArrayLike<number>, engine: ArrayLike<number>) {
+  let holes = 0;
+  for (let i = 0; i < reference.length; i += 4)
+    if (isClear(engine, i) && !isClear(reference, i)) holes++;
+  return holes;
 }
 
 /** One fixture drawn by one renderer, on a scene of its own the renderer releases. */
