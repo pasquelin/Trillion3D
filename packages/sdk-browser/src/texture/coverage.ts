@@ -19,11 +19,12 @@ export class CoverageReaders {
   private surfaces = new Set<PageSurface>();
   /** Per colour texture, whether every reader filed so far takes its alpha for coverage. */
   private rules = new Map<Texture, boolean>();
-  /** Files a surface's colour maps, once however many meshes wear it. */
+  /** Files a surface's colour maps, once however many meshes wear it; false when already filed. */
   read(surface: PageSurface) {
-    if (this.surfaces.has(surface)) return;
+    if (this.surfaces.has(surface)) return false;
     this.surfaces.add(surface);
     this.file(surface);
+    return true;
   }
   /** Rereads every reader once, as the host declares it now (`refreshSurface`). */
   follow() {

@@ -25,16 +25,13 @@ export function collectWebgpuMaterialTextures(
 ) {
   const maps: Texture[] = [];
   const dataMaps: Texture[] = [];
-  const seen = new Set<PageSurface>();
   const addColor = adder(mapLayer, maps);
   const addData = adder(dataLayer, dataMaps);
   const coverage = new CoverageReaders();
   const collect = (mat: PageSurface) => {
-    if (seen.has(mat)) return;
-    seen.add(mat);
+    if (!coverage.read(mat)) return;
     addColor(mat.map);
     addColor(mat.emissiveMap);
-    coverage.read(mat);
     addData(mat.roughnessMap);
     addData(mat.metalnessMap);
     addData(mat.normalMap);

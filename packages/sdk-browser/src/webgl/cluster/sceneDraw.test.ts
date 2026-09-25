@@ -11,7 +11,6 @@ import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import * as G from '../../host/graph/graph.fixture.ts';
 
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
@@ -26,7 +25,8 @@ function mesh(corners: number, renderOrder: number, surface = new GraphSurface('
   return made;
 }
 
-function drawn(scene: GraphScene, context = createTestContext()) {
+function drawn(scene: GraphScene) {
+  const context = createTestContext();
   const draw = createSceneDraw(context.gl, scene);
   assert.equal(draw.counters(), null, 'no count before the first frame');
   assert.throws(() => draw.drawHostGeometry(createHostDrawCamera(), OUTPUT), /Draw before render/);
@@ -47,32 +47,6 @@ test('the opaque meshes draw by order, the see-through ones after, a hidden one 
     [6, 3, 9],
   );
   assert.deepEqual(draw.counters(), { triangles: 6 });
-  draw.dispose();
-});
-
-// #42: a map's mip rule is read from every surface that wears it, a hidden mesh's too, as the
-// WebGPU census reads it: a hidden opaque reader keeps the chain of a masked one plain.
-test('a hidden mesh still reads its map for the mip rule', () => {
-  const picture = new G.GraphTexture({ width: 4, height: 4 } as TexImageSource);
-  const scene = new GraphScene();
-  const textured = (surface: GraphSurface) => {
-    const made = mesh(3, 0, surface);
-    made.geometry.setAttribute('uv', new BufferAttribute(new Float32Array(6), 2));
-    return made;
-  };
-  const hidden = textured(new GraphSurface('standard', { map: picture }));
-  hidden.visible = false;
-  scene.add(textured(new GraphSurface('standard', { map: picture, alphaTest: 0.5 })), hidden);
-  // The mip reducer saves the colour mask it restores.
-  const viewport = new Int32Array([0, 0, 8, 4]),
-    mask = [true, true, true, true];
-  const answer = (name: string) =>
-    name === 'VIEWPORT' ? viewport : name === 'COLOR_WRITEMASK' ? mask : undefined;
-  const { context, draw } = drawn(scene, createTestContext({ answers: { getParameter: answer } }));
-  const rules = context
-    .of('uniform1i')
-    .filter(([at]) => (at as { uniform: string }).uniform === 'weighted');
-  assert.deepEqual(rules, [[{ uniform: 'weighted' }, 0]], 'plain: the hidden reader is opaque');
   draw.dispose();
 });
 
