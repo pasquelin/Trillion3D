@@ -33,17 +33,18 @@ import { baseOpen, type CullingLinks } from './links.ts';
  */
 export type CutReadiness = ReturnType<typeof createCutReadiness>;
 
+/** What `writeOpen` targets between calls: nothing. */
+const NO_OUT = new Int32Array(0);
+
 export function createCutReadiness(
   structure: ClusterStructureIndex | undefined,
   links: CullingLinks | undefined,
-  pageCount: number,
-  nodeCount: number,
 ) {
   const resident = createSparseInts(),
     groupReady = createSparseInts(),
     /** Per node, its clusters whose finer group is ready: what `openAt` takes off `baseOpen`. */
     closed = createSparseInts(),
-    base = structure && links ? baseOpen(links, structure, pageCount, nodeCount) : undefined,
+    base = structure && links ? baseOpen(links, structure) : undefined,
     pending: number[] = [],
     work: number[] = [];
   const touchedPages: number[] = [],
@@ -57,7 +58,7 @@ export function createCutReadiness(
     return source < 0 || groupReady.get(source) !== 0;
   };
   /** Where `writeOpen` writes, read by one callback built once: a walk allocates nothing. */
-  const opened = { out: new Int32Array(0) as Int32Array | Uint32Array, count: 0 };
+  const opened = { out: NO_OUT as Int32Array | Uint32Array, count: 0 };
   const openNode = (node: number, value: number) => {
     if (node < opened.count) opened.out[node] -= value;
   };
@@ -91,10 +92,13 @@ export function createCutReadiness(
     /** Writes the first `count` open counts into `out`: a walk that reads them densely. */
     writeOpen(out: Int32Array | Uint32Array, count: number) {
       if (!base) return void out.fill(0, 0, count);
-      out.set(count === base.length ? base : base.subarray(0, count));
+      out.set(base.subarray(0, count));
       opened.out = out;
       opened.count = count;
       closed.forEach(openNode);
+      // The caller's view (the walk's WebAssembly memory) is not kept past the call.
+      opened.out = NO_OUT;
+      opened.count = 0;
     },
     /** Bytes of the state: what the resident pages hold, never the catalogue. */
     get hostBytes() {
