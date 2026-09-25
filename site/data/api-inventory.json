@@ -2708,6 +2708,7 @@
         "packages/sdk-browser/src/physics/physicsWorker.ts",
         "packages/sdk-browser/src/physics/raycast.ts",
         "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/scene/manifestLoad.ts",
