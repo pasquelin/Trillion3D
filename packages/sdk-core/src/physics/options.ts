@@ -21,7 +21,9 @@ export type PhysicsPrimitive =
   | { type: 'box'; halfExtents: readonly [number, number, number] }
   | { type: 'sphere'; radius: number }
   | { type: 'capsule'; halfHeight: number; radius: number }
-  | { type: 'cylinder'; halfHeight: number; radius: number };
+  /** `radius` is its top's; a `radiusBottom` that differs tapers it, as
+   *  `geometry.cylinder(radiusTop, radiusBottom, height)` draws one. */
+  | { type: 'cylinder'; halfHeight: number; radius: number; radiusBottom?: number };
 
 /** One part of a compound shape: a primitive, placed and turned in the object's frame. */
 export type PhysicsPart = PhysicsPrimitive & {

@@ -101,6 +101,7 @@ export const createWorldRaycast = (
           | { type: 'box'; halfExtents: { x: number; y: number; z: number } }
           | { type: 'capsule'; halfHeight: number; radius: number };
         maxDistance?: number;
+        ignore?: Object3D;
       },
     ): Promise<(Intersection & { material: number }) | null>;
   };

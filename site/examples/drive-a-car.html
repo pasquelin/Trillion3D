@@ -107,7 +107,8 @@
       const drawn = {
         box: ({ halfExtents }) => geometry.box(...halfExtents.map((half) => half * 2)),
         sphere: ({ radius }) => geometry.sphere(radius, 20, 14),
-        cylinder: ({ radius, halfHeight }) => geometry.cylinder(radius, radius, halfHeight * 2, 16),
+        cylinder: ({ radius, radiusBottom = radius, halfHeight }) =>
+          geometry.cylinder(radius, radiusBottom, halfHeight * 2, 16),
       };
       const solid = (body, shape, look, at, turn) => {
         const mesh = part(body, drawn[shape.type](shape), look, at, turn);
@@ -147,7 +148,7 @@
       block(tank, [2.6, 0.7, 3.2], paint('#56663a'), [0, 0.85, 0.3]);
       solid(
         tank,
-        { type: 'cylinder', radius: 0.13, halfHeight: 2.25 },
+        { type: 'cylinder', radius: 0.12, radiusBottom: 0.14, halfHeight: 2.25 },
         paint('#4a5630'),
         [0, 0.9, -3.5],
         [Math.PI / 2, 0, 0],
@@ -187,11 +188,11 @@
         entry.driver = entry.make(entry.body, { wheels: entry.wheels });
 
       // Each starts on the ground below its spot, found by an exact raycast on the cooked valley
-      // once the physics has streamed it in.
-      const groundAt = async (x, z) => {
+      // once the physics has streamed it in, through the vehicle's own body.
+      const groundAt = async (x, z, ignore) => {
         const down = math.ray(math.vector3(x, 60, z), math.vector3(0, -1, 0));
         for (;;) {
-          const hit = await world.raycast(down, { exact: true });
+          const hit = await world.raycast(down, { exact: true, ignore });
           if (hit) return hit.point.y;
           await new Promise((wait) => setTimeout(wait, 100));
         }
@@ -199,9 +200,9 @@
       // Parked at `[x, z]`: set a little above what the ray meets there, level, facing `yaw`, and
       // simulated anew (setting `physics` again makes the body, and the vehicle with it, afresh).
       // Put back on its wheels, a vehicle stays where it stands, never on its start another may
-      // have driven to since: the ray meets the vehicle itself, and it drops back onto its wheels.
+      // have driven to since.
       const park = async ({ body, mass, radius, wheels: [first] }, [x, z], yaw = 0) => {
-        body.position.set(x, (await groundAt(x, z)) + radius - first.position.y + 0.3, z);
+        body.position.set(x, (await groundAt(x, z, body)) + radius - first.position.y + 0.3, z);
         body.quaternion.set(0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2));
         body.physics = { mass, shape: { type: 'compound', parts: hulls.get(body) } };
       };
