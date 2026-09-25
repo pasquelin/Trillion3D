@@ -31,15 +31,19 @@ export function startInteractiveExplorer(
       error: String(error),
     });
   };
+  // Captures in flight: an image drawn meanwhile is refused (`SURFACE_CAPTURE_BUSY`), so the loop
+  // draws nothing and goes idle until the last one asks the view back.
+  let capturing = 0;
   const scheduler = createExplorerFrameScheduler({
     request: view.requestAnimationFrame.bind(view),
     cancel: view.cancelAnimationFrame.bind(view),
     render: () => {
+      if (capturing) return;
       original.beforeFrame?.();
       const metrics = explorer.render();
       original.onFrame?.(metrics);
     },
-    pending: runtime.pendingFrame,
+    pending: () => (capturing ? Promise.resolve(false) : runtime.pendingFrame()),
     error: reportFailure,
     limited: () =>
       events.diagnose(
@@ -124,10 +128,17 @@ export function startInteractiveExplorer(
   const first = explorer.render();
   original.onFrame?.(first);
   // A capture puts the view back without what frames build up (the effect chain, the temporal
-  // accumulation, the water): the loop draws it again, gone idle or not.
+  // accumulation, the water): the loop draws it again once it is over, gone idle or not.
+  const aside = <T>(take: () => Promise<T>) => {
+    capturing++;
+    return new Promise<T>((taken) => taken(take())).finally(() => {
+      capturing--;
+      invalidate();
+    });
+  };
   const { captureView, captureSurfaceView } = explorer;
-  explorer.captureView = (width, height) => captureView(width, height).finally(invalidate);
-  explorer.captureSurfaceView = (pose, size) => captureSurfaceView(pose, size).finally(invalidate);
+  explorer.captureView = (width, height) => aside(() => captureView(width, height));
+  explorer.captureSurfaceView = (pose, size) => aside(() => captureSurfaceView(pose, size));
   invalidate();
   return invalidate;
 }

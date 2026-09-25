@@ -131,3 +131,47 @@ test('a capture, colour or surface, asks the idle loop for the view it put back 
   await assert.rejects(explorer.captureView(), /CAPTURE_NOT_READY/);
   assert.equal(frames.length, 1, 'a failed capture put the view back too');
 });
+
+test('the frame a capture asks waits while the next capture draws (#349)', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
+  const frames: (() => void)[] = [];
+  const turn = () => new Promise((wake) => setImmediate(wake));
+  // An image drawn during a capture is refused, as the engines refuse it.
+  let busy = false,
+    drawn = 0,
+    finish = () => {};
+  const taking = () => {
+    busy = true;
+    return new Promise<Uint8Array>(
+      (done) => (finish = () => ((busy = false), done(new Uint8Array(4)))),
+    );
+  };
+  const explorer = {
+    render() {
+      if (busy) throw new Error('SURFACE_CAPTURE_BUSY');
+      drawn++;
+      return {};
+    },
+    resize() {},
+    captureView: taking,
+    captureSurfaceView: taking,
+  };
+  start(explorer, queued(frames));
+  frames.shift()!();
+  await turn();
+  const first = explorer.captureView();
+  finish();
+  await first;
+  assert.equal(frames.length, 1, 'the first capture asks the view back');
+  const second = explorer.captureSurfaceView();
+  frames.shift()!();
+  await turn();
+  assert.equal(logged.mock.callCount(), 0, 'the loop still runs');
+  assert.equal(frames.length, 0, 'no frame is spent while the capture draws');
+  finish();
+  await second;
+  assert.equal(frames.length, 1, 'the second capture asks the view back');
+  const before = drawn;
+  frames.shift()!();
+  assert.equal(drawn, before + 1, 'the view is drawn again');
+});
