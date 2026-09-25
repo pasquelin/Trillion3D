@@ -7417,13 +7417,13 @@
       "options.suspensionFrequency": "Frecuencia de la suspensión, en Hz.",
       "options.suspensionDamping": "Relación de amortiguamiento, de 0 (ninguno) a 1 (crítico).",
       "options.suspensionTravel": "Recorrido de la rueda desde la extensión total hasta la compresión total, m; más largo que el hundimiento que pide la frecuencia de suspensión en la Tierra, `9.81 / (2π suspensionFrequency)²`, o rechazado: más allá, la carrocería descansa sobre sus topes.",
-      "options.antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna.",
-      "options.turnRadius": "El radio de giro con la dirección al tope, en metros.",
+      "options.antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna. Solo coches: rechazado en una moto (sus dos ruedas no comparten eje) y en un vehículo de orugas (sus ruedas no llevan barras).",
+      "options.turnRadius": "El radio de giro con la dirección al tope, en metros. Rechazado en un vehículo de orugas, que gira con sus orugas.",
       "options.steerTime": "Segundos del centro al tope de la dirección.",
       "options.brakeGrip": "La fricción a la que los frenos bloquean las ruedas.",
-      "options.drive": "Las ruedas motrices de un coche.",
-      "options.trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar en marcha, respecto a la exterior; parado, pivota sobre sí mismo con la oruga interior invertida, sea cual sea esta relación.",
-      "options.maxLean": "La mayor inclinación de una moto, en radianes."
+      "options.drive": "Las ruedas motrices de un coche. Rechazado en una moto (su rueda trasera es la motriz) y en un vehículo de orugas (la rueda más trasera de cada oruga es la motriz).",
+      "options.trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar en marcha, respecto a la exterior; parado, pivota sobre sí mismo con la oruga interior invertida, sea cual sea esta relación. Rechazado en un coche o una moto.",
+      "options.maxLean": "La mayor inclinación de una moto, en radianes. Rechazado en un coche o un vehículo de orugas."
     },
     "members": {
       "kind": "Lo que es el vehículo.",
@@ -7462,13 +7462,13 @@
       "suspensionFrequency": "Frecuencia de la suspensión, en Hz.",
       "suspensionDamping": "Relación de amortiguamiento, de 0 (ninguno) a 1 (crítico).",
       "suspensionTravel": "Recorrido de la rueda desde la extensión total hasta la compresión total, m; más largo que el hundimiento que pide la frecuencia de suspensión en la Tierra, `9.81 / (2π suspensionFrequency)²`, o rechazado: más allá, la carrocería descansa sobre sus topes.",
-      "antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna.",
-      "turnRadius": "El radio de giro con la dirección al tope, en metros.",
+      "antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna. Solo coches: rechazado en una moto (sus dos ruedas no comparten eje) y en un vehículo de orugas (sus ruedas no llevan barras).",
+      "turnRadius": "El radio de giro con la dirección al tope, en metros. Rechazado en un vehículo de orugas, que gira con sus orugas.",
       "steerTime": "Segundos del centro al tope de la dirección.",
       "brakeGrip": "La fricción a la que los frenos bloquean las ruedas.",
-      "drive": "Las ruedas motrices de un coche.",
-      "trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar en marcha, respecto a la exterior; parado, pivota sobre sí mismo con la oruga interior invertida, sea cual sea esta relación.",
-      "maxLean": "La mayor inclinación de una moto, en radianes."
+      "drive": "Las ruedas motrices de un coche. Rechazado en una moto (su rueda trasera es la motriz) y en un vehículo de orugas (la rueda más trasera de cada oruga es la motriz).",
+      "trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar en marcha, respecto a la exterior; parado, pivota sobre sí mismo con la oruga interior invertida, sea cual sea esta relación. Rechazado en un coche o una moto.",
+      "maxLean": "La mayor inclinación de una moto, en radianes. Rechazado en un coche o un vehículo de orugas."
     }
   },
   "VehicleSpecs": {

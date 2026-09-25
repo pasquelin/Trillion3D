@@ -7418,13 +7418,13 @@
       "options.suspensionFrequency": "Tần số hệ treo, Hz.",
       "options.suspensionDamping": "Tỉ số giảm chấn, từ 0 (không có) đến 1 (tới hạn).",
       "options.suspensionTravel": "Hành trình bánh xe từ duỗi hết đến nén hết, m; phải dài hơn độ lún mà tần số hệ treo đòi hỏi trên Trái Đất, `9.81 / (2π suspensionFrequency)²`, nếu không bị từ chối: vượt quá đó thân xe tì lên các vấu chặn.",
-      "options.antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có.",
-      "options.turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét.",
+      "options.antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có. Chỉ cho ô tô: bị từ chối trên xe máy (hai bánh không chung trục) và xe bánh xích (các bánh không mang thanh).",
+      "options.turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét. Bị từ chối trên xe bánh xích, vốn rẽ bằng xích.",
       "options.steerTime": "Số giây từ giữa đến đánh lái hết cỡ.",
       "options.brakeGrip": "Ma sát mà tại đó phanh khóa bánh xe.",
-      "options.drive": "Các bánh chủ động của ô tô.",
-      "options.trackTurn": "Tốc độ xích trong của xe bánh xích khi rẽ lúc đang chạy, so với xích ngoài; khi đứng yên nó xoay tại chỗ, xích trong quay ngược, bất kể tỉ số này.",
-      "options.maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian."
+      "options.drive": "Các bánh chủ động của ô tô. Bị từ chối trên xe máy (bánh sau là bánh chủ động) và xe bánh xích (bánh sau cùng của mỗi xích là bánh chủ động).",
+      "options.trackTurn": "Tốc độ xích trong của xe bánh xích khi rẽ lúc đang chạy, so với xích ngoài; khi đứng yên nó xoay tại chỗ, xích trong quay ngược, bất kể tỉ số này. Bị từ chối trên ô tô hoặc xe máy.",
+      "options.maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian. Bị từ chối trên ô tô hoặc xe bánh xích."
     },
     "members": {
       "kind": "Phương tiện là gì.",
@@ -7463,13 +7463,13 @@
       "suspensionFrequency": "Tần số hệ treo, Hz.",
       "suspensionDamping": "Tỉ số giảm chấn, từ 0 (không có) đến 1 (tới hạn).",
       "suspensionTravel": "Hành trình bánh xe từ duỗi hết đến nén hết, m; phải dài hơn độ lún mà tần số hệ treo đòi hỏi trên Trái Đất, `9.81 / (2π suspensionFrequency)²`, nếu không bị từ chối: vượt quá đó thân xe tì lên các vấu chặn.",
-      "antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có.",
-      "turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét.",
+      "antiRoll": "Độ cứng của mỗi thanh cân bằng so với lò xo của trục; 0 là không có. Chỉ cho ô tô: bị từ chối trên xe máy (hai bánh không chung trục) và xe bánh xích (các bánh không mang thanh).",
+      "turnRadius": "Bán kính quay khi đánh lái hết cỡ, mét. Bị từ chối trên xe bánh xích, vốn rẽ bằng xích.",
       "steerTime": "Số giây từ giữa đến đánh lái hết cỡ.",
       "brakeGrip": "Ma sát mà tại đó phanh khóa bánh xe.",
-      "drive": "Các bánh chủ động của ô tô.",
-      "trackTurn": "Tốc độ xích trong của xe bánh xích khi rẽ lúc đang chạy, so với xích ngoài; khi đứng yên nó xoay tại chỗ, xích trong quay ngược, bất kể tỉ số này.",
-      "maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian."
+      "drive": "Các bánh chủ động của ô tô. Bị từ chối trên xe máy (bánh sau là bánh chủ động) và xe bánh xích (bánh sau cùng của mỗi xích là bánh chủ động).",
+      "trackTurn": "Tốc độ xích trong của xe bánh xích khi rẽ lúc đang chạy, so với xích ngoài; khi đứng yên nó xoay tại chỗ, xích trong quay ngược, bất kể tỉ số này. Bị từ chối trên ô tô hoặc xe máy.",
+      "maxLean": "Độ nghiêng lớn nhất của xe máy, tính bằng radian. Bị từ chối trên ô tô hoặc xe bánh xích."
     }
   },
   "VehicleSpecs": {
