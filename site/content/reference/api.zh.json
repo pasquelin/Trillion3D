@@ -6326,7 +6326,7 @@
   "object.sprite": {
     "summary": "无论相机朝向哪里都始终面向相机的平面图片：一个单位正方形，大小等于精灵的缩放，并按其材质的 `rotation` 在画面中旋转。",
     "parameters": {
-      "material": "正方形显示的内容：一个 `material.sprite`。"
+      "material": "正方形显示的内容：一个 `material.sprite`；其他种类会抛出错误。"
     }
   },
   "orthographicProjection": {
@@ -7615,10 +7615,11 @@
   },
   "Sprite": {
     "summary": "始终面向相机的平面图片：每个渲染器在绘制时都会绕精灵的位置把它转向画面的单位正方形。",
-    "description": "它的大小是它在 `x` 和 `y` 上的世界缩放；它在画面平面中的旋转是其材质的 `rotation`；它自身的旋转不会被读取。精灵不投射阴影。",
+    "description": "它的大小是它在 `x` 和 `y` 上的世界缩放；它在画面平面中的旋转是其材质的 `rotation`；它自身的旋转不会被读取。精灵不投射阴影。与只接受 `SpriteMaterial` 的参考实现 `Sprite` 一样，它只使用 `material.sprite`：传入或设置任何其他材质，都会抛出一个说明其种类的 `TypeError`。",
     "members": {
       "isSprite": "始终为 `true`：把精灵与其他任何网格区分开。",
-      "center": "图片中落在精灵位置上的点：`(0.5, 0.5)` 是中间，`(0, 0)` 是左下角，`(0.5, 0)` 是下边的中点。"
+      "center": "图片中落在精灵位置上的点：`(0.5, 0.5)` 是中间，`(0, 0)` 是左下角，`(0.5, 0)` 是下边的中点。",
+      "material": "精灵的 `material.sprite`；设置另一个即可更换。"
     }
   }
 }

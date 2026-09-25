@@ -9,11 +9,19 @@ import { heldReadiness } from './held.ts';
 import { RESIDENT_ALL, selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
+import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
 
-/** True when the camera cut lets every node and page of `root` through: a root never culled
- *  (`ClusterRoot.unculled`). A light's cut still tests it — a sprite casts no shadow. */
+/** True when a camera cut lets every node and page of a root marked `sprite` through: a root
+ *  never culled (`SPRITE_UNCULLED`). A light's cut never walks a sprite (`castsNoShadow`). Read
+ *  here and by the GPU cut's oracle (`dagViewFrames`). */
+export const openMark = (sprite: number | undefined, light: unknown) =>
+  ((sprite ?? 0) & SPRITE_UNCULLED) !== 0 && !light;
 export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
-  root.unculled === true && !s.light;
+  openMark(root.sprite, s.light);
+
+/** True when a light's cut leaves a root marked `sprite` out: a sprite casts no shadow
+ *  (`ClusterRoot.sprite`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
+export const castsNoShadow = (sprite: number | undefined, light: unknown) => !!light && !!sprite;
 
 /** Six planes no box leaves, `(0, 0, 0, 1)` each: what an open root is walked against, here and
  *  in the GPU cut's oracle (`dagViewFrames`). */

@@ -6319,7 +6319,7 @@
   "object.sprite": {
     "summary": "Một hình phẳng luôn quay về phía camera, dù camera nhìn hướng nào: một hình vuông đơn vị, lớn bằng tỉ lệ của sprite và được xoay trong ảnh theo `rotation` của vật liệu.",
     "parameters": {
-      "material": "Những gì hình vuông hiển thị: một `material.sprite`."
+      "material": "Những gì hình vuông hiển thị: một `material.sprite`; mọi loại khác đều ném ra lỗi."
     }
   },
   "orthographicProjection": {
@@ -7616,10 +7616,11 @@
   },
   "Sprite": {
     "summary": "Một hình phẳng luôn quay về phía camera: một hình vuông đơn vị mà mọi bộ vẽ xoay về phía ảnh khi vẽ, quanh vị trí của sprite.",
-    "description": "Kích thước của nó là tỉ lệ thế giới trên `x` và `y`; góc xoay trong mặt phẳng ảnh là `rotation` của vật liệu; góc xoay riêng của nó không được đọc. Sprite không đổ bóng.",
+    "description": "Kích thước của nó là tỉ lệ thế giới trên `x` và `y`; góc xoay trong mặt phẳng ảnh là `rotation` của vật liệu; góc xoay riêng của nó không được đọc. Sprite không đổ bóng. Giống `Sprite` của bản tham chiếu, vốn chỉ nhận một `SpriteMaterial`, nó chỉ mang một `material.sprite`: mọi vật liệu khác, được truyền vào hay gán, đều ném ra một `TypeError` nêu tên loại của nó.",
     "members": {
       "isSprite": "Luôn là `true`: phân biệt sprite với mọi mesh khác.",
-      "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới."
+      "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới.",
+      "material": "`material.sprite` của sprite; gán một cái khác để thay đổi."
     }
   }
 }
