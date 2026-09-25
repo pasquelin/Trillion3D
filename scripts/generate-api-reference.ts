@@ -8,7 +8,6 @@
 // name: nothing here writes them.
 import { statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { repositoryFiles } from './repository-files.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -46,5 +45,4 @@ export async function generateApiFiles(): Promise<void> {
   await writeGenerated(API_FILES.inventory, json(apiInventory()));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
-  await generateApiFiles();
+if (import.meta.filename === process.argv[1]) await generateApiFiles();
