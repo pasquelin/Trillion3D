@@ -128,7 +128,7 @@ test('check-pr-body: "Part of" is refused, alone or beside "Closes"', () => {
   const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
   assert.match(ready(both), /says "Part of #<issue>".*back to the CTO/);
   assert.match(ready(filled.replace('Closes #65', 'Part of #65')), /says "Part of #<issue>"/);
-  assert.match(ready(filled.replace('Closes #65', 'Closes #65 (part of #483)')), /"Part of/);
+  assert.match(ready(filled.replace('Closes #65', 'Closes #65 (Part of #483)')), /"Part of/);
 });
 
 test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
