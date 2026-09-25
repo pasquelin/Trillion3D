@@ -50,14 +50,11 @@ fn a_thin_cylinder_keeps_its_silhouette_or_leaves_under_its_error() {
         .flatten()
         .copied()
         .collect();
-    let mut thresholds: Vec<f64> = dag.iter().map(|c| c.lod_error).collect();
-    thresholds.sort_by(f64::total_cmp);
-    thresholds.dedup();
-    assert!(thresholds.len() > 3, "the mesh climbs");
-    for t in thresholds {
-        let cut: Vec<u32> = dag
-            .iter()
-            .filter(|c| c.lod_error <= t && t < c.parent_error)
+    let cuts = cuts(&dag);
+    assert!(cuts.len() > 3, "the mesh climbs");
+    for (t, cut) in cuts {
+        let cut: Vec<u32> = cut
+            .into_iter()
             .flat_map(|c| c.indices.as_chunks::<3>().0.iter())
             .filter(|tri| on_cylinder(tri))
             .flatten()
