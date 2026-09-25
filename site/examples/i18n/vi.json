@@ -360,6 +360,22 @@
       "up": "LÊN"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Kéo để nhìn quanh. Chọn sương mù, tầm xa và màu của nó.",
+    "controls": {
+      "fog": "Sương mù",
+      "reach": "Tầm xa",
+      "height": "Độ cao",
+      "colour": "Màu"
+    },
+    "choices": {
+      "fog": {
+        "distance": "khoảng cách",
+        "thick": "dày",
+        "ground": "sát đất"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Kéo để nhìn quanh. Những hạt cườm chạy dọc theo ống.",
     "controls": {

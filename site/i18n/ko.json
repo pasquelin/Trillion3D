@@ -327,7 +327,6 @@
       "a-walker-among-balls": "공 사이를 걷는 사람"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU에서의 정점별 색상",
       "dashed-lines": "점선",
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
@@ -427,8 +426,6 @@
       "reflections-from-the-screen": "화면 공간 반사",
       "an-ocean": "텍스처로 렌더링: 물의 반사와 굴절",
       "a-raging-sea": "직접 만드는 셰이더 재질",
-      "a-town-in-the-fog": "안개",
-      "fog-on-the-ground": "안개: 높이 안개",
       "fog-that-scatters-light": "볼류메트릭 안개와 빛줄기",
       "a-cloud-in-a-box": "볼륨 렌더링",
       "a-fire-in-a-volume": "볼륨 렌더링",

@@ -1511,7 +1511,6 @@
       "a-walker-among-balls": "Pejalan di antara bola"
     },
     "missing": {
-      "colours-on-the-vertices": "warna per-vertex di WebGPU",
       "dashed-lines": "garis putus-putus",
       "floating-crates": "geometri yang ditulis ulang setiap bingkai",
       "thick-lines": "garis lebar",
@@ -1611,8 +1610,6 @@
       "reflections-from-the-screen": "pantulan screen-space",
       "an-ocean": "render ke tekstur: pantulan dan pembiasan air",
       "a-raging-sea": "material shader kustom",
-      "a-town-in-the-fog": "kabut",
-      "fog-on-the-ground": "kabut: kabut ketinggian",
       "fog-that-scatters-light": "kabut volumetrik dan berkas cahaya",
       "a-cloud-in-a-box": "rendering volume",
       "a-fire-in-a-volume": "rendering volume",

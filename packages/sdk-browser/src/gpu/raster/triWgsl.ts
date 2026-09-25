@@ -23,10 +23,10 @@ import { FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts';
  *   unclipped vertices.
  */
 export const RASTER_TRI_WGSL = `
-struct Clip{n:u32,p:array<vec4f,4>,u:array<vec2f,4>,}
-fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec2f,ub:vec2f,uc:vec2f)->Clip{
+struct Clip{n:u32,p:array<vec4f,4>,u:array<vec3f,4>,}
+fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec3f,ub:vec3f,uc:vec3f)->Clip{
  var inP=array<vec4f,3>(pa,pb,pc);
- var inU=array<vec2f,3>(ua,ub,uc);
+ var inU=array<vec3f,3>(ua,ub,uc);
  var res:Clip;res.n=0u;
  for(var i=0u;i<3u;i=i+1u){
   let j=(i+1u)%3u;
@@ -51,9 +51,11 @@ fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec2f,ub:vec2f,uc:vec2f)->Clip{
  }
  return res;
 }
+// Each vec3f corner (UV, vertex alpha) shares its sixteen bytes with a word: the struct grows by
+// sixteen bytes over the UV alone, not thirty-two.
 struct Tri{ca:vec4f,cb:vec4f,cc:vec4f,cd:vec4f,
- a:vec2f,b:vec2f,c:vec2f,d:vec2f,ua:vec2f,ub:vec2f,uc:vec2f,ud:vec2f,lo:vec2f,hi:vec2f,
- ok:u32,row:u32,triangle:u32,quad:u32,area0:f32,area1:f32,}
+ ua:vec3f,ok:u32,ub:vec3f,row:u32,uc:vec3f,triangle:u32,ud:vec3f,quad:u32,
+ a:vec2f,b:vec2f,c:vec2f,d:vec2f,lo:vec2f,hi:vec2f,area0:f32,area1:f32,}
 fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  var t:Tri;t.ok=0u;t.row=pageIndex;t.triangle=triangle;t.quad=0u;
  let page=pages[pageIndex];
@@ -61,16 +63,19 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  if(triangle*3u+2u>=page.indexCount){return t;}
  let h=pageHeader(page);
  let ia=pageCorner(page,h,triangle*3u);let ib=pageCorner(page,h,triangle*3u+1u);let ic=pageCorner(page,h,triangle*3u+2u);
- let ca=vertex(vp,page,h,ia);let cb=vertex(vp,page,h,ib);let cc=vertex(vp,page,h,ic);
+ let ca=pageClip(vp,page,h,ia);let cb=pageClip(vp,page,h,ib);let cc=pageClip(vp,page,h,ic);
  if(!computeTakes(ca,cb,cc)){return t;}
- // Only a mask material clips in the raster: it alone pays the read of its three UVs.
- var ua=vec2f(0.0);var ub=vec2f(0.0);var uc=vec2f(0.0);
- if((page.flags&128u)!=0u){ua=pageUv(page,h,ia);ub=pageUv(page,h,ib);uc=pageUv(page,h,ic);}
+ // Only a mask material clips in the raster: it alone pays the read of its three UVs and of the
+ // alpha its vertex colours bring to the cutout, carried as a third coordinate.
+ var ua=vec3f(0.0);var ub=vec3f(0.0);var uc=vec3f(0.0);
+ if((page.flags&128u)!=0u){
+  ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));ub=vec3f(pageUv(page,h,ib),pageMaskAlpha(page,h,ib));uc=vec3f(pageUv(page,h,ic),pageMaskAlpha(page,h,ic));
+ }
  let cl=clipNear(ca,cb,cc,ua,ub,uc);
  if(cl.n<3u){return t;}
  let a=screen(cl.p[0]);let b=screen(cl.p[1]);let c=screen(cl.p[2]);
  let area0=edge(a,b,c);
- var d=a;var ud=vec2f(0.0);var area1=0.0;
+ var d=a;var ud=vec3f(0.0);var area1=0.0;
  if(cl.n==4u){d=screen(cl.p[3]);ud=cl.u[3];area1=edge(a,c,d);t.quad=1u;}
  // Orientation of the clipped polygon is that of the original triangle: on an unclipped
  // triangle, \`area0\` alone decides, to the bit as before.

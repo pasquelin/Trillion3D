@@ -75,7 +75,12 @@ export function weigh(mesh: GraphMesh, weights: readonly number[] | null) {
   for (let i = 0; i < weights.length; i++) mesh.morphTargetInfluences[i] = weights[i];
 }
 
-export function pose(node: Object3D, declared: TableNode) {
+/** Sets `node`'s pose from the one declared: a matrix decomposed, or translation, rotation and
+ *  scale as they are. */
+export function pose(
+  node: Object3D,
+  declared: Pick<TableNode, 'matrix' | 'translation' | 'rotation' | 'scale'>,
+) {
   if (declared.matrix) node.applyMatrix4({ elements: declared.matrix });
   else {
     if (declared.translation) node.position.fromArray(declared.translation);

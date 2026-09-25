@@ -13,6 +13,7 @@ use super::*;
 mod documents;
 mod graph;
 mod materials;
+mod partition;
 mod physical;
 mod sparse;
 mod textures;
@@ -24,9 +25,10 @@ use textures::texture_table;
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
 /// its own, and the tables it carries are versioned each in turn. Version 2 carries the whole
 /// scene graph and the geometry layout, which is what lets the runtime build the scene without a
-/// glTF parse.
-const SCENE_TABLES_VERSION: u32 = 2;
-const NODE_TABLE_VERSION: u32 = 2;
+/// glTF parse; version 3 moves the nodes that only place a mesh into spatial cells read by
+/// distance (`partition.rs`), and the node table keeps the others, renumbered.
+const SCENE_TABLES_VERSION: u32 = 3;
+const NODE_TABLE_VERSION: u32 = 3;
 const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
@@ -70,7 +72,7 @@ pub(super) fn stage_scene_tables(
     autonomous: Option<&Value>,
     directory: &Path,
     progress: impl Fn(Value),
-) -> Result<Product> {
+) -> Result<Vec<Product>> {
     let started = Instant::now();
     let mut surfaces = Materials {
         table: Vec::new(),
@@ -88,18 +90,25 @@ pub(super) fn stage_scene_tables(
             document_table(scene, "scene.bin", &mut surfaces)?,
         );
     }
-    let nodes = node_table(published)?;
+    let table = node_table(published)?;
+    let roots = crate::compiler_nodes::scene_roots(published, values(published, "nodes")?)?;
+    let (nodes, roots, partition, mut cells) =
+        match partition::partition(published, &table, &roots, directory)? {
+            Some(split) => (split.nodes, split.roots, split.partition, split.products),
+            None => (table, roots, Value::Null, Vec::new()),
+        };
     let lights = light_table(published)?;
     let cameras = camera_table(published)?;
     let textures = texture_table(published);
-    let counts = json!({"nodes":nodes.len(),"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
+    let counts = json!({"nodes":nodes.len(),"cells":cells.len(),"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
     let tables = json!({
         "version": SCENE_TABLES_VERSION,
         "nodeTableVersion": NODE_TABLE_VERSION,
         "materialTableVersion": MATERIAL_TABLE_VERSION,
         "geometryTableVersion": GEOMETRY_TABLE_VERSION,
-        "scene": scene_roots(published)?,
+        "scene": scene_roots(published, roots)?,
         "nodes": nodes,
+        "partition": partition,
         "lights": lights,
         "cameras": cameras,
         "materials": surfaces.table,
@@ -110,5 +119,6 @@ pub(super) fn stage_scene_tables(
     progress(
         json!({"phase":"tables","completed":1,"total":1,"ms":shared_math::elapsed_ms(started),"counts":counts}),
     );
-    Ok(written)
+    cells.push(written);
+    Ok(cells)
 }

@@ -1014,6 +1014,10 @@
       "autoForward": "SEYİR, varsayılan olarak kapalı: kamera, bir uçağın yaptığı gibi, hiçbir tuş basılı değilken `movementSpeed`'de ileri uçar. W daha sonra `movementSpeed` ekler (iki kat daha hızlı) ve S onu alır (kamera yerinde asılı kalır); asla geriye uçmaz. Bir sonraki `update`'e kadar hiçbir şey hareket etmez, bu yüzden `change`'te yeniden çizen bir host, seyiri açtığında bir kare ister."
     }
   },
+  "Fog": {
+    "summary": "Her yüzeyin üzerinde sis: `near` ile `far` arasında doğrusal, ya da `density` ile uzaklıkla koyulaşan ve `heightFalloff` verildiğinde `baseHeight` üzerinde yükseldikçe incelen.",
+    "description": "Renk, sisin göze doğru saçtığı ışıktır; bir yüzeyinki gibi pozlanır ve görüntü eğrisinden geçer."
+  },
   "FrameInfo": {
     "summary": "Bir kare kancasının aldığı şey: son kareden ve dünyanın başlangıcından bu yana geçen saniyeler.",
     "description": "Her karede yeniden yazılan, dünyanın tek nesnesi: bir değeri tutan bir kanca onu kopyalar.",
@@ -1746,7 +1750,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -1809,7 +1813,7 @@
       "flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "size": "Noktalar malzemesi için bir noktanın boyutu.",
       "sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "linewidth": "Bir çizginin kalınlığı.",
+      "linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "dashSize": "Bir kesik çizginin uzunluğu.",
       "gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -2754,8 +2758,8 @@
     "members": {
       "isScene": "Her zaman `true`: sahne kökünü başka herhangi bir nesneden ayırır.",
       "environment": "Parlak yüzeylerin yansıttığı çevrenin bir resmi; hiçbiri için `null`.",
-      "fog": "Nesneleri `near` ve `far` arasında `color`'a soldurup karıştıran sis; hiçbiri için `null`.",
       "background": "Her nesnenin arkasındaki görüntüyü dolduran şey: bir renk ya da varsayılan için `null`. Bir değişiklik oturum korunarak sonraki karede görünür: burada atanan yeni bir renk ya da mevcut rengin yöntemleriyle (`set`, `setRGB`, `setHex`, `setHSL`...) yazılması. `.r`, `.g` veya `.b` alanına doğrudan yazma algılanmaz: ardından `background` değerini yeniden atayın. Bir resim ya da `getHex` içermeyen herhangi bir değer reddedilir (`UNSUPPORTED_SCENE_UPDATE`): hiçbir yol onu çizmez.",
+      "fog": "Her yüzeyin üzerinde sis, opak ya da saydam, iki çizicide de; varsayılan `null` sis yok demektir, bedelsiz. `{ color, near, far }` nesneleri `near` ile `far` arasında `color` rengine eritir, kameradan uzaklıklar; `{ color, density }` uzaklık birimi başına `density` kadar koyulaşır; `heightFalloff` (ve varsayılanı 0 olan `baseHeight`) ekleyin, sis yere çöker ve `baseHeight` üzerinde incelir — yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür. Bir değişiklik sonraki karede görünür: burada verilen yeni bir sis ya da yöntemleriyle yazılan rengi. `near`, `far`, `density`... alanlarına doğrudan yazmak duyulmaz: ardından `fog` alanını yeniden verin. Aralık dışı bir sis — `far` değeri `near` değerinin ötesinde değilse, negatif bir yoğunluk — reddedilir (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Derlenmiş bir modeli — manifesto URL'sini — yükler ve bu sahneye ekler.",
       "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
       "fromJSON": "Sahnenin içeriğini `toJSON` ile kaydedilmiş bir sahneyle değiştirir, `helper` işaretleri korunur; modelleri yüklenince tamamlanır. Başka bir biçim ya da sürüm reddedilir (`UNSUPPORTED_SCENE_FORMAT`). Biri okunurken yapılan çağrılar sırayla, birbiri ardına çalışır, her biri öncekinin bıraktığı üzerinde: iki kaydedilmiş sahne asla karışmaz."
@@ -2766,8 +2770,21 @@
     "members": {
       "exposure": "Eğriden önce uygulanan, doğrusal parlaklığın çarpanı.",
       "toneMapping": "Ekran eğrisi; yoksa `DEFAULT_TONE_MAPPING`.",
-      "irradiance": "Her yönden gelen ışınım, 27 sayı olarak: dokuz katsayı, her biri bir RGB üçlüsü, bant sırasında sabit, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Yoksa, ya da hepsi sıfırsa, bildirilen lambalar dışında hiçbir şey bir yüzeyi aydınlatmaz."
+      "irradiance": "Her yönden gelen ışınım, 27 sayı olarak: dokuz katsayı, her biri bir RGB üçlüsü, bant sırasında sabit, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Yoksa, ya da hepsi sıfırsa, bildirilen lambalar dışında hiçbir şey bir yüzeyi aydınlatmaz.",
+      "fog": "Her yüzeyin üzerinde uzaklık ya da yükseklik sisi (`SceneFog`); yoksa sis yok."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Uzaklıkla koyulaşan sis: sahne birimi başına `density`; `heightFalloff` ile `baseHeight` üzerinde incelir, yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür.",
+    "members": {
+      "color": "Sisin nesneleri erittiği ışınım, doğrusal RGB.",
+      "density": "`baseHeight` yüksekliğinde sahne birimi başına sönüm; ≥ 0.",
+      "heightFalloff": "Yoğunluğun yükseklikle ne kadar hızlı düştüğü, sahne birimi başına; varsayılan 0, onu her yükseklikte aynı tutar.",
+      "baseHeight": "Yoğunluğun `density` olduğu yükseklik; varsayılan 0."
+    }
+  },
+  "SceneFog": {
+    "summary": "Aydınlatmanın okuduğu biçimiyle uzaklık ya da yükseklik sisi."
   },
   "SceneLight": {
     "summary": "Bir sahne ışığı, sürüm 2.",
@@ -2799,6 +2816,7 @@
       "ids": "Her slotun ışık adı.",
       "count": "Kaç ışık.",
       "epoch": "Işık kümesi değiştiğinde artırılır.",
+      "transportEpoch": "Epoch ile birlikte artar, yalnızca sisin değişmesi dışında: sis ışık taşınımının değil, bakış ışınının bir terimidir, bu yüzden taşınan ışığı önbelleğe alan (sekme sondaları) onu korur.",
       "environment": "Sahnenin ortamı.",
       "lightingView": "Host'un istediği görünüm, olduğu gibi: hiçbir şey istemediği sürece `auto`.",
       "unlit": "Görselin ışık olmadan, ham albedo olarak çıkması gerektiğinde doğru. Bu, hiçbir ışık bildirilmediği sürece varsayılan davranıştır: kaynağı olmayan bir sahnenin aydınlatacak hiçbir şeyi yoktur, ve siyah bir görsel hiçbir geometri benchmark'ına yardımcı olmazdı. Bir ışık var olur olmaz, gerçek aydınlatma devralır — host açıkça tanı görünümünü istemedikçe.",
@@ -2816,6 +2834,14 @@
   "SceneLightingView": {
     "summary": "Host'un görmek istediği şey.",
     "description": "`lit`, gerçek aydınlatmadır ve yalnızca odur; `unlit`, piksel-tam görselleri karşılaştıran geometri benchmark'ları için ham albedo tanı görünümüdür — olduğu gibi malzeme rengi, ışık yok, ortam yok ve emissive yok. Varsayılan olan `auto`, hiçbir ışık bildirilmediği sürece `unlit`, bir tane olur olmaz `lit` verir. `bounce` üçüncü tanı görünümüdür: yalnızca dolaylı ışınım, pozlamayla çarpılmış ve ACES ya da sRGB olmadan doğrusal değerler olarak çıktılanmış. Test düzeneğinin derleyici oracle'ıyla karşılaştırdığı şey budur; bakılacak bir görsel değildir, ve hazırlanmış bir yansıma olmadan siyahtır."
+  },
+  "SceneLinearFog": {
+    "summary": "`near` noktasında başlayan ve `far` noktasından sonra her şeyi gizleyen sis, gözden uzaklıklar.",
+    "members": {
+      "color": "Sisin nesneleri erittiği ışınım, doğrusal RGB.",
+      "near": "Sisin başladığı, gözden uzaklık.",
+      "far": "Artık yalnızca sisin görüldüğü, gözden uzaklık."
+    }
   },
   "SceneLink": {
     "summary": "Bir düğümün içinde asılı olduğu dünyaya bildirdiği şey: bir poz hareket etti, ağaç değişti, bir içerik değişti.",
@@ -3223,7 +3249,7 @@
       "baseMetal": "RGB temel renk, A metaliklik.",
       "normalRough": "XYZ dünya normali, A pürüzlülük.",
       "emissiveAo": "RGB emissive, A ortam gizlenmesi.",
-      "flags": "0 arka plan, 1 ışıksız, 2 okumalar, 3 ekran-uzayı tanısı.",
+      "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü.",
       "views": "GPU doku görünümleri.",
       "dispose": "Serbest bırakır."
     }
@@ -3858,8 +3884,8 @@
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
       "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
-      "cpu": "Dünyanın çözülmüş sayfalarının tutabileceği CPU belleği baytı; bir sonraki sahne yüklemesinde uygulanır.",
-      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; çözülmüş sayfa önbelleği CPU toplamını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
+      "cpu": "Dünyanın tutabileceği CPU belleği baytı: önce gölge sayfa tablosunun ana makine yansısı, sonra çözülmüş sayfalar; bir sonraki sahne yüklemesinde uygulanır. Yansıyı aşmayan bir toplam reddedilir (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Asla makineden okunmaz.",
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını alır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -5385,7 +5411,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5423,7 +5449,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5461,7 +5487,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5499,7 +5525,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5537,7 +5563,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5575,7 +5601,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5613,7 +5639,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5651,7 +5677,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5689,7 +5715,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5727,7 +5753,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5765,7 +5791,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5803,7 +5829,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5841,7 +5867,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5879,7 +5905,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -6790,7 +6816,7 @@
       "format": "Her zaman `'trillion3d-scene'`.",
       "formatVersion": "Bu düzenin sürümü; başkası reddedilir.",
       "background": "Arka plan rengi, ya da `null`.",
-      "fog": "Sis, ya da `null`.",
+      "fog": "Sis, rengi doğrusal bileşenlerle, ya da `null`.",
       "camera": "Sahneyle birlikte kaydedilen kamera, ya da `null`.",
       "geometries": "Her şekil, kaç ağ onu kullanırsa kullansın, bir kez.",
       "materials": "Her malzeme, kaç ağ onu kullanırsa kullansın, bir kez.",

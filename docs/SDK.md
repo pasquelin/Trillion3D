@@ -895,14 +895,17 @@ once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
 **One GPU total, one CPU total.** `world.budget.gpu` is every GPU pool together, and
-`world.budget.cpu` the decoded pages the world keeps in CPU memory. A fixed rule splits them, published
+`world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
 - GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
   in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
   each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
   a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
-- CPU: the decoded-page cache takes the whole total, taken by the next scene load.
+- CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
+  decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
+  plus the cache's own default; a total not above the mirror is refused
+  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
 ```js
 world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split

@@ -1511,7 +1511,6 @@
       "a-walker-among-balls": "ماشٍ بين الكرات"
     },
     "missing": {
-      "colours-on-the-vertices": "ألوان لكل رأس على WebGPU",
       "dashed-lines": "خطوط متقطعة",
       "floating-crates": "هندسة يُعاد كتابتها في كل إطار",
       "thick-lines": "خطوط عريضة",
@@ -1611,8 +1610,6 @@
       "reflections-from-the-screen": "انعكاسات بفضاء الشاشة",
       "an-ocean": "الرسم إلى نسيج: انعكاس وانكسار الماء",
       "a-raging-sea": "مواد بتظليل مخصّص",
-      "a-town-in-the-fog": "الضباب",
-      "fog-on-the-ground": "الضباب: ضباب الارتفاع",
       "fog-that-scatters-light": "ضباب حجمي وأعمدة ضوء",
       "a-cloud-in-a-box": "رسم الحجوم",
       "a-fire-in-a-volume": "رسم الحجوم",

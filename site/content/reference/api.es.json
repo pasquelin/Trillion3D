@@ -1688,6 +1688,10 @@
       "autoForward": "CRUCERO, desactivado por defecto: la cámara vuela hacia adelante a `movementSpeed` sin ninguna tecla pulsada, como un avión. W añade entonces `movementSpeed` (el doble de rápido) y S lo retira (la cámara se queda quieta); nunca retrocede. Nada se mueve antes del siguiente `update`, así que un host que redibuja en `change` pide un fotograma cuando activa el crucero."
     }
   },
+  "Fog": {
+    "summary": "Niebla sobre cada superficie: lineal de `near` a `far`, o que se espesa con la distancia según `density`, y se aclara en altura por encima de `baseHeight` cuando se da `heightFalloff`.",
+    "description": "El color es la luz que la niebla dispersa hacia el ojo, expuesta y pasada por la curva de visualización como la de una superficie."
+  },
   "FORMAT_VERSION": {
     "summary": "Formato de caché que lee este motor.",
     "description": "El formato 5 lleva `scene-tables.json`, las tablas de nodos y materiales contra las que se verifica la escena preparada; los formatos 3 y 4 no tienen este producto y se rechazan por su número en lugar de leerse a medias."
@@ -2976,7 +2980,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3014,7 +3018,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3052,7 +3056,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3090,7 +3094,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3128,7 +3132,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3166,7 +3170,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3204,7 +3208,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3242,7 +3246,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3280,7 +3284,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3318,7 +3322,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3356,7 +3360,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3394,7 +3398,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3432,7 +3436,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3470,7 +3474,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3528,7 +3532,7 @@
       "parameters.flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "parameters.size": "Tamaño de un punto, para el material de puntos.",
       "parameters.sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "parameters.linewidth": "Anchura de una línea.",
+      "parameters.linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "parameters.dashSize": "Longitud de un guion.",
       "parameters.gapSize": "Longitud del espacio entre dos guiones.",
       "parameters.vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -3591,7 +3595,7 @@
       "flatShading": "Da a cada triángulo un único tono plano, para mostrar sus facetas.",
       "size": "Tamaño de un punto, para el material de puntos.",
       "sizeAttenuation": "Si los puntos se encogen con la distancia.",
-      "linewidth": "Anchura de una línea.",
+      "linewidth": "Anchura de una línea en píxeles CSS, la misma a cualquier distancia.",
       "dashSize": "Longitud de un guion.",
       "gapSize": "Longitud del espacio entre dos guiones.",
       "vertexColors": "Si la lista `color` por vértice de la geometría tiñe la superficie.",
@@ -4954,8 +4958,8 @@
     "members": {
       "isScene": "Siempre `true`: distingue la raíz de la escena de cualquier otro objeto.",
       "environment": "Una imagen del entorno que reflejan las superficies brillantes; `null` para ninguna.",
-      "fog": "Una niebla que funde los objetos en `color` entre `near` y `far`; `null` para ninguna.",
       "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
+      "fog": "Niebla sobre cada superficie, opaca o transparente, en los dos renderizadores; `null`, el valor por defecto, para ninguna, sin coste. `{ color, near, far }` funde los objetos en `color` de `near` a `far`, distancias desde la cámara; `{ color, density }` se espesa `density` por unidad de distancia; añade `heightFalloff` (y `baseHeight`, 0 por defecto) y se posa en el suelo, aclarándose por encima de `baseHeight` — dividida por e cada `1 / heightFalloff` unidades hacia arriba. Un cambio se ve en la imagen siguiente: una niebla nueva dada aquí, o su color escrito con sus métodos. Una escritura directa de `near`, `far`, `density`... no se oye: vuelve a dar `fog` después. Una niebla fuera de rango — `far` no más allá de `near`, una densidad negativa — se rechaza (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carga un modelo compilado — la URL de su manifiesto — y lo añade a esta escena.",
       "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
       "fromJSON": "Reemplaza lo que contiene la escena por una escena guardada con `toJSON`, conservando sus marcas `helper`; se resuelve cuando sus modelos están cargados. Otro formato u otra versión se rechaza (`UNSUPPORTED_SCENE_FORMAT`). Las llamadas hechas mientras se lee una se ejecutan una tras otra, en orden, cada una sobre lo que dejó la anterior: dos escenas guardadas nunca se mezclan."
@@ -4994,8 +4998,21 @@
     "members": {
       "exposure": "Multiplicador de la radiancia lineal, aplicado antes de la curva.",
       "toneMapping": "La curva de visualización; `DEFAULT_TONE_MAPPING` si falta.",
-      "irradiance": "La irradiancia que llega desde todas las direcciones, en 27 números: nueve coeficientes, cada uno un triplete RGB, en el orden de las bandas constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, o toda nula, nada ilumina una superficie salvo las lámparas declaradas."
+      "irradiance": "La irradiancia que llega desde todas las direcciones, en 27 números: nueve coeficientes, cada uno un triplete RGB, en el orden de las bandas constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, o toda nula, nada ilumina una superficie salvo las lámparas declaradas.",
+      "fog": "Niebla de distancia o de altura sobre cada superficie (`SceneFog`); ausente, ninguna."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Niebla que se espesa con la distancia: `density` por unidad de la escena; con `heightFalloff`, se aclara por encima de `baseHeight`, dividida por e cada `1 / heightFalloff` unidades hacia arriba.",
+    "members": {
+      "color": "La radiancia hacia la que la niebla funde los objetos, en RGB lineal.",
+      "density": "Extinción por unidad de la escena, en `baseHeight`; ≥ 0.",
+      "heightFalloff": "Lo rápido que la densidad baja con la altura, por unidad de la escena; 0, el valor por defecto, la mantiene uniforme a cualquier altura.",
+      "baseHeight": "La altura a la que la densidad vale `density`; 0 por defecto."
+    }
+  },
+  "SceneFog": {
+    "summary": "Niebla de distancia o de altura, tal como la lee la iluminación."
   },
   "SceneLight": {
     "summary": "Una luz de escena, versión 2.",
@@ -5020,6 +5037,14 @@
     "summary": "Lo que el host pide ver.",
     "description": "`lit` es la iluminación real y solo ella; `unlit` es la vista de diagnóstico en albedo puro — el color del material tal cual, sin luz, sin ambiente y sin emisión — para los bancos de pruebas de geometría que comparan imágenes píxel a píxel. `auto`, por defecto, da `unlit` mientras no se declare ninguna luz y `lit` en cuanto haya una. `bounce` es la tercera vista de diagnóstico: solo la irradiancia indirecta, multiplicada por la exposición y dada en valores lineales sin ACES ni sRGB. Es lo que el banco compara con el oráculo del compilador; no es una imagen para mirar, y es negra sin rebote configurado."
   },
+  "SceneLinearFog": {
+    "summary": "Niebla que empieza en `near` y oculta todo a partir de `far`, distancias desde el ojo.",
+    "members": {
+      "color": "La radiancia hacia la que la niebla funde los objetos, en RGB lineal.",
+      "near": "Distancia desde el ojo donde empieza la niebla.",
+      "far": "Distancia desde el ojo donde solo se ve la niebla."
+    }
+  },
   "SceneLightStore": {
     "summary": "Las luces de una escena tal como las lee la GPU, ordenadas y mantenidas al día.",
     "members": {
@@ -5031,6 +5056,7 @@
       "ids": "El nombre de la luz de cada plaza.",
       "count": "Cuántas luces.",
       "epoch": "Aumentado cuando cambia el conjunto de luces.",
+      "transportEpoch": "Aumenta con la época, salvo por un cambio solo de la niebla: la niebla es un término del rayo de vista, no del transporte de luz, así que lo que guarda en caché la luz transportada (las sondas de rebote) la conserva.",
       "environment": "El entorno de la escena.",
       "lightingView": "Vista solicitada por el host, tal cual: `auto` mientras no haya pedido nada.",
       "unlit": "Verdadero cuando la imagen debe salir en albedo puro, sin luz. Es el comportamiento por defecto mientras no se declare ninguna luz: una escena sin fuente no tiene nada que iluminar, y una imagen negra no ayudaría a ningún banco de pruebas de geometría. En cuanto existe una luz, la iluminación real toma el relevo — salvo que el host haya pedido explícitamente la vista de diagnóstico.",
@@ -5564,7 +5590,7 @@
       "baseMetal": "Color base en RGB, A para el metal.",
       "normalRough": "Normal XYZ en el mundo, A para la rugosidad.",
       "emissiveAo": "Emisión RGB, A para la oclusión ambiental.",
-      "flags": "0 fondo, 1 sin luz, 2 lecturas, 3 diagnóstico en espacio de visualización.",
+      "flags": "0 fondo, 1 sin iluminar (con niebla), 2 leído, 3 mostrado tal cual: un diagnóstico, una vista de normales o de profundidad.",
       "views": "Sus vistas de textura de GPU.",
       "dispose": "Lo libera."
     }
@@ -6352,8 +6378,8 @@
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
       "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Un total por debajo del depósito de sombras se rechaza (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca se lee de la máquina.",
-      "cpu": "Bytes de memoria CPU que pueden ocupar las páginas decodificadas del mundo; se aplica en la próxima carga de escena.",
-      "split": "Cómo se reparten los dos totales: el depósito de sombras a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; la caché de páginas decodificadas toma el total de CPU. Lo que da la regla, antes de ajustar un depósito por separado."
+      "cpu": "Bytes de memoria CPU que puede ocupar el mundo: primero el espejo en el host de la tabla de páginas de sombras, luego las páginas decodificadas; se aplica en la próxima carga de escena. Un total que no supera el espejo se rechaza (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca se lee de la máquina.",
+      "split": "Cómo se reparten los dos totales: el depósito de sombras a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; el espejo en el host de la tabla de sombras, luego la caché de páginas decodificadas toma el resto del total de CPU. Lo que da la regla, antes de ajustar un depósito por separado."
     }
   },
   "world.diagnostic": {
@@ -6790,7 +6816,7 @@
       "format": "Siempre `'trillion3d-scene'`.",
       "formatVersion": "La versión de esta estructura; cualquier otra se rechaza.",
       "background": "El color de fondo, o `null`.",
-      "fog": "La niebla, o `null`.",
+      "fog": "La niebla, su color en componentes lineales, o `null`.",
       "camera": "La cámara guardada con la escena, o `null`.",
       "geometries": "Cada forma, una sola vez, sin importar cuántas mallas la usen.",
       "materials": "Cada material, una sola vez, sin importar cuántas mallas lo usen.",

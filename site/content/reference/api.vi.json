@@ -1022,6 +1022,10 @@
       "yawInput": "Độ lệch yaw trong [-1, 1], trái là dương như ArrowLeft; giống như `pitchInput`."
     }
   },
+  "Fog": {
+    "summary": "Sương mù trên mọi bề mặt: tuyến tính từ `near` đến `far`, hoặc dày dần theo khoảng cách với `density`, mỏng dần lên cao phía trên `baseHeight` khi có `heightFalloff`.",
+    "description": "Màu là ánh sáng sương mù tán xạ về phía mắt, được phơi sáng và qua đường cong hiển thị như ánh sáng của một bề mặt."
+  },
   "FrameInfo": {
     "summary": "Những gì một hook khung hình nhận được: số giây kể từ khung hình trước và kể từ khi thế giới bắt đầu.",
     "description": "Đối tượng duy nhất của thế giới, được ghi lại mỗi khung hình: một hook muốn giữ một giá trị cần sao chép nó.",
@@ -1751,7 +1755,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc độ phẳng, để lộ các mặt phẳng của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm (points).",
       "parameters.sizeAttenuation": "Các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Độ rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Độ dài của một nét gạch.",
       "parameters.gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -1827,7 +1831,7 @@
       "flatShading": "Cho mỗi tam giác một sắc độ phẳng, để lộ các mặt phẳng của nó.",
       "size": "Kích thước của một chấm, cho vật liệu điểm (points).",
       "sizeAttenuation": "Các chấm có nhỏ dần theo khoảng cách hay không.",
-      "linewidth": "Độ rộng của một đường thẳng.",
+      "linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "dashSize": "Độ dài của một nét gạch.",
       "gapSize": "Độ dài khoảng trống giữa hai nét gạch.",
       "vertexColors": "Màu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -2815,7 +2819,7 @@
       "format": "Luôn là `'trillion3d-scene'`.",
       "formatVersion": "Phiên bản của cách bố trí này; phiên bản khác bị từ chối.",
       "background": "Màu nền, hoặc `null`.",
-      "fog": "Sương mù, hoặc `null`.",
+      "fog": "Sương mù, màu của nó theo thành phần tuyến tính, hoặc `null`.",
       "camera": "Camera được lưu cùng cảnh, hoặc `null`.",
       "geometries": "Mỗi hình khối, một lần, dù có bao nhiêu mesh dùng nó.",
       "materials": "Mỗi vật liệu, một lần, dù có bao nhiêu mesh dùng nó.",
@@ -2827,8 +2831,8 @@
     "members": {
       "isScene": "Luôn là `true`: phân biệt gốc cảnh với bất kỳ vật thể nào khác.",
       "environment": "Một hình ảnh môi trường xung quanh mà các bề mặt bóng bẩy phản chiếu; `null` cho không có.",
-      "fog": "Sương mù làm mờ dần các vật thể thành `color` giữa `near` và `far`; `null` cho không có.",
       "background": "Thứ lấp đầy hình phía sau mọi vật thể: một màu, hoặc `null` cho màu mặc định. Thay đổi hiện ra ở khung hình kế tiếp, phiên được giữ nguyên: một màu mới gán ở đây, hoặc màu hiện tại được ghi bằng các phương thức của nó (`set`, `setRGB`, `setHex`, `setHSL`...). Ghi trực tiếp vào `.r`, `.g` hoặc `.b` không được nhận biết: hãy gán lại `background` sau đó. Một hình ảnh, hoặc bất kỳ giá trị nào không có `getHex`, đều bị từ chối (`UNSUPPORTED_SCENE_UPDATE`): không đường vẽ nào vẽ nó.",
+      "fog": "Sương mù trên mọi bề mặt, đục hay trong suốt, trên cả hai trình kết xuất; `null`, mặc định, là không sương, không tốn gì. `{ color, near, far }` làm mờ vật thể vào `color` từ `near` đến `far`, khoảng cách tính từ camera; `{ color, density }` dày thêm `density` trên mỗi đơn vị khoảng cách; thêm `heightFalloff` (và `baseHeight`, mặc định 0) thì nó nằm sát mặt đất, mỏng dần phía trên `baseHeight` — chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao. Thay đổi hiện ra ở khung hình kế tiếp: một sương mù mới đặt ở đây, hoặc màu của nó được ghi qua các phương thức của màu. Ghi trực tiếp `near`, `far`, `density`... không được nghe thấy: hãy đặt lại `fog` sau đó. Sương mù ngoài phạm vi — `far` không vượt quá `near`, mật độ âm — bị từ chối (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
       "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
       "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
@@ -2847,8 +2851,21 @@
     "members": {
       "exposure": "Hệ số nhân của độ chói tuyến tính, áp dụng trước đường cong.",
       "toneMapping": "Đường cong hiển thị; `DEFAULT_TONE_MAPPING` khi vắng mặt.",
-      "irradiance": "Độ rọi đến từ mọi hướng, dưới dạng 27 con số: chín hệ số, mỗi hệ số là một bộ ba RGB, theo thứ tự dải hằng số, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Vắng mặt, hoặc toàn bằng không, không gì chiếu sáng một bề mặt ngoài các đèn đã khai báo."
+      "irradiance": "Độ rọi đến từ mọi hướng, dưới dạng 27 con số: chín hệ số, mỗi hệ số là một bộ ba RGB, theo thứ tự dải hằng số, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Vắng mặt, hoặc toàn bằng không, không gì chiếu sáng một bề mặt ngoài các đèn đã khai báo.",
+      "fog": "Sương mù theo khoảng cách hoặc độ cao trên mọi bề mặt (`SceneFog`); không có thì không sương."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Sương mù dày dần theo khoảng cách: `density` trên mỗi đơn vị cảnh; với `heightFalloff`, nó mỏng dần phía trên `baseHeight`, chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao.",
+    "members": {
+      "color": "Bức xạ mà sương mù làm mờ vật thể vào, RGB tuyến tính.",
+      "density": "Độ tắt dần trên mỗi đơn vị cảnh, tại `baseHeight`; ≥ 0.",
+      "heightFalloff": "Mật độ giảm theo độ cao nhanh đến đâu, trên mỗi đơn vị cảnh; 0, mặc định, giữ nó đều ở mọi độ cao.",
+      "baseHeight": "Độ cao mà mật độ bằng `density`; mặc định 0."
+    }
+  },
+  "SceneFog": {
+    "summary": "Sương mù theo khoảng cách hoặc độ cao, như ánh sáng đọc nó."
   },
   "SceneLight": {
     "summary": "Một nguồn sáng cảnh, phiên bản 2.",
@@ -2880,6 +2897,7 @@
       "ids": "Tên nguồn sáng của mỗi khe.",
       "count": "Có bao nhiêu nguồn sáng.",
       "epoch": "Tăng lên khi tập hợp các nguồn sáng thay đổi.",
+      "transportEpoch": "Tăng cùng epoch, trừ khi chỉ sương mù thay đổi: sương mù là một số hạng của tia nhìn, không phải của sự truyền ánh sáng, nên thứ lưu đệm ánh sáng đã truyền (các đầu dò phản xạ) vẫn giữ nó.",
       "environment": "Môi trường của cảnh đó.",
       "lightingView": "Góc nhìn mà ứng dụng chủ yêu cầu, nguyên trạng: `auto` chừng nào nó chưa yêu cầu gì cả.",
       "unlit": "Đúng khi hình ảnh phải xuất ra dưới dạng albedo thô, không có ánh sáng. Đây là hành vi mặc định chừng nào chưa có nguồn sáng nào được khai báo: một cảnh không có nguồn sáng thì không có gì để chiếu sáng, và một hình ảnh đen sẽ chẳng giúp ích gì cho bài đo hình học nào. Ngay khi một nguồn sáng tồn tại, ánh sáng thật sẽ tiếp quản — trừ khi ứng dụng chủ đã yêu cầu rõ ràng góc nhìn chẩn đoán.",
@@ -2897,6 +2915,14 @@
   "SceneLightingView": {
     "summary": "Những gì ứng dụng chủ yêu cầu xem.",
     "description": "`lit` là ánh sáng thật và chỉ mình nó; `unlit` là góc nhìn chẩn đoán albedo thô — màu vật liệu nguyên trạng, không ánh sáng, không ánh sáng môi trường xung quanh và không phát sáng — dành cho các bài đo hình học so sánh hình ảnh chính xác từng điểm ảnh. `auto`, giá trị mặc định, cho ra `unlit` chừng nào chưa có nguồn sáng nào được khai báo và `lit` ngay khi có một nguồn. `bounce` là góc nhìn chẩn đoán thứ ba: chỉ riêng độ rọi gián tiếp, nhân với độ phơi sáng và xuất ra dưới dạng giá trị tuyến tính không có ACES hay sRGB. Đây là thứ mà bộ khai thác so sánh với hàm sấm truyền của trình biên dịch; nó không phải một hình ảnh để nhìn ngắm, và nó đen thui nếu không có một lần dội được dàn dựng."
+  },
+  "SceneLinearFog": {
+    "summary": "Sương mù bắt đầu từ `near` và che hết mọi thứ từ `far` trở đi, khoảng cách tính từ mắt.",
+    "members": {
+      "color": "Bức xạ mà sương mù làm mờ vật thể vào, RGB tuyến tính.",
+      "near": "Khoảng cách từ mắt nơi sương mù bắt đầu.",
+      "far": "Khoảng cách từ mắt nơi chỉ còn thấy sương mù."
+    }
   },
   "SceneLink": {
     "summary": "Những gì một node báo cáo cho thế giới mà nó treo vào: một tư thế đã di chuyển, cây đã thay đổi, một nội dung đã thay đổi.",
@@ -3304,7 +3330,7 @@
       "baseMetal": "Màu nền RGB, tính kim loại A.",
       "normalRough": "Pháp tuyến thế giới XYZ, độ nhám A.",
       "emissiveAo": "Phát sáng RGB, occlusion môi trường xung quanh A.",
-      "flags": "0 nền, 1 không ánh sáng, 2 đọc, 3 chẩn đoán không gian hiển thị.",
+      "flags": "0 nền, 1 không chiếu sáng (có sương mù), 2 được đọc, 3 hiển thị nguyên trạng: một chẩn đoán, một góc nhìn pháp tuyến hoặc độ sâu.",
       "views": "Các view kết cấu GPU của nó.",
       "dispose": "Giải phóng nó."
     }
@@ -5387,7 +5413,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5425,7 +5451,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5463,7 +5489,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5501,7 +5527,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5539,7 +5565,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5577,7 +5603,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5615,7 +5641,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5653,7 +5679,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5691,7 +5717,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5729,7 +5755,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5767,7 +5793,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5805,7 +5831,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5843,7 +5869,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -5881,7 +5907,7 @@
       "parameters.flatShading": "Cho mỗi tam giác một sắc thái phẳng duy nhất, để lộ các mặt của nó.",
       "parameters.size": "Kích thước của một chấm, cho vật liệu điểm.",
       "parameters.sizeAttenuation": "Liệu các chấm có nhỏ dần theo khoảng cách hay không.",
-      "parameters.linewidth": "Chiều rộng của một đường thẳng.",
+      "parameters.linewidth": "Độ rộng của một đường thẳng tính bằng pixel CSS, như nhau ở mọi khoảng cách.",
       "parameters.dashSize": "Chiều dài của một nét gạch.",
       "parameters.gapSize": "Chiều dài khoảng trống giữa hai nét gạch.",
       "parameters.vertexColors": "Liệu `color` theo từng đỉnh của hình học có tô màu bề mặt hay không.",
@@ -6619,8 +6645,8 @@
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
       "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn pool bóng đổ bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy.",
-      "cpu": "Số byte bộ nhớ CPU mà các trang đã giải mã của thế giới được giữ; áp dụng ở lần tải cảnh kế tiếp.",
-      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bộ đệm trang đã giải mã lấy tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
+      "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: trước hết là bản sao phía host của bảng trang bóng, rồi các trang đã giải mã; áp dụng ở lần tải cảnh kế tiếp. Tổng không vượt quá bản sao bị từ chối (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Không bao giờ đọc từ máy.",
+      "split": "Cách chia hai tổng: pool bóng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {

@@ -6,7 +6,7 @@ import type { WorldRenderer } from '../capability/worldReady.ts';
 import { holdWorldDevice } from './worldDevice.ts';
 import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
-import { Scene, type LoadOptions } from './scene.ts';
+import { Scene, sceneFogOf, type LoadOptions } from './scene.ts';
 import { worldModelLoader } from './worldLoader.ts';
 import { createWorldRaycast } from './worldRaycast.ts';
 import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.ts';
@@ -71,7 +71,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
     frame: frames.dispatch,
     drawn: () => frames.last !== null,
-    display: () => ({ exposure, toneMapping }),
+    display: () => ({ exposure, toneMapping, fog: sceneFogOf(scene.fog) }),
     diagnostic,
   });
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);

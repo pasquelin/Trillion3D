@@ -28,6 +28,10 @@ export function writeFallbackBlendUniforms(
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       base = (uniformBase + i) * words;
+    // This path reads float positions and no direction: a line quad could not be widened
+    // (`lineClip`), and is refused by name rather than dropped.
+    if ((refreshSurface(item.surface).lineWidth ?? 0) > 0)
+      throw new Error('FALLBACK_TRANSPARENT_LINES_UNSUPPORTED');
     uniformPacked.set(viewProj, base);
     uniformPacked.set(item.matrix.elements, base + 16);
     uniformPacked[base + 32] = item.rgba[0];
@@ -38,6 +42,7 @@ export function writeFallbackBlendUniforms(
     packedInts[base + 37] = item.count;
     packedInts[base + 38] = run.diagnostic === 'wireframe' ? 1 : 0;
     packedInts[base + 39] = item.flags;
+    uniformPacked[base + 40] = 0;
   }
   device.queue.writeBuffer(
     uniformBuffer,
