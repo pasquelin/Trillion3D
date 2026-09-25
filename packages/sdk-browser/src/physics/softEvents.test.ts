@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CommandWriter, EVENT, EVENT_WORDS, FLAG } from '../../../sdk-core/src/physics/index.ts';
-import { body } from './module.fixture.ts';
+import { CommandWriter, EVENT, FLAG } from '../../../sdk-core/src/physics/index.ts';
+import { body, events } from './module.fixture.ts';
 import type { Module } from './module.fixture.ts';
 import { addBox, at, flatCloth, settle, softWorld } from './soft.fixture.ts';
 
@@ -11,12 +11,7 @@ const FLOOR = 1 << 24,
 /** A step's events: `[type, a, b, impulse]`. */
 function step(jolt: Module, words: Uint32Array | null = null) {
   jolt.step(words, 1 / 60);
-  const e = jolt.events(),
-    f = new Float32Array(e.buffer, e.byteOffset, e.length);
-  return Array.from({ length: e.length / EVENT_WORDS }, (_, r) => {
-    const at = r * EVENT_WORDS;
-    return [e[at], e[at + 1], e[at + 2], f[at + 3]];
-  });
+  return events(jolt);
 }
 /** Steps until an event of `type` between `a` and `b` (in either order), at most `seconds`; the
  *  first step runs `words`. */
