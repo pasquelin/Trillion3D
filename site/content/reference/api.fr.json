@@ -15,6 +15,13 @@
       "clipTime": "Où en est l’action dans le clip, selon son mode de boucle."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Le plus grand canevas qu’un budget déclare : les cibles de la chaîne d’effets sont réservées à sa taille.",
+    "members": {
+      "width": "Largeur en pixels du tampon de dessin.",
+      "height": "Hauteur en pixels du tampon de dessin."
+    }
+  },
   "adaptivePixelError": {
     "summary": "Le seuil adaptatif monte avec la vitesse de la caméra pour qu’une vue en mouvement puisse simplifier ; une vue immobile garde le pixelError de base."
   },
@@ -291,6 +298,28 @@
   "Blending": {
     "summary": "Comment une surface se mélange à ce qu’il y a derrière, par son nom."
   },
+  "Bloom": {
+    "summary": "La lumière qui déborde autour de ce qui brille, comme une lentille la répand.",
+    "description": "Physiquement fondé : il agit sur la radiance linéaire de la scène, avant le tone mapping, sans seuil, et conserve l’énergie — le halo est une copie floutée de l’image mélangée à elle, donc la lumière totale reste ce qu’elle était.",
+    "parameters": {
+      "options": "Ce qu’une page peut donner à `effect.bloom`.",
+      "options.intensity": "Part de l’image remplacée par son halo, de 0 (aucune) à 1 (le halo seul).",
+      "options.radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; 1 est le filtre publié."
+    },
+    "members": {
+      "kind": "Quelle passe intégrée c’est.",
+      "stage": "Si elle agit avant ou après le tone mapping.",
+      "intensity": "Part de l’image remplacée par son halo, de 0 à 1.",
+      "radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; au-dessus de 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Ce qu’une page peut donner à `effect.bloom`.",
+    "members": {
+      "intensity": "Part de l’image remplacée par son halo, de 0 (aucune) à 1 (le halo seul).",
+      "radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; 1 est le filtre publié."
+    }
+  },
   "blocksAcross": {
     "summary": "Blocs le long de `texels`, le dernier complété par le bord quand le côté n’est pas un multiple."
   },
@@ -460,7 +489,7 @@
     "description": "`memory(world)` est ce que le monde tient maintenant (`world.budget`) ; les deux réservoirs construisent le réglage que prend un monde."
   },
   "budget.memory": {
-    "summary": "Les budgets de mémoire que tient un monde en ce moment : les totaux GPU et CPU, leur partage par la règle, les deux réservoirs et le maximum de chacun."
+    "summary": "Les budgets de mémoire que tient un monde en ce moment : les totaux GPU et CPU, leur partage par la règle, les deux réservoirs et le maximum de chacun, et le canvas auquel sont réservées les cibles d’effets."
   },
   "budget.geometryPool": {
     "summary": "Un réglage de réservoir de géométrie de `bytes`, prêt à donner à un monde.",
@@ -1168,7 +1197,7 @@
   },
   "createShadowPlan": {
     "summary": "Le planificateur des ombres virtuelles.",
-    "description": "L’ombrage note les pages qu’il lit ; leur rapport, relu quelques images plus tard, alloue ce qui manque dans le pool fixe. Ce qui bouge rend périmées les pages déjà allouées qu’il couvre. Une image dessine ensuite les pages périmées que l’image lit — les grossières d’abord, jusqu’à un budget en millisecondes —, et le reste attend, jamais perdu, son retard publié. Une scène immobile, dont l’ombrage ne tourne plus, ne demande rien et ne dessine rien. Tous les tableaux sont alloués une fois ; `plan()` n’alloue rien."
+    "description": "L’ombrage note les pages qu’il lit ; leur rapport, relu quelques images plus tard, alloue ce qui manque dans le pool fixe. Ce qui bouge rend périmées les pages déjà allouées qu’il couvre. Une image dessine ensuite chaque page périmée que l’image lit, toutes dans cette image : ce qui tient le coût est le cache — une page n’est redessinée que si ce qu’elle contient a changé —, et le pool est la seule limite. Une scène immobile, dont l’ombrage ne tourne plus, ne demande rien et ne dessine rien. Tous les tableaux sont alloués une fois ; `plan()` n’alloue rien."
   },
   "createTerminalProgress": {
     "summary": "Une barre de progression dans le terminal qui suit les évènements du compilateur.",
@@ -1479,6 +1508,17 @@
   "edge": {
     "summary": "Fonction d’arête 2D (produit vectoriel 2D)."
   },
+  "effect": {
+    "summary": "La famille `effect` : les passes que `world.effects` dessine sur l’image."
+  },
+  "effect.bloom": {
+    "summary": "Un halo autour de ce qui brille, sur l’image linéaire avant le tone mapping.",
+    "parameters": {
+      "options": "`intensity` et `radius` ; les valeurs publiées s’ils sont absents.",
+      "options.intensity": "Part de l’image remplacée par son halo, de 0 (aucune) à 1 (le halo seul).",
+      "options.radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; 1 est le filtre publié."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Une irradiance vide, prête à recevoir des sources."
   },
@@ -1625,6 +1665,33 @@
   "EXPLORER_OPTIONS_SCHEMA": {
     "summary": "Schéma JSON complet qui documente toutes les options de départ de l’explorateur Trillion3D (MeasuredWorldOptions).",
     "description": "Permet aux LLM de comprendre, vérifier et régler la configuration du moteur 3D."
+  },
+  "EffectChain": {
+    "summary": "`world.effects` : les passes ordonnées dessinées sur l’image après l’antialiasing temporel et avant qu’elle n’atteigne le canvas.",
+    "description": "Les passes qui agissent avant le tone mapping lisent la radiance linéaire, dans l’ordre où elles ont été ajoutées ; celles qui agissent après lisent l’image affichée, dans le leur. Une chaîne vide ne coûte rien : aucune passe, aucune copie, aucune cible.",
+    "members": {
+      "revision": "Compte les changements : une image dessinée à une autre révision est périmée.",
+      "passes": "Les passes, dans l’ordre où elles s’exécutent.",
+      "size": "Combien de passes la chaîne contient.",
+      "add": "Met une passe dans la chaîne, à la fin ou à `index`. Une passe appartient à une seule chaîne à la fois.",
+      "remove": "Retire une passe de la chaîne ; false si elle n’y était pas.",
+      "clear": "Retire toutes les passes : l’image redevient celle sans la chaîne.",
+      "stage": "Les passes d’une étape, dans l’ordre de la chaîne : la liste qu’un moteur exécute. Gardée d’un changement à l’autre, pour qu’une image n’alloue rien."
+    }
+  },
+  "EffectKind": {
+    "summary": "Les passes intégrées qu’un moteur sait dessiner."
+  },
+  "EffectPass": {
+    "summary": "Une passe de la chaîne.",
+    "description": "Une passe dit quelle passe intégrée elle est et où elle agit ; ses réglages sont des propriétés dont l’écriture atteint le monde tout de suite, comme ceux d’une lumière.",
+    "members": {
+      "kind": "Quelle passe intégrée c’est.",
+      "stage": "Si elle agit avant ou après le tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Où se place une passe par rapport à la courbe d’affichage : sur la radiance linéaire de la scène, avant que l’exposition et la courbe ne l’amènent dans la plage d’affichage, ou sur l’image affichée qu’elles ont produite."
   },
   "exportLightingGltf": {
     "summary": "Du glTF et un tampon binaire séparé en little-endian ; les adaptateurs gèrent l’enregistrement."
@@ -2429,7 +2496,8 @@
       "toneMapping": "La courbe d’affichage choisie par la scène ; ACES si elle manque.",
       "framebuffer": "Où dessiner ; `null` pour l’écran.",
       "width": "Largeur en pixels.",
-      "height": "Hauteur en pixels."
+      "height": "Hauteur en pixels.",
+      "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture."
     }
   },
   "HostMaterial": {
@@ -2811,9 +2879,6 @@
       "tileSize": "Côté en pixels d’une tuile d’écran de la liste de lumières.",
       "samplesPerPixel": "Lumières éclairées en entier — lecture de l’ombre comprise — par pixel d’une image EN MOUVEMENT (X2) : les autres sont pesées sans leur ombre, et celles qu’on éclaire sont tirées au sort en proportion, donc l’estimation est sans biais et l’anticrénelage temporel en fait la moyenne. Une image immobile éclaire chaque lumière de sa tuile et converge vers la somme exacte ; là, ce nombre ne joue aucun rôle.",
       "shadowPage": "Côté d’une page de l’atlas d’ombres, en texels : la case d’invalidation d’une face. Un objet qui bouge ne rend périmées que les pages que couvre sa boîte projetée, jamais toute la face.",
-      "shadowBudgetMs": "Budget de l’étape des ombres, en millisecondes GPU par image (X4, RX3). Les pages invalidées au-delà attendent leur tour ; elles ne sont jamais perdues, et leur retard est publié.",
-      "shadowAgingPerFrame": "Poids de l’attente dans la priorité d’une page, par image passée en file : contre l’abandon.",
-      "shadowCostBlend": "Part de la mesure d’une image dans le coût moyen d’une page : un lissage exponentiel de la minuterie.",
       "pcfTaps": "Prises PCF par pixel et par lumière à ombre (X2).",
       "spotEdgeSoftness": "Largeur du bord adouci du cône d’un spot, en unités de cosinus : contre l’effet d’escalier.",
       "sunFarShadowOffsetMetres": "Décalage de l’origine du rayon d’ombre lointaine le long de la normale, en mètres. Il ne sert qu’à quitter le plan de la surface éclairée ; le vrai remède contre l’auto-ombrage est le départ le long du rayon, plus bas.",
@@ -2824,7 +2889,7 @@
       "shadowNearFraction": "Plan proche d’une tranche : une part de la portée, jamais moins que ce plancher.",
       "shadowNearMin": "Distance d’ombre la plus proche.",
       "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de tranche. C’est ce qui ferme la couture entre deux faces d’une lumière ponctuelle et retire l’acné rasante ; il est en texels et non en mètres pour rester proportionnel à la résolution qu’a obtenue la lumière.",
-      "shadowPagesPerFrame": "Pages d’ombre dessinées au plus par image : le plafond des tampons, jamais un réglage de qualité. Le budget en millisecondes s’arrête presque toujours avant ; ce plafond n’est qu’une borne ultime, et la seule limite d’un appareil sans horloge GPU.",
+      "shadowPagesPerBatch": "Pages d’ombre qu’un lot GPU dessine : la taille des tampons d’un lot, jamais une limite de l’image. Une image dessine chaque page qu’elle marque, en autant de lots qu’il faut.",
       "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSide`).",
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
       "sunLevels": "Niveaux du clipmap d’une lumière directionnelle. Le niveau `L` a des texels de `2^L` mètres, et un pixel lit le niveau dont le texel est au plus son empreinte : seize niveaux couvrent un rapport lointain/proche de 2^15. Au-delà du dernier niveau, l’ombre lointaine prend le relais.",
@@ -5377,21 +5442,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "Quelles régions d’ombre sont dessinées à cette image, et lesquelles attendent.",
+    "summary": "Le travail d’ombre de l’image : quelles pages virtuelles sont dessinées.",
     "members": {
-      "budget": "Budget de temps.",
       "counts": "Nombres pour le diagnostic.",
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",
       "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : les boîtes tenues entrent tout de suite dans la liste, où les lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
-      "observeCost": "Minuterie de la passe Ombres d’une image, rapportée aux pages qu’elle a redessinées.",
-      "setBudgetMs": "Budget publié par l’hôte ; une valeur non finie ou négative est refusée, pas arrondie.",
       "setPageInvalidation": "Coupe l’invalidation par page : chaque face touchée repart en entier. Actif par défaut.",
       "pageInvalidation": "Pages à redessiner.",
-      "plan": "Choisit les régions de cette image. Renvoie leur nombre ; `plan.regions` les décrit une par une, et les pages qu’elles couvrent sont déjà retirées de la file.",
-      "reissue": "Les régions de cette image n’ont pas pu être encodées : leurs pages retournent dans la file. Elles l’avaient quittée à l’admission, parce que le planificateur et la passe ne se parlent que par cette liste ; si la passe ne dessine rien, la file doit les retrouver.",
+      "plan": "Planifie une image : rend périmé ce qui a bougé, lit le dernier rapport, admet chaque page à dessiner.",
+      "reissue": "Les pages de l’image à partir de `from` n’ont pas pu être encodées : elles restent périmées, en attente, et l’image suivante les dessine.",
       "reset": "Recommence.",
       "setThreshold": "Le seuil auquel les coupes de lumière choisissent leurs projeteurs d’ombre (`thresholds.ts`).",
       "table": "La table des pages : un mot par page virtuelle, et la plage que chaque lumière y tient.",
@@ -5399,11 +5461,11 @@
       "sun": "Le clipmap de chaque soleil : son repère, sa plage de profondeur, son niveau le plus fin et ses fenêtres.",
       "records": "Les tranches d’ombre, une par lumière qui projette une ombre.",
       "requests": "Les rapports de demandes relus : ce que le dernier a nommé, alloué ou refusé.",
-      "admission": "Les pages de cette image, dans l’ordre d’admission.",
+      "admission": "Les pages de cette image, vue de lumière par vue de lumière.",
       "stamp": "Ce que l’ombrage, les lumières et la vue confient à l’image suivante : un rapport qui porte ce tampon et ne nomme rien de neuf prouve que l’image ne lit que des pages dessinées.",
       "settled": "Vrai dès qu’un rapport prouve que l’état courant ne demande plus rien : l’image peut être tenue.",
       "receive": "Un rapport de demandes est revenu ; le prochain plan le lit. Un plus récent remplace un rapport non lu.",
-      "commit": "Les pages de l’image ont été encodées : leurs dessins arrivent avant que quiconque les lise."
+      "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste."
     }
   },
   "ShadowViewpoint": {
@@ -6499,6 +6561,9 @@
     "summary": "L’anticrénelage temporel : un décalage sous-pixel accumulé au fil des images ; activé par défaut.",
     "description": "Écrit, il prend effet à l’image suivante, historique abandonné, sans rouvrir de session. Lu, c’est ce que porte l’image : false en WebGL2, et pendant que le programme se compile après l’avoir activé."
   },
+  "world.effects": {
+    "summary": "La chaîne d’effets : les passes dessinées sur l’image (`effect`)."
+  },
   "world.budget": {
     "summary": "Les réservoirs de mémoire du monde, lus et réglés en octets.",
     "members": {
@@ -6509,8 +6574,9 @@
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
       "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous le réservoir d’ombres est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
+      "canvas": "Le plus grand canvas que le monde déclare, en pixels du tampon de dessin : les cibles de la chaîne d’effets sont réservées à sa taille (`split.effectTargets`) ; 3840 × 2160 par défaut, et le `gpu` par défaut ne grandit que de cette réserve. Règle-le pour redistribuer chaque réservoir par la règle. Un canvas dessiné plus grand est quand même rendu en entier : les diagnostics disent `effect targets over budget` avec les octets au-delà de la réserve.",
       "cpu": "Octets de mémoire CPU que le monde peut tenir : d’abord le miroir hôte de la table des pages d’ombre, puis les pages décodées, leurs tables de manifeste, leur file de transferts et les tables de coupe du moteur ensemble. Un changement s’applique aussitôt : les pages partent par dernier usage jusqu’à tenir. Un total qui ne dépasse pas le miroir est refusé (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Jamais lu sur la machine.",
-      "split": "Le partage des deux totaux : le réservoir d’ombres et les sondes de rebond à leur maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU, tout entier, et la session en place y réserve ses tables de manifeste, sa file de transferts et les tables de coupe du moteur. Ce que donne la règle, avant un réservoir réglé seul."
+      "split": "Le partage des deux totaux : le réservoir d’ombres et les sondes de rebond à leur maximum, les cibles de la chaîne d’effets sur le `canvas` déclaré, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU, tout entier, et la session en place y réserve ses tables de manifeste, sa file de transferts et les tables de coupe du moteur. Ce que donne la règle, avant un réservoir réglé seul."
     }
   },
   "world.diagnostic": {

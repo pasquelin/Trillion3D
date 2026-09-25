@@ -7,17 +7,18 @@ import {
   BOUNCE_PROBE_BYTES,
   DEFAULT_CPU_BUDGET,
   DEFAULT_GPU_BUDGET,
+  EFFECT_TARGET_BYTES,
   SHADOW_HOST_BYTES,
   SHADOW_POOL_BYTES,
 } from '../../residency/memoryBudget.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_BATCH_GPU_BYTES, SHADOW_BATCH_HOST_BYTES } from '../../gpu/shadow/batchBudget.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import {
   SHADOW_TABLE_ENTRIES,
   shadowPoolSide,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
-import { createShadowPool } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+import { createShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
@@ -75,6 +76,7 @@ test("the default totals split into each pool's own default", () => {
   assert.deepEqual(handle.split, {
     shadowPool: SHADOW_POOL_BYTES,
     bounceProbes: BOUNCE_PROBE_BYTES,
+    effectTargets: EFFECT_TARGET_BYTES,
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
     shadowMirror: SHADOW_HOST_BYTES,
@@ -86,19 +88,18 @@ test("the default totals split into each pool's own default", () => {
 test('the shadow share counts the fixed page table, the same on every screen', () => {
   assert.ok(SHADOW_BUFFER_BYTES >= SHADOW_TABLE_ENTRIES * 4);
   const side = shadowPoolSide(Infinity, Infinity);
-  // The depth atlas, its static layer, and the transmittance layer of the blended casters: 8
-  // bytes per 4 page texels, 128 MiB beside the two 256 MiB depth textures.
+  // The atlas and its static layer, 256 MiB each; the blended casters' transmittance, 128 MiB.
   assert.equal(shadowTransmittanceBytes(side), 128 * MiB);
   assert.equal(shadowAtlasBytes(side), 256 * MiB);
   const pool = 2 * shadowAtlasBytes(side) + shadowTransmittanceBytes(side);
-  assert.equal(SHADOW_POOL_BYTES, pool + SHADOW_BUFFER_BYTES);
+  assert.equal(SHADOW_POOL_BYTES, pool + SHADOW_BUFFER_BYTES + SHADOW_BATCH_GPU_BYTES);
   assert.equal(budget('webgpu', null).split.shadowPool, SHADOW_POOL_BYTES);
 });
 
 test('the CPU total counts the shadow table host mirror before the page cache', () => {
-  // What a real table and pool allocate at the largest pool, whatever the screen: one size.
-  const side = shadowPoolSide(Infinity, Infinity);
-  const host = createShadowTable(side * side).hostBytes + createShadowPool(side).hostBytes;
+  // What a real table, pool and list allocate at the largest pool, whatever the screen: one size.
+  const { table, pool, admission } = createShadowPlan(shadowPoolSide(Infinity, Infinity));
+  const host = table.hostBytes + pool.hostBytes + admission.hostBytes + SHADOW_BATCH_HOST_BYTES;
   assert.equal(SHADOW_HOST_BYTES, host);
   assert.ok(SHADOW_HOST_BYTES > SHADOW_TABLE_ENTRIES * 5, 'the words and their change flags');
   assert.equal(DEFAULT_CPU_BUDGET, SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES);
@@ -110,8 +111,7 @@ test('the CPU total counts the shadow table host mirror before the page cache', 
   }
 });
 
-/** The shadows and the probes: the fixed GPU share, before the two halves. */
-const FIXED = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES;
+const FIXED = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + EFFECT_TARGET_BYTES;
 
 test('a GPU total redraws every pool by the split, and the pools never sum past it', () => {
   for (const total of [FIXED + 2 * MiB, FIXED + 300 * MiB, 8192 * MiB]) {

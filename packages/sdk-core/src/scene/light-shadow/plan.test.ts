@@ -23,7 +23,7 @@ import {
  *  its view reaches, the camera on their corner; returns what the tests read it by. */
 function sunScene() {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   store.add(SUN);
   planFrame(plan, store, 0);
   plan.commit();
@@ -47,16 +47,6 @@ test('the pages the shading reads are mapped and drawn the frame their report co
   plan.commit();
   for (const entry of pages) assert.ok(plan.table.words[entry] & PAGE_VALID, 'readable once drawn');
   assert.equal(plan.counts.poolPages, 3 + 4);
-});
-
-test('a frame admits the pages of no more views than its limit, the rest wait for the next', () => {
-  const { store, plan, slice, level, pages } = sunScene();
-  const coarser = sunPages(plan, slice, level + 1, [[0, 0]]);
-  report(plan, store, 0, [...pages, ...coarser]);
-  plan.admission.setViewLimit(1);
-  assert.equal(planFrame(plan, store, 1), 1, 'the coarser view first: its one page');
-  plan.commit();
-  assert.equal(planFrame(plan, store, 2), 3, 'every page of the view that waited');
 });
 
 test('past its first frame, a page nobody reads is never drawn, and a still scene draws nothing', () => {
@@ -112,7 +102,7 @@ test('a light removed gives its pages back to the pool and its range back to the
 
 test('coarse pages are served first, and a full pool evicts only pages no report still names', () => {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   store.add({ ...SUN, kind: 'point', position: [0, 3, 0], range: 20, direction: undefined });
   planFrame(plan, store, 0);
   const slice = store.sliceOf(0);
@@ -163,7 +153,7 @@ test('an object already moving stales only the moving casters of the pages it cr
 
 test('a light that moves reads none of its pages until each is drawn again', () => {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
   planFrame(plan, store, 0);
   const pages = lampPages(plan, store.sliceOf(0), 0, 4),
@@ -173,15 +163,18 @@ test('a light that moves reads none of its pages until each is drawn again', () 
   assert.ok(pages.every((entry) => word(entry) === (PAGE_MAPPED | PAGE_VALID)));
   // Its depth was drawn from the old position: the record the shading reads is the new one.
   store.set('lamp', { position: [0, 4, 0] });
-  // A page costs the whole budget: one a frame.
-  plan.observeCost(plan.budget.budgetMs, 1);
   planFrame(plan, store, 3);
   assert.ok(
     pages.every((entry) => word(entry) === PAGE_MAPPED),
     'mapped, not readable',
   );
   plan.commit();
-  assert.ok(word(lampFloor(plan, store.sliceOf(0), 0)) & PAGE_VALID, 'its floor first, always');
+  assert.ok(
+    [...pages, lampFloor(plan, store.sliceOf(0), 0)].every(
+      (entry) => word(entry) === (PAGE_MAPPED | PAGE_VALID),
+    ),
+    'every page, its floor too, drawn again in the frame',
+  );
 });
 
 test('a stale page no report names is not left readable to a pass that reads without asking', () => {

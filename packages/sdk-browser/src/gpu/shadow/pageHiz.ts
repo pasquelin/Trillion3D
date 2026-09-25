@@ -3,6 +3,8 @@ import { createHizPipelines } from '../hiz/pipelines.ts';
 import { writeHizLevelUniforms } from '../hiz/uniforms.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
+import { shadowBatchWrites } from './batchWrites.ts';
+import { PAGE_BOUNDS_WORDS } from './batchBudget.ts';
 
 const UNIFORM_BYTES = 256;
 /** Levels of a page's pyramid, from the page's 128 texels down to one. */
@@ -14,8 +16,6 @@ export const PAGE_HIZ_OFFSETS = Array.from({ length: PAGE_HIZ_LEVELS }, (_, leve
   return offset;
 });
 export const PAGE_HIZ_WORDS = PAGE_HIZ_OFFSETS[PAGE_HIZ_LEVELS - 1] + 1;
-/** Words of one `Bounds` entry of the Hi-Z layout: its level-0 origin is its first two. */
-const BOUNDS_WORDS = 12;
 
 /**
  * THE DEPTH PYRAMIDS OF THE STATIC LAYER'S PAGES, built by the camera's own Hi-Z kernels
@@ -36,7 +36,10 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
       size: MAX_SHADOW_PAGES * PAGE_HIZ_WORDS * 4,
       usage: GPUBufferUsage.STORAGE,
     }),
-    origins = device.createBuffer({ size: MAX_SHADOW_PAGES * BOUNDS_WORDS * 4, usage: storage }),
+    origins = device.createBuffer({
+      size: MAX_SHADOW_PAGES * PAGE_BOUNDS_WORDS * 4,
+      usage: storage,
+    }),
     // The layout's verdict and state bindings: the page pyramids write neither, and two writable
     // bindings may not share a buffer.
     idleFlags = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
@@ -69,7 +72,7 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
       { binding: 5, resource: { buffer: idleState } },
     ],
   });
-  const originWords = new Int32Array(MAX_SHADOW_PAGES * BOUNDS_WORDS);
+  const originWords = new Int32Array(MAX_SHADOW_PAGES * PAGE_BOUNDS_WORDS);
   return {
     pyramid,
     /** Builds the pyramids of `count` pages, whose level-0 texel origins `origin(i)` gives. */
@@ -79,8 +82,8 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
       origin: (page: number, out: Int32Array, at: number) => void,
     ) {
       if (!count) return;
-      for (let page = 0; page < count; page++) origin(page, originWords, page * BOUNDS_WORDS);
-      device.queue.writeBuffer(origins, 0, originWords, 0, count * BOUNDS_WORDS);
+      for (let page = 0; page < count; page++) origin(page, originWords, page * PAGE_BOUNDS_WORDS);
+      shadowBatchWrites(device).write(origins, 0, originWords, 0, count * PAGE_BOUNDS_WORDS);
       const pass = encoder.beginComputePass({ label: 'Trillion3D shadow page pyramids' });
       pass.setBindGroup(0, group, [0]);
       pass.setPipeline(pipelines.copyPipeline);

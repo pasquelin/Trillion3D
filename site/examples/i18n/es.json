@@ -115,6 +115,14 @@
       "takes": "captura"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Arrastra para mirar alrededor. Apaga el halo para ver las farolas sin él, o ensánchalo.",
+    "controls": {
+      "glow": "Halo",
+      "intensity": "Intensidad",
+      "radius": "Extensión"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Arrastra para mirar alrededor. Balancea el farol y mira moverse la luz.",
     "controls": {

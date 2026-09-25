@@ -115,6 +115,14 @@
       "takes": "mangia"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Trascina per guardarti intorno. Spegni l’alone per vedere i lampioni senza, oppure allargalo.",
+    "controls": {
+      "glow": "Alone",
+      "intensity": "Intensità",
+      "radius": "Estensione"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Trascina per guardarti intorno. Fai oscillare la lanterna e guarda muoversi la luce.",
     "controls": {

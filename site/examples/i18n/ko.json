@@ -115,6 +115,14 @@
       "takes": "잡음"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "드래그해서 둘러보세요. 글로를 끄고 등불만 보거나, 더 넓게 퍼뜨려 보세요.",
+    "controls": {
+      "glow": "글로",
+      "intensity": "세기",
+      "radius": "퍼짐"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "끌어서 둘러봐. 랜턴을 흔들고 빛이 움직이는 걸 봐.",
     "controls": {

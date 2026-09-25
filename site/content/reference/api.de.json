@@ -15,6 +15,13 @@
       "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Die größte Leinwand, die ein Budget angibt: Die Ziele der Effektkette werden in ihrer Größe reserviert.",
+    "members": {
+      "width": "Breite in Pixeln des Zeichenpuffers.",
+      "height": "Höhe in Pixeln des Zeichenpuffers."
+    }
+  },
   "adaptivePixelError": {
     "summary": "Die adaptive Schwelle steigt mit der Kamerageschwindigkeit, damit eine bewegte Ansicht vereinfachen kann; eine unbewegte Ansicht behält den Basis-pixelError."
   },
@@ -291,6 +298,28 @@
   "Blending": {
     "summary": "Wie sich eine Oberfläche mit dem mischt, was dahinter ist, nach ihrem Namen."
   },
+  "Bloom": {
+    "summary": "Licht, das um Helles herum überläuft, wie eine Linse es streut.",
+    "description": "Physikalisch basiert: Es wirkt auf die lineare Strahldichte der Szene, vor dem Tone Mapping, ohne Schwelle, und erhält die Energie — der Schein ist eine weichgezeichnete Kopie des Bildes, die eingemischt wird, sodass das gesamte Licht gleich bleibt.",
+    "parameters": {
+      "options": "Was eine Seite an `effect.bloom` übergeben kann.",
+      "options.intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "options.radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    },
+    "members": {
+      "kind": "Welcher eingebaute Durchgang das ist.",
+      "stage": "Ob er vor oder nach dem Tone Mapping läuft.",
+      "intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 bis 1.",
+      "radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; über 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Was eine Seite an `effect.bloom` übergeben kann.",
+    "members": {
+      "intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    }
+  },
   "blocksAcross": {
     "summary": "Blöcke entlang `texels`, der letzte durch den Rand ergänzt, wenn die Seite kein Vielfaches ist."
   },
@@ -460,7 +489,7 @@
     "description": "`memory(world)` ist das, was die Welt jetzt hält (`world.budget`); die beiden Reservoirs bauen die Einstellung, die eine Welt annimmt."
   },
   "budget.memory": {
-    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die GPU- und CPU-Summen, ihre Aufteilung nach der Regel, beide Pools und die Obergrenze jedes Pools."
+    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die GPU- und CPU-Summen, ihre Aufteilung nach der Regel, beide Pools und die Obergrenze jedes Pools, und die Leinwand, für die die Effektziele reserviert sind."
   },
   "budget.geometryPool": {
     "summary": "Eine Reservoir-Einstellung für Geometrie von `bytes`, bereit, einer Welt gegeben zu werden.",
@@ -1168,7 +1197,7 @@
   },
   "createShadowPlan": {
     "summary": "Der Schattenplaner der virtuellen Karten.",
-    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild zeichnet dann die ungültigen Seiten, die das Bild liest — grobe zuerst, bis zu einem Millisekundenbudget —, und der Rest wartet, nie verloren, seine Verzögerung veröffentlicht. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
+    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild zeichnet dann jede ungültige Seite, die das Bild liest, alle in diesem Bild: die Kosten hält der Cache — eine Seite wird nur neu gezeichnet, wenn sich ihr Inhalt geändert hat —, und der Pool ist die einzige Grenze. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
   },
   "createTerminalProgress": {
     "summary": "Ein Fortschrittsbalken im Terminal, der die Ereignisse des Compilers verfolgt.",
@@ -1479,6 +1508,17 @@
   "edge": {
     "summary": "2D-Kantenfunktion (2D-Kreuzprodukt)."
   },
+  "effect": {
+    "summary": "Die Familie `effect`: die Durchgänge, die `world.effects` über das Bild zeichnet."
+  },
+  "effect.bloom": {
+    "summary": "Ein Schein um Helles, auf dem linearen Bild vor dem Tone Mapping.",
+    "parameters": {
+      "options": "`intensity` und `radius`; ohne Angabe die veröffentlichten Werte.",
+      "options.intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "options.radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Eine leere Bestrahlungsstärke, bereit, Quellen zu empfangen."
   },
@@ -1625,6 +1665,33 @@
   "EXPLORER_OPTIONS_SCHEMA": {
     "summary": "Vollständiges JSON-Schema, das alle Startoptionen des Trillion3D-Explorers dokumentiert (MeasuredWorldOptions).",
     "description": "Ermöglicht LLMs, die Konfiguration der 3D-Engine zu verstehen, zu prüfen und einzustellen."
+  },
+  "EffectChain": {
+    "summary": "`world.effects`: die geordneten Durchgänge, die nach dem temporalen Antialiasing über das Bild gezeichnet werden, bevor es den Canvas erreicht.",
+    "description": "Die Durchgänge vor dem Tone Mapping lesen die lineare Strahldichte, in der Reihenfolge, in der sie hinzugefügt wurden; die danach lesen das angezeigte Bild, in ihrer. Eine leere Kette kostet nichts: kein Durchgang, keine Kopie, kein Ziel.",
+    "members": {
+      "revision": "Zählt die Änderungen: Ein Bild, das bei einer anderen Revision gezeichnet wurde, ist veraltet.",
+      "passes": "Die Durchgänge, in der Reihenfolge, in der sie laufen.",
+      "size": "Wie viele Durchgänge die Kette enthält.",
+      "add": "Fügt einen Durchgang in die Kette ein, am Ende oder bei `index`. Ein Durchgang gehört jeweils zu einer Kette.",
+      "remove": "Nimmt einen Durchgang aus der Kette; false, wenn er nicht darin war.",
+      "clear": "Nimmt alle Durchgänge heraus: Das Bild ist wieder das ohne Kette.",
+      "stage": "Die Durchgänge einer Stufe, in Kettenreihenfolge: die Liste, die eine Engine ausführt. Von Änderung zu Änderung behalten, damit ein Bild nichts alloziert."
+    }
+  },
+  "EffectKind": {
+    "summary": "Die eingebauten Durchgänge, die eine Engine zeichnen kann."
+  },
+  "EffectPass": {
+    "summary": "Ein Durchgang der Kette.",
+    "description": "Ein Durchgang sagt, welcher eingebaute er ist und wo er läuft; seine Einstellungen sind Eigenschaften, deren Schreiben die Welt sofort erreicht, wie bei einem Licht.",
+    "members": {
+      "kind": "Welcher eingebaute Durchgang das ist.",
+      "stage": "Ob er vor oder nach dem Tone Mapping läuft."
+    }
+  },
+  "EffectStage": {
+    "summary": "Wo ein Durchgang relativ zur Anzeigekurve sitzt: auf der linearen Strahldichte der Szene, bevor Belichtung und Kurve sie in den Anzeigebereich bringen, oder auf dem angezeigten Bild, das sie erzeugt haben."
   },
   "exportLightingGltf": {
     "summary": "glTF und ein getrennter binärer Puffer in Little-Endian; die Adapter übernehmen das Speichern."
@@ -2421,7 +2488,8 @@
       "toneMapping": "Die von der Szene gewählte Anzeigekurve; ACES, wenn sie fehlt.",
       "framebuffer": "Wohin gezeichnet wird; `null` für den Bildschirm.",
       "width": "Breite in Pixeln.",
-      "height": "Höhe in Pixeln."
+      "height": "Höhe in Pixeln.",
+      "linear": "Lineare Strahldichte, weder durch die Kurve gebracht noch kodiert, über transparentem Schwarz: die Eingabe der Effektkette, deren Alpha die Abdeckung ist."
     }
   },
   "HostMaterial": {
@@ -2803,9 +2871,6 @@
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
-      "shadowBudgetMs": "Budget der Schattenphase, in GPU-Millisekunden pro Bild (X4, RX3). Darüber hinaus ungültig gemachte Seiten warten auf ihre Reihe; sie gehen nie verloren, und ihre Verzögerung wird veröffentlicht.",
-      "shadowAgingPerFrame": "Gewicht der Wartezeit in der Priorität einer Seite, pro in der Warteschlange verbrachtem Bild: gegen das Verhungern.",
-      "shadowCostBlend": "Anteil der Messung eines Bildes an den durchschnittlichen Kosten einer Seite: eine exponentielle Glättung der Zeitmessung.",
       "pcfTaps": "PCF-Abtastungen pro Pixel und pro Schattenlicht (X2).",
       "spotEdgeSoftness": "Breite des weichgezeichneten Randes des Kegels eines Spots, in Kosinuseinheiten: gegen den Treppeneffekt.",
       "sunFarShadowOffsetMetres": "Versatz des Ursprungs des fernen Schattenstrahls entlang der Normale, in Metern. Er dient nur dazu, die Ebene der beleuchteten Oberfläche zu verlassen; das wahre Mittel gegen Selbstverschattung ist der Start entlang des Strahls, weiter unten.",
@@ -2816,7 +2881,7 @@
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
       "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
-      "shadowPagesPerFrame": "Höchstzahl der pro Bild gezeichneten Schattenseiten: die Puffergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget greift fast immer zuerst; diese Grenze ist nur eine letzte Schranke und die einzige auf einem Gerät ohne GPU-Uhr.",
+      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels, nie eine Grenze des Bildes. Ein Bild zeichnet jede Seite, die es markiert, in so vielen Stapeln wie nötig.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
       "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
@@ -5369,21 +5434,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "Die Schattenarbeit des Bildes: welche virtuellen Seiten gezeichnet werden und welche warten.",
+    "summary": "Die Schattenarbeit des Bildes: welche virtuellen Seiten gezeichnet werden.",
     "members": {
-      "budget": "Das Millisekundenbudget der Schattenstufe und die gemessenen Kosten einer Seite.",
       "counts": "Was der letzte Plan getan hat, in Seiten.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
       "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
       "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltenen Boxen kommen sofort in die Liste.",
-      "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
-      "setBudgetMs": "Vom Host veröffentlichtes Budget in GPU-Millisekunden pro Bild.",
       "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: ein bewegtes Objekt macht jede Seite der Lichter ungültig, die es berührt. Standardmäßig aktiv.",
       "pageInvalidation": "Ob ein bewegtes Objekt nur die Seiten ungültig macht, die seine Box bedeckt.",
-      "plan": "Plant ein Bild: macht Bewegtes ungültig, liest den letzten Bericht, lässt die zu zeichnenden Seiten zu.",
-      "reissue": "Die Seiten des Bildes konnten nicht kodiert werden: sie bleiben ungültig und warten auf das nächste Bild.",
+      "plan": "Plant ein Bild: macht ungültig, was sich bewegt hat, liest den letzten Bericht, lässt jede zu zeichnende Seite zu.",
+      "reissue": "Die Seiten des Bildes ab `from` konnten nicht kodiert werden: sie bleiben ungültig, ausstehend, und das nächste Bild zeichnet sie.",
       "reset": "Beginnt neu.",
       "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
       "table": "Die Seitentabelle: ein Wort pro virtueller Seite und der Bereich, den jedes Licht darin hält.",
@@ -5391,11 +5453,11 @@
       "sun": "Die Clipmap jeder Sonne: ihr Bezugssystem, Tiefenbereich, feinste Stufe und Ausschnitte.",
       "records": "Die Schattenscheiben, eine pro schattenwerfendem Licht.",
       "requests": "Die zurückgelesenen Anforderungsberichte: was der letzte nannte, zuwies oder ablehnte.",
-      "admission": "Die Seiten dieses Bildes in Zulassungsreihenfolge.",
+      "admission": "Die Seiten dieses Bildes, Lichtansicht für Lichtansicht.",
       "stamp": "Was Schattierung, Lichter und Ansicht dem nächsten Bild übergeben: ein damit gestempelter Bericht, der nichts Neues nennt, beweist, dass das Bild nur Gezeichnetes liest.",
       "settled": "Wahr, sobald ein Bericht beweist, dass der aktuelle Zustand nichts anfordert: das Bild darf gehalten werden.",
       "receive": "Ein Anforderungsbericht kam zurück; der nächste Plan liest ihn. Ein neuerer ersetzt einen ungelesenen.",
-      "commit": "Die Seiten des Bildes wurden kodiert, jede in ihrem `modes`-Eintrag: ihre Zeichnungen landen, bevor etwas sie liest."
+      "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste."
     }
   },
   "ShadowViewpoint": {
@@ -6491,6 +6553,9 @@
     "summary": "Zeitliche Kantenglättung: Subpixel-Versatz, über Bilder hinweg akkumuliert; standardmäßig an.",
     "description": "Geschrieben, wirkt sie ab dem nächsten Bild, der Verlauf wird verworfen, keine Sitzung neu geöffnet. Gelesen, ist sie das, was das Bild trägt: false unter WebGL2 und solange das Programm nach dem Einschalten kompiliert."
   },
+  "world.effects": {
+    "summary": "Die Effektkette: Durchgänge, die über das Bild gezeichnet werden (`effect`)."
+  },
   "world.budget": {
     "summary": "Die Speicherreservoirs der Welt, in Bytes gelesen und eingestellt.",
     "members": {
@@ -6501,8 +6566,9 @@
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
       "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter dem Schatten-Pool wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
+      "canvas": "Die größte Leinwand, die die Welt angibt, in Pixeln des Zeichenpuffers: Die Ziele der Effektkette werden in ihrer Größe reserviert (`split.effectTargets`); standardmäßig 3840 × 2160, und das Standard-`gpu` wächst nur um diese Reserve. Setze sie, um jeden Pool nach der Aufteilung neu zu verteilen. Eine größer gezeichnete Leinwand wird trotzdem vollständig gerendert: Die Diagnose meldet `effect targets over budget` mit den Bytes über der Reserve.",
       "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten, ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine zusammen. Eine Änderung gilt sofort: Seiten gehen nach letzter Nutzung, bis sie passen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
-      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool und die Bounce-Sonden in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe, ganz, und darin reserviert die laufende Sitzung ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool und die Bounce-Sonden in voller Größe, die Ziele der Effektkette auf der angegebenen `canvas`, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe, ganz, und darin reserviert die laufende Sitzung ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {

@@ -20,7 +20,7 @@ describe('Trillion3D LLM Module', () => {
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.texturePoolBytes);
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.temporalAntialiasing);
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.pixelError);
-    assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.shadowBudgetMs);
+    assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.shadowPageInvalidation);
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.bounce);
     assert.deepEqual(EXPLORER_OPTIONS_SCHEMA.required, ['manifestUrl']);
   });

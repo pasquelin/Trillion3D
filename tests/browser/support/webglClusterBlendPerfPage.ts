@@ -7,7 +7,7 @@ import {
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
-import { median } from '../../kit/median.ts';
+import { median } from '../../../scripts/median.ts';
 
 /** A batch draw is always indexed (`submitClusterMesh` calls `drawElements`): the identity
  *  index keeps the same triangle order as the flat position layout below. */
