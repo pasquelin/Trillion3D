@@ -127,18 +127,27 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     transmissiveMeshes: blendState.transmissive,
   });
   // The float geometry of what no page covers, concatenated once; then, every vertex buffer
-  // allocated, the geometry pool is drawn from what they leave of its budget.
+  // allocated, the geometry pool is drawn from what they leave of its budget. A concatenation that
+  // fails is a material failure, as the textures' are: the pool is still granted, the visibility
+  // buffer dropped below.
+  throwIfStopped(rt);
   vis.geometryBlocks.clear();
-  ({
-    concatPos: vis.concatPos,
-    concatUv: vis.concatUv,
-    concatNrm: vis.concatNrm,
-  } = prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+  let geometryFailure: { error: unknown } | undefined;
+  try {
+    ({
+      concatPos: vis.concatPos,
+      concatUv: vis.concatUv,
+      concatNrm: vis.concatNrm,
+    } = prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+  } catch (error) {
+    geometryFailure = { error };
+  }
   await grantWebgpuPagesCache(rt, gpuDevice);
   const [width, height] = viewport;
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   ensureUniform(rt, gpuDevice, cap);
   try {
+    if (geometryFailure) throw geometryFailure.error;
     await step('textures', () => prepareWebgpuTextures(rt, gpuDevice));
     // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
     await step('blend resources', () => prepareBlendResources(rt, gpuDevice));
