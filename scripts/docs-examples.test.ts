@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { markdownLinks } from './check-links.ts';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
+import { observatoryMaterials } from './docs/observatory/scene.ts';
 import { exampleModules, thumbnailDelay } from './docs/examples/capture.ts';
 import exampleWords from '../site/examples/i18n/en.json' with { type: 'json' };
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
@@ -26,6 +27,10 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
+const [, limestone] = observatoryMaterials[0];
+const groundOfTheCourt = new RegExp(
+  `light\\.hemisphere\\(\\{[^}]*groundColor: \\[${limestone.slice(0, 3).join(', ')}\\]`,
+);
 await loadDictionary('fr');
 
 test('no Markdown page links an example parked until the engine draws it', () => {
@@ -81,9 +86,10 @@ test('every example is one standalone HTML file that imports the built engine', 
     const manifest = html.match(/scene\.load\('\.\.\/(assets\/[^']+)'\)/)?.[1];
     if (!manifest) continue;
     // #719: a scene file carries no sky (`KHR_lights_punctual` has none), so a page loading the
-    // outdoor gallery scene adds one; with the file's sun alone, what it misses is pure black.
-    if (manifest.startsWith('assets/gallery/'))
-      assert.match(html, /\blight\.hemisphere\(/, entry.id);
+    // outdoor observatory adds one, lit from below by the court's limestone as the source paints
+    // it; with the file's sun alone, what the sun misses is pure black.
+    if (manifest.startsWith('assets/gallery/signature-architecture/'))
+      assert.match(html, groundOfTheCourt, entry.id);
     await access(new URL(manifest, site));
     // A scene built around an imported model credits its author on the page, in its words.
     if (
