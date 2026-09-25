@@ -79,9 +79,9 @@ export function createPhysicsBodies(
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
       size = worldScaleOf(mesh);
-    const matter = physicsMatterOf(mesh.material);
     if (isSoftType(p.type))
       return hold(mesh, addSoftBody(writer, mesh, pose, size, claim, softMaps, flagsOf(mesh)));
+    const matter = physicsMatterOf(mesh.material);
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
     const id = claim(shape.triangles);
     writer.add({
