@@ -45,7 +45,7 @@ test('a copy is culled where its parent and its placements carry it', () => {
   const camera = readHostDrawCamera(createHostDrawCamera(), G.perspectiveCamera(60, 1, 0.1, 10)),
     copies = new WebglClusterCopies<G.GraphMesh>();
   const carried = copyAt(0),
-    parent = new G.GraphGroup();
+    parent = new G.Group();
   parent.position.set(100, 0, 0);
   parent.add(carried);
   parent.updateMatrixWorld();

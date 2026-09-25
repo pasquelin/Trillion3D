@@ -22,7 +22,7 @@ test("captureSurfaceView: cameraWorld is the world pose under a rig, not the hos
 
     // Two-level rig, which nobody but this test walks: the local camera keeps a trivial pose, and it
     // is the rig alone that carries translation and rotation.
-    const rig = new G.GraphNode();
+    const rig = new G.Object3D();
     rig.position.set(4, -2, 6);
     rig.rotation.set(0, Math.PI / 3, 0);
     const view = G.perspectiveCamera(55, 1, 0.1, 100);
