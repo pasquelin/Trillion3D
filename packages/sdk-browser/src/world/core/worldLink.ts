@@ -21,7 +21,8 @@ type Parts = {
  * What a world's scene tells its runtime: a pose moved (the row is written before the next
  * frame, the lights again when one it holds moved), a parent's children changed, or a mesh's
  * geometry or material was written (both resolved again, off the frame). A background change is
- * no change of structure: a frame is asked, which writes it (`worldBackground.ts`).
+ * no change of structure: a frame is asked, which writes it (`worldBackground.ts`); a fog change
+ * is written with the lights, like exposure.
  */
 export function createWorldLink(parts: Parts): WorldSceneLink {
   const { contents, lights, schedule } = parts;
@@ -64,6 +65,7 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
       parts.invalidate();
     },
     background: parts.invalidate,
+    fog: parts.relight,
   };
 }
 

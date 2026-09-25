@@ -360,6 +360,22 @@
       "up": "أعلى"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "اسحب لتنظر حولك. اختر الضباب ومداه ولونه.",
+    "controls": {
+      "fog": "الضباب",
+      "reach": "المدى",
+      "height": "الارتفاع",
+      "colour": "اللون"
+    },
+    "choices": {
+      "fog": {
+        "distance": "المسافة",
+        "thick": "كثيف",
+        "ground": "عند الأرض"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "اسحب لتنظر حولك. الخرزات تنزلق على طول الأنبوب.",
     "controls": {
