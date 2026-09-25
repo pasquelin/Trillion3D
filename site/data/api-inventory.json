@@ -9368,7 +9368,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/vehicleOptions.test.ts",
+        "packages/sdk-browser/src/physics/vehiclePowertrain.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VEHICLE_SPECS"
     },
@@ -9419,7 +9422,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/vehicles.fixture.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/vehicleOptions.test.ts",
+        "packages/sdk-browser/src/physics/vehiclePowertrain.test.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleOptions"
     },
