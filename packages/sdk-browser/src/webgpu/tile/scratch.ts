@@ -34,9 +34,9 @@ export function createTileScratch(
     width: number;
     height: number;
     format: GPUTextureFormat;
-    /** The atlas the texture serves: the colour one weighs its mip colours by alpha. */
+    /** The atlas the texture serves: the colour one weighs its mip colours by alpha, and names
+     *  the error a texture with neither texels nor a copyable image throws. */
     atlas: 'color' | 'data';
-    errorCode: string;
   },
 ): TileScratch {
   const { width, height, format } = options;
@@ -71,7 +71,11 @@ export function createTileScratch(
     } else {
       const image = map.image as GPUCopyExternalImageSource | undefined;
       if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
-        throw new Error(options.errorCode);
+        throw new Error(
+          options.atlas === 'color'
+            ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
+            : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
+        );
       device.queue.copyExternalImageToTexture(
         { source: image, flipY: map.flipY },
         { texture, premultipliedAlpha: map.premultiplyAlpha },
