@@ -2,6 +2,8 @@
 // the real bricks: the world runtime on a compiled cache of the repository, the frame scheduler,
 // and the WebGPU pages backend — its GPU cut included — on the mock device. Every frame drawn
 // must settle, the loop must go idle on its own, and the node must leave the image and return.
+// Each frame awaits the engine's own drain (`pendingFrame`), never a count of event-loop turns: a
+// drain that never settles is a hung test, which the runner's bound names; nothing waits on it.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { worldModelLoader } from './worldLoader.ts';
@@ -28,12 +30,6 @@ import type { ExplorerSource } from '../session/prepare.ts';
 
 const MODEL = `${HOST}assets/examples/a-model-from-obj/cache/native/full/manifest.json`;
 const NODE = 'white-queen-d1';
-/** Event-loop turns a frame's drain is given on the mock device, far above what it takes. Turns
- *  spent while a page is read from disk do not count: a finer cut streams pages, and the disk is
- *  not the stall this bound catches. */
-const TURNS = 100;
-const nextTurn = () => new Promise((done) => setImmediate(done));
-
 /** The pages backend, with the drawn page list its tests read. */
 type Paged = ReturnType<typeof webgpuPagesBackend> & { selectedPageIds(): string[] };
 
@@ -101,7 +97,12 @@ function openOnMockGpu(camera: ReturnType<typeof G.perspectiveCamera>, node: str
   return { open, opened };
 }
 
-test('a compiled node hidden 60 frames after load: every frame settles, it leaves and returns', async () => {
+const HIDDEN_AND_SHOWN =
+  'a compiled node hidden 60 frames after load: every frame settles, it leaves and returns';
+/** Names a drain that never settles, far above the test's own time; nothing waits on it. */
+const HUNG = { timeout: 60_000 };
+
+test(HIDDEN_AND_SHOWN, HUNG, async () => {
   installGpuGlobals();
   const camera = G.perspectiveCamera(50, 1, 0.1, 100);
   const { open, opened } = openOnMockGpu(camera, NODE);
@@ -114,35 +115,32 @@ test('a compiled node hidden 60 frames after load: every frame settles, it leave
   const backend = opened.backend!;
   // The loop as `startInteractiveExplorer` wires it; the page's animation frames are a queue.
   const requested: FrameRequestCallback[] = [];
-  let drawn = 0,
-    settled = 0;
+  /** The drain the loop waits on for the frame just drawn: the engine's own completion. */
+  let draining: Promise<boolean> | undefined;
   const scheduler = createExplorerFrameScheduler({
     request: (callback) => requested.push(callback),
     cancel() {},
     render: () => void runtime.render(),
-    pending: () => {
-      drawn++;
-      return backend.pendingFrame!().then((again) => (settled++, again));
-    },
+    pending: () => (draining = backend.pendingFrame!()),
     error: (error) => failures.push(error),
     limited: () => failures.push('the loop hit its frame limit'),
   });
   opened.invalidate = scheduler.invalidate;
   /**
-   * Draws the frames the loop asks for until it asks none. The mock device answers within a few
-   * turns of the event loop: a drain still open after `TURNS` of them with no disk read in flight
-   * is the stall, and fails here rather than hanging the test.
+   * Draws the frames the loop asks for until it asks none, each after the engine's drain of the
+   * one before. The loop hears the drain first — it asked for it — so the frame it wants next is
+   * queued when the wait returns. Idle, nothing may still be read: a read the loop no longer
+   * waits on is work the image never gets.
    */
   const untilIdle = async () => {
     while (requested.length) {
       requested.shift()!(0);
-      for (let turn = 0; turn < TURNS && settled < drawn; turn++) {
-        await nextTurn();
-        if (readsInFlight()) turn = 0;
-      }
-      assert.equal(settled, drawn, `frame ${drawn} never settled: the loop stalls`);
+      const drain = draining;
+      draining = undefined;
+      await drain?.catch(() => {});
     }
     assert.deepEqual(failures, []);
+    assert.equal(readsInFlight(), 0, 'the loop went idle with a page still read from disk');
     return backend.selectedPageIds();
   };
   const drawsNode = (ids: string[]) => ids.some((id) => opened.nodeUrls.has(id));
