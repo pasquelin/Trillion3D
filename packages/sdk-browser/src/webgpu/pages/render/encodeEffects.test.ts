@@ -65,13 +65,21 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   assert.equal(unsettledMask(rt), 0, 'the chain runs after the resolve: accumulation stays still');
 });
 
-test('compiling programs keep the frame from being held', () => {
+test('compiling programs keep the frame from being held, the accumulation still', async () => {
   const { device } = fakeDevice();
   const chain = new EffectChain().add(effect.bloom());
   const rt = drawing(chain);
+  const { revisions } = rt.run.gate,
+    resources = revisions.resources;
   drawTwice(rt, device);
   assert.equal(rt.gpu.effects!.loading, true);
+  assert.equal(unsettledMask(rt), 0, 'compiling moves nothing the accumulation reads');
   assert.equal(holdWebgpuFrame(rt, device), false, 'the image lacks the chain it will have');
+  while (rt.gpu.effects!.loading) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(revisions.resources, resources, 'the arrival restarts no accumulation');
+  assert.equal(holdWebgpuFrame(rt, device), false, 'the image drawn while compiling is redrawn');
+  drawTwice(rt, device);
+  assert.equal(holdWebgpuFrame(rt, device), true, 'drawn with the chain, the image is held');
 });
 
 test('a diagnostic view, a capture and an empty chain make nothing and hand the input on', () => {

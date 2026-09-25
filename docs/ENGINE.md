@@ -171,7 +171,8 @@ revision and asks for a frame.
 - **WebGPU** (`webgpu/pages/render/encodeEffects.ts`, `effects/webgpuEffects.ts`): between
   `encodeTaaPass` and the composition, which tone-maps whatever view it is handed. Each pass writes a
   full-size `rgba16float` target, two in turn at most. The programs compile in the background on the
-  first frame with a pass; until then the image is drawn without the chain and is not settled.
+  first frame with a pass; until then the image is drawn without the chain and never held, and the
+  temporal accumulation goes on, as for a changed chain.
 - **WebGL2** (`world/render/compose.ts`, `effects/webglEffects.ts`): with a pass, the composer asks the
   engine for linear radiance (`HostDrawOutput.linear`: no curve, no sRGB transfer, alpha as coverage
   over transparent black) into a half-float target with depth, runs the passes, then one output
@@ -181,7 +182,11 @@ revision and asks for a frame.
   program's vertex arrays and maps: without a chain, the program and its uniforms are the ones
   drawn before the chain existed. Its second output marks, one byte a pixel, the coverage of the
   surfaces whose material skips the curve (`toneMapped: false`); the output program leaves that
-  share as drawn. A context that cannot render half floats draws without the chain.
+  share as drawn. An opaque or none-blended surface covers its pixel whatever its alpha, and
+  coverage past one (additive light over a covered pixel) is read as light, not divided out.
+  Multiply and subtractive surfaces filter the background the display target holds and the linear
+  target does not: the chain refuses them by name rather than draw another mode. A context that
+  cannot render half floats draws without the chain.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the

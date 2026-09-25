@@ -57,7 +57,7 @@ test('WebGPU hands each pass to its kind, with its rank among that kind', async 
     made = WEBGPU_KINDS.bloom;
   t.after(() => void (WEBGPU_KINDS.bloom = made));
   WEBGPU_KINDS.bloom = async () => kind.webgpu;
-  const effects = createWebgpuEffects(fakeDevice().device, { ready() {}, failed: assert.fail });
+  const effects = createWebgpuEffects(fakeDevice().device, (error) => assert.fail(String(error)));
   const encoder = {} as GPUCommandEncoder,
     input = {} as GPUTextureView;
   effects.encode(encoder, chain, input, 8, 4);

@@ -8,7 +8,9 @@ import type { AccumulatedImage, ComposedImage } from '../../../lighting/deferred
  * the image does not accumulate —; returns what composition reads, `accumulated` itself when the
  * chain draws nothing. The chain's output keeps the as-is share of the image it read. A diagnostic
  * view and a surface capture show the engine's image as it is, without the chain. The revision
- * drawn is kept, so a change of the chain breaks the hold (`../../frame/hold.ts`).
+ * drawn is kept, so a change of the chain breaks the hold (`../../frame/hold.ts`); an image drawn
+ * while its programs compile keeps none, so it is drawn again until it carries the chain, and the
+ * accumulation goes on meanwhile, as for a change of the chain.
  */
 export function encodeEffects(
   rt: WebgpuPagesRuntime,
@@ -25,20 +27,18 @@ export function encodeEffects(
   if (passes.length && (run.diagnostic !== 'beauty' || rt.capture.capturing)) return accumulated;
   const input = accumulated?.color ?? gpu.hdrView;
   if ((!passes.length && !gpu.effects) || !input) return accumulated;
-  gpu.effects ??= createWebgpuEffects(device, {
-    ready: () => run.gate.resourcesChanged(),
-    failed: (error) => rt.diag.diagnosticFailure('effects-unavailable', error),
-  });
+  gpu.effects ??= createWebgpuEffects(device, (error) =>
+    rt.diag.diagnosticFailure('effects-unavailable', error),
+  );
   const [width, height] = gpu.targetSize;
   const output = gpu.effects.encode(encoder, passes, input, width, height);
+  if (gpu.effects.loading) gpu.effectsRevision = -1; // no revision is ever -1
   run.gpuDrawCalls += gpu.effects.draws;
   return output === input ? accumulated : { color: output, share: accumulated?.share };
 }
 
-/** True while the chain's programs compile: a later image will change, with the chain drawn. */
-export const effectsLoading = (rt: WebgpuPagesRuntime) => !!rt.gpu.effects?.loading;
-
-/** True when the page changed the chain since the last encoded image: a held frame would miss it.
- *  The chain runs after the resolve, so its change leaves the accumulation still. */
+/** True when the last encoded image lacks the chain as the page holds it — changed since, or
+ *  still compiling: a held frame would miss it. The chain runs after the resolve, so neither
+ *  moves the accumulation. */
 export const effectsMoved = (rt: WebgpuPagesRuntime) =>
   !!rt.context.effects && rt.context.effects.revision !== rt.gpu.effectsRevision;
