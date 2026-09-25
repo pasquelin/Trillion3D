@@ -99,8 +99,12 @@ fn every_bundle_lists_a_closure_that_reaches_the_root_cover_within_the_published
 }
 
 /// Cooks a committed glTF whose one buffer is `<tag>.bin`, found under `folder` from the
-/// repository root, and checks every streamed primitive; returns the bundles past the root cover.
-fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
+/// repository root: the fixture's root, its options, the document, its buffer and the result.
+pub(super) fn cook_site_scene(
+    folder: &str,
+    gltf: &str,
+    tag: &str,
+) -> (PathBuf, Options, Value, Vec<u8>, Value) {
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(folder);
@@ -110,6 +114,13 @@ fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
     let (root, mut options) = gltf_fixture(tag, &document, &bin);
     options.texture_formats = Vec::new();
     let result = compile(&options, |_| {}).expect("compile");
+    (root, options, document, bin, result)
+}
+
+/// Checks every streamed primitive of a site scene (`cook_site_scene`); returns the bundles past
+/// the root cover.
+fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
+    let (root, _, _, _, result) = cook_site_scene(folder, gltf, tag);
     let past_roots = result["primitives"]
         .as_array()
         .expect("primitives")
