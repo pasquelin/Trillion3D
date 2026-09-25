@@ -3297,6 +3297,7 @@
         "packages/sdk-browser/src/physics/softContact.test.ts",
         "packages/sdk-browser/src/placement/webglPageBatches.ts",
         "packages/sdk-browser/src/scene/meshes.ts",
+        "packages/sdk-browser/src/webgl/cluster/linearOutput.test.ts",
         "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
         "packages/sdk-browser/src/webgpu/blend/state.ts",

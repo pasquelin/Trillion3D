@@ -61,8 +61,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         },
         onFrame: (metrics) => {
           frames.dispatch(metrics);
-          // A clip still playing asks for the next frame; the last one lets the loop pause.
-          if (animating) invalidate();
+          if (animating) invalidate(); // a clip still playing asks for the next; the last pauses
         },
       }),
     opened(explorer) {
