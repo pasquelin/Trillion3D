@@ -780,7 +780,8 @@
         "packages/sdk-browser/src/webgpu/blend/worlds.ts",
         "packages/sdk-browser/src/webgpu/core/transformShear.fixture.ts",
         "packages/sdk-browser/src/webgpu/core/transformShear.test.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
+        "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/box\".boxTransform"
@@ -895,6 +896,7 @@
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
@@ -1364,13 +1366,13 @@
         "packages/sdk-browser/src/webgpu/pages/evictionAndCancel.test.ts",
         "packages/sdk-browser/src/webgpu/pages/gpuSelectionFallback.test.ts",
         "packages/sdk-browser/src/webgpu/pages/pagedQuad.fixture.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/fallbackDirtyRows.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/hizOcclusion.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/pageRaster.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/visCompactPipeline.test.ts",
         "packages/sdk-browser/src/webgpu/pages/slotReclaim.test.ts",
         "packages/sdk-browser/src/webgpu/pages/testOccluder.fixture.ts",
         "packages/sdk-browser/src/webgpu/pages/testScenes.fixture.ts",
+        "packages/sdk-browser/src/webgpu/pages/twoPlaces.fixture.ts",
         "packages/sdk-browser/src/webgpu/row/blendCasters.test.ts",
         "packages/sdk-browser/src/world/camera/camera.test.ts",
         "packages/sdk-browser/src/world/camera/camera.ts",
@@ -2382,6 +2384,7 @@
         "packages/sdk-browser/src/physics/module.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts",
         "packages/sdk-browser/src/physics/tickResults.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
@@ -3159,6 +3162,9 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/physics/soft.fixture.ts",
+        "packages/sdk-browser/src/physics/soft.test.ts",
+        "packages/sdk-browser/src/physics/softContact.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
@@ -3540,6 +3546,7 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts",
         "packages/sdk-browser/src/physics/vehicleList.test.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/scene/partition/boxes.test.ts",
@@ -4692,10 +4699,12 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.test.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-examples-water.test.ts",
@@ -4721,10 +4730,12 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts",
         "packages/sdk-browser/src/physics/vehicleList.test.ts",
         "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
@@ -4734,6 +4745,7 @@
         "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "site/app/editor/SurfaceFields.tsx",
         "site/app/editor/objects.ts"
@@ -4758,10 +4770,12 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts",
         "packages/sdk-browser/src/physics/vehicleList.test.ts",
         "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
@@ -4771,6 +4785,7 @@
         "packages/sdk-browser/src/world/core/worldTextures.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "site/app/editor/SurfaceFields.tsx",
         "site/app/editor/objects.ts"
@@ -4785,7 +4800,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/material/material\".MaterialParameters"
     },
@@ -5075,6 +5090,8 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/softBodies.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts",
         "packages/sdk-browser/src/physics/vehicleList.test.ts",
         "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
@@ -5361,11 +5378,13 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/visibility/shader/spriteWgsl.test.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/core/worldSprite.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-examples-water.test.ts",
         "scripts/docs-scene-editor.test.ts"
@@ -5416,10 +5435,12 @@
         "packages/sdk-browser/src/lighting/sceneLighting.ts",
         "packages/sdk-browser/src/page/selection/collect.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/bodyFrame.ts",
         "packages/sdk-browser/src/physics/contacts.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/jointFrames.ts",
         "packages/sdk-browser/src/physics/joints.ts",
+        "packages/sdk-browser/src/physics/placeBodies.ts",
         "packages/sdk-browser/src/physics/placer.ts",
         "packages/sdk-browser/src/physics/poses.ts",
         "packages/sdk-browser/src/physics/raycast.ts",
@@ -5493,7 +5514,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
-        "packages/sdk-browser/src/physics/poses.test.ts"
+        "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".ObjectPhysics"
@@ -6119,8 +6141,10 @@
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
+        "packages/sdk-browser/src/physics/placeBodies.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
-        "packages/sdk-browser/src/physics/sessionHost.ts"
+        "packages/sdk-browser/src/physics/sessionHost.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/objectPhysics\".PhysicsHost"
@@ -6143,7 +6167,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/physics/softBodies.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsMatter"
     },
@@ -6844,7 +6868,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/bodyFrame.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/physics/vehicles.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -7678,6 +7702,7 @@
         "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadowPass.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
+        "packages/sdk-browser/src/webgpu/shadow/poolSize.ts",
         "packages/sdk-browser/src/webgpu/shadow/regions.ts"
       ],
       "disposition": "retained",
@@ -7942,6 +7967,98 @@
       "bindingIdentity": "\"packages/sdk-core/src/manifest/binaryTypes\".SlimStructure"
     },
     {
+      "name": "SOFT_AREAL_DENSITY",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SOFT_AREAL_DENSITY"
+    },
+    {
+      "name": "SOFT_FOOTPRINT",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SOFT_FOOTPRINT"
+    },
+    {
+      "name": "SOFT_LINEAR_DENSITY",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SOFT_LINEAR_DENSITY"
+    },
+    {
+      "name": "SoftBodyCommon",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftBodyCommon"
+    },
+    {
+      "name": "SoftBodyOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/soft.fixture.ts",
+        "packages/sdk-browser/src/physics/soft.test.ts",
+        "packages/sdk-browser/src/physics/softContact.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftBodyOptions"
+    },
+    {
+      "name": "SoftBodyType",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftBodyType"
+    },
+    {
+      "name": "SoftSettings",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftSettings"
+    },
+    {
+      "name": "SoftVolumeOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/soft.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftVolumeOptions"
+    },
+    {
       "name": "solveTransportOracle",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/lighting/transport/oracle.ts",
@@ -8074,6 +8191,22 @@
       "affectedConsumers": ["scripts/docs/examples/solids.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/math/curves\".SplineCurve"
+    },
+    {
+      "name": "Sprite",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/object/sprite.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldCuts.ts",
+        "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/write.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/object/sprite\".Sprite"
     },
     {
       "name": "srgbToLinear",
@@ -9310,7 +9443,7 @@
         "packages/sdk-browser/src/host/graph/light.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
-        "packages/sdk-browser/src/physics/bodies.ts",
+        "packages/sdk-browser/src/physics/bodyFrame.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/raycast.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
