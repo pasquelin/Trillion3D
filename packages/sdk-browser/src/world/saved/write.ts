@@ -50,8 +50,8 @@ function saveGeometry(g: Geometry): SavedGeometry {
     };
   }
   const index = g.index ? Array.from(g.index.array) : undefined;
-  const owner = g._owner === 'host' ? g._owner : undefined;
-  return { attributes, index, groups: g.groups.map((group) => ({ ...group })), owner };
+  const groups = g.groups.map((group) => ({ ...group }));
+  return { attributes, index, groups, owner: g._owner === 'host' ? 'host' : undefined };
 }
 
 /** The matter: its kind and each parameter; a texture or a shader cannot be stored. */
