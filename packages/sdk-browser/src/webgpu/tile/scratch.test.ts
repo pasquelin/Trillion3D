@@ -41,7 +41,7 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
     height,
     format: 'rgba8unorm',
     errorCode: 'NONE',
-    coverage: false,
+    coverage: () => false,
   });
   return { copies, rows };
 }
@@ -139,7 +139,7 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     height: 2,
     format: 'rgba8unorm',
     errorCode: 'NONE',
-    coverage: false,
+    coverage: () => false,
   });
   for (let frame = 0; frame < 60; frame++) {
     pixels[4] = frame;
@@ -163,7 +163,7 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
     host.premultiplyAlpha = premultiplyAlpha;
     const map = importHostTexture(host);
     const size = { width: 1, height: 2, format: 'rgba8unorm' } as const;
-    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage });
+    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage: () => coverage });
     return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
   assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted');

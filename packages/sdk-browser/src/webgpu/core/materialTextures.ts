@@ -2,7 +2,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { weighsByAlpha } from '../../scene/materialBlending.ts';
+import { CoverageReaders } from '../../texture/coverage.ts';
 
 /** Store a texture in an atlas if it is not already there, and return the slot it occupies.
  *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
@@ -13,17 +13,9 @@ const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Textu
   list.push(texture);
 };
 
-/** Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends
- *  weighing its colour by that alpha. A transmissive one tints what crosses it by its colour
- *  whatever its alpha (`../water/compositeWgsl.ts`): it draws the colour under alpha 0. */
-const alphaIsCoverage = (mat: PageSurface) =>
-  mat.alphaTest > 0 || (mat.transparent && !(mat.transmission > 0) && weighsByAlpha(mat.blending));
-
 /**
- * Census every colour and data texture once, in a stable slot order, and, per colour texture,
- * whether EVERY reader takes its alpha for coverage — the map of a masked or alpha-blended
- * surface, never an emissive map: the decision `collect.rs` takes for the compiler's `Coverage`
- * chain (#42).
+ * Census every colour and data texture once, in a stable slot order, and the readers of each
+ * colour texture, which say whether its mips weigh by alpha (`CoverageReaders`, #42).
  */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],
@@ -36,18 +28,13 @@ export function collectWebgpuMaterialTextures(
   const seen = new Set<PageSurface>();
   const addColor = adder(mapLayer, maps);
   const addData = adder(dataLayer, dataMaps);
-  /** Per colour texture, whether every reader so far takes its alpha for coverage. */
-  const coverage = new Map<Texture, boolean>();
-  const readColor = (texture: Texture | undefined, asCoverage: boolean) => {
-    if (!texture) return;
-    addColor(texture);
-    coverage.set(texture, (coverage.get(texture) ?? true) && asCoverage);
-  };
+  const coverage = new CoverageReaders();
   const collect = (mat: PageSurface) => {
     if (seen.has(mat)) return;
     seen.add(mat);
-    readColor(mat.map, alphaIsCoverage(mat));
-    readColor(mat.emissiveMap, false);
+    addColor(mat.map);
+    addColor(mat.emissiveMap);
+    coverage.read(mat);
     addData(mat.roughnessMap);
     addData(mat.metalnessMap);
     addData(mat.normalMap);

@@ -2,6 +2,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
 import { generateMaterialMips, mipLevelCountFor } from '../../texture/mips.ts';
+import { mipsWeighByAlpha } from '../../texture/coverage.ts';
 import { writeRgba } from './write.ts';
 import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 
@@ -35,10 +36,9 @@ export function createTileScratch(
     height: number;
     format: GPUTextureFormat;
     errorCode: string;
-    /** Every reader takes the alpha for coverage (`collectWebgpuMaterialTextures`): the mips
-     *  weigh their colours by alpha, as the compiler's `Coverage` chain — unless the texels were
-     *  uploaded premultiplied, which already carry the weight: weighing twice would darken them. */
-    coverage: boolean;
+    /** Whether every reader takes the alpha for coverage now, read at each fill
+     *  (`CoverageReaders`): the mips then weigh their colours by alpha (`mipsWeighByAlpha`). */
+    coverage: () => boolean;
   },
 ): TileScratch {
   const { width, height, format } = options;
@@ -80,7 +80,7 @@ export function createTileScratch(
         [width, height],
       );
     }
-    const weighted = options.coverage && !map.premultiplyAlpha;
+    const weighted = mipsWeighByAlpha(map, options.coverage());
     generateMaterialMips(device, texture, format, width, height, weighted);
   };
   fill();
