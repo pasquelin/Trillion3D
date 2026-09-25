@@ -54,7 +54,7 @@ function through(layerAt: (i: number, j: number) => Texel, ax: number, ay: numbe
 }
 
 /** CPU oracle of `shadowPcf` away from a seam: the sixteen taps, each a bilinear depth comparison
- *  of the full-resolution pool times `through` at the tap. */
+ *  of the full-resolution pool, averaged, times `through` once at the footprint's centre. */
 function pcf(depthAt: (x: number, y: number) => number, layerAt: (i: number, j: number) => Texel) {
   return (tx: number, ty: number, reference: number) => {
     let lit = 0;
@@ -73,9 +73,9 @@ function pcf(depthAt: (x: number, y: number) => number, layerAt: (i: number, j: 
         [1, 1, fx * fy],
       ])
         compare += w * (reference > depthAt(x0 + dx, y0 + dy) ? 1 : 0);
-      lit += compare * through(layerAt, tx + px, ty + py, reference);
+      lit += compare;
     }
-    return lit / POISSON_16.length;
+    return lit === 0 ? 0 : (lit / POISSON_16.length) * through(layerAt, tx, ty, reference);
   };
 }
 /** Spread of `read` over 32 × 32 receivers across a 4 × 4-texel window. */
@@ -91,14 +91,23 @@ function spread(read: (x: number, y: number) => number) {
   return { low, high };
 }
 
-test('the shadow read multiplies each PCF comparison by the half-resolution layer there', () => {
+test('the shadow read multiplies the PCF by the half-resolution layer once per footprint', () => {
   const wgsl = directShadowWgsl(8, null, 18);
   assert.match(wgsl, /@binding\(18\) var shadowTransmittance:texture_2d<f32>/);
   assert.match(wgsl, /@binding\(19\) var shadowTranslucentDepth:texture_depth_2d/);
   assert.match(wgsl, /clamp\(0\.5\*a,o\+0\.5,o\+\(0\.5\*SHADOW_PAGE-0\.5\)\)/, 'kept in its page');
   assert.match(wgsl, /let behind=vec4f\(reference\)<d;/);
-  assert.match(wgsl, /if\(through\)\{c\*=shadowThrough\(offset\+t\+POISSON\[tap\],reference\)/);
-  assert.equal(wgsl.match(/,through\)/g)?.length, 4, 'every comparison split along a seam too');
+  assert.equal(
+    wgsl.match(/return shadowThroughLit\(offset\+t,reference,lit\/f32\(PCF_TAPS\)\);/g)?.length,
+    2,
+    'away from a seam and along one',
+  );
+  assert.equal(wgsl.match(/shadowThrough\(/g)?.length, 2, 'one read, never per tap');
+  assert.match(
+    wgsl,
+    /if\(lit==0\.0\|\|textureDimensions\(shadowTransmittance\)\.x==1u\)\{return lit;\}/,
+    'no layer: no texel read',
+  );
   assert.ok(SHADOW_DEPTH_SHADER.includes(BLEND_TRANSMITTANCE_WGSL));
   assert.match(BLEND_TRANSMITTANCE_WGSL, /return vec4f\(1\.0-coverage\);/);
   assert.match(SHADOW_DEPTH_SHADER, /shadowHiddenByOpaque\(in\.position\)\)\{discard;\}/);
