@@ -112,7 +112,7 @@ export function compileSiteCaches(required = true): void {
     requireNativeCompiler();
   } catch (error) {
     if (required) throw error;
-    const names = stale.map((scene) => scene.directory).join(', ');
+    const names = stale.map((scene) => `${scene.directory}/${cacheOf(scene)}`).join(', ');
     console.warn(`Scene caches not compiled (${(error as Error).message}): ${names}.`);
     return;
   }
