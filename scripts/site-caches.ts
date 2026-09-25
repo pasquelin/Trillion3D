@@ -64,12 +64,13 @@ const stampOf = (scene: CookedScene, root = ROOT) => {
   return JSON.stringify({ source, simplification, budget: TRIANGLE_BUDGET, files });
 };
 
-/** When the compiler was built, or null when there is none to compare with. */
+/** When the compiler was built, or null when there is none to compare with; a compiler older than
+ *  its sources makes every cache stale, so the run refuses it instead of keeping its output. */
 function compilerTime(): number | null {
   try {
     return statSync(nativeCompiler()).mtimeMs;
-  } catch {
-    return null;
+  } catch (error) {
+    return String(error).includes('COMPILER_STALE') ? Infinity : null;
   }
 }
 
