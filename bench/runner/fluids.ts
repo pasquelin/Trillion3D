@@ -26,7 +26,7 @@ type Vec3 = [number, number, number];
 const vec3 = (v: ArrayLike<number>) => Array.from(v) as Vec3;
 
 /** How many of each the scene holds, beside its one ocean. */
-export const FLUIDS_COUNTS = { bodies: 100, fires: 20, smokes: 5 } as const;
+const FLUIDS_COUNTS = { bodies: 100, fires: 20, smokes: 5 } as const;
 
 const primitive = (shape: number, size: readonly [number, number, number]): PhysicsPrimitive => {
   if (shape === SHAPE.sphere) return { type: 'sphere', radius: size[0] };
