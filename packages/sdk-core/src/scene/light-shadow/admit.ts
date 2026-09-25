@@ -9,8 +9,8 @@ const LIGHT_VIEWS = 4096;
  *  pages of one view share one caster selection. */
 const viewKeyOf = (pool: ShadowPool, page: number) =>
   pool.slice[page] * LIGHT_VIEWS + pool.view[page];
-/** The most frames a page's age counts, so that the heaviest sort key of the largest pool (4 096
- *  pages) stays an exact float, under 2^53. Far past the bound below: it never reorders pages. */
+/** The most frames a page's age counts, so that every sort key stays an exact float, under 2^53.
+ *  Far past the bound below: it never reorders pages that stayed read. */
 const MAX_AGE = 4095;
 
 /** Host bytes the admission of a `pages`-page pool allocates: its list, view keys and sort keys. */
@@ -74,6 +74,8 @@ export function createShadowAdmission(poolPages: number) {
         }
       }
       order.subarray(0, count).sort();
+      // An empty list is drawn whole: nothing waits any more.
+      if (!count) waiting = false;
       for (let i = 0; i < count; i++) {
         // A key is negative for its age or a negative sun level: the page is its remainder, taken
         // positive.
