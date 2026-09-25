@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { plane } from '../world/geometry/basic.ts';
 import { fromArrays } from '../world/geometry/builder.ts';
 import { softBodyOf, softSettings, type SoftBodyOptions } from './soft.ts';
-import { goldenCloth } from './softCloth.fixture.ts';
 
 /**
  * The records the compiler's cook writes (`physics_cook/soft_page_tests.rs`, which mirrors
@@ -33,7 +33,8 @@ async function cookedRecords() {
   return records;
 }
 
-const cloth = goldenCloth();
+// The compiler's golden cloth (`physics_cook/soft_tests.rs`): 1 m of 2 × 2 squares, row by row.
+const cloth = plane(1, 1, 2, 2);
 const seam = fromArrays([0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0.5, 0], [], [], []);
 const tetra = fromArrays(
   [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],

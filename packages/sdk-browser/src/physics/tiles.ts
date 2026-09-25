@@ -63,6 +63,11 @@ export function createTileStreamer(
     bodies.release(p.id & BODY_INDEX);
     p.id = -1;
   };
+  /** Everything `model` holds out: its tiles and its cooked soft bodies. */
+  const drop = (model: Model, placed: Placed[] | null) => {
+    placed?.forEach(evict);
+    softs.forget(model);
+  };
   async function load(p: Placed) {
     p.loading = true;
     fetching++;
@@ -113,8 +118,7 @@ export function createTileStreamer(
       });
       for (const [model, placed] of models)
         if (!seen.has(model)) {
-          placed?.forEach(evict);
-          softs.forget(model);
+          drop(model, placed);
           models.delete(model);
         }
     },
@@ -170,10 +174,7 @@ export function createTileStreamer(
     },
     /** Every tile and cooked soft body out (physics turned off). */
     clear() {
-      for (const [model, placed] of models) {
-        placed?.forEach(evict);
-        softs.forget(model);
-      }
+      models.forEach((placed, model) => drop(model, placed));
       models.clear();
     },
   };
