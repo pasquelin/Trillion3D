@@ -47,7 +47,7 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   const rt = drawing(chain);
   chain.add(bloom);
   encodeEffects(rt, device, encoder, input);
-  while (rt.gpu.effects!.loading) await new Promise((resolve) => setImmediate(resolve));
+  await rt.gpu.effects!.settled();
   drawTwice(rt, device);
   const composed = encodeEffects(rt, device, encoder, input);
   assert.notEqual(composed?.color, input.color, "composition reads the chain's output");
@@ -78,7 +78,7 @@ test('compiling programs keep the frame from being held, the accumulation still'
   assert.equal(rt.gpu.effects!.loading, true);
   assert.equal(unsettledMask(rt), 0, 'compiling moves nothing the accumulation reads');
   assert.equal(holdWebgpuFrame(rt, device), false, 'the image lacks the chain it will have');
-  while (rt.gpu.effects!.loading) await new Promise((resolve) => setImmediate(resolve));
+  await rt.gpu.effects!.settled();
   assert.equal(revisions.resources, resources, 'the arrival restarts no accumulation');
   assert.equal(holdWebgpuFrame(rt, device), false, 'the image drawn while compiling is redrawn');
   drawTwice(rt, device);

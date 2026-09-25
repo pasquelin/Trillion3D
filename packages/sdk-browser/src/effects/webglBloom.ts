@@ -4,6 +4,7 @@ import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import {
   bindWebglTarget,
+  bindWebglTexture,
   createWebglRenderTarget,
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
@@ -62,10 +63,7 @@ export function createWebglBloom(gl: WebGL2RenderingContext): WebglEffectKind<Bl
     width = height = 0;
   };
   const into = (target: WebglRenderTarget) => bindWebglTarget(gl, target);
-  const read = (unit: number, texture: WebGLTexture) => {
-    gl.activeTexture(gl.TEXTURE0 + unit);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-  };
+  const read = (unit: number, texture: WebGLTexture) => bindWebglTexture(gl, unit, texture);
   return {
     /** Bytes of the level chain as allocated. */
     get bytes() {
