@@ -115,7 +115,7 @@ test('one error scope is open per device: a build that awaits holds the next ses
   });
   const made = validationScope(second, async () => (await raised.opened, 'made'));
   compiled.open();
-  await new Promise((resolve) => setImmediate(resolve));
+  await raised.opened;
   finished.open();
   assert.equal((await made).error, null, "the second scope never takes the first one's error");
   assert.ok((await refused).error, 'the first keeps its own');

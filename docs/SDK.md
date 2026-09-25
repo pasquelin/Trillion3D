@@ -1084,8 +1084,9 @@ presented, so the canvas keeps the previous image; a capture waits. When the dev
 Hi-Z goes first, for the rest of the session: its absence costs time, never image
 (`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`). Refused even then, the
 visibility targets included, they are refused by name and the mode is kept, never a lost device:
-`frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason: 'gpu-out-of-memory'`, the
-size, `requestedBytes`); prepare, a capture and its restore reject with the code.
+`frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason: 'gpu-out-of-memory'`, or
+`'gpu-error'` with its `error` when a creation throws, the size, `requestedBytes`); prepare, a
+capture and its restore reject with the code.
 How the pools are laid out, filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
 
 ## Captures and image checks

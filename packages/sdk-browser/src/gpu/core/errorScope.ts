@@ -26,17 +26,22 @@ export async function validationScope<T>(
   const mine = new Promise<void>((resolve) => (release = resolve));
   openScopes.set(shared, mine);
   if (before) await before;
-  let built: { value: T } | { error: unknown };
-  device.pushErrorScope(filter);
+  let built: { value: T } | { error: unknown }, popped: Promise<GPUError | null>;
+  // Released on every path, a throw of the device's own included: a scope never released would
+  // hold every later one of the device, in every session.
   try {
-    const made = build();
-    built = { value: made instanceof Promise ? await made : made };
-  } catch (error) {
-    built = { error };
+    device.pushErrorScope(filter);
+    try {
+      const made = build();
+      built = { value: made instanceof Promise ? await made : made };
+    } catch (error) {
+      built = { error };
+    }
+    popped = device.popErrorScope();
+  } finally {
+    if (openScopes.get(shared) === mine) openScopes.delete(shared);
+    release();
   }
-  const popped = device.popErrorScope();
-  if (openScopes.get(shared) === mine) openScopes.delete(shared);
-  release();
   if ('error' in built) {
     await popped.catch(() => null);
     throw built.error;

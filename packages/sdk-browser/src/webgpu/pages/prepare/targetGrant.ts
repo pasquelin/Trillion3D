@@ -2,12 +2,25 @@ import { deviceMade, grantPending, startGrant } from '../../../gpu/core/errorSco
 import { dropGpuHiz } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
 import { backdropBytes } from '../../transparent/transmission.ts';
+import { prepareVisRaster } from './visibility.ts';
 import { frameTargetAllocation, makeTargets, releaseTargets, targetsFit } from './targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
  *  this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
 export const frameTargetsAwaited = (rt: WebgpuPagesRuntime) => rt.gpu.targetGrant !== undefined;
+
+/** A session lost or released: what it asked is never a refusal. */
+const stopped = (rt: WebgpuPagesRuntime) => rt.run.lost || rt.signal.aborted;
+
+/** The frame targets of `width × height` refused by name, `reason` and its details said. */
+function refuseTargets(rt: WebgpuPagesRuntime, details: Record<string, number | string>) {
+  rt.diag.engineDiagnostic('frame-targets-refused', 'The device refused the frame targets', {
+    kind: 'error',
+    code: 'WEBGPU_FRAME_TARGETS_REFUSED',
+    ...details,
+  });
+}
 
 /**
  * Asks the device for the frame targets of the view's size, unless those in place fit, a grant
@@ -44,7 +57,16 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
     },
     (error: unknown) => {
       releaseTargets(rt);
-      diag.diagnosticFailure('frame-targets-refused', error);
+      // A creation that throws refuses the set by name too, unless the session stopped: a
+      // released handle throws, and says nothing more.
+      if (!stopped(rt))
+        refuseTargets(rt, {
+          width,
+          height,
+          requestedBytes: targetBytes,
+          reason: 'gpu-error',
+          error: error instanceof Error ? error.message : String(error),
+        });
     },
   );
   gpu.targetGrant = startGrant(done, { width, height });
@@ -81,37 +103,30 @@ async function grantTargets(
 ) {
   const { vis, diag, run } = rt;
   const make = () => makeTargets(rt, device, width, height, requestedBytes),
-    stopped = () => run.lost || rt.signal.aborted;
+    hiz = !!vis.gpuHiz;
   let made = await deviceMade(device, make);
   // A session stopped meanwhile asks nothing again, and keeps its Hi-Z.
-  if (!made && !stopped()) {
-    const dropped = vis.gpuHiz ? 'hi-z' : null;
+  if (!made && !stopped(rt) && vis.gpuHiz) {
     diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the frame targets', {
       kind: 'warning',
       pool: 'frame-targets',
       requestedBytes,
-      dropped,
+      dropped: 'hi-z',
     });
-    if (dropped) {
-      dropGpuHiz(rt);
-      made = await deviceMade(device, make);
-    }
+    dropGpuHiz(rt);
+    made = await deviceMade(device, make);
   }
-  if (stopped()) {
+  if (stopped(rt)) {
     made?.destroy();
     return false;
   }
   if (!made) {
-    diag.engineDiagnostic('frame-targets-refused', 'The device refused the frame targets', {
-      kind: 'error',
-      reason: 'gpu-out-of-memory',
-      code: 'WEBGPU_FRAME_TARGETS_REFUSED',
-      width,
-      height,
-      requestedBytes,
-    });
+    refuseTargets(rt, { width, height, requestedBytes, reason: 'gpu-out-of-memory' });
     return false;
   }
+  // Without Hi-Z the visibility pass writes one target fewer: its pipelines follow, the frame
+  // still held.
+  if (hiz && !vis.gpuHiz && vis.visModule) await prepareVisRaster(rt, device, false);
   const { allocation } = made;
   diag.traceDiagnostic(
     'targets-transition',
