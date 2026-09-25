@@ -1,8 +1,7 @@
-// When the CPU cut publishes its own into the residency sets: AFTER its guards, and only for an
-// image that draws. Publishing earlier made the cache hold — and forbade it from reclaiming — a cut
-// the image never drew: the whole CPU cut while the pinned coverage it needs first was still in
-// flight, or a cut refused by a guard and left behind in `run.desired`, `requested`, `keep` and the
-// counters.
+// When the CPU cut publishes its own into the residency sets: once the pinned coverage is ready,
+// and only for an image that draws. Publishing earlier made the cache hold — and forbade it from
+// reclaiming — a cut the image never drew, while the pinned coverage it needs first was still in
+// flight.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -38,7 +37,6 @@ function banc(options: { ready: boolean; resident: boolean }) {
     drawn: [] as PageRec[],
     selectResult: createSelectionResult<PageRec>(),
     requestedScratch: new Set<string>(),
-    transitionScratch: new Set<string>(),
     readyScratch: [] as PageRec[],
     opaqueScratch: [] as PageRec[],
     transparentScratch: [] as PageRec[],
@@ -122,12 +120,17 @@ test('bootstrap in progress makes the CPU cut hold nothing', () => {
   assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image');
 });
 
-test('an image that throws leaves no rejected cut behind', () => {
-  // Coverage ready, but no resident page: the cut cannot be covered.
+test('nothing resident yet: the image draws no hole, and still asks for its cut', () => {
+  // Coverage ready, but no resident page: no cluster is drawn in place of what is missing, and the
+  // requested cut is published so the pool loads it — no throw, no pinned-only substitute.
   const b = banc({ ready: true, resident: false });
-  assert.throws(() => image(b), /GPU_COVERAGE_INCOMPLETE/);
-  assert.deepEqual(b.journal, ['ressources', 'oubli'], 'nothing was published');
-  assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image');
+  assert.throws(() => image(b), /BANC_ARRET/, 'the bench stops at the queue, for lack of a device');
+  assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file']);
+  assert.deepEqual(b.run.shown, [], 'nothing resident is drawn');
+  assert.deepEqual(
+    b.run.desired.map((page) => page.url),
+    ['near'],
+  );
 });
 
 test('an image that passes its guards publishes its cut, just before queuing residency', () => {
