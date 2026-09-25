@@ -13,27 +13,42 @@ const height = (x: number, z: number) =>
   2.5 * Math.sin((x + z) / 9) +
   0.0004 * (x * x + z * z) * 4;
 
-/** A regular grid, the shape the compiler cooks into a height field. */
-function valley(): Mesh {
+/**
+ * A regular grid of `side` × `side` samples `step` metres apart from `(x0, z0)`, lifted by
+ * `height`, the shape the compiler cooks into a height field: heights on a 1/256 m grid, the
+ * surface's normals, and (u, v) repeating every `tiling` samples.
+ */
+export function heightGrid(
+  side: number,
+  step: number,
+  [x0, z0]: readonly [number, number],
+  height: (x: number, z: number) => number,
+  tiling: number,
+): Mesh {
   const mesh: Mesh = { positions: [], normals: [], uvs: [], indices: [] };
-  const half = (SIDE - 1) / 2;
-  for (let j = 0; j < SIDE; j++)
-    for (let i = 0; i < SIDE; i++) {
-      const [x, z] = [(i - half) * STEP, (j - half) * STEP];
+  for (let j = 0; j < side; j++)
+    for (let i = 0; i < side; i++) {
+      const [x, z] = [x0 + i * step, z0 + j * step];
       const e = 0.5;
       const [dx, dz] = [height(x + e, z) - height(x - e, z), height(x, z + e) - height(x, z - e)];
       const length = Math.hypot(dx, 2 * e, dz);
       mesh.positions.push(x, Math.round(height(x, z) * 256) / 256, z);
       mesh.normals.push(-dx / length, (2 * e) / length, -dz / length);
-      mesh.uvs.push(i / 8, j / 8);
+      mesh.uvs.push(i / tiling, j / tiling);
     }
-  for (let j = 0; j < SIDE - 1; j++)
-    for (let i = 0; i < SIDE - 1; i++) {
-      const a = j * SIDE + i;
-      mesh.indices.push(a, a + SIDE, a + 1, a + 1, a + SIDE, a + SIDE + 1);
+  for (let j = 0; j < side - 1; j++)
+    for (let i = 0; i < side - 1; i++) {
+      const a = j * side + i;
+      mesh.indices.push(a, a + side, a + 1, a + 1, a + side, a + side + 1);
     }
   return mesh;
 }
+
+/** The valley, centred on the origin. */
+const valley = () => {
+  const corner = (-(SIDE - 1) / 2) * STEP;
+  return heightGrid(SIDE, STEP, [corner, corner], height, 8);
+};
 
 /**
  * `terrain`: a valley on a two-metre grid and three boulders. The grid becomes a height field at

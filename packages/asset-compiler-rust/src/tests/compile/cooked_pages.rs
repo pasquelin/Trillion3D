@@ -6,6 +6,7 @@
 //! published bounds and sphere, and, for a coarse page, when every vertex it uses belongs to the
 //! children of the group that produced it and every point of its triangles lies near that
 //! children's surface: within their longest edge plus the group error.
+use super::silhouette::page_indices;
 use super::*;
 use std::collections::HashSet;
 use trillion3d_page_codec as codec;
@@ -25,17 +26,11 @@ struct Decoded {
 }
 
 fn decode_page(objects: &Path, page: &Value) -> std::result::Result<Decoded, String> {
-    let object =
-        |sha: &Value| fs::read(objects.join(format!("{}.bin", sha.as_str().unwrap_or(""))));
-    let raw = object(&page["sha256"]).map_err(|e| format!("index object: {e}"))?;
-    let bytes = object(&page["geometry"]["sha256"]).map_err(|e| format!("page object: {e}"))?;
+    let sha = page["geometry"]["sha256"].as_str().unwrap_or("");
+    let bytes =
+        fs::read(objects.join(format!("{sha}.bin"))).map_err(|e| format!("page object: {e}"))?;
     let decoded = codec::decode(&bytes, usize::MAX).map_err(|e| format!("decode: {e:?}"))?;
-    let source: Vec<u32> = raw
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|b| u32::from_le_bytes(*b))
-        .collect();
+    let source = page_indices(objects, page);
     if decoded.index_count != source.len() {
         return Err(format!(
             "{} decoded indices for {} source",
