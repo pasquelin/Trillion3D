@@ -8872,7 +8872,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/visibility/shader/shadingNormal.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/visibility/projection.ts",
+        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".transformDirectionVector3"
     },
