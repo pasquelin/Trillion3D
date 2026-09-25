@@ -14,7 +14,7 @@ this machine.
    the queue fills.
 5. A feature = a live example. On each merged batch that adds or changes something visible:
    capture its example (still + a short camera move) and post them on the issue for the
-   acceptance session to judge; missing thumbnail → your thumbnail PR (`Part of #n`, a
+   acceptance agent to judge; missing thumbnail → your thumbnail PR (`Part of #n`, a
    `## Local review before push` saying "Thumbnail only").
 6. Measure against the budgets of #483 (frame, main thread, GPU, shadows, memory): what is slow
    or out of budget reopens its issue with `measure ko` and the numbers.
