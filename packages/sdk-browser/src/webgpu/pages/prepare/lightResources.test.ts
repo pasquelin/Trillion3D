@@ -59,8 +59,8 @@ test('`unlit` stays the diagnostic view, lights or not', () => {
   assert.equal(wantsContractLighting(b.rt), false);
 });
 
-test('the light cuts select at the camera threshold, budget included', () => {
+test('the light cuts select at the camera threshold, which no budget raises', () => {
   const lights = createWebgpuLightState(32);
-  assert.equal(followLightThreshold(lights, 1, 0.5), 1);
-  assert.equal(followLightThreshold(lights, 1, 8), 8);
+  assert.equal(followLightThreshold(lights, 1), 1);
+  assert.equal(followLightThreshold(lights, 8), 8);
 });
