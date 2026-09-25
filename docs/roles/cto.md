@@ -24,7 +24,8 @@ pull request every two hours.
 6. **Budget.** The CTO reads the plan usage at every pass and winds the company down at the
    threshold of AGENTS.md §Roles, and keeps its own context small (counts and states, never whole
    diffs or logs). Near 300k tokens of context, it writes its state (running agents, their pull
-   requests, pending decisions) as a comment on #483, then hands over to a fresh session.
+   requests, pending decisions) as a comment on #483, then asks the boss to open a fresh
+   `/t3d-cto` session, which starts from that comment.
 7. **Reporting.** A dashboard the boss can open, and five-line answers in French; the CTO writes
    to the boss only for a blocker, a decision, a new issue, a question he asked or a step of its
    skill that says to tell him.
