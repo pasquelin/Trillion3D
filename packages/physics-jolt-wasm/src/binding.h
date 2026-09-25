@@ -49,6 +49,8 @@ struct Slot {
   bool withheld = false;
   /** Deactivated beyond the range; its velocities are kept here and given back on return. */
   bool frozen = false;
+  /** A soft body (`soft.cpp`): it takes no pose, velocity, impulse, joint or vehicle. */
+  bool soft = false;
   JPH::Vec3 linear = JPH::Vec3::sZero(), angular = JPH::Vec3::sZero();
 };
 
@@ -160,5 +162,13 @@ void dropVehicles(uint32_t index);
 void driveVehicles(float dt);
 /// Writes the vehicles' state once the bodies have stepped.
 void writeVehicles();
+
+/// The soft bodies' command (`soft.cpp`, softLayout.ts): its fixed words, then per vertex
+/// `SOFT_VERTEX_WORDS`, then its triangle corners.
+constexpr uint32_t SOFT = 24, SOFT_WORDS = 22, SOFT_VERTEX_WORDS = 4;
+/// Makes the soft body a SOFT command describes; false (with `world().error`) on a bad command.
+bool addSoft(const uint32_t *w);
+/// Writes the vertices of the soft bodies the step moved, once the bodies have stepped.
+void writeSoft();
 
 }  // namespace trillion
