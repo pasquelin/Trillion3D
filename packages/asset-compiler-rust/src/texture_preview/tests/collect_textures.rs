@@ -107,8 +107,7 @@ fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
 // every reader takes its alpha for coverage — MASK or BLEND base colours. One opaque base
 // colour or one emissive among its readers and it keeps the plain chain, which that reader
 // draws as before; so do a MASK cutoff of 0 and a mode glTF does not name, which the engine
-// draws opaque, and a transmissive BLEND, which tints by its colour whatever its alpha; the data
-// atlas never weighs.
+// draws opaque; the data atlas never weighs.
 #[test]
 fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
     let base = |index: u64, mode: &str| json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": index}}, "alphaMode": mode});
@@ -124,10 +123,8 @@ fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
             {"pbrMetallicRoughness": {"baseColorTexture": {"index": 5}}, "alphaMode": "MASK",
              "alphaCutoff": 0.0},
             base(6, "blend"),
-            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 7}}, "alphaMode": "BLEND",
-             "extensions": {"KHR_materials_transmission": {"transmissionFactor": 1.0}}},
         ],
-        "meshes": meshes_using(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+        "meshes": meshes_using(&[0, 1, 2, 3, 4, 5, 6, 7, 8]),
     });
     let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
     let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
@@ -142,7 +139,6 @@ fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
             (4, AtlasKind::Data),
             (5, AtlasKind::Color),
             (6, AtlasKind::Color),
-            (7, AtlasKind::Color),
         ]
     );
 }

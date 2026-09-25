@@ -3,10 +3,6 @@ import { textureRgba } from '../../visibility/types.ts';
 import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
-import type { HostMaterials } from '../../host/resources.ts';
-import { surfaceOf } from '../../page/surface.ts';
-import { CoverageReaders } from '../../texture/coverage.ts';
-import { WebglMipReducer } from './mips.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
@@ -21,8 +17,6 @@ type TextureRecord = {
   width: number;
   height: number;
   format: number;
-  /** Whether its mip chain weighs colours by alpha; `undefined` while it has no chain. */
-  weighted?: boolean;
 };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
@@ -39,8 +33,6 @@ const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
     'linear-mip-linear': gl.LINEAR_MIPMAP_LINEAR,
   })[value];
 
-const WHITE: readonly number[] = [255, 255, 255, 255];
-
 export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
   private fallbacks = new Map<string, WebGLTexture>();
@@ -49,23 +41,15 @@ export class WebglClusterTextures {
   /** The device's anisotropy ceiling, read once. */
   private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
-  private mips: WebglMipReducer;
-  /** The frame's readers of each colour map, and the declarations they were read from (#42). */
-  private readers = new CoverageReaders();
-  private declarations = new Set<HostMaterials>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
-    this.mips = new WebglMipReducer(gl);
     this.anisotropy = gl.getExtension('EXT_texture_filter_anisotropic') as Anisotropy | null;
     if (this.anisotropy)
       this.maxAnisotropy = gl.getParameter(
         this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
       ) as number;
   }
-  /** Binds `texture` on `unit`, decoded from sRGB when `color`. `reader`: a colour map (base or
-   *  emissive), its chain by its readers' coverage rule (#42) and apart from a data binding of the
-   *  same texture, as the WebGPU atlases hold it: the role decides, never the sRGB tag. */
-  bind(unit: number, texture?: Texture, color = false, fallback = WHITE, reader = false) {
+  bind(unit: number, texture?: Texture, color = false, fallback = [255, 255, 255, 255]) {
     const gl = this.gl;
     if (!texture) {
       const key = fallback.join(',');
@@ -75,8 +59,17 @@ export class WebglClusterTextures {
         this.fallbacks.set(key, target);
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, target);
-        const texel = new Uint8Array(fallback);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, texel);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA8,
+          1,
+          1,
+          0,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          new Uint8Array(fallback),
+        );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       } else if (this.bound[unit] !== target) {
@@ -88,27 +81,23 @@ export class WebglClusterTextures {
     }
     // Brought up to its host at this bind, then uploaded or set again by its counters.
     followHostTexture(texture);
-    const key = `${texture.id}:${color ? 'srgb' : 'linear'}${reader ? ':map' : ''}`,
-      weighted = reader && this.readers.weighs(texture);
+    const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
-      record = this.upload(unit, texture, color, weighted, record);
+      record = this.upload(unit, texture, color, record);
       this.records.set(key, record);
     } else {
       if (this.bound[unit] !== record.texture) {
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, record.texture);
       }
-      const sampling = record.sampling !== texture.sampling,
-        rule = record.weighted !== undefined && record.weighted !== weighted;
-      // `setSampler` and the chain write the texture bound on the ACTIVE unit: select it even
-      // when the texture is already bound there, or they land on another unit's texture.
-      if (sampling || rule) gl.activeTexture(gl.TEXTURE0 + unit);
-      if (sampling) {
+      if (record.sampling !== texture.sampling) {
         record.sampling = texture.sampling;
+        // `setSampler` writes the texture bound on the ACTIVE unit: select it even when the
+        // texture is already bound there, or the parameters land on another unit's texture.
+        gl.activeTexture(gl.TEXTURE0 + unit);
         this.setSampler(texture);
       }
-      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false);
     }
     this.bound[unit] = record.texture;
   }
@@ -119,13 +108,7 @@ export class WebglClusterTextures {
    * (`texture.data`) upload through the byte overload, read as the WebGPU path reads them
    * (`textureRgba`); anything else is an image the browser decodes.
    */
-  private upload(
-    unit: number,
-    texture: Texture,
-    color: boolean,
-    weighted: boolean,
-    held?: TextureRecord,
-  ) {
+  private upload(unit: number, texture: Texture, color: boolean, held?: TextureRecord) {
     const gl = this.gl;
     const target = held?.texture ?? gl.createTexture()!;
     gl.activeTexture(gl.TEXTURE0 + unit);
@@ -142,11 +125,22 @@ export class WebglClusterTextures {
     if (inPlace && rgba)
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, rgba.data);
     else if (inPlace) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, image!);
-    else if (rgba) {
-      const { data } = rgba;
-      gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    } else gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image!);
-    const record: TextureRecord = {
+    else if (rgba)
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        format,
+        width,
+        height,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        rgba.data,
+      );
+    else gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image!);
+    if (texture.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);
+    if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
+    return {
       texture: target,
       version: texture.version,
       sampling: texture.sampling,
@@ -154,12 +148,6 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    if (texture.generateMipmaps) {
-      this.mips.reduce(unit, record, weighted, !inPlace || held?.weighted === undefined);
-      record.weighted = weighted;
-    }
-    if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
-    return record;
   }
   /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
    *  the rule the WebGPU path shares (`grantedAnisotropy`). */
@@ -176,25 +164,13 @@ export class WebglClusterTextures {
         grantedAnisotropy(texture, this.maxAnisotropy),
       );
   }
-  /** A new frame: the host's texture units are unknown, and the readers of the colour maps are
-   *  the surfaces of every mesh the scene holds, drawn or hidden, in the frustum or not — as the
-   *  WebGPU census, the rule never follows the camera nor visibility —, each declaration read once. */
-  beginFrame(meshes: readonly (readonly { material: HostMaterials }[])[]) {
+  invalidateBindings() {
     this.bound.length = 0;
-    this.readers.clear();
-    this.declarations.clear();
-    for (const list of meshes)
-      for (const { material } of list)
-        if (!this.declarations.has(material) && this.declarations.add(material))
-          this.readers.read(surfaceOf(material));
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();
     this.fallbacks.clear();
-    this.declarations.clear();
-    this.readers.clear();
-    this.mips.dispose();
   }
 }
