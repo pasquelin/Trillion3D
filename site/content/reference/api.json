@@ -9526,6 +9526,11 @@
         "desc": "Whether the body is decorative debris."
       },
       {
+        "name": "damping",
+        "type": "{ readonly linear: number; readonly angular: number; }",
+        "desc": "The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`)."
+      },
+      {
         "name": "velocity",
         "type": "Vector3",
         "desc": "Linear velocity, m/s, as the last step left it; write it to launch the body."
@@ -11111,6 +11116,11 @@
         "name": "restitution?",
         "type": "number | undefined",
         "desc": "Overrides the material's restitution (bounciness), 0 to 1."
+      },
+      {
+        "name": "damping?",
+        "type": "{ linear?: number; angular?: number; } | undefined",
+        "desc": "How much of its speed the body loses by itself, per second, as air and rolling do: `dv/dt = −c·v`, 0 and up, linear and angular apart; 0 keeps every bit. Set when the body is made: set `obj.physics` again to change it."
       }
     ],
     "description": ""
