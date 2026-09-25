@@ -3140,7 +3140,7 @@
       "representationChanged": "O mesmo mundo com outra precisão: a sua caixa espera que a câmera pare.",
       "resting": "A câmera estava em repouso no último plano: sua vista era a do plano anterior.",
       "deferredChanges": "Verdadeiro enquanto uma mudança de representação espera que a câmera pare.",
-      "releaseDeferred": "O quadro não planeja nenhuma sombra: as caixas retidas entram na lista de imediato.",
+      "releaseDeferred": "O quadro não planeja nenhuma sombra: a união retida entra na lista de imediato.",
       "setPageInvalidation": "Desliga a invalidação por página: um objeto em movimento invalida todas as páginas das luzes que toca. Ligada por padrão.",
       "pageInvalidation": "Se um objeto em movimento invalida apenas as páginas que a sua caixa cobre.",
       "plan": "Planeja um quadro: invalida o que se moveu, lê o último relatório, admite cada página a desenhar.",

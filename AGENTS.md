@@ -82,9 +82,9 @@ finish, nothing new starts) so no work is cut midway.
 ## Leads: limits that hold at every moment
 
 - **Never idle.** A lead with work in its domain (an open issue, a pull request to unblock) is
-  always working on it; `measure ko` and `audit ko` first, then its issues by priority label, 🔴
-  first; within a label, a programme's children in its order, the others oldest
-  first; an issue with no priority label last.
+  always working on it, in strict priority order: 🔴, 🟠, 🟡, 🟢, an issue with no priority
+  label last. Within a label, `measure ko` and `audit ko` first, then a programme's children in
+  its order, the others oldest first.
 - **One agent working at a time.** A lead runs one coder or one reviewer subagent at a time,
   never two; a coder waiting on its review is not working.
 - **One open pull request per lead.** While one of its pull requests is open, a lead starts no new coder: it unblocks that one first (red CI, conflict with `develop`,
@@ -109,8 +109,8 @@ finish, nothing new starts) so no work is cut midway.
 
 Measuring and auditing never block a pull request: the lead closes the issue right after the merge (`Closes #n` does not close it from `develop`), the measurer and
 acceptance only comment on it. A regression or an audit finding **reopens** the original issue with
-`measure ko` or `audit ko`; neither opens a new one. A lead always takes the `measure ko` and
-`audit ko` issues of its domain before a new one.
+`measure ko` or `audit ko`; neither opens a new one, and the comment's first word is its cause:
+promise, tests, paperwork or design. A lead takes them first within their priority label.
 
 ## Interaction
 

@@ -5,12 +5,14 @@
  */
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
+import { API_FILES, API_SOURCES, generateApiFiles } from '../generate-api-reference.ts';
 import { gitPathsSync } from '../git-paths.ts';
+import { COOKED_SCENES, compileSiteCaches } from '../site-caches.ts';
 import { buildFlags } from './build-flags.ts';
 import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
 import { buildRuntime } from './build-runtime.ts';
-import { buildStyles } from './build-styles.ts';
+import { buildStyles, STYLE_SOURCES } from './build-styles.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
@@ -20,7 +22,7 @@ export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
 export const SITE_URL = 'https://www.trillion3d.com/';
 
 /** What the site serves as is: examples, scene assets, data records and the reports. */
-const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports'];
+export const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports'];
 /** The pages the portal replaced, each moved to its route: an old link still lands on it. */
 const REDIRECTS: Record<string, string> = { 'report.html': '#/en/reports' };
 /** What the build writes at the root from `SITE_URL`: the portal page, the crawler rules and the
@@ -73,19 +75,77 @@ async function copyTree(source: string, target: string, published: boolean) {
   await copyFile(source, target);
 }
 
-/** The folders of `out` the build writes: emptied first, so no chunk of an earlier build stays. */
-const BUILT_FOLDERS = ['css', 'runtime', 'flags'];
-
-/** Writes the build products into `out`: styles, engine runtime, portal, language flags. */
-export async function buildBundles(root: string, out: string) {
-  for (const folder of BUILT_FOLDERS)
-    await rm(resolve(out, folder), { recursive: true, force: true });
-  await mkdir(out, { recursive: true });
-  await buildStyles(root, { output: resolve(out, 'css/site.css') });
-  await buildRuntime(root, resolve(out, 'runtime'));
-  await buildPortal(root, resolve(out, 'runtime'));
-  await buildFlags(resolve(out, 'flags'));
+/** One step of the build, with the paths under the root (files or folders) it reads and writes:
+ *  the development server (`docs-dev.ts`) runs again only the steps a changed path is under. */
+export interface SiteStep {
+  name: string;
+  reads: readonly string[];
+  /** Only the read files these name, when set. */
+  files?: RegExp;
+  /** What it writes under the root, read by a later step. */
+  writes?: readonly string[];
+  /** Its folder of `out`, emptied first (no earlier chunk stays) and given to `run` as `out`. */
+  folder?: string;
+  run: (root: string, out: string, published: boolean) => Promise<unknown> | void;
 }
+
+const scenes = Object.values(COOKED_SCENES);
+
+/** Every step of `buildSite`, in its order: stale API files and caches first, then the build
+ *  products (styles, engine runtime and portal in one folder, language flags), the statics last. */
+export const SITE_STEPS: readonly SiteStep[] = [
+  {
+    name: 'api',
+    reads: ['packages', 'site'],
+    files: API_SOURCES,
+    writes: Object.values(API_FILES),
+    run: () => generateApiFiles(),
+  },
+  {
+    name: 'caches',
+    reads: scenes.map(({ directory }) => `${directory}/source`),
+    writes: scenes.map(({ directory }) => `${directory}/cache`),
+    run: () => compileSiteCaches(false),
+  },
+  {
+    name: 'styles',
+    reads: ['site/styles', ...STYLE_SOURCES],
+    folder: 'css',
+    run: (root, css) => buildStyles(root, { output: resolve(css, 'site.css') }),
+  },
+  {
+    name: 'runtime',
+    // The engine's sources and the folders of `site/` the portal imports from.
+    reads: [
+      'packages',
+      ...['app', 'content', 'demos', 'examples', 'i18n', 'reports'].map((name) => `site/${name}`),
+    ],
+    folder: 'runtime',
+    run: async (root, runtime) => {
+      await buildRuntime(root, runtime);
+      await buildPortal(root, runtime);
+    },
+  },
+  // No reads: `LANGUAGES` is loaded once per process, so a new language's flag needs a restart.
+  { name: 'flags', reads: [], folder: 'flags', run: (_, flags) => buildFlags(flags) },
+  {
+    name: 'statics',
+    reads: [...STATIC_ENTRIES, 'index.html'].map((name) => `site/${name}`),
+    run: (root, out, published) => copyStatics(resolve(root, 'site'), out, published),
+  },
+];
+
+/** The folders of `out` the build products are written in. */
+const BUILT_FOLDERS = SITE_STEPS.flatMap(({ folder }) => folder ?? []);
+
+/** Writes the build products into `out`. */
+export const buildBundles = (root: string, out: string) =>
+  buildSite(
+    root,
+    out,
+    false,
+    SITE_STEPS.filter(({ folder }) => folder),
+  );
 
 /** Writes the portal page with its canonical link, and crawler rules that allow everything. The
  * portal routes by hash, so the root is the only address a crawler can list: no sitemap. */
@@ -119,11 +179,19 @@ export async function copyStatics(source: string, out: string, published = false
   await prune(out, [...STATIC_ENTRIES, ...METADATA_ENTRIES, ...BUILT_FOLDERS]);
 }
 
-/** Builds the whole site from `root` into `out`; only the deployed build is `published`, and
- * carries the audience measurement (`measurement.ts`). */
-export async function buildSite(root = ROOT, out = SITE_OUTPUT, published = false) {
-  await buildBundles(root, out);
-  await copyStatics(resolve(root, 'site'), out, published);
+/** Builds the site from `root` into `out`, every step unless `steps` names some; only the
+ * deployed build is `published`, and carries the audience measurement (`measurement.ts`). */
+export async function buildSite(
+  root = ROOT,
+  out = SITE_OUTPUT,
+  published = false,
+  steps = SITE_STEPS,
+) {
+  for (const { folder, run } of steps) {
+    const target = folder ? resolve(out, folder) : out;
+    if (folder) await rm(target, { recursive: true, force: true });
+    await run(root, target, published);
+  }
 }
 
 /** The files of the built site git tracks: always none, since CI builds it from the sources. */

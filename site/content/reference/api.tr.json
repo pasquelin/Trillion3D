@@ -3140,7 +3140,7 @@
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
-      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan kutular hemen listeye girer.",
+      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
       "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: hareket eden bir nesne dokunduğu ışıkların her sayfasını eskitir. Varsayılan olarak açık.",
       "pageInvalidation": "Hareket eden bir nesnenin yalnızca kutusunun kapladığı sayfaları eskitip eskitmediği.",
       "plan": "Bir kareyi planlar: hareket edeni eskitir, son raporu okur, çizilecek her sayfayı kabul eder.",
