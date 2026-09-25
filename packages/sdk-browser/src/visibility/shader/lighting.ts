@@ -1,5 +1,6 @@
 import { srgbToLinear } from '../../../../sdk-core/src/index.ts';
-import { backgroundRgb, sampleLinear, sampleMap, triangleAt } from '../math.ts';
+import { backgroundRgb, sampleLinear, sampleMap } from '../math.ts';
+import type { triangleAt } from '../projection.ts';
 import { shadingNormal } from './shadingNormal.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
 import type { EngineCamera } from '../../camera/world.ts';

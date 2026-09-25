@@ -54,7 +54,7 @@ export type HostShadedMaterial = HostMaterial & {
   readonly stencilWrite?: boolean;
   readonly flatShading?: boolean;
   readonly wireframe?: boolean;
-  /** Width in image pixels of the lines the surface draws; zero when it draws triangles. */
+  /** Width in CSS pixels of the lines the surface draws; zero when it draws triangles. */
   readonly lineWidth?: number;
   readonly envMap?: HostMap;
   readonly lightMap?: HostMap;

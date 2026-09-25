@@ -1,9 +1,9 @@
-import { signedArea, type Projected } from './projection.ts';
+import { signedArea, triangleAt, type Projected } from './projection.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import { refreshSurface, surfaceSide } from '../page/surface.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
-import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
+import { perspectiveBary, mapTexel } from './math.ts';
 import {
   assertVisibilityPageTriangles,
   packVisibilityId,
@@ -14,6 +14,7 @@ import {
 } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { HostAttributes } from '../host/resources.ts';
+import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 
 /** Interpolated alpha of the vertex colours; a three-component colour reads an alpha of one. */
 function vertexAlpha(
@@ -78,8 +79,14 @@ function fillIds(
 }
 
 /** CPU visbuffer: packed IDs plus NDC z (background at the far value). Engine depth is
- *  reversed, so the GREATEST wins; at equal depth, the first write stays. */
-export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: [number, number]) {
+ *  reversed, so the GREATEST wins; at equal depth, the first write stays. A line page's quads are
+ *  widened at `pixelRatio` image pixels per CSS pixel, as the GPU rasters widen them. */
+export function rasterVisibility(
+  pages: VisPage[],
+  cam: EngineCamera,
+  viewport: [number, number],
+  pixelRatio = DEFAULT_PIXEL_RATIO,
+) {
   const [width, height] = viewport,
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
@@ -103,7 +110,7 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     const color = mat.vertexColors ? page.attributes.color : undefined;
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
-      const tri = triangleAt(page, t, cam, width, height);
+      const tri = triangleAt(page, t, cam, width, height, pixelRatio);
       if (!tri) continue;
       const area = signedArea(tri.a, tri.b, tri.c);
       if (side !== 'double' && (positif ? area <= 0 : area >= 0)) continue;
@@ -149,6 +156,7 @@ export function rasterVisibilityIds(
   pages: VisPage[],
   cam: EngineCamera,
   viewport: [number, number],
+  pixelRatio = DEFAULT_PIXEL_RATIO,
 ) {
-  return rasterVisibility(pages, cam, viewport).ids;
+  return rasterVisibility(pages, cam, viewport, pixelRatio).ids;
 }

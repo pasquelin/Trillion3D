@@ -29,7 +29,7 @@ import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
  */
 /** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
  *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,pixelRatio:f32,}`;
 
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
@@ -112,7 +112,7 @@ ${FACING_WGSL}
  let world=it.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;
  // A line quad widens on screen (\`lineClip\`), along the direction its corner's normal carries.
- if(it.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u],0.0)),it.lineWidth,uni.viewport);}
+ if(it.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u],0.0)),it.lineWidth,uni.viewport,uni.pixelRatio);}
  out.tri=0u;
  out.diagId=0u;
  if((flags&0x1c000000u)!=0u){out.diagId=clusterId;}

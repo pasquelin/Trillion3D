@@ -87,8 +87,8 @@ function familySurface(family: GraphSurfaceFamily, material: Material, vertexCol
 }
 
 /**
- * The raster state of a surface that draws line quads (`drawn.ts`): its `linewidth` in image
- * pixels, both sides in one pass — a quad widened on screen has no face to cull —, and one
+ * The raster state of a surface that draws line quads (`drawn.ts`): its `linewidth` in CSS
+ * pixels (the rasters scale it by the host's pixel ratio each frame), both sides in one pass — a quad widened on screen has no face to cull —, and one
  * coplanar layer over the faces the lines lie on: the pages the world cuts for it carry the layer
  * on WebGPU (`../page/runtimePrimitive.ts`), and this polygon offset gives it on WebGL2, signed
  * for its forward depth (nearer is smaller).

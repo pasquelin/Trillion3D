@@ -1,5 +1,5 @@
 export class WebglClusterMaterialUniforms {
-  private values = new Float64Array(41).fill(Number.NaN);
+  private values = new Float64Array(42).fill(Number.NaN);
   private gl: WebGL2RenderingContext;
   private at: (name: string) => WebGLUniformLocation | null;
   constructor(gl: WebGL2RenderingContext, at: (name: string) => WebGLUniformLocation | null) {

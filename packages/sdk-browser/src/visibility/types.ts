@@ -99,7 +99,7 @@ export type VisMaterial = {
   vertexColors?: boolean;
   /** The surface model a non-physical family maps onto (`../scene/surfaceModel.ts`); physical if absent. */
   model?: number;
-  /** Width in image pixels the rasters widen a line quad to (`shader/lineWgsl.ts`); absent or
+  /** Width in CSS pixels the rasters widen a line quad to (`shader/lineWgsl.ts`); absent or
    *  zero on a surface that draws triangles. */
   lineWidth?: number;
 };

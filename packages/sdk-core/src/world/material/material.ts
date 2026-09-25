@@ -50,7 +50,7 @@ export interface MaterialParameters {
   size?: number;
   /** Whether dots get smaller with distance. */
   sizeAttenuation?: boolean;
-  /** Width of a line in pixels, the same at every distance. */
+  /** Width of a line in CSS pixels, the same at every distance. */
   linewidth?: number;
   /** Length of a dash. */
   dashSize?: number;

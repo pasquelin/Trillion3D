@@ -22,7 +22,7 @@ type V3 = [number, number, number];
  * What a mesh draws, as triangles: the engine rasterises triangles alone, so a point is a small
  * octahedron of the material's `size` and a line segment a quad of two triangles whose corners
  * all sit on the segment (`quads`). A line has no width in world units: the rasters widen each
- * quad on screen to the surface's `lineWidth` in pixels, at every distance
+ * quad on screen to the surface's `lineWidth` in CSS pixels, at every distance
  * (`sdk-browser/src/visibility/shader/lineWgsl.ts`).
  */
 export function drawnTriangles(
