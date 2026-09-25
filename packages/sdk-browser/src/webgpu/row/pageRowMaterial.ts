@@ -29,7 +29,7 @@ export type GeometryBlock = {
   hasUv: boolean;
   hasNormal: boolean;
   hasTangent: boolean;
-  /** Vertex colours: the page's `COLOR_0`, or the tail of the source normal buffer
+  /** Vertex colours: the page's `COLOR_0`, or the tail of the source UV buffer
    *  (`../core/vertexColors.ts`). */
   hasColor: boolean;
   /** The row reads its geometry from the quantized page in its pool slot, not from the source
