@@ -15,6 +15,7 @@ import {
   shadowPoolSide,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
+import { createShadowPool } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pages.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
@@ -85,12 +86,11 @@ test('the shadow share counts the fixed page table, the same on every screen', (
 });
 
 test('the CPU total counts the shadow table host mirror before the page cache', () => {
-  // The words, one change flag per word, one eviction bit per word: 20.5 MiB, whatever the screen.
-  assert.equal(createShadowTable(1).words.byteLength, SHADOW_TABLE_ENTRIES * 4);
-  assert.equal(
-    SHADOW_HOST_BYTES,
-    SHADOW_TABLE_ENTRIES * 4 + SHADOW_TABLE_ENTRIES + SHADOW_TABLE_ENTRIES / 8,
-  );
+  // What a real table and pool allocate at the largest pool, whatever the screen: one size.
+  const side = shadowPoolSide(Infinity, Infinity);
+  const host = createShadowTable(side * side).hostBytes + createShadowPool(side).hostBytes;
+  assert.equal(SHADOW_HOST_BYTES, host);
+  assert.ok(SHADOW_HOST_BYTES > SHADOW_TABLE_ENTRIES * 5, 'the words and their change flags');
   assert.equal(DEFAULT_CPU_BUDGET, SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES);
   for (const total of [SHADOW_HOST_BYTES + 1, DEFAULT_CPU_BUDGET, 4096 * MiB]) {
     const handle = budget('webgpu', null, { cpu: total });

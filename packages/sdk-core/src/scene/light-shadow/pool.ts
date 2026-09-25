@@ -14,6 +14,11 @@ export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
 
+/** Host bytes a `side × side` pool allocates, per page 9·4 + 3 + 2·8, one bit per table entry. */
+export function shadowPoolHostBytes(side: number) {
+  return side * side * (9 * 4 + 3 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+}
+
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
  * the light and the virtual page it draws — a sun level and its absolute page, or a lamp face,
@@ -89,6 +94,11 @@ export function createShadowPool(side: number) {
     /** Physical pages per side of the atlas, and in all. */
     side,
     pages,
+    /** Bytes of every host array the pool holds: what `shadowPoolHostBytes` declares. */
+    get hostBytes() {
+      const all = [owner, slice, view, x, y, rank, requested, dirty, valid, layered, since];
+      return [...all, sinceFrame, free, order, evicted].reduce((n, a) => n + a.byteLength, 0);
+    },
     get used() {
       return pages - freeCount;
     },
