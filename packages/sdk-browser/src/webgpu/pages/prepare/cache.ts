@@ -1,15 +1,14 @@
 import { createGpuPageCache } from '../../../gpu/page/pages.ts';
+import { grantedGeometryPool } from '../../residency/poolGrants.ts';
+import { geometryBudgetBeside } from '../io/memory.ts';
+import { throwIfStopped } from '../io/lost.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
  * The engine's GPU page cache, with its trace hook. Cache events are sampled only if trace is
  * requested: otherwise no closure is posted, and the cache does not even have an observer to call.
  */
-export function createWebgpuPagesCache(
-  rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
-  slots: number,
-) {
+function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, slots: number) {
   const { diag, run, services } = rt,
     { pageBytes } = rt.setup;
   const options = (
@@ -30,4 +29,29 @@ export function createWebgpuPagesCache(
       : { pageBytes, slots }
   ) as Parameters<typeof createGpuPageCache>[2];
   return createGpuPageCache(gpuDevice, services.pageSource, options);
+}
+
+/**
+ * Out of memory absorbed: the geometry pool is the one the device grants, its cache allocated
+ * once, under the out-of-memory scope (`poolGrants.ts`), from what its budget leaves the vertex
+ * buffers beside it (`geometryBudgetBeside`). Refused even at its floor, the root cover: refused
+ * by name, never allocated at the full request outside any scope.
+ */
+export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+  const { setup, gpu, diag } = rt,
+    { bytes, declared } = geometryBudgetBeside(rt, setup.geometryPool.budgetBytes);
+  const granted = await grantedGeometryPool(
+    gpuDevice,
+    bytes,
+    setup.geometryPoolFor,
+    diag.engineDiagnostic,
+    (pool) => {
+      const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
+      return { cache, destroy: () => void cache.dispose() };
+    },
+  );
+  if (!granted) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
+  setup.geometryPool = declared(granted.pool);
+  gpu.cache = granted.made.cache;
+  throwIfStopped(rt);
 }
