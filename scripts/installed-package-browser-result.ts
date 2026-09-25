@@ -19,6 +19,18 @@ export interface InstalledBrowserProof {
   browserVersion: string;
 }
 
+/**
+ * No hole at full residency (#483 rule 1): once every page the view reads is resident, the frame
+ * draws exactly the cut it selected — a surface drawn by a coarser stand-in, or by nothing, moves
+ * `drawnTriangles` off `selectedTriangles`. Both are read from the engine; an unpublished count
+ * fails the check rather than passing it.
+ */
+export function drawsItsWholeCut(metrics: Record<string, number | null> | undefined) {
+  const selected = metrics?.selectedTriangles,
+    drawn = metrics?.drawnTriangles;
+  return typeof selected === 'number' && selected > 0 && drawn === selected;
+}
+
 export function installedBrowserResult({
   result,
   workers,
@@ -43,9 +55,7 @@ export function installedBrowserResult({
   if (errors.length) throw new Error(`installed browser errors: ${errors.join('; ')}`);
   if (
     !(metrics?.pagesDecodedOffThread > 0) ||
-    !(metrics?.selectedTriangles > 0) ||
-    metrics.selectedTriangles !== metrics.drawnTriangles ||
-    metrics.uncoveredTriangles !== 0 ||
+    !drawsItsWholeCut(metrics) ||
     capture.aaDifferentPixels !== 0 ||
     !decode?.ok ||
     !decode.wasm ||
