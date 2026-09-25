@@ -60,9 +60,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
   const { removeRecords, sync, colorMaterials } = geometryStore;
   // The meshes an instance adds to the cover: one per record drawn on its own. Its rowed records
   // join the model's own instanced meshes (`attachedPages`), which the cover already counts.
-  let ownMeshes = 0;
-  if (hostCeiling < Infinity)
-    for (const rec of baseBootstrap) if (!drawnInstanced(rec)) ownMeshes++;
+  // Counted at the first instance a host ceiling bounds.
+  let ownMeshes = -1;
   /** The material this engine built from the contract for a primitive, and therefore frees
    *  itself: one entry per repainted primitive, replaced — not stacked — by the next paint. */
   const owned = new Map<string, HostMaterial>();
@@ -86,8 +85,10 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       sceneChanged();
       if (instances.has(id) || !id) throw new Error('AUTONOMOUS_INSTANCE_ID');
       // Without a host ceiling the cover is always drawn: nothing is counted.
-      if (hostCeiling < Infinity && coverMeshes() + ownMeshes > hostCeiling)
-        throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      if (hostCeiling < Infinity) {
+        if (ownMeshes < 0) ownMeshes = baseBootstrap.filter((rec) => !drawnInstanced(rec)).length;
+        if (coverMeshes() + ownMeshes > hostCeiling) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      }
       const mapped = new Map<PageRec, PageRec>();
       for (const base of basePages) {
         // A record rows place shares the page's geometry, as the store gives it (`geometry.ts`):

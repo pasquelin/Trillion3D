@@ -53,6 +53,8 @@ test('a sparse example is declared by name and backend under the tenth; every ot
     'snow-of-sprites',
   ];
   for (const id of named) assert.ok(ids.has(id), id);
+  // A new declaration is asserted here too, with its literal share.
+  for (const id of Object.keys(SPARSE)) assert.ok(named.includes(id), id);
   const least = (gpu: boolean) => named.map((id) => leastDrawn(id, gpu));
   assert.deepEqual(least(false), [0.04, 0.04, 0.06, 0.1, 0.1, 0.1, 0.1]);
   assert.deepEqual(least(true), [0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
