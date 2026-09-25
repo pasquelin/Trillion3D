@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { GraphMesh } from '../../host/graph/mesh.ts';
+import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import { buildWorldMirror } from './worldMirror.ts';
 import type { Cut } from './worldCuts.ts';
@@ -18,11 +19,14 @@ const cut = (colors: boolean): Cut => {
   return { key: String(colors), drawn, runtime: {} as never, users: new Set(), held: false };
 };
 
+/** The one surface a mirror mesh wears. */
+const worn = (mesh: GraphMesh) => mesh.material as GraphSurface;
+
 const vertexColorsOf = (vertexColors: boolean, colors: boolean) => {
   const paint = material.meshStandard({ color: 0xffffff, vertexColors });
   const placed = [{ cut: cut(colors), material: paint, rows: {} as PlacementRows, name: 'm' }];
   const { root } = buildWorldMirror({ placed, models: [], rankOf: () => 0 });
-  return (root.children[0] as GraphMesh).material.vertexColors;
+  return worn(root.children[0] as GraphMesh).vertexColors;
 };
 
 // #347: the material decides, as `material.vertexColors` does in the reference; a geometry's
@@ -42,8 +46,8 @@ test('one material worn with and without colours gets one surface per case, both
   const [a, b, c] = root.children as GraphMesh[];
   assert.equal(a.material, c.material, 'the coloured surface is shared');
   assert.notEqual(a.material, b.material);
-  const versions = [a, b].map((mesh) => mesh.material.version);
+  const versions = [a, b].map((mesh) => worn(mesh).version);
   paint.color.set(0xff0000);
   assert.equal(repaint(paint), true);
-  [a, b].forEach((mesh, i) => assert.ok(mesh.material.version > versions[i]!));
+  [a, b].forEach((mesh, i) => assert.ok(worn(mesh).version > versions[i]!));
 });
