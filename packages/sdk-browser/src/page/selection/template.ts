@@ -15,7 +15,7 @@ import {
 } from './helpers.ts';
 import { structureIndex } from './structure.ts';
 import { cullingBounds } from '../cut/bounds.ts';
-import { cullingLinks, type CullingLinks } from '../cut/readiness.ts';
+import { cullingLinks, type CullingLinks } from '../cut/links.ts';
 
 /**
  * What a source object carries once, however many times it is placed in the scene: error bands,
