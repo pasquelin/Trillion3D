@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { compileSiteCaches } from '../../scripts/site-caches.ts';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const JUSTESSE = 'tests/browser/probes';
@@ -77,4 +78,7 @@ export function runGpuTests(args = process.argv.slice(2)) {
   process.exit(resultat.status ?? 1);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) runGpuTests();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  compileSiteCaches();
+  runGpuTests();
+}

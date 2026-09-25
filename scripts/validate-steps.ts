@@ -42,7 +42,7 @@ export const VALIDATE_GROUPS = {
     'check:site-types',
     'check:tools-types',
   ],
-  native: ['lint:native', 'build:native', 'test:native', 'build', 'test'],
+  native: ['lint:native', 'build:native', 'compile:caches', 'test:native', 'build', 'test'],
 } as const satisfies Record<string, readonly string[]>;
 
 type ValidateGroup = keyof typeof VALIDATE_GROUPS;

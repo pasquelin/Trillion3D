@@ -47,6 +47,12 @@ test('the unit suite runs where the compiled compiler and dist both exist', () =
     );
 });
 
+test('the scene caches, never tracked, are compiled between the compiler and the tests that read them', () => {
+  const native: readonly string[] = VALIDATE_GROUPS.native;
+  assert.ok(native.indexOf('build:native') < native.indexOf('compile:caches'));
+  assert.ok(native.indexOf('compile:caches') < native.indexOf('test:native'), 'the colliders test');
+});
+
 test('the groups whose gates read the generated API files write them first', () => {
   assert.equal(VALIDATE_GROUPS.quick[0], 'generate:api', 'lint, knip and check:i18n read them');
   assert.equal(VALIDATE_GROUPS.typescript[0], 'generate:api', 'the site types read them');
@@ -57,7 +63,11 @@ test('an unknown group stops the run instead of silently checking nothing', () =
 });
 
 test('restored binaries drop the Rust gates, and keep the suite that drives them', () => {
-  assert.deepEqual(stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' }, 'native'), ['build', 'test']);
+  assert.deepEqual(stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' }, 'native'), [
+    'compile:caches',
+    'build',
+    'test',
+  ]);
   assert.deepEqual(
     stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' }, 'quick'),
     VALIDATE_GROUPS.quick,

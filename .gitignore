@@ -40,3 +40,9 @@ site/assets/examples/openworld/
 # unit test runners and `validate` (#683): committed, they conflicted between unrelated branches.
 site/content/reference/api.json
 site/data/api-inventory.json
+# Compiled from their sources by `pnpm run compile:caches`, the site build and the test runners.
+site/assets/**/cache/
+tests/fixtures/scenes/*/cache/
+# The one published report: staged by `bench/runner/publishReport.ts`, fetched by the site build.
+site/reports/*/
+site/reports/index.json
