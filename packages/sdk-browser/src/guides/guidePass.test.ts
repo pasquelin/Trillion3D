@@ -7,12 +7,7 @@ import { createGuideSet } from './guideSet.ts';
 import { createWebgpuGuidePass } from './guidePass.ts';
 import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
-import {
-  GUIDE_UNIFORM_FLOATS,
-  REVERSED_NEAR_PLANE,
-  jitterDepthSlack,
-  writeGuideView,
-} from './guideShaders.ts';
+import { GUIDE_UNIFORM_FLOATS, REVERSED_NEAR_PLANE, writeGuideView } from './guideShaders.ts';
 import {
   encodeWebgpuGuides,
   guidesMoved,
@@ -171,30 +166,4 @@ test('a guide changed on a held image releases it, and leaves the accumulation s
   assert.equal(holdWebgpuFrame(rt, device), false, 'the next image draws the guide');
   guidesShown(rt as never);
   assert.equal(holdWebgpuFrame(rt, device), true, 'drawn once, held again');
-});
-
-/** Reversed depth of a tilted plane at pixel `(x, y)`, the jitter `(jx, jy)` pixels applied. */
-const plane =
-  (jx = 0, jy = 0) =>
-  (x: number, y: number) =>
-    0.5 + 0.01 * (x - jx) - 0.03 * (y - jy);
-
-test('the depth slack covers exactly what the jitter moved on a plane, and nothing unjittered', () => {
-  const jitter = [-0.375, -0.1];
-  const scene = plane(...(jitter as [number, number])),
-    guide = plane()(4, 4);
-  const slack = jitterDepthSlack(scene, 4, 4, jitter);
-  assert.ok(Math.abs(slack - (0.375 * 0.01 + 0.1 * 0.03)) < 1e-12, 'jitter times slope, per axis');
-  assert.ok(guide >= scene(4, 4) - slack, 'a guide on the plane passes the test');
-  assert.ok(guide < scene(4, 4), 'where the bare test would have hidden it');
-  assert.equal(jitterDepthSlack(scene, 4, 4, [0, 0]), 0, 'no jitter, no slack');
-  assert.ok(0.4 < scene(4, 4) - slack, 'a guide behind the plane stays hidden');
-});
-
-test('a silhouette beside the pixel opens no hole: the gentler side gives the slope', () => {
-  const edge = (x: number, y: number) => (x > 4 ? 0.1 : plane()(x, y));
-  assert.ok(
-    Math.abs(jitterDepthSlack(edge, 4, 4, [0.5, 0]) - 0.5 * 0.01) < 1e-12,
-    'the far background right of the pixel is not a slope',
-  );
 });
