@@ -5,6 +5,7 @@
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike.
 use super::SOFT_VERTEX_WORDS as W;
 use crate::dag::clusters::weld_positions;
+use crate::qem::compact_region;
 use crate::shared_math::{cross, length, sub};
 
 /// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
@@ -58,18 +59,9 @@ pub(super) fn soft_record(
     let (count, rope, volume) = (pos.len() / 3, d.kind == "rope", d.kind == "volume");
     // As the page's key, the text of each coordinate: 0 and -0 are one position.
     let every: Vec<u32> = (0..count as u32).collect();
-    let canonical = weld_positions(pos, &every);
-    let (mut map, mut kept) = (Vec::with_capacity(count), Vec::new());
-    for (v, &first) in canonical.iter().enumerate() {
-        // A vertex's first copy comes first: its welded index is already mapped.
-        let welded = if first as usize == v {
-            kept.push(v);
-            kept.len() as u32 - 1
-        } else {
-            map[first as usize]
-        };
-        map.push(welded);
-    }
+    // Each welded vertex numbered at its first copy, as the page numbers them.
+    let (xyz, map, _) = compact_region(pos, &weld_positions(pos, &every));
+    let kept = xyz.len() / 3;
     // A rope keeps no triangle.
     let corners = match corners {
         _ if rope => &[],
@@ -87,18 +79,13 @@ pub(super) fn soft_record(
             indices.extend([a, b, c]);
         }
     }
-    let enough = if rope {
-        kept.len() >= 2
-    } else {
-        !indices.is_empty()
-    };
-    if !enough {
+    if (rope && kept < 2) || (!rope && indices.is_empty()) {
         return Err(format!("A soft {} needs more vertices.", d.kind));
     }
-    let mut vertices = vec![0f32; kept.len() * W];
-    for (i, &v) in kept.iter().enumerate() {
-        vertices[i * W..i * W + 3].copy_from_slice(&pos[v * 3..v * 3 + 3]);
-    }
+    let mut vertices: Vec<f32> = xyz
+        .chunks_exact(3)
+        .flat_map(|p| [p[0], p[1], p[2], 0.0])
+        .collect();
     let measure = spread_mass(&mut vertices, &indices, scale)?;
     let density = if rope { LINEAR_DENSITY } else { AREAL_DENSITY };
     let factor = d.mass.map_or(density, |mass| mass / measure);
@@ -107,7 +94,7 @@ pub(super) fn soft_record(
     }
     let mut pressure = 0.0;
     if volume {
-        let held = held_pressure(factor * measure / kept.len() as f64, measure, d.stretch);
+        let held = held_pressure(factor * measure / kept as f64, measure, d.stretch);
         pressure = d
             .pressure
             .unwrap_or((4.0 * factor * EARTH / FOOTPRINT).min(held));

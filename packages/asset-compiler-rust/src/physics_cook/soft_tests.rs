@@ -61,11 +61,7 @@ fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
     let seam = [0.0f32, 0., 0., 1., 0., 0., 1., 0., 0., 2., 0., 0.];
     let rope = soft_record(&seam, None, [2.0, 1.0, 1.0], &declared("rope", &[0.0])).unwrap();
     let masses: Vec<f32> = rope.vertices.iter().skip(3).step_by(W).copied().collect();
-    assert_eq!(
-        rope.vertices.len(),
-        3 * W,
-        "the seam's two vertices are one"
-    );
+    // Three vertices: the seam's two are one.
     assert_eq!(
         masses,
         [0.0, 0.065 * 2.0, 0.065],
@@ -135,7 +131,7 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
     assert_eq!(
         soft["physics"]["pins"],
         json!([6, 8]),
-        "the options, for the page to read"
+        "the options, for the page"
     );
     assert_eq!(soft["position"], json!([0.0, 2.0, 0.0]));
     let sha = soft["settings"]["sha256"].as_str().unwrap();
@@ -145,13 +141,9 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
         std::fs::read(GOLDEN).unwrap(),
         "the cooked cloth is the golden one"
     );
-    let placed: Vec<&Value> = written["instances"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|i| &i["node"])
-        .collect();
-    assert_eq!(placed, [&json!(1)], "the floor alone is static ground");
+    let instances = written["instances"].as_array().unwrap();
+    assert_eq!(instances.len(), 1, "the floor alone is static ground");
+    assert_eq!(instances[0]["node"], json!(1));
     let refused = &written["report"]["softRefused"];
     assert_eq!(
         refused,

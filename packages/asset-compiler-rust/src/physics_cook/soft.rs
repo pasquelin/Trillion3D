@@ -85,13 +85,12 @@ fn soft_body(
         "mesh",
     )?;
     let primitives = values(mesh, "primitives")?;
-    if primitives.len() != 1 {
+    let [primitive] = primitives.as_slice() else {
         let count = primitives.len();
         return Err(refuse(format!(
             "A soft body is one primitive: its mesh holds {count}."
         )));
-    }
-    let primitive = &primitives[0];
+    };
     let position = required_index(primitive.pointer("/attributes/POSITION"), "POSITION")?;
     let pos = accessor(g, bin, position, None)?.collect_f32()?;
     let corners = primitive
