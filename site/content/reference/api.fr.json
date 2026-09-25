@@ -2007,7 +2007,7 @@
       "addGroup": "Dessine `count` indices à partir de `start` avec le matériau numéro `materialIndex` du maillage.",
       "clearGroups": "Retire chaque groupe de matériau.",
       "computeVertexNormals": "Normales lisses : chaque sommet fait la moyenne des faces qui le partagent, pondérées par leur aire.",
-      "computeBoundingBox": "Mesure la boîte autour de chaque sommet et de chaque forme que lui donne une cible de morphose, et la garde dans `boundingBox` ; une position normalisée est mesurée à son échelle.",
+      "computeBoundingBox": "Mesure la boîte autour de chaque sommet et de chaque forme que lui donne une cible de morphose, et la garde dans `boundingBox`.",
       "computeBoundingSphere": "Mesure la boule centrée sur la boîte qui atteint le sommet le plus lointain, morphé ou non, et la garde dans `boundingSphere`.",
       "applyMatrix4": "Déplace chaque position, tourne chaque normale : c’est la géométrie qui change, pas une pose.",
       "translate": "Déplace chaque sommet de `(x, y, z)`.",

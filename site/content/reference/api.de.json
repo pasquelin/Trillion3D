@@ -2000,7 +2000,7 @@
       "addGroup": "Zeichnet `count` Indizes ab `start` mit dem Material Nummer `materialIndex` des Meshes.",
       "clearGroups": "Entfernt jede Materialgruppe.",
       "computeVertexNormals": "Glatte Normalen: jeder Scheitelpunkt mittelt die Flächen, die ihn teilen, gewichtet nach ihrer Fläche.",
-      "computeBoundingBox": "Misst den Quader um jeden Eckpunkt und jede Form, die ein Morph-Ziel ihr gibt, und behält ihn in `boundingBox`; eine normalisierte Position wird in ihrem Maßstab gemessen.",
+      "computeBoundingBox": "Misst den Quader um jeden Eckpunkt und jede Form, die ein Morph-Ziel ihr gibt, und behält ihn in `boundingBox`.",
       "computeBoundingSphere": "Misst die Kugel, die auf dem Quader zentriert ist und den fernsten Eckpunkt, gemorpht oder nicht, erreicht, und behält sie in `boundingSphere`.",
       "applyMatrix4": "Verschiebt jede Position, dreht jede Normale: es ist die Geometrie, die sich ändert, keine Pose.",
       "translate": "Verschiebt jeden Scheitelpunkt um `(x, y, z)`.",

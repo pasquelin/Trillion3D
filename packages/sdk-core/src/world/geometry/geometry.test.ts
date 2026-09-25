@@ -42,13 +42,14 @@ test('a copied geometry keeps every value it held: lists, morphs, groups, range,
   assert.deepEqual(copy.recipe, { type: 'triangle', args: [1] });
 });
 
-test('a normalised or interleaved position is bounded at the value it stands for', () => {
-  const normalised = new Geometry().setAttribute(
-    'position',
-    new BufferAttribute(new Int16Array([-32767, 0, 0, 32767, 16384, 0]), 3, true),
-  );
+test('a normalised position is bounded and drawn as its stored numbers, an interleaved one through its stride', () => {
+  const stored = new Int16Array([0, 0, 0, 32767, 0, 0, 0, 16384, 0]);
+  const normalised = new Geometry().setAttribute('position', new BufferAttribute(stored, 3, true));
   normalised.computeBoundingBox();
-  assert.deepEqual(box(normalised), [-1, 0, 0, 1, 16384 / 32767, 0]);
+  normalised.computeBoundingSphere();
+  assert.deepEqual(box(normalised), [0, 0, 0, 32767, 16384, 0]);
+  assert.equal(normalised.boundingSphere!.radius, Math.hypot(32767 / 2, 16384 / 2));
+  assert.deepEqual(Array.from(drawnTriangles(normalised, 'triangles')!.positions), [...stored]);
   // Two vertices of six numbers: position then a colour the box must not read.
   const pack = new InterleavedBuffer(new Float32Array([1, 2, 3, 9, 9, 9, -1, -2, -3, 9, 9, 9]), 6);
   const interleaved = new Geometry().setAttribute(
@@ -59,13 +60,29 @@ test('a normalised or interleaved position is bounded at the value it stands for
   assert.deepEqual(box(interleaved), [-1, -2, -3, 1, 2, 3]);
 });
 
-test('a normalised position is drawn at the value it stands for', () => {
+test('a two-wide position is drawn with z = 1, a moved one as its stored numbers', () => {
+  const flat = new Geometry().setAttribute(
+    'position',
+    new BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1]), 2),
+  );
+  const drawn = drawnTriangles(flat, 'triangles')!;
+  assert.deepEqual(Array.from(drawn.positions), [0, 0, 1, 1, 0, 1, 0, 1, 1]);
+  const moved = new Geometry().setAttribute(
+    'position',
+    new BufferAttribute(new Int16Array([1, 2, 3]), 3, true),
+  );
+  moved.translate(1, 0, 0);
+  assert.deepEqual(Array.from(moved.attributes.position.array), [2, 2, 3]);
+});
+
+test('a sphere reaches the farthest vertex from the centre of the box', () => {
   const g = new Geometry().setAttribute(
     'position',
-    new BufferAttribute(new Int16Array([0, 0, 0, 32767, 0, 0, 0, 32767, 0]), 3, true),
+    new BufferAttribute(new Float32Array([0, 1, 0, 2, 1, 0, 1, 0, 0, 1, 2, 0]), 3),
   );
-  const drawn = drawnTriangles(g, 'triangles')!;
-  assert.deepEqual(Array.from(drawn.positions), [0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  g.computeBoundingSphere();
+  assert.deepEqual(g.boundingSphere!.center.toArray(), [1, 1, 0]);
+  assert.equal(g.boundingSphere!.radius, 1, "not the box's corner, √2");
 });
 
 test('a colour change keeps the bounds, a position change forgets them', () => {

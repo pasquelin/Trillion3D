@@ -114,7 +114,7 @@ export function hostPageGeometry(
   for (const [name, array] of Object.entries(page.attributes))
     geometry.setAttribute(name, new BufferAttribute(array, itemSize(name)));
   setGeometryBounds(geometry, min, max);
-  return geometry as unknown as Geometry;
+  return geometry;
 }
 
 /** A page geometry of an instance's own: a copy that shares no buffer with the model's. */

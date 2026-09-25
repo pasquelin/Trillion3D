@@ -4918,7 +4918,7 @@
       {
         "name": "computeBoundingBox()",
         "type": "Box3",
-        "desc": "Measures the box around every vertex, and every shape a morph target gives it, and keeps it in `boundingBox`; a normalised position is measured at its scale."
+        "desc": "Measures the box around every vertex, and every shape a morph target gives it, and keeps it in `boundingBox`."
       },
       {
         "name": "computeBoundingSphere()",

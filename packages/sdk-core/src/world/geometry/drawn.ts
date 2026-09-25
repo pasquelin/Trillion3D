@@ -74,7 +74,7 @@ export function drawnTriangles(
     return out;
   };
   const drawn = {
-    positions: new Float32Array(p),
+    positions: new Float32Array(p.length === position.count * 3 ? p : attribute('position', 3)!),
     normals: attribute('normal', 3),
     uvs: attribute('uv', 2),
     colors: attribute('color', 4),

@@ -2000,7 +2000,7 @@
       "addGroup": "Dibuja `count` índices desde `start` con el material número `materialIndex` de la malla.",
       "clearGroups": "Retira cada grupo de material.",
       "computeVertexNormals": "Normales suaves: cada vértice promedia las caras que lo comparten, ponderadas por su área.",
-      "computeBoundingBox": "Mide la caja alrededor de cada vértice y de cada forma que le da un objetivo de morph, y la guarda en `boundingBox`; una posición normalizada se mide a su escala.",
+      "computeBoundingBox": "Mide la caja alrededor de cada vértice y de cada forma que le da un objetivo de morph, y la guarda en `boundingBox`.",
       "computeBoundingSphere": "Mide la esfera centrada en la caja que alcanza el vértice más lejano, con morph o sin él, y la guarda en `boundingSphere`.",
       "applyMatrix4": "Mueve cada posición, gira cada normal: es la geometría la que cambia, no una pose.",
       "translate": "Mueve cada vértice en `(x, y, z)`.",

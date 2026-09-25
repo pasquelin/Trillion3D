@@ -1126,7 +1126,7 @@
       "addGroup": "`start`'tan itibaren `count` indeksi, mesh'in `materialIndex` malzeme numarasıyla çizer.",
       "clearGroups": "Her malzeme grubunu kaldırır.",
       "computeVertexNormals": "Yumuşak normaller: her köşe, alanına göre ağırlıklandırılmış, onu paylaşan yüzleri ortalar.",
-      "computeBoundingBox": "Her köşe noktasının ve bir morf hedefinin ona verdiği her şeklin çevresindeki kutuyu ölçer ve `boundingBox` içinde tutar; normalleştirilmiş bir konum kendi ölçeğinde ölçülür.",
+      "computeBoundingBox": "Her köşe noktasının ve bir morf hedefinin ona verdiği her şeklin çevresindeki kutuyu ölçer ve `boundingBox` içinde tutar.",
       "computeBoundingSphere": "Kutuya ortalanmış ve morflu ya da değil en uzak köşeye ulaşan küreyi ölçer ve `boundingSphere` içinde tutar.",
       "applyMatrix4": "Her pozisyonu hareket ettirir, her normali döndürür: bir poz değil, geometrinin kendisi değişir.",
       "translate": "Her köşeyi `(x, y, z)` kadar hareket ettirir.",

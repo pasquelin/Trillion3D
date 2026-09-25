@@ -1126,7 +1126,7 @@
       "addGroup": "Desenha `count` índices a partir de `start` com o número de material `materialIndex` do mesh.",
       "clearGroups": "Remove cada grupo de material.",
       "computeVertexNormals": "Normais suaves: cada vértice faz a média das faces que o compartilham, ponderada por sua área.",
-      "computeBoundingBox": "Mede a caixa em volta de cada vértice e de cada forma que um alvo de morph lhe dá, e guarda-a em `boundingBox`; uma posição normalizada é medida na sua escala.",
+      "computeBoundingBox": "Mede a caixa em volta de cada vértice e de cada forma que um alvo de morph lhe dá, e guarda-a em `boundingBox`.",
       "computeBoundingSphere": "Mede a esfera centrada na caixa que alcança o vértice mais distante, com morph ou não, e guarda-a em `boundingSphere`.",
       "applyMatrix4": "Move cada posição, gira cada normal: a própria geometria muda, não uma pose.",
       "translate": "Move cada vértice por `(x, y, z)`.",
