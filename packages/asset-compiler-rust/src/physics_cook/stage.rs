@@ -4,7 +4,7 @@
 //! (`soft.rs`). Its `formatVersion` is its own, and it
 //! names the stage and the Jolt commit that cooked it: a reader refuses any other.
 use super::declared::declared_matter;
-use super::soft::soft_bodies;
+use super::soft::{declared_soft, soft_bodies};
 use super::{
     JOLT_COMMIT, PHYSICS_COOK_STAGE, PHYSICS_COOK_VERSION, PHYSICS_FILE, PHYSICS_FORMAT_VERSION,
 };
@@ -129,12 +129,15 @@ pub(crate) fn stage_physics(
     let world = world_matrices(g)?;
     let nodes = values(g, "nodes")?;
     let (colliders, slot, refused) = gathered(primitives, collisions);
-    let (soft_bodies, soft_refused, soft) = soft_bodies(o, (g, bin), chosen, &world)?;
+    let (soft_bodies, soft_refused) = soft_bodies(o, (g, bin), chosen, &world)?;
     let by_mesh = crate::proxy::primitives_by_mesh(primitives);
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
     // Every drawn node but a soft body is static ground, as drawn: a node the source declares
     // moving is placed too, for no rigid body simulates a node of a compiled model yet.
-    for &node in chosen.iter().filter(|node| !soft.contains(node)) {
+    for &node in chosen
+        .iter()
+        .filter(|&&n| declared_soft(&nodes[n]).is_none())
+    {
         let old = required_index(nodes[node].get("mesh"), "node.mesh")?;
         let Some(mesh) = mesh_map.get(&old) else {
             continue;

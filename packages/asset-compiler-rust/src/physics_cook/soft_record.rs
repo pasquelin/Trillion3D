@@ -4,6 +4,7 @@
 //! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike, and
 //! the module test holds a cooked cloth to one the page builds (`cookedSoft.test.ts`).
+use crate::shared_math::{cross, length, sub};
 use std::collections::HashMap;
 
 /// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
@@ -65,8 +66,14 @@ pub(super) fn soft_record(
         }
         map.push(welded as u32);
     }
-    let all: Vec<u32> = (0..count as u32).collect();
-    let corners = corners.unwrap_or(&all);
+    let all: Vec<u32>;
+    let corners = match corners {
+        Some(corners) => corners,
+        None => {
+            all = (0..count as u32).collect();
+            &all
+        }
+    };
     let mut indices = Vec::new();
     let triangles: &[[u32; 3]] = if rope { &[] } else { corners.as_chunks().0 };
     for t in triangles {
@@ -96,20 +103,17 @@ pub(super) fn soft_record(
     for mass in vertices.iter_mut().skip(3).step_by(4) {
         *mass = (*mass as f64 * factor) as f32;
     }
-    let held = if volume {
-        held_pressure(factor * measure / kept.len() as f64, measure, d.stretch)
-    } else {
-        0.0
-    };
-    let pressure = match (volume, d.pressure) {
-        (false, _) => 0.0,
-        (true, Some(p)) => p,
-        (true, None) => (4.0 * factor * EARTH / FOOTPRINT).min(held),
-    };
-    if pressure > held {
-        return Err(format!(
-            "A soft volume's pressure {pressure} Pa swells it past a tenth: its skin holds {held:.1}."
-        ));
+    let mut pressure = 0.0;
+    if volume {
+        let held = held_pressure(factor * measure / kept.len() as f64, measure, d.stretch);
+        pressure = d
+            .pressure
+            .unwrap_or((4.0 * factor * EARTH / FOOTPRINT).min(held));
+        if pressure > held {
+            return Err(format!(
+                "A soft volume's pressure {pressure} Pa swells it past a tenth: its skin holds {held:.1}."
+            ));
+        }
     }
     for &pin in &d.pins {
         if !(pin.fract() == 0.0 && pin >= 0.0 && pin < count as f64) {
@@ -129,10 +133,9 @@ pub(super) fn soft_record(
 /// Adds to each vertex's mass word the scaled area (no triangle: length) it holds (`spreadMass`);
 /// returns the whole.
 fn spread_mass(vertices: &mut [f32], indices: &[u32], s: [f64; 3]) -> Result<f64, String> {
-    let d = |v: &[f32], a: usize, b: usize| -> [f64; 3] {
-        std::array::from_fn(|k| v[b * 4 + k] as f64 * s[k] - v[a * 4 + k] as f64 * s[k])
-    };
-    let length = |u: [f64; 3]| u.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let at =
+        |v: &[f32], i: usize| -> [f64; 3] { std::array::from_fn(|k| v[i * 4 + k] as f64 * s[k]) };
+    let d = |v: &[f32], a: usize, b: usize| sub(at(v, b), at(v, a));
     let share = |v: &mut [f32], corners: &[usize], amount: f64| {
         for &i in corners {
             v[i * 4 + 3] = (v[i * 4 + 3] as f64 + amount / corners.len() as f64) as f32;
@@ -148,13 +151,8 @@ fn spread_mass(vertices: &mut [f32], indices: &[u32], s: [f64; 3]) -> Result<f64
     }
     for t in indices.as_chunks::<3>().0 {
         let [a, b, c] = t.map(|corner| corner as usize);
-        let (u, v) = (d(vertices, a, b), d(vertices, a, c));
-        let cross = [
-            u[1] * v[2] - u[2] * v[1],
-            u[2] * v[0] - u[0] * v[2],
-            u[0] * v[1] - u[1] * v[0],
-        ];
-        whole += share(vertices, &[a, b, c], length(cross) / 2.0);
+        let area = length(cross(d(vertices, a, b), d(vertices, a, c))) / 2.0;
+        whole += share(vertices, &[a, b, c], area);
     }
     // Also refuses a NaN whole, as the page does.
     match whole.partial_cmp(&0.0) {

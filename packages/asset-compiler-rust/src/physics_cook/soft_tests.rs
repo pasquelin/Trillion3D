@@ -4,11 +4,10 @@
 use super::soft_record::{soft_record, SoftDeclared};
 use super::soft_settings;
 use super::stage_physics;
+use super::tests::assert_golden;
 use crate::compiler_coplanar::DepthLayerScene;
-use crate::Options;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::{atomic::AtomicBool, Arc};
 
 /// The golden cloth: a 1 m square of 2 × 2 squares in the xy plane, its vertices row by row from
 /// (−0.5, −0.5), pinned at its top corners (6, 8), bend 0.01 rad/(N·m). The module test builds it
@@ -58,14 +57,7 @@ fn a_cloth_cooks_to_the_golden_settings() {
     let cook = || soft_settings(&record.vertices, [1.0; 3], &record.indices, 0.0, 0.01).unwrap();
     let first = cook();
     assert_eq!(first, cook());
-    if std::env::var_os("TRILLION3D_WRITE_GOLDEN").is_some() {
-        std::fs::write(GOLDEN, &first).unwrap();
-    }
-    assert_eq!(
-        first,
-        std::fs::read(GOLDEN).unwrap(),
-        "golden soft settings moved: {GOLDEN}"
-    );
+    assert_golden(&first, GOLDEN);
 }
 
 // Behaviour: as on the page, vertices at one position are one, a rope weighs its scaled length,
@@ -100,19 +92,14 @@ fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
     assert_eq!(lone.err().unwrap(), "A soft rope needs more vertices.");
 }
 
-/// Little-endian bytes of `values`.
-fn bytes<T: Copy>(values: &[T], le: fn(T) -> [u8; 4]) -> Vec<u8> {
-    values.iter().flat_map(|v| le(*v)).collect()
-}
-
 // Behaviour: a node declaring a cloth in `extras.physics` is listed in `physics.json` with its
 // cooked settings, placed by its node, and no static collider stands where it hangs; the floor
 // beside it stays static ground, and a soft body of two primitives is refused by name.
 #[test]
 fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
     let (pos, triangles) = cloth();
-    let mut bin = bytes(&pos, f32::to_le_bytes);
-    bin.extend(bytes(&triangles, u32::to_le_bytes));
+    let mut bin = crate::import::f32_bytes(&pos);
+    bin.extend(triangles.iter().flat_map(|i| i.to_le_bytes()));
     let physics = json!({"type":"cloth","pins":[6, 8],"bend":0.01,"gravityScale":0.5});
     let primitive = json!({"attributes":{"POSITION":0},"indices":1});
     let g = json!({
@@ -125,18 +112,7 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
     });
     let root =
         std::path::Path::new(env!("OUT_DIR")).join(format!("soft-cook-{}", std::process::id()));
-    let o = Options {
-        source: root.join("source"),
-        cache: root.join("cache"),
-        resource_base: "/assets/".into(),
-        scope: "full".into(),
-        triangle_budget: 1000,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "none".into(),
-        texture_formats: Vec::new(),
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
+    let o = crate::texture_preview::tests::options(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
     let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2]), BTreeMap::from([(0, 0), (1, 1)]));
     let scene = DepthLayerScene {

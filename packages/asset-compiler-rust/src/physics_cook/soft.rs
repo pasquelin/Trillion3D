@@ -19,19 +19,17 @@ use std::collections::BTreeSet;
 
 const KINDS: [&str; 3] = ["cloth", "rope", "volume"];
 
-/// The soft-body options a node declares, `None` when it declares a rigid body or nothing.
-fn declared_option(node: &Value) -> Option<&Value> {
+/// The kind of soft body a node declares and its options; `None` when it declares a rigid body or
+/// nothing, and is then static ground.
+pub(super) fn declared_soft(node: &Value) -> Option<(&'static str, &Value)> {
     let option = node.pointer("/extras/physics")?;
     let kind = option.get("type").and_then(Value::as_str)?;
-    KINDS.contains(&kind).then_some(option)
+    Some((KINDS.into_iter().find(|k| *k == kind)?, option))
 }
 
-/// The options once read, each number 0 and up (`softSettings`); the page's words otherwise.
-fn read(option: &Value) -> std::result::Result<SoftDeclared, String> {
-    let kind = KINDS
-        .into_iter()
-        .find(|kind| option["type"] == *kind)
-        .unwrap_or("cloth");
+/// The options of a `kind` once read, each number 0 and up (`softSettings`); the page's words
+/// otherwise.
+fn read(kind: &'static str, option: &Value) -> std::result::Result<SoftDeclared, String> {
     let number = |name: &str| match option.get(name) {
         None => Ok(None),
         Some(value) => match value.as_f64() {
@@ -56,16 +54,17 @@ fn read(option: &Value) -> std::result::Result<SoftDeclared, String> {
     })
 }
 
-/// The `physics.json` entry of the soft body `option` declares on `node`, placed by `matrix`.
+/// The `physics.json` entry of the soft body `kind` and `option` declare on `node`, placed by
+/// `matrix`.
 fn soft_body(
     o: &Options,
     (g, bin): (&Value, &[u8]),
     node: &Value,
     matrix: &Mat4,
-    option: &Value,
+    (kind, option): (&'static str, &Value),
 ) -> Result<Value> {
     let refuse = |message: String| CompilerError::new(PHYSICS_COOK_FAILED, message);
-    let declared = read(option).map_err(refuse)?;
+    let declared = read(kind, option).map_err(refuse)?;
     let mesh = item(
         values(g, "meshes")?,
         required_index(node.get("mesh"), "node.mesh")?,
@@ -81,12 +80,10 @@ fn soft_body(
     let primitive = &primitives[0];
     let position = required_index(primitive.pointer("/attributes/POSITION"), "POSITION")?;
     let pos = accessor(g, bin, position, None)?.collect_f32()?;
-    let corners = match primitive.get("indices") {
-        Some(id) => {
-            Some(accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32()?)
-        }
-        None => None,
-    };
+    let corners = primitive
+        .get("indices")
+        .map(|id| accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32())
+        .transpose()?;
     let (t, q, s) = trs(matrix).ok_or_else(|| refuse("A soft body's node shears.".into()))?;
     let record = soft_record(&pos, corners.as_deref(), s, &declared).map_err(refuse)?;
     let (stretch, bend) = (declared.stretch as f32, declared.bend as f32);
@@ -104,21 +101,20 @@ fn soft_body(
 }
 
 /// The soft bodies the drawn nodes `chosen` declare, placed by their `world` matrices: their
-/// `physics.json` entries, the report's refusals (`node`, `reason`), and every declaring node.
+/// `physics.json` entries and the report's refusals (`node`, `reason`).
 pub(super) fn soft_bodies(
     o: &Options,
     source: (&Value, &[u8]),
     chosen: &BTreeSet<usize>,
     world: &[Mat4],
-) -> Result<(Vec<Value>, Vec<Value>, BTreeSet<usize>)> {
+) -> Result<(Vec<Value>, Vec<Value>)> {
     let nodes = values(source.0, "nodes")?;
-    let (mut bodies, mut refused, mut soft) = (Vec::new(), Vec::new(), BTreeSet::new());
+    let (mut bodies, mut refused) = (Vec::new(), Vec::new());
     for &node in chosen {
-        let Some(option) = declared_option(&nodes[node]) else {
+        let Some(declared) = declared_soft(&nodes[node]) else {
             continue;
         };
-        soft.insert(node);
-        match soft_body(o, source, &nodes[node], &world[node], option) {
+        match soft_body(o, source, &nodes[node], &world[node], declared) {
             Ok(mut entry) => {
                 entry["node"] = json!(node);
                 bodies.push(entry);
@@ -129,5 +125,5 @@ pub(super) fn soft_bodies(
             Err(e) => return Err(e),
         }
     }
-    Ok((bodies, refused, soft))
+    Ok((bodies, refused))
 }
