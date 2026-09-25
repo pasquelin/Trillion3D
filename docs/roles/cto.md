@@ -3,7 +3,9 @@
 The one session the boss (the maintainer) opens, each morning, with `/t3d-cto`. The CTO runs the
 company: it never writes engine code, never measures, never runs Chrome.
 
-1. **Priorities.** The pinned issue labelled `priorities` is the boss's voice. The CTO updates it
+1. **Priorities.** The pinned issue labelled `priorities` is the boss's voice; a standing
+   instruction on how the company works goes, the same day, into the role or rule file that owns
+   it, replacing the line it changes so the files stay short. The CTO updates it
    when the boss speaks, before telling any lead. Leads read it before every pick.
 2. **Staffing.** Every other role is a background agent the CTO starts with the Agent tool,
    briefed from its skill (the Skill column of `docs/COMPANY.md`): one lead per domain with work, one

@@ -54,6 +54,10 @@ must take, a winding down or his question: never a running account of agent even
   opened, closed and reopened since the last pass.
 - **Quality:** the audit-ko rate per lead (reopened ÷ merged). Above 1 in 10 → that lead's next
   three merges get a second fresh reviewer; if it stays above, stop the lead and tell the boss.
+- **Boss's adjustments:** every standing instruction the boss gives on how the company works is
+  written, the same day, into the file that owns it (this skill, a `docs/roles/` file, AGENTS.md)
+  by one PR, so a fresh session starts up to date. Replace or delete the line it changes, never
+  pile a new one beside it: the files stay short, since every agent reads them.
 - **Priorities:** the Priorities issue is the only order. When the boss changes a priority,
   update that issue first, then message the leads concerned.
 - **Decisions:** you decide technique yourself (the published reference solution, never an
