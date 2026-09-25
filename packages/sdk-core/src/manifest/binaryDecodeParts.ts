@@ -129,6 +129,7 @@ export function decodeStreams(
     version: binary.streams.version,
     pinned: binary.streams.pinned,
     bundleBytes: binary.streams.bundleBytes,
+    dependencyBound: binary.streams.dependencyBound,
     maxDependencies: binary.streams.maxDependencies,
     pages,
   };

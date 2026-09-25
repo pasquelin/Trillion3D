@@ -18,7 +18,17 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
     let gltf_bytes = serde_json::to_vec(&gltf).expect("gltf");
     fs::write(source.join(gltf_name), &gltf_bytes).expect("gltf write");
     fs::write(source.join(bin_name), &bin).expect("bin write");
-    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":gltf_name,"sha256":hash(&gltf_bytes),"sidecars":[{"file":bin_name,"sha256":hash(&bin)}],"trianglesAcrossNodes":2,"meshNodes":2}})).expect("manifest")).expect("manifest write");
+    let (mesh_nodes, triangles) = source_stats(&gltf).expect("source stats");
+    let sidecars = [(bin_name.to_string(), hash(&bin))];
+    let manifest = runtime_manifest(
+        gltf_name,
+        &hash(&gltf_bytes),
+        &sidecars,
+        mesh_nodes,
+        triangles,
+    );
+    let manifest_bytes = serde_json::to_vec(&manifest).expect("manifest");
+    fs::write(source.join("manifest.json"), manifest_bytes).expect("manifest write");
     let options = Options {
         source,
         cache,

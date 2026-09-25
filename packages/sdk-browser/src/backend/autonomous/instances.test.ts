@@ -134,7 +134,8 @@ function primitivePeinte() {
     geometryStore: {
       colorMaterials,
     } as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
-    cap: 0,
+    hostCeiling: 0,
+    coverMeshes: () => 0,
     sceneChanged: () => {},
     coverChanged: () => {},
   });

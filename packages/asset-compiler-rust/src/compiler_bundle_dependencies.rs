@@ -19,6 +19,18 @@ pub(super) fn parents_of<'a>(cluster: &DagCluster, groups: &'a [DagGroup]) -> &'
         .map_or(&[], |group| &group.outputs[..])
 }
 
+/// The most bundles a bundle may need for the parents of its clusters, fixed before packing: the
+/// most parents one cluster has. A cluster's parents sit in at most that many bundles, so a bundle
+/// never needs more than the primitive's neediest cluster has parents; packing closes a bundle
+/// before it would. The bound holds each bundle's direct parent bundles; the closed list, whose
+/// longest length is `maxDependencies`, is a statistic measured after packing.
+pub(super) fn dependency_bound(dag: &[DagCluster], groups: &[DagGroup]) -> usize {
+    dag.iter()
+        .map(|cluster| parents_of(cluster, groups).len())
+        .max()
+        .unwrap_or(0)
+}
+
 /// For each bundle, the other bundles holding a parent of one of its clusters, ascending.
 pub(super) fn direct_dependencies(
     dag: &[DagCluster],
