@@ -12,16 +12,8 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
-import {
-  boxDistance,
-  isModel,
-  locate,
-  moversOf,
-  tilePose,
-  type Model,
-  type Placed,
-} from './tilePlace.ts';
-import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
+import { isModel, locate, moversOf, tilePose, type Model, type Placed } from './tilePlace.ts';
+import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts';
 
 /** Tile fetches in flight at once. */
 const FETCHES = 8;
@@ -58,7 +50,7 @@ export function createTileStreamer(
           instance,
           tile,
           material: material ?? -1,
-          box: new Box3(),
+          box: new Float64Array(6),
           id: -1,
           loading: false,
         };
@@ -143,10 +135,12 @@ export function createTileStreamer(
         movers = moversOf(bodies.meshes);
       for (const placed of models.values())
         for (const p of placed ?? []) {
-          let near = boxDistance(p.box, eye[0], eye[1], eye[2]);
+          let near = boxPointDistance(p.box, 0, eye[0], eye[1], eye[2]);
           if (near > range) near = Infinity;
           for (let m = 0; m < movers.length; m += 4)
-            if (boxDistance(p.box, movers[m], movers[m + 1], movers[m + 2]) <= movers[m + 3])
+            if (
+              boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= movers[m + 3]
+            )
               near = 0;
           if (near < Infinity) wanted.push([near, p]);
           else evict(p);

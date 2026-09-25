@@ -97,5 +97,13 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     ...(typeof first.dashSize === 'number'
       ? { dashSize: first.dashSize, gapSize: first.gapSize ?? 0 }
       : {}),
+    ...(first.sprite === true
+      ? {
+          sprite: {
+            rotation: first.rotation ?? 0,
+            sizeAttenuation: first.sizeAttenuation !== false,
+          },
+        }
+      : {}),
   };
 }
