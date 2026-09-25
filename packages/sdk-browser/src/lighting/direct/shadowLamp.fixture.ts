@@ -64,7 +64,7 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
     const radius = Math.hypot(...sub(P, at)),
       cosine = clamp(-dot(N, sub(P, at)) / radius, 1e-3, 1);
     const texel = ((2 * tan * radius) / (LAMP_SIDE * SHADOW_PAGE)) * 2 ** mip;
-    const [old, metres] = DEVELOP_BIAS(texel, cosine);
+    const [old, metres] = develop ? DEVELOP_BIAS(texel, cosine) : [];
     const Q = along(P, N, develop ? old : normalOffset(texel, cosine)),
       d = sub(Q, at);
     const face = point ? pointFaceOf(develop ? sub(P, at) : d) : 0,
