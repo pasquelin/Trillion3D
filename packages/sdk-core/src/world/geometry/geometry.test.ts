@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Geometry, type GeometryOwner } from './geometry.ts';
+import { Geometry } from './geometry.ts';
 import { withRecipe } from './builder.ts';
 import { drawnTriangles } from './drawn.ts';
 import { edges, wireframe } from './lines.ts';
@@ -84,11 +84,12 @@ test('a two-wide position is drawn with z = 1, a moved one as its stored numbers
 const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3);
 const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
   new BufferAttribute(array, itemSize, true);
+type Owner = Geometry['_owner'];
 /** An empty geometry built by `owner`, as its maker marks it. */
-const owned = (owner: GeometryOwner) => Object.assign(new Geometry(), { _owner: owner });
+const owned = (owner: Owner) => Object.assign(new Geometry(), { _owner: owner });
 
 test('a world geometry draws the normalised colour, normal and uv it owns as stored, a host one at their value', () => {
-  const shaded = (owner: GeometryOwner) =>
+  const shaded = (owner: Owner) =>
     drawnTriangles(
       owned(owner)
         .setAttribute('position', triangle())
@@ -108,7 +109,7 @@ test('a world geometry draws the normalised colour, normal and uv it owns as sto
 });
 
 test('a normalised position gives its edges as stored in a world geometry, at its value in a host one', () => {
-  const lines = (owner: GeometryOwner, of: typeof wireframe) =>
+  const lines = (owner: Owner, of: typeof wireframe) =>
     Array.from(
       of(
         owned(owner).setAttribute(
@@ -126,7 +127,7 @@ test('a normalised position gives its edges as stored in a world geometry, at it
 });
 
 test('a world geometry turns a normalised normal it owns as stored, a host one and a view at their value', () => {
-  const turned = (owner: GeometryOwner) => {
+  const turned = (owner: Owner) => {
     const g = owned(owner)
       .setAttribute('position', triangle())
       .setAttribute('normal', normalised(new Int8Array([127, 0, 0, 0, 0, 127, 0, 0, 127]), 3));

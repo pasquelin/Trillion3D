@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../core/scene.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
-import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
+import { Geometry, geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import {
   BufferAttribute,
   InterleavedBuffer,
@@ -29,10 +29,10 @@ test('a view of an interleaved buffer is saved as its own numbers, not the whole
     new Float32Array([0, 0, 0, 0.1, 0.2, 1, 0, 0, 0.3, 0.4, 0, 1, 0, 0.5, 0.6]),
     5,
   );
-  const shape = geometry.createBuffer({
-    position: new InterleavedBufferAttribute(pack, 3, 0),
-    uv: new InterleavedBufferAttribute(pack, 2, 3),
-  });
+  // `createBuffer` takes owned lists only: the views are set one by one.
+  const shape = new Geometry()
+    .setAttribute('position', new InterleavedBufferAttribute(pack, 3, 0))
+    .setAttribute('uv', new InterleavedBufferAttribute(pack, 2, 3));
   scene.add(object.mesh(shape));
   const [back] = await readBack(scene);
   assert.deepEqual(Array.from(back.attributes.position.array), [0, 0, 0, 1, 0, 0, 0, 1, 0]);
