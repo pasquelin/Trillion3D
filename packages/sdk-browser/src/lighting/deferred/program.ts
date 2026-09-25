@@ -3,6 +3,7 @@ import { createDeferredLayouts } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
+import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 
 /** Builds a render pipeline, asynchronously when the device offers it. */
 export const buildRenderPipeline = (device: GPUDevice, descriptor: GPURenderPipelineDescriptor) =>
@@ -36,6 +37,8 @@ export interface DirectLightResources {
   /** Probe grid and their coefficients; when absent, bounce is not of this frame. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
+  /** The bounce surface cache a reflection reads; created and released with the probes. */
+  surfaceCache?: GPUBuffer;
   /** Resident proxy, distant-shadow settings and counters included; when absent, the
    *  zero substitute leaves the distant surface lit with no cast shadow. */
   proxy?: GPUBuffer;
@@ -168,10 +171,12 @@ export async function createDeferredProgram(
           { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
           { binding: CONTRACT_SHADOW_BINDINGS.requests, resource: { buffer: requests } },
         );
-      if (sources.bounce && direct.bounceGrid && direct.probes)
+      // The cache lives and dies with the probes: the probe buffer's identity covers both.
+      if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)
         entries.push(
           { binding: 11, resource: { buffer: direct.bounceGrid } },
           { binding: 12, resource: { buffer: direct.probes } },
+          { binding: BOUNCE_SURFACE_BINDING, resource: { buffer: direct.surfaceCache } },
         );
       lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
     },
