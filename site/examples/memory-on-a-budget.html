@@ -21,11 +21,18 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, pose } from '../runtime/engine.js';
+      import { createWorld, light, pose } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
+      // The scene file declares its late-afternoon sun and nothing else: a file carries no sky
+      // (`KHR_lights_punctual` has none), so every face the sun misses would be pure black. The
+      // court stands outdoors, so the page adds a clear sky: about a fifth of the sun's light (a
+      // clear day's 20 000 lx of sky to 100 000 lx of sun), blue from above, and from below the
+      // court's warm limestone, the source's own linear colour, sending it back.
+      const [sun] = model.lights;
+      world.scene.add(light.hemisphere({ color: '#a6c6ff', groundColor: [0.67, 0.48, 0.28], intensity: sun.intensity / 5 }));
       const framing = pose.fromBounds(model.bounds);
       world.camera.set(framing);
       world.controls.target.set(...framing.target);
