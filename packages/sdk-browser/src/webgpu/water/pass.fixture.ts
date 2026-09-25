@@ -102,10 +102,16 @@ export function targets(gpu: WebgpuGpuState) {
     deferred: {
       uniform: {},
       placeholders: Object.fromEntries(
-        ['slices', 'atlasView', 'sampler', 'bounceGrid', 'probes', 'tiles', 'proxy'].map((k) => [
-          k,
-          placeholder(),
-        ]),
+        [
+          'slices',
+          'atlasView',
+          'sampler',
+          'bounceGrid',
+          'probes',
+          'tiles',
+          'proxy',
+          'surfaceCache',
+        ].map((k) => [k, placeholder()]),
       ),
     },
   });
