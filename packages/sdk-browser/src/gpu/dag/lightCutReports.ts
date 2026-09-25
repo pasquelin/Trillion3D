@@ -3,7 +3,9 @@ import { requestPage } from './request.ts';
 
 /**
  * Copies of the report in flight at once: one being mapped while the next frame copies. A frame
- * that finds both still being read copies nothing, and says so (`encodeReadback`): the pages it drew
+ * copies one report, after its last batch: every batch's cut appends its requests to the same list
+ * (`VIEW_APPEND`, `shader/pagesWgsl.ts`), so one copy reads them all, whatever the batch count. A
+ * frame that finds both still being read copies nothing, and says so (`encodeReadback`): the pages it drew
  * coarse are then drawn again rather than left waiting on requests nobody will read
  * (`lightCutRedraws.ts`).
  */

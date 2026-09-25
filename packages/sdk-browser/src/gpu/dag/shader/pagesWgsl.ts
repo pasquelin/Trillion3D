@@ -6,12 +6,17 @@
  * runs: its text and its verdicts are those of before the light cut.
  * - `VIEW_LIGHT`: every face of a caster writes depth, so the normal cone rejects nothing.
  * - `VIEW_PAGES`: a box reaches the cut only if it covers a page `views[vi].pageMask` marks.
+ * - `VIEW_APPEND`: a later batch of the frame's shadow pages: its requests join the list the
+ *   frame's earlier cuts appended to, and the list-full bit stays, so one copy reads them all
+ *   (`../lightCutReports.ts`).
  */
 export const VIEW_LIGHT = 2,
-  VIEW_PAGES = 4;
+  VIEW_PAGES = 4,
+  VIEW_APPEND = 8;
 
 export const DAG_PAGES_WGSL = `const VIEW_LIGHT:u32=${VIEW_LIGHT}u;
 const VIEW_PAGES:u32=${VIEW_PAGES}u;
+const VIEW_APPEND:u32=${VIEW_APPEND}u;
 fn rowBits(row:u32)->u32{return (views[vi].pageMask[row>>2u]>>((row&3u)*8u))&0xffu;}
 fn pageMissed(w:u32,bmin:vec3f,bmax:vec3f)->bool{
  if((views[0u].viewFlags&VIEW_PAGES)==0u){return false;}
