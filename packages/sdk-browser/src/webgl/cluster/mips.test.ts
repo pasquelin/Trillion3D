@@ -39,7 +39,7 @@ type Named = { uniform: string };
 /** A 4×4 map with mips, a masked surface wearing it, and a binder whose frame has begun. */
 function masked(gl: WebGL2RenderingContext) {
   const host = G.dataTexture(new Uint8Array(64), 4, 4);
-  host.generateMipmaps = true;
+  host.minFilter = G.HOST_FILTER_LINEAR_MIP_LINEAR;
   const binder = new WebglClusterTextures(gl),
     surface = G.standardSurface({ map: host, alphaTest: 0.5 });
   binder.file(surface);
