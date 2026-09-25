@@ -10,6 +10,9 @@ export interface ShadowLightSource {
   items: GPUBuffer;
   rowOf: GPUBuffer;
   log: DrawnLog;
+  /** The blended casters' rows, `[blendFirst, blendEnd)`: kept without a draw record. */
+  blendFirst: number;
+  blendEnd: number;
   /** Encodes, as the pass's first dispatch, whatever the map owes the rows rewritten since. */
   refreshRows(pass: GPUComputePassEncoder): void;
 }
@@ -93,6 +96,8 @@ export async function createShadowLightCull(device: GPUDevice, targets: CullTarg
       uniData[2] = log.countWord;
       uniData[3] = targets.capacity;
       uniData[4] = rows;
+      uniData[5] = from.blendFirst;
+      uniData[6] = from.blendEnd;
       device.queue.writeBuffer(uniforms, 0, uniData);
       argData[1] = regions;
       device.queue.writeBuffer(args, 0, argData);

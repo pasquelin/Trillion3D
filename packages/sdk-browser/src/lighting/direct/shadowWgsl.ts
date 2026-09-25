@@ -9,8 +9,10 @@ import {
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 
-const POISSON_16 = [
+/** The PCF's taps, in texels around the read point. */
+export const POISSON_16 = [
   [-0.94201624, -0.39906216],
   [0.94558609, -0.76890725],
   [-0.094184101, -0.9293887],
@@ -71,8 +73,17 @@ fn requestShadowPage(e:u32){
  *
  * A tap whose bilinear footprint lies in one page is one hardware comparison in that page; one
  * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
+ *
+ * The filtered result is multiplied by the transmittance layer once, at the footprint's centre
+ * (\`shadowThroughLit\`, \`../../gpu/shadow/transmittance.ts\`): its two textures are bound at
+ * \`transmittanceBinding\` and the number after it. A pool without that layer binds one-texel
+ * stand-ins, which the PCF never reads: its result is that of before, bit for bit.
  */
-export const directShadowWgsl = (dataBinding: number, requestBinding: number | null) => `
+export const directShadowWgsl = (
+  dataBinding: number,
+  requestBinding: number | null,
+  transmittanceBinding: number,
+) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
 ${requestWgsl(requestBinding)}
@@ -120,6 +131,7 @@ fn shadowOffset(word:u32,p:vec2i)->vec2f{
 }
 /** Texels a side of the pool: its size is the world's, derived from the screen (\`shadowPoolSide\`). */
 fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
+${shadowThroughWgsl(transmittanceBinding)}
 fn shadowCompare(offset:vec2f,t:vec2f,reference:f32)->f32{
  return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
 }
@@ -152,7 +164,7 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   for(var tap=0u;tap<PCF_TAPS;tap++){
    lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,reference);
   }
-  return lit/f32(PCF_TAPS);
+  return shadowThroughLit(offset+t,reference,lit/f32(PCF_TAPS));
  }
  let up=t-first>=vec2f(0.5*SHADOW_PAGE);
  let step=select(vec2i(-1),vec2i(1),up);
@@ -174,6 +186,6 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference);}
   lit+=sum;
  }
- return lit/f32(PCF_TAPS);
+ return shadowThroughLit(offset+t,reference,lit/f32(PCF_TAPS));
 }
 ${SHADOW_FACTOR_WGSL}`;
