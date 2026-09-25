@@ -3,9 +3,10 @@ import { SHADOW_BATCH_WRITE_BYTES, SHADOW_STAGING_BYTES } from './batchBudget.ts
 type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<ArrayBuffer>;
 
 /**
- * THE WRITES OF A SHADOW BATCH, IN COMMAND ORDER. A frame draws every shadow page it marks, in as
- * many batches as the per-batch buffers take (`../../webgpu/pages/render/encodeShadowBatches.ts`),
- * each over the same buffers — its face uniforms, its cull volumes and commands, its cut's views.
+ * THE WRITES OF A SHADOW BATCH, IN COMMAND ORDER. A frame draws its shadow pages — every one it
+ * marks at rest — in as many batches as the per-batch buffers take
+ * (`../../webgpu/pages/render/encodeShadowBatches.ts`), each over the same buffers — its face
+ * uniforms, its cull volumes and commands, its cut's views.
  * `queue.writeBuffer` lands before the whole command buffer: a second batch's write would replace
  * the first's before either ran. So while `stage` holds an encoder, a write goes to a staging
  * buffer at an offset of its own, and a copy into its target is encoded where the batch's commands
