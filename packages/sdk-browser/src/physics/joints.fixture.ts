@@ -7,6 +7,7 @@ import {
   POSE_WORDS,
   type Joint,
   type PhysicsHost,
+  type Vehicle,
   type PhysicsType,
 } from '../../../sdk-core/src/physics/index.ts';
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
@@ -18,10 +19,12 @@ import { createPhysicsJoints } from './joints.ts';
 import { startModule } from './module.fixture.ts';
 import { physicsLink } from './physicsLink.ts';
 import { createPhysicsPoses } from './poses.ts';
+import { createPhysicsVehicles } from './vehicles.ts';
 
 /**
- * A scene, its bodies and joints as a session keeps them, stepped on the committed module in
- * place of the worker: the page's commands, the module's poses and broken joints, nothing else.
+ * A scene, its bodies, joints and vehicles as a session keeps them, stepped on the committed
+ * module in place of the worker: the page's commands, the module's poses, broken joints and
+ * vehicle states, nothing else.
  */
 export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]) {
   const scene = new Group();
@@ -32,14 +35,18 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
   const state = createPhysicsPoses(budget.bodies, scene).state;
   const bodies = createPhysicsBodies(writer, budget, {} as PhysicsHost, scene, state);
   const joints = createPhysicsJoints(writer, bodies, () => {});
+  const vehicles = createPhysicsVehicles(writer, bodies, () => {});
   const jolt = await startModule(budget);
   const wanted = new Set<Joint>();
+  const driven = new Set<Vehicle>();
   /** Each body's last pose, by slot: `px, py, pz, qx, qy, qz, qw`. */
   const poses = new Map<number, number[]>();
   writer.gravity(gravity);
   return {
     scene,
     wanted,
+    /** The vehicles held, as `world.physics.add` holds them. */
+    driven,
     writer,
     /** A dynamic unit cube (or of `type`) at `x, y, z`, in the scene. */
     cube(x: number, y: number, z: number, type: PhysicsType = 'dynamic') {
@@ -55,6 +62,7 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
         throw error;
       });
       joints.reconcile(wanted);
+      vehicles.reconcile(driven);
       for (let s = 0; s < steps; s++) {
         const count = jolt.step(writer.length ? writer.take() : null, 1 / 60);
         const words = jolt.poses(count);
@@ -68,6 +76,7 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
         }
         const broken = jolt.broken();
         if (broken.length) joints.broke(broken);
+        vehicles.receive(jolt.vehicles().slice());
       }
     },
     /** A body's position after the last step. */
@@ -75,6 +84,8 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
       const pose = poses.get(mesh.physics!._index);
       return pose ? pose.slice(0, 3) : [mesh.position.x, mesh.position.y, mesh.position.z];
     },
+    /** A body's quaternion after the last step. */
+    turn: (mesh: Mesh) => poses.get(mesh.physics!._index)!.slice(3, 7),
     /** A body's turn about y after the last step, radians. */
     yaw(mesh: Mesh) {
       const pose = poses.get(mesh.physics!._index)!;
