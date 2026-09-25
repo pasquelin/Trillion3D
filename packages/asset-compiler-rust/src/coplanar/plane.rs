@@ -7,7 +7,7 @@ pub struct ClusterPlane {
     pub area: f64,
 }
 
-use crate::shared_math::{cross, dot, length, scale};
+use crate::shared_math::{cross, dot, length, scale, sub};
 
 /// One orientation per plane, whichever way its triangles wind: a surface and the surface facing it
 /// hash to the same bucket, which is exactly the pair that fights over a pixel.
@@ -63,10 +63,7 @@ pub fn plane_of_triangles(
                 high[axis] = high[axis].max(point[axis]);
             }
         }
-        let normal = cross(
-            [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
-            [c[0] - a[0], c[1] - a[1], c[2] - a[2]],
-        );
+        let normal = cross(sub(b, a), sub(c, a));
         let double_area = length(normal);
         if double_area <= 0.0 {
             continue;
@@ -109,10 +106,7 @@ pub fn plane_of_triangles(
                 return None;
             }
         }
-        let face = cross(
-            [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
-            [c[0] - a[0], c[1] - a[1], c[2] - a[2]],
-        );
+        let face = cross(sub(b, a), sub(c, a));
         let face_length = length(face);
         if face_length > 0.0 && dot(face, normal).abs() < face_length * PARALLEL_COSINE {
             return None;
