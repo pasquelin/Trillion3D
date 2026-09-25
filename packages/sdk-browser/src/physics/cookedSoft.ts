@@ -30,10 +30,12 @@ export function createCookedSoftBodies(
   /** The slots of each open model's soft bodies, and the model of each slot. */
   const held = new Map<Model, number[]>();
   const owners = new Map<number, Model>();
-  async function add(model: Model, slots: number[], soft: CookedSoftBody) {
-    // Refused before its bytes are fetched: a scale is read from the model alone.
-    const { scale } = tilePose({ model, instance: soft });
-    const at = soft.scale;
+  /** `soft`'s world pose in `model` (scratch), refused when the model is placed at another scale
+   *  than the one it was cooked at. */
+  function poseOf(model: Model, soft: CookedSoftBody) {
+    const pose = tilePose({ model, instance: soft });
+    const { scale } = pose,
+      at = soft.scale;
     if (
       [scale.x, scale.y, scale.z].some(
         (s, k) => Math.abs(s - at[k]) > SCALE_TOLERANCE * Math.abs(at[k]),
@@ -44,11 +46,16 @@ export function createCookedSoftBodies(
         `The soft body of node ${soft.node} was cooked at scale ${at.join(', ')}: its model is placed at another.`,
         { node: soft.node },
       );
+    return pose;
+  }
+  async function add(model: Model, slots: number[], soft: CookedSoftBody) {
+    // Refused before its bytes are fetched: a scale is read from the model alone.
+    poseOf(model, soft);
     const cooked = await cookedBytes(model, soft.settings.url, 'Soft body settings');
     // Forgotten, or opened again, meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== slots) return;
-    // Posed again once fetched: the model may have moved meanwhile, and the pose is scratch.
-    const { position, quaternion } = tilePose({ model, instance: soft });
+    // Posed again once fetched: the model may have moved or been rescaled meanwhile.
+    const { position, quaternion } = poseOf(model, soft);
     const p = new ObjectPhysics(soft.physics);
     const id = bodies.claim(0, soft.vertices);
     // Held at once: a throw below still leaves the slot for `forget` to release.
@@ -57,7 +64,7 @@ export function createCookedSoftBodies(
     // The collider's matter picked: `physics`, the options, is no preset name here.
     const matter = physicsMatterOf({ friction: soft.friction, restitution: soft.restitution });
     const record = { cooked, pressure: soft.pressure };
-    const pose = { position, quaternion, scale: at };
+    const pose = { position, quaternion, scale: soft.scale };
     writeSoftBody(writer, id, p, matter, pose, record);
     invalidate();
   }
