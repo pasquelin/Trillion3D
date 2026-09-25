@@ -1,11 +1,7 @@
-// The two API files generated from the TypeScript declarations of the public entries, which git
-// never tracks (#683): the portal's reference (`site/content/reference/api.json`), one entry per
-// export, per family member and per member of the world, each with its signature and the TSDoc its
-// source carries; and the export inventory (`site/data/api-inventory.json`). `pnpm install` writes
-// them (`prepare`), and every reader first rewrites them when a source is newer — `pnpm run
-// generate:api`, the site build, the unit test runners and `validate`. The translations beside the
-// reference, `api.<language>.json`, hold only what translators write, keyed by entry id and row
-// name: nothing here writes them.
+// The two API files git never tracks (#683), from the declarations of the public entries: the
+// portal's reference, one entry per export, family member and world member with its signature and
+// TSDoc; and the export inventory. `pnpm install` writes them, every reader rewrites them first
+// when a source is newer. The translations, `api.<language>.json`, are the translators' alone.
 import { statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { repositoryFiles } from './repository-files.ts';
