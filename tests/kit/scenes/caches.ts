@@ -10,11 +10,11 @@ export const SCENE_ROOTS = ['site/assets', 'tests/fixtures/scenes'] as const;
 
 const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url));
 
-/** Whether `path`, relative to the repository root, lies under a scene root in a scene whose
- *  source is committed: the folder before its `/cache/` part holds a `source/`. */
-export const hasSource = (path: string) =>
-  SCENE_ROOTS.some((folder) => path.startsWith(`${folder}/`)) &&
-  existsSync(join(REPOSITORY, path.split('/cache/')[0], 'source'));
+/** Whether `folder`, relative to the repository root, is a scene under a scene root whose source
+ *  is committed: it holds a `source/`. */
+export const hasSource = (folder: string) =>
+  SCENE_ROOTS.some((sceneRoot) => folder.startsWith(`${sceneRoot}/`)) &&
+  existsSync(join(REPOSITORY, folder, 'source'));
 
 /** The URL `sceneMounts` serve the compiled full manifest of `scene`, a scene folder relative to
  *  the repository root, at; a folder that is no scene with a source throws. */
@@ -34,6 +34,6 @@ export async function sceneCacheFiles(file: string): Promise<string[]> {
   const found: string[] = [];
   const patterns = SCENE_ROOTS.map((folder) => `${folder}/**/cache/native/full/${file}`);
   for await (const path of glob(patterns, { cwd: REPOSITORY }))
-    if (hasSource(path)) found.push(path);
+    if (hasSource(path.split('/cache/')[0])) found.push(path);
   return found;
 }
