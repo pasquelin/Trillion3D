@@ -16,7 +16,7 @@ import { dagLevel, dagRoots } from './testDag.fixture.ts';
 import { camera, quadScene } from './testScenes.fixture.ts';
 
 export function occluderScene() {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute(

@@ -13,6 +13,7 @@ import { startPhysicsWorker } from './sessionWorker.ts';
 import { createPhysicsJoints } from './joints.ts';
 import type { createJointList } from './jointList.ts';
 import { createPhysicsVehicles } from './vehicles.ts';
+import { engineIdOf } from './simulatedIds.ts';
 import { receiveSoft } from './softBodies.ts';
 import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
@@ -178,6 +179,8 @@ export function createPhysicsSession(
     },
     /** The model a tile body's engine id belongs to, or the mesh a body's names, or `null`. */
     objectOf: (id: number) => tiles.modelOf(id) ?? bodies.meshOf(id),
+    /** The engine id of `node`'s body; -1 while it is not simulated. */
+    engineIdOf: (node: Object3D) => engineIdOf(bodies, node),
     /** The glTF material of a tile body's triangles, `-1` for any other body. */
     materialOf: tiles.materialOf,
     dispose() {

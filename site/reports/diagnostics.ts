@@ -19,7 +19,6 @@ export const DIAGNOSTICS = [
     fields: [
       ['residentPages', 'budgetPages.residentes', ''],
       ['requestedPages', 'budgetPages.demande', ''],
-      ['budgetThreshold', 'budgetPages.seuilBudget', ' px'],
       ['texturesPending', 'metrics.texturePending', ''],
       ['texturesEvicted', 'metrics.textureEvictions', ''],
       ['gpuAllocations', 'metrics.gpuAllocatedBytes', 'bytes'],

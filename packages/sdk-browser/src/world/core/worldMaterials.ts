@@ -8,7 +8,8 @@ import { composesWithBackground } from '../../scene/materialBlending.ts';
 
 /** The parameters a session reads as values — a page-table row's colour and numbers, a host
  *  surface's uniforms — and so the only ones written in place: none of them changes a shader, a
- *  resolve class or which pass draws the surface. */
+ *  resolve class or which pass draws the surface. A sprite's `sizeAttenuation` is not one: it sets
+ *  the root mark its session collects once (`spriteMark`), so writing it is a new entry. */
 const VALUES = new Set([
   'color',
   'emissive',

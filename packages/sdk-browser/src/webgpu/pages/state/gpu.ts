@@ -11,6 +11,7 @@ import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts'
 import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import type { ModePipelines } from '../../blend/stagePipelines.ts';
+import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -79,6 +80,10 @@ export interface WebgpuGpuState {
   effects: WebgpuEffects | undefined;
   /** Revision of the chain the last encoded image drew: another one breaks the hold. */
   effectsRevision: number;
+  /** The guide pass, built by the first image that shows a guide (`guidePass.ts`). */
+  guides: WebgpuGuidePass | undefined;
+  /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
+  guideRevision: number;
 }
 
 /** The frozen colour the water composite rereads, and the depth its surface stage tests and
@@ -136,5 +141,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     temporalWanted: true,
     effects: undefined,
     effectsRevision: 0,
+    guides: undefined,
+    guideRevision: 0,
   };
 }

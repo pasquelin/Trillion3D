@@ -4154,6 +4154,10 @@
       {
         "name": "NO_VEHICLE",
         "desc": "`world.controls.kind` was set to `'vehicle'` while `world.controls.vehicle` is `null`: there is nothing to drive."
+      },
+      {
+        "name": "GUIDE_CEILING",
+        "desc": "A `world.guides` call would hold more vertices than `GUIDE_VERTEX_CEILING`; nothing of it was added."
       }
     ],
     "description": ""
@@ -4732,11 +4736,6 @@
         "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
-        "name": "budgetPixelError?",
-        "type": "number | null | undefined",
-        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
-      },
-      {
         "name": "frameHeld?",
         "type": "boolean | null | undefined",
         "desc": "True when the frame was held: neither the scene, nor the view, nor the resources moved, no asynchronous work was pending, and no CPU stage ran. The displayed pixels are those of the original frame, bit-exact. What the held frame DID is published as-is, never copied from the last complete render: `drawCalls`, `triangles`, `submittedTriangles` and `totalSubmittedTriangles` count only present, and per-stage CPU and GPU durations are zero when the stage did not run, `null` when nothing timed it. An engine whose image is a scene the witness adapter draws counts what that adapter submitted in this frame — nothing, on a held one. What the held frame SHOWS remains described by the cut it redisplays: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` and `residentPages` are those of the original frame, since it is the same cut. Absent from an engine that does not hold its frames."
@@ -4913,6 +4912,17 @@
     "description": ""
   },
   {
+    "id": "GUIDE_VERTEX_CEILING",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GUIDE_VERTEX_CEILING"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "GUIDE_VERTEX_CEILING",
+    "signature": "const GUIDE_VERTEX_CEILING: 65536",
+    "summary": "Most vertices the guides of one world hold together: two per segment, one per point.",
+    "description": "Declared, not derived: it bounds the one instance buffer the pass uploads at 64 Ki × 32 bytes = 2 MiB, whatever a page asks — a grid of 16 000 lines fits, a point cloud of a scanned city does not, and belongs in the scene."
+  },
+  {
     "id": "GeminiFunctionDeclaration",
     "module": "packages/sdk-core/src/llm/types.ts",
     "exports": ["GeminiFunctionDeclaration"],
@@ -4948,7 +4958,7 @@
     "kind": "Type",
     "title": "Geometry",
     "signature": "class Geometry\nnew Geometry(): Geometry",
-    "summary": "The shape alone: named per-vertex attributes, an optional triangle index, material groups.",
+    "summary": "The shape alone: named per-vertex attributes, an optional triangle index, material groups, the morph targets that move it and the range of it drawn.",
     "members": [
       {
         "name": "isGeometry",
@@ -4956,14 +4966,34 @@
         "desc": "Always `true`: tells a geometry apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'geometry'",
+        "desc": "What the resource is, as a reader of the scene tells resources apart."
+      },
+      {
         "name": "type",
         "type": "string",
         "desc": "The kind of the geometry, `'Geometry'`."
       },
       {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
         "name": "attributes",
-        "type": "Record<string, BufferAttribute>",
-        "desc": "The per-vertex lists by name: `position`, `normal`, `uv`, `color`."
+        "type": "Record<string, VertexAttribute>",
+        "desc": "The per-vertex lists by name: `position`, `normal`, `uv`, `color`; each owns its numbers or views an interleaved buffer."
+      },
+      {
+        "name": "morphAttributes",
+        "type": "Record<string, VertexAttribute[]>",
+        "desc": "Per morphed attribute, one attribute per morph target."
+      },
+      {
+        "name": "morphTargetsRelative",
+        "type": "boolean",
+        "desc": "True when a morph target holds displacements, not positions."
       },
       {
         "name": "index",
@@ -4974,6 +5004,21 @@
         "name": "groups",
         "type": "{ start: number; count: number; materialIndex: number; }[]",
         "desc": "Index ranges drawn with `material[materialIndex]` when a mesh carries several."
+      },
+      {
+        "name": "drawRange",
+        "type": "{ start: number; count: number; }",
+        "desc": "The range of the index drawn."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "Free room for the data of whoever built the geometry."
+      },
+      {
+        "name": "released",
+        "type": "Set<() => void>",
+        "desc": "Called when the geometry is given back: what a renderer's own copy of it listens to."
       },
       {
         "name": "boundingBox",
@@ -4996,19 +5041,24 @@
         "desc": "Bumped by every change of shape: what the world compares to cut the pages again."
       },
       {
-        "name": "setAttribute(name: string, attribute: BufferAttribute)",
+        "name": "setAttribute(name: string, attribute: VertexAttribute)",
         "type": "Geometry",
         "desc": "Stores a per-vertex list under `name`."
       },
       {
         "name": "getAttribute(name: string)",
-        "type": "BufferAttribute | undefined",
+        "type": "VertexAttribute | undefined",
         "desc": "The per-vertex list stored under `name`, if any."
       },
       {
         "name": "deleteAttribute(name: string)",
         "type": "Geometry",
         "desc": "Removes the per-vertex list stored under `name`."
+      },
+      {
+        "name": "getIndex()",
+        "type": "BufferAttribute | null",
+        "desc": "The triangle list, or `null`."
       },
       {
         "name": "hasAttribute(name: string)",
@@ -5038,12 +5088,12 @@
       {
         "name": "computeBoundingBox()",
         "type": "Box3",
-        "desc": "Measures the box around every vertex and keeps it in `boundingBox`."
+        "desc": "Measures the box around every vertex, and every shape a morph target gives it, and keeps it in `boundingBox`."
       },
       {
         "name": "computeBoundingSphere()",
         "type": "Sphere",
-        "desc": "Measures the ball around every vertex and keeps it in `boundingSphere`."
+        "desc": "Measures the ball centred on the box and reaching the farthest vertex or morphed vertex, and keeps it in `boundingSphere`."
       },
       {
         "name": "applyMatrix4(m: Matrix4)",
@@ -5083,12 +5133,17 @@
       {
         "name": "clone()",
         "type": "Geometry",
-        "desc": "A new geometry with copies of every list, and the recipe that still builds it."
+        "desc": "A new geometry with copies of every list, its groups, range, data and bounds, and the recipe that still builds it."
+      },
+      {
+        "name": "toNonIndexed()",
+        "type": "Geometry",
+        "desc": "A geometry drawing the same triangles with no index: every corner a vertex of its own."
       },
       {
         "name": "dispose()",
         "type": "void",
-        "desc": "Forgets the holders and the raycast tree: a disposed geometry is drawn and cast at by nobody."
+        "desc": "Gives the geometry back: runs every release hook once, forgets the holders and the raycast tree; a disposed geometry is drawn and cast at by nobody."
       }
     ],
     "description": ""
@@ -5393,136 +5448,18 @@
     "description": ""
   },
   {
-    "id": "GraphGeometry",
-    "module": "packages/sdk-browser/src/host/graph/geometry.ts",
-    "exports": ["GraphGeometry"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphGeometry",
-    "signature": "class GraphGeometry extends Releasable\nnew GraphGeometry(): HostGeometry",
-    "summary": "The attributes a mesh draws, the triangle list they are indexed through, the morph targets that move them, and the local box and sphere computed over them.",
-    "members": [
-      {
-        "name": "kind",
-        "type": "'geometry'",
-        "desc": "What the resource is."
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "Its name."
-      },
-      {
-        "name": "index",
-        "type": "BufferAttribute | null",
-        "desc": "The triangle list, or `null` to draw the vertices in order."
-      },
-      {
-        "name": "attributes",
-        "type": "Record<string, VertexAttribute>",
-        "desc": "Its vertex attributes, by name."
-      },
-      {
-        "name": "morphAttributes",
-        "type": "Record<string, VertexAttribute[]>",
-        "desc": "Per morphed attribute, one attribute per morph target."
-      },
-      {
-        "name": "morphTargetsRelative",
-        "type": "boolean",
-        "desc": "True when a morph target holds displacements, not positions."
-      },
-      {
-        "name": "groups",
-        "type": "{ start: number; count: number; materialIndex?: number; }[]",
-        "desc": "Ranges of the index drawn with one surface each."
-      },
-      {
-        "name": "drawRange",
-        "type": "{ start: number; count: number; }",
-        "desc": "The range of the index drawn."
-      },
-      {
-        "name": "boundingBox",
-        "type": "Box3 | null",
-        "desc": "The local box, once computed or declared."
-      },
-      {
-        "name": "boundingSphere",
-        "type": "Sphere | null",
-        "desc": "The local sphere, once computed or declared."
-      },
-      {
-        "name": "userData",
-        "type": "Record<string, unknown>",
-        "desc": "Free room for the data of whoever built the geometry."
-      },
-      {
-        "name": "getIndex()",
-        "type": "BufferAttribute | null",
-        "desc": "The triangle list."
-      },
-      {
-        "name": "setIndex(index: BufferAttribute | null)",
-        "type": "HostGeometry",
-        "desc": "Sets the triangle list."
-      },
-      {
-        "name": "getAttribute(name: string)",
-        "type": "VertexAttribute",
-        "desc": "The attribute of that name."
-      },
-      {
-        "name": "setAttribute(name: string, attribute: VertexAttribute)",
-        "type": "HostGeometry",
-        "desc": "Names an attribute."
-      },
-      {
-        "name": "deleteAttribute(name: string)",
-        "type": "HostGeometry",
-        "desc": "Forgets an attribute."
-      },
-      {
-        "name": "hasAttribute(name: string)",
-        "type": "boolean",
-        "desc": "Whether it has an attribute of that name."
-      },
-      {
-        "name": "clone()",
-        "type": "HostGeometry",
-        "desc": "A geometry holding copies of every buffer, its groups, range and bounds."
-      },
-      {
-        "name": "toNonIndexed()",
-        "type": "HostGeometry",
-        "desc": "A geometry drawing the same triangles with no index: every corner a vertex of its own."
-      },
-      {
-        "name": "computeBoundingBox()",
-        "type": "void",
-        "desc": "Computes the local box over every vertex."
-      },
-      {
-        "name": "computeBoundingSphere()",
-        "type": "void",
-        "desc": "Computes the local sphere: centred on the box, reaching the farthest vertex."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "GraphMesh",
     "module": "packages/sdk-browser/src/host/graph/mesh.ts",
     "exports": ["GraphMesh"],
     "section": "types",
     "kind": "Type",
     "title": "GraphMesh",
-    "signature": "class GraphMesh extends GraphNode\nnew GraphMesh(geometry: HostGeometry, material: GraphSurface | GraphSurface[]): HostMesh",
+    "signature": "class GraphMesh extends GraphNode\nnew GraphMesh(geometry: Geometry, material: GraphSurface | GraphSurface[]): HostMesh",
     "summary": "A drawn node: a geometry and its surface, or one surface per geometry group.",
     "parameters": [
       {
         "name": "geometry",
-        "type": "HostGeometry",
+        "type": "Geometry",
         "desc": ""
       },
       {
@@ -5549,7 +5486,7 @@
       },
       {
         "name": "geometry",
-        "type": "HostGeometry",
+        "type": "Geometry",
         "desc": "Its shape."
       },
       {
@@ -5947,6 +5884,138 @@
         "name": "type",
         "type": "string",
         "desc": "The kind of node, `'Group'`."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GuideHandle",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GuideHandle"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GuideHandle",
+    "signature": "interface GuideHandle",
+    "summary": "One set of guides a page drew; each setter answers the handle.",
+    "members": [
+      {
+        "name": "visible",
+        "type": "boolean",
+        "desc": "Whether it is drawn; `setVisible` writes it."
+      },
+      {
+        "name": "setVisible(on: boolean)",
+        "type": "GuideHandle",
+        "desc": "Shows or hides it, its vertices still counted against the ceiling."
+      },
+      {
+        "name": "setTransform(matrix: ArrayLike<number> | { elements: ArrayLike<number>; })",
+        "type": "GuideHandle",
+        "desc": "Places it: sixteen column-major numbers, or a matrix — `node.matrixWorld` follows a node."
+      },
+      {
+        "name": "remove()",
+        "type": "void",
+        "desc": "Takes it out of the world, its vertices given back; a second call does nothing."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GuideLines",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GuideLines"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GuideLines",
+    "signature": "interface GuideLines",
+    "summary": "Line segments to draw.",
+    "members": [
+      {
+        "name": "positions",
+        "type": "ArrayLike<number>",
+        "desc": "Two ends per segment, three numbers each."
+      },
+      {
+        "name": "color?",
+        "type": "ColorInput | undefined",
+        "desc": "Their colour; white by default."
+      },
+      {
+        "name": "width?",
+        "type": "number | undefined",
+        "desc": "Width on the screen, in pixels."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "GuidePoints",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["GuidePoints"],
+    "section": "types",
+    "kind": "Type",
+    "title": "GuidePoints",
+    "signature": "interface GuidePoints",
+    "summary": "Dots to draw.",
+    "members": [
+      {
+        "name": "positions",
+        "type": "ArrayLike<number>",
+        "desc": "Three numbers per dot."
+      },
+      {
+        "name": "color?",
+        "type": "ColorInput | undefined",
+        "desc": "Their colour; white by default."
+      },
+      {
+        "name": "size?",
+        "type": "number | undefined",
+        "desc": "Side of each square dot on the screen, in pixels."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "Guides",
+    "module": "packages/sdk-browser/src/guides/guideSet.ts",
+    "exports": ["Guides"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Guides",
+    "signature": "interface Guides",
+    "summary": "The guides of one world, as a page draws them: `world.guides`.",
+    "members": [
+      {
+        "name": "ceiling",
+        "type": "number",
+        "desc": "Most vertices the guides hold together (`GUIDE_VERTEX_CEILING`)."
+      },
+      {
+        "name": "vertexCount",
+        "type": "number",
+        "desc": "Vertices held now, two per segment and one per dot, hidden guides included."
+      },
+      {
+        "name": "lines(lines: GuideLines)",
+        "type": "GuideHandle",
+        "desc": "Draws line segments, two ends each; refused above the ceiling (`GUIDE_CEILING`)."
+      },
+      {
+        "name": "points(points: GuidePoints)",
+        "type": "GuideHandle",
+        "desc": "Draws square dots, one position each; refused above the ceiling (`GUIDE_CEILING`)."
+      },
+      {
+        "name": "add(object: Object3D, options?: { width?: number; size?: number; })",
+        "type": "GuideHandle",
+        "desc": "Draws the line and point meshes of `object` — every `helper` builds them —, in their material colours, placed where the object stands now; its triangles are not guides and are skipped."
+      },
+      {
+        "name": "clear()",
+        "type": "void",
+        "desc": "Removes every guide."
       }
     ],
     "description": ""
@@ -6423,17 +6492,6 @@
         "desc": "Linear radiance, neither tone-mapped nor encoded, over transparent black: the effect chain's input, whose alpha is coverage."
       }
     ],
-    "description": ""
-  },
-  {
-    "id": "HostGeometry",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostGeometry"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostGeometry",
-    "signature": "type HostGeometry = GraphGeometry",
-    "summary": "A geometry of the graph: its attributes, its triangle list and the local box over them.",
     "description": ""
   },
   {
@@ -11514,8 +11572,8 @@
     "section": "types",
     "kind": "Type",
     "title": "PhysicsPrimitive",
-    "signature": "type PhysicsPrimitive = | { type: 'box'; halfExtents: readonly [number, number, number] }\n  | { type: 'sphere'; radius: number }\n  | { type: 'capsule'; halfHeight: number; radius: number }\n  | { type: 'cylinder'; halfHeight: number; radius: number }",
-    "summary": "An exact primitive: its sizes in the object's own frame.",
+    "signature": "type PhysicsPrimitive",
+    "summary": "An exact primitive: its sizes in the object's own frame (a cylinder tapers from its top's `radius` to a `radiusBottom` that differs, as `geometry.cylinder` draws one).",
     "description": ""
   },
   {
@@ -14703,9 +14761,14 @@
         "desc": "Target bundle size."
       },
       {
+        "name": "dependencyBound",
+        "type": "number",
+        "desc": "Most bundles holding the parents of one bundle's clusters, fixed before packing."
+      },
+      {
         "name": "maxDependencies",
         "type": "number",
-        "desc": "Largest dependency count of a bundle: the bound the compiler publishes."
+        "desc": "Longest closed dependency list of a bundle."
       },
       {
         "name": "pages",
@@ -14750,9 +14813,14 @@
     "section": "types",
     "kind": "Type",
     "title": "SoftBodyCommon",
-    "signature": "interface SoftBodyCommon",
+    "signature": "interface SoftBodyCommon extends Pick<\n  PhysicsBodyOptions,\n  'friction' | 'restitution' | 'gravityScale'\n>",
     "summary": "What `obj.physics` accepts for a soft body: its vertices are simulated one by one.",
     "members": [
+      {
+        "name": "damping?",
+        "type": "{ linear?: number; } | undefined",
+        "desc": "The share of its vertices' speed lost per second, `dv/dt = −c·v`, 0 and up."
+      },
       {
         "name": "pins?",
         "type": "readonly number[] | undefined",
@@ -14774,7 +14842,7 @@
         "desc": "How much it gives when folded, rad/(N·m) (a rope: m/N); `Infinity` folds freely."
       }
     ],
-    "description": ""
+    "description": "Its matter and pull as a rigid body's; no angular damping, shape, sensor, CCD nor debris."
   },
   {
     "id": "SoftBodyOptions",
@@ -15061,9 +15129,14 @@
         "name": "center",
         "type": "Vector2",
         "desc": "The point of the picture that sits on the sprite's position: `(0.5, 0.5)` its middle, `(0, 0)` its bottom-left corner, `(0.5, 0)` the middle of its bottom edge."
+      },
+      {
+        "name": "material",
+        "type": "Material | Material[]",
+        "desc": "The sprite's `material.sprite`; set another to change it."
       }
     ],
-    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow."
+    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow. Like the reference's `Sprite`, which takes only a `SpriteMaterial`, it wears only a `material.sprite`: any other material, given or set, throws a `TypeError` that names its kind."
   },
   {
     "id": "StablePreview",
@@ -15299,9 +15372,14 @@
         "desc": "Target bundle size."
       },
       {
+        "name": "dependencyBound",
+        "type": "number",
+        "desc": "Most bundles holding the parents of one bundle's clusters, fixed before packing."
+      },
+      {
         "name": "maxDependencies",
         "type": "number",
-        "desc": "Largest dependency count of a bundle, as the compiler published it."
+        "desc": "Longest closed dependency list of a bundle, as the compiler published it."
       },
       {
         "name": "pages",
@@ -19423,6 +19501,17 @@
     "description": ""
   },
   {
+    "id": "world.guides",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Constant",
+    "title": "world.guides",
+    "signature": "world.guides: Guides",
+    "summary": "Lines, points and helpers drawn over the image (`Guides`).",
+    "description": ""
+  },
+  {
     "id": "world.raycast",
     "module": "packages/sdk-browser/src/world/core/world.ts",
     "exports": ["createWorld"],
@@ -19746,11 +19835,6 @@
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
         "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
-      },
-      {
-        "name": "budgetPixelError?",
-        "type": "number | null | undefined",
-        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -31982,7 +32066,7 @@
       {
         "name": "material?",
         "type": "Material",
-        "desc": "What the square shows: a `material.sprite`."
+        "desc": "What the square shows: a `material.sprite`; any other kind throws."
       }
     ],
     "returns": {

@@ -66,7 +66,7 @@ test('createExplorerCamera (non-autonomous) yields the same bounds, centre and r
 });
 
 test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference pagesBounds/expandByObject', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   const source = new G.Group();
   const mesh = G.mesh(geometry, G.basicSurface());
   mesh.position.set(4, -2, 0);

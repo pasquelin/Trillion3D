@@ -10,13 +10,13 @@ import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
 import { GraphMesh } from '../../host/graph/mesh.ts';
-import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { CLUSTER_FRAGMENT, CLUSTER_LINEAR_FRAGMENT, CLUSTER_VERTEX } from './shaders.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 function mesh(surface: GraphSurface) {
-  const geometry = new GraphGeometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
+  const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
   const made = new GraphMesh(geometry, surface);

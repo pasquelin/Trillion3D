@@ -551,45 +551,29 @@ split (`residency/memoryBudget.ts`). The geometry pool can grow up to
 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
 page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
 (`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
-while the records rows place share one. Its cut is drawn on the CPU in the image that shows it, so
-it fits the slots in that image: every page it asks for charges its copies once (`slotsOf`), the
-root cover held beforehand, and the cut draws coarser until they fit (`selectVisiblePages`'s
-`search`, `poolSearch.ts`). A resident ancestor drawn in place of a missing page charges nothing
-more: each place on screen counts once, for the page that will be resident. The threshold is
-searched from one image to the next, and an image mostly costs one pass: an image the budget did
-not limit, or a host threshold lowered, passes at the host's `pixelError`; otherwise each image
-passes one step of √2 finer than the threshold the last one kept, unless that step overflowed since
-and the kept cut charges no less than it did then (the kept threshold again, the one image that
-costs two passes), and climbs by √2 in the same image when the cut no longer fits (a camera move).
-The climb stops as soon as the cut fits, or where no coarser threshold changes the cut: a pass whose
-overflow comes from root pages, and from pages whose parent reaches the near plane (an infinite
-screen error, refined at every threshold), overflows at every coarser threshold too. It never climbs
-past a ceiling either: the largest error the DAG roots carry as parents, seen at the near plane on
-the view axis. A budget not even that coarsest cut fits holds the threshold there, draws that cut
-without the budget in one pass, probes it again only when the slots, the copies, the view or the
-host's threshold change, and publishes the pool's `geometryPoolClamp` as `root-cover`, as on WebGPU.
-A smaller budget holds in the image that follows it, and the detail converges on the finest
-threshold that fits, to √2, in a number of images logarithmic in the ratio of the kept threshold to
-the host's; only while a finer step is left to try does `pendingFrame` ask for another image, and an
-image whose view moved forces none. `flush` runs those images itself, at most 32, so `awaitPages`
-loads the pages of the fixed cut. A threshold kept coarser than the host's is `budgetPixelError`,
-`0` otherwise. A verdict change is queued and published as `coverage-budget` by `flush`, as on
-WebGPU, in the image whose pass tried the host's threshold, whether the search has settled or not.
-Its `requiredSlots` is the slots the cut at the host's threshold charges, known only when that cut
-fit, and `null` when the cut is drawn coarser, since a pass past the budget stops at its first
-overflowing page. When its pages hold more than the slots, those the image no longer keeps leave
+while the records rows place share one. Its cut is drawn on the CPU at the host's threshold, under
+the one cut rule below; the pool bounds what the image asks for, never the cut. The image asks for
+the wanted cut closed over its groups (`page/cut/groupClosure.ts`), coarsest level first, so a page
+never comes before the pages it depends on (`backend/autonomous/requests.ts`). The pool admits that
+list in its order while the copies it charges fit its slots, the root cover held beforehand
+(`backend/autonomous/pool.ts`); the rest is not asked for, and the cut draws its nearest resident
+ancestor instead. A smaller budget is therefore paid in detail, one DAG level at a time, from the
+finest down: the image that sees it asks for less, and just before the next cut the pages it drew
+but no longer asks for leave, so that cut draws their ancestors (`backend/autonomous/poolOrder.ts`).
+`coverageBudgetLimited` says the wanted cut did not fit; a verdict change is queued and published as
+`coverage-budget` by `flush`, as on WebGPU, with `requiredSlots` the slots the whole request charges
+and `pixelError` the host's threshold. Between two cuts, what the image keeps — the root cover, the
+host's pages, what it asks for and what it drew — never leaves; over the slots, the rest leaves
 oldest first (`evictOldest`, the page streamer's order). A refinement may hold more for a while: a
 resident ancestor drawn in place of a missing page is kept while the pages that replace it arrive,
-so the pool goes past its slots by at most the ancestors standing in, and comes back under them in
-the cut that follows the last arrival, which no longer keeps them (`poolSearch.test.ts` measures 11
-slots over 150 for 60 ancestors replaced by 100 pages, and `geometryAllocationBytes` shows it). Only
+and leaves with the cut that no longer draws it. Only
 the root cover and the pages the host replaced (`replaceGeometryPage`) stay above it; they are
 counted as the pages' bytes are, every geometry copy included. No pool is reserved:
 `geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
 Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
-A region keeps a complete resident representation until every replacement page is uploaded; if old
-and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
+A region keeps a complete resident representation until every replacement page is uploaded: the
+cut rule below draws its nearest resident ancestor meanwhile, never the root cover in its place.
 On WebGPU a page enters the pool only after the pages it depends on, the clusters of the group
 that replaces it, read from the compiled group links (`webgpu/residency/admission.ts`): loading a
 wanted page or a shadow caster brings its missing dependencies first, each after its own, up to
@@ -613,12 +597,15 @@ by the wanted cluster or its nearest resident ancestor, and a missing page coars
 neighbourhood by one level, never its whole primitive. The host derives both bit sets from the
 pool's residency and uploads what changed (`gpu/dag/readiness.ts`). Because a group needs all its
 members, the cut asks the cache for whole groups closed upward, the group-mates a view never keeps
-included (`webgpu/cut/groupClosure.ts`); otherwise the surface of a group straddling the frustum
+included (`page/cut/groupClosure.ts`); otherwise the surface of a group straddling the frustum
 or the normal cone would stay one level coarse. Top-down pruning drops a subtree whose error floor
 is above the threshold only when none of its clusters has a missing finer group: each culling node
 carries that count (`NODE_OPEN`), so the nearest resident ancestor of a missing page is always a
-candidate. No frame waits for coverage once the root cover is resident. The CPU cut and the WebGL2
-page path still use their own fallbacks until they take the same rule.
+candidate. No frame waits for coverage once the root cover is resident. The CPU cut
+(`page/cut/take.ts`) applies the same predicate on the same readiness, kept per placement
+(`page/cut/held.ts`), and prunes its descent on the same open counts, in JavaScript and in its
+WebAssembly node walk (`page-codec-wasm/src/cut.rs`) alike; the WebGPU CPU path, its light cuts and
+the WebGL2 image draw through it, with no fallback of their own.
 Shared URLs occupy one slot across instances. Two counters say different things:
 
 | Field            | Meaning                                                                                         | Reported by          |
@@ -626,7 +613,7 @@ Shared URLs occupy one slot across instances. Two counters say different things:
 | `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
 | `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
-`coverageReady`, `coverageBudgetLimited`, `budgetPixelError` (WebGL2 only) and `streamingError` report coverage;
+`coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage;
 the `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
 retried at most three times per session; an initial cover read failure rejects preparation.
 

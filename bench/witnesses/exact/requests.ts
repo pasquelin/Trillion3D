@@ -1,8 +1,5 @@
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
-import type {
-  HostAttribute,
-  HostGeometry,
-} from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { HostAttribute } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   acceptPageArray,
   collectPendingUrls,
@@ -22,6 +19,7 @@ import {
 } from '../../../packages/sdk-browser/src/page/integration/arrivalSpecs.ts';
 import type { ArrivalPlan } from '../../../packages/sdk-browser/src/page/integration/host.ts';
 import { ClusterBatches } from './batches/batches.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 export function createExactPagesRequestData(allPages: PageRec[], requestCount: number) {
   const byUrl = indexPagesByUrl(allPages);
@@ -63,7 +61,7 @@ export type ExactPagesRequestContext = {
   batches: ClusterBatches;
   byUrl: Map<string, PageRec[]>;
   indexByUrl: Map<string, HostAttribute>;
-  disposeGeometry(geometry: HostGeometry): void;
+  disposeGeometry(geometry: Geometry): void;
   /** Engine camera of the last frame, absent as long as no frame has been rendered. */
   readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;

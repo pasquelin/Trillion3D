@@ -10,6 +10,7 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts';
 import { createFrameComposer } from './compose.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
+import { createGuideSet } from '../../guides/guideSet.ts';
 
 const camera = G.perspectiveCamera();
 /** A context that renders half floats, as every desktop WebGL2 does. */
@@ -30,7 +31,7 @@ function engine(held = false) {
 
 function composer(chain?: EffectChain, shown = () => true) {
   const context = createTestContext({ answers: halfFloats });
-  const compose = createFrameComposer(context.gl, camera, chain && { chain, shown });
+  const compose = createFrameComposer(context.gl, camera, { effects: chain && { chain, shown } });
   return { ...context, compose };
 }
 
@@ -60,8 +61,8 @@ test('a bloom: linear radiance into the chain, 2 × levels passes, the display c
   assert.equal(names().lastIndexOf('drawArrays') < names().lastIndexOf('blitFramebuffer'), true);
   assert.deepEqual(
     of('texImage2D').map((args) => args[2]),
-    ['RGBA16F', 'R8', 'RGBA16F', 'RGBA16F', 'RGBA16F', 'RGBA8'],
-    'the scene and its untoned mark, one pass target and two levels, then the kept frame',
+    ['RGBA16F', 'R8', 'DEPTH_COMPONENT24', 'RGBA16F', 'RGBA16F', 'RGBA16F', 'RGBA8'],
+    'the scene, its untoned mark and depth, one pass target and two levels, then the kept frame',
   );
   assert.deepEqual(of('drawBuffers'), [[['COLOR_ATTACHMENT0', 'COLOR_ATTACHMENT1']]]);
   // The scene's radiance, depth and mark, one pass target, the levels.
@@ -88,7 +89,7 @@ test('an emptied chain gives its targets back and draws as before', () => {
   compose(backend, null);
   assert.equal(outputs[1].linear, false);
   assert.equal(compose.effectBytes(), 0);
-  assert.equal(of('deleteTexture').length, 5, 'every target of the chain');
+  assert.equal(of('deleteTexture').length, 6, 'every target of the chain');
 });
 
 test('a diagnostic view, a capture and a context without half floats show the image alone', () => {
@@ -100,7 +101,7 @@ test('a diagnostic view, a capture and a context without half floats show the im
   shown = true;
   diagnostic.compose(backend, null, false, false);
   const bare = createTestContext();
-  createFrameComposer(bare.gl, camera, { chain, shown: () => true })(backend, null);
+  createFrameComposer(bare.gl, camera, { effects: { chain, shown: () => true } })(backend, null);
   assert.deepEqual(
     outputs.map((output) => output.linear),
     [false, false, false],
@@ -119,4 +120,28 @@ test('the output leaves as drawn the share of a pixel the untoned mark covers', 
   );
   const units = of('uniform1i').filter(([at]) => (at as { uniform: string }).uniform === 'untoned');
   assert.deepEqual(units, [[{ uniform: 'untoned' }, 1]], 'the mark on unit 1, the image on 0');
+});
+
+test('guides over a chain land on the destination, over the depth the output carried', () => {
+  const guides = createGuideSet();
+  guides.lines({ positions: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0], width: 2 });
+  const context = createTestContext({ answers: halfFloats });
+  const chain = new EffectChain().add(effect.bloom());
+  const compose = createFrameComposer(context.gl, camera, {
+    effects: { chain, shown: () => true },
+    guides,
+  });
+  compose(engine().backend, null);
+  const { names, calls, of } = context;
+  const guide = names().lastIndexOf('drawArraysInstanced'),
+    output = names().lastIndexOf('drawArrays');
+  assert.ok(output < guide, 'the chain, then the guides');
+  assert.deepEqual(
+    calls.slice(output - 3, output).map((call) => call.args),
+    [['DEPTH_TEST'], ['ALWAYS'], [true]],
+  );
+  const bound = calls.slice(0, guide).findLast((call) => call.name === 'bindFramebuffer');
+  assert.deepEqual(bound?.args, ['FRAMEBUFFER', null], 'on the drawing buffer');
+  const source = of('shaderSource').find(([, text]) => String(text).includes('untoned,depth'));
+  assert.match(String(source?.[1]), /gl_FragDepth=texelFetch\(depth,at,0\)\.r;/);
 });

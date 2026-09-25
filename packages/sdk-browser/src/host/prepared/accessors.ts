@@ -13,6 +13,7 @@ import {
   BufferAttribute,
   InterleavedBufferAttribute,
   InterleavedBuffer,
+  ownAttribute,
   type VertexAttribute,
 } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { normalisedUnit } from '../../../../sdk-core/src/world/buffer/elements.ts';
@@ -34,7 +35,8 @@ export const normalisedScale = (componentType: number) =>
 
 type Attribute = VertexAttribute;
 
-/** Writes the substituted elements of a sparse accessor into a copy of its base, as the loader does. */
+/** Writes the substituted elements of a sparse accessor into a copy of its base's own elements
+ *  (never the whole interleaved buffer it may view), as the loader does. */
 function substitute(
   base: Attribute,
   accessor: TableAccessor,
@@ -46,10 +48,7 @@ function substitute(
   const Values = COMPONENTS[accessor.componentType];
   const ranks = new Ranks(viewOf(sparse.indices.view), sparse.indices.offset, sparse.count);
   const values = new Values(viewOf(sparse.values.view), sparse.values.offset, sparse.count * width);
-  const out =
-    accessor.view === null
-      ? (base as BufferAttribute)
-      : new BufferAttribute(base.array.slice(), width, base.normalized);
+  const out = accessor.view === null ? (base as BufferAttribute) : ownAttribute(base);
   out.normalized = false;
   for (let i = 0; i < ranks.length; i++) {
     out.setX(ranks[i], values[i * width]);

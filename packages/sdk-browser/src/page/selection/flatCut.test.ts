@@ -98,14 +98,14 @@ test('a missing cluster steps its whole group back to the coarse representation,
   fixture.geometry.dispose();
 });
 
-test('a missing coarse cluster keeps stepping back until the pinned root covers everything', () => {
+test('a missing coarse cluster leaves the root as the nearest resident ancestor', () => {
   const { fixture, shown } = cutWithout('leaf0', 'mid-left');
-  assert.deepEqual(shown, ['root'], 'the whole primitive falls back to its root');
+  assert.deepEqual(shown, ['root'], 'the group above the leaves is not resident: the root draws');
   assertOneRepresentationPerGroup(shown);
   fixture.geometry.dispose();
 });
 
-test('the fallback covers the surface once for every residency pattern', () => {
+test('the cut rule covers the surface once for every residency pattern', () => {
   const urlsByBit = ['leaf0', 'leaf1', 'leaf2', 'leaf3', 'mid-left', 'mid-right'];
   for (let mask = 0; mask < 64; mask++) {
     const fixture = dagFixture();
