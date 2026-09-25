@@ -37,17 +37,11 @@ fn the_cooks_soft_records_are_the_golden_ones_the_page_rebuilds() {
         ..declared("volume", &[])
     };
     let records = [
-        Ok(golden_record()),
-        soft_record(&seam, None, [2.0, 1.0, 3.0], &rope),
-        soft_record(&tetra, Some(&faces), [1.0; 3], &volume),
+        golden_record(),
+        soft_record(&seam, None, [2.0, 1.0, 3.0], &rope).unwrap(),
+        soft_record(&tetra, Some(&faces), [1.0; 3], &volume).unwrap(),
     ];
-    let bytes: Vec<u8> = records
-        .iter()
-        .flat_map(|r| record_bytes(r.as_ref().unwrap()))
-        .collect();
-    assert!(
-        records[2].as_ref().unwrap().pressure > 0.0,
-        "the volume holds gas"
-    );
+    let bytes: Vec<u8> = records.iter().flat_map(record_bytes).collect();
+    assert!(records[2].pressure > 0.0, "the volume holds gas");
     assert_golden(&bytes, RECORDS);
 }
