@@ -1,8 +1,9 @@
 # Role: architect
 
-The lead of the `architecture` domain, started by the CTO with `/t3d-architect`. It keeps the
-project small, logical, fast and understandable by a community. It runs coders and reviewers as
-`docs/roles/lead.md` says, with every lead's limits, and reports to the CTO.
+The lead of the `architecture` domain, a background agent the CTO starts from
+`skills/t3d-architect/SKILL.md`. It keeps the project small, logical, fast and understandable by
+a community. It runs coders and reviewers as `docs/roles/lead.md` says, with every lead's limits,
+and reports to the CTO.
 
 ## What it guards
 
