@@ -1,0 +1,161 @@
+//! A soft body's simulated vertices, made from a primitive as the page's `softBodyOf` makes them from
+//! a geometry (`packages/sdk-core/src/physics/soft.ts`): vertices at one position welded into one,
+//! their triangles (none for a rope), their masses from the scaled area — a rope's length — each
+//! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
+//! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike, and
+//! the module test holds a cooked cloth to one the page builds (`cookedSoft.test.ts`).
+use std::collections::HashMap;
+
+/// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
+/// `SOFT_LINEAR_DENSITY`).
+const AREAL_DENSITY: f64 = 0.2;
+const LINEAR_DENSITY: f64 = 0.065;
+/// A volume's default pressure rests its weight on this share of its mean cross-section
+/// (`SOFT_FOOTPRINT`), and a volume keeps within this share of its rest volume (`SOFT_MAX_SWELL`).
+const FOOTPRINT: f64 = 0.25;
+const MAX_SWELL: f64 = 0.1;
+/// The worker's step (`PHYSICS_STEP`), Jolt's substeps of a soft body per step, and Earth's pull.
+const STEP: f64 = 1.0 / 60.0;
+const SUBSTEPS: f64 = 5.0;
+const EARTH: f64 = 9.81;
+
+/// What a node declares of its soft body: its options once read (`SoftSettings`).
+pub(super) struct SoftDeclared {
+    /// `cloth`, `rope` or `volume`.
+    pub kind: &'static str,
+    pub pins: Vec<f64>,
+    pub mass: Option<f64>,
+    pub stretch: f64,
+    pub bend: f64,
+    pub pressure: Option<f64>,
+}
+
+/// The simulated vertices (`x, y, z, mass` each in the primitive's frame, a pin's mass 0), their
+/// triangle corners, and the gas's pressure at rest, Pa (0 without gas).
+pub(super) struct SoftRecord {
+    pub vertices: Vec<f32>,
+    pub indices: Vec<u32>,
+    pub pressure: f64,
+}
+
+/// The most gauge pressure a volume's skin holds within `MAX_SWELL` (`heldPressure`).
+fn held_pressure(vertex_mass: f64, area: f64, stretch: f64) -> f64 {
+    let dt = STEP / SUBSTEPS;
+    let radius = (area / (4.0 * std::f64::consts::PI)).sqrt();
+    let give = ((stretch + dt * dt / vertex_mass) * radius) / (2.0 * 3f64.sqrt());
+    ((1.0 + MAX_SWELL).cbrt() - 1.0) / give
+}
+
+/// The soft body of `pos` (3 floats per vertex) and its triangle `corners` (every vertex in order
+/// when it has none), scaled by `scale`; the page's own words when it would refuse it.
+pub(super) fn soft_record(
+    pos: &[f32],
+    corners: Option<&[u32]>,
+    scale: [f64; 3],
+    d: &SoftDeclared,
+) -> Result<SoftRecord, String> {
+    let (count, rope, volume) = (pos.len() / 3, d.kind == "rope", d.kind == "volume");
+    let (mut map, mut at, mut kept) = (Vec::with_capacity(count), HashMap::new(), Vec::new());
+    for v in 0..count {
+        // As the page's key, the text of each coordinate: 0 and -0 are one position.
+        let key: [u32; 3] = std::array::from_fn(|k| (pos[v * 3 + k] + 0.0).to_bits());
+        let welded = *at.entry(key).or_insert(kept.len());
+        if welded == kept.len() {
+            kept.push(v);
+        }
+        map.push(welded as u32);
+    }
+    let all: Vec<u32> = (0..count as u32).collect();
+    let corners = corners.unwrap_or(&all);
+    let mut indices = Vec::new();
+    for t in corners.chunks_exact(3).filter(|_| !rope) {
+        let [a, b, c] = [0, 1, 2].map(|k| map.get(t[k] as usize).copied());
+        let (Some(a), Some(b), Some(c)) = (a, b, c) else {
+            return Err("A soft body's triangle names no vertex.".into());
+        };
+        if a != b && b != c && a != c {
+            indices.extend([a, b, c]);
+        }
+    }
+    if if rope {
+        kept.len() < 2
+    } else {
+        indices.is_empty()
+    } {
+        return Err(format!("A soft {} needs more vertices.", d.kind));
+    }
+    let mut vertices = vec![0f32; kept.len() * 4];
+    for (i, &v) in kept.iter().enumerate() {
+        vertices[i * 4..i * 4 + 3].copy_from_slice(&pos[v * 3..v * 3 + 3]);
+    }
+    let measure = spread_mass(&mut vertices, &indices, scale)?;
+    let density = if rope { LINEAR_DENSITY } else { AREAL_DENSITY };
+    let factor = d.mass.map_or(density, |mass| mass / measure);
+    for mass in vertices.iter_mut().skip(3).step_by(4) {
+        *mass = (*mass as f64 * factor) as f32;
+    }
+    let held = if volume {
+        held_pressure(factor * measure / kept.len() as f64, measure, d.stretch)
+    } else {
+        0.0
+    };
+    let pressure = match (volume, d.pressure) {
+        (false, _) => 0.0,
+        (true, Some(p)) => p,
+        (true, None) => (4.0 * factor * EARTH / FOOTPRINT).min(held),
+    };
+    if pressure > held {
+        return Err(format!(
+            "A soft volume's pressure {pressure} Pa swells it past a tenth: its skin holds {held:.1}."
+        ));
+    }
+    for &pin in &d.pins {
+        if !(pin.fract() == 0.0 && pin >= 0.0 && pin < count as f64) {
+            return Err(format!(
+                "A soft body's pin {pin} names no vertex of its {count}."
+            ));
+        }
+        vertices[map[pin as usize] as usize * 4 + 3] = 0.0;
+    }
+    Ok(SoftRecord {
+        vertices,
+        indices,
+        pressure,
+    })
+}
+
+/// Adds to each vertex's mass word the scaled area (no triangle: length) it holds (`spreadMass`);
+/// returns the whole.
+fn spread_mass(vertices: &mut [f32], indices: &[u32], s: [f64; 3]) -> Result<f64, String> {
+    let d = |v: &[f32], a: usize, b: usize| -> [f64; 3] {
+        std::array::from_fn(|k| v[b * 4 + k] as f64 * s[k] - v[a * 4 + k] as f64 * s[k])
+    };
+    let length = |u: [f64; 3]| u.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let share = |v: &mut [f32], corners: &[usize], amount: f64| {
+        for &i in corners {
+            v[i * 4 + 3] = (v[i * 4 + 3] as f64 + amount / corners.len() as f64) as f32;
+        }
+        amount
+    };
+    let mut whole = 0.0;
+    if indices.is_empty() {
+        for i in 1..vertices.len() / 4 {
+            let amount = length(d(vertices, i - 1, i));
+            whole += share(vertices, &[i - 1, i], amount);
+        }
+    }
+    for t in indices.chunks_exact(3) {
+        let [a, b, c] = [0, 1, 2].map(|k| t[k] as usize);
+        let (u, v) = (d(vertices, a, b), d(vertices, a, c));
+        let cross = [
+            u[1] * v[2] - u[2] * v[1],
+            u[2] * v[0] - u[0] * v[2],
+            u[0] * v[1] - u[1] * v[0],
+        ];
+        whole += share(vertices, &[a, b, c], length(cross) / 2.0);
+    }
+    if !(whole > 0.0) {
+        return Err("A soft body has no area or length.".into());
+    }
+    Ok(whole)
+}

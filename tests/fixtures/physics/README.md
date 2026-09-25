@@ -4,6 +4,9 @@ The files the native compiler's physics cook tests read (`packages/asset-compile
 
 - `ramp-tile.bin`, `small-ramp-tile.bin`: golden cooked tiles of a two-triangle ramp, written by
   the cook itself (`TRILLION3D_WRITE_GOLDEN=1`).
+- `cloth-settings.bin`: the golden cooked soft body, a 1 m cloth of 2 × 2 squares pinned at its top
+  corners, Jolt's `SoftBodySharedSettings` binary state, written the same way (`soft_tests.rs`);
+  the physics module's test restores it (`packages/sdk-browser/src/physics/cookedSoft.test.ts`).
 - `pawn-body-patch.bin`: 200 connected triangles of the `Pawn_Body_Shared` mesh (mesh 6) of
   _A Beautiful Game_ (`abeautiful-game`, `ABeautifulGame.gltf`), Khronos glTF Sample Assets,
   **CC-BY-4.0**: original model © 2020 ASWF (MaterialX Project), conversion to glTF © 2022 Ed

@@ -7,7 +7,8 @@
 //! from the object (`cut.rs`), split into tiles aligned on the culling hierarchy, each a Jolt
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
-//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`).
+//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`), and the soft bodies its nodes
+//! declare, each Jolt's `SoftBodySharedSettings` as the physics worker would build them (`soft.rs`).
 use crate::dag::{CullingNode, DagCluster};
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
@@ -20,6 +21,10 @@ pub(crate) mod hausdorff;
 mod height;
 #[cfg(test)]
 mod small_tests;
+mod soft;
+mod soft_record;
+#[cfg(test)]
+mod soft_tests;
 mod stage;
 #[cfg(test)]
 mod tests;
@@ -28,7 +33,7 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 4;
+pub const PHYSICS_COOK_VERSION: u32 = 5;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
@@ -67,6 +72,17 @@ extern "C" {
         sample_count: u32,
         offset: *const f32,
         scale: *const f32,
+        out: *mut *const u8,
+        bytes: *mut u32,
+    ) -> u32;
+    fn cook_soft_body(
+        vertices: *const f32,
+        vertex_count: u32,
+        scale: *const f32,
+        corners: *const u32,
+        corner_count: u32,
+        stretch: f32,
+        bend: f32,
         out: *mut *const u8,
         bytes: *mut u32,
     ) -> u32;
@@ -123,4 +139,36 @@ pub(crate) fn height_field_shape(
         cook_height_field(samples.as_ptr(), size as u32, o, s, &mut out, &mut bytes)
     };
     taken(status, out, bytes, "height field")
+}
+
+/// A soft body's `SoftBodySharedSettings`, built by the physics worker's own builder
+/// (`src/softSettings.h`): `vertices` (`x, y, z, mass` each, a mass of 0 a pin) scaled by `scale`,
+/// joined by the triangles of `corners` or, with none, each to the next; compliances `stretch`
+/// and `bend` (`INFINITY` for none).
+pub(crate) fn soft_settings(
+    vertices: &[f32],
+    scale: [f32; 3],
+    corners: &[u32],
+    stretch: f32,
+    bend: f32,
+) -> Result<Vec<u8>> {
+    let (mut out, mut bytes) = (std::ptr::null(), 0u32);
+    let count = (vertices.len() / 4) as u32;
+    // SAFETY: every pointer names a live slice of the length passed with it, `scale` three floats.
+    let status = unsafe {
+        let (v, s, c) = (vertices.as_ptr(), scale.as_ptr(), corners.as_ptr());
+        let corner_count = corners.len() as u32;
+        cook_soft_body(
+            v,
+            count,
+            s,
+            c,
+            corner_count,
+            stretch,
+            bend,
+            &mut out,
+            &mut bytes,
+        )
+    };
+    taken(status, out, bytes, "soft body")
 }
