@@ -18,7 +18,8 @@ disagreement is reported to the maintainer.
    into `develop` on green CI and the reviewer's OK, and nothing reaches `main` without the boss's
    word, never write in
    the shared checkout, never touch another session's worktree. Every worktree lives in
-   `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
+   `.worktrees/<branch>/` inside the checkout the session runs in (the CTO's, for every agent it
+   starts: the app lets agents edit nowhere else), every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
 5. **Only the CTO opens issues**, with the writer role, when the boss asks for one or in an
    extreme case (a 🔴 critical defect no issue covers; a closed issue that covers it is reopened
