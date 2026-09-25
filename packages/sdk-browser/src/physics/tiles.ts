@@ -162,7 +162,7 @@ export function createTileStreamer(
     modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? softs.modelOf(id),
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
     materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
-    /** A model moved: its resident tiles follow, its cooked soft bodies are made again. */
+    /** A model moved: its resident tiles and its cooked soft bodies follow. */
     moved(node: Object3D) {
       node.traverse((child) => {
         if (isModel(child)) softs.moved(child);

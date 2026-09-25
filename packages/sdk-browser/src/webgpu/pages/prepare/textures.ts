@@ -1,6 +1,5 @@
 import { importTextureIndices } from '../../../host/surfaceImport.ts';
 import { compteMateriauxEtTangentes } from '../io/catalogue.ts';
-import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from '../../core/materialTextures.ts';
 import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts';
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts';
@@ -42,24 +41,18 @@ const catalogueReport = (textures: TileTexture[]) => ({
 });
 
 /**
- * Concatenates page geometry, inventories material textures and builds virtual textures: for
- * each atlas one tile pool per lane its textures take — the block family the session chose for
- * the chains the gate kept in it, RGBA8 for the others and for a host image —, sized together by
- * the host budget, their page tables, each texture's queue pinned from the start, and the
- * sampler the passes read.
+ * Inventories material textures over the geometry prepare concatenated (`prepareWebgpuGeometry`)
+ * and builds virtual textures: for each atlas one tile pool per lane its textures take — the block
+ * family the session chose for the chains the gate kept in it, RGBA8 for the others and for a host
+ * image —, sized together by the host budget, their page tables, each texture's queue pinned from
+ * the start, and the sampler the passes read.
  */
 export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis, diag, run } = rt,
     { allPages, blendCopies } = rt.setup,
     { geometryBlocks, mapLayer, dataLayer } = vis;
-  geometryBlocks.clear();
   mapLayer.clear();
   dataLayer.clear();
-  ({
-    concatPos: vis.concatPos,
-    concatUv: vis.concatUv,
-    concatNrm: vis.concatNrm,
-  } = prepareWebgpuGeometry(gpuDevice, allPages, geometryBlocks));
   const { maps, dataMaps, coverage } = collectWebgpuMaterialTextures(
     allPages,
     blendCopies,
