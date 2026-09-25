@@ -360,6 +360,22 @@
       "up": "SU"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Trascina per guardarti intorno. Scegli la nebbia, la sua portata e il suo colore.",
+    "controls": {
+      "fog": "Nebbia",
+      "reach": "Portata",
+      "height": "Altezza",
+      "colour": "Colore"
+    },
+    "choices": {
+      "fog": {
+        "distance": "distanza",
+        "thick": "fitta",
+        "ground": "al suolo"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Trascina per guardarti intorno. Le perle scorrono lungo il tubo.",
     "controls": {
