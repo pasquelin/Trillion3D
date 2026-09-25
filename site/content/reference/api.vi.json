@@ -2065,7 +2065,7 @@
   },
   "SOFT_FOOTPRINT": {
     "summary": "Được khai báo: phần tiết diện trung bình — một phần tư diện tích của nó, với mọi hình lồi (Cauchy) — mà khối nằm yên trên mặt đất lún xuống, khí bên trong đỡ trọng lượng của nó ở đó.",
-    "description": "Áp suất mặc định khi đó là `4·m·g / (share·area)`: 31 Pa cho lớp vỏ `SOFT_AREAL_DENSITY`. Nửa phần, gấp đôi áp suất. Áp suất cao hơn nhiều so với áp suất của trọng lượng làm nó phồng quá hình dạng nghỉ: mỗi bước dời một đỉnh `pressure·dt² / (kg/m²)`, nhiều hơn các cạnh khi đó giữ được."
+    "description": "Áp suất mặc định khi đó là `4·m·g / (share·area)`: 31 Pa cho lớp vỏ `SOFT_AREAL_DENSITY`. Nửa phần, gấp đôi áp suất. Nó không bao giờ vượt quá mức lớn nhất mà lớp vỏ giữ được trong một phần mười thể tích nghỉ."
   },
   "SOFT_LINEAR_DENSITY": {
     "summary": "Dây polyamide 10 mm, kg/m: bảng của nhà sản xuất cho 0,06 đến 0,07."
@@ -2100,7 +2100,7 @@
     "summary": "Tùy chọn của khối: một lưới kín được khí bên trong đỡ.",
     "members": {
       "type": "Một khối.",
-      "pressure": "Áp suất của khí cao hơn áp suất không khí khi nghỉ, Pa; khi bị ép, nó tăng lên khi thể tích giảm (định luật Boyle). Các tam giác phải hướng ra ngoài. Nếu bỏ qua, áp suất đặt trọng lượng của khối lên `SOFT_FOOTPRINT` tiết diện trung bình của nó."
+      "pressure": "Áp suất của khí cao hơn áp suất không khí khi nghỉ, Pa; khi bị ép, nó tăng lên khi thể tích giảm (định luật Boyle). Các tam giác phải hướng ra ngoài. Nếu bỏ qua, áp suất đặt trọng lượng của khối lên `SOFT_FOOTPRINT` tiết diện trung bình của nó, hoặc mức lớn nhất mà lớp vỏ giữ được nếu nhỏ hơn. Bị từ chối khi vượt mức lớn nhất mà lớp vỏ giữ được trong một phần mười thể tích nghỉ."
     }
   },
   "TransformNode": {
