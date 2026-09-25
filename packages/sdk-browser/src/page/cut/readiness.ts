@@ -50,7 +50,7 @@ export function createCutReadiness(
   const touchedPages: number[] = [],
     touchedNodes: number[] = [];
   const bytes = () => resident.byteLength + groupReady.byteLength + closed.byteLength;
-  /** The bytes `takeBytesMoved` last handed over. */
+  /** The bytes the last `settle` handed over. */
   let reported = 0;
   const isReady = (page: number) => {
     const owner = structure ? structure.owners[page] : -1;
@@ -107,14 +107,6 @@ export function createCutReadiness(
     get hostBytes() {
       return bytes();
     },
-    /** What `hostBytes` gained, or lost when negative, since the last call: what a running total
-     *  of many readinesses adds, so that it is read without walking them (#483 rule 7). */
-    takeBytesMoved() {
-      const now = bytes(),
-        moved = now - reported;
-      reported = now;
-      return moved;
-    },
     /** Records page `page`'s residency; `settle` propagates it. True when it changed. */
     set(page: number, value: boolean) {
       if (resident.set(page, value ? 1 : 0) === (value ? 1 : 0)) return false;
@@ -123,7 +115,9 @@ export function createCutReadiness(
     },
     /** Propagates what `set` recorded, then hands over the pages whose `isReady` or
      *  `isChildReady` changed and the nodes whose `openAt` changed, each possibly more than once:
-     *  from the state with nothing resident, which a reader derives from the accessors. */
+     *  from the state with nothing resident, which a reader derives from the accessors. Returns
+     *  what `hostBytes` gained, or lost when negative, since the last settle: what a running total
+     *  of many readinesses adds, so that it is read without walking them (#483 rule 7). */
     settle(onPage?: (page: number) => void, onNode?: (node: number) => void) {
       for (const page of pending) {
         const owner = structure ? structure.owners[page] : -1,
@@ -156,6 +150,10 @@ export function createCutReadiness(
       if (onNode) for (const node of touchedNodes) onNode(node);
       touchedPages.length = 0;
       touchedNodes.length = 0;
+      const now = bytes(),
+        moved = now - reported;
+      reported = now;
+      return moved;
     },
   };
 }
