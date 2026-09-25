@@ -9,53 +9,15 @@ import {
   type Joint,
   type JointMotor,
 } from '../../../sdk-core/src/physics/index.ts';
-import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
-import { normalizeVector3 } from '../../../sdk-core/src/math/primitives/vector.ts';
-import { readVec3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { hasBody, worldPoseOf, type createPhysicsBodies } from './bodies.ts';
-
-type Vec = [number, number, number];
-const turned = new Float64Array(3);
-/** `v` turned by the quaternion `q`. */
-const turn = (q: ArrayLike<number>, v: Vec): Vec => {
-  rotateByQuaternion(turned, q, v[0], v[1], v[2]);
-  return [turned[0], turned[1], turned[2]];
-};
-/** `v` made unit length, in place. */
-const unit = (v: Vec): Vec => {
-  normalizeVector3(v);
-  return v;
-};
-/** A unit vector square to `axis`: the direction a joint's angle 0 is read from. */
-const normalTo = ([x, y, z]: Vec): Vec => unit(Math.abs(x) < 0.9 ? [0, z, -y] : [-z, 0, x]);
-
-/** A world frame (`point, axis, normal`) in the frame of `node`'s body; the world's as it is. */
-function frameIn(node: Object3D | null, point: Vec, axis: Vec, normal: Vec) {
-  if (!node) return [...point, ...axis, ...normal];
-  const { position: p, quaternion: q } = worldPoseOf(node);
-  const back = [-q[0], -q[1], -q[2], q[3]];
-  const local = turn(back, [point[0] - p[0], point[1] - p[1], point[2] - p[2]]);
-  return [...local, ...turn(back, axis), ...turn(back, normal)];
-}
-
-/** Each end's frame, from the options, read in the world as the bodies stand now. */
-function framesOf(joint: Joint) {
-  const { a, b, options: o } = joint;
-  const origin = (node: Object3D) => Array.from(worldPoseOf(node).position) as Vec;
-  const anchor = o.anchor ? readVec3(o.anchor) : origin(a);
-  const other =
-    joint.kind !== 'distance' ? anchor : o.anchorB ? readVec3(o.anchorB) : b ? origin(b) : anchor;
-  const axis = unit(o.axis ? readVec3(o.axis) : [0, 1, 0]);
-  const normal = normalTo(axis);
-  const length = Math.hypot(other[0] - anchor[0], other[1] - anchor[1], other[2] - anchor[2]);
-  return { a: frameIn(a, anchor, axis, normal), b: frameIn(b, other, axis, normal), length };
-}
+import { hasBody, type createPhysicsBodies } from './bodies.ts';
+import { framesOf, sixDofAxis } from './jointFrames.ts';
 
 const motorOf = (motor: JointMotor | null) => ({
   mode: motor ? MOTOR[motor.mode] : MOTOR.off,
   target: motor?.target ?? 0,
   maxForce: motor?.maxForce ?? 0,
+  axis: sixDofAxis(motor?.axis),
 });
 
 /**
@@ -75,8 +37,7 @@ export function createPhysicsJoints(
   const free: number[] = [];
   const host: NonNullable<Joint['_host']> = {
     motor(joint) {
-      const { mode, target, maxForce } = motorOf(joint.motor);
-      writer.motor(joint._id, mode, target, maxForce);
+      writer.motor(joint._id, motorOf(joint.motor));
       invalidate();
     },
   };
@@ -107,10 +68,11 @@ export function createPhysicsJoints(
     const id = index | (generation[index] << GENERATION_SHIFT);
     const { limits, spring } = joint.options;
     // A distance keeps its length, or stays within the limits from 0 up to its length, or up to
-    // the minimum when that is further; the others have none.
-    const distance = joint.kind === 'distance';
-    const min = limits?.min ?? (!distance ? -Infinity : limits ? 0 : frames.length);
-    const max = limits?.max ?? (distance ? Math.max(min, frames.length) : Infinity);
+    // the minimum when that is further; a pulley's rope slackens down to 0; the others have none.
+    const distance = joint.kind === 'distance',
+      rope = distance || joint.kind === 'pulley';
+    const min = limits?.min ?? (!rope ? -Infinity : distance && !limits ? frames.length : 0);
+    const max = limits?.max ?? (rope ? Math.max(min, frames.length) : Infinity);
     writer.joint({
       id,
       kind: JOINT[joint.kind],
@@ -121,6 +83,7 @@ export function createPhysicsJoints(
       limits: [min, max, spring?.frequency ?? 0, spring?.damping ?? 0],
       motor: motorOf(joint.motor),
       breakForce: joint.options.breakForce ?? 0,
+      extra: frames.extra,
     });
     slots[index] = joint;
     made.set(joint, { a, b });

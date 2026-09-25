@@ -2015,5 +2015,19 @@
       "joints": "Eklemler",
       "broken": "Kırılan"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "Mekanizmanın hızını değiştir, asansörü kaldır ve karşı ağırlığı kaldırmak için kovaya ağırlık at.",
+    "controls": {
+      "speed": "Mekanizma hızı (rad/s)",
+      "raiseLift": "Asansörü kaldır",
+      "addWeight": "Ağırlık bırak",
+      "emptyBucket": "Kovayı boşalt"
+    },
+    "readouts": {
+      "lift": "Asansör",
+      "load": "Ağırlıklar",
+      "rope": "İp akışı"
+    }
   }
 }

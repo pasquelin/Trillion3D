@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { joint } from '../../../sdk-core/src/physics/index.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { jointRig } from './joints.fixture.ts';
+import { jointRig, type Rig } from './joints.fixture.ts';
 
 /**
  * Two bodies driven past a 0.4 stop by the same motor, one stop soft: the soft one passes it, then
@@ -32,7 +32,6 @@ async function softAndHardStop(kind: 'hinge' | 'slider', read: (rig: Rig, mesh: 
   rig.run(120);
   return { pushed, rest: read(rig, soft.body) };
 }
-type Rig = Awaited<ReturnType<typeof jointRig>>;
 
 test('hinge: a soft limit lets the door turn past its stop and springs it back; a hard one does not', async () => {
   const { pushed, rest } = await softAndHardStop('hinge', (rig, mesh) => rig.yaw(mesh));

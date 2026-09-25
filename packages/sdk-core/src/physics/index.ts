@@ -17,4 +17,5 @@ export {
   type JointLimits,
   type JointMotor,
   type JointOptions,
+  type SixDofAxis,
 } from './joint.ts';

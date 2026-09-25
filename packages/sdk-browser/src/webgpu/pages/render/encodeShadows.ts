@@ -2,7 +2,7 @@ import { followLightThreshold } from '../prepare/lightResources.ts';
 import { normalizeVector3, type ShadowViewpoint } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
-import { pixelNearOf } from '../../../camera/pixelFootprint.ts';
+import { pixelNearOf } from '../../../streaming/priority.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { createShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
