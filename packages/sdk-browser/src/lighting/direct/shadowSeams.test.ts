@@ -72,6 +72,5 @@ test('a point light’s shadow crosses a face border without a seam', () => {
       }
   // Develop read the lit point's face and answered full light off it: a lit line of floor.
   const before = lampOver(lampAt([0, 2, 0]), [floor, { at: [0, 1, 0], normal: up }], true);
-  const lit = [...Array(400).keys()].filter((k) => before([1.99 + k * 5e-5, 0, 0.5], up, 0).lit);
-  assert.ok(lit.length > 0, 'develop’s seam');
+  assert.ok([...Array(400).keys()].some((k) => before([1.99 + k * 5e-5, 0, 0.5], up, 0).lit));
 });

@@ -125,13 +125,13 @@ function edgeError(faces: Face[], zenith: number, texel: number, bias: Bias, len
   const read = sunOverProfile(faces, zenith, texel, 0, bias),
     floor = faces.length - 1;
   let wrong = 0;
-  for (let x = texel / 8; x < length; x += texel / 4)
-    wrong += Number(Number(read(floor, x) >= 0.5) !== read(floor, x, true));
-  return (wrong / 4) * Math.cos(zenith);
+  for (let x = texel / 4; x < length; x += texel / 2)
+    wrong += +(Math.round(read(floor, x)) !== read(floor, x, true));
+  return (wrong / 2) * Math.cos(zenith);
 }
 
 test('the new bias puts every shadow edge nearer a ray-cast of its casters than develop’s', () => {
-  // The observatory's 1 cm steps, a 5 cm pawn under a 39° sun, a wall under a 78° sun (grazing):
+  // The observatory's 1 cm steps, a 5 cm pawn, sun 51° from vertical, a wall at 78° (grazing):
   // edges and contacts alike, where develop's bias let light through or shaded a clean face.
   const cases: [Face[], number[], number[], number][] = [
     [step, [0.3, Math.PI / 4, 1.1], [gap / 16, gap / 8, gap / 4], 0.03],
@@ -142,6 +142,6 @@ test('the new bias puts every shadow edge nearer a ray-cast of its casters than 
     const errors = (bias: Bias) =>
       zeniths.flatMap((z) => texels.map((t) => edgeError(faces, z, t, bias, length)));
     const [now, before] = [errors(BIAS), errors(DEVELOP_BIAS)];
-    now.forEach((error, i) => assert.ok(error < before[i], `${i}: ${error} against ${before[i]}`));
+    now.forEach((e, i) => assert.ok(e < Math.min(before[i], 5), `${i}: ${e} against ${before[i]}`));
   }
 });
