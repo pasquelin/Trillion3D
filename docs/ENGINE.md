@@ -172,7 +172,7 @@ revision and asks for a frame.
   `encodeTaaPass` and the composition, which tone-maps whatever view it is handed. Each pass writes a
   full-size `rgba16float` target, two in turn at most. The programs compile in the background on the
   first frame with a pass; until then the image is drawn without the chain and never held, and the
-  temporal accumulation goes on, as for a changed chain.
+  loop draws it again when they arrive, without restarting the temporal accumulation.
 - **WebGL2** (`world/render/compose.ts`, `effects/webglEffects.ts`): with a pass, the composer asks the
   engine for linear radiance (`HostDrawOutput.linear`: no curve, no sRGB transfer, alpha as coverage
   over transparent black) into a half-float target with depth, runs the passes, then one output
@@ -182,10 +182,10 @@ revision and asks for a frame.
   program's vertex arrays and maps: without a chain, the program and its uniforms are the ones
   drawn before the chain existed. Its second output marks, one byte a pixel, the coverage of the
   surfaces whose material skips the curve (`toneMapped: false`); the output program leaves that
-  share as drawn. Coverage past one is read as light (`effects/webglOutput.ts`); which surfaces
-  cover, and the multiply and subtractive modes the chain refuses, are `coversLinear`'s
-  (`webgl/cluster/materialBinding.ts`). A context that cannot render half floats draws without
-  the chain.
+  share as drawn. Coverage past one is read as light (`effects/webglOutput.ts`). With a chain, a
+  `none`-blended surface covers as an opaque one, and multiply and subtractive surfaces are
+  refused (`coversLinear`, `webgl/cluster/materialBinding.ts`). A context that cannot render half
+  floats draws without the chain.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
