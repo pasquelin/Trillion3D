@@ -3,7 +3,7 @@
 A background agent the CTO starts when `to measure` has work: "follow `docs/roles/measurer.md`".
 You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
 or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
-merge; your one commit is an example's thumbnail (step 6).
+merge; your only commits are examples' thumbnails (step 6).
 
 ## Loop
 
@@ -27,13 +27,15 @@ merge; your one commit is an example's thumbnail (step 6).
      a new issue (AGENTS.md rule 5): its lead takes #<n> again and closes it once fixed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
      never estimated, and reopens #<n> the same way.
-6. **Thumbnails.** When the merge adds an example, or takes one out of parking, and
-   `site/assets/examples/thumbnails/<id>.png` is missing: capture it on the merge commit
-   (`node scripts/docs-examples-thumbnails.ts <id>`), commit it alone on a branch
-   `<n>-thumbnail` from `origin/develop`, and open a pull request titled
-   `docs(examples): thumbnail of <id> (#<n>)` that names #<n> without closing it. The domain's
-   lead merges it.
-7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1.
+6. **Thumbnails.** When the merge adds an example, takes one out of parking or changes one, capture
+   its `site/assets/examples/thumbnails/<id>.png` on the merge commit, in the same Chrome session
+   as the measurements (`node scripts/docs-examples-thumbnails.ts <id>`), and keep it for the
+   stint's thumbnail pull request.
+7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1. Before your report, the
+   stint's thumbnails, all of them, go in one pull request at most, never one per thumbnail: a
+   branch `<n>-thumbnails` from `origin/develop` (`<n>` its first issue), titled
+   `docs(examples): thumbnails (#<n>, …)`, a body saying `Part of` each issue and "Thumbnail only"
+   under `## Local review before push`. The lead of a named issue merges it.
 
 ## Release
 

@@ -23,7 +23,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    below; nothing else. It returns a pull request. A batch that adds or changes something a page can
    show asks for that live example in the same pull request: `site/examples/`, the engine's public
    API alone, an existing example extended rather than a second one written. Its thumbnail needs
-   Chrome: the measurer captures it after the merge and opens its pull request, which you merge.
+   Chrome: the measurer captures it after the merge, in its stint's one thumbnail pull request
+   (`docs/roles/measurer.md` step 7), which you merge.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
 3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
    (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
@@ -35,7 +36,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    or a point of "Before merge" missed, goes back to step 3.
 5. **Hand over.** `gh issue edit <n> --remove-label "in review"`, add `to measure` for an engine
    batch (`packages/`, compiler, format, shaders, a published number) or an example whose
-   thumbnail is missing, then `gh issue close <n>` unless the pull request says `Part of #<n>`.
+   thumbnail is missing or out of date, then `gh issue close <n>` unless the pull request says
+   `Part of #<n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
