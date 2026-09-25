@@ -122,7 +122,7 @@ interface LocalLink {
 }
 
 /** Every link of the repository's Markdown prose: the local ones resolved, the runtime routes apart. */
-export function markdownLinks(root: string): { local: LocalLink[]; runtime: RuntimeRoute[] } {
+export function markdownLinks(root = sdkRoot): { local: LocalLink[]; runtime: RuntimeRoute[] } {
   const local: LocalLink[] = [];
   const runtime: RuntimeRoute[] = [];
   for (const file of findMarkdownFiles(root)) {
