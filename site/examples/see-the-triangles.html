@@ -52,13 +52,15 @@
       };
       // `?model=terrain-tiles` opens instead a terrain cooked tile by tile, the open world's path,
       // and `?model=terrain-tiles-none` its exact cook: a stretched triangle shows at once here.
-      const cook = { 'terrain-tiles': 'cache', 'terrain-tiles-none': 'cache-none' }[new URLSearchParams(location.search).get('model')];
-      const manifest = cook ? `../assets/examples/terrain-tiles/${cook}/native/full/manifest.json` : '../assets/examples/bust/cache/native/full/manifest.json';
+      const cook = new Map([['terrain-tiles', 'cache'], ['terrain-tiles-none', 'cache-none']]).get(new URLSearchParams(location.search).get('model'));
+      const load = (scene) => cook ? scene.load(`../assets/examples/terrain-tiles/${cook}/native/full/manifest.json`) : scene.load('../assets/examples/bust/cache/native/full/manifest.json');
       const [eye, target] = cook ? [[-160, 260, 920], [384, 40, 384]] : [[0.36, 0.34, 0.64], [0, 0.25, 0]];
+      // The terrain is no one's scan: the bust's credit is not shown over it.
+      document.querySelector('[data-words="credit"]').hidden = Boolean(cook);
 
       // The scanned bust, drawn as its triangles: each one its own colour.
       const world = createWorld('view', { controls: 'orbit' });
-      await world.scene.load(manifest);
+      await load(world.scene);
       lit(world);
       world.camera.position.set(...eye);
       world.camera.lookAt(...target);
@@ -68,7 +70,7 @@
       let beauty = null;
       async function openBeauty() {
         beauty = createWorld('beauty');
-        await beauty.scene.load(manifest);
+        await load(beauty.scene);
         lit(beauty);
       }
 
