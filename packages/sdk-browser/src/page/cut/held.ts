@@ -57,5 +57,6 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
   return readiness;
 }
 
-/** Bytes of `root`'s readiness state, or 0 when no cut has read it. */
-export const heldHostBytes = (root: object) => heldOf.get(root)?.readiness.hostBytes ?? 0;
+/** Bytes of the readiness state of `roots`, those no cut has read counting none. */
+export const heldHostBytes = (roots: readonly object[]) =>
+  roots.reduce((bytes: number, root) => bytes + (heldOf.get(root)?.readiness.hostBytes ?? 0), 0);

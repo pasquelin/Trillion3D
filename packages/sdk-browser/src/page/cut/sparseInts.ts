@@ -5,11 +5,9 @@
  *
  * Open addressing with linear probing on two typed arrays, and backward-shift removal, so no
  * tombstone ever lengthens a probe. The table doubles past half full and never holds storage
- * before its first entry; it returns to empty storage when its last entry is removed, and keeps
- * its storage through `clear`, for a scratch map refilled every frame.
+ * before its first entry. Emptied, it keeps a small table — a set that swings between empty and a
+ * few members allocates nothing — and releases a large one, so a burst never stays paid for.
  */
-export type SparseInts = ReturnType<typeof createSparseInts>;
-
 const EMPTY = -1;
 const MIN_SLOTS = 16;
 
@@ -55,11 +53,22 @@ export function createSparseInts() {
     }
     keys[hole] = EMPTY;
     values[hole] = 0;
-    if (--size === 0) {
-      keys = new Int32Array(0);
-      values = new Int32Array(0);
-      shift = 32;
+    if (--size === 0 && keys.length > MIN_SLOTS) release();
+  };
+  const release = () => {
+    keys = new Int32Array(0);
+    values = new Int32Array(0);
+    shift = 32;
+    size = 0;
+  };
+  /** The slot `key` sits in, or the free slot it goes to, the table grown for it first. */
+  const slotFor = (key: number) => {
+    if ((size + 1) * 2 > keys.length) {
+      const at = keys.length ? find(key) : -1;
+      if (at >= 0 && keys[at] === key) return at;
+      allocate(Math.max(MIN_SLOTS, keys.length * 2));
     }
+    return find(key);
   };
   const map = {
     get size() {
@@ -75,37 +84,46 @@ export function createSparseInts() {
       return keys[at] === key ? values[at] : 0;
     },
     has: (key: number) => map.get(key) !== 0,
-    /** Sets `key` to `value`, removing it at 0; returns the previous value. */
+    /** Sets `key` to `value`, removing it at 0; returns the previous value. One probe. */
     set(key: number, value: number) {
-      if (size) {
-        const at = find(key);
-        if (keys[at] === key) {
-          const previous = values[at];
-          if (value === 0) removeAt(at);
-          else values[at] = value;
-          return previous;
-        }
+      if (value === 0 && !size) return 0;
+      const at = value === 0 ? find(key) : slotFor(key);
+      if (keys[at] === key) {
+        const previous = values[at];
+        if (value === 0) removeAt(at);
+        else values[at] = value;
+        return previous;
       }
       if (value === 0) return 0;
-      if ((size + 1) * 2 > keys.length) allocate(Math.max(MIN_SLOTS, keys.length * 2));
-      const at = find(key);
       keys[at] = key;
       values[at] = value;
       size++;
       return 0;
     },
-    /** Adds `delta` to `key`'s value; returns the new value. */
+    /** Adds `delta` to `key`'s value; returns the new value. One probe. */
     add(key: number, delta: number) {
-      const next = map.get(key) + delta;
-      map.set(key, next);
+      if (delta === 0) return map.get(key);
+      const at = slotFor(key);
+      if (keys[at] !== key) {
+        keys[at] = key;
+        values[at] = delta;
+        size++;
+        return delta;
+      }
+      const next = values[at] + delta;
+      if (next === 0) removeAt(at);
+      else values[at] = next;
       return next;
     },
     /** Visits every entry, in no particular order; `visit` must not write the map. */
     forEach(visit: (key: number, value: number) => void) {
       for (let i = 0; i < keys.length; i++) if (keys[i] !== EMPTY) visit(keys[i], values[i]);
     },
+    /** Empties the map: a small table is kept for the next fill, a large mostly empty one
+     *  released, so a scratch map cleared every frame costs its entries, not its peak. */
     clear() {
       if (!size) return;
+      if (keys.length > MIN_SLOTS * 4 && size * 8 < keys.length) return release();
       keys.fill(EMPTY);
       values.fill(0);
       size = 0;
