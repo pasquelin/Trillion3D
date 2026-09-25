@@ -51,15 +51,22 @@ function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
   }
   if (declared.type === 'sphere' && round && same(x, y))
     return { shape: SHAPE.sphere, size: [declared.radius * x, 0, 0], triangles: 0 };
-  if (
-    (declared.type === 'capsule' && round && same(x, y)) ||
-    (declared.type === 'cylinder' && round)
-  )
+  if (declared.type === 'capsule' && round && same(x, y))
     return {
-      shape: declared.type === 'capsule' ? SHAPE.capsule : SHAPE.cylinder,
+      shape: SHAPE.capsule,
       size: [declared.halfHeight * y, declared.radius * x, 0],
       triangles: 0,
     };
+  // A bottom radius only when it differs from the top's: the module tapers a cylinder given one.
+  if (declared.type === 'cylinder' && round) {
+    const bottom = declared.radiusBottom ?? declared.radius;
+    const tapered = same(bottom, declared.radius) ? 0 : bottom * x;
+    return {
+      shape: SHAPE.cylinder,
+      size: [declared.halfHeight * y, declared.radius * x, tapered],
+      triangles: 0,
+    };
+  }
   return null;
 }
 
