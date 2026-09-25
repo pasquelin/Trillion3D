@@ -26,7 +26,7 @@ printf '%s\n' "$lead" | grep -Eq '^[-*] .+: (delivered|not delivered)' || {
   exit 1
 }
 for skill in /simplify /code-review; do
-  printf '%s\n' "$review" | grep -Eq "^[-* ]*\`?${skill}\`?:" || {
+  printf '%s\n' "$review" | grep -Eq "^[-* ]*\`?${skill}\`?:[[:space:]]*[^[:space:]]" || {
     echo "The section \"Local review before push\" has no \"${skill}:\" line: invoke the real ${skill#/} skill and copy its findings." >&2
     exit 1
   }

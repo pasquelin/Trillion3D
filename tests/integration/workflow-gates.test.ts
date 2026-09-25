@@ -92,10 +92,16 @@ const template = () =>
 test('check-pr-body: the untouched template is refused, a filled one accepted', () => {
   assert.match(checkBody(template()).stderr, /must start with "Closes #<issue>"/);
   const linked = template().replace('Closes #', 'Closes #65');
-  assert.match(checkBody(linked).stderr, /"Local review before push" is empty/);
-  const filled = linked.replace(
+  assert.match(checkBody(linked).stderr, /"Lead verification" is missing or empty/);
+  const verified = linked.replace(
     '## Not proven',
-    'simplify: nothing; review: one fix.\n\n## Not proven',
+    '- Item: delivered in a.ts:1, proved by a test\n\n## Not proven',
   );
+  assert.match(checkBody(verified).stderr, /no "\/simplify:" line/);
+  const filled = verified
+    .replace('- `/simplify`:', '- `/simplify`: nothing to change')
+    .replace('- `/code-review`:', '- `/code-review`: one fix');
   assert.equal(checkBody(filled).status, 0);
+  const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
+  assert.match(checkBody(both).stderr, /both "Closes" and "Part of"/);
 });
