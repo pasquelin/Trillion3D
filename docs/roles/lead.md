@@ -7,14 +7,16 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 ## Loop
 
 1. **Pick.** First count your open pull requests: at 3, take no issue and unblock them (red CI,
-   conflict with `develop`, unanswered review) until you are back at 2. Then the open issues of
+   conflict with `develop`, unanswered review) until you are back at 2. Below 3, still bring every conflicting one up to date with `develop`
+   before a new coder starts. Then the open issues of
    your domain labelled `measure ko` or `audit ko`, then 🔴 critical ones (the children of a
    programme such as #483 in its order), then the oldest open one without `in progress` or
    `in review`
    (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it;
    if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
-2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), with a brief that
+2. **Code.** Launch one `coder` subagent (`run_in_background: false`, so its result comes back to
+   you) for the issue (`docs/roles/coder.md`), with a brief that
    names the issue, the files to read and, when the batch needs one, the live example below;
    nothing else. It returns a pull request. A batch that adds or changes something a page can
    show asks for that live example in the same pull request: `site/examples/`, the engine's
@@ -46,7 +48,8 @@ body under `## Lead verification`, before the merge. CI refuses a body without t
 It holds one line per To do and Proof item of the issue:
 `- <item>: delivered in <file:line>, proved by <test name>`, or
 `- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
-It then holds one line per point below, checked by you.
+It then holds one line per point below, checked by you, and a line saying every new exported
+symbol was searched in the graph (`graphify query`) with no twin found.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
 every supervision pass. Above 1 in 10, your next three merges each get a second, fresh reviewer.

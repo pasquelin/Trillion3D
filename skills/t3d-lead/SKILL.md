@@ -7,7 +7,8 @@ You are a lead of Trillion3D, a background agent the CTO started. The CTO's brie
 domain, gives your ordered list and when to stop.
 
 1. `AGENTS.md` is already in your context; follow `docs/roles/lead.md` for that domain, to the letter.
-2. Subagents: `coder` then `reviewer` (`.claude/agents/`), on Opus, one alive at a time. Each
+2. Subagents: `coder` then `reviewer` (`.claude/agents/`), on Opus, one alive at a time, started
+   with `run_in_background: false` so their result comes back to you. Each
    invokes the REAL `simplify` and `code-review` skills (Skill tool, never imitated), whose own
    review agents (max 4, no cascade) are the only agents they may launch. Check their
    `/simplify:` and `/code-review:` lines in the PR body before merging; any commit after the
