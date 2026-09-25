@@ -155,6 +155,9 @@
       // steel rails, a force of 0.001 of its weight (a railway wheel on its rail: 0.001 to 0.002,
       // "Rolling resistance", Wikipedia), and the air on the front car as drawn, 1.7 m wide and
       // 1.2 m high, ½·ρ·Cd·A·v² with air at 1.2 kg/m³ and a bluff body's drag coefficient, 1.
+      // The train's mass, its drag coefficient and its front are this game's choices, not measured:
+      // the air takes 94 % of the loss, which goes as Cd·A / mass. The lap holds at twice the loss
+      // (tested) — a train half as heavy, or twice as blunt — and not at three times.
       const PACE = Math.sqrt(CHAIN * CHAIN + G * TOP);
       const LOSS = (0.001 * G) / PACE + (0.5 * 1.2 * 1 * 1.7 * 1.2 * PACE) / MASS;
       function ride(track) {
