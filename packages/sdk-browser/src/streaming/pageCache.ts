@@ -43,8 +43,8 @@ const checkBytes = (bytes: number) => {
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
-  /** The one file kept whole beside the pages, and the bytes it takes off the total. */
-  let slot: { url: string; bytes: number; array?: Uint8Array } | undefined;
+  /** The one file kept whole beside the pages: its read, and the bytes it takes off the total. */
+  let slot: { url: string; bytes: number; read: Promise<Uint8Array> } | undefined;
   let bytes = 0,
     total = cpuBytes,
     holder: Holder | undefined;
@@ -98,25 +98,25 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
         if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
     },
     /**
-     * Keeps `url` whole beside the pages — the scene's resident proxy —, in place of any other, never
-     * evicted: an announced size comes off the total from the moment it is asked, while it is in
-     * flight, then the bytes that landed. It stays kept, across sessions, until `keepOnly` no
-     * longer names it.
+     * Keeps `read`, the file at `url` of `bytes` bytes — the scene's resident proxy —, whole beside
+     * the pages in place of any other, never evicted: its bytes come off the total from the moment
+     * it is asked, in flight as landed. It stays kept, across sessions, until `keepOnly` no longer
+     * names it; a read that fails leaves at once.
      */
-    keep(url: string, held: number | Uint8Array) {
-      slot =
-        typeof held === 'number'
-          ? { url, bytes: held }
-          : { url, bytes: held.byteLength, array: held };
+    keep(url: string, bytes: number, read: Promise<Uint8Array>) {
+      slot = { url, bytes, read };
       evict();
+      read.catch(() => {
+        if (slot?.read === read) slot = undefined;
+      });
     },
     /** Bytes the kept file takes off the total. */
     get keptBytes() {
       return slot?.bytes ?? 0;
     },
-    /** The bytes kept for `url`, once they landed. */
-    kept: (url: string) => (slot?.url === url ? slot.array : undefined),
-    /** Lets the kept file go unless it is `url`'s: a scene gone, or a read that failed. */
+    /** The read kept for `url`, landed or in flight: a session reopened meanwhile joins it. */
+    kept: (url: string) => (slot?.url === url ? slot.read : undefined),
+    /** Lets the kept file go unless it is `url`'s: a scene gone. */
     keepOnly(url?: string) {
       if (slot?.url !== url) slot = undefined;
     },
