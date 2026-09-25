@@ -52,22 +52,25 @@ disagreement is reported to the maintainer.
 
 ## Roles
 
-A company. The **boss** (the maintainer) opens **one session**, the CTO's (`/t3d-cto`), talks
-only to it, tests the result and sets priorities. Every other role is a **background agent** the
-CTO starts with the Agent tool and supervises; the boss never opens another session. Each role is
-`docs/roles/<role>.md`, and its skill in `skills/` is the agent's brief.
+A company. The **boss** (the maintainer) opens the CTO's session (`/t3d-cto`), talks only to it,
+tests the result and sets priorities. At its start the CTO gives the boss **one prompt per session
+to open** (a lead per domain with work, the architect, measurer, acceptance and analyst when they
+have work); the boss opens each of them. Every role runs in its own session and reports to the CTO
+by `SendMessage`; a lead runs its `coder` and `reviewer` as foreground subagents. Each role is
+`docs/roles/<role>.md`, and its skill in `skills/` is the session's brief; "Prompt by" names who
+writes that brief.
 
-| Role       | Started by | Does                                                                                                                                   | Never                                                        |
-| ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| CTO        | boss       | sets the priority labels from the boss's words, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
-| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                            | writes code, measures                                        |
-| coder      | lead       | implements one issue, opens the pull request                                                                                           | merges, measures                                             |
-| reviewer   | lead, CTO  | the real `simplify` and `code-review` skills, then the acceptance list                                                                 | merges, measures                                             |
-| architect  | CTO        | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue         | codes, owns a pull request, measures                         |
-| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                     | changes anything; what could lose quality waits for the boss |
-| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                  | edits code, merges                                           |
-| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                     | edits code, merges, measures                                 |
-| writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                               | codes, measures                                              |
+| Role       | Prompt by | Does                                                                                                                                   | Never                                                        |
+| ---------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| CTO        | boss      | sets the priority labels from the boss's words, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
+| lead       | CTO       | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                            | writes code, measures                                        |
+| coder      | lead      | implements one issue, opens the pull request                                                                                           | merges, measures                                             |
+| reviewer   | lead, CTO | the real `simplify` and `code-review` skills, then the acceptance list                                                                 | merges, measures                                             |
+| architect  | CTO       | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue         | codes, owns a pull request, measures                         |
+| analyst    | CTO       | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                     | changes anything; what could lose quality waits for the boss |
+| measurer   | CTO       | budgets, browser proofs, example captures and thumbnails, after merge                                                                  | edits code, merges                                           |
+| acceptance | CTO       | re-reads every merge and judges the example captures; a safety net                                                                     | edits code, merges, measures                                 |
+| writer     | CTO       | writes one issue on the template, when rule 5 allows one                                                                               | codes, measures                                              |
 
 Domains: geometry, lighting, compiler, physics, sdk, textures. A script or test belongs to the
 domain whose code it checks; `site/`, the examples and anything else but the company's rules to sdk.

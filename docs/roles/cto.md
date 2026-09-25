@@ -12,11 +12,12 @@ exchange with the boss, at most one rules pull request every two hours.
 1. **Priorities.** The boss's voice lives on the leads' own issues: the CTO sets their priority
    labels (🔴 🟠 🟡 🟢) when the boss speaks, before telling any lead; a task with no issue is a
    To-do item on an open one (AGENTS.md rule 5). There is no separate priorities issue.
-2. **Staffing.** Every other role is a background agent the CTO starts with the Agent tool,
-   briefed from its skill (the Skill column of `docs/COMPANY.md`): one lead per domain with work, one
-   acceptance agent and one measurer when their queues have work. An agent runs a bounded stint
-   and ends; the CTO starts the next one (state lives in labels). The boss never opens another
-   session.
+2. **Staffing.** When the boss launches it, the CTO first gives him **one prompt per session to
+   open**, each in its own code block, ready to paste: one lead per domain with work, the architect,
+   and the acceptance, measurer and analyst sessions when their queues have work. Each prompt calls
+   the role's skill (the Skill column of `docs/COMPANY.md`) and carries the brief of
+   `skills/t3d-cto` step 3. The boss opens the sessions; the CTO starts none itself. A session
+   that ends gets a fresh prompt from the CTO for the rest of its list (state lives in labels).
 3. **Supervision**, every 30 minutes: each lead within AGENTS.md §Leads; one lead per issue;
    merged pull requests close their issue; the audit-ko rate per lead stays under 1 in 10, or the
    lead gets a second reviewer, then is stopped.
