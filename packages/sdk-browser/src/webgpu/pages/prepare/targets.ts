@@ -4,7 +4,7 @@ import {
   createSurfaceBuffer,
   frameTargetBytes,
 } from '../../../scene/surfaceBuffer.ts';
-import { dropGpuHiz, dropVis } from '../io/drops.ts';
+import { dropGpuHiz } from '../io/drops.ts';
 import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -83,7 +83,7 @@ export function makeTargets(
   height: number,
   targetBytes: number,
 ) {
-  const { gpu, vis, run, capture, diag, blendState } = rt;
+  const { gpu, vis, run, capture, blendState } = rt;
   releaseTargets(rt);
   const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     usage = sampled | GPUTextureUsage.COPY_SRC;
@@ -107,22 +107,17 @@ export function makeTargets(
   const allocationBytes = targetBytes + ensureTaaTargets(rt, width, height);
   gpu.targetBytes = allocationBytes;
   gpu.targetSize = [width, height];
-  try {
-    vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled);
-    vis.visView = vis.visTexture.createView();
-    // Each pixel's material class, as the depth every class pass tests against.
-    vis.materialDepthTexture = target(
-      MATERIAL_DEPTH_PASS,
-      MATERIAL_DEPTH_FORMAT,
-      GPUTextureUsage.RENDER_ATTACHMENT,
-    );
-    vis.materialDepthView = vis.materialDepthTexture.createView();
-  } catch (error) {
-    // The visibility buffer leaves the session, as when its pipeline fails: the targets then fit,
-    // and the pages draw with the fallback pass instead of asking the device again every frame.
-    diag.diagnosticFailure('visibility-target-failed', error);
-    dropVis(rt);
-  }
+  // The visibility targets are frame targets too: one the device cannot make refuses the set by
+  // name (`targetGrant.ts`), and the mode is kept.
+  vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled);
+  vis.visView = vis.visTexture.createView();
+  // Each pixel's material class, as the depth every class pass tests against.
+  vis.materialDepthTexture = target(
+    MATERIAL_DEPTH_PASS,
+    MATERIAL_DEPTH_FORMAT,
+    GPUTextureUsage.RENDER_ATTACHMENT,
+  );
+  vis.materialDepthView = vis.materialDepthTexture.createView();
   if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height)) dropGpuHiz(rt);
   const allocation = {
     frame: run.frame,

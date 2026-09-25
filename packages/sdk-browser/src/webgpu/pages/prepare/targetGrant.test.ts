@@ -4,7 +4,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { camera, quadBackend, quadScene } from '../testScenes.fixture.ts';
+import {
+  assertBothQuadPagesDrawn,
+  camera,
+  disposeQuadRun,
+  quadBackend,
+  quadScene,
+} from '../testScenes.fixture.ts';
 import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { refusing } from './refusing.fixture.ts';
@@ -54,13 +60,11 @@ async function resized(refuse: (hizAlive: boolean) => boolean) {
   /** The frame drawn whole: both quad clusters, once its readback is in. */
   const complete = async () => {
     await backend.flush();
-    backend.render(cam);
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'], 'the frame is complete');
+    assertBothQuadPagesDrawn(backend);
   };
   const dispose = () => {
-    scene.geometry.dispose();
-    scene.material.dispose();
-    backend.dispose();
+    assert.equal(said('gpu-device-lost').length, 0, 'never reported as a lost device');
+    disposeQuadRun(backend, scene);
     fixture.geometry.dispose();
     fixture.material.dispose();
   };
@@ -92,7 +96,6 @@ test('a refused target grant holds the frame, then draws it complete', async () 
       'drawn into the granted targets, at the new size',
     );
     await s.complete();
-    assert.equal(s.said('gpu-device-lost').length, 0, 'never reported as a lost device');
   } finally {
     s.dispose();
   }
@@ -116,7 +119,6 @@ test('under pressure, Hi-Z goes first: the targets are granted without it, all o
       );
     assert.equal(s.said('frame-targets-refused').length, 0);
     await s.complete();
-    assert.equal(s.said('gpu-device-lost').length, 0);
   } finally {
     s.dispose();
   }
@@ -136,7 +138,6 @@ test('an impossible target is refused by name, the frame held, never a lost devi
     assert.equal(s.backend.metrics().frameHeld, true, 'the previous image stays');
     assert.equal(s.gpu.draws.length, draws, 'nothing is drawn');
     assert.equal(await s.backend.pendingFrame(), false, 'the loop waits for another size');
-    assert.equal(s.said('gpu-device-lost').length, 0, 'never reported as a lost device');
   } finally {
     s.dispose();
   }
@@ -149,9 +150,7 @@ test('frame targets refused at prepare are refused by name', async () => {
   try {
     await assert.rejects(backend.prepare(), /WEBGPU_FRAME_TARGETS_REFUSED/);
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });
 
@@ -166,7 +165,7 @@ test('targets that fit ask nothing of the device and keep no promise: the steady
   assert.equal(rt.gpu.targetGrant, undefined);
 });
 
-test('a visibility target the device cannot make at a new size drops the buffer once, frames drawn', async () => {
+test('a visibility target the device cannot make is refused by name, once, the mode kept', async () => {
   installGpuGlobals();
   const { device } = refusing('createTexture', 'Trillion3D visibility', (_, { size }) => {
     if (size?.width === 48) throw new TypeError('refused');
@@ -180,17 +179,17 @@ test('a visibility target the device cannot make at a new size drops the buffer 
   try {
     await backend.prepare();
     backend.render(camera());
+    const { materials } = backend.capabilities;
     viewport[0] = viewport[1] = 48;
     for (let i = 0; i < 3; i++) {
       backend.render(camera());
       await (backend as Backend).pendingFrame();
     }
-    assert.equal(backend.metrics().frameHeld, false, 'the frame is drawn, not held for ever');
-    const failed = events.filter((event) => event.phase === 'visibility-target-failed');
-    assert.equal(failed.length, 1, 'asked once, not every frame');
+    const refused = events.filter((event) => event.phase === 'frame-targets-refused');
+    assert.equal(refused.length, 1, 'asked once, not every frame');
+    assert.equal(backend.metrics().frameHeld, true, 'the previous image stays');
+    assert.equal(backend.capabilities.materials, materials, 'the visibility buffer is kept');
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });

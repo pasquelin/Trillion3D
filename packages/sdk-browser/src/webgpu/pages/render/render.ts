@@ -42,8 +42,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     aspect,
   );
   sizeShadowPool(rt);
-  // Targets that no longer fit the view are asked of the device, and the frame is held until it
-  // grants them (`targetGrant.ts`); a capture was granted its own before it began.
+  // Targets that no longer fit the view are asked; the frame is held until granted.
   void requestFrameTargets(rt, gpuDevice);
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam;

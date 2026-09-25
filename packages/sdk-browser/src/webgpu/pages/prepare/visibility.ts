@@ -9,7 +9,7 @@ import {
 import { visUniformSlots } from '../../visibility/uniforms.ts';
 import { MAX_DEPTH_LAYER, depthLayerUnits } from '../../../../../sdk-core/src/index.ts';
 import { createGpuHiz } from '../../../gpu/hiz/hiz.ts';
-import { validationScope } from '../../../gpu/core/errorScope.ts';
+import { validated } from '../../../gpu/core/errorScope.ts';
 import { createGpuDraw } from '../../../gpu/draw/draw.ts';
 import { createGpuPartition } from '../../../gpu/partition/factory.ts';
 import { createGpuRestCompact } from '../../../gpu/raster/restCompact.ts';
@@ -65,18 +65,19 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   vis.zeroFlags = shaders.zeroFlags;
   vis.visUniform = shaders.visUniform;
   const { visModule, shadeModule } = shaders;
-  // Hi-Z is a frame target: its pyramid is made at the view's size under the out-of-memory check,
-  // in one synchronous step, and left out when refused — its absence changes no image.
+  // Hi-Z is a frame target: its pyramid is sized to the view under the out-of-memory check, and
+  // left out, said, when refused — its absence changes no image.
   const hiz = await createGpuHiz(gpuDevice, 1, 1, drawSlots);
-  const sized =
-    hiz &&
-    (await validationScope(
-      gpuDevice,
-      () => hiz.resize(gpuDevice, Math.max(1, width), Math.max(1, height)),
-      'out-of-memory',
-    ));
-  if (hiz && (sized?.error || !sized?.value)) hiz.dispose();
-  else vis.gpuHiz = hiz;
+  const size = () => hiz?.resize(gpuDevice, Math.max(1, width), Math.max(1, height)) || undefined;
+  if (await validated(gpuDevice, size, 'out-of-memory')) vis.gpuHiz = hiz;
+  else if (hiz) {
+    hiz.dispose();
+    diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the Hi-Z pyramid', {
+      kind: 'warning',
+      pool: 'frame-targets',
+      dropped: 'hi-z',
+    });
+  }
   let rasterPipelines;
   try {
     if (!vis.gpuHiz || !vis.visBindGroupLayout) throw new Error('HIZ_UNAVAILABLE');
