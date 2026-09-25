@@ -43,10 +43,7 @@ export function createDagReadiness(packed: PackedDag) {
   const settle = () => {
     pages.length = 0;
     nodes.length = 0;
-    for (const touched of dirty) {
-      worlds[(w = touched)].settle(onPage, onNode);
-      hostBytes += worlds[w].takeBytesMoved();
-    }
+    for (const touched of dirty) hostBytes += worlds[(w = touched)].settle(onPage, onNode);
     dirty.clear();
     return { pages: sortedUnique(pages), nodes: sortedUnique(nodes) };
   };
