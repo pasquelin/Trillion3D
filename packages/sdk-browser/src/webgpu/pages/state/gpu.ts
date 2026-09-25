@@ -10,6 +10,7 @@ import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import type { ModePipelines } from '../../blend/stagePipelines.ts';
+import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -77,6 +78,10 @@ export interface WebgpuGpuState {
   temporal: TemporalAntialiasing | undefined;
   /** Whether the host wants the pass: set at preparation, then by `setTemporalAntialiasing`. */
   temporalWanted: boolean;
+  /** The guide pass, built by the first image that shows a guide (`guidePass.ts`). */
+  guides: WebgpuGuidePass | undefined;
+  /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
+  guideRevision: number;
 }
 
 /** The frozen colour the water composite rereads, and the depth its surface stage tests and
@@ -133,5 +138,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     deferred: undefined,
     temporal: undefined,
     temporalWanted: true,
+    guides: undefined,
+    guideRevision: 0,
   };
 }
