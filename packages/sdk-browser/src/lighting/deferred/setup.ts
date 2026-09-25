@@ -3,7 +3,6 @@ import {
   PROBE_FLOATS,
   SHADOW_RECORD_FLOATS,
 } from '../../../../sdk-core/src/index.ts';
-import { SHADOW_REQUEST_WORDS } from '../direct/shadowWgsl.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
@@ -121,9 +120,10 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4 + 16,
     usage: GPUBufferUsage.STORAGE,
   });
+  // One word: bound only beside the empty records, which name no light, it is never written.
   const requests = device.createBuffer({
     label: 'Trillion3D unread shadow requests',
-    size: SHADOW_REQUEST_WORDS * 4,
+    size: 4,
     usage: GPUBufferUsage.STORAGE,
   });
   const atlas = device.createTexture({

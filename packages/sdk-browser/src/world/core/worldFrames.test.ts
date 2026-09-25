@@ -5,7 +5,7 @@ import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts';
 import { createExplorerMetrics } from '../diagnostic/metrics.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 test('the first frame after a pause spans at most two of the intervals the loop measured', (t) => {
   let now = 1000;

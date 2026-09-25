@@ -5,7 +5,6 @@ import {
   BODY_INDEX,
   DEFAULT_PHYSICS_BUDGET,
   FLAG,
-  JOLT_COMMIT,
   OP,
   SOFT_WORDS,
   type CookedSoftBody,
@@ -14,7 +13,7 @@ import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { createCookedSoftBodies } from './cookedSoft.ts';
 import { startModule } from './module.fixture.ts';
 import { addSoft, at, FLAT, settle, softWorld } from './soft.fixture.ts';
-import { landed, streamedModel } from './tiles.fixture.ts';
+import { cooked, landed, streamedModel } from './tiles.fixture.ts';
 
 /** The golden cooked cloth (`physics_cook/soft_tests.rs`): 1 m of 2 × 2 squares in the xy plane,
  *  its vertices row by row from (−0.5, −0.5), pinned at its top corners, bend 0.01 rad/(N·m). */
@@ -55,13 +54,7 @@ test('a cooked cloth restores to the settings the page builds: laid flat, it swi
  *  flat 2 m up, streamed within `softVertices`: the words written, the bodies, the errors. */
 async function opened(softVertices = DEFAULT_PHYSICS_BUDGET.softVertices, scale = 1) {
   const bytes = await golden();
-  const file = {
-    formatVersion: 2,
-    jolt: JOLT_COMMIT,
-    colliders: [],
-    instances: [],
-    softBodies: [cookedCloth(bytes.length)],
-  };
+  const file = cooked([], [], [cookedCloth(bytes.length)]);
   return { ...(await streamedModel(file, bytes, { softVertices }, scale)), bytes };
 }
 

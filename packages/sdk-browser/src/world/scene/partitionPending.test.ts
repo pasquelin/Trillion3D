@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createPartitionFrame } from './partitionFrame.ts';
 
 type Io = Parameters<PartitionCells['frame']>[2];

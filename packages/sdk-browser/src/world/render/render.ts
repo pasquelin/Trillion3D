@@ -8,7 +8,7 @@ import type { BoundTarget, ExplorerHostState } from './hostState.ts';
 import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import type { ExplorerSession } from '../session/session.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { ComparisonLayout } from '../../measurement/comparison.ts';
 import type { createFrameComposer } from './compose.ts';

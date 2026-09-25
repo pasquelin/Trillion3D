@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sha256Hex } from '../measurement/sha256Hex.ts';
-import { createPageStreamer } from './pages.ts';
+import { createPageStreamer } from './pageStreamer.ts';
 import { servedPages } from './servedPages.fixture.ts';
 
 /** Three verified pages served whole, two workers, room for two resident pages. */
@@ -16,10 +16,7 @@ async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
       { url: 'c.bin', bytes: bytes.byteLength, sha256: sha },
     ],
     'http://cache/',
-    undefined,
-    2,
-    2,
-    onEvict,
+    { workerCount: 2, maxPages: 2, onEvict },
   );
 }
 
@@ -119,7 +116,7 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
   const streamer = createPageStreamer(
     [{ url: 'a.bin', bytes: 12, sha256: 'unused' }],
     'http://cache/',
-    controller.signal,
+    { signal: controller.signal },
   );
   try {
     const job = streamer.read('a.bin');
@@ -146,9 +143,11 @@ test('an identical pin list resets nothing, a list that changes resets everythin
   }));
   const evicted: string[] = [];
   // Budget of two pages: the third arrival must reclaim the slot of an unpinned one.
-  const streamer = createPageStreamer(pages, 'http://cache/', undefined, 1, 2, (url) =>
-    evicted.push(url),
-  );
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    workerCount: 1,
+    maxPages: 2,
+    onEvict: (url) => evicted.push(url),
+  });
   await streamer.request(['a.bin', 'b.bin']);
   streamer.retain(['a.bin']);
   // The same list, returned in the array the host reuses: pins do not move.
@@ -170,17 +169,11 @@ test('a streamer of its own holds `maxCachedBytes` of pages beside its reservati
   const { pages } = await servedPages(['a.bin', 'b.bin', 'c.bin']);
   const evicted: string[] = [];
   // Room for two 12-byte pages, whatever the manifest tables and the transfer queue reserve.
-  const streamer = createPageStreamer(
-    pages,
-    'http://cache/',
-    undefined,
-    1,
-    undefined,
-    (url) => evicted.push(url),
-    undefined,
-    undefined,
-    24,
-  );
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    workerCount: 1,
+    onEvict: (url) => evicted.push(url),
+    maxCachedBytes: 24,
+  });
   await streamer.request(['a.bin', 'b.bin', 'c.bin']);
   assert.deepEqual(evicted, ['a.bin']);
   assert.equal(streamer.stats().maxCachedBytes, 24);

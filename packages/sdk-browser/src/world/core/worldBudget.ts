@@ -93,8 +93,9 @@ export function worldBudget(
      *  physics starts; exceeding one raises `PHYSICS_BUDGET`. */
     physics,
     /** Bytes of GPU memory the world may hold, all pools together; set it to redraw every pool
-     *  by the split rule (`split`). A total under the shadow pool is refused
-     *  (`GPU_BUDGET_UNDER_SHADOW_POOL`). Never read from the machine. */
+     *  by the split rule (`split`). A total under the three fixed shares — the shadow pool, the
+     *  bounce probes and the effect targets — is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`). Never
+     *  read from the machine. */
     get gpu() {
       return gpuOf(pools);
     },

@@ -10,7 +10,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 type BootstrapOptions = {
   pages: PageRec[];
   urls: Set<string>;
-  slots: number;
+  getSlots: () => number;
   tracking: Tracking;
   signal?: AbortSignal;
   readPage?: (url: string) => Promise<Uint32Array>;
@@ -29,7 +29,7 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
   const {
     pages,
     urls,
-    slots,
+    getSlots,
     tracking,
     signal,
     readPage,
@@ -53,13 +53,13 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
       engineDiagnostic('coverage-bootstrap-start', 'Loading the full emergency cover', {
         version: 1,
         pages: pages.length,
-        slots,
+        slots: getSlots(),
       });
       traceDiagnostic('coverage-bootstrap-start', 'Loading the full emergency cover', () => ({
         frame: getFrame(),
         pages: pages.length,
         pageIds: tracking.pageRefs(pages.map(pageAddress)),
-        slots,
+        slots: getSlots(),
         queueWaitMs: 0,
       }));
       let next = 0;
@@ -99,13 +99,13 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
       engineDiagnostic('coverage-bootstrap-ready', 'Full cover available on the GPU', {
         version: 1,
         pages: pages.length,
-        slots,
+        slots: getSlots(),
       });
       traceDiagnostic('coverage-bootstrap-ready', 'Full cover available on the GPU', () => ({
         frame: getFrame(),
         pages: pages.length,
         bootstrap: tracking.traceSet('bootstrap', [...urls]),
-        slots,
+        slots: getSlots(),
         durationMs: performance.now() - started,
         loaded: tracking.traceSet('bootstrap.loaded', pages.map(pageAddress)),
         wanted: tracking.traceSet('bootstrap.wanted', pages.map(pageAddress)),
