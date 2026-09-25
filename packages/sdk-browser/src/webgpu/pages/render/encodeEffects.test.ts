@@ -8,6 +8,9 @@ import { effect } from '../../../../../sdk-core/src/world/effect/index.ts';
 import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../../frame/hold.ts';
 import { settledRt } from '../../frame/hold.fixture.ts';
 import { encodeEffects } from './encodeEffects.ts';
+import { pendingWebgpuFrame } from '../../frame/interactiveFrame.ts';
+import { WEBGPU_KINDS } from '../../../effects/webgpuEffects.ts';
+import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { AccumulatedImage } from '../../../lighting/deferred/program.ts';
 
@@ -80,6 +83,44 @@ test('compiling programs keep the frame from being held, the accumulation still'
   assert.equal(holdWebgpuFrame(rt, device), false, 'the image drawn while compiling is redrawn');
   drawTwice(rt, device);
   assert.equal(holdWebgpuFrame(rt, device), true, 'drawn with the chain, the image is held');
+});
+
+test('an idle loop waits for the programs, then draws the image with the chain once (#349)', async (t) => {
+  const { device } = fakeDevice();
+  const made = WEBGPU_KINDS.bloom;
+  t.after(() => void (WEBGPU_KINDS.bloom = made));
+  let arrive = () => {};
+  WEBGPU_KINDS.bloom = (gpu) => new Promise((done) => (arrive = () => done(made(gpu))));
+  const chain = new EffectChain().add(effect.bloom());
+  const rt = drawing(chain);
+  const turn = () => new Promise((resolve) => setImmediate(resolve));
+  const requested: FrameRequestCallback[] = [];
+  const scheduler = createExplorerFrameScheduler({
+    request: (callback) => requested.push(callback),
+    cancel() {},
+    // `renderWebgpuPages` reduced to its two outcomes: the frame held, or encoded and kept.
+    render() {
+      if (holdWebgpuFrame(rt, device)) return;
+      rt.run.gpuDrawCalls = 2;
+      encodeEffects(rt, device, encoder, input);
+      rt.run.frame++;
+      keepWebgpuFrame(rt);
+    },
+    pending: () => pendingWebgpuFrame(rt),
+    error: (error) => assert.fail(String(error)),
+    limited: () => assert.fail('the loop hit its frame limit'),
+  });
+  scheduler.invalidate();
+  requested.shift()!(0);
+  for (let i = 0; i < 4; i++) await turn();
+  assert.equal(rt.gpu.effects!.loading, true);
+  assert.equal(requested.length, 0, 'no frame is spent while the programs compile');
+  arrive();
+  while (rt.gpu.effects!.loading) await turn();
+  await turn();
+  assert.equal(requested.length, 1, 'their arrival asks the image with the chain');
+  requested.shift()!(0);
+  assert.equal(rt.gpu.effectsRevision, chain.revision, 'the image carries the chain');
 });
 
 test('a diagnostic view, a capture and an empty chain make nothing and hand the input on', () => {

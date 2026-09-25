@@ -78,7 +78,8 @@ export interface WebgpuGpuState {
   temporalWanted: boolean;
   /** The effect chain's targets and programs, made at the first frame with a pass. */
   effects: WebgpuEffects | undefined;
-  /** Revision of the chain the last encoded image drew: another one breaks the hold. */
+  /** Revision of the chain the last encoded image drew, -1 while its programs compile: another
+   *  one breaks the hold. */
   effectsRevision: number;
   /** The guide pass, built by the first image that shows a guide (`guidePass.ts`). */
   guides: WebgpuGuidePass | undefined;

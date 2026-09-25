@@ -39,8 +39,8 @@ export const WEBGPU_KINDS: { [K in EffectKind]: (device: GPUDevice) => Promise<K
  * Nothing exists before the first frame with a pass: the targets are made then, at the image's
  * size, and follow it; a kind's programs compile in the background at its first pass, and until
  * every kind of the chain is ready the image is drawn without the chain (`loading`), which its
- * caller draws again rather than hold. `fail` is called when one cannot be made, and the image
- * stays without the chain.
+ * caller draws again once they arrive (`settled`) rather than hold. `fail` is called when one
+ * cannot be made, and the image stays without the chain.
  */
 export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) => void) {
   const made: Partial<Kinds> = {},
@@ -118,6 +118,8 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     get loading() {
       return pending.size > 0;
     },
+    /** Resolves once every program in compilation has arrived or failed. */
+    settled: () => Promise.all(pending.values()),
     /** Bytes of every target the chain holds: the pass targets and each kind's own. */
     get bytes() {
       let bytes = effectTargetBytes(width, height, targets.length, false);

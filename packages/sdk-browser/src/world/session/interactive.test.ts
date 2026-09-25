@@ -111,3 +111,49 @@ test('a canvas whose box grows after start is resized and scheduled a frame (#49
   assert.deepEqual(sizes, [[488, 300]]);
   assert.equal(frames.length, 1, 'the grown box schedules a frame');
 });
+
+test('a capture, colour or surface, asks the idle loop for the view it put back (#349)', async () => {
+  const frames: (() => void)[] = [];
+  const view = {
+    requestAnimationFrame: (callback: () => void) => frames.push(callback),
+    cancelAnimationFrame() {},
+    matchMedia: () => ({ addEventListener() {}, removeEventListener() {} }),
+    addEventListener() {},
+    removeEventListener() {},
+    devicePixelRatio: 1,
+  };
+  const canvas = { clientWidth: 4, clientHeight: 4, ownerDocument: { defaultView: view } };
+  let taken: Promise<Uint8Array> = Promise.resolve(new Uint8Array(4));
+  const explorer = {
+    render: () => ({}),
+    resize() {},
+    captureView: () => taken,
+    captureSurfaceView: () => taken,
+  };
+  startInteractiveExplorer(
+    explorer as never,
+    {
+      canvas,
+      options: { width: 4, height: 4, pixelRatio: 1 },
+      hostedControls: [],
+      state: { disposed: false },
+      pendingFrame: async () => false,
+    } as never,
+    { ownControls: false, pixelRatio: 1 } as never,
+    { emit() {}, diagnose() {} },
+  );
+  frames.shift()!();
+  await new Promise((wake) => setImmediate(wake));
+  assert.equal(frames.length, 0, 'the loop is idle');
+  await explorer.captureView();
+  assert.equal(frames.length, 1, 'a colour capture asks a frame');
+  frames.shift()!();
+  await new Promise((wake) => setImmediate(wake));
+  await explorer.captureSurfaceView();
+  assert.equal(frames.length, 1, 'a surface capture asks a frame');
+  frames.shift()!();
+  await new Promise((wake) => setImmediate(wake));
+  taken = Promise.reject(new Error('CAPTURE_NOT_READY'));
+  await assert.rejects(explorer.captureView(), /CAPTURE_NOT_READY/);
+  assert.equal(frames.length, 1, 'a failed capture put the view back too');
+});
