@@ -10,7 +10,7 @@ import {
 const options: PrepareOptions = { resourceBaseUrl: 'file:///tmp/resources/' };
 export const readCompilation = async (job: CompilationJob): Promise<number> => {
   const result: CompilationResult = await job.promise;
-  return result.selectedNodes.length;
+  return result.selectedNodes;
 };
 
 // @ts-expect-error resourceBaseUrl is required by the public Node contract.

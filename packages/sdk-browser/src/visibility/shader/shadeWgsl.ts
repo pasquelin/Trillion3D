@@ -127,10 +127,11 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
    N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);
   }
- // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`).
+ // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
+ // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged.
  if(model==${SURFACE_MODEL.normal}u){rgb=viewNormal(N)*0.5+0.5;}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
- if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),1u,request);}
+ if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(3u,1u,model==${SURFACE_MODEL.matcap}u),request);}
  var flag=select(1u,2u,(page.flags&1u)!=0u);
  if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
  if(flag==2u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
