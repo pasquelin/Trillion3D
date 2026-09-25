@@ -18,6 +18,8 @@ export function guidesShown(rt: WebgpuPagesRuntime) {
 export const guidesMoved = (rt: WebgpuPagesRuntime) =>
   !!rt.context.guides && rt.context.guides.revision !== rt.gpu.guideRevision;
 
+const NO_JITTER = [0, 0] as const;
+
 /** The guide pass over the composed image (`createWebgpuGuidePass`), built on first use. */
 export function encodeWebgpuGuides(
   rt: WebgpuPagesRuntime,
@@ -29,6 +31,17 @@ export function encodeWebgpuGuides(
   if (!context.guides || !gpu.colorView || !gpu.depthView) return;
   gpu.guides ??= createWebgpuGuidePass(device);
   const { colorView, depthView, targetSize } = gpu;
-  const drawn = gpu.guides.encode(encoder, context.guides, colorView, depthView, cam, targetSize);
+  // The jitter the scene depth was drawn with: that of the image when it accumulates.
+  const frame = gpu.temporal?.frame;
+  const jitter = frame?.active ? frame.jitter : NO_JITTER;
+  const drawn = gpu.guides.encode(
+    encoder,
+    context.guides,
+    colorView,
+    depthView,
+    cam,
+    targetSize,
+    jitter,
+  );
   if (drawn) rt.run.gpuDrawCalls++;
 }

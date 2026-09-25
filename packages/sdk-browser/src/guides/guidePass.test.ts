@@ -7,14 +7,22 @@ import { createGuideSet } from './guideSet.ts';
 import { createWebgpuGuidePass } from './guidePass.ts';
 import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
-import { GUIDE_UNIFORM_FLOATS, REVERSED_NEAR_PLANE, writeGuideView } from './guideShaders.ts';
+import {
+  GUIDE_UNIFORM_FLOATS,
+  REVERSED_NEAR_PLANE,
+  jitterDepthSlack,
+  writeGuideView,
+} from './guideShaders.ts';
 import {
   encodeWebgpuGuides,
   guidesMoved,
   guidesShown,
 } from '../webgpu/pages/render/encodeGuides.ts';
 
-Object.assign(globalThis, { GPUBufferUsage: { UNIFORM: 64, COPY_DST: 8, VERTEX: 32 } });
+Object.assign(globalThis, {
+  GPUBufferUsage: { UNIFORM: 64, COPY_DST: 8, VERTEX: 32 },
+  GPUShaderStage: { VERTEX: 1, FRAGMENT: 2 },
+});
 
 /** A device and an encoder that record what they are asked. */
 function recorder() {
@@ -31,7 +39,9 @@ function recorder() {
   };
   const device = {
     createShaderModule: note('createShaderModule'),
-    createRenderPipeline: note('createRenderPipeline', { getBindGroupLayout: () => ({}) }),
+    createBindGroupLayout: note('createBindGroupLayout'),
+    createPipelineLayout: note('createPipelineLayout'),
+    createRenderPipeline: note('createRenderPipeline'),
     createBuffer: (descriptor: GPUBufferDescriptor) => (
       calls.push({ name: 'createBuffer', args: [descriptor] }),
       { size: descriptor.size, destroy() {} }
@@ -57,12 +67,12 @@ test('a world that shows no guide builds nothing and encodes no pass', () => {
   const guides = createGuideSet(),
     pass = createWebgpuGuidePass(device);
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
     false,
   );
   guides.lines({ positions: [0, 0, 0, 1, 0, 0] }).setVisible(false);
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
     false,
   );
   for (const name of ['createRenderPipeline', 'createBuffer', 'writeBuffer', 'beginRenderPass'])
@@ -75,22 +85,28 @@ test('guides draw over the display target, depth read and never written', () => 
     pass = createWebgpuGuidePass(device);
   guides.lines({ positions: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0] });
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
     true,
   );
   const [pipeline] = of('createRenderPipeline')[0] as [GPURenderPipelineDescriptor];
-  assert.equal(pipeline.depthStencil?.depthWriteEnabled, false);
-  assert.equal(pipeline.depthStencil?.depthCompare, 'greater-equal', 'the reversed depth');
+  assert.equal(pipeline.depthStencil, undefined, 'no depth attachment: nothing can write it');
   assert.equal([...pipeline.fragment!.targets][0]?.format, 'rgba8unorm', 'the display target');
   const [descriptor] = of('beginRenderPass')[0] as [GPURenderPassDescriptor];
   const [attachment] = [...descriptor.colorAttachments];
   assert.equal(attachment?.view, color);
   assert.equal(attachment?.loadOp, 'load', 'over the composed image');
-  assert.deepEqual(descriptor.depthStencilAttachment, { view: depth, depthReadOnly: true });
+  assert.equal(descriptor.depthStencilAttachment, undefined);
+  const [group] = of('createBindGroup')[0] as [GPUBindGroupDescriptor];
+  assert.equal([...group.entries][1]?.resource, depth, 'the scene depth, read in the shader');
   assert.deepEqual(of('draw')[0], [6, 2], 'one quad per segment');
-  pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4]);
+  pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]);
   assert.equal(of('createRenderPipeline').length, 1, 'built once');
   assert.equal(of('createBuffer').length, 2, 'uniform and instances, uploaded once');
+  assert.equal(of('createBindGroup').length, 1, 'the same depth view keeps its group');
+  const resized = { depth: 'resized' } as unknown as GPUTextureView;
+  pass.encode(encoder, guides, color, resized, { viewProjection: unjittered }, [8, 4], [0, 0]);
+  const [again] = of('createBindGroup')[1] as [GPUBindGroupDescriptor];
+  assert.equal([...again.entries][1]?.resource, resized, 'a resized depth is bound anew');
 });
 
 test('the pass draws with the camera, not the jittered matrix of temporal accumulation', () => {
@@ -105,7 +121,7 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
       targetSize: [8, 4],
       guides: undefined,
       guideRevision: 0,
-      temporal: { frame: { viewProjection: jittered } },
+      temporal: { frame: { active: true, viewProjection: jittered, jitter: [0.25, -0.125] } },
     },
     run: { gpuDrawCalls: 0 },
   } as never as Parameters<typeof guidesShown>[0];
@@ -124,8 +140,9 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
     8,
     4,
     REVERSED_NEAR_PLANE,
+    [0.25, -0.125],
   );
-  assert.deepEqual([...(view[2] as Float32Array)], [...expected]);
+  assert.deepEqual([...(view[2] as Float32Array)], [...expected], 'with the jitter of the depth');
   const [descriptor] = of('beginRenderPass')[0] as [GPURenderPassDescriptor];
   assert.notEqual([...descriptor.colorAttachments][0]?.view, hdr, 'never the image history reads');
   assert.equal(rt.run.gpuDrawCalls, 1);
@@ -154,4 +171,30 @@ test('a guide changed on a held image releases it, and leaves the accumulation s
   assert.equal(holdWebgpuFrame(rt, device), false, 'the next image draws the guide');
   guidesShown(rt as never);
   assert.equal(holdWebgpuFrame(rt, device), true, 'drawn once, held again');
+});
+
+/** Reversed depth of a tilted plane at pixel `(x, y)`, the jitter `(jx, jy)` pixels applied. */
+const plane =
+  (jx = 0, jy = 0) =>
+  (x: number, y: number) =>
+    0.5 + 0.01 * (x - jx) - 0.03 * (y - jy);
+
+test('the depth slack covers exactly what the jitter moved on a plane, and nothing unjittered', () => {
+  const jitter = [-0.375, -0.1];
+  const scene = plane(...(jitter as [number, number])),
+    guide = plane()(4, 4);
+  const slack = jitterDepthSlack(scene, 4, 4, jitter);
+  assert.ok(Math.abs(slack - (0.375 * 0.01 + 0.1 * 0.03)) < 1e-12, 'jitter times slope, per axis');
+  assert.ok(guide >= scene(4, 4) - slack, 'a guide on the plane passes the test');
+  assert.ok(guide < scene(4, 4), 'where the bare test would have hidden it');
+  assert.equal(jitterDepthSlack(scene, 4, 4, [0, 0]), 0, 'no jitter, no slack');
+  assert.ok(0.4 < scene(4, 4) - slack, 'a guide behind the plane stays hidden');
+});
+
+test('a silhouette beside the pixel opens no hole: the gentler side gives the slope', () => {
+  const edge = (x: number, y: number) => (x > 4 ? 0.1 : plane()(x, y));
+  assert.ok(
+    Math.abs(jitterDepthSlack(edge, 4, 4, [0.5, 0]) - 0.5 * 0.01) < 1e-12,
+    'the far background right of the pixel is not a slope',
+  );
 });

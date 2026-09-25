@@ -543,7 +543,9 @@ marks.remove();
   builds them — in their material colours; triangles, like an arrow's head, are not guides.
   `lines` takes two ends per segment, `points` one position per dot.
 - Every call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
-  numbers or a matrix), `remove()`. `world.guides.clear()` removes them all.
+  numbers or a matrix), `remove()`. `world.guides.clear()` removes them all. Placing a guide
+  at the pose it already holds changes nothing, so a page may re-place it every frame and a still
+  view is still held.
 - The guides of a world hold at most `GUIDE_VERTEX_CEILING` (65,536) vertices, two per segment and
   one per dot, hidden ones included; a call beyond it throws `EngineError` `GUIDE_CEILING` and
   adds nothing. `world.guides.vertexCount` reads what is held.
@@ -551,7 +553,10 @@ marks.remove();
   encoded, and a still view is held as before. Changing a guide redraws one frame and leaves
   temporal accumulation as it was.
 - Both paths draw them: WebGPU over its display target with the reversed depth, WebGL2 over the
-  composed frame with the forward depth. Positions are packed relative to the first guide, in
+  composed frame with the forward depth. The WebGPU scene depth is drawn with the sub-pixel jitter
+  of temporal accumulation and the guides without it, so a guide lying on a surface is tested
+  with the depth that jitter moved there (the jitter times the surface's depth slope): a grid on
+  a floor or a box's edges stay whole on a still view. Positions are packed relative to the first guide, in
   double precision, so a guide far from the origin keeps its detail.
 - Text labels are not guides yet (#264).
 
