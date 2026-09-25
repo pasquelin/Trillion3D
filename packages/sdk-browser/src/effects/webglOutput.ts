@@ -1,7 +1,11 @@
 import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
-import { createWebglRenderTarget, type WebglRenderTarget } from '../webgl/core/renderTarget.ts';
+import {
+  bindWebglTexture,
+  createWebglRenderTarget,
+  type WebglRenderTarget,
+} from '../webgl/core/renderTarget.ts';
 
 /**
  * The display chain's last links after the effects: premultiplied linear radiance over the
@@ -78,10 +82,7 @@ export function createWebglOutput(gl: WebGL2RenderingContext) {
   gl.uniform1i(at('untoned'), 1);
   gl.uniform1i(at('depth'), 2);
   const [toneMapped, toneCurve, background] = ['toneMapped', 'toneCurve', 'background'].map(at);
-  const read = (unit: number, texture: WebGLTexture) => {
-    gl.activeTexture(gl.TEXTURE0 + unit);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-  };
+  const read = (unit: number, texture: WebGLTexture) => bindWebglTexture(gl, unit, texture);
   return {
     draw(image: WebglRenderTarget, scene: WebglSceneTarget, out: WebglEffectOutput) {
       gl.useProgram(program);
