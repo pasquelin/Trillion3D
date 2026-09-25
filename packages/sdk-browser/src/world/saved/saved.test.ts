@@ -5,6 +5,7 @@ import type { LoadedModel } from '../core/loadedModel.ts';
 import { object, Object3D, Sprite } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
+import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import { light } from '../../../../sdk-core/src/world/light/index.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
@@ -179,6 +180,6 @@ test('a saved sprite is read back a sprite, with its centre and its turn', async
   const [back] = again.children as (typeof marker)[];
   assert.ok(back instanceof Sprite);
   assert.deepEqual([back.center.x, back.center.y], [0.5, 0]);
-  assert.equal((back.material as { rotation: number }).rotation, 0.6);
+  assert.equal((back.material as Material).rotation, 0.6);
   assert.deepEqual(again.toJSON(), saved);
 });
