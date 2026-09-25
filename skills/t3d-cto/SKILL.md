@@ -23,9 +23,8 @@ boss to open a session. You never write engine code, never run Chrome or the ben
 3. **Brief.** Every brief carries, in this order:
    - the role and the repository root (the main checkout, never written to; worktrees in
      `<root>/.worktrees/<branch>/`, then `pnpm install` there);
-   - what to read, and nothing more: `AGENTS.md`, `skills/t3d-<role>/SKILL.md` (lead:
-     `t3d-lead`; measurer: `t3d-measure`; acceptance: `t3d-recette`), its `docs/roles/` file, the
-     Priorities issue;
+   - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
+     Skill column of `docs/COMPANY.md`), its `docs/roles/` file, the Priorities issue;
    - the ordered list from the Priorities issue: what is in flight (its PRs by number), then its
      `measure ko` / `audit ko`, then its 🔴 critical issues in the Priorities order;
    - the agent bound (AGENTS.md rule 9): a lead or the architect runs `coder` then `reviewer`

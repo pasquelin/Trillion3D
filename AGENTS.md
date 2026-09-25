@@ -19,10 +19,10 @@ disagreement is reported to the maintainer.
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
 5. **Only the CTO opens issues**, from the boss's words, with the writer role. No
-   other session opens one, not even to split an issue. What a pull request does not deliver
+   other agent opens one, not even to split an issue. What a pull request does not deliver
    stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
    open. A regression reopens the measured issue with `measure ko`; a finding reopens the audited
-   issue with `audit ko`. A defect found on the way is one line in your report to the maintainer.
+   issue with `audit ko`. A defect found on the way is one line in your report to the CTO.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **The witness library stays a witness**: named only in bench, measurement and migration
@@ -33,7 +33,7 @@ disagreement is reported to the maintainer.
    to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. The
    depth is fixed: the CTO → a lead or the architect → one coder or reviewer → the review agents
    of the real `simplify` and `code-review` skills (at most 4), which launch none. The measurer,
-   acceptance, analyst and writer agents launch none.
+   acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
 
@@ -94,10 +94,10 @@ auditor only comment on it. A regression or an audit finding **reopens** the ori
 ## Interaction
 
 - The CTO's replies to the boss are in simple, short French: outcome first, 1–5 lines, no jargon,
-  one question at a time. Other sessions address the CTO. Everything written in the repository
+  one question at a time. Every agent addresses the CTO. Everything written in the repository
   is in English.
 - No pollution: a merged or abandoned branch loses its worktree and its local and remote branch
-  at once, and every session cleans its own before it stops.
+  at once, and every agent cleans its own before it stops.
 - A session with no role explains and waits: no code before the maintainer asks for it.
 - Read this file, then only the task's issue and the files it names.
 
