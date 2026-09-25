@@ -2877,7 +2877,8 @@
       "recipe": "Anggota keluarga dan setiap argumen yang dipakai untuk membangunnya.",
       "attributes": "Setiap daftar per verteks, jika tidak ada panggilan yang membangun bentuk itu lagi.",
       "index": "Verteks mana yang membentuk setiap segitiga.",
-      "groups": "Rentang indeks yang masing-masing digambar dengan satu material."
+      "groups": "Rentang indeks yang masing-masing digambar dengan satu material.",
+      "owner": "`'host'` untuk verteks adegan yang dimuat, dibaca pada nilainya (`Geometry._owner`); tidak diisi untuk verteks dunia."
     }
   },
   "SavedMaterial": {
