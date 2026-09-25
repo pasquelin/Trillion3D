@@ -63,3 +63,30 @@ export function lineClip(
   out[1] += ((tx * s) / viewport[1]) * out[3];
   return out;
 }
+
+/**
+ * THE DASH: whether a pixel of a dashed line is drawn. `at` is the distance along the line of
+ * the pixel, in world units — the first texture coordinate a dashed line's quads carry, the
+ * running length of its segments (`drawnTriangles`, sdk-core `drawn.ts`) — and `dash` its
+ * `(dashSize, gapSize)`. The line repeats a dash then a gap from its first vertex, as the
+ * reference's `LineDashedMaterial` does: a pixel whose distance modulo `dashSize + gapSize` passes
+ * `dashSize` is in a gap, and every raster discards it. A dash of zero keeps every pixel: that is
+ * a line that is not dashed. The rasters read it through the cutout (`maskKeep`, `pageWgsl.ts`),
+ * the transparent pass and the opaque fallback in their fragment stage, the CPU raster by `lineDash`.
+ */
+export const LINE_DASH_WGSL = `fn lineDash(at:f32,dash:vec2f)->bool{
+ let period=dash.x+dash.y;
+ return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
+}`;
+
+/** The same dash in the WebGL2 program (`../../webgl/cluster/shaders.ts`). */
+export const LINE_DASH_GLSL = `bool lineDash(float at,vec2 dash){
+ float period=dash.x+dash.y;
+ return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
+}`;
+
+/** `LINE_DASH_WGSL` on the CPU, statement for statement: the software raster's dash. */
+export function lineDash(at: number, dashSize: number, gapSize: number) {
+  const period = dashSize + gapSize;
+  return dashSize <= 0 || at - period * Math.floor(at / period) <= dashSize;
+}

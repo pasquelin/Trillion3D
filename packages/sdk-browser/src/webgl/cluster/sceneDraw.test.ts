@@ -157,12 +157,13 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
 });
 
 // #348: a line's width counts CSS pixels. The WebGL2 program widens a line surface's quads by its
-// `lineWidth` times the host's pixel ratio, read each frame, in the viewport of the image.
-test('a line surface draws with its CSS width and the host pixel ratio', () => {
+// `lineWidth` times the host's pixel ratio, read each frame, in the viewport of the image. #359:
+// a dashed line's dash and gap reach the fragment stage, which discards its gaps.
+test('a line surface draws with its CSS width, the host pixel ratio and its dash', () => {
   const context = createTestContext(),
     scene = new GraphScene(),
     lines = new GraphSurface('basic', { side: 2 });
-  lines.lineWidth = 3;
+  Object.assign(lines, { lineWidth: 3, dashSize: 0.25, gapSize: 0.5 });
   scene.add(mesh(6, 0, lines));
   let ratio = 2;
   const draw = createSceneDraw(context.gl, scene, [], () => ratio);
@@ -182,5 +183,9 @@ test('a line surface draws with its CSS width and the host pixel ratio', () => {
     .of('uniform2f')
     .find((args) => (args[0] as { uniform: string }).uniform === 'viewport');
   assert.deepEqual(viewport?.slice(1), [8, 4]);
+  const dash = context
+    .of('uniform2f')
+    .find((args) => (args[0] as { uniform: string }).uniform === 'dash');
+  assert.deepEqual(dash?.slice(1), [0.25, 0.5]);
   draw.dispose();
 });

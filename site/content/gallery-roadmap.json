@@ -89,9 +89,7 @@
     {
       "id": "dashed-lines",
       "theme": "geometry",
-      "file": "examples/dashed-lines.html",
-      "status": "waiting-engine",
-      "issue": 359
+      "file": "examples/dashed-lines.html"
     },
     {
       "id": "shapes-cut-and-extruded",
