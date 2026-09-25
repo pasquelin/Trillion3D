@@ -10,9 +10,12 @@ import {
 } from '../../residency/memoryBudget.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import {
+  SHADOW_HOST_BYTES,
   SHADOW_TABLE_ENTRIES,
   shadowPoolSide,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
+import { DEFAULT_CACHED_BYTES } from '../../streaming/pages.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
@@ -68,7 +71,8 @@ test("the default totals split into each pool's own default", () => {
     shadowPool: SHADOW_POOL_BYTES,
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
-    pageCache: DEFAULT_CPU_BUDGET,
+    shadowMirror: SHADOW_HOST_BYTES,
+    pageCache: DEFAULT_CACHED_BYTES,
   });
   assert.equal(handle.geometryPool, DEFAULT_GEOMETRY_POOL_BUDGET);
 });
@@ -78,6 +82,22 @@ test('the shadow share counts the fixed page table, the same on every screen', (
   const pool = 2 * shadowAtlasBytes(shadowPoolSide(Infinity, Infinity));
   assert.equal(SHADOW_POOL_BYTES, pool + SHADOW_BUFFER_BYTES);
   assert.equal(budget('webgpu', null).split.shadowPool, SHADOW_POOL_BYTES);
+});
+
+test('the CPU total counts the shadow table host mirror before the page cache', () => {
+  // The words, one change flag per word, one eviction bit per word: 20.5 MiB, whatever the screen.
+  assert.equal(createShadowTable(1).words.byteLength, SHADOW_TABLE_ENTRIES * 4);
+  assert.equal(
+    SHADOW_HOST_BYTES,
+    SHADOW_TABLE_ENTRIES * 4 + SHADOW_TABLE_ENTRIES + SHADOW_TABLE_ENTRIES / 8,
+  );
+  assert.equal(DEFAULT_CPU_BUDGET, SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES);
+  for (const total of [SHADOW_HOST_BYTES + 1, DEFAULT_CPU_BUDGET, 4096 * MiB]) {
+    const handle = budget('webgpu', null, { cpu: total });
+    const { shadowMirror, pageCache } = handle.split;
+    assert.equal(shadowMirror + pageCache, total, `${total}`);
+    assert.equal(shadowMirror, SHADOW_HOST_BYTES);
+  }
 });
 
 test('a GPU total redraws every pool by the split, and the pools never sum past it', () => {
@@ -103,7 +123,9 @@ test('a total the rule cannot take is refused by name and changes nothing', () =
   assert.throws(() => (handle.gpu = SHADOW_POOL_BYTES - 1), /GPU_BUDGET_UNDER_SHADOW_POOL/);
   assert.equal(handle.split.shadowPool, SHADOW_POOL_BYTES);
   assert.throws(() => (handle.cpu = 1.5), /INVALID_CPU_BUDGET/);
+  // The mirror never shrinks either: a CPU total that leaves the page cache nothing is refused.
+  assert.throws(() => (handle.cpu = SHADOW_HOST_BYTES), /CPU_BUDGET_UNDER_SHADOW_MIRROR/);
   assert.deepEqual(pools, {});
   handle.cpu = 64 * MiB;
-  assert.equal(handle.split.pageCache, 64 * MiB);
+  assert.equal(handle.split.pageCache, 64 * MiB - SHADOW_HOST_BYTES);
 });

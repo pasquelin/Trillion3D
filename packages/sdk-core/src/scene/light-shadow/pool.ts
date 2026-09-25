@@ -1,4 +1,4 @@
-import { PAGE_MAPPED, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
+import { PAGE_MAPPED, PAGE_VALID, SHADOW_TABLE_BITSET_WORDS } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
 /** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
@@ -46,7 +46,7 @@ export function createShadowPool(side: number) {
     /** Eviction keys: last request, then rank, then page, packed into one exact number. */
     order = new Float64Array(pages);
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
-  const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
+  const evicted = new Uint32Array(SHADOW_TABLE_BITSET_WORDS);
   let refetched = 0,
     freeCount = 0,
     orderCount = -1,

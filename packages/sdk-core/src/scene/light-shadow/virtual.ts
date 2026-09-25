@@ -80,6 +80,13 @@ export const LAMP_FACE_ENTRIES = (() => {
 export const SHADOW_TABLE_STRIDE = Math.max(SUN_ENTRIES, POINT_FACES * LAMP_FACE_ENTRIES);
 /** Words of the whole page table: one span per shadow slice, one slice per light. */
 export const SHADOW_TABLE_ENTRIES = MAX_SHADOW_SLICES * SHADOW_TABLE_STRIDE;
+/** Words of a bitset with one bit per table entry: the eviction bits (`pool.ts`), the request bits. */
+export const SHADOW_TABLE_BITSET_WORDS = SHADOW_TABLE_ENTRIES / 32;
+/** Bytes of the page table's host mirror, whatever the screen: its words and a change flag per
+ *  word (`table.ts`), and the eviction bitset (`pool.ts`). */
+export const SHADOW_HOST_BYTES =
+  SHADOW_TABLE_ENTRIES * (Uint32Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT) +
+  SHADOW_TABLE_BITSET_WORDS * Uint32Array.BYTES_PER_ELEMENT;
 /** A table word: the physical page in the low bits, `PAGE_MAPPED` while it holds one, and
  *  `PAGE_VALID` while its depth may be read — set once its draw has landed, cleared while what it
  *  holds is wrong and waits to be drawn again (`pool.withdraw`). A page not valid hands the point
