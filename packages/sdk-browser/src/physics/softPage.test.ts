@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CommandWriter,
+  DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
   OP,
   ObjectPhysics,
@@ -87,4 +88,17 @@ test('a soft body the page moves is made again where it put it, never teleported
   placeBodies(scene, host, writer);
   assert.deepEqual(rebuilt, [mesh.physics]);
   assert.equal(writer.length, 0);
+});
+
+test('a soft body’s SOFT carries its own friction, restitution, pull and scale, else its material’s', () => {
+  const soft = (own: boolean) => {
+    const { writer, bodies, cloth } = sceneOf(100);
+    const mesh = cloth(1);
+    if (own) Object.assign(mesh.physics, { friction: 0.25, restitution: 0.75, gravityScale: 0.5 });
+    mesh.scale.set(2, 3, 4);
+    bodies.reconcile(new Set(), () => assert.fail('refused'));
+    return [...new Float32Array(writer.take().buffer).subarray(10, 16)];
+  };
+  assert.deepEqual(soft(true), [2, 3, 4, 0.25, 0.75, 0.5]);
+  assert.deepEqual(soft(false).slice(3), [DEFAULT_MATTER.friction, DEFAULT_MATTER.restitution, 1]);
 });
