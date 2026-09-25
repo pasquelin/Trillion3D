@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cloth and rope</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1b222c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #573: the simulated vertices are uploaded in place, so the cloth and ropes are drawn where they are.
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#d9e4ee');
+
+      const floor = object.mesh(geometry.box(30, 1, 30), material.meshStandard({ color: '#9aa39b', physics: 'stone' }));
+      floor.position.y = -0.5;
+      floor.physics = 'static';
+      floor.receiveShadow = true;
+      world.scene.add(floor);
+
+      // A pole, and a flag of 30 × 20 squares: each of its vertices is simulated, the column at
+      // the pole pinned where it is.
+      const wood = material.meshStandard({ color: '#6b4a2e', roughness: 0.8, physics: 'wood' });
+      const pole = object.mesh(geometry.cylinder(0.06, 0.06, 5, 16), wood);
+      pole.position.set(-4, 2.5, 0);
+      pole.physics = 'static';
+      const beam = object.mesh(geometry.box(5, 0.12, 0.12), wood);
+      beam.position.set(2.5, 4.5, 0);
+      beam.physics = 'static';
+      world.scene.add(pole, beam);
+
+      const COLUMNS = 30, ROWS = 20;
+      const cloth = material.meshStandard({ color: '#c23b3b', roughness: 0.9, side: 'double' });
+      // A plane's vertices run row by row from its bottom left corner: the first of each row is at the pole.
+      const atPole = Array.from({ length: ROWS + 1 }, (_, row) => row * (COLUMNS + 1));
+
+      // Ropes: a line's vertices in order, each joined to the next; the first one pinned to the beam.
+      const ropeLine = (length, count) => {
+        const points = Array.from({ length: count }, (_, i) => [(i * length) / (count - 1), 0, 0]).flat();
+        return geometry.createBuffer({ position: buffer.float32(new Float32Array(points), 3) });
+      };
+      const rope = material.line({ color: '#2d2a26' });
+
+      let simulated = [];
+      const hang = ({ stiff, stretch }) => {
+        for (const mesh of simulated) world.scene.remove(mesh);
+        const flag = object.mesh(geometry.plane(3, 2, COLUMNS, ROWS), cloth);
+        flag.position.set(-4 + 1.5, 3.8, 0);
+        flag.physics = { type: 'cloth', pins: atPole, bend: stiff ? 0.001 : Infinity };
+        flag.castShadow = true;
+        simulated = [flag];
+        for (let i = 0; i < 4; i++) {
+          const line = object.line(ropeLine(1.5 + i * 0.4, 24), rope);
+          line.position.set(0.6 + i * 1.2, 4.38, 0);
+          line.physics = { type: 'rope', pins: [0], stretch };
+          simulated.push(line);
+        }
+        world.scene.add(...simulated);
+      };
+
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      sun.position.set(6, 12, 8);
+      world.scene.add(sun, light.hemisphere({ intensity: 1.2, color: '#ffffff', groundColor: '#8d948c' }));
+      world.camera.position.set(2, 4, 11);
+      world.controls.target.set(0, 3, 0);
+
+      const settings = controls(
+        {
+          stiff: false,
+          stretch: [0, 0.05, 0, 0.005],
+          again: () => hang(settings),
+          slowMotion: false,
+        },
+        (values, key) => {
+          world.physics.timeScale = values.slowMotion ? 0.25 : 1;
+          // A soft body's settings are read when it is made: changed, it is hung again.
+          if (key === undefined || key === 'stiff' || key === 'stretch') hang(values);
+        },
+        world,
+      );
+
+      const vertices = readout('vertices'), step = readout('step');
+      world.onFrame(() => {
+        vertices(String(simulated.reduce((n, mesh) => n + (mesh.physics?.vertices?.length ?? 0) / 3, 0)));
+        step(`${world.physics.stats.stepMs.toFixed(2)} ms`);
+      });
+    </script>
+  </body>
+</html>
