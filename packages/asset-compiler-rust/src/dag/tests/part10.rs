@@ -32,20 +32,38 @@ fn weld_exact_joins_only_copies_a_page_cannot_tell_apart() {
 }
 
 // Behaviour: a coarse corner merged across a hard edge points back at the copy of its position
-// whose normal is its own face's.
+// that a face turned its own way draws.
 #[test]
 fn own_normals_points_a_corner_at_its_face_copy() {
-    // A triangle facing +z; its corner 0 has a copy 3 at the same place facing -x.
-    let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
-    let normals = [-1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
-    let weld_seam = [0u32, 1, 2, 0];
+    // A triangle facing +z drawn by copy 3 of corner 0; copy 0 belongs to a face facing -x.
+    let positions = [
+        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0,
+    ];
+    let normals = [
+        -1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0,
+    ];
+    let weld_seam = [0u32, 1, 2, 0, 4];
     let mut simplified = vec![0u32, 1, 2];
-    attributes::own_normals(
+    let source = [3, 1, 2, 0, 2, 4];
+    let foreign =
+        attributes::own_normals(&mut simplified, &source, &weld_seam, &positions, &normals);
+    assert_eq!(simplified, vec![3, 1, 2]);
+    assert!(foreign.is_empty());
+}
+
+// Behaviour: a coarse face none of whose corner copies a face turned its way draws — the
+// underside of a board laid on its top — is reported, never given another face's normal.
+#[test]
+fn own_normals_reports_a_face_no_copy_of_which_agrees() {
+    let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+    let normals = [0.0, 0.0, 1.0].repeat(3);
+    let mut simplified = vec![0u32, 2, 1];
+    let foreign = attributes::own_normals(
         &mut simplified,
-        &[0, 1, 2, 3, 2, 1],
-        &weld_seam,
+        &[0, 1, 2],
+        &[0, 1, 2],
         &positions,
         &normals,
     );
-    assert_eq!(simplified, vec![3, 1, 2]);
+    assert_eq!(foreign, vec![0, 2, 1]);
 }
