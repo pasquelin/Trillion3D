@@ -1,8 +1,9 @@
 // The cache format number is written twice — once in Rust, once in TypeScript — and one product
 // is read by both. Nothing in a compilation compares them, so a raise applied on one side only
 // would be seen by a rendered proof and by nothing else. This test compares them directly: the
-// constants of `compiler_format.rs` against those of `sdk-core`, and the descriptor the compiler
-// publishes (`--version`) against the number the runtime reads.
+// constants of `compiler_format.rs` against those of `sdk-core`, the version of `physics.json`
+// against the one its reader accepts, and the descriptor the compiler publishes (`--version`)
+// against the number the runtime reads.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -12,24 +13,32 @@ import {
   CLUSTERED_BLEND_FORMAT_VERSION,
   FORMAT_VERSION,
 } from '../../packages/sdk-core/src/index.ts';
+import { JOLT_COMMIT, readCookedPhysics } from '../../packages/sdk-core/src/physics/cooked.ts';
 
-const rust = fileURLToPath(
-  new URL('../../packages/asset-compiler-rust/src/compiler_format.rs', import.meta.url),
-);
+const source = (file: string) =>
+  fileURLToPath(new URL(`../../packages/asset-compiler-rust/src/${file}`, import.meta.url));
 const compiler = fileURLToPath(
   new URL('../../packages/asset-compiler-rust/target/release/trillion3d-compiler', import.meta.url),
 );
 
-/** Value of a `pub const NAME: u32 = N;` of the compiler's format module. */
-function rustConstant(name: string) {
-  const found = new RegExp(`pub const ${name}: u32 = (\\d+);`).exec(readFileSync(rust, 'utf8'));
-  assert.ok(found, `${name} is not declared in compiler_format.rs`);
+/** Value of a `pub const NAME: u32 = N;` of a compiler module. */
+function rustConstant(name: string, file = 'compiler_format.rs') {
+  const found = new RegExp(`pub const ${name}: u32 = (\\d+);`).exec(
+    readFileSync(source(file), 'utf8'),
+  );
+  assert.ok(found, `${name} is not declared in ${file}`);
   return Number(found[1]);
 }
 
 test('the compiler and the runtime number the cache format alike', () => {
   assert.equal(rustConstant('FORMAT_VERSION'), FORMAT_VERSION);
   assert.equal(rustConstant('CLUSTERED_BLEND_FORMAT_VERSION'), CLUSTERED_BLEND_FORMAT_VERSION);
+});
+
+test('the physics.json the cook writes is the version its reader accepts', () => {
+  const formatVersion = rustConstant('PHYSICS_FORMAT_VERSION', 'physics_cook.rs');
+  const file = { formatVersion, jolt: JOLT_COMMIT, colliders: [], instances: [] };
+  assert.equal(readCookedPhysics(file).formatVersion, formatVersion);
 });
 
 // The binary is built by the `native` gate group before the unit suite runs; a checkout that has

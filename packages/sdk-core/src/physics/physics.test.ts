@@ -109,13 +109,22 @@ test('a dynamic body declared as triangles is refused: triangles hold no mass', 
 });
 
 test('physics.json of another format, or cooked by another Jolt, is refused by name', () => {
-  const file = { formatVersion: 1, jolt: JOLT_COMMIT, colliders: [], instances: [] };
+  const file = { formatVersion: 2, jolt: JOLT_COMMIT, colliders: [], instances: [] };
   assert.equal(readCookedPhysics(file).colliders.length, 0);
   for (const wrong of [
-    { ...file, formatVersion: 2 },
+    { ...file, formatVersion: 3 },
     { ...file, jolt: '0'.repeat(40) },
   ])
     assert.throws(() => readCookedPhysics(wrong), { code: 'PHYSICS_FORMAT' });
+});
+
+test('a physics.json cooked before the matter came from the source is refused: recompile', () => {
+  // Format 1, as the cook wrote it before #475: its dynamic `bodies`, no matter on an instance.
+  const old = { formatVersion: 1, jolt: JOLT_COMMIT, colliders: [], instances: [], bodies: [] };
+  assert.throws(() => readCookedPhysics(old), {
+    code: 'PHYSICS_FORMAT',
+    message: /format 1 is not 2: recompile the model/,
+  });
 });
 
 test('JOLT_COMMIT is the pin of the Jolt submodule the compiler cooks with', () => {
