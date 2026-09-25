@@ -44,6 +44,9 @@ export function createTestContext(
     getUniformLocation: (_program: unknown, name: string) => ({ uniform: name }),
     getAttribLocation: () => 0,
     checkFramebufferStatus: () => 'FRAMEBUFFER_COMPLETE',
+    // The viewport covers the drawing buffer, as a fresh context's does.
+    getParameter: (name: string) =>
+      name === 'VIEWPORT' ? new Int32Array([0, 0, canvas.width, canvas.height]) : null,
     ...options.answers,
   };
   const gl = new Proxy(
