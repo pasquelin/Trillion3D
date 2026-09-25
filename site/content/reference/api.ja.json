@@ -3159,7 +3159,8 @@
       "pinned": "常に保持されるバンドル。",
       "bundleBytes": "目標とするバンドルサイズ。",
       "pages": "バンドル数。",
-      "maxDependencies": "バンドルの最大依存数：コンパイラが公開する上限。"
+      "maxDependencies": "バンドルの最長の閉じた依存リスト。",
+      "dependencyBound": "1 つのバンドルのクラスタの親を含むバンドル数の上限。パッキング前に固定される。"
     }
   },
   "SlimStructure": {
@@ -3264,7 +3265,8 @@
       "pinned": "常に保持されるバンドル。",
       "bundleBytes": "目標とするバンドルサイズ。",
       "pages": "すべてのバンドル。",
-      "maxDependencies": "バンドルの最大依存数、コンパイラが公開したとおり。"
+      "maxDependencies": "バンドルの最長の閉じた依存リスト。コンパイラが公開したもの。",
+      "dependencyBound": "1 つのバンドルのクラスタの親を含むバンドル数の上限。パッキング前に固定される。"
     }
   },
   "StreamPage": {
