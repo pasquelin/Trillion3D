@@ -6968,6 +6968,7 @@
       "sensor": "Vật có chỉ báo va chạm không.",
       "ccd": "Va chạm liên tục có bật không.",
       "decorative": "Vật có phải mảnh vụn trang trí không.",
+      "damping": "Phần tốc độ vật tự mất mỗi giây, tuyến tính và góc (`dv/dt = −c·v`).",
       "velocity": "Vận tốc thẳng, m/s, như bước cuối để lại; ghi vào để ném vật.",
       "asleep": "Vật có đang ngủ không: đứng yên, và không được mô phỏng cho tới khi có gì đánh thức.",
       "mass": "Khối lượng tính bằng kilôgam; `undefined` lấy mật độ vật liệu nhân thể tích.",
@@ -7002,7 +7003,8 @@
       "ccd": "Va chạm liên tục, cho vật nhỏ nhanh có thể xuyên qua tường mỏng.",
       "decorative": "Mảnh vụn: chỉ gặp thế giới tĩnh, và chỉ được mô phỏng khi trong tầm và trong tầm nhìn. Giới hạn bởi `budget.physics.decorative`.",
       "friction": "Thay ma sát của vật liệu, từ 0 trở lên.",
-      "restitution": "Thay độ nảy của vật liệu, từ 0 đến 1."
+      "restitution": "Thay độ nảy của vật liệu, từ 0 đến 1.",
+      "damping": "Vật tự mất bao nhiêu tốc độ mỗi giây, như do không khí và lăn: `dv/dt = −c·v`, từ 0 trở lên, tuyến tính và góc riêng; 0 giữ nguyên tất cả. Đặt khi tạo vật: gán lại `obj.physics` để đổi."
     }
   },
   "PhysicsBudget": {

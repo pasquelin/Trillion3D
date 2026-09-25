@@ -4196,7 +4196,8 @@
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
-        "packages/sdk-browser/src/physics/joints.test.ts"
+        "packages/sdk-browser/src/physics/joints.test.ts",
+        "scripts/docs-examples-coaster.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".joint"
