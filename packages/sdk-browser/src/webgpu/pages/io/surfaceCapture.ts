@@ -143,7 +143,7 @@ export async function captureSurfaceView(
     run.diagnostic = 'beauty';
     resetHizHistory(run);
     restartCameraMotion(run.motion);
-    await renderForCapture(rt, gpuDevice, camera, aspect);
+    await renderForCapture(rt, camera, aspect);
     await drawResidentCut(rt, gpuDevice, {
       admitted: () => {
         const missing = collectPendingUrls(awaitedPages(run.desired, run.awaitedScratch), []);
