@@ -1134,7 +1134,7 @@
       "addGroup": "Menggambar `count` indeks dari `start` dengan nomor material `materialIndex` mesh itu.",
       "clearGroups": "Menghapus setiap grup material.",
       "computeVertexNormals": "Normal halus: setiap vertex merata-ratakan sisi yang berbagi dengannya, dibobot menurut luasnya.",
-      "computeBoundingBox": "Mengukur kotak di sekitar setiap verteks dan setiap bentuk yang diberikan target morph, lalu menyimpannya di `boundingBox`; posisi ternormalisasi diukur pada skalanya.",
+      "computeBoundingBox": "Mengukur kotak di sekitar setiap verteks dan setiap bentuk yang diberikan target morph, lalu menyimpannya di `boundingBox`.",
       "computeBoundingSphere": "Mengukur bola yang berpusat pada kotak dan menjangkau verteks terjauh, di-morph atau tidak, lalu menyimpannya di `boundingSphere`.",
       "applyMatrix4": "Memindahkan setiap posisi, memutar setiap normal: geometrinya sendiri berubah, bukan sebuah pose.",
       "translate": "Memindahkan setiap vertex sebesar `(x, y, z)`.",

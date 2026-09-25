@@ -1126,7 +1126,7 @@
       "addGroup": "使用网格的材质编号 `materialIndex`,从 `start` 开始绘制 `count` 个索引。",
       "clearGroups": "移除所有材质分组。",
       "computeVertexNormals": "平滑法线:每个顶点按面积加权,对共享它的各个面求平均。",
-      "computeBoundingBox": "测量包住每个顶点以及变形目标赋予它的每个形状的盒子，并保存在 `boundingBox` 中；归一化的位置按其比例测量。",
+      "computeBoundingBox": "测量包住每个顶点以及变形目标赋予它的每个形状的盒子，并保存在 `boundingBox` 中。",
       "computeBoundingSphere": "测量以盒子为中心、到达最远顶点（无论是否变形）的球，并保存在 `boundingSphere` 中。",
       "applyMatrix4": "移动每一个位置,旋转每一个法线:改变的是几何体本身,而不是它的姿态。",
       "translate": "把每个顶点平移 `(x, y, z)`。",

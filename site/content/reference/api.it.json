@@ -2000,7 +2000,7 @@
       "addGroup": "Disegna `count` indici a partire da `start` con il materiale numero `materialIndex` della mesh.",
       "clearGroups": "Rimuove ogni gruppo di materiale.",
       "computeVertexNormals": "Normali morbide: ogni vertice fa la media delle facce che lo condividono, ponderate per la loro area.",
-      "computeBoundingBox": "Misura la scatola attorno a ogni vertice e a ogni forma che le dà un target di morph, e la tiene in `boundingBox`; una posizione normalizzata è misurata alla sua scala.",
+      "computeBoundingBox": "Misura la scatola attorno a ogni vertice e a ogni forma che le dà un target di morph, e la tiene in `boundingBox`.",
       "computeBoundingSphere": "Misura la sfera centrata sulla scatola che raggiunge il vertice più lontano, con morph o no, e la tiene in `boundingSphere`.",
       "applyMatrix4": "Sposta ogni posizione, ruota ogni normale: è la geometria che cambia, non una posa.",
       "translate": "Sposta ogni vertice di `(x, y, z)`.",

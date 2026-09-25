@@ -111,7 +111,7 @@ export class Geometry {
     return this.setAttribute('normal', new BufferAttribute(normals, 3));
   }
   /** Measures the box around every vertex, and every shape a morph target gives it, and keeps
-   *  it in `boundingBox`; a normalised position is measured at its scale. */
+   *  it in `boundingBox`. */
   computeBoundingBox() {
     return (this.boundingBox = spanBox(this.boundingBox ?? new Box3(), this));
   }
