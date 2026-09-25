@@ -21,6 +21,7 @@ import {
 import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { ruleResidency } from './readiness.fixture.ts';
 
 test('the kernel projects a cluster error exactly like clusterErrorPixels', () => {
   // The WGSL band test is the certified bound of `screenErrorBound`: minimum depth, side reach and
@@ -100,20 +101,19 @@ test('the GPU flat cut selects the same single cluster per chain as the CPU cut'
   accelerated.geometry.dispose();
 });
 
-test('a cut with nothing resident but the roots publishes the root cover', () => {
+test('a cut with nothing resident but the roots draws the root cover', () => {
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
   const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'root' ? 1 : 0)));
   const result = evaluateDagSelectionKernel(
     dag,
     kernelUniforms(dag, roots, wideCamera(), 0),
-    resident,
+    ruleResidency(dag, resident),
   );
   assert.deepEqual(
     (result.drawablePageIds ?? []).map((id) => dag.pageUrls[id]),
     ['root'],
   );
-  assert.equal(result.complete, true, 'the pinned root cover must leave no hole');
   // The wanted list still reports the detail the streamer has to fetch.
   assert.deepEqual((result.pageIds ?? []).map((id) => dag.pageUrls[id]).sort(), [
     'leaf0',
@@ -124,20 +124,19 @@ test('a cut with nothing resident but the roots publishes the root cover', () =>
   fixture.geometry.dispose();
 });
 
-test('a missing cluster is replaced by its nearest resident ancestor, not by the root', () => {
+test('a missing cluster is replaced by its nearest resident ancestor, and only its group', () => {
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
-  // Every cluster is resident except one leaf: its group replacement covers the gap on its own.
+  // Every cluster is resident except one leaf: its group's replacement covers the gap on its own,
+  // and the other group keeps its leaves.
   const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'leaf0' ? 0 : 1)));
   const result = evaluateDagSelectionKernel(
     dag,
     kernelUniforms(dag, roots, wideCamera(), 0),
-    resident,
+    ruleResidency(dag, resident),
   );
   const drawn = (result.drawablePageIds ?? []).map((id) => dag.pageUrls[id]).sort();
-  assert.deepEqual(drawn, ['mid-left', 'mid-right']);
-  assert.equal(result.complete, true);
-  assert.ok(!drawn.includes('root'), 'the pinned cover is the last resort, not the first');
+  assert.deepEqual(drawn, ['leaf2', 'leaf3', 'mid-left']);
   fixture.geometry.dispose();
 });
 

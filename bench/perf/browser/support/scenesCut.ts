@@ -32,7 +32,7 @@ export function quadrillage(cotes: number, demi: number) {
         p[3],
         0,
       ]);
-      const attributes = { position: new G.GraphAttribute(positions, 3) };
+      const attributes = { position: new G.BufferAttribute(positions, 3) };
       const commun = { attributes, matrix: new G.Matrix4(), material: surfaceOf(material) };
       pages.push({ ...commun, array: new Uint32Array([0, 1, 2]), clusterId: `q/${j}/${i}/a` });
       pages.push({ ...commun, array: new Uint32Array([0, 2, 3]), clusterId: `q/${j}/${i}/b` });

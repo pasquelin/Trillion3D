@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Toujours `true` : distingue un attribut de tampon de tout le reste.",
       "type": "Comment les valeurs ont été déclarées ; un attribut en demi-flottants est gardé en précision flottante.",
-      "normalized": "Si les nombres entiers se lisent comme des valeurs entre 0 et 1.",
       "version": "Augmenté à chaque écriture déclarée : ce que le monde compare pour voir que le contenu a changé.",
       "array": "Les nombres eux-mêmes.",
-      "itemSize": "Combien de nombres appartiennent à un sommet : 3 pour une position.",
       "count": "Combien de sommets décrivent les nombres.",
-      "needsUpdate": "`attribute.needsUpdate = true` après avoir écrit `array` : le monde le relit.",
-      "getComponent": "Le nombre `component` du sommet `index`.",
-      "getX": "Le premier nombre du sommet `i`.",
-      "getY": "Le deuxième nombre du sommet `i`.",
-      "getZ": "Le troisième nombre du sommet `i`.",
-      "getW": "Le quatrième nombre du sommet `i`.",
-      "setXYZ": "Écrit trois nombres pour le sommet `i`.",
-      "setXY": "Écrit deux nombres pour le sommet `i`.",
-      "setX": "Écrit le premier nombre du sommet `i`.",
-      "clone": "Un nouvel attribut avec une copie des nombres."
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau.",
+      "clone": "Un nouvel attribut avec une copie des nombres, de leur type, de leur normalisation et de son nom.",
+      "kind": "L’attribut possède son tampon.",
+      "updateRanges": "Plages de `array` écrites depuis le dernier envoi, envoyées seules.",
+      "addUpdateRange": "Marque `count` nombres écrits à partir de `start`.",
+      "clearUpdateRanges": "Oublie les plages écrites, une fois envoyées."
     }
   },
   "BufferNumbers": {
@@ -1753,8 +1747,8 @@
       "transparentDrawCalls": "Appels de dessin transparents.",
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
-      "coverageBudgetLimited": "Le détail demandé ne peut pas coexister avec le repli épinglé dans le budget de pages GPU.",
-      "budgetPixelError": "Plancher d’erreur à l’écran qu’impose à la coupe le budget de pages GPU, en pixels : `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Null pour les moteurs sans budget de pages.",
+      "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
+      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -2481,7 +2475,10 @@
       "array": "Les nombres de chaque sommet, rangés les uns après les autres.",
       "stride": "Combien de nombres prend chaque sommet.",
       "count": "Combien de sommets il emballe.",
-      "attribute": "Un attribut extrait du paquet, en attribut de flottants à part."
+      "attribute": "Un attribut extrait du paquet, en attribut à part.",
+      "kind": "Un stockage que regardent plusieurs attributs.",
+      "version": "Incrémenté par `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
     }
   },
   "invertMatrix4": {
@@ -2991,7 +2988,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3029,7 +3026,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3067,7 +3064,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3105,7 +3102,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3143,7 +3140,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3181,7 +3178,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3219,7 +3216,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3257,7 +3254,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3295,7 +3292,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3333,7 +3330,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3371,7 +3368,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3409,7 +3406,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3447,7 +3444,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3485,7 +3482,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3543,7 +3540,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3606,7 +3603,7 @@
       "flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "size": "Taille d’un point, pour le matériau de points.",
       "sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "linewidth": "Largeur d’une ligne.",
+      "linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "dashSize": "Longueur d’un tiret.",
       "gapSize": "Longueur de l’espace entre deux tirets.",
       "vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -6492,8 +6489,8 @@
       "transparentDrawCalls": "Appels de dessin transparents.",
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
-      "coverageBudgetLimited": "Le détail demandé ne peut pas coexister avec le repli épinglé dans le budget de pages GPU.",
-      "budgetPixelError": "Plancher d’erreur à l’écran qu’impose à la coupe le budget de pages GPU, en pixels : `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Null pour les moteurs sans budget de pages.",
+      "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
+      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -7155,116 +7152,6 @@
       "handbrake": "Si le frein à main est tiré."
     }
   },
-  "VEHICLE_SPECS": {
-    "summary": "Les trois machines d’où partent les véhicules, par type.",
-    "members": {
-      "car": "Une Chevrolet Corvette C5 : propulsion, 0,32 N·m par kilogramme, six rapports.",
-      "motorcycle": "Une Yamaha XJ900 et son pilote : 0,26 N·m par kilogramme, six rapports.",
-      "tracked": "Un M1 Abrams : une turbine à gaz, 0,083 N·m par kilogramme, quatre rapports."
-    }
-  },
-  "Vehicle": {
-    "summary": "Un véhicule : un corps porté sur des roues par la contrainte de véhicule de Jolt, avec son moteur, sa boîte, ses différentiels, sa suspension et ses barres antiroulis, créé par `vehicle.*` et ajouté à la simulation par `world.physics.add`.",
-    "description": "C’est un `VehicleDriver` : `world.controls.vehicle = car` le conduit.",
-    "parameters": {
-      "options": "Ce qu’accepte `vehicle.*` : les roues, et autant de réglages de la machine qu’on veut (`VehicleSpec`).",
-      "options.wheels": "Les roues : des maillages, enfants du corps, chacun placé à son centre tel qu’il repose sur un sol plat, son essieu le long du x du corps. Rayon et largeur se lisent dans ses bornes. Le corps regarde vers −z : les roues avant braquent.",
-      "options.torquePerKg": "Couple maximal du moteur par kilogramme du corps, en N·m/kg.",
-      "options.idleRPM": "Le ralenti du moteur, en tr/min.",
-      "options.maxRPM": "La zone rouge du moteur, en tr/min.",
-      "options.torqueCurve": "Jusqu’à cinq points `[rpm / maxRPM, couple / pic]`, fractions de régime croissantes.",
-      "options.gears": "Jusqu’à six rapports avant, la première d’abord.",
-      "options.reverse": "Le rapport de la marche arrière.",
-      "options.finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
-      "options.shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
-      "options.shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
-      "options.clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
-      "options.suspensionFrequency": "Fréquence de suspension, en Hz.",
-      "options.suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
-      "options.suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
-      "options.antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
-      "options.turnRadius": "Le rayon de braquage en butée, en mètres.",
-      "options.steerTime": "Secondes du centre à la butée de direction.",
-      "options.brakeGrip": "Le frottement auquel les freins bloquent les roues.",
-      "options.drive": "Les roues motrices d’une voiture.",
-      "options.trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
-      "options.maxLean": "L’inclinaison maximale d’une moto, en radians."
-    },
-    "members": {
-      "kind": "Ce qu’est le véhicule.",
-      "body": "Le corps que portent les roues.",
-      "wheels": "Les roues, enfants du corps.",
-      "spec": "La machine : celle de son type (`VEHICLE_SPECS`), les options par-dessus.",
-      "input": "Les pédales et le volant qu’il reçoit maintenant.",
-      "speed": "Mètres par seconde vers l’avant après le dernier pas, négatif en arrière.",
-      "rpm": "Les tours par minute du moteur après le dernier pas.",
-      "gear": "Le rapport après le dernier pas : 1 et plus en avant, −1 en marche arrière, 0 au point mort.",
-      "drive": "Reçoit les pédales et le volant, à chaque touche qui les change, quand il commence à être conduit, et tout relâché quand il ne l’est plus."
-    }
-  },
-  "VehicleKind": {
-    "summary": "Les véhicules de la physique, chacun sur la contrainte de véhicule de Jolt."
-  },
-  "VehicleOptions": {
-    "summary": "Ce qu’accepte `vehicle.*` : les roues, et autant de réglages de la machine qu’on veut (`VehicleSpec`).",
-    "members": {
-      "wheels": "Les roues : des maillages, enfants du corps, chacun placé à son centre tel qu’il repose sur un sol plat, son essieu le long du x du corps. Rayon et largeur se lisent dans ses bornes. Le corps regarde vers −z : les roues avant braquent."
-    }
-  },
-  "VehicleSpec": {
-    "summary": "De quoi est fait un véhicule : moteur, boîte, suspension, direction et freins, chaque défaut celui d’une vraie machine (`VEHICLE_SPECS`).",
-    "members": {
-      "torquePerKg": "Couple maximal du moteur par kilogramme du corps, en N·m/kg.",
-      "idleRPM": "Le ralenti du moteur, en tr/min.",
-      "maxRPM": "La zone rouge du moteur, en tr/min.",
-      "torqueCurve": "Jusqu’à cinq points `[rpm / maxRPM, couple / pic]`, fractions de régime croissantes.",
-      "gears": "Jusqu’à six rapports avant, la première d’abord.",
-      "reverse": "Le rapport de la marche arrière.",
-      "finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
-      "shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
-      "shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
-      "clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
-      "suspensionFrequency": "Fréquence de suspension, en Hz.",
-      "suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
-      "suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
-      "antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
-      "turnRadius": "Le rayon de braquage en butée, en mètres.",
-      "steerTime": "Secondes du centre à la butée de direction.",
-      "brakeGrip": "Le frottement auquel les freins bloquent les roues.",
-      "drive": "Les roues motrices d’une voiture.",
-      "trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
-      "maxLean": "L’inclinaison maximale d’une moto, en radians."
-    }
-  },
-  "VehicleSpecs": {
-    "summary": "La machine de départ de chaque sorte de véhicule.",
-    "members": {
-      "car": "Une Chevrolet Corvette C5 : propulsion, 0,32 N·m par kilogramme, six rapports.",
-      "motorcycle": "Une Yamaha XJ900 et son pilote : 0,26 N·m par kilogramme, six rapports.",
-      "tracked": "Un M1 Abrams : une turbine à gaz, 0,083 N·m par kilogramme, quatre rapports."
-    }
-  },
-  "vehicle": {
-    "summary": "La famille `vehicle` : un corps et ses roues, conduits par `world.controls` `'vehicle'`.",
-    "members": {
-      "car": "Trois roues ou plus sur deux essieux ou plus, celles de l’avant qui braquent, celles de `drive` motrices.",
-      "motorcycle": "Deux roues, l’avant qui braque, l’arrière motrice ; elle se tient droite d’elle-même.",
-      "tracked": "Des roues sur deux chenilles, gauche et droite, chacune entraînée par sa roue la plus en arrière ; il tourne en ralentissant une chenille, et pivote sur place à l’arrêt."
-    }
-  },
-  "GraphAttribute": {
-    "members": {
-      "count": "Combien de sommets.",
-      "array": "Le stockage.",
-      "kind": "L’attribut possède son tampon.",
-      "version": "Incrémenté par `needsUpdate`.",
-      "updateRanges": "Plages de `array` écrites depuis le dernier envoi, envoyées seules.",
-      "addUpdateRange": "Marque `count` nombres écrits à partir de `start`.",
-      "clearUpdateRanges": "Oublie les plages écrites, une fois envoyées.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    },
-    "summary": "Un attribut qui possède son stockage : `itemSize` nombres par sommet, l’un après l’autre."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Ses attributs de sommets.",
@@ -7359,34 +7246,6 @@
       "rotation": "La rotation, en radians."
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
-  },
-  "GraphArray": {
-    "summary": "Les tableaux typés que tient un attribut."
-  },
-  "GraphElements": {
-    "summary": "L’un ou l’autre genre d’attribut."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Un attribut qui regarde `itemSize` nombres à `offset` de chaque sommet d’un tampon entrelacé.",
-    "members": {
-      "kind": "L’attribut regarde un tampon partagé.",
-      "data": "Le tampon qu’il regarde.",
-      "offset": "Où ses nombres commencent dans chaque sommet.",
-      "array": "Le stockage où vivent les éléments.",
-      "count": "Combien de sommets.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Un stockage que regardent plusieurs attributs, un sommet tous les `stride` nombres.",
-    "members": {
-      "kind": "Un stockage que regardent plusieurs attributs.",
-      "count": "Combien de sommets.",
-      "version": "Incrémenté par `needsUpdate`.",
-      "array": "Le stockage.",
-      "stride": "Nombres par sommet.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    }
   },
   "GraphMesh": {
     "summary": "Un nœud dessiné : une géométrie et sa surface, ou une surface par groupe de la géométrie.",
@@ -7488,6 +7347,142 @@
       "pulley": "Une corde de `a` passant sur deux roues (`over`) jusqu’à `b` : l’un monte quand l’autre descend.",
       "gear": "Deux roues qui tournent ensemble selon `ratio`, chacune autour de son axe (`axis`, `axisB`) et tenue par sa charnière (la roue en est le `a`) ; quand `ratio` ou 1 / `ratio` est entier, leurs dents gardent aussi la phase où elles ont été faites.",
       "rackAndPinion": "Un pignon `a` qui tourne autour d’`axis` entraîne une crémaillère `b` le long d’`axisB`, chacun tenu par sa charnière ou sa glissière (le corps en est le `a`), leurs dents gardées dans la phase où elles ont été faites."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Un attribut qui regarde `itemSize` nombres à `offset` de chaque sommet d’un tampon entrelacé.",
+    "members": {
+      "isInterleavedBufferAttribute": "Toujours `true` : distingue une vue entrelacée de tout le reste.",
+      "kind": "L’attribut regarde un tampon partagé.",
+      "data": "Le tampon qu’il regarde.",
+      "offset": "Où ses nombres commencent dans chaque sommet.",
+      "array": "Le stockage où vivent les éléments.",
+      "count": "Combien de sommets décrivent les nombres.",
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau.",
+      "clone": "Ses propres nombres, copiés hors du paquet dans un attribut qui les possède."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "L’un ou l’autre genre d’attribut : qui possède son stockage ou qui regarde un stockage entrelacé."
+  },
+  "VertexElements": {
+    "summary": "Les éléments d’un attribut de sommet, lus et écrits composante par composante.",
+    "members": {
+      "name": "Le nom sous lequel une cible de morphose est connue ; vide pour les autres.",
+      "itemSize": "Combien de nombres appartiennent à un sommet : 3 pour une position.",
+      "normalized": "Si les nombres entiers se lisent comme des valeurs entre 0 et 1.",
+      "array": "Le stockage où vivent les éléments.",
+      "count": "Combien de sommets décrivent les nombres.",
+      "stored": "Le nombre `component` du sommet `index` tel qu’il est stocké, un entier normalisé non mis à l’échelle.",
+      "getComponent": "Le nombre `component` du sommet `index`, lu comme le nombre qu’il représente.",
+      "setComponent": "Écrit le nombre `component` du sommet `index`.",
+      "getX": "Le premier nombre du sommet `i`.",
+      "getY": "Le deuxième nombre du sommet `i`.",
+      "getZ": "Le troisième nombre du sommet `i`.",
+      "getW": "Le quatrième nombre du sommet `i`.",
+      "setX": "Écrit le premier nombre du sommet `i`.",
+      "setY": "Écrit le deuxième nombre du sommet `i`.",
+      "setZ": "Écrit le troisième nombre du sommet `i`.",
+      "setW": "Écrit le quatrième nombre du sommet `i`.",
+      "setXY": "Écrit deux nombres pour le sommet `i`.",
+      "setXYZ": "Écrit trois nombres pour le sommet `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Les trois machines d’où partent les véhicules, par type.",
+    "members": {
+      "car": "Une Chevrolet Corvette C5 : propulsion, 0,32 N·m par kilogramme, six rapports.",
+      "motorcycle": "Une Yamaha XJ900 et son pilote : 0,26 N·m par kilogramme, six rapports.",
+      "tracked": "Un M1 Abrams : une turbine à gaz, 0,083 N·m par kilogramme, quatre rapports."
+    }
+  },
+  "Vehicle": {
+    "summary": "Un véhicule : un corps porté sur des roues par la contrainte de véhicule de Jolt, avec son moteur, sa boîte, ses différentiels, sa suspension et ses barres antiroulis, créé par `vehicle.*` et ajouté à la simulation par `world.physics.add`.",
+    "description": "C’est un `VehicleDriver` : `world.controls.vehicle = car` le conduit.",
+    "parameters": {
+      "options": "Ce qu’accepte `vehicle.*` : les roues, et autant de réglages de la machine qu’on veut (`VehicleSpec`).",
+      "options.wheels": "Les roues : des maillages, enfants du corps, chacun placé à son centre tel qu’il repose sur un sol plat, son essieu le long du x du corps. Rayon et largeur se lisent dans ses bornes. Le corps regarde vers −z : les roues avant braquent.",
+      "options.torquePerKg": "Couple maximal du moteur par kilogramme du corps, en N·m/kg.",
+      "options.idleRPM": "Le ralenti du moteur, en tr/min.",
+      "options.maxRPM": "La zone rouge du moteur, en tr/min.",
+      "options.torqueCurve": "Jusqu’à cinq points `[rpm / maxRPM, couple / pic]`, fractions de régime croissantes.",
+      "options.gears": "Jusqu’à six rapports avant, la première d’abord.",
+      "options.reverse": "Le rapport de la marche arrière.",
+      "options.finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
+      "options.shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
+      "options.shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
+      "options.clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
+      "options.suspensionFrequency": "Fréquence de suspension, en Hz.",
+      "options.suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
+      "options.suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
+      "options.antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
+      "options.turnRadius": "Le rayon de braquage en butée, en mètres.",
+      "options.steerTime": "Secondes du centre à la butée de direction.",
+      "options.brakeGrip": "Le frottement auquel les freins bloquent les roues.",
+      "options.drive": "Les roues motrices d’une voiture.",
+      "options.trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
+      "options.maxLean": "L’inclinaison maximale d’une moto, en radians."
+    },
+    "members": {
+      "kind": "Ce qu’est le véhicule.",
+      "body": "Le corps que portent les roues.",
+      "wheels": "Les roues, enfants du corps.",
+      "spec": "La machine : celle de son type (`VEHICLE_SPECS`), les options par-dessus.",
+      "input": "Les pédales et le volant qu’il reçoit maintenant.",
+      "speed": "Mètres par seconde vers l’avant après le dernier pas, négatif en arrière.",
+      "rpm": "Les tours par minute du moteur après le dernier pas.",
+      "gear": "Le rapport après le dernier pas : 1 et plus en avant, −1 en marche arrière, 0 au point mort.",
+      "drive": "Reçoit les pédales et le volant, à chaque touche qui les change, quand il commence à être conduit, et tout relâché quand il ne l’est plus."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Les véhicules de la physique, chacun sur la contrainte de véhicule de Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Ce qu’accepte `vehicle.*` : les roues, et autant de réglages de la machine qu’on veut (`VehicleSpec`).",
+    "members": {
+      "wheels": "Les roues : des maillages, enfants du corps, chacun placé à son centre tel qu’il repose sur un sol plat, son essieu le long du x du corps. Rayon et largeur se lisent dans ses bornes. Le corps regarde vers −z : les roues avant braquent."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "De quoi est fait un véhicule : moteur, boîte, suspension, direction et freins, chaque défaut celui d’une vraie machine (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Couple maximal du moteur par kilogramme du corps, en N·m/kg.",
+      "idleRPM": "Le ralenti du moteur, en tr/min.",
+      "maxRPM": "La zone rouge du moteur, en tr/min.",
+      "torqueCurve": "Jusqu’à cinq points `[rpm / maxRPM, couple / pic]`, fractions de régime croissantes.",
+      "gears": "Jusqu’à six rapports avant, la première d’abord.",
+      "reverse": "Le rapport de la marche arrière.",
+      "finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
+      "shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
+      "shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
+      "clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
+      "suspensionFrequency": "Fréquence de suspension, en Hz.",
+      "suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
+      "suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
+      "antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
+      "turnRadius": "Le rayon de braquage en butée, en mètres.",
+      "steerTime": "Secondes du centre à la butée de direction.",
+      "brakeGrip": "Le frottement auquel les freins bloquent les roues.",
+      "drive": "Les roues motrices d’une voiture.",
+      "trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
+      "maxLean": "L’inclinaison maximale d’une moto, en radians."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "La machine de départ de chaque sorte de véhicule.",
+    "members": {
+      "car": "Une Chevrolet Corvette C5 : propulsion, 0,32 N·m par kilogramme, six rapports.",
+      "motorcycle": "Une Yamaha XJ900 et son pilote : 0,26 N·m par kilogramme, six rapports.",
+      "tracked": "Un M1 Abrams : une turbine à gaz, 0,083 N·m par kilogramme, quatre rapports."
+    }
+  },
+  "vehicle": {
+    "summary": "La famille `vehicle` : un corps et ses roues, conduits par `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Trois roues ou plus sur deux essieux ou plus, celles de l’avant qui braquent, celles de `drive` motrices.",
+      "motorcycle": "Deux roues, l’avant qui braque, l’arrière motrice ; elle se tient droite d’elle-même.",
+      "tracked": "Des roues sur deux chenilles, gauche et droite, chacune entraînée par sa roue la plus en arrière ; il tourne en ralentissant une chenille, et pivote sur place à l’arrêt."
     }
   }
 }
