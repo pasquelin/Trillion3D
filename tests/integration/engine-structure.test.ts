@@ -40,6 +40,7 @@ const RESOLVENT: Record<string, string> = {
   'host/graph/node.ts': 'the engine’s own node: the resolution `resolveCameraWorld` calls on it',
   'host/graph/camera.ts': 'the engine’s own camera: its resolution keeps the inverse beside it',
   'physics/bodies.ts': 'a body the page moved, not a camera',
+  'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',
 };
 
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
