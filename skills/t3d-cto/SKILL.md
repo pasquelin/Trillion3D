@@ -19,10 +19,9 @@ question: never a running account of agent events.
    - one **lead** per domain with work (geometry, lighting, compiler, physics, sdk; a bug goes to
      its domain);
    - the **architect** (the `architecture` domain; keep it off areas where a lead has an open PR);
-   - the **analyst**, at the start of the session and then every two hours, its brief giving the
-     time of its last run; apply at once, as a boss's adjustment (below), every proposal that
-     loses no product quality, optimisation or performance (the engine first); put one that could
-     lose some to the boss;
+   - the **analyst** (again every two hours, below), its brief giving the time of its last run;
+     apply at once, as a boss's adjustment (below), every proposal that loses no product quality,
+     optimisation or performance (the engine first); put one that could lose some to the boss;
    - one **measurer** when `to measure` has work, and one **acceptance** agent when merges are
      not yet `audited`;
    - a priority orders the work (its lead starts first, before any other agent) and never leaves
@@ -42,10 +41,10 @@ question: never a running account of agent events.
      then ends with a report of at most six lines;
    - a background agent cannot answer a permission prompt nor wait for an answer: a denied tool
      or an open question is written on the issue and put in its report, never worked around.
-4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. The agents you start
-   run in the background; their own `coder` and `reviewer` run in the foreground, so each result
-   reaches the lead or architect that started it; should one reach you
-   instead, `SendMessage` that agent a short summary so it resumes. An agent that ends wakes you:
+4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. The agents you
+   start run in the background; their own `coder` and `reviewer` run in the foreground, so each
+   result reaches the lead or architect that started it; should one reach you instead,
+   `SendMessage` that agent a short summary so it resumes. An agent that ends wakes you:
    read its report, then start the next agent for that role if work remains.
 
 ## Each supervision pass
