@@ -2095,7 +2095,8 @@
       "affectedConsumers": [
         "bench/perf/browser/lamp-shadows.perf.ts",
         "packages/sdk-browser/src/webgpu/pages/state/lights.ts",
-        "packages/sdk-browser/src/webgpu/shadow/poolSize.ts"
+        "packages/sdk-browser/src/webgpu/shadow/poolSize.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/plan\".createShadowPlan"
@@ -3129,6 +3130,7 @@
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/page/cut/state.ts",
         "packages/sdk-browser/src/webgl/cluster/copyCulling.ts",
@@ -3187,6 +3189,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/page/cut/select.ts"
       ],
       "disposition": "retained",
@@ -3217,6 +3220,7 @@
         "bench/perf/browser/support/volumeFrustumPlaneCases.ts",
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "tests/browser/probes/inverseTransposeCases.ts"
       ],
       "disposition": "retained",
@@ -5126,6 +5130,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/partition/uniform.ts",
         "packages/sdk-browser/src/taa/frame.ts"
       ],
@@ -5365,6 +5370,7 @@
         "packages/sdk-browser/src/backend/autonomous/instancePose.ts",
         "packages/sdk-browser/src/camera/renderOrigin.test.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
         "packages/sdk-browser/src/guides/guideObject.ts",
@@ -7894,9 +7900,10 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/shadow/batchBudget.ts",
         "packages/sdk-browser/src/gpu/shadow/cull.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeShadowBatches.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/casters.ts",
-        "packages/sdk-browser/src/webgpu/shadow/cpuCut.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
         "packages/sdk-browser/src/webgpu/shadow/regions.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/regions.ts"

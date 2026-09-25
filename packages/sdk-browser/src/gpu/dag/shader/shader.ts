@@ -11,8 +11,9 @@ import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
-import { DAG_VIEWS_WGSL } from './viewsWgsl.ts';
+import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
+import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
 import {
   CONE_LENGTH_RATIO_WGSL,
@@ -27,8 +28,8 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
 // \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
-// \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`pad\` brings the block to its 256-byte stride.
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,pad:u32,}
+// \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,reserved:array<u32,2>,pages:array<u32>,}
 ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
@@ -38,13 +39,16 @@ const FRAME:u32=7u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
  *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
- for(var i=0u;i<6u;i++){
-  let plane=frames[base+i];
-  let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
-  if(dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0){return true;}
- }
+ for(var i=0u;i<6u;i++){if(outsidePlane(frames[base+i],bmin,bmax)){return true;}}
  return false;
 }
+/** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
+fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
+ let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
+ return dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0;
+}
+/** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
+fn unculledOf(w:u32)->bool{return (spriteOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 /** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
  *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
@@ -110,7 +114,13 @@ fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStr
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let t=id.x;
- if(t==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
+ if(t==0u){
+  // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
+  // the list-full bit carry on, the other flags are the batch's own.
+  if((views[0u].viewFlags&VIEW_APPEND)==0u){atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);}
+  else{atomicAnd(&out.overflow,${LIST_FULL}u);}
+  atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
+ }
  if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}
  if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
  if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);}
@@ -122,8 +132,8 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&spriteOf(w)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
  let m=transpose(worlds[w]);let base=slot*FRAME;
- // A primitive a camera never culls (\`SPRITE_UNCULLED\`) takes six planes no box leaves.
- let open=!isLightCut()&&(spriteOf(w)&${SPRITE_UNCULLED}u)!=0u;
+ // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
+ let open=!isLightCut()&&unculledOf(w);
  for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
 }
 @compute @workgroup_size(64)
@@ -165,4 +175,5 @@ ${DAG_LEVEL_WGSL}
 ${DAG_FLOOR_WGSL}
 ${DAG_PAGES_WGSL}
 ${DAG_VIEWS_WGSL}
-${DAG_RECORD_WGSL}`;
+${DAG_RECORD_WGSL}
+${DAG_AHEAD_WGSL}`;

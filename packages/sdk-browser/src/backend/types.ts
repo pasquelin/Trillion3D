@@ -185,9 +185,7 @@ export interface BackendContext {
   stageProfile?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
-  /** Shadows-step budget, in GPU milliseconds per frame (`LIGHT_SETTINGS`); page-by-page
-   *  shadow-map invalidation, on by default. */
-  shadowBudgetMs?: number;
+  /** Page-by-page shadow-map invalidation, on by default. */
   shadowPageInvalidation?: boolean;
   /** Reads the resident-proxy cache object. Absent when the cache does not carry one;
    *  called at most once, on the first frame that carries a declared light. */
