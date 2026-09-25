@@ -2,8 +2,9 @@
 // too small for its leaves. The kernel therefore wants missing pages, and the cut climbs to the
 // resident ancestor — the very path where GPU selection used to be thrown away.
 //
-// Nothing is inspected from the inside: only the public counters `cpuSelectMs` (null while GPU
-// cut still chooses) and `gpuSelectionFallback` (false while it has not been abandoned) decide.
+// Nothing is inspected from the inside: the public counters `cpuSelectMs` (null while GPU cut
+// still chooses) and `gpuSelectionFallback` (false while it has not been abandoned), and the drawn
+// cut the engine publishes (`selectedPageIds`), whose coverage the proof checks leaf by leaf.
 import type {
   BackendDiagnostic,
   RenderBackend,
@@ -17,11 +18,17 @@ import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
 
 const IMAGES = 30;
 
-/** `RenderBackend` does not declare `cpuFrameEnd` publicly; the object `webgpuPagesBackend`
- *  returns still carries it (`packages/sdk-browser/src/webgpu/pages/pages.ts`). Read here through a local
- *  extension of the public type rather than widening it in the engine. */
-interface BackendAvecCpuFrameEnd extends RenderBackend {
+/** The fixture strip runs along x from -2 to 2, one leaf per unit: the units each page spans. */
+type PageSpan = { url: string; units: [number, number] };
+const spansOf = (pages: readonly { url: string; min: number[]; max: number[] }[]): PageSpan[] =>
+  pages.map((page) => ({ url: page.url, units: [page.min[0] + 2, page.max[0] + 2] }));
+
+/** `RenderBackend` declares neither `cpuFrameEnd` nor `selectedPageIds` publicly; the object
+ *  `webgpuPagesBackend` returns still carries them (`packages/sdk-browser/src/webgpu/pages/pages.ts`).
+ *  Read here through a local extension of the public type rather than widening it in the engine. */
+interface BackendDeLaPreuve extends RenderBackend {
   cpuFrameEnd?(): void;
+  selectedPageIds(): string[];
 }
 
 export async function executer() {
@@ -54,13 +61,13 @@ export async function executer() {
       i: number;
       cpuSelectMs: number | null;
       gpuSelectionFallback: boolean | null;
-      uncoveredTriangles: number | null;
+      drawn: string[];
       clusters: number | null;
       residentPages: number | null;
     }[] = [];
   if (!backend.flush) throw new Error('backend missing flush');
   const flush = backend.flush;
-  const withCpuFrameEnd = backend as BackendAvecCpuFrameEnd;
+  const engine = backend as BackendDeLaPreuve;
   try {
     await backend.prepare();
     // Loading: pages requested by the cut arrive, then measurement begins.
@@ -70,14 +77,14 @@ export async function executer() {
     }
     for (let i = 0; i < IMAGES; i++) {
       backend.render(camera);
-      withCpuFrameEnd.cpuFrameEnd?.();
+      engine.cpuFrameEnd?.();
       await flush();
       const m = backend.metrics();
       images.push({
         i,
         cpuSelectMs: m.cpuSelectMs ?? null,
         gpuSelectionFallback: m.gpuSelectionFallback ?? null,
-        uncoveredTriangles: m.uncoveredTriangles ?? null,
+        drawn: engine.selectedPageIds(),
         clusters: m.clusters ?? null,
         residentPages: m.residentPages ?? null,
       });
@@ -91,5 +98,6 @@ export async function executer() {
     fixture.geometry.dispose();
   }
   const info = await appareil.fermer();
-  return { adaptateur: info.court, images, evenements, erreurs };
+  const pages = spansOf(fixture.metadata.primitives[0].pages);
+  return { adaptateur: info.court, pages, images, evenements, erreurs };
 }
