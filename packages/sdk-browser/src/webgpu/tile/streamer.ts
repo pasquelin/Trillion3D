@@ -149,7 +149,7 @@ export function createWebgpuTileStreamer(options: {
      *  on or off: the rows that wear it change resolve class. */
     followSampling() {
       colorChanged.clear();
-      const found = followHeaders(false, colorChanged, sources);
+      const found = followHeaders(false, colorChanged, sources.refresh);
       if (!(found & HEADERS_WRITTEN)) return false;
       flushAll();
       options.onColorChanged(colorChanged);

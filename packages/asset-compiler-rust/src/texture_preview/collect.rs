@@ -116,10 +116,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // (`alphaTest > 0`, `collectWebgpuMaterialTextures`), the RGB under alpha 0 included.
         // So does a mode glTF does not name, which the material table writes `OPAQUE`
         // (`compiler_tables/materials.rs`): only BLEND and a cutting MASK take coverage.
-        // A transmissive BLEND tints what crosses it by its base colour whatever its alpha
-        // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
-        let transmits = crate::compiler_materials::unsplit_material(Some(material));
-        let coverage = (mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0);
+        let coverage = mode == Some("BLEND") || cutoff.is_some_and(|c| c > 0.0);
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
