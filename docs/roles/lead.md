@@ -13,9 +13,9 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
-2. **Design note, then code.** Before the first coder, comment on the issue in 3–5 lines: the
-   approach, the budget it holds, the paths it touches (WebGPU, WebGL2, CPU cut) and the two
-   scenes that prove it. For a `measure ko` whose cause is `tests`, the note names the fast test
+2. **Design note, then code.** Before the first coder, comment on the issue what its To do, Code
+   context and Proof leave open among: the approach, the budget it holds, the paths it touches
+   (WebGPU, WebGL2, CPU cut) and the two scenes that prove it; one line when they already say it. For a `measure ko` whose cause is `tests`, the note names the fast test
    (no Chrome) that will catch the failing case when one can express it. Then launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
    (`run_in_background: false`, as every subagent you start) so its result comes back to you, with a
    brief that names the issue, the files to read and, when the batch needs one, the live example
