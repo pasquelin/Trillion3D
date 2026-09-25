@@ -11,6 +11,7 @@ import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts';
 import type { GltfDocument } from './gltf-types.ts';
 import { writeRing } from './ring.ts';
 import { writeTerrain } from './terrain.ts';
+import { writeTerrainTiles } from './terrain-tiles.ts';
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in
@@ -181,6 +182,7 @@ export const modelScenes = {
   'detail-by-pixel-error': inCode(writeAvenue),
   'ten-thousand-objects': inCode(writeRing),
   terrain: inCode(writeTerrain),
+  'terrain-tiles': inCode(writeTerrainTiles),
 };
 
 /** Assembles the source folder of the model scenes `names` under `examples` from `models`. */

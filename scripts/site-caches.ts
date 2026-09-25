@@ -15,9 +15,15 @@ import {
 const ROOT = resolve(import.meta.dirname, '..');
 
 /** A scene folder, relative to the root, holding `source` and the `cache` compiled from it. */
-export interface CookedScene extends Pick<FullCompile, 'source' | 'simplification' | 'stdio'> {
+export interface CookedScene extends Pick<
+  FullCompile,
+  'source' | 'cache' | 'simplification' | 'stdio'
+> {
   directory: string;
 }
+
+/** The folder of `scene`'s cache, relative to its directory: `cache` unless it names another. */
+export const cacheOf = ({ cache = 'cache' }: CookedScene) => cache;
 
 const example = (name: string): CookedScene => ({
   directory: `site/assets/examples/${name}`,
@@ -27,9 +33,15 @@ const example = (name: string): CookedScene => ({
 });
 
 /** Every cooked scene: the examples (the hall's source is committed as is, written by no
- *  script), the gallery's and the two scenes only the tests read. */
+ *  script), the terrain tiles' exact cook beside their simplified one (#414), the gallery's and
+ *  the two scenes only the tests read. */
 export const COOKED_SCENES: Record<string, CookedScene> = {
   ...Object.fromEntries([...Object.keys(modelScenes), 'hall'].map((name) => [name, example(name)])),
+  'terrain-tiles-none': {
+    ...example('terrain-tiles'),
+    cache: 'cache-none',
+    simplification: 'none',
+  },
   observatory: {
     directory: 'site/assets/gallery/signature-architecture',
     source: 'source/geometry.gltf',
@@ -52,7 +64,8 @@ export const sourceOf = ({ directory }: CookedScene, root = ROOT) =>
 
 /** Written beside a compiled cache: the options it was compiled with and the source files it
  *  read, so a file removed or renamed since, which no timestamp shows, makes it stale. */
-const STAMP = 'cache/compiled-with.json';
+const stampPath = (scene: CookedScene, root = ROOT) =>
+  resolve(root, scene.directory, cacheOf(scene), 'compiled-with.json');
 const stampOf = (scene: CookedScene, root = ROOT) => {
   const { source, simplification = 'none' } = scene;
   const files = readdirSync(sourceOf(scene, root), { recursive: true }).map(String).sort();
@@ -72,17 +85,18 @@ function compilerTime(): number | null {
 /** Compiles the cache of `scene` again, from nothing, and stamps it. */
 export function compileCache(scene: CookedScene): void {
   const { directory, ...compile } = scene;
-  const cwd = resolve(ROOT, directory);
-  rmSync(resolve(cwd, 'cache'), { recursive: true, force: true });
-  compileFullCache({ cwd, ...compile });
-  rmSync(resolve(cwd, 'cache/native/.lock'), { force: true });
-  writeFileSync(resolve(cwd, STAMP), stampOf(scene));
+  const cwd = resolve(ROOT, directory),
+    cache = cacheOf(scene);
+  rmSync(resolve(cwd, cache), { recursive: true, force: true });
+  compileFullCache({ cwd, ...compile, cache });
+  rmSync(resolve(cwd, cache, 'native/.lock'), { force: true });
+  writeFileSync(stampPath(scene), stampOf(scene));
 }
 
 /** Whether the cache of `scene` is missing, compiled with other options, or older than a file of
  *  its source or than the compiler built at `compiled`. */
 export function isStale(scene: CookedScene, root = ROOT, compiled = compilerTime()): boolean {
-  const stamp = resolve(root, scene.directory, STAMP);
+  const stamp = stampPath(scene, root);
   if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== stampOf(scene, root)) return true;
   const since = statSync(stamp).mtimeMs;
   return (compiled ?? 0) > since || firstNewer(sourceOf(scene, root), since) !== null;
