@@ -124,8 +124,10 @@ to the capture target and the canvas in one pass.
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
 instead of one program that tests every feature per pixel. A class is the set of features the
 resolve would branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and
-normal maps, vertex normals, double-sidedness, tangents — an eleven-bit word carried by every page
-row. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
+normal maps, vertex normals, double-sidedness, tangents, filtered sampling, vertex colours — a
+thirteen-bit word carried by every page row. A vertex-coloured class multiplies the base colour by
+the page's `COLOR_0` when its material asks for vertex colours, as the transparent pass and the
+WebGL2 path do; geometry read as floats carries its colours at the tail of its UV buffer, which every page-geometry pass binds. A masked surface is cut at base map alpha times vertex alpha, as the reference cuts. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
 the `Trillion3D material depth` pass writes every pixel's class as an exact depth value, then one full-screen
 triangle per present class runs under `depthCompare: 'equal'`, so the hardware keeps that class's
 pixels and its fragment stage reads only the maps it has. The `material-classes-ready` diagnostic
