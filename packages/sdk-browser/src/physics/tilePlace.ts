@@ -1,4 +1,5 @@
 import type { CookedInstance, CookedTile } from '../../../sdk-core/src/physics/index.ts';
+import { boxTransform } from '../../../sdk-core/src/math/primitives/box.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
@@ -19,7 +20,8 @@ export interface Placed {
   tile: CookedTile;
   /** The glTF material of every triangle the tile holds, `-1` for none: its collider's. */
   material: number;
-  box: Box3;
+  /** Its world box, six values (`boxTransform`). */
+  box: Float64Array;
   /** The body's engine id once resident, -1 while out. */
   id: number;
   /** Its bytes are on their way. */
@@ -50,18 +52,8 @@ export function tilePose(p: Placed) {
 
 /** Places a tile's world box from its pose. */
 export function locate(p: Placed) {
-  const b = p.tile.bounds;
-  p.box.set({ x: b[0], y: b[1], z: b[2] }, { x: b[3], y: b[4], z: b[5] });
-  p.box.applyMatrix4(tilePose(p).place);
+  boxTransform(p.box, 0, p.tile.bounds, 0, tilePose(p).place.elements);
 }
-
-/** The distance from a point to a box, 0 inside. */
-export const boxDistance = (box: Box3, x: number, y: number, z: number) =>
-  Math.hypot(
-    Math.max(box.min.x - x, 0, x - box.max.x),
-    Math.max(box.min.y - y, 0, y - box.max.y),
-    Math.max(box.min.z - z, 0, z - box.max.z),
-  );
 
 /**
  * Where each moving body wants ground: `x, y, z, reach` per dynamic body, the reach its half size

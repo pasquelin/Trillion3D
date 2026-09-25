@@ -36,7 +36,7 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
     camera: {} as never,
     lookAtTarget: { x: 0, y: 0, z: 0 },
     setPose: () => {},
-    streaming: { arrivals: { drain: () => {} } } as never,
+    streaming: { arrivals: { open: () => {}, drain: () => {} } } as never,
     drawBackend: () => {},
     ensureTarget: ((target?: unknown) => target) as never,
     directGpu: options.directGpu,

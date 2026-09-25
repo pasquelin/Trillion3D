@@ -27,7 +27,8 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
   const decodeFailures = new Set<string>();
   // Page arrivals no longer enter the frame that discovers them: the queue stacks them and a
   // single bounded drain, at the head of `render()`, makes them resident before selection of
-  // the next frame. The ceiling is TIME — 2 ms of integration per frame; 512 KiB of index and 64 pages
+  // the next frame. The ceiling is TIME — 2 ms of integration per frame, the one budget the cells
+  // of a partitioned scene spend from too (`partitionFrame.ts`); 512 KiB of index and 64 pages
   // double it without ever replacing it, because a streaming packet carries a cluster count
   // unknown in advance and no byte count then bounds the duration.
   const arrivals = createArrivalQueue(512 * 1024, 64, ARRIVAL_BUDGET_MS);
