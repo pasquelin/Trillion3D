@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Begrenzte Lesevorgänge, nach Priorität und ohne Duplikat.",
-    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt sowohl in Einträgen als auch in Bytes; angeheftete Einträge überleben die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Festhalten behält."
+    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt sowohl in Einträgen als auch in Bytes; angeheftete Einträge überleben die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Festhalten behält.",
+    "parameters": {
+      "options": "Wie ein Seiten-Streamer liest (`createPageStreamer`). Neben seinen Seiten reserviert sein Cache seine Manifest-Tabellen und seine Übertragungswarteschlange; jedes Mitglied hat einen Standardwert.",
+      "options.signal": "Bricht jeden Lesevorgang ab, sobald es abgebrochen wird.",
+      "options.workerCount": "Gleichzeitig laufende Lesevorgänge; standardmäßig 8.",
+      "options.maxPages": "Höchstzahl gleichzeitig gehaltener Seiten; ohne Angabe nur durch Bytes begrenzt.",
+      "options.onEvict": "Hört jede Seite, die den Cache verlässt.",
+      "options.maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
+      "options.onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
+      "options.maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Ein Regler."
@@ -2875,12 +2885,9 @@
       "spotEdgeSoftness": "Breite des weichgezeichneten Randes des Kegels eines Spots, in Kosinuseinheiten: gegen den Treppeneffekt.",
       "sunFarShadowOffsetMetres": "Versatz des Ursprungs des fernen Schattenstrahls entlang der Normale, in Metern. Er dient nur dazu, die Ebene der beleuchteten Oberfläche zu verlassen; das wahre Mittel gegen Selbstverschattung ist der Start entlang des Strahls, weiter unten.",
       "sunFarShadowStartCells": "Start des fernen Schattenstrahls entlang seiner eigenen Richtung, in Zellen des Proxys. Der beleuchtete Punkt kommt von der feinen Geometrie, das Hindernis vom groben Proxy: wo der Proxy über der wahren Oberfläche liegt, würde ein von null gestarteter Strahl die Oberfläche berühren, die er beleuchtet. Eine Proxy-Zelle ist die Skala, unter der der Proxy nichts aussagt; von dort zu starten vermeidet diesen falschen Kontakt, ohne einen Schatten zu erfinden. Die Folge ist benannt: ein Hindernis weniger als eine Zelle entlang des Strahls trägt keinen fernen Schatten, und dieser bleibt bei den Clipmap-Stufen.",
-      "shadowDepthBias": "Schatten-Bias in Metern, nie in Tiefeneinheiten: die projizierte Tiefe einer Kachel ist sehr nichtlinear, eine Konstante in normalisierter Tiefe würde Meter nahe dem Licht und Millimeter in der Ferne ergeben. Der Shader wandelt diese Meter am betrachteten Punkt in Tiefe um.",
-      "shadowSlopeBias": "Neigungs-Bias, in Metern pro Einheit von `tan(acos(N·L))`, gedeckelt durch `shadowSlopeBiasMax`.",
-      "shadowSlopeBiasMax": "Größter Neigungs-Bias.",
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
-      "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
+      "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Texeln der gelesenen Karte: ein halbes Texel, der Spielraum für das, was nicht die Ebene des Empfängers ist — seine Krümmung innerhalb eines Texels, die Rundung beider Tiefen. Die Neigung des Empfängers deckt ein Tiefenspielraum über die Reichweite des PCF ab, jenseits von 45° ein weiterer Versatz, in denselben Texeln (`shadowDepthMargin`, `shadowNormalTexels`): kein Bias ist eine Länge der Szene.",
       "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels, nie eine Grenze des Bildes. Ein Bild zeichnet jede Seite, die es markiert, in so vielen Stapeln wie nötig.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
@@ -4623,6 +4630,19 @@
     "members": {
       "source": "Woher die Seiten gelesen werden.",
       "workers": "Wie viele Arbeiter gleichzeitig Seiten abrufen und dekodieren."
+    }
+  },
+  "PageStreamerOptions": {
+    "summary": "Wie ein Seiten-Streamer liest (`createPageStreamer`).",
+    "description": "Neben seinen Seiten reserviert sein Cache seine Manifest-Tabellen und seine Übertragungswarteschlange; jedes Mitglied hat einen Standardwert.",
+    "members": {
+      "signal": "Bricht jeden Lesevorgang ab, sobald es abgebrochen wird.",
+      "workerCount": "Gleichzeitig laufende Lesevorgänge; standardmäßig 8.",
+      "maxPages": "Höchstzahl gleichzeitig gehaltener Seiten; ohne Angabe nur durch Bytes begrenzt.",
+      "onEvict": "Hört jede Seite, die den Cache verlässt.",
+      "maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
+      "onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
+      "maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB."
     }
   },
   "PanZoomCameraControls": {
@@ -6568,7 +6588,7 @@
       "texturePool": "Bytes GPU-Speicher für Texturseiten, `null` bei einer Engine ohne Textur-Pool (WebGL2); setze ihn, um die Hülle zu ändern, innerhalb dessen, was `gpu` neben den Schatten, den Bounce-Sonden und dem Geometrie-Pool lässt.",
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
-      "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter dem Schatten-Pool wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
+      "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter den drei festen Anteilen — dem Schatten-Pool, den Bounce-Sonden und den Effektzielen — wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
       "canvas": "Die größte Leinwand, die die Welt angibt, in Pixeln des Zeichenpuffers: Die Ziele der Effektkette werden in ihrer Größe reserviert (`split.effectTargets`); standardmäßig 3840 × 2160, und das Standard-`gpu` wächst nur um diese Reserve. Setze sie, um jeden Pool nach der Aufteilung neu zu verteilen. Eine größer gezeichnete Leinwand wird trotzdem vollständig gerendert: Die Diagnose meldet `effect targets over budget` mit den Bytes über der Reserve.",
       "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten, ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine zusammen. Eine Änderung gilt sofort: Seiten gehen nach letzter Nutzung, bis sie passen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
       "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool und die Bounce-Sonden in voller Größe, die Ziele der Effektkette auf der angegebenen `canvas`, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe, ganz, und darin reserviert die laufende Sitzung ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
