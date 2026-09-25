@@ -63,7 +63,7 @@ compares one integer; visibility, parent and a light's numbers are compared per 
 What the engine computes — matrices, vectors, colours, its camera, the side of a material — it
 builds on `sdk-core`. A resource crosses the host boundary as the shapes of
 `packages/sdk-browser/src/host/resources.ts` (`HostMaterial`, `HostTexture`, `HostAttributes`,
-`HostMesh`, `HostNode`, `HostScene`) and is read in one place,
+`HostMesh`, `HostScene`; a node is the core's `Object3D`) and is read in one place,
 `packages/sdk-browser/src/host/surfaceImport.ts`, into the engine's own `Material` and `Texture`
 (`packages/sdk-core/src/contracts/material.ts`, `packages/sdk-core/src/texture/contract.ts`). Every
 pass, page row, tile pool and transparent item computes on those records alone; a page carries

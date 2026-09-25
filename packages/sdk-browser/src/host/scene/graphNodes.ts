@@ -4,13 +4,14 @@
  * `../resources.ts` names what the engine READS of its graph — a surface, a texture, a geometry,
  * a node held by identity. This file names the same graph as the engine WALKS: the pose it
  * reads to compute a world matrix of its own, the fields a watch compares frame after frame,
- * the chain it climbs. Every node is one of the engine's own (`../graph/`), told apart by its
- * `kind` (`../graph/kinds.ts`); the pose shapes below stay shapes because a camera controller
+ * the chain it climbs. Every node is the core's `Object3D`: a group or a bare node as the core
+ * builds it, a node that draws, looks or lights one of the engine's own (`../graph/`), told apart
+ * by its `kind` (`../graph/kinds.ts`); the pose shapes below stay shapes because a camera controller
  * writes them on whatever pose it is handed.
  */
 import type { GraphAnyLight } from '../graph/kinds.ts';
 import type { GraphMesh } from '../graph/mesh.ts';
-import type { GraphNode } from '../graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { HostGraphGeometry } from './graphResources.ts';
 import type { HostBox } from '../resources.ts';
 
@@ -41,20 +42,12 @@ export type HostRotation = {
   set(x: number, y: number, z: number, w: number): unknown;
 };
 
-/** A node of the graph as a walk sees it: its identity, its local pose, its world matrix and
- *  its chain. The engine computes its OWN world matrices from the local poses
- *  (`../world/tree.ts`). */
-export type HostGraphNode = GraphNode;
-
-/** A node the engine adds copies to: the group a replication hangs its instances on. */
-export type HostGraphGroup = GraphNode;
-
 /** A drawn node of the graph: its geometry and its surface, or one per geometry group. */
 export type HostGraphMesh = GraphMesh;
 
 /** A node that bounds itself, or whose geometry does: the two boxes the bounds rule reads
  *  (`../world/bounds.ts`), the node's own winning over its geometry's as the reference does. */
-export type HostBoundedNode = GraphNode & {
+export type HostBoundedNode = Object3D & {
   readonly geometry?: HostGraphGeometry;
   boundingBox?: HostBox | null;
   computeBoundingBox?(): void;

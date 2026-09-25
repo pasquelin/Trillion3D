@@ -29,7 +29,7 @@ export function sceneTransparente(pagine: boolean): ScenePreparee {
     }),
   );
   vitre.name = 'vitre';
-  const pivot = new G.GraphGroup();
+  const pivot = new G.Group();
   pivot.name = 'pivot';
   pivot.add(vitre);
   bati.source.add(pivot);
