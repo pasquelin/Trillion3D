@@ -40,11 +40,12 @@ impl AtlasKind {
 /// so baking levels instead of regenerating them does not change the image: each
 /// level is computed from the PREVIOUS level already quantised to bytes, never
 /// from a kept float; colours are the mean of the four texels, decoded then
-/// re-encoded by the atlas curve; alpha is the MEDIAN of the four, the mean of
-/// the two middle values, which keeps a cutout-threshold coverage from one level
-/// to the next; an odd side repeats its last texel, like `min(p + 1, hi)` in the
-/// shader. Neither premultiplication nor a curve declared by the file: the atlas
-/// does not know them, and the pyramid follows display, not the file.
+/// re-encoded by the atlas curve, weighted by alpha in the colour atlas
+/// (`colour_mean`); alpha is the MEDIAN of the four, the mean of the two middle
+/// values, which keeps a cutout-threshold coverage from one level to the next; an
+/// odd side repeats its last texel, like `min(p + 1, hi)` in the shader. No curve
+/// declared by the file: the atlas does not know it, and the pyramid follows
+/// display, not the file.
 pub(super) fn chain(source: &image::RgbaImage, kind: AtlasKind) -> Vec<Vec<u8>> {
     let (width, height) = (source.width(), source.height());
     let last = preview_last_level(width, height);
@@ -96,19 +97,38 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             let x1 = (column * 2 + 1).min(width - 1);
             let at = |x: usize, y: usize| (y * width + x) * 4;
             let texels = [at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1)];
-            for channel in 0..3 {
-                let mean = texels
-                    .iter()
-                    .map(|&t| table[previous[t + channel] as usize])
-                    .sum::<f32>()
-                    * 0.25;
-                out.push(encode(mean, kind));
-            }
             let a: [f32; 4] = std::array::from_fn(|i| f32::from(previous[texels[i] + 3]) / 255.0);
+            let weights = (kind == AtlasKind::Color && a.iter().any(|&w| w != a[0])).then_some(a);
+            for channel in 0..3 {
+                let values = texels.map(|t| table[previous[t + channel] as usize]);
+                out.push(encode(colour_mean(values, weights), kind));
+            }
             let u = a[0].max(a[1]).min(a[2].max(a[3]));
             let v = a[0].min(a[1]).max(a[2].min(a[3]));
             out.push(((u + v) * 0.5 * 255.0).round() as u8);
         }
     }
     out
+}
+
+/// Colour of the next texel: the mean of the four, weighted by `weights` when given.
+///
+/// A transparent texel is no colour — its RGB, often black, used to darken the borders of
+/// alpha-masked foliage at the coarse levels (#42). In the colour atlas the four linear colours
+/// are therefore premultiplied, averaged, and divided by the summed alpha: the atlas stores
+/// straight alpha, and an opaque texel beside transparent ones keeps its colour.
+///
+/// `weights` is `None`, and the mean the plain one it always was, byte for byte, whenever
+/// weighting cannot change it: four equal alphas — an opaque texture, a uniform one, a fully
+/// transparent one — weigh the four alike. It is `None` too in the data atlas: its alpha is not
+/// coverage there — a packed channel, a height, a roughness beside a normal — and weighting a
+/// normal by it would bend the normal, not hide a border.
+fn colour_mean(values: [f32; 4], weights: Option<[f32; 4]>) -> f32 {
+    match weights {
+        Some(alphas) => {
+            let premultiplied: f32 = values.iter().zip(alphas).map(|(v, a)| v * a).sum();
+            premultiplied / alphas.iter().sum::<f32>()
+        }
+        None => values.iter().sum::<f32>() * 0.25,
+    }
 }
