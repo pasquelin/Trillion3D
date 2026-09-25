@@ -360,6 +360,22 @@
       "up": "ATAS"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Seret untuk melihat sekeliling. Pilih kabutnya, jangkauannya, dan warnanya.",
+    "controls": {
+      "fog": "Kabut",
+      "reach": "Jangkauan",
+      "height": "Ketinggian",
+      "colour": "Warna"
+    },
+    "choices": {
+      "fog": {
+        "distance": "jarak",
+        "thick": "tebal",
+        "ground": "di tanah"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Geser untuk melihat sekeliling. Manik-manik meluncur di sepanjang tabung.",
     "controls": {

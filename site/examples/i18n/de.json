@@ -360,6 +360,22 @@
       "up": "OBEN"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Ziehen, um sich umzusehen. Wähle den Nebel, seine Reichweite und seine Farbe.",
+    "controls": {
+      "fog": "Nebel",
+      "reach": "Reichweite",
+      "height": "Höhe",
+      "colour": "Farbe"
+    },
+    "choices": {
+      "fog": {
+        "distance": "Entfernung",
+        "thick": "dicht",
+        "ground": "Boden"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Ziehe, um dich umzusehen. Die Perlen fahren am Rohr entlang.",
     "controls": {
