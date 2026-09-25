@@ -927,11 +927,13 @@ allocated under an out-of-memory check at prepare, and probed before every rebal
 device refuses it, the pool
 is drawn again at half its bytes, down to its floor (the root cover, one layer per lane, the
 smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
-casts a shadow, and its static layer is refused whole: shadow pages are then drawn with every
-caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
+casts a shadow, and that frame is held until the device answers: the previous image stays, or
+nothing yet, never an image without its shadows. Its static layer is refused whole: shadow pages
+are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
 coarser where the smaller pool no longer holds the view, and no exception reaches the page. When
-the device refuses even the smallest shadow pool, the frame is drawn whole without shadows, and a
-`shadows-off` diagnostic (`reason: 'gpu-out-of-memory'`) says so: shadows are never lost silently.
+the device refuses even the smallest shadow pool, the shadowed mode cannot be drawn: it is refused
+by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and the session goes on
+without shadows. Shadows are never lost silently.
 The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
 granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
 
