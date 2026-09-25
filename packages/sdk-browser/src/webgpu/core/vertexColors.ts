@@ -8,7 +8,7 @@ import type { HostAttributes } from '../../host/resources.ts';
  * without any uploads the buffer it always did; the shader finds the tail from the buffer's own
  * length. A quantized page carries its colours itself (`../../cluster/decodeWgsl.ts`).
  */
-export const NORMAL_FLOATS = 7;
+const NORMAL_FLOATS = 7;
 const COLOR_FLOATS = 4;
 
 /** Floats of a normal buffer of `vertices` vertices, with the colour tail when `coloured`. */
