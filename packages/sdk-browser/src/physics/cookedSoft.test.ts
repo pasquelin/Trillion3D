@@ -7,6 +7,7 @@ import {
   JOLT_COMMIT,
   OP,
   SOFT_WORDS,
+  type CookedSoftBody,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
 import { goldenCloth } from '../../../sdk-core/src/physics/softCloth.fixture.ts';
@@ -28,7 +29,7 @@ const golden = async () =>
   );
 const options = { type: 'cloth', pins: [6, 8], bend: 0.01 } as const;
 /** Its `physics.json` entry, laid flat 2 m up, its settings `bytes` long. */
-const cookedCloth = (bytes: number) => ({
+const cookedCloth = (bytes: number): CookedSoftBody => ({
   ...{ node: 0, position: [0, 2, 0], rotation: FLAT, scale: [1, 1, 1] },
   ...{ physics: options, vertices: 9, pressure: 0 },
   settings: { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes },
