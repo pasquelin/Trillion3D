@@ -2877,7 +2877,8 @@
       "recipe": "Thành viên của họ và mọi đối số đã dùng để tạo ra nó.",
       "attributes": "Mỗi danh sách theo đỉnh, khi không lệnh gọi nào tạo lại được hình khối.",
       "index": "Những đỉnh nào tạo nên mỗi tam giác.",
-      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ bằng một vật liệu."
+      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ bằng một vật liệu.",
+      "owner": "`'host'` cho các đỉnh của một cảnh đã tải, được đọc theo giá trị của chúng (`Geometry._owner`); không đặt cho các đỉnh của thế giới."
     }
   },
   "SavedMaterial": {
