@@ -83,7 +83,6 @@ export function createWebgpuCutPublication(
     if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
-    run.uncoveredTriangles = metrics.uncoveredTriangles;
     run.submittedTriangles = metrics.selectedTriangles;
     run.drawnTriangles = metrics.drawnTriangles;
     run.blendPagedTriangles = metrics.transparentTriangles;

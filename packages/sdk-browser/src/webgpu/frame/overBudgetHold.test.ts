@@ -4,7 +4,6 @@
 // budget flag and the pending count of the refused pages kept a still camera redrawing forever.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutPending } from '../cut/pending.ts';
 import { admitGpuCut } from '../pages/render/gpuCutAdmission.ts';
 import { scene } from '../residency/sets.fixture.ts';
@@ -33,7 +32,7 @@ function overBudgetEngine(slots: number) {
   const serveAccepted = () =>
     world.packed.forEach((rec, id) => {
       if (!world.sets.accepts(rec)) return;
-      (rec as PageRec & { array: unknown }).array = new Float32Array(1);
+      rec.array = new Uint32Array(1);
       cutPending.touch(id);
     });
   return { world, rt, cutPending, image, serveAccepted };

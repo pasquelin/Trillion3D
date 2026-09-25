@@ -14,7 +14,6 @@ const REASONS = [
   'gpuFrameInactive',
   'cutMoving',
   'overBudget',
-  'uncoveredTriangles',
   'noOccluderHistory',
   'deferredDrops',
   'bootstrap',
@@ -53,7 +52,6 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // A cut past the page budget is a steady state: its surface is drawn by the nearest resident
   // ancestor, and the pages the pool accepted are counted by `cutPending` below.
   if (run.overBudget) mask |= BIT.overBudget;
-  if (run.uncoveredTriangles !== 0) mask |= BIT.uncoveredTriangles;
   // Only the partition establishes that history, and it runs only on opaque rows: a view without
   // any — blend clusters alone, the sky — has no occluder to remember. The bit stays set, so the
   // first frame that packs a row still frees the rows the partition kept.
