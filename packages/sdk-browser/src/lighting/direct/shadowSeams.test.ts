@@ -4,7 +4,7 @@
 // `shadowBias.test.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { pcf } from './shadowBias.fixture.ts';
 import { lampAt, lampOver } from './shadowLamp.fixture.ts';
 import { pagedPcf } from './shadowPages.fixture.ts';
@@ -49,11 +49,12 @@ test('a filter across a page border reads the same depths as one inside a page',
         assert.equal(pagedPcf(t, reference, placed, atlas), pcf(t, map, reference), `${t}`);
 });
 
+const up = [0, 1, 0],
+  floor = { at: [0, 0, 0], normal: up };
+
 test('a point light’s shadow crosses a face border without a seam', () => {
   // The light 2 m over the floor: its bottom face meets its side faces on the lines |x| = 2 and
   // |z| = 2 of the floor. A slab 1 m up shadows the whole floor, the border included.
-  const up = [0, 1, 0],
-    floor = { at: [0, 0, 0], normal: up };
   const alone = lampOver(lampAt([0, 2, 0]), [floor]),
     shaded = lampOver(lampAt([0, 2, 0]), [floor, { at: [0, 1, 0], normal: up }]);
   for (const mip of [0, 2, 5])
@@ -72,5 +73,23 @@ test('a point light’s shadow crosses a face border without a seam', () => {
       }
   // Develop read the lit point's face and answered full light off it: a lit line of floor.
   const before = lampOver(lampAt([0, 2, 0]), [floor, { at: [0, 1, 0], normal: up }], true);
-  assert.ok([...Array(400).keys()].some((k) => before([1.99 + k * 5e-5, 0, 0.5], up, 0).lit));
+  assert.ok([...Array(400).keys()].some((k) => before([1.99 + k * 5e-5, 0, 0.5], up, 0).lit === 1));
+});
+
+test('a point light keeps its shadow where rounding projects past its face’s border', () => {
+  // A light off float32's grid: its face matrices put offset points on the bottom and +x faces'
+  // border a rounding outside the face they picked, where the read clamps to the edge texel.
+  const x = 1.7 - (0.5 * 2 * Math.hypot(1.7, 1.7)) / (LAMP_SIDE * SHADOW_PAGE),
+    read = lampOver(lampAt([0.3, 1.7, -0.2]), [floor, { at: [0, 0.85, 0], normal: up }]);
+  const reads = [...Array(81).keys()].map((j) =>
+    read([0.3 + x * (1 + (j - 40) * 3e-8), 0, -0.2], up, 0),
+  );
+  assert.ok(
+    reads.some(({ ndc }) => Math.max(...ndc.map(Math.abs)) > 1),
+    'no read past the border',
+  );
+  assert.ok(
+    reads.every(({ lit }) => lit === 0),
+    'a line of light on the border',
+  );
 });
