@@ -183,7 +183,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 
 ## Contribution workflow
 
-1. Work from one issue per batch; only the maintainer opens issues (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>` from `origin/develop`
+1. Work from one issue per batch; only the CTO opens issues (AGENTS.md rule 5), and no faster than issues close: over any seven days, the issues opened stay fewer than the issues closed. Create a branch named `<issue>-<short-name>` from `origin/develop`
    in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
    run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
