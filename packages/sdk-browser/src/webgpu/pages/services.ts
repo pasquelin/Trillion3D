@@ -10,7 +10,7 @@ import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
 import { createPageParents } from '../residency/admission.ts';
-import { createShadowTier } from '../residency/shadowTier.ts';
+import { createLowerTier } from '../residency/lowerTier.ts';
 import { createGroupClosure } from '../cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
@@ -137,13 +137,11 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
-  const shadowTier = createShadowTier({
-    packedPages,
-    keyCount: tracking.keyCount,
-    keyOf: tracking.keyOf,
-    room,
-    closeOver: closure.closeOver,
-  });
+  // The two lower tiers: the casters the light cuts want, then the pages ahead of the camera.
+  const { keyCount, keyOf } = tracking,
+    tier = { packedPages, keyCount, keyOf, room, closeOver: closure.closeOver };
+  const shadowTier = createLowerTier(tier),
+    aheadTier = createLowerTier(tier);
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
     tracking,
@@ -161,7 +159,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
-    shadowPages: () => shadowTier.pages,
+    lowerTiers: () => [shadowTier.pages, aheadTier.pages],
   });
   const residency = createWebgpuResidencyQueue({
     tracking,
@@ -176,7 +174,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  const publication = createWebgpuCutPublication(rt, residencySets, closure);
+  const publication = createWebgpuCutPublication(rt, residencySets, closure, aheadTier);
   return {
     syncRows,
     syncRowsFromCut,
@@ -190,6 +188,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     ensureResident,
     residency,
     shadowTier,
+    aheadTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
     /** Bytes of the cut's host tables — group closure and the rule's readiness — once prepared. */

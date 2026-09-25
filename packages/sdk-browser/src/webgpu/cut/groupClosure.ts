@@ -101,7 +101,7 @@ export function createGroupClosure(
       0,
     ),
     /** Visits every page `ids` close over, themselves included, each group once per call:
-     *  what a list rebuilt whole asks for (`../residency/shadowTier.ts`). */
+     *  what a list rebuilt whole asks for (`../residency/lowerTier.ts`). */
     closeOver(ids: ArrayLike<number>, visit: (id: number) => void) {
       walk++;
       visitor = visit;

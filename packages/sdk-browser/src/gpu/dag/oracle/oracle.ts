@@ -4,8 +4,8 @@ import { bandError, dagRecords, flagsOf, trianglesOf, worldOf } from '../records
 import type { SelectionResult } from '../../core/selection.ts';
 import type { DagViewUniforms } from '../types.ts';
 import { dagViewFrames } from './math.ts';
-import { dagOracleDescent } from './descent.ts';
-import { quantizeRequestPriority } from '../request.ts';
+import { AHEAD_LEAF, dagOracleDescent } from './descent.ts';
+import { quantizeRequestPriority, requestRank } from '../request.ts';
 import { createDagOraclePredicates } from './predicates.ts';
 import type { drawsCluster } from '../../../page/cut/rule.ts';
 
@@ -42,23 +42,41 @@ export function evaluateDagSelectionKernel(
   // The per-primitive prologue and per-node verdict are those of `math.ts`,
   // written once: frontier counting rereads them, and neither it nor the oracle can drift alone.
   const frames = dagViewFrames(packed, uniforms);
-  const { planes, views, stretches, focal, near, pixelError } = frames;
+  const { pixelError } = frames;
+  // The view ahead of a moving camera (`../shader/aheadWgsl.ts`): a light cut never has one.
+  const ahead = uniforms.ahead && !uniforms.light ? uniforms.ahead : null;
+  const aheadFrames = ahead
+    ? dagViewFrames(packed, { ...uniforms, planes: ahead.planes, view: ahead.view })
+    : undefined;
   // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict.
-  const nodeFlags = dagOracleDescent(packed, frames);
-  const { coneRejects, visible, bandPixels, draws } = createDagOraclePredicates({
-    packed,
-    records,
-    nodeFlags,
-    planes,
-    views,
-    stretches,
-    focal,
-    near,
-    perspective: frames.perspective,
-    viewPoint: frames.viewPoint,
-    light: uniforms.light,
-    rule,
-  });
+  const nodeFlags = dagOracleDescent(packed, frames, aheadFrames);
+  const predicates = (f: typeof frames, flags: Uint8Array) =>
+    createDagOraclePredicates({
+      packed,
+      records,
+      nodeFlags: flags,
+      ...f,
+      light: uniforms.light,
+      rule,
+    });
+  const { coneRejects, visible, bandPixels, draws } = predicates(frames, nodeFlags);
+  // The view ahead reads every kept leaf, the camera's and its own.
+  const aheadView =
+    aheadFrames &&
+    predicates(
+      aheadFrames,
+      nodeFlags.map((f) => (f === AHEAD_LEAF ? 0 : f)),
+    );
+  const aheadIds: number[] = [],
+    aheadPriorities: number[] = [];
+  /** `wantAhead`: a page the camera does not request, requested ahead when that view selects it. */
+  const wantAhead = (i: number) => {
+    if (!aheadView || !aheadView.visible(i)) return;
+    if (!aheadView.draws(i, pixelError, true, true)) return;
+    const at = bandError(records, i, 1) < 0 ? 0 : 1;
+    aheadPriorities.push(quantizeRequestPriority(aheadView.bandPixels(i, at), true));
+    aheadIds.push(i);
+  };
   const coneCache = cacheCone ? new Map<number, boolean>() : undefined;
   const cone = (i: number, w: number): boolean => {
     if (!coneCache) return coneRejects(i, w);
@@ -84,10 +102,13 @@ export function evaluateDagSelectionKernel(
     const w = worldOf(records, i);
     if (!visible(i)) {
       frustumRejected++;
+      wantAhead(i);
       continue;
     }
-    if (!draws(i, pixelError, true, true)) continue;
-    if (cone(i, w)) continue;
+    if (!draws(i, pixelError, true, true) || cone(i, w)) {
+      wantAhead(i);
+      continue;
+    }
     const level = clusterLevel(flagsOf(records, i));
     if (level > lodLevel) lodLevel = level;
     // Replacement error, or its own when nothing replaces it: `dagWanted` does the same.
@@ -107,9 +128,15 @@ export function evaluateDagSelectionKernel(
     drawablePageIds.push(i);
   }
   // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU.
-  const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
+  const rangs = pageIds
+    .map((_, i) => i)
+    .sort((a, b) => requestRank(priorites[b]) - requestRank(priorites[a]));
+  const aheadRanks = aheadIds
+    .map((_, i) => i)
+    .sort((a, b) => aheadPriorities[b] - aheadPriorities[a]);
   return {
     pageIds: rangs.map((r) => pageIds[r]),
+    aheadPageIds: aheadRanks.map((r) => aheadIds[r]),
     requestPriorities: rangs.map((r) => priorites[r]),
     frustumRejected,
     lodLevel,
