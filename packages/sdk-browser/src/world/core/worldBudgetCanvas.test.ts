@@ -57,7 +57,7 @@ test('a canvas past the declared one renders whole and says the byte excess once
     chain = { size: 1 };
   const frame = noticeEffectBudget({ canvas: DEFAULT_BUDGET_CANVAS }, drawn, chain, notices);
   frame();
-  assert.deepEqual(said, [], 'within the declared canvas');
+  assert.equal(said.length, 0, 'within the declared canvas');
   Object.assign(drawn, uhd);
   frame();
   frame();

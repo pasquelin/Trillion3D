@@ -41,8 +41,7 @@ export const DEFAULT_BUDGET_CANVAS: BudgetCanvas = Object.freeze({ width: 3840, 
  * pass targets, the WebGL2 scene target and every kind's own, by the one rule the renderers count
  * them with. Held only while a chain has a pass, as the targets follow the image's size.
  */
-export const effectTargetReserve = ({ width, height }: BudgetCanvas) =>
-  effectChainBytesAt(width, height);
+const effectTargetReserve = ({ width, height }: BudgetCanvas) => effectChainBytesAt(width, height);
 /** The effect targets' reserve on the default canvas. */
 export const EFFECT_TARGET_BYTES = effectTargetReserve(DEFAULT_BUDGET_CANVAS);
 /**
