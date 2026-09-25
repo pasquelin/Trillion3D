@@ -7,6 +7,9 @@ The files the native compiler's physics cook tests read (`packages/asset-compile
 - `cloth-settings.bin`: the golden cooked soft body, a 1 m cloth of 2 × 2 squares pinned at its top
   corners, Jolt's `SoftBodySharedSettings` binary state, written the same way (`soft_tests.rs`);
   the physics module's test restores it (`packages/sdk-browser/src/physics/cookedSoft.test.ts`).
+- `soft-records.bin`: the cook's soft records of a cloth, a welded rope and a closed tetrahedron,
+  written the same way (`soft_page_tests.rs`); the page rebuilds each with `softBodyOf` and must
+  match them bit for bit (`packages/sdk-core/src/physics/softCook.test.ts`).
 - `pawn-body-patch.bin`: 200 connected triangles of the `Pawn_Body_Shared` mesh (mesh 6) of
   _A Beautiful Game_ (`abeautiful-game`, `ABeautifulGame.gltf`), Khronos glTF Sample Assets,
   **CC-BY-4.0**: original model © 2020 ASWF (MaterialX Project), conversion to glTF © 2022 Ed
