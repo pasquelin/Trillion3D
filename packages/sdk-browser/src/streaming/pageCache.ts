@@ -36,12 +36,20 @@ const checkBytes = (bytes: number) => {
  *
  * The total is shared by a fixed rule: the session reading through it reserves its manifest
  * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
- * streamer's `reserve`), and the pages hold the rest (`budgetBytes`). A total set lower applies at
- * once: pages leave by last use until they fit, save those the session pins.
+ * streamer's `reserve`), the files kept whole beside them theirs (`keep`), and the pages hold the
+ * rest (`budgetBytes`). A total set lower applies at once: pages leave by last use until they fit,
+ * save those the session pins.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
+  /** Files kept whole beside the pages, by url, and the bytes each takes off the total. */
+  const kept = new Map<string, { bytes: number; array?: Uint8Array }>();
+  let keptBytes = 0;
+  const unkeep = (url: string) => {
+    keptBytes -= kept.get(url)?.bytes ?? 0;
+    kept.delete(url);
+  };
   let bytes = 0,
     total = cpuBytes,
     holder: Holder | undefined;
@@ -74,9 +82,9 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get cpuBytes() {
       return total;
     },
-    /** Bytes the session in place reserves off the total, `0` when none reads through it. */
+    /** Bytes reserved off the total: the session's in place, and the kept files'. */
     get reservedBytes() {
-      return holder?.reserved() ?? 0;
+      return (holder?.reserved() ?? 0) + keptBytes;
     },
     /** Bytes the pages may hold: the total less what the session reserves. */
     get budgetBytes() {
@@ -94,6 +102,27 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       for (const [url, held] of pages)
         if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
     },
+    /**
+     * A file kept whole beside the pages — a scene's resident proxy —, never evicted: `bytes` come
+     * off the total from the moment it is asked, while it is in flight; `array` once it lands. It
+     * stays kept, across sessions, until `keepOnly` no longer names it.
+     */
+    keep(url: string, bytes: number, array?: Uint8Array) {
+      unkeep(url);
+      kept.set(url, { bytes, array });
+      keptBytes += bytes;
+      evict();
+    },
+    /** Bytes the kept files take off the total. */
+    get keptBytes() {
+      return keptBytes;
+    },
+    /** The bytes of a kept file that landed. */
+    kept: (url: string) => kept.get(url)?.array,
+    /** Keeps only the files `urls` names: those of a scene gone leave, or one that failed. */
+    keepOnly(urls: readonly string[]) {
+      for (const url of kept.keys()) if (!urls.includes(url)) unkeep(url);
+    },
     /** Sets the total, and evicts at once what no longer fits. */
     resize(cpu: number) {
       checkBytes(cpu);
@@ -110,7 +139,8 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear();
-      bytes = 0;
+      kept.clear();
+      bytes = keptBytes = 0;
     },
   };
   return cache;

@@ -3,6 +3,27 @@ import { checked } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
 
+/** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
+export const corruptObject = (
+  url: string,
+  announced: { bytes: number; sha256: string },
+  bytes: number,
+  sha256: string | undefined,
+) =>
+  new EngineError(
+    'INVALID_CACHE',
+    sha256 !== undefined
+      ? `Corrupt cache object: SHA-256 ${sha256}, ${announced.sha256} announced`
+      : `Corrupt cache object: ${bytes} bytes received, ${announced.bytes} announced`,
+    {
+      url,
+      bytes,
+      expected: announced.bytes,
+      sha256: sha256 ?? null,
+      expectedSha256: announced.sha256,
+    },
+  );
+
 export function createStreamingFetcher(
   context: StreamContext,
   touch: (url: string, bytes: Uint8Array) => void,
@@ -73,21 +94,8 @@ export function createStreamingFetcher(
             url,
             attempt,
           }));
-          // Named by what failed: the retries and the final `PAGE_STREAM_FAILED` repeat it, and its
-          // code and facts stay those of any cache object that is not what its manifest announced.
-          throw new EngineError(
-            'INVALID_CACHE',
-            sizeMatches
-              ? `Corrupt cache object: SHA-256 ${actualHash}, ${page.sha256} announced`
-              : `Corrupt cache object: ${byteLength} bytes received, ${page.bytes} announced`,
-            {
-              url,
-              bytes: byteLength,
-              expected: page.bytes,
-              sha256: actualHash ?? null,
-              expectedSha256: page.sha256,
-            },
-          );
+          // Named by what failed: the retries and the final `PAGE_STREAM_FAILED` repeat it.
+          throw corruptObject(url, page, byteLength, actualHash);
         }
         combined.throwIfAborted();
         const array = new Uint8Array(buffer);
