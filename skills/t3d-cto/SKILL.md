@@ -46,7 +46,7 @@ boss to open a session. You never write engine code, never run Chrome or the ben
 - **Flow:** one agent at a time per lead; at most 3 open PRs per lead, resume at 2; one lead
   per issue. Name to each lead its green-but-unmerged, red, conflicting or stale PRs.
 - **Closure:** a merged PR whose issue stays open with no finding → have it closed. Count issues
-  closed and reopened since the last pass.
+  opened, closed and reopened since the last pass.
 - **Quality:** the audit-ko rate per lead (reopened ÷ merged). Above 1 in 10 → that lead's next
   three merges get a second fresh reviewer; if it stays above, stop the lead and tell the boss.
 - **Priorities:** the Priorities issue is the only order. When the boss changes a priority,

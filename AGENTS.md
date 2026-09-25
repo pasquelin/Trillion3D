@@ -57,7 +57,7 @@ CTO starts with the Agent tool and supervises; the boss never opens another sess
 | analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; nothing applies without the boss's approval |
 | measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                            |
 | acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                  |
-| writer     | CTO        | writes one issue on the template, from the boss's words                                                                                   | codes, measures                                               |
+| writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                               |
 
 Domains: geometry, lighting, compiler, physics, sdk, and architecture (the architect's). A bug goes to its domain's lead; there is no
 bug domain. There is one CTO session, one measurer and one acceptance agent. Every agent reports

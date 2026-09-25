@@ -32,8 +32,9 @@ The project stays small, logical, fast and readable by a community, forever:
    - import cycles;
    - repository weight (`git count-objects -vH`, the largest tracked files).
 2. **Propose** to the CTO a short list ranked by gain, compiler first: what merges, what moves,
-   what is deleted, with the evidence (graph nodes, file:line, sizes). The CTO opens the issues
-   (label `architecture`). You never open one.
+   what is deleted, with the evidence (graph nodes, file:line, sizes). The CTO adds each
+   item to an open `architecture` issue, or opens one only as AGENTS.md rule 5 allows. You never
+   open one.
 3. **Deliver** one issue at a time, as a lead, with the same checks:
    - the real `simplify` and `code-review` skills;
    - your written `## Lead verification`.
