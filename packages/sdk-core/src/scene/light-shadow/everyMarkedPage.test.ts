@@ -37,13 +37,16 @@ function assertCurrent(
   });
 }
 
+// The sweep starts from a view at rest, whose first frame draws every page read; then each frame
+// enters fewer pages than a moving frame's budget draws (`admit.ts`), so every one is drawn at once.
 test('a camera sweep: each frame reads current pages, and draws only the pages entering', () => {
   const { store, plan, slice, read } = sunScene(6);
   const step = sunPageMetres(plan.sun.finest[slice] + 2);
-  const eye = (frame: number) => [(frame - 1) * step, 5, 0] as const;
-  let named = read(eye(1));
+  const eye = (frame: number) => [(frame - 2) * step, 5, 0] as const;
+  let named = read(eye(2));
   cycleDrawn(plan, store, 1, () => entriesOf(plan, slice, named), VIEW);
-  for (let frame = 2; frame < 24; frame++) {
+  cycleDrawn(plan, store, 2, () => entriesOf(plan, slice, named), VIEW);
+  for (let frame = 3; frame < 25; frame++) {
     const view = { ...VIEW, position: eye(frame) },
       mapped = new Set<number>();
     for (let page = 0; page < plan.pool.pages; page++)
