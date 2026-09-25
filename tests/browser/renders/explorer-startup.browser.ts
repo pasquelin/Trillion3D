@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { startServer, serverPort } from '../../kit/server/staticServer.ts';
+import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { sdkMounts, threeStackMounts } from '../support/renderHarness.ts';
 import { buildSite, SITE_OUTPUT } from '../../../scripts/docs/site.ts';
@@ -38,7 +38,7 @@ const out = measureOutput('explorer-startup');
 await mkdir(out, { recursive: true });
 const cacheMounts = threeStackMounts(root, out);
 await buildSite();
-const server = await startServer({
+const { server, port } = await startServer({
   port: 0,
   captures: new Map(),
   mounts: [...sdkMounts(root), ...cacheMounts, { prefix: '/site/', dir: SITE_OUTPUT }],
@@ -52,7 +52,7 @@ try {
   });
   const page = await context.newPage();
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${serverPort(server)}`);
+  await page.goto(`http://127.0.0.1:${port}`);
   await page.evaluate(() => {
     document.body.innerHTML +=
       '<canvas id="viewer" style="width:100%;height:70vh;display:block"></canvas>';
@@ -155,7 +155,7 @@ try {
     window.diagnostics.filter((e) => /interactive-/.test(e.phase)),
   );
   assert.deepEqual(diagnostics, []);
-  await startupSite(page, `http://127.0.0.1:${serverPort(server)}`, out);
+  await startupSite(page, `http://127.0.0.1:${port}`, out);
   assert.deepEqual(errors, []);
   const result = {
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
