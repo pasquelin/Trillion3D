@@ -22,6 +22,8 @@ mod height;
 #[cfg(test)]
 mod small_tests;
 mod soft;
+#[cfg(test)]
+mod soft_page_tests;
 mod soft_record;
 #[cfg(test)]
 mod soft_tests;
