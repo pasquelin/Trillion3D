@@ -53,8 +53,10 @@ export interface StaticOptions {
   charset?: readonly string[];
   /** A directory answers with its `index.html`. */
   index?: boolean;
-  /** The status of a path that leaves its mount (403 by default). */
+  /** The status of a path that leaves its mount or that `refuse` names (403 by default). */
   refused?: number;
+  /** Whether a file inside its mount is refused all the same. */
+  refuse?: (file: string) => boolean;
   /** Answers a request before any file is looked for; returns whether it did. */
   answer?: (request: IncomingMessage, response: ServerResponse, url: URL) => boolean;
   /** The JavaScript a file is served as, or `undefined` to serve its bytes. */
@@ -65,10 +67,10 @@ async function serveFile(
   mount: Mount,
   path: string,
   response: ServerResponse,
-  { fileHeaders, charset, index, refused = 403, transform }: StaticOptions,
+  { fileHeaders, charset, index, refused = 403, refuse, transform }: StaticOptions,
 ) {
   let file = fileUnder(mount.dir, path);
-  if (file === null) return reply(response, refused);
+  if (file === null || refuse?.(file)) return reply(response, refused);
   let found = await stat(file);
   if (index && found.isDirectory()) found = await stat((file = resolve(file, 'index.html')));
   if (!found.isFile()) return reply(response, 404);
