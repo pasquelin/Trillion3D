@@ -115,3 +115,18 @@ test('only the pages of a frame that dropped work are withdrawn until they are r
   flag.value = coarserView(0);
   assert.deepEqual(await drawn(5, false), [[5, false]], 'coarse: still read');
 });
+
+// A frame draws as many batches as its pages take (#489): each batch's flag rides in a slot of its
+// own, however many are in flight, and none of their pages is drawn again for want of a slot.
+test('twenty batches in flight each keep a flag slot, and none is drawn again for want of one', async () => {
+  const { redraws, encoder, taken } = redrawsWith({ value: 0 });
+  const settles = Array.from({ length: 20 }, (_, k) => redraws.encode(encoder, [k], [0], 1, true));
+  assert.ok(
+    settles.every((settle) => settle !== undefined),
+    'every batch copies its flag',
+  );
+  assert.deepEqual(taken(), [], 'nothing drawn again');
+  for (const settle of settles) settle!(true);
+  await redraws.settled();
+  assert.deepEqual(taken(), [], 'whole: nothing drawn again once read');
+});

@@ -17,12 +17,12 @@ Fundamental principles and architecture of Trillion3D:
 
 3. Dynamic Lighting and Shadows (Lumen-class):
    - Every lit surface requires an explicitly declared light source (point, spot, directional sunlight). No arbitrary ambient term.
-   - Virtual shadow maps are updated page by page (128x128 texels) constrained by a millisecond time budget (\`shadowBudgetMs\`, default 1.0 ms).
+   - Virtual shadow maps are cached page by page (128x128 texels): a page is redrawn only when a light or a caster over it moves, and every page a frame marks is drawn in that frame.
    - Dynamic global illumination via radiance probes follows a millisecond budget (\`bounceBudgetMs\`, default 0.8 ms).
 
 4. Performance Trade-offs:
-   - To increase frame rate on constrained devices: increase \`pixelError\` (e.g., 2.0 or 3.0), lower \`shadowBudgetMs\` (e.g., 0.5 ms), or reduce memory pool allocations via \`trillion3d_set_memory_budgets\`.
-   - For maximum visual fidelity: set \`pixelError = 0\`, \`temporalAntialiasing = true\`, and \`shadowBudgetMs = 2.0\`.`;
+   - To increase frame rate on constrained devices: increase \`pixelError\` (e.g., 2.0 or 3.0), or reduce memory pool allocations via \`trillion3d_set_memory_budgets\`.
+   - For maximum visual fidelity: set \`pixelError = 0\`, and \`temporalAntialiasing = true\`.`;
 
 /**
  * Generates the ready-to-use expert system prompt to prime an LLM.

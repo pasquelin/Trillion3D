@@ -5,6 +5,7 @@ import { SHADOW_CULL_SHADER } from './cullShader.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
+import { shadowBatchWrites } from './batchWrites.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
@@ -47,8 +48,8 @@ export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
 
 /**
  * Per-region cull: one instance list per redrawn region, and the matching indirect command. All
- * buffers are allocated once for a frame's budget — at most `MAX_SHADOW_REGIONS` regions, at
- * most `capacity` clusters each — and a frame allocates nothing.
+ * buffers are allocated once for a batch — at most `MAX_SHADOW_REGIONS` regions, at most
+ * `capacity` clusters each — and a frame, whatever its batches, allocates nothing.
  */
 export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
@@ -130,17 +131,15 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       volumeWords,
       /** Periodic sample of what the region culls kept, read after submission. */
       counts,
-      /**
-       * Opens a frame of `regions` regions: their volumes, and their commands at zero instances.
-       * Two writes, never one per region, landing before the command buffer runs.
-       */
+      /** Opens a batch of `regions` regions: their volumes, and their commands at zero instances —
+       *  two writes, never one per region, landing before the batch's commands run. */
       begin(regions: number, maxVertexCount: number) {
         if (!regions) return;
-        device.queue.writeBuffer(faceVolumes, 0, volumes, 0, regions * SHADOW_CULL_FLOATS);
+        shadowBatchWrites(device).write(faceVolumes, 0, volumes, 0, regions * SHADOW_CULL_FLOATS);
         commands.fill(0, 0, regions * COMMAND_WORDS);
         for (let region = 0; region < regions; region++)
           commands[region * COMMAND_WORDS] = maxVertexCount;
-        device.queue.writeBuffer(indirect, 0, commands, 0, regions * COMMAND_WORDS);
+        shadowBatchWrites(device).write(indirect, 0, commands, 0, regions * COMMAND_WORDS);
       },
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for
@@ -182,7 +181,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         uniData[3] = from.indirectBase;
         uniData[4] = from.commands;
         uniData[5] = capacity;
-        device.queue.writeBuffer(uniforms, run * PAGE_BIND_ALIGN, uniData);
+        shadowBatchWrites(device).write(uniforms, run * PAGE_BIND_ALIGN, uniData);
         const pass = encoder.beginComputePass({ label: 'Trillion3D shadow cull' });
         pass.setBindGroup(0, group, [run * PAGE_BIND_ALIGN]);
         pass.setPipeline(scatter);

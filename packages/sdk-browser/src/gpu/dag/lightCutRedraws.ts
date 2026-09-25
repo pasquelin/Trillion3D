@@ -2,18 +2,16 @@ import { MAX_SHADOW_PAGES as PAGES } from '../shadow/recordPack.ts';
 import { COARSER_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
 
-/** Frames whose flag word may be in flight at once: a readback maps a frame or two later. */
-const SLOTS = 8;
-
 /**
  * WHICH PAGES A LIGHT CUT DREW SHORT, TO BE DRAWN AGAIN. Every frame that runs a cut copies its
  * flag word with the frame's pages, and two bits send those pages back:
  *
  * - **Dropped work** (`WORK_DROPPED`): the views together kept more than the catalogue, and the
- *   pages miss casters. They are drawn again at once, and the views a frame may draw in are
- *   bisected between the most a frame drew whole and the fewest one dropped with
+ *   pages miss casters. They are drawn again at once, and the views one batch draws in are
+ *   bisected between the most a batch drew whole and the fewest one dropped with
  *   (`createViewLimit`). A single view never fills the lists, so the bisection ends at one view at
- *   worst — and a view takes every page the budget pays for: the pages never starve.
+ *   worst. It bounds a batch, never a frame: a frame draws as many batches as its pages take
+ *   (`../../webgpu/pages/render/encodeShadowBatches.ts`).
  * - **Coarser** (`COARSER_VIEWS`, one bit per view): a view wanted a cluster that is not resident
  *   and drew its nearest resident ancestor — and every page of that view is sent back, not only the
  *   pages over the missing cluster, which alone a residency change stales. Those pages, and only
@@ -21,27 +19,31 @@ const SLOTS = 8;
  *   are drawn again: like any change of representation (`changes.ts`), a camera that only moves
  *   redraws no page whose casters and light stayed where they were.
  *
- * A frame no slot is free for is drawn again: nobody reads its flag. Without this, what a still
- * image shows would depend on the order its pages were drawn in. `SLOTS` words of readback.
+ * Every batch copies its flag word into a slot of its own: a frame draws as many batches as its
+ * pages take, and a readback maps a frame or two later, so a batch that finds every slot busy adds
+ * one — never a page drawn again because nobody would read its flag. Without the flag, what a
+ * still image shows would depend on the order its pages were drawn in. Four bytes of readback a
+ * slot, as many slots as batches were ever in flight at once.
  */
 export function createLightCutRedraws(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   output: GPUBuffer,
   viewCap: number,
 ) {
-  const slots = Array.from({ length: SLOTS }, () => ({
+  const makeSlot = () => ({
     buffer: own({ size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }),
     busy: false,
     pages: new Int32Array(PAGES),
-    /** The view of each page, the rank its run has in the frame's cut. */
+    /** The view of each page, the rank its run has in the batch's cut. */
     views: new Uint8Array(PAGES),
     count: 0,
     epoch: 0,
     reported: true,
     reading: Promise.resolve(),
-  }));
-  /** Each page to draw again, and whether its depth is wrong — dropped work, or a flag nobody
-   *  reads — and is withdrawn meanwhile, or only coarser — a missing cluster — and stays read. */
+  });
+  const slots: ReturnType<typeof makeSlot>[] = [];
+  /** Each page to draw again, and whether its depth is wrong — dropped work — and is withdrawn
+   *  meanwhile, or only coarser — a missing cluster — and stays read. */
   const redraw = new Map<number, boolean>(),
     waiting = new Set<number>();
   const limit = createViewLimit(viewCap);
@@ -80,11 +82,8 @@ export function createLightCutRedraws(
       reported: boolean,
     ) {
       if (!count) return undefined;
-      const slot = slots.find(({ busy }) => !busy);
-      if (!slot) {
-        add(pages, count);
-        return undefined;
-      }
+      let slot = slots.find(({ busy }) => !busy);
+      if (!slot) slots.push((slot = makeSlot()));
       slot.busy = true;
       slot.count = count;
       slot.epoch = epoch;
@@ -126,7 +125,7 @@ export function createLightCutRedraws(
       for (const page of waiting) again(page, false);
       waiting.clear();
     },
-    /** Light views a frame may draw in: `viewCap` until a frame drops (`createViewLimit`). */
+    /** Light views one batch draws in: `viewCap` until a batch drops (`createViewLimit`). */
     get viewLimit() {
       return limit.value;
     },
@@ -149,8 +148,8 @@ export function createLightCutRedraws(
 }
 
 /**
- * The light views a frame may draw in, bisected between the most views a frame drew whole and the
- * fewest a frame dropped work with: a drop at `L` views never swings the limit between `L` and
+ * The light views one batch draws in, bisected between the most views a batch drew whole and the
+ * fewest a batch dropped work with: a drop at `L` views never swings the limit between `L` and
  * `L / 2`, it settles on the largest count that fits, never below one. What dropped depends on the
  * clusters the views kept from the resident catalogue: a residency change forgets the drop, never
  * what fitted.

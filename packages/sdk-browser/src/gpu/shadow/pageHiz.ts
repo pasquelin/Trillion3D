@@ -3,6 +3,7 @@ import { createHizPipelines } from '../hiz/pipelines.ts';
 import { writeHizLevelUniforms } from '../hiz/uniforms.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
+import { shadowBatchWrites } from './batchWrites.ts';
 
 const UNIFORM_BYTES = 256;
 /** Levels of a page's pyramid, from the page's 128 texels down to one. */
@@ -80,7 +81,7 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
     ) {
       if (!count) return;
       for (let page = 0; page < count; page++) origin(page, originWords, page * BOUNDS_WORDS);
-      device.queue.writeBuffer(origins, 0, originWords, 0, count * BOUNDS_WORDS);
+      shadowBatchWrites(device).write(origins, 0, originWords, 0, count * BOUNDS_WORDS);
       const pass = encoder.beginComputePass({ label: 'Trillion3D shadow page pyramids' });
       pass.setBindGroup(0, group, [0]);
       pass.setPipeline(pipelines.copyPipeline);
