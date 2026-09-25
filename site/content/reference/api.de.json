@@ -1197,7 +1197,7 @@
   },
   "createShadowPlan": {
     "summary": "Der Schattenplaner der virtuellen Karten.",
-    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild listet dann jede ungültige Seite, die das Bild liest, die gröbste zuerst, und zeichnet in Ruhe alle, während sich die Kamera bewegt ein festes Budget davon: die Kosten hält der Cache — eine Seite wird nur neu gezeichnet, wenn sich ihr Inhalt geändert hat. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
+    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild zeichnet dann jede ungültige Seite, die das Bild liest, alle in diesem Bild: die Kosten hält der Cache — eine Seite wird nur neu gezeichnet, wenn sich ihr Inhalt geändert hat —, und der Pool ist die einzige Grenze. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
   },
   "createTerminalProgress": {
     "summary": "Ein Fortschrittsbalken im Terminal, der die Ereignisse des Compilers verfolgt.",
@@ -2881,7 +2881,7 @@
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
       "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
-      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels, und was ein Bild zeichnet, während sich die Kamera bewegt — das feste Budget des Schattenrasters. Ein Bild in Ruhe zeichnet jede Seite, die es markiert, in so vielen Stapeln wie nötig.",
+      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels, nie eine Grenze des Bildes. Ein Bild zeichnet jede Seite, die es markiert, in so vielen Stapeln wie nötig.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
       "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
