@@ -73,12 +73,11 @@ export function encodeShadowCasters(
     lightSource.refreshRows = (pass) => map.encode(pass, rows);
     cull.encodeLight(encoder, lightSource, regions, rows);
     lights.lightRuns += runs.count;
-    // The frame's requests are copied once, after its last batch (`encodeShadowRequests`): every
-    // report slot still being read, they will not be, and the coarse pages are drawn again rather
-    // than left waiting on them.
+    // The frame's requests are copied once, after its last batch (`encodeShadowRequests`), which
+    // tells the flag slot whether they were.
     const list = lights.plan.admission.list.subarray(from, to);
     const redraw = runs.count
-      ? light.redraws.encode(encoder, list, pageViews, to - from, light.reports.hasRoom)
+      ? light.redraws.encode(encoder, list, pageViews, to - from)
       : undefined;
     if (redraw) timing.shadowRedraws = both(timing.shadowRedraws, redraw);
     return true;

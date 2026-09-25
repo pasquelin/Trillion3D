@@ -10,7 +10,7 @@ import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
-import { DAG_VIEWS_WGSL } from './viewsWgsl.ts';
+import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
 import {
@@ -113,7 +113,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
   // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
   // the list-full bit carry on, the other flags are the batch's own.
   if((views[0u].viewFlags&VIEW_APPEND)==0u){atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);}
-  else{atomicAnd(&out.overflow,1u);}
+  else{atomicAnd(&out.overflow,${LIST_FULL}u);}
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
  if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}

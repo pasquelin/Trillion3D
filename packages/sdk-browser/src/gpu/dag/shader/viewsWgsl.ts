@@ -42,6 +42,9 @@ export const VIEW_WORD_ROWS = 3;
  * alone can fill them, and several can only by together keeping more than the catalogue.
  */
 export const WORK_DROPPED = 4;
+/** Bit of the same word set once the request list is full (`snapshotWgsl.ts`): what was appended
+ *  past it was never copied. A later batch of the frame keeps it (`VIEW_APPEND`). */
+export const LIST_FULL = 1;
 /** Bit `COARSER_VIEWS + view` of the same word is set when light view `view` wanted a cluster that
  *  is not resident, and drew its nearest resident ancestor (`noteCoarser`): the pages of that view,
  *  and only those, wait for residency to change. */

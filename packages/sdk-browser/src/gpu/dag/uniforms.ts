@@ -16,6 +16,9 @@ import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
 
 /** A light cut's views: how many it runs, how many it holds, its queues' bound, and whether it
  *  appends to the requests an earlier batch of the frame listed (`VIEW_APPEND`). */
+/** Word of view 0's block that says what kind of view the cut serves (`shader/pagesWgsl.ts`). */
+export const VIEW_FLAGS_WORD = 54;
+
 export type DagCutViews = { count: number; capacity: number; queueCap: number; append?: boolean };
 
 /**
@@ -84,7 +87,7 @@ export function writeDagUniforms(
   ints[61] = views?.capacity ?? 1;
   ints[62] = views?.queueCap ?? packed.nodeCount;
   const light = uniforms.light;
-  ints[54] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
+  ints[VIEW_FLAGS_WORD] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
   if (!light) return;
   ints[55] = light.rows;
   ints[56] = light.mask[0];
