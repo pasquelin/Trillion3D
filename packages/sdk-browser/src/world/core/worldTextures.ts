@@ -102,7 +102,8 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
   if (!host) {
     host = new GraphTexture(texture.image);
     if (texture.layout === 'data') {
-      // Raw texels: read as they are stored, one level, as the reference reads them.
+      // Raw texels, read as they are stored; the host asks no chain, the engine's follows
+      // `minFilter` (`mipFiltered`, #732).
       host.kind = 'texels';
       host.format = FORMAT[texture.format] ?? HOST_FORMAT_RGBA;
       host.generateMipmaps = false;
