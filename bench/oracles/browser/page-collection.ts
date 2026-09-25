@@ -1,7 +1,6 @@
 // Batch F oracles, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
 // `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
-import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
 import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import {
   DAG_ERROR_MODEL,
@@ -25,6 +24,7 @@ import { structureIndex } from '../../../packages/sdk-browser/src/page/selection
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
 import { indexPageRequests } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
 
 type Primitive = ClusterManifest['primitives'][number];
 
@@ -40,7 +40,7 @@ type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
 /** `collectClusterPages` before batch F: `find` per mesh, `flatMap` of a spread, three
  *  Three.js objects per page for the box union. */
 export function referenceCollectClusterPages(
-  source: GraphNode,
+  source: Object3D,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: BackendContext['associations'],

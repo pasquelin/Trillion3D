@@ -13,7 +13,7 @@
  * every node of the graph is one this file built, of the engine's own (`../../host/graph/`).
  */
 import { isDrawnNode } from '../../host/graph/kinds.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
@@ -21,8 +21,7 @@ import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
 import { GraphAttribute } from '../../host/graph/attributes.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
-import { GraphGroup, GraphMesh } from '../../host/graph/mesh.ts';
-import { type GraphNode } from '../../host/graph/node.ts';
+import { GraphMesh } from '../../host/graph/mesh.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
@@ -45,16 +44,16 @@ function hostGeometry(drawn: DrawnTriangles) {
  *  mesh rank each geometry resource was given in the session's manifest. */
 type MirrorInput = {
   placed: readonly { cut: Cut; material: Material; rows: PlacementRows; name: string }[];
-  models: readonly { node: Object3D; graph: GraphNode }[];
+  models: readonly { node: Object3D; graph: Object3D }[];
   rankOf: (cut: Cut) => number;
 };
 
 /** The host graph of a world's session, and the twins the world poses before a frame. */
 export function buildWorldMirror(input: MirrorInput) {
-  const root = new GraphGroup();
+  const root = new Group();
   const twins = new Map<Object3D, PosedTwin>();
   const associations = new Map<
-    GraphNode,
+    Object3D,
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
   const geometries = new Map<Cut, GraphGeometry>(),
@@ -79,7 +78,7 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(mesh);
   }
   for (const { node, graph } of input.models) {
-    const twin = new GraphGroup();
+    const twin = new Group();
     twin.add(graph);
     twin.name = node.name;
     twin.matrixAutoUpdate = false;
@@ -99,7 +98,7 @@ export function buildWorldMirror(input: MirrorInput) {
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many
  *  host meshes share it; a loaded model's are kept. */
-export function releaseWorldMirror(root: GraphNode) {
+export function releaseWorldMirror(root: Object3D) {
   const released = new Set<object>();
   for (const twin of root.children) {
     if (!isDrawnNode(twin)) continue;

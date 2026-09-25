@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldPlacements } from '../../host/world/placements.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import { loadModel } from './loadedModel.ts';
 import { createWorldPoses } from './worldPoses.ts';
 import { HOST } from './worldRuntime.fixture.ts';
@@ -10,7 +9,7 @@ import { HOST } from './worldRuntime.fixture.ts';
 const MODEL = `${HOST}assets/examples/a-model-from-obj/cache/native/full/manifest.json`;
 
 /** Every graph node of `graph` and below that carries a name. */
-function named(graph: HostGraphNode, found: HostGraphNode[] = []) {
+function named(graph: Object3D, found: Object3D[] = []) {
   if (graph.name) found.push(graph);
   for (const child of graph.children) named(child, found);
   return found;
@@ -36,7 +35,7 @@ test('moving a node of a compiled cache moves its drawn placement, and no other'
   const source = model.record.scene.source;
   const [moved, kept] = named(source);
   const placements = hostWorldPlacements(source);
-  const pose = (graph: HostGraphNode) => Array.from(placements.of(graph).elements);
+  const pose = (graph: Object3D) => Array.from(placements.of(graph).elements);
   const before = { moved: pose(moved), kept: pose(kept) };
   const scene = new Object3D();
   scene.add(model);

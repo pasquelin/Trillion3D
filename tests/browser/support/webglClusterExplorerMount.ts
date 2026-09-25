@@ -21,7 +21,7 @@ type ExplorerScene = Pick<BackendContext, 'source' | 'metadata' | 'indices' | 'a
 export function mountExplorerProof(
   scene: ExplorerScene,
   camera: HostCamera,
-  inHostPass: (object: G.GraphNode) => boolean,
+  inHostPass: (object: G.Object3D) => boolean,
   context: Partial<BackendContext> = {},
 ) {
   const canvas = document.createElement('canvas');
@@ -47,7 +47,7 @@ export function mountExplorerProof(
     drawHostGeometry(drawCamera, output);
     let counted = 0;
     backend.scene.traverse((object) => {
-      if (inHostPass(asHostLibrary<G.GraphNode>(object))) counted++;
+      if (inHostPass(asHostLibrary<G.Object3D>(object))) counted++;
     });
     calls.push({ counted, children: backend.scene.children.length });
   };
