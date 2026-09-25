@@ -155,3 +155,32 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   assert.deepEqual(draw.counters(), { triangles: 7 });
   draw.dispose();
 });
+
+// #348: a line's width counts CSS pixels. The WebGL2 program widens a line surface's quads by its
+// `lineWidth` times the host's pixel ratio, read each frame, in the viewport of the image.
+test('a line surface draws with its CSS width and the host pixel ratio', () => {
+  const context = createTestContext(),
+    scene = new GraphScene(),
+    lines = new GraphSurface('basic', { side: 2 });
+  lines.lineWidth = 3;
+  scene.add(mesh(6, 0, lines));
+  let ratio = 2;
+  const draw = createSceneDraw(context.gl, scene, [], () => ratio);
+  const uniform = (name: string) =>
+    context
+      .of('uniform1f')
+      .filter((args) => (args[0] as { uniform: string }).uniform === name)
+      .map((args) => args[1]);
+  for (const frame of [2, 1.5]) {
+    ratio = frame;
+    draw.render({} as HostCamera);
+    draw.drawHostGeometry(createHostDrawCamera(), OUTPUT);
+  }
+  assert.deepEqual(uniform('pixelRatio'), [2, 1.5], 'each frame reads the ratio');
+  assert.deepEqual(uniform('lineWidth'), [3]);
+  const viewport = context
+    .of('uniform2f')
+    .find((args) => (args[0] as { uniform: string }).uniform === 'viewport');
+  assert.deepEqual(viewport?.slice(1), [8, 4]);
+  draw.dispose();
+});

@@ -2419,7 +2419,9 @@
         "packages/sdk-browser/src/webgpu/row/pageRow.ts",
         "packages/sdk-browser/src/webgpu/row/pageRowDepthBias.test.ts",
         "packages/sdk-browser/src/webgpu/visibility/drawLayers.test.ts",
-        "packages/sdk-browser/src/webgpu/visibility/pipelines.ts"
+        "packages/sdk-browser/src/webgpu/visibility/pipelines.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.test.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lod/depthLayer\".depthLayerUnits"
@@ -3112,6 +3114,7 @@
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
+        "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
         "scripts/docs-examples-water.test.ts",
         "scripts/docs/examples/chess-pieces.ts",
@@ -8869,7 +8872,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/visibility/shader/shadingNormal.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/visibility/projection.ts",
+        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".transformDirectionVector3"
     },

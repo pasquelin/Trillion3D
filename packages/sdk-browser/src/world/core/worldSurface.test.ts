@@ -9,6 +9,8 @@ import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
 import { importHostSurface } from '../../host/surfaceImport.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
+import { hostSide } from '../../scene/materialSide.ts';
+import { LINE_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
@@ -138,4 +140,24 @@ test('hostSurface carries the blending, and a composing mode draws transparent',
     assert.equal(plain.blending, hostBlending('normal'), kind);
     assert.equal(plain.transparent, false, `${kind}: normal keeps its own transparency`);
   }
+});
+
+// #348: a surface that draws line quads carries its width in pixels, draws both sides in one pass
+// and sits one coplanar layer over the faces the lines lie on; the same material on faces does not.
+test('a line surface carries its pixel width, both sides and one coplanar layer', () => {
+  const ink = material.line({ color: 0x000000, linewidth: 3 });
+  const lines = hostSurface(ink, false, new Map(), true);
+  assert.equal(lines.lineWidth, 3);
+  assert.equal(lines.side, hostSide('double'));
+  assert.equal(lines.forceSinglePass, true);
+  assert.equal(lines.polygonOffset, true);
+  assert.equal(lines.polygonOffsetFactor, 0);
+  assert.equal(lines.polygonOffsetUnits, -depthLayerUnits(LINE_DEPTH_LAYER));
+  assert.equal(importHostSurface(lines)?.lineWidth, 3, 'the engine record reads the width');
+  const wire = hostSurface(material.meshStandard({ wireframe: true }), false, new Map(), true);
+  assert.equal(wire.lineWidth, 1, 'a wireframe without a width draws one pixel wide');
+  const faces = hostSurface(ink, false, new Map());
+  assert.equal(faces.lineWidth, undefined);
+  assert.equal(faces.polygonOffset, false);
+  assert.equal(importHostSurface(faces)?.lineWidth, 0);
 });

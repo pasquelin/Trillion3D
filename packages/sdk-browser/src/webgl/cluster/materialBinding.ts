@@ -94,6 +94,8 @@ export function bindClusterMaterial(
   uniforms.f4(26, 'volume', mat.transmission, mat.ior, mat.thickness, mat.attenuationDistance);
   uniforms.f3(30, 'attenuationColor', mat.attenuationColor);
   uniforms.i1(33, 'flatShaded', (material as { flatShading?: boolean }).flatShading ? 1 : 0);
+  // A line surface's width in CSS pixels (`CLUSTER_VERTEX`); zero draws the triangles as they are.
+  uniforms.f1(39, 'lineWidth', mat.lineWidth ?? 0);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
   // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).
@@ -138,10 +140,16 @@ export class ClusterMaterialPass {
   forget() {
     this.material = undefined;
   }
-  /** A new frame: nothing bound yet, and the ramp a depth material shows under its camera. */
-  beginFrame(camera: { near: number; far: number }) {
+  /** Image pixels per CSS pixel, written by the owner before a frame: a line's width scale. */
+  pixelRatio = 1;
+  /** A new frame: nothing bound yet, the ramp a depth material shows under its camera, the size
+   *  in pixels of the image a line is widened in — the viewport's `[x, y, w, h]` — and the image
+   *  pixels per CSS pixel its width is scaled by. */
+  beginFrame(camera: { near: number; far: number }, viewport: ArrayLike<number>) {
     this.forget();
     writeDepthRamp(ramp, 0, camera.near, camera.far, 1);
     this.binding.uniforms.f2(36, 'depthRamp', ramp[0], ramp[1]);
+    this.binding.uniforms.f2(40, 'viewport', viewport[2], viewport[3]);
+    this.binding.uniforms.f1(42, 'pixelRatio', this.pixelRatio);
   }
 }

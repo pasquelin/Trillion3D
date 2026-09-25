@@ -5,6 +5,7 @@ import { countUnoccluded, filterUnoccluded } from './unoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './counts.ts';
 import { splitOccludersInto } from './split.ts';
 import type { HizPage, HizPyramid } from './types.ts';
+import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 
 export type TemporalHizState = {
   pyramid?: HizPyramid;
@@ -56,7 +57,8 @@ function retiens(
  * Apply Temporal Hi-Z occlusion culling using previous frame's depth pyramid reprojection.
  * Candidate pages are tested against the previous frame's Hi-Z pyramid.
  * Previously visible pages form Pass 1 occluders; current frame pyramid is built, then occluded
- * or newly disoccluded pages are tested in Pass 2.
+ * or newly disoccluded pages are tested in Pass 2. The depth raster widens line pages at
+ * `pixelRatio` image pixels per CSS pixel, as the image does.
  */
 export function applyTemporalHiz<T extends HizPage & VisPage>(
   selected: T[],
@@ -64,6 +66,7 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   viewport: [number, number],
   history: TemporalHizState = {},
   counts: HizCounts = createHizCounts(),
+  pixelRatio = DEFAULT_PIXEL_RATIO,
 ): {
   shown: T[];
   hizRejected: number;
@@ -73,7 +76,7 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
 } {
   resetHizCounts(counts);
   if (selected.length < 2) {
-    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport).depth);
+    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport, pixelRatio).depth);
     return { shown: selected, hizRejected: 0, occluders: selected, history, counts };
   }
   const hasPrev = !!(
@@ -97,11 +100,11 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     splitOccludersInto(selected, cam, viewport, occluders, rest);
 
   if (!occluders.length || !rest.length) {
-    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport).depth);
+    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport, pixelRatio).depth);
     return { shown: selected, hizRejected: 0, occluders, history, counts };
   }
 
-  const visPass1 = rasterVisibility(occluders, cam, viewport);
+  const visPass1 = rasterVisibility(occluders, cam, viewport, pixelRatio);
   history.passPyramid = buildHizPyramid(
     visPass1.depth,
     viewport[0],
@@ -111,7 +114,7 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   const disoccluded = countUnoccluded(rest, history.passPyramid, cam, viewport, counts);
   const shown = [...occluders, ...disoccluded];
 
-  retiens(history, cam, viewport, rasterVisibility(shown, cam, viewport).depth);
+  retiens(history, cam, viewport, rasterVisibility(shown, cam, viewport, pixelRatio).depth);
 
   return { shown, hizRejected: rest.length - disoccluded.length, occluders, history, counts };
 }
