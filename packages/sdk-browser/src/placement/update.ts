@@ -43,10 +43,10 @@ export const forgetRowRoots = (roots: readonly object[]) => {
   indexes.delete(roots);
 };
 
-/** What one root's move changed: the box it left and entered, as one union. */
+/** What one root's move changed: the box it left and entered, as one union, and its two corners. */
 const moved = new Float64Array(BOX_VALUES),
-  movedMin = [0, 0, 0],
-  movedMax = [0, 0, 0];
+  movedMin = moved.subarray(0, 3),
+  movedMax = moved.subarray(3, 6);
 
 /**
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
@@ -68,7 +68,7 @@ export function followPlacementRows<T>(
   park?: (rank: number, parked: boolean) => void,
   posed?: (rank: number, world?: ArrayLike<number>) => number,
   follow?: (rank: number) => void,
-  touched?: (min: number[], max: number[], movingOnly: boolean) => void,
+  touched?: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
 ) {
   const list = rowRoots(roots, rows);
   let any = false;
@@ -81,7 +81,7 @@ export function followPlacementRows<T>(
       flipped = parked !== !!root.parked;
     // A row taken or parked moved, whatever its pose; otherwise its pose says whether it moved.
     const move = posed ? posed(rank, flipped ? undefined : root.world.elements) : MOVE_PROMOTED;
-    if (move === MOVE_NONE && !flipped) continue;
+    if (move === MOVE_NONE) continue;
     boxEmpty(moved, 0);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
     if (flipped) {
@@ -94,10 +94,6 @@ export function followPlacementRows<T>(
     if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1);
     if (boxIsEmpty(moved, 0)) continue;
     any = true;
-    for (let axis = 0; axis < 3; axis++) {
-      movedMin[axis] = moved[axis];
-      movedMax[axis] = moved[axis + 3];
-    }
     touched?.(movedMin, movedMax, move === MOVE_MOVING);
   }
   return any;

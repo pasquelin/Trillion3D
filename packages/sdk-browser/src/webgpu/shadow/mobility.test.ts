@@ -3,17 +3,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShadowMobility } from './mobility.ts';
+import { MOVE_MOVING, MOVE_PROMOTED } from '../../placement/update.ts';
 import { createShadowResidence } from './residence.ts';
 
 test('the first move promotes a placement and opens the static layer; its later moves do not', () => {
   const mobility = createShadowMobility();
   mobility.ensure(3, 5, () => new Float64Array(16));
   assert.equal(mobility.layered, false);
-  mobility.move(1);
-  assert.equal(mobility.takePromoted(), true);
+  assert.equal(mobility.move(1), MOVE_PROMOTED);
   assert.equal(mobility.layered, true);
-  mobility.move(1);
-  assert.equal(mobility.takePromoted(), false, 'already moving: only its moving casters stale');
+  assert.equal(mobility.move(1), MOVE_MOVING, 'already moving: only its moving casters stale');
   const pushed: number[][] = [];
   const placementOf = (row: number) => [0, 1, 1, 2, -1][row];
   mobility.writeRows(placementOf, 5, 2, 2, (first, count) => pushed.push([first, count]));
