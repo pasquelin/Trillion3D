@@ -29,9 +29,8 @@ export const HEADERS_WRITTEN = 1,
  * host at this render (`followHostTexture`), and rewrites a header only when the record's
  * counters moved past the ones it was last written at: another engine following the same record
  * first does not hide the change from this one. No slot is walked while no host write was
- * announced since the last follow: a still scene costs one comparison, and one reread of the
- * readers of its host colour textures (`coverageRules`). `force` writes every header, the first
- * time.
+ * announced since the last follow: a still scene costs one comparison and a reread of its host
+ * colour maps' readers (`coverageRules`). `force` writes every header, the first time.
  * Colour slots whose header moved are added to `colorMoved`; the result is a mask of
  * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same walk hands `copies` each host-image slot
  * whose picture moved since the last follow — a new version of its record —, for its places in
@@ -86,12 +85,10 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
 }
 
 /**
- * The coverage rule each host colour texture's chain was reduced under, followed at every image
- * (#42): a host switches a surface between opaque and masked without a new prepare. `follow`
- * rereads the readers once; `reduce` hands each texture whose rule moved to `reduce` — its chain
- * reduced again and copied into its places — and adds its slot to `moved`; a slot whose picture
- * was just `copied` already carries the rule now, and is not reduced twice. Only host slots are
- * walked: a cooked chain keeps the rule the compiler baked.
+ * The coverage rule each host colour map's chain was reduced under, followed at every image (#42):
+ * a host switches a surface between opaque and masked without a new prepare. `reduce` hands each
+ * map whose rule moved to `reduce` and adds its slot to `moved`; one whose picture was just
+ * `copied` carries the rule already: never reduced twice. A cooked chain keeps the compiler's.
  */
 function coverageRules(atlas: WebgpuTileAtlas) {
   const hosts = new Map<number, { map: Texture; readers: CoverageReaders; rule: boolean }>();
