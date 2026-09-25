@@ -78,7 +78,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   });
   const textureStarted = performance.now();
   const previews = rt.context.metadata.texturePreviews ?? [];
-  const byTexture = previewsByAtlas(previews);
+  const previewAt = previewsByAtlas(previews);
   // The family is settled here, the chains in hand: the one the device samples AND the cache
   // holds kept chains in — a device with both features takes the family the cook wrote.
   const choice = chooseBlockFormat(gpuDevice.features, previews, rt.context.textureCompression);
@@ -88,7 +88,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const ranks = importTextureIndices(rt.context.textureIndices);
   const previewOf = (atlas: number, list: typeof maps) => (index: number) => {
     const source = ranks?.get(list[index]);
-    return source === undefined ? undefined : byTexture.get(`${source}/${atlas}`);
+    return source === undefined ? undefined : previewAt(source, atlas);
   };
   const readLevel = rt.context.readTextureLevel;
   const color = tileCatalogue(

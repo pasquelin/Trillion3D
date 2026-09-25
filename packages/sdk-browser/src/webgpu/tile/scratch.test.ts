@@ -14,8 +14,6 @@ import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { GraphTexture } from '../../host/graph/graph.fixture.ts';
 
 type HostTexture = InstanceType<typeof GraphTexture>;
-/** A data-atlas texture: no reader takes its alpha for coverage. */
-const PLAIN_DATA = { atlas: 'data', coverage: false } as const;
 
 type Copy = {
   source: { source: unknown; flipY?: boolean };
@@ -37,7 +35,8 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
   const map = importHostTexture(
     page instanceof GraphTexture ? page : hostTexture(page, true, new Map()),
   );
-  createTileScratch(device, { map, width, height, format: 'rgba8unorm', ...PLAIN_DATA });
+  const plain = { errorCode: 'NONE', coverage: false };
+  createTileScratch(device, { map, width, height, format: 'rgba8unorm', ...plain });
   return { copies, rows };
 }
 
@@ -133,7 +132,8 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     width: 1,
     height: 2,
     format: 'rgba8unorm',
-    ...PLAIN_DATA,
+    errorCode: 'NONE',
+    coverage: false,
   });
   for (let frame = 0; frame < 60; frame++) {
     pixels[4] = frame;
@@ -150,26 +150,17 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
 // darken the borders again. A colour texture an opaque or emissive reader draws stays plain.
 test('a coverage working texture reduces weighted by alpha unless uploaded premultiplied', () => {
   installGpuGlobals();
-  const { device } = mockGpu();
-  const weighted: unknown[] = [];
-  const create = device.createRenderPipeline.bind(device);
-  Object.assign(device, {
-    writeTexture() {},
-    createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
-      weighted.push(descriptor.fragment?.constants?.weighted);
-      return create(descriptor);
-    },
-  });
-  const reduce = (coverage: boolean, premultiplyAlpha: boolean) => {
+  // One device per case: the one reduction pipeline it builds says the rule the texture took.
+  const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
+    const { device, pipelines } = mockGpu();
     const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 });
     host.premultiplyAlpha = premultiplyAlpha;
     const map = importHostTexture(host);
-    const size = { width: 1, height: 2 };
-    createTileScratch(device, { map, ...size, format: 'rgba8unorm', atlas: 'color', coverage });
+    const size = { width: 1, height: 2, format: 'rgba8unorm' } as const;
+    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage });
+    return pipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
-  reduce(true, false);
-  reduce(true, true);
-  assert.deepEqual(weighted, [1, 0], 'straight alpha weighted, premultiplied not');
-  reduce(false, false);
-  assert.equal(weighted.length, 2, 'a colour texture not read as coverage reuses the plain one');
+  assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted');
+  assert.deepEqual(rule(true, true), [0], 'uploaded premultiplied: plain');
+  assert.deepEqual(rule(false, false), [0], 'not read as coverage: plain');
 });

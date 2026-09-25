@@ -122,6 +122,14 @@ fn a_plain_and_a_coverage_chain_of_one_image_never_share_files() {
             "images": [{"uri": "leaf.png"}],
         })
     };
+    // An image whose alpha never varies bakes the plain chain even under a masked reader: the
+    // weighted one would be the same bytes under a second name.
+    rgba_from(256, 256, |x, _| [x as u8, 9, 9, 128])
+        .save(dir.join("flat.png"))
+        .expect("save");
+    let mut flat = scene("MASK");
+    flat["images"][0]["uri"] = json!("flat.png");
+    assert_eq!(stage_scene(&dir, &flat).0[0].kind, AtlasKind::Color);
     let (plain, _) = stage_scene(&dir, &scene("OPAQUE"));
     let (weighted, _) = stage_scene(&dir, &scene("MASK"));
     assert_eq!(plain[0].sha256, weighted[0].sha256, "one image");

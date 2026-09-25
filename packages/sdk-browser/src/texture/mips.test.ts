@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMaterialMips, mipLevelCountFor, weighsColourByAlpha } from './mips.ts';
+import { generateMaterialMips, mipLevelCountFor } from './mips.ts';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
 
@@ -34,25 +34,15 @@ test('uniforms describe one reduced level each, at the device alignment', () => 
   assert.equal(buffers[before].size, (mipLevelCountFor(4, 4) - 1) * stride);
 });
 
-// #42: a texture every reader takes for coverage averages its colours weighted by alpha, so a
-// transparent texel's colour no longer darkens a cutout's border; any other texture — one an opaque
-// or emissive reader draws, a data map — and texels uploaded premultiplied, which already carry the
-// weight, keep the plain mean. The compiler proves the rule's bytes
-// (`texture_preview/tests/weighted_colour.rs`); here, which pipeline each case reduces with.
-test('only a coverage texture in straight alpha weighs its mip colours by alpha', () => {
-  assert.equal(weighsColourByAlpha(true, false), true);
-  assert.equal(weighsColourByAlpha(true, true), false);
-  assert.equal(weighsColourByAlpha(false, false), false);
-  const { device, texture } = scratch();
-  const weighted: unknown[] = [];
-  const create = device.createRenderPipeline.bind(device);
-  Object.assign(device, {
-    createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
-      weighted.push(descriptor.fragment?.constants?.weighted);
-      return create(descriptor);
-    },
-  });
+// #42: the weighted rule is a pipeline of its own, built with the `weighted` constant; the plain one
+// keeps it off. The compiler proves the rule's bytes (`texture_preview/tests/weighted_colour.rs`);
+// which texture takes which rule is `scratch.test.ts` and `sources.test.ts`.
+test('one reduction pipeline per rule, the weighted one built with its constant and reused', () => {
+  const { device, texture, pipelines } = scratch();
   for (const rule of [true, false, true])
     generateMaterialMips(device, texture, 'rgba8unorm-srgb', 4, 4, rule);
-  assert.deepEqual(weighted, [1, 0], 'one pipeline per rule, the weighted one reused');
+  assert.deepEqual(
+    pipelines.map((pipeline) => pipeline.fragment?.constants?.weighted),
+    [1, 0],
+  );
 });
