@@ -48,17 +48,15 @@ let program: ts.Program | undefined;
  *  checker the facade, the export inventory and the reference all read. */
 export function apiProgram(): ts.Program {
   const files = [...Object.values(ENTRIES), ...Object.values(PUBLIC_ENTRIES)];
-  program ??= ts.createProgram(
-    files.map((file) => join(ROOT, file)),
-    {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.NodeNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeNext,
-      strict: true,
-      skipLibCheck: true,
-      types: ['node', '@webgpu/types'],
-    },
-  );
+  const roots = files.map((file) => join(ROOT, file));
+  program ??= ts.createProgram(roots, {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    strict: true,
+    skipLibCheck: true,
+    types: ['node', '@webgpu/types'],
+  });
   return program;
 }
 
