@@ -110,8 +110,8 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * The cut has already applied its delta; only the page budget remains to be enforced. `limited`
      * says the requested coverage does not fit in the slots: the budget is then zero, the queue
      * empties, and the image sticks to pinned coverage. The two cut paths do not say the same thing
-     * about it and each says it, with no default: the GPU cut, itself, grows its screen error until
-     * coverage fits and therefore keeps loading at full budget.
+     * about it and each says it, with no default: the GPU cut keeps loading at full budget, the
+     * coarsest pages first, and the rest is drawn by its nearest resident ancestor.
      */
     queueCutResidency(limited: boolean) {
       sets.applyBudget(limited ? 0 : options.room());

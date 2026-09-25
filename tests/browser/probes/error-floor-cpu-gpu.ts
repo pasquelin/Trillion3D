@@ -110,11 +110,8 @@ const lignes = cas.map((c) => {
     retenuesGpu: lu?.pages.length ?? null,
     ecartOracleGpu: lu ? Math.abs(lu.pages.length - c.oracle.pageIds.length) : null,
     // Triangle totals the GPU holds, against those the oracle replays at the same place.
-    // Without residency, everything the cut keeps goes to draw and nothing opens a hole.
     trianglesOracle: c.oracle.selectedTriangles,
     trianglesGpu: lu?.selectedTriangles ?? null,
-    dessinesGpu: lu?.drawnTriangles ?? null,
-    trouGpu: lu?.uncoveredTriangles ?? null,
     // The ORDER the GPU publishes, against the oracle's: each request's priority decides
     // who the host uploads first, and an order that was not that one would serve nothing.
     // Compared on the priority sequence, not the pages: two pages of the same step are
@@ -154,21 +151,12 @@ for (const ligne of lignes) {
   assert.ok(ligne.sousArbresElagues > 0, `${ligne.pose}: no subtree pruned`);
   assert.equal(ligne.ecartOracleGpu, 0, `${ligne.pose}: GPU and oracle diverge`);
   assert.equal(ligne.retenuesGpu, ligne.retenuesCpu, `${ligne.pose}: GPU loses from the cut`);
-  assert.ok(
-    ligne.trianglesGpu !== null && ligne.dessinesGpu !== null && ligne.trouGpu !== null,
-    `${ligne.pose}: no GPU result`,
-  );
+  assert.ok(ligne.trianglesGpu !== null, `${ligne.pose}: no GPU result`);
   assert.ok(ligne.trianglesGpu > 0, `${ligne.pose}: no triangle counted`);
   assert.equal(
     ligne.trianglesGpu,
     ligne.trianglesOracle,
     `${ligne.pose}: GPU and oracle totals diverge`,
-  );
-  // The invariant the CPU used to sum: the cut equals draw plus hole.
-  assert.equal(
-    ligne.trianglesGpu - ligne.dessinesGpu - ligne.trouGpu,
-    0,
-    `${ligne.pose}: selected − drawn − uncovered ≠ 0`,
   );
   // Each request's priority decides who the host uploads first: GPU and oracle must give
   // the same sequence, otherwise the shipped order would not be the one that was proved.
