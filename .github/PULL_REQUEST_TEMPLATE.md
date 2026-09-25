@@ -16,7 +16,7 @@ Closes # <!-- or "Part of #n" when the pull request leaves part of the issue ope
 
 ## Lead verification
 
-<!-- Written by the lead, before the merge, checked by the CI: one line per To do and Proof item,
-     "- <item>: delivered in <file:line>, proved by <test>" or "- <item>: not delivered, written on #<n>". -->
+<!-- Written by the lead before `gh pr ready`, checked by the CI once out of draft: one line per
+     To do and Proof item, "- <item>: delivered in <file:line>, proved by <test>" or "- <item>: not delivered, written on #<n>". -->
 
 ## Not proven / left out
