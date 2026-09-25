@@ -25,8 +25,8 @@ fn the_same_bytes_reduce_differently_for_each_atlas() {
     assert_eq!(data[1][3], 255);
 }
 
-// Behaviour 2: in the DATA atlas a transparent texel's colour still enters the
-// mean, as in the shader: alpha there is not coverage, and the colour atlas alone
+// Behaviour 2: a transparent texel's colour still enters the mean wherever no
+// reader takes alpha for coverage, as in the shader: the `Coverage` chain alone
 // weighs its colours by alpha (`weighted_colour.rs`, #42).
 #[test]
 fn a_transparent_texel_color_enters_the_data_mean_as_on_the_card() {
