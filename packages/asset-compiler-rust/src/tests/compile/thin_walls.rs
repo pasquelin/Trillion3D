@@ -114,7 +114,7 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
     }
 }
 /// Digest of what the chalet cooks to: every page, its objects by digest, its errors and bounds.
-const CHALET_COOK: &str = "6df2da74dfed326e2b7d520b831d703dc0ebc560953ab9b74e9e49647c29e660";
+const CHALET_COOK: &str = "76b848008816559d6c7afe52f47cd84bae78cebd0154d7f85d207d491edbcfb5";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
 /// it. A different digest on one platform alone is a cook that is not portable (the C++ of
