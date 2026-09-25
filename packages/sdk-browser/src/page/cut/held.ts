@@ -1,15 +1,18 @@
 import type { ClusterRoot } from '../selection/types.ts';
-import { createCutReadiness, cullingLinks, type CullingLinks } from './readiness.ts';
+import { createCutReadiness, type CutReadiness } from './readiness.ts';
+import { cullingLinks, type CullingLinks } from './links.ts';
 import { residentUnder, type PageRecord, type SelectionState } from './state.ts';
 
 type Held = {
-  readiness: ReturnType<typeof createCutReadiness>;
+  readiness: CutReadiness;
   structure: ClusterRoot<unknown>['structure'];
   nodes: Float64Array | undefined;
   pages: number;
 };
 
-/** One readiness per placement: its pages' residency is its own, its DAG shared. */
+/** One readiness per placement: its pages' residency is its own, its DAG shared. Its state is
+ *  held for the placement's resident pages only (`./readiness.ts`), so the placements a cut walks
+ *  cost what the pool holds of them, never their catalogue. */
 const heldOf = new WeakMap<object, Held>();
 /** Links derived for a hierarchy collected without them, shared by its placements. */
 const linksOf = new WeakMap<Float64Array, CullingLinks>();
@@ -53,3 +56,6 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
   readiness.settle();
   return readiness;
 }
+
+/** Bytes of `root`'s readiness state, or 0 when no cut has read it. */
+export const heldHostBytes = (root: object) => heldOf.get(root)?.readiness.hostBytes ?? 0;

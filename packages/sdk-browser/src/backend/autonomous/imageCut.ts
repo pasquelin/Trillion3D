@@ -7,6 +7,7 @@ import {
 import type { EngineCamera } from '../../camera/world.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createAutonomousRequests } from './requests.ts';
+import { heldHostBytes } from '../../page/cut/held.ts';
 
 /**
  * The cut of a WebGL2 image and what it asks the pool for. The cut is drawn at the host's
@@ -49,6 +50,10 @@ export function createImageCut(options: {
     return selected;
   };
   return Object.assign(cut, {
+    /** Bytes of the cut's host tables: the requests' closure and the rule's readiness of each
+     *  placement, all sized by what the view asks for and the pool holds. */
+    hostBytes: () =>
+      requests.hostBytes + roots.reduce((bytes, root) => bytes + heldHostBytes(root), 0),
     /** Cuts the last requests to the pool drawn since; true when they lost pages, which what the
      *  image keeps must then forget before the pool trims. */
     readmit() {

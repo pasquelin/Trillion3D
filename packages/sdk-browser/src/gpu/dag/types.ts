@@ -4,7 +4,7 @@ import type { PageSurface } from '../../page/surface.ts';
 import type { SelectionUniforms } from '../core/selection.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import type { ClusterStructureIndex } from '../../page/selection/types.ts';
-import type { CullingLinks } from '../../page/cut/readiness.ts';
+import type { CullingLinks } from '../../page/cut/links.ts';
 
 /**
  * The view one run of the kernel serves: a camera's uniforms, or a shadow face's with `light`, the

@@ -5,8 +5,8 @@ import { createDenseKeySet } from '../cut/denseKeys.ts';
  * The two lists that drive the row table.
  *
  * `touched` names pages whose residency or cache slot just moved: it is the only input of rank sync,
- * which therefore no longer walks the catalogue. It has the catalogue's size and a per-page mark, so
- * a page enrols only once and it can no longer overflow: no burst of arrivals triggers the walk of
+ * which therefore no longer walks the catalogue. A page enrols only once, and the list follows what
+ * moved, never the catalogue's size, so it can no longer overflow: no burst of arrivals triggers the walk of
  * the 124,000 pages that cost the image's peak any more.
  *
  * `residencyChanges` is what the pass actually changed: pages whose residency FLAG flipped. GPU
@@ -16,10 +16,12 @@ import { createDenseKeySet } from '../cut/denseKeys.ts';
  * soon as a pass mixed both. Per-page marking forbids the duplicate, so the list cannot overflow
  * either.
  */
-export function createWebgpuRowJournal(pageCount: number) {
-  const changed = createDenseKeySet(pageCount);
+export function createWebgpuRowJournal() {
+  const changed = createDenseKeySet();
   const residencyChanges = {
-    pages: changed.list,
+    get pages() {
+      return changed.list;
+    },
     get count() {
       return changed.count;
     },
@@ -33,9 +35,11 @@ export function createWebgpuRowJournal(pageCount: number) {
     changed.clear();
     residencyChanges.sorted = true;
   };
-  const touchedSet = createDenseKeySet(pageCount);
+  const touchedSet = createDenseKeySet();
   const touched = {
-    pages: touchedSet.list,
+    get pages() {
+      return touchedSet.list;
+    },
     get count() {
       return touchedSet.count;
     },

@@ -49,7 +49,10 @@ const resResidencyBits = await mesure({
   fichier: 'packages/sdk-browser/src/gpu/dag/residencyUpload.ts',
   cas: [{ name: '8 frames, 20 000 pages', input: images, size: PAGES * 8 }],
   calcul: (imgs) => ({
-    drapeaux: imgs.map((next) => updateResidencyBits(next, bits, base, undefined, motsTouches) > 0),
+    drapeaux: imgs.map(
+      (next) =>
+        updateResidencyBits((j) => !!next[j], next.length, bits, base, undefined, motsTouches) > 0,
+    ),
     colonne: residencyColumn(bits, base, PAGES),
   }),
   attendu: (imgs) => ({

@@ -2,7 +2,7 @@ import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.
 import { REQUEST_PAGE_MAX } from './request.ts';
 import { SELECTION_NONE as NONE } from '../core/selection.ts';
 import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from './types.ts';
-import { cullingLinks } from '../../page/cut/readiness.ts';
+import { cullingLinks } from '../../page/cut/links.ts';
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
 import { CLUSTER_WORDS, COLD_WORDS, coldBase } from './layout.ts';

@@ -115,10 +115,11 @@ export function createStreamingCache(context: StreamContext) {
     emitRetain(delta.heldCount, pinned.size - before, removed);
     return true;
   };
-  /** The engine's host tables, sized once its scene is prepared, take `bytes` of the CPU share the
-   *  cache holds (`../residency/memoryBudget.ts`): the decoded pages keep the rest. */
-  const reserve = (bytes: number) => {
-    state.reservedBytes = bytes;
+  /** The engine's host tables take `bytes` of the CPU share the cache holds
+   *  (`../residency/memoryBudget.ts`): the decoded pages keep the rest. A function is read each
+   *  time the cache weighs itself, for tables that follow the view. */
+  const reserve = (bytes: number | (() => number)) => {
+    state.reservedBytes = typeof bytes === 'number' ? () => bytes : bytes;
     evict();
   };
   return { touch, evict, retain, retainRanks, reserve };

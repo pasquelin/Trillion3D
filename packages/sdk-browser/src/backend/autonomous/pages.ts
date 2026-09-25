@@ -115,6 +115,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   return {
     id: 'autonomous-pages-webgl',
     scene,
+    hostTableBytes: frame.hostBytes,
     hostDiagnostics: pageDiagnostics,
     capabilities: autonomousCapabilities(!!context.metadata.simplification),
     get overBudget() {

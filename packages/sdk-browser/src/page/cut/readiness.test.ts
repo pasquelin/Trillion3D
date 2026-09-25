@@ -41,6 +41,20 @@ function reference(resident: Uint8Array) {
   return { ready, childReady, open };
 }
 
+type Readiness = ReturnType<typeof createCutReadiness>;
+
+/** The readiness read page by page and node by node, and its dense open counts. */
+function dense(r: Readiness, pageCount = pages, nodeCount = nodes) {
+  const written = new Int32Array(nodeCount);
+  r.writeOpen(written, nodeCount);
+  return {
+    ready: Uint8Array.from({ length: pageCount }, (_, p) => (r.isReady(p) ? 1 : 0)),
+    childReady: Uint8Array.from({ length: pageCount }, (_, p) => (r.isChildReady(p) ? 1 : 0)),
+    open: Int32Array.from({ length: nodeCount }, (_, n) => r.openAt(n)),
+    written,
+  };
+}
+
 function random(seed: number) {
   let v = seed >>> 0;
   return () => (v = (Math.imul(v, 1664525) + 1013904223) >>> 0) / 2 ** 32;
@@ -58,10 +72,12 @@ test('kept by difference, readiness is the definition after every change', () =>
       r.set(p, resident[p] === 1);
     }
     r.settle();
-    const want = reference(resident);
-    assert.deepEqual(r.ready, want.ready, `step ${step}: ready`);
-    assert.deepEqual(r.childReady, want.childReady, `step ${step}: childReady`);
-    assert.deepEqual(r.open, want.open, `step ${step}: open counts`);
+    const want = reference(resident),
+      got = dense(r);
+    assert.deepEqual(got.ready, want.ready, `step ${step}: ready`);
+    assert.deepEqual(got.childReady, want.childReady, `step ${step}: childReady`);
+    assert.deepEqual(got.open, want.open, `step ${step}: open counts`);
+    assert.deepEqual(got.written, want.open, `step ${step}: dense open counts`);
   }
 });
 
@@ -69,9 +85,10 @@ test('a missing page leaves its group, and every group below it, not ready', () 
   const r = createCutReadiness(s, dag.culling.links, pages, nodes);
   for (let p = 0; p < pages; p++) r.set(p, true);
   r.settle();
-  assert.ok(r.ready.every((v) => v === 1) && r.childReady.every((v) => v === 1));
+  const all = dense(r);
+  assert.ok(all.ready.every((v) => v === 1) && all.childReady.every((v) => v === 1));
   assert.ok(
-    r.open.every((v) => v === 0),
+    all.open.every((v) => v === 0),
     'nothing is open once everything is resident',
   );
   // A cluster just under the roots leaves: its group-mates stop being drawable, and so does every
@@ -84,17 +101,31 @@ test('a missing page leaves its group, and every group below it, not ready', () 
   r.settle((page) => touched.push(page));
   const g = dag.pages[missing].group!;
   for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++)
-    assert.equal(r.ready[s.children[i]], 0, 'the whole group is withheld');
+    assert.equal(r.isReady(s.children[i]), false, 'the whole group is withheld');
   assert.ok(touched.length > s.childOffsets[g + 1] - s.childOffsets[g], 'groups below follow');
   const resident = new Uint8Array(pages).fill(1);
   resident[missing] = 0;
-  assert.deepEqual(r.ready, reference(resident).ready);
+  assert.deepEqual(dense(r).ready, reference(resident).ready);
 });
 
 test('without group links, each cluster stands for itself', () => {
   const r = createCutReadiness(undefined, undefined, 3, 1);
   r.set(1, true);
   r.settle();
-  assert.deepEqual([...r.ready], [0, 1, 0]);
-  assert.deepEqual([...r.childReady], [1, 1, 1]);
+  const got = dense(r, 3, 1);
+  assert.deepEqual([...got.ready], [0, 1, 0]);
+  assert.deepEqual([...got.childReady], [1, 1, 1]);
+});
+
+test('the state follows the resident pages: none held, none kept', () => {
+  const r = createCutReadiness(s, dag.culling.links, pages, nodes);
+  r.settle();
+  assert.equal(r.hostBytes, 0, 'nothing resident, nothing held');
+  for (let p = 0; p < pages; p++) r.set(p, true);
+  r.settle();
+  assert.ok(r.hostBytes > 0);
+  for (let p = 0; p < pages; p++) r.set(p, false);
+  r.settle();
+  assert.equal(r.hostBytes, 0, 'every page gone, every table released');
+  assert.deepEqual(dense(r).open, reference(new Uint8Array(pages)).open);
 });
