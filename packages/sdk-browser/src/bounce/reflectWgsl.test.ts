@@ -27,7 +27,7 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
     /fogged\(lit\+ambient\+emissive\.rgb\+bounceLighting\([^)]*\)\+mirrorLighting\(base\.rgb,base\.a,normal\.a,N,V,P\),P,/,
   );
   const mirror = body(BOUNCE_LIGHTING_SHADER, 'mirrorLighting');
-  assert.match(mirror, /reflectedRadiance\(P,N,reflect\(-V,N\)\)/);
+  assert.match(mirror, /reflectedRadiance\(P,N,reflect\(-V,N\),rough\)/);
   // Weighed by the GGX lobe's directional albedo, the table the rectangular light reads.
   assert.match(mirror, /ltcLookup\(rough,[^;]*,1u\)/);
   // The radiance is the proxy face the ray hits, read in the cache: the reflected scene.
@@ -88,8 +88,38 @@ test('without bounce the resolve reflects nothing; with it, the cache is bound a
 });
 
 test('water and probes read the same ray: one reflection model', () => {
-  assert.match(WATER_COMPOSITE_SHADER, /reflected=F\*reflectedRadiance\(P,Nv,reflect\(-V,Nv\)\)/);
+  assert.match(
+    WATER_COMPOSITE_SHADER,
+    /reflected=F\*reflectedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
+  );
   assert.doesNotMatch(WATER_COMPOSITE_SHADER, /sampleBounce\(P,reflect/);
   assert.ok(BOUNCE_PROBE_SHADER.includes(SURFACE_RAY_WGSL));
   assert.ok(BOUNCE_LIGHTING_SHADER.includes(SURFACE_RAY_WGSL));
+});
+
+test('rough water keeps the probe irradiance over π; only water at the floor traces the proxy', () => {
+  // The water's roughness reaches the model, clamped to the floor it traces at.
+  assert.ok(WATER_COMPOSITE_SHADER.includes(`let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);`));
+  assert.match(
+    WATER_COMPOSITE_SHADER,
+    /reflected=F\*reflectedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
+  );
+  // The ray is fired only inside the floor's branch; above it the one remaining return is the
+  // expression develop's water read, sampleBounce(P,reflect(-V,Nv))*INVERSE_PI, with R the mirror.
+  const reflected = body(WATER_COMPOSITE_SHADER, 'reflectedRadiance');
+  const lines = reflected.split('\n').slice(1);
+  assert.deepEqual(lines, [
+    ' if(bounce.counts.w==0u){return vec3f(0.0);}',
+    ` if(rough<=${ROUGHNESS_FLOOR}){`,
+    '  let reach=bounce.reach.x;',
+    '  let hit=rayRadiance(P+N*proxy.offsetMetres+R*proxy.startMetres,R,reach);',
+    '  if(hit.w<reach){return hit.rgb;}',
+    ' }',
+    ' return sampleBounce(P,R)*INVERSE_PI;',
+  ]);
+  // Without bounce sampleBounce is zero too: the early return changes no value.
+  assert.match(
+    body(WATER_COMPOSITE_SHADER, 'sampleBounce'),
+    /^fn sampleBounce\([^)]*\)->vec3f\{\n if\(bounce\.counts\.w==0u\)\{return vec3f\(0\.0\);\}/,
+  );
 });
