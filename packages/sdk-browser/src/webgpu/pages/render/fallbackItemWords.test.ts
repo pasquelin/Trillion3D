@@ -58,7 +58,7 @@ test('#198: a row changed under the fallback draw reaches the visibility pass', 
     scene.indices,
     scene.associations,
   );
-  const gpu = mockGpu({ compute: true });
+  const gpu = mockGpu({ packed: packDagSelection(collected.roots) });
   const rt = createWebgpuPagesRuntime({
     ...scene,
     metadata: { ...QUAD_MANIFEST, ...scene.metadata, ...MANIFEST_IDENTITY },
