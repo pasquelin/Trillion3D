@@ -27,8 +27,8 @@
       const world = createWorld('view', { controls: 'orbit' });
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
       // A scene file carries no sky, only its sun: what the sun misses would be black. The court
-      // is outdoors, so add a clear sky at a fifth of the sun's intensity (20 000 lx of sky to
-      // 100 000 lx of sun), tinted from below by the court's limestone (its linear source colour).
+      // is outdoors, so add a clear sky at a fifth of the sun's intensity (the clear-day ratio of
+      // sky to sun), tinted from below by the court's limestone (its linear source colour).
       const [sun] = model.lights;
       world.scene.add(light.hemisphere({ color: '#a6c6ff', groundColor: [0.67, 0.48, 0.28], intensity: sun.intensity / 5 }));
       const framing = pose.fromBounds(model.bounds);
