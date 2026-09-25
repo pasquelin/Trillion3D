@@ -169,8 +169,8 @@ export function createShadowPlan(poolSide: number) {
       }
       if (to >= admission.count) admission.reset();
     },
-    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, and are
-     *  drawn by the next frame. */
+    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, and come
+     *  first in the next frame's list (`admit.ts`). */
     reissue(from = 0) {
       counts.pendingPages = Math.max(0, admission.count - from);
       admission.reset(from);
