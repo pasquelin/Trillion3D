@@ -34,8 +34,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap = bootstrap.slice();
   const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
-  const pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
-    cap = context.maxResidentPages ?? pageDefault,
+  // The display graph's page ceiling: the host's, or the default raised to the root cover (#527).
+  const hostCeiling = context.maxResidentPages ?? Infinity,
+    pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
+    cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
   // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
   const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] },
@@ -66,10 +68,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
-  // The display graph's page ceiling: the host's, or the default raised to the root cover (#527).
-  const hostCeiling = context.maxResidentPages ?? Infinity,
-    ceiling = () =>
-      hostCeiling < Infinity ? hostCeiling : Math.max(pageDefault, heldFloor.meshes());
+  const ceiling =
+    hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...tables,
     baseRoots,

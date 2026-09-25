@@ -20,7 +20,7 @@ export function createHeldFloor(env: {
   let revision = 0,
     read = -1,
     bytes = 0,
-    counted = -1,
+    meshesRead = -1,
     meshes = 0;
   return {
     /** What the root cover holds changed; the pool reads the same revision (`coverRevision`). */
@@ -47,8 +47,8 @@ export function createHeldFloor(env: {
     /** The display meshes the root cover hangs (`attachedPages`), read again only after
      *  `changed`: a transparent page counts once per row that places it. */
     meshes() {
-      if (counted === revision) return meshes;
-      counted = revision;
+      if (meshesRead === revision) return meshes;
+      meshesRead = revision;
       return (meshes = attachedPages(bootstrap));
     },
   };
