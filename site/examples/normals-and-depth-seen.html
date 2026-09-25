@@ -92,7 +92,13 @@
       world.controls.maxDistance = 30;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
-      let meaning = null, view = 'lit', shownExposure = 1;
+      // The depth view reads 1 at the near plane and 0 at the far one. The default far plane lies
+      // two kilometres out, so the whole court would read white: in that view the far plane
+      // follows the court's farthest point instead, and the ramp spans the court from anywhere.
+      const court = math.box3().setFromObject(world.scene);
+      const centre = court.getCenter(), radius = court.getSize().length() / 2, FAR = world.camera.far;
+
+      let meaning = null, view = 'lit';
       const ui = controls({
         see: ['lit', 'normals', 'depth'],
         spin: true,
@@ -103,7 +109,7 @@
         for (const { mesh, lit } of pieces) mesh.material = view === 'lit' ? lit : view === 'normals' ? NORMALS : DEPTH;
         // The two views of data are shown as they are stored: no film curve bending them.
         world.toneMapping = view === 'lit' ? 'aces' : 'none';
-        world.exposure = shownExposure = 1;
+        if (view !== 'depth') world.camera.far = FAR;
         meaning?.(say(view));
         world.invalidate();
       }, world);
@@ -124,12 +130,9 @@
         if (ui.spin) turn += step;
         knot.rotation.set(0, turn * 0.5, 0);
         for (const { mesh, speed, tilt } of turners) mesh.rotation.set(tilt, turn * speed, 0);
-        // The depth view stores the reversed depth, about near ÷ distance: tiny numbers. The
-        // exposure scales them so the court's centre reads mid-grey wherever the camera stands.
         if (view === 'depth') {
-          const reach = world.camera.position.distanceTo(world.controls.target);
-          const wanted = (0.55 * reach) / world.camera.near;
-          if (Math.abs(wanted - shownExposure) > shownExposure * 0.01) world.exposure = shownExposure = wanted;
+          const far = world.camera.position.distanceTo(centre) + radius;
+          if (Math.abs(far - world.camera.far) > far * 0.01) world.camera.far = far;
         }
         world.invalidate();
       });
