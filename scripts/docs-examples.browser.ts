@@ -79,8 +79,8 @@ test('every example file renders an image on its own, fetching Jolt only when it
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }
-    assert.deepEqual(jolt, []);
-    assert.deepEqual(blank, []);
+    // Both lists in one verdict: a physics mismatch never hides a blank page (#503).
+    assert.deepEqual({ jolt, blank }, { jolt: [], blank: [] });
     await controlsDriveTheRender(browser, port);
   } finally {
     await browser.close();
