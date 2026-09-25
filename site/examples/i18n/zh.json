@@ -1972,6 +1972,16 @@
       "Look for": "留意"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "拖动不透明度：中间那块玻璃的阴影随之变化，0 时消失，1 时全黑。",
+    "controls": {
+      "opacity": "不透明度",
+      "sunHeight": "太阳高度"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "中间玻璃的不透明度"
+    }
+  },
   "walk-with-collisions": {
     "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子，在冰面上松开按键就会滑行。",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "升降台",
       "load": "重物",
       "rope": "绳子走过"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W 或 ↑ 加速，S 或 ↓ 刹车、停下后倒车，A D 或 ← → 转向，空格拉手刹。在面板中选择跑车、摩托车或坦克。",
+    "controls": {
+      "vehicle": "车辆",
+      "reset": "放回车轮上"
+    },
+    "readouts": {
+      "speed": "速度",
+      "gear": "挡位",
+      "rpm": "发动机 (转/分)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "跑车",
+        "motorcycle": "摩托车",
+        "tracked": "坦克"
+      }
+    },
+    "words": {
+      "credit": "山谷为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "旗子挂在旗杆上，绳子在横梁下摆动。让旗子变硬，或让绳子可以拉伸。",
+    "controls": {
+      "stiff": "硬旗",
+      "stretch": "绳子拉伸",
+      "again": "再来",
+      "slowMotion": "慢动作"
+    },
+    "readouts": {
+      "vertices": "顶点",
+      "step": "步长"
+    }
+  },
+  "soft-bodies": {
+    "banner": "把软软的体扔到台阶上。设置它们气体的压力，0 表示默认值。",
+    "controls": {
+      "pressure": "压力（Pa）",
+      "drop": "投放",
+      "again": "再来",
+      "slowMotion": "慢动作"
+    },
+    "readouts": {
+      "volumes": "体",
+      "awake": "活动"
     }
   }
 }

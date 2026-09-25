@@ -48,14 +48,17 @@ export interface MaterialParameters {
   flatShading?: boolean;
   /** Size of a dot, for the points material. */
   size?: number;
-  /** Whether dots get smaller with distance. */
+  /** Whether dots and sprites get smaller with distance. */
   sizeAttenuation?: boolean;
-  /** Width of a line. */
+  /** How far a sprite's picture is turned in the image, in radians, counter-clockwise. */ rotation?: number;
+  /** Width of a line in CSS pixels, the same at every distance. */
   linewidth?: number;
-  /** Length of a dash. */
+  /** Length of a dash, in world units along the line. */
   dashSize?: number;
-  /** Length of the gap between two dashes. */
+  /** Length of the gap between two dashes, in world units along the line. */
   gapSize?: number;
+  /** How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long. */
+  scale?: number;
   /** Whether the geometry's per-vertex `color` tints the surface. */
   vertexColors?: boolean;
   /** Whether the surface writes its depth, hiding what is drawn after it. */

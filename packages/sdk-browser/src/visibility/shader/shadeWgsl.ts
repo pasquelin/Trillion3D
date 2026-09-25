@@ -1,6 +1,7 @@
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { lecture, lectureDonnee, siCarte } from './maps.ts';
-import { MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import { AS_IS_FLAG, MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -18,8 +19,12 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  let h=pageHeader(page);
  let i0=pageCorner(page,h,tri*3u);let i1=pageCorner(page,h,tri*3u+1u);let i2=pageCorner(page,h,tri*3u+2u);
  let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
- let w0=page.world*vec4f(p0,1.0);let w1=page.world*vec4f(p1,1.0);let w2=page.world*vec4f(p2,1.0);
- let c0=uni.viewProj*w0;let c1=uni.viewProj*w1;let c2=uni.viewProj*w2;
+ var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
+ // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.
+ if(page.sprite.y!=0.0){w0=pageSprite(page,p0);w1=pageSprite(page,p1);w2=pageSprite(page,p2);}
+ var c0=uni.viewProj*w0;var c1=uni.viewProj*w1;var c2=uni.viewProj*w2;
+ // A line page's triangle is the quad the rasters widened (\`pageLine\`): its corners are read the same way.
+ if(page.lineWidth>0.0){let vp=uni.viewProj*page.world;c0=pageLine(page,h,i0,vp,c0);c1=pageLine(page,h,i1,vp,c1);c2=pageLine(page,h,i2,vp,c2);}
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
  let p=vec2f(pos.x,pos.y);
  let area=edge(s1.xy,s2.xy,s0.xy);
@@ -80,9 +85,9 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  if(uni.mode==3u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
  if(uni.mode==4u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5),request);}
  if(uni.mode==5u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
- if(uni.mode==6u){let ratio=clamp(page.pad4.x,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
+ if(uni.mode==6u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
  if(uni.mode==7u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
- var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,0.0525,1.0);
+ var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,${ROUGHNESS_FLOOR},1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
@@ -126,10 +131,11 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
    N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);
   }
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
- // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged.
+ // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
+ // nor tone mapped.
  if(model==${SURFACE_MODEL.normal}u){rgb=viewNormal(N)*0.5+0.5;}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
- if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(3u,1u,model==${SURFACE_MODEL.matcap}u),request);}
+ if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u,model==${SURFACE_MODEL.matcap}u),request);}
  var flag=select(1u,2u,(page.flags&1u)!=0u);
  if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
  if(flag==2u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}

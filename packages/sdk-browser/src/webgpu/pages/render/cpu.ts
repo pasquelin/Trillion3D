@@ -62,6 +62,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       rt.setup.viewport ?? rt.gpu.targetSize,
       run.temporalHizState,
       run.cpuHizCounts,
+      rt.setup.pixelRatio(),
     );
     run.cpuHizCounted = true;
     run.culledScratch.length = 0;
@@ -172,7 +173,6 @@ export function renderCpuCut(
   appendAll(run.drawn, culled);
   run.blendPagedTriangles = triangleSum(run.drawn, true);
   // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing.
-  run.uncoveredTriangles = 0;
   // No cluster without residency has survived the checks above: the whole cut goes to draw, and
   // occlusion reject does not drop out here — `hizRejectedTriangles` counts it.
   run.drawnTriangles = run.selectedTriangles;

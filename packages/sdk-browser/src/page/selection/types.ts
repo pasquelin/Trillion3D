@@ -9,7 +9,7 @@ import type {
 import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
-import type { CullingLinks } from '../cut/forced.ts';
+import type { CullingLinks } from '../cut/readiness.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 
 export type PageRec = {
@@ -149,28 +149,14 @@ export type ClusterRoot<T> = {
   parked?: boolean;
   /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean;
+  /** True when its surface is never culled (`neverCulled`): no camera cut rejects its nodes or
+   *  pages, and the shadow scene box leaves it out. Set once at collection. */
+  unculled?: boolean;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };
 
-/**
- * Rounds of climb toward a resident ancestor before the pinned root cover takes over. The flat
- * cut and the cluster-DAG cut escalate the same number of times: two separate values would have
- * been tuned one without the other.
- */
+/** Rounds of climb toward a resident ancestor before the CPU cut's pinned root cover takes over
+ *  (`../cut/repair.ts`). The GPU cut has none: it draws the nearest resident ancestor
+ *  (`../cut/rule.ts`). */
 export const ESCALATION_ROUNDS = 3;
-
-/**
- * Relative slack added to the threshold when the cut climbs toward a resident ancestor.
- *
- * Escalation sets `threshold = parent's screen error` so the missing cluster stops being kept
- * (`parent error > threshold` becomes false at equality) and its parent replaces it (`parent
- * error <= threshold` true at the same equality). Both flips therefore rest on an EXACT equality
- * between a value written by one pass and the same value recomputed by another. In f32 that
- * equality does not hold: the driver compiler contracts the same operands differently from one
- * entry point to another, and the re-read value drifts by a few units in the last bit — the
- * missing cluster becomes kept again, and its parent does not replace it. The threshold is
- * therefore set strictly above, by a slack that amply covers that drift while remaining four
- * orders of magnitude under a pixel: both flips become strict.
- */
-export const ESCALATION_SLACK = 1 + 2 ** -14;

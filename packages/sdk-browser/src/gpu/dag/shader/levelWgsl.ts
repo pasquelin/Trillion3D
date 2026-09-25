@@ -1,4 +1,3 @@
-import { NODE_HAS_ROOT } from '../packNodes.ts';
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
  *
@@ -61,6 +60,8 @@ fn drawnCounter()->u32{return liveCounter()+7u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
 /** Index of the primitive's root node, deposited once and for all behind its stretch. */
 fn rootOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].y);}
+/** True on a primitive no camera culls (\`PackedDag.unculled\`), the word behind its record shift. */
+fn unculledOf(w:u32)->bool{return bitcast<u32>(frames[w*FRAME+6u].w)!=0u;}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
  *  pulling it afterwards. What passes the list's capacity is dropped and said (\`dropWork\`). */
@@ -108,22 +109,16 @@ fn levelStep(src:u32,s:u32){
  if(entry==0xffffffffu){return;}
  vi=entryView(entry);
  let node=nodes[entryIndex(entry)];
- let w=node.worldIndex;let slot=slotOf(w);
- if(outsideFrustum(slot*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ let w=node.worldIndex;
+ if(outsideFrustum(slotOf(w)*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
- // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages.
- // A subtree that carries a cluster nothing replaces is exempt from the second — the pinned fallback
- // draws it without consulting a threshold, and descent is the only path by which it
- // reaches it. The trunk-reject count moves for neither: a subtree dropped here is
+ // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages —
+ // unless the subtree is open, holding the nearest resident ancestor of something missing
+ // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
- //
- // A primitive whose manifest carries no ceiling and whose subtree is exempt reads
- // neither: the view·world, which only applies to them, is then not mounted.
- if(node.maxParentError>=0.0||(node.nodeFlags&${NODE_HAS_ROOT}u)==0u){
-  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
-  if(node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError){atomicAdd(&out.frustumRejected,1u);return;}
-  if(floorPrunes(slot,node.nodeFlags,node.floorSphere,node.errorFloor,e,stretch,focal)){return;}
- }
+ let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ if(node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError){atomicAdd(&out.frustumRejected,1u);return;}
+ if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal)){return;}
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }

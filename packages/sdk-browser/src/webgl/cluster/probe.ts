@@ -1,7 +1,5 @@
-import {
-  ENVIRONMENT_COEFFICIENTS,
-  IRRADIANCE_BAND,
-} from '../../../../sdk-core/src/scene/core/environment.ts';
+import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts';
+import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 
 /**
  * THE ENVIRONMENT IRRADIANCE ON THE WEBGL2 PATH: a host light probe's nine coefficients, read as
@@ -13,9 +11,7 @@ import {
 export const PROBE_IRRADIANCE_GLSL = `
 uniform vec3 probeSh[${ENVIRONMENT_COEFFICIENTS}];uniform mat3 viewRotation;
 vec3 probeIrradiance(vec3 viewNormal){vec3 N=viewNormal*viewRotation;
-vec3 E=probeSh[0]*${IRRADIANCE_BAND.constant}+(probeSh[1]*N.y+probeSh[2]*N.z+probeSh[3]*N.x)*${IRRADIANCE_BAND.linear};
-E+=(probeSh[4]*N.x*N.y+probeSh[5]*N.y*N.z+probeSh[7]*N.x*N.z)*${IRRADIANCE_BAND.quadraticCross};
-E+=probeSh[6]*(${IRRADIANCE_BAND.quadraticZ}*N.z*N.z-${IRRADIANCE_BAND.quadraticZOffset})+probeSh[8]*${IRRADIANCE_BAND.quadraticDifference}*(N.x*N.x-N.y*N.y);
+vec3 E=${irradianceShader((k) => `probeSh[${k}]`, 'N')};
 return max(E,vec3(0.0));}`;
 
 /** A host light probe read by shape: its intensity and its nine RGB coefficients. */

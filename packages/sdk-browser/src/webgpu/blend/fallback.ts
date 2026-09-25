@@ -2,6 +2,7 @@ import { viewProj } from '../pages/helpers.ts';
 import { UNIFORM_STRIDE } from './uniforms.ts';
 import { voidStaleBlendGroups } from './identity.ts';
 import { refreshSurface } from '../../page/surface.ts';
+import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { drawnBlending } from '../../scene/materialBlending.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -28,6 +29,10 @@ export function writeFallbackBlendUniforms(
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       base = (uniformBase + i) * words;
+    const surface = refreshSurface(item.surface);
+    // This path reads float positions and no direction: a line quad could not be widened
+    // (`lineClip`), and is refused by name rather than dropped.
+    if ((surface.lineWidth ?? 0) > 0) throw new Error('FALLBACK_TRANSPARENT_LINES_UNSUPPORTED');
     uniformPacked.set(viewProj, base);
     uniformPacked.set(item.matrix.elements, base + 16);
     uniformPacked[base + 32] = item.rgba[0];
@@ -38,6 +43,11 @@ export function writeFallbackBlendUniforms(
     packedInts[base + 37] = item.count;
     packedInts[base + 38] = run.diagnostic === 'wireframe' ? 1 : 0;
     packedInts[base + 39] = item.flags;
+    // No width and no dash: the words a line page of the opaque draw may have left here.
+    uniformPacked[base + 40] = 0;
+    uniformPacked[base + 44] = 0;
+    // A sprite turns to face the camera like in every raster (`spriteAt`).
+    writeSpriteWords(uniformPacked, base + 46, surface.sprite);
   }
   device.queue.writeBuffer(
     uniformBuffer,

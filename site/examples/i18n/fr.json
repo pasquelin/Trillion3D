@@ -1972,6 +1972,16 @@
       "Look for": "À observer"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Faites glisser l'opacité : l'ombre de la vitre du milieu la suit, absente à 0 et pleine à 1.",
+    "controls": {
+      "opacity": "Opacité",
+      "sunHeight": "Hauteur du soleil"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacité de la vitre du milieu"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses, et lâchez les touches sur la glace pour glisser.",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "Ascenseur",
       "load": "Poids",
       "rope": "Corde déroulée"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W ou ↑ accélère, S ou ↓ freine puis recule, A D ou ← → braquent, Espace tire le frein à main. Choisissez la voiture, la moto ou le char dans le panneau.",
+    "controls": {
+      "vehicle": "Véhicule",
+      "reset": "Remettre sur ses roues"
+    },
+    "readouts": {
+      "speed": "Vitesse",
+      "gear": "Rapport",
+      "rpm": "Moteur (tr/min)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "voiture de sport",
+        "motorcycle": "moto",
+        "tracked": "char"
+      }
+    },
+    "words": {
+      "credit": "Vallée modélisée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "Le drapeau pend à son mât et les cordes se balancent sous la poutre. Raidis le drapeau, ou laisse les cordes s’étirer.",
+    "controls": {
+      "stiff": "Drapeau raide",
+      "stretch": "Étirement des cordes",
+      "again": "Encore",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "vertices": "Sommets",
+      "step": "Pas"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Lâche des volumes mous sur la marche. Règle la pression de leur gaz, ou 0 pour celle par défaut.",
+    "controls": {
+      "pressure": "Pression (Pa)",
+      "drop": "Lâcher",
+      "again": "Encore",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "volumes": "Volumes",
+      "awake": "Éveillés"
     }
   }
 }

@@ -9,6 +9,9 @@ import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
 import { importHostSurface } from '../../host/surfaceImport.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
+import { hostSide } from '../../scene/materialSide.ts';
+import { LINE_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts';
+import { lineDash } from '../../visibility/shader/lineWgsl.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
@@ -115,8 +118,8 @@ test('a glass wears a physical surface the WebGL2 program draws as a transmissiv
   const surface = hostSurface(glass, false, new Map());
   assert.equal(surface.family, 'physical');
   const attributes = {
-    position: new G.GraphAttribute(new Float32Array(9), 3),
-    normal: new G.GraphAttribute(new Float32Array(9), 3),
+    position: new G.BufferAttribute(new Float32Array(9), 3),
+    normal: new G.BufferAttribute(new Float32Array(9), 3),
   } as unknown as HostAttributes;
   assert.equal(clusterMaterialReason(surface, attributes, true), undefined);
   assert.match(String(clusterMaterialReason(surface, attributes)), /scene copy/);
@@ -138,4 +141,49 @@ test('hostSurface carries the blending, and a composing mode draws transparent',
     assert.equal(plain.blending, hostBlending('normal'), kind);
     assert.equal(plain.transparent, false, `${kind}: normal keeps its own transparency`);
   }
+});
+
+// #348: a surface that draws line quads carries its width in pixels, draws both sides in one pass
+// and sits one coplanar layer over the faces the lines lie on; the same material on faces does not.
+test('a line surface carries its pixel width, both sides and one coplanar layer', () => {
+  const ink = material.line({ color: 0x000000, linewidth: 3 });
+  const lines = hostSurface(ink, false, new Map(), 'lines');
+  assert.equal(lines.lineWidth, 3);
+  assert.equal(lines.side, hostSide('double'));
+  assert.equal(lines.forceSinglePass, true);
+  assert.equal(lines.polygonOffset, true);
+  assert.equal(lines.polygonOffsetFactor, 0);
+  assert.equal(lines.polygonOffsetUnits, -depthLayerUnits(LINE_DEPTH_LAYER));
+  assert.equal(importHostSurface(lines)?.lineWidth, 3, 'the engine record reads the width');
+  const wire = hostSurface(material.meshStandard({ wireframe: true }), false, new Map(), 'lines');
+  assert.equal(wire.lineWidth, 1, 'a wireframe without a width draws one pixel wide');
+  const faces = hostSurface(ink, false, new Map());
+  assert.equal(faces.lineWidth, undefined);
+  assert.equal(faces.polygonOffset, false);
+  assert.equal(importHostSurface(faces)?.lineWidth, 0);
+});
+
+// #359: a dashed line's surface carries its dash and gap, its `scale` folded in, and a repaint
+// writes them again (#335); a solid line's surface carries none. At a `scale` of zero or less the
+// reference's dash is infinite, every pixel drawn: a dash of zero, the one `lineDash` keeps whole.
+test('a dashed line surface carries its dash and gap, and a repaint writes them', () => {
+  const ink = material.lineDashed({ dashSize: 0.3, gapSize: 0.2, scale: 2 });
+  const lines = hostSurface(ink, false, new Map(), 'lines');
+  assert.deepEqual([lines.dashSize, lines.gapSize], [0.15, 0.1]);
+  assert.deepEqual(
+    [importHostSurface(lines)?.dashSize, importHostSurface(lines)?.gapSize],
+    [0.15, 0.1],
+  );
+  Object.assign(ink, { dashSize: 1, gapSize: 0.5, scale: 1 });
+  repaintHostSurface(lines, ink);
+  assert.deepEqual([lines.dashSize, lines.gapSize], [1, 0.5]);
+  for (const scale of [0, -1]) {
+    repaintHostSurface(lines, Object.assign(ink, { scale }));
+    assert.deepEqual([lines.dashSize, lines.gapSize], [0, 0], `scale ${scale}`);
+    for (let at = 0; at < 2; at += 0.05) assert.ok(lineDash(at, Number(lines.dashSize), 0));
+  }
+  const solid = hostSurface(material.line(), false, new Map(), 'lines');
+  assert.equal(solid.dashSize, undefined);
+  repaintHostSurface(solid, material.line());
+  assert.equal(importHostSurface(solid)?.dashSize, undefined);
 });

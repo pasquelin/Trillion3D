@@ -5,6 +5,7 @@ import {
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
 import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts';
 import { packDrawn } from '../page/runtimeCut.ts';
@@ -25,17 +26,22 @@ export type Cut = {
 export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m[0] : m);
 
 /**
- * What decides a mesh's triangles, beside its geometry: how it reads it, and the material fields
- * that turn a point into an octahedron, a line into a prism, a face into its wireframe or its
- * flat normals. Two meshes equal on these draw the same triangles, whatever else they wear.
+ * What decides a mesh's triangles, beside its geometry: how it reads it, the material fields
+ * that turn a point into an octahedron, a face into its wireframe or its flat normals, and a
+ * dashed line's kind, whose quads carry their distance along the line, and a sprite's centre,
+ * which moves its quad about its origin. A line's width and its dash lengths are not among them:
+ * the rasters widen its quads on screen and cut its dashes; nor a sprite's rotation, which the
+ * rasters apply. Two meshes equal on these draw the same triangles, whatever else they wear.
  */
 function readingOf(mesh: Mesh) {
   const material = firstMaterial(mesh.material);
+  const center = mesh instanceof Sprite ? mesh.center : undefined;
   const options = {
     size: material.size as number | undefined,
-    linewidth: material.linewidth as number | undefined,
     wireframe: material.wireframe === true,
     flat: material.flatShading === true,
+    dashed: material.kind === 'lineDashed',
+    center: center ? ([center.x, center.y] as const) : undefined,
   };
   const key = [mesh.primitive, ...Object.values(options)].join('|');
   return { key, options };
@@ -47,7 +53,10 @@ type Content = { key: string; drawn: DrawnTriangles; packed: ArrayBuffer | null 
 
 async function readContent(drawn: DrawnTriangles): Promise<Content> {
   const packed = packDrawn(drawn);
-  return { key: await sha256Hex(packed), drawn, packed };
+  // Line quads are drawn widened and a sprite's quad turned to the camera: neither shares a
+  // resource with the same bytes read as faces.
+  const kind = drawn.lines ? 'lines:' : drawn.spriteRadius !== undefined ? 'sprite:' : '';
+  return { key: kind + (await sha256Hex(packed)), drawn, packed };
 }
 
 type Reading = { version: number; read: Promise<Content | null> };
@@ -87,7 +96,7 @@ export function createWorldCuts() {
       return pending;
     }
     // A content read again after its resource was released packs its triangles again.
-    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn)).then(
+    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn), drawn).then(
       (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
       // A failed cut leaves no trace: the next mesh with this content tries again.
       () => {

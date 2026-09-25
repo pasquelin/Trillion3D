@@ -104,9 +104,10 @@ mod tests {
     }
 
     // Behaviour: the page codec is linked into the compiler: its sources are hashed as the
-    // compiler's own, so a codec edit moves the key (#558). Read from the list the build hashed.
+    // compiler's own, so a codec edit moves the key (#558). So does the cargo configuration, whose
+    // C++ flags change what meshoptimizer simplifies to (#415). Read from the list the build hashed.
     #[test]
-    fn the_build_hashes_the_page_codec() {
+    fn the_build_hashes_the_page_codec_and_the_cpp_flags() {
         let inputs: Vec<&str> =
             include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
                 .lines()
@@ -114,10 +115,23 @@ mod tests {
         for input in [
             "../page-codec-wasm/src/lib.rs",
             "../page-codec-wasm/Cargo.toml",
+            "../../.cargo/config.toml",
         ] {
             assert!(inputs.contains(&input), "{input} is not hashed");
         }
         assert!(inputs.contains(&"src/compiler_identity.rs"));
+    }
+
+    // Behaviour: the runtime reads the error model the compiler writes. A mismatch would make
+    // every fresh cache STALE_CACHE, or let a stale one through.
+    #[test]
+    fn the_runtime_names_the_same_error_model() {
+        let contract = include_str!("../../sdk-core/src/contracts/base.ts");
+        let line = format!("export const DAG_ERROR_MODEL = '{DAG_ERROR_MODEL}';");
+        assert!(
+            contract.contains(&line),
+            "sdk-core does not declare {DAG_ERROR_MODEL}"
+        );
     }
 
     // Behaviour: shapes cooked by another Jolt are another product: the key moves with the commit.

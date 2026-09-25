@@ -1972,6 +1972,16 @@
       "Look for": "Perhatikan"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Geser opasitas: bayangan kaca tengah mengikutinya, hilang di 0 dan penuh di 1.",
+    "controls": {
+      "opacity": "Opasitas",
+      "sunHeight": "Tinggi matahari"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opasitas kaca tengah"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya, dan lepaskan tombol di atas es untuk meluncur.",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "Lift",
       "load": "Beban",
       "rope": "Tali berjalan"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W atau ↑ menambah gas, S atau ↓ mengerem lalu mundur, A D atau ← → berbelok, Spasi menarik rem tangan. Pilih mobil, motor, atau tank di panel.",
+    "controls": {
+      "vehicle": "Kendaraan",
+      "reset": "Kembalikan ke rodanya"
+    },
+    "readouts": {
+      "speed": "Kecepatan",
+      "gear": "Gigi",
+      "rpm": "Mesin (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "mobil sport",
+        "motorcycle": "motor",
+        "tracked": "tank"
+      }
+    },
+    "words": {
+      "credit": "Lembah dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "Bendera tergantung di tiangnya dan tali berayun di bawah balok. Buat bendera kaku, atau biarkan tali meregang.",
+    "controls": {
+      "stiff": "Bendera kaku",
+      "stretch": "Regangan tali",
+      "again": "Lagi",
+      "slowMotion": "Gerak lambat"
+    },
+    "readouts": {
+      "vertices": "Verteks",
+      "step": "Langkah"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Jatuhkan volume lunak ke anak tangga. Atur tekanan gasnya, atau 0 untuk bawaan.",
+    "controls": {
+      "pressure": "Tekanan (Pa)",
+      "drop": "Jatuhkan",
+      "again": "Lagi",
+      "slowMotion": "Gerak lambat"
+    },
+    "readouts": {
+      "volumes": "Volume",
+      "awake": "Aktif"
     }
   }
 }

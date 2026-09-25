@@ -1972,6 +1972,16 @@
       "Look for": "Osserva"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Trascina l'opacità: l'ombra del vetro centrale la segue, assente a 0 e piena a 1.",
+    "controls": {
+      "opacity": "Opacità",
+      "sunHeight": "Altezza del sole"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacità del vetro centrale"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Clicca per guardarti intorno, poi cammina con W A S D e salta con Spazio: sali le scale e la rampa, viaggia sulla piattaforma, spingi le casse e lascia i tasti sul ghiaccio per scivolare.",
     "controls": {
@@ -2044,6 +2054,54 @@
       "lift": "Ascensore",
       "load": "Pesi",
       "rope": "Fune scorsa"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W o ↑ accelera, S o ↓ frena e poi va in retromarcia, A D o ← → sterzano, Spazio tira il freno a mano. Scegli l'auto, la moto o il carro armato nel pannello.",
+    "controls": {
+      "vehicle": "Veicolo",
+      "reset": "Rimetti sulle ruote"
+    },
+    "readouts": {
+      "speed": "Velocità",
+      "gear": "Marcia",
+      "rpm": "Motore (giri/min)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "auto sportiva",
+        "motorcycle": "moto",
+        "tracked": "carro armato"
+      }
+    },
+    "words": {
+      "credit": "Valle modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "cloth-and-rope": {
+    "banner": "La bandiera pende dall’asta e le corde oscillano sotto la trave. Irrigidisci la bandiera, o lascia allungare le corde.",
+    "controls": {
+      "stiff": "Bandiera rigida",
+      "stretch": "Allungamento corde",
+      "again": "Ancora",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "vertices": "Vertici",
+      "step": "Passo"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Lascia cadere volumi morbidi sul gradino. Regola la pressione del loro gas, o 0 per quella predefinita.",
+    "controls": {
+      "pressure": "Pressione (Pa)",
+      "drop": "Lascia",
+      "again": "Ancora",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "volumes": "Volumi",
+      "awake": "Svegli"
     }
   }
 }

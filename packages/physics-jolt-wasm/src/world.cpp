@@ -117,9 +117,16 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   // A body removed awake was put to sleep by its removal: not a body of this step.
   w.deactivated.clear();
   trillion::moveCharacter(dt);
-  if (dt > 0) w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
+  trillion::driveVehicles(dt);
+  if (dt > 0) {
+    trillion::notePaths();
+    w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
+    trillion::carryPaths();
+  }
   trillion::breakJoints(dt);
+  trillion::writeVehicles();
   trillion::writeCharacter();
+  trillion::writeSoft();
   return trillion::writePoses();
 }
 
@@ -135,6 +142,9 @@ uint32_t jolt_refused(uint32_t i) { return world().refused[i]; }
 uint32_t jolt_error() { return world().error; }
 /// Leaves still owed from a step whose event buffer was full: the next step writes them first.
 uint32_t jolt_owed_leaves() { return uint32_t(world().leaving.size()); }
-uint32_t jolt_active_count() { return world().system->GetNumActiveBodies(EBodyType::RigidBody); }
+uint32_t jolt_active_count() {
+  const PhysicsSystem &system = *world().system;
+  return system.GetNumActiveBodies(EBodyType::RigidBody) + system.GetNumActiveBodies(EBodyType::SoftBody);
+}
 
 }  // extern "C"
