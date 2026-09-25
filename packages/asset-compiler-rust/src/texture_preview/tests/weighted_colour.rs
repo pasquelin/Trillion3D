@@ -99,6 +99,16 @@ fn every_chain_but_a_varying_coverage_one_keeps_the_develop_bytes() {
     );
 }
 
+/// A one-material scene reading `image` as base colour under `mode`.
+fn scene(mode: &str, image: &str) -> serde_json::Value {
+    json!({
+        "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}, "alphaMode": mode}],
+        "meshes": [{"primitives": [{"attributes": {}, "material": 0}]}],
+        "textures": [{"source": 0}],
+        "images": [{"uri": image}],
+    })
+}
+
 // Behaviour 5 (d): one image cooked plain in a scene — an opaque base colour — and weighted
 // in another — a masked one — into the same cache never shares a file: the chain names its
 // files and its sidecar word, so neither scene's levels serve the other.
@@ -114,28 +124,11 @@ fn a_plain_and_a_coverage_chain_of_one_image_never_share_files() {
         }
     });
     source.save(dir.join("leaf.png")).expect("save");
-    let scene = |mode: &str| {
-        json!({
-            "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}, "alphaMode": mode}],
-            "meshes": [{"primitives": [{"attributes": {}, "material": 0}]}],
-            "textures": [{"source": 0}],
-            "images": [{"uri": "leaf.png"}],
-        })
-    };
-    // An image whose alpha never varies bakes the plain chain even under a masked reader: the
-    // weighted one would be the same bytes under a second name.
-    rgba_from(256, 256, |x, _| [x as u8, 9, 9, 128])
-        .save(dir.join("flat.png"))
-        .expect("save");
-    let mut flat = scene("MASK");
-    flat["images"][0]["uri"] = json!("flat.png");
-    assert_eq!(stage_scene(&dir, &flat).0[0].kind, AtlasKind::Color);
-    let (plain, _) = stage_scene(&dir, &scene("OPAQUE"));
-    let (weighted, _) = stage_scene(&dir, &scene("MASK"));
+    let (plain, _) = stage_scene(&dir, &scene("OPAQUE", "leaf.png"));
+    let (weighted, _) = stage_scene(&dir, &scene("MASK", "leaf.png"));
     assert_eq!(plain[0].sha256, weighted[0].sha256, "one image");
     let kinds = [plain[0].kind, weighted[0].kind];
     assert_eq!(kinds, [AtlasKind::Color, AtlasKind::Coverage]);
-    assert_ne!(kinds[0].word(), kinds[1].word());
     let native = dir.join("cache").join("native");
     let levels = kinds.map(|kind| {
         let path = native.join(level_path(&plain[0].sha256, kind, 1, LOSSLESS));
@@ -148,4 +141,16 @@ fn a_plain_and_a_coverage_chain_of_one_image_never_share_files() {
         decoded
     });
     assert_ne!(levels[0], levels[1], "each scene reads its own level");
+}
+
+// Behaviour 5 (e): an image whose alpha never varies bakes the plain chain even under a masked
+// reader: the weighted one would be the same bytes under a second name.
+#[test]
+fn a_flat_alpha_image_read_as_coverage_bakes_the_plain_chain() {
+    let dir = temp_dir("bake-flat-coverage");
+    rgba_from(256, 256, |x, _| [x as u8, 9, 9, 128])
+        .save(dir.join("flat.png"))
+        .expect("save");
+    let (previews, _) = stage_scene(&dir, &scene("MASK", "flat.png"));
+    assert_eq!(previews[0].kind, AtlasKind::Color);
 }

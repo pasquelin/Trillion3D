@@ -21,7 +21,9 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
     let mut previous: Option<(u32, u32)> = None;
     let mut offset: u32 = 0;
     for preview in previews {
-        let key = (preview.texture, preview.kind.word());
+        // Keyed by the atlas that samples the chain: a texture has one colour-atlas
+        // entry, plain or coverage, never both.
+        let key = (preview.texture, preview.kind.atlas().word());
         if previous.is_some_and(|last| last >= key) {
             return Err(bad(format!(
                 "Texture preview {} does not follow the previous (texture, atlas) pair",

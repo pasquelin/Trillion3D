@@ -38,11 +38,11 @@ test('uniforms describe one reduced level each, at the device alignment', () => 
 // keeps it off. The compiler proves the rule's bytes (`texture_preview/tests/weighted_colour.rs`);
 // which texture takes which rule is `scratch.test.ts` and `sources.test.ts`.
 test('one reduction pipeline per rule, the weighted one built with its constant and reused', () => {
-  const { device, texture, pipelines } = scratch();
+  const { device, texture, renderPipelines } = scratch();
   for (const rule of [true, false, true])
     generateMaterialMips(device, texture, 'rgba8unorm-srgb', 4, 4, rule);
   assert.deepEqual(
-    pipelines.map((pipeline) => pipeline.fragment?.constants?.weighted),
+    renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted),
     [1, 0],
   );
 });
