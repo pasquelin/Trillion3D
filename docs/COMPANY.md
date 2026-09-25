@@ -42,8 +42,8 @@ and pull requests.
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
 3. For each issue, the lead runs one coder, who opens a draft PR, then one reviewer. It then
-   writes `## Lead verification` in the PR, one line per To-do item, takes it out of draft
-   (`gh pr ready`) and names it ready when CI is green; the CTO merges it.
+   writes `## Lead verification` in the PR, one line per To-do item, runs `gh pr ready`, and
+   tells the CTO once CI is green; the CTO merges it.
    CI refuses a PR out of draft without that section, and any PR without real `/simplify:` and
    `/code-review:` lines.
 4. After the merge:
