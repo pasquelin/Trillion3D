@@ -6967,6 +6967,7 @@
       "sensor": "Cismin yalnızca temas bildirip bildirmediği.",
       "ccd": "Sürekli çarpışmanın açık olup olmadığı.",
       "decorative": "Cismin dekoratif enkaz olup olmadığı.",
+      "damping": "Cismin her saniye kendiliğinden kaybettiği hız payı, doğrusal ve açısal (`dv/dt = −c·v`).",
       "velocity": "Doğrusal hız, m/s, son adımın bıraktığı gibi; cismi fırlatmak için yaz.",
       "asleep": "Cismin uyuyup uyumadığı: durgun, bir şey uyandırana dek benzetilmez.",
       "mass": "Kilogram cinsinden kütle; `undefined` malzemenin yoğunluğu çarpı hacmi alır.",
@@ -7001,7 +7002,8 @@
       "ccd": "Sürekli çarpışma, ince duvarlardan geçecek küçük hızlı cisimler için.",
       "decorative": "Enkaz: yalnızca statik dünyayla karşılaşır ve yalnızca menzilde ve görüşteyken benzetilir. `budget.physics.decorative` ile sınırlı.",
       "friction": "Malzemenin sürtünmesini değiştirir, 0 ve üstü.",
-      "restitution": "Malzemenin sekmesini değiştirir, 0 ile 1 arası."
+      "restitution": "Malzemenin sekmesini değiştirir, 0 ile 1 arası.",
+      "damping": "Cismin saniyede kendiliğinden ne kadar hız kaybettiği, hava ve yuvarlanma gibi: `dv/dt = −c·v`, 0 ve üzeri, doğrusal ve açısal ayrı; 0 hepsini korur. Oluşturulurken ayarlanır: değiştirmek için `obj.physics` yeniden atayın."
     }
   },
   "PhysicsBudget": {

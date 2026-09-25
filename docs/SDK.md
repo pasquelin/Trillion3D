@@ -1024,7 +1024,7 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
-gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
+gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
   its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
@@ -1036,7 +1036,10 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
   A material carries `physics: 'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'` and its own
   `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
-  override both.
+  override both. `damping: { linear, angular }` is the share of its speed a body loses by itself
+  each second (`dv/dt = −c·v`, the simulation's 0.05 each when left out, 0 keeps every bit; a
+  negative one throws `RangeError`); set at creation, like `sensor`. A body declares its own air
+  and rolling loss there (live: [ride a roller coaster](../site/examples/ride-a-roller-coaster.html)).
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
