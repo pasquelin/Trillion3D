@@ -19,7 +19,10 @@ function covered(options: { vertexColors: boolean; map: boolean; alpha: number }
   const map = options.map ? nearestQuadTexture() : null;
   const surface = G.basicSurface({ map, alphaTest: 0.5, vertexColors: options.vertexColors });
   const { pages, geometry } = quadPages(surface, [0, 0, 1, 0, 1, 1, 0, 1]);
-  geometry.setAttribute('color', G.floatAttribute(Array(4).fill([1, 1, 1, options.alpha]).flat(), 4));
+  geometry.setAttribute(
+    'color',
+    G.floatAttribute(Array(4).fill([1, 1, 1, options.alpha]).flat(), 4),
+  );
   const ids = rasterVisibilityIds(pages, cameraMoteur(camera()), [16, 16]);
   geometry.dispose();
   surface.dispose();
@@ -41,7 +44,9 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
   const keep = MASK_KEEP_WGSL.replace(/\s+\/\/[^\n]*/g, '');
   assert.match(keep, /fn maskKeep\(page:PageInfo,uv:vec2f,vertexAlpha:f32,/);
   assert.ok(keep.includes(`let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;`));
-  assert.ok(keep.includes('if((page.flags&8u)==0u){return !coloured||vertexAlpha>=page.baseColor.w;}'));
+  assert.ok(
+    keep.includes('if((page.flags&8u)==0u){return !coloured||vertexAlpha>=page.baseColor.w;}'),
+  );
   const read = keep.indexOf('var alpha=maskAlpha(');
   const multiply = keep.indexOf('if(coloured){alpha*=vertexAlpha;}');
   assert.ok(read > 0 && multiply > read && multiply < keep.indexOf('if(stipple==0.0)'));
@@ -68,5 +73,7 @@ test('both WebGPU rasters hand the interpolated vertex alpha to the cutout; shad
 });
 
 test('WebGL2 cuts at the same product: vertex colour first, then the alpha test', () => {
-  assert.ok(CLUSTER_FRAGMENT.includes('if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;'));
+  assert.ok(
+    CLUSTER_FRAGMENT.includes('if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;'),
+  );
 });
