@@ -59,7 +59,7 @@ test('the staging buffer is made once, at its largest, and holds the largest fra
     }
     batches.end();
   }
-  const staging = buffers.filter((buffer) => buffer !== target);
+  const staging = buffers.filter((buffer) => buffer !== (target as unknown));
   assert.deepEqual(
     staging.map(({ size }) => size),
     [SHADOW_STAGING_BYTES],
