@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { followSite, RELOAD_EVENTS } from './docs-dev.ts';
-import { copyStatics, STATIC_ENTRIES, stepsReading } from './docs/site.ts';
+import { followSite, RELOAD_EVENTS, stepsReading } from './docs-dev.ts';
+import { copyStatics, STATIC_ENTRIES } from './docs/site.ts';
 
 const LOGS = resolve(import.meta.dirname, '../.worktrees/logs');
 const named = (...paths: string[]) => stepsReading(paths).map(({ name }) => name);
