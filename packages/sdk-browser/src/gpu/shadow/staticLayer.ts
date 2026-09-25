@@ -21,16 +21,11 @@ const RESTORE_WGSL = `@group(0) @binding(0) var layer:texture_depth_2d;
  * never drawn again for it.
  *
  * It exists from the first move of an object on (`../../webgpu/shadow/mobility.ts`): a scene where
- * nothing moves pays neither its bytes — as many as the pool's — nor its pass.
+ * nothing moves pays neither its bytes — as many as the pool's — nor its pass. Its texture is
+ * made apart (`shadowLayerTexture`), so the caller allocates it under an out-of-memory check.
  */
-export async function createShadowStaticLayer(device: GPUDevice, poolSide: number) {
-  const size = poolSide * SHADOW_PAGE;
-  const texture = device.createTexture({
-    label: 'Trillion3D shadow static layer v1',
-    size: [size, size, 1],
-    format: 'depth32float',
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-  });
+export async function createShadowStaticLayer(device: GPUDevice, texture: GPUTexture) {
+  const size = texture.width;
   try {
     const module = await createCheckedShaderModule(device, RESTORE_WGSL, 'SHADOW_RESTORE');
     const layout = device.createBindGroupLayout({
@@ -62,5 +57,14 @@ export async function createShadowStaticLayer(device: GPUDevice, poolSide: numbe
     throw error;
   }
 }
+
+/** The static layer's texture, `poolSide` pages a side like the pool it mirrors. */
+export const shadowLayerTexture = (device: GPUDevice, poolSide: number) =>
+  device.createTexture({
+    label: 'Trillion3D shadow static layer v1',
+    size: [poolSide * SHADOW_PAGE, poolSide * SHADOW_PAGE, 1],
+    format: 'depth32float',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  });
 
 export type ShadowStaticLayer = Awaited<ReturnType<typeof createShadowStaticLayer>>;
