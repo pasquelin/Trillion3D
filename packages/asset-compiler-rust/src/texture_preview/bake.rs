@@ -70,7 +70,7 @@ pub(super) fn one_image(
             notes.push(name);
         }
     };
-    for kind in [AtlasKind::Color, AtlasKind::Data] {
+    for kind in AtlasKind::ALL {
         let of_kind: Vec<&AtlasTexture> = readers.iter().filter(|r| r.kind == kind).collect();
         if of_kind.is_empty() {
             continue;

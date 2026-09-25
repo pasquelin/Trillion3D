@@ -48,26 +48,26 @@
           "coveredAtMaskCutoff": 4,
           "level": 1,
           "samples": [
-            [59, 59, 50, 238],
-            [216, 59, 129, 204],
-            [59, 216, 129, 204],
-            [216, 216, 211, 170],
-            [216, 216, 211, 170]
+            [60, 60, 52, 238],
+            [218, 60, 130, 204],
+            [60, 218, 130, 204],
+            [218, 218, 213, 170],
+            [218, 218, 213, 170]
           ],
-          "sha256": "56224983efe7fed2d57728b075e577c10f63534722891a616fc9cb931f000b25",
+          "sha256": "1f4e8ce90f6047889e0ace1fee74d9cd40c83e451a5138a06660c3a1c6da7644",
           "size": [2, 2]
         },
         {
           "coveredAtMaskCutoff": 1,
           "level": 2,
           "samples": [
-            [157, 157, 138, 204],
-            [157, 157, 138, 204],
-            [157, 157, 138, 204],
-            [157, 157, 138, 204],
-            [157, 157, 138, 204]
+            [164, 164, 146, 204],
+            [164, 164, 146, 204],
+            [164, 164, 146, 204],
+            [164, 164, 146, 204],
+            [164, 164, 146, 204]
           ],
-          "sha256": "f8d7bc22308fb098e0ea7fca96d0f2785f416255caed7a81984aee22691645f8",
+          "sha256": "1726a183782e471b6eb66302ba38c39c825a4a1ebbb217d9cc43ea5170c739d6",
           "size": [1, 1]
         }
       ],
@@ -255,37 +255,37 @@
           "samples": [
             [36, 36, 164, 128],
             [225, 37, 163, 128],
-            [37, 224, 163, 128],
-            [225, 224, 163, 128],
+            [36, 224, 163, 128],
+            [225, 224, 164, 128],
             [161, 161, 164, 128]
           ],
-          "sha256": "2f41d66b4049c35888fb72b4b1683ec7ce87c2a6d078898a14de0c359f169784",
+          "sha256": "e0676ab811f44ee5e2fc83be603a8f64ec4b12554647877aeec644b4be11e4c0",
           "size": [4, 4]
         },
         {
           "coveredAtMaskCutoff": 4,
           "level": 7,
           "samples": [
-            [75, 75, 164, 128],
-            [197, 74, 164, 128],
+            [74, 75, 164, 128],
+            [196, 74, 164, 128],
             [75, 196, 163, 128],
             [196, 196, 164, 128],
             [196, 196, 164, 128]
           ],
-          "sha256": "5bc55acd66961ada4273b3743dc6792e819b98dbd56a006497b5c8fe57af2d57",
+          "sha256": "1d15a1eb932d22b68439fd5b04f6a9dfc82f1b6613614bdfce55a9d586440552",
           "size": [2, 2]
         },
         {
           "coveredAtMaskCutoff": 1,
           "level": 8,
           "samples": [
-            [152, 151, 164, 128],
-            [152, 151, 164, 128],
-            [152, 151, 164, 128],
-            [152, 151, 164, 128],
-            [152, 151, 164, 128]
+            [151, 151, 164, 128],
+            [151, 151, 164, 128],
+            [151, 151, 164, 128],
+            [151, 151, 164, 128],
+            [151, 151, 164, 128]
           ],
-          "sha256": "cd99811ca4580e13e620b6eeb290dee9c669851e592ab006807545c5683d86e9",
+          "sha256": "5fbe601be43c2ad9a456840284ccf1075ddf71af710f82cf484774143c5e2bef",
           "size": [1, 1]
         }
       ],
@@ -320,7 +320,7 @@
         "layout": "rgba",
         "maskFlips": 0,
         "maxDelta": 133,
-        "psnrDb": 13.82,
+        "psnrDb": 13.81,
         "sha256": "520bb17e4fd68cd68a365775d275a37d1d62c7b5b82c81cc488a5e7cab4db844"
       },
       {
@@ -353,10 +353,10 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 5
+    "version": 4
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. The KTX2 container adds no loss: what the driver yields is the reconstruction the codec specification defines, and nothing else.",
   "textures": {
-    "url": "../../textures/v5/{sha}/{kind}-{level}.{format}"
+    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
   }
 }
