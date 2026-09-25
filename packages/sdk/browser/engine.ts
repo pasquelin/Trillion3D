@@ -81,6 +81,13 @@ export type {
   WorldPhysics,
   WorldPhysicsOptions,
 } from '../../sdk-browser/src/physics/worldPhysics.ts';
+export { GUIDE_VERTEX_CEILING } from '../../sdk-browser/src/guides/guideSet.ts';
+export type {
+  GuideHandle,
+  GuideLines,
+  GuidePoints,
+  Guides,
+} from '../../sdk-browser/src/guides/guideSet.ts';
 export type { HeadSettings, PersonHead } from '../../sdk-browser/src/camera/controls/look.ts';
 export type {
   HostAttribute,
