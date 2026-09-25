@@ -1,6 +1,7 @@
 import type { ChapterCode } from './code.ts';
 
-/** The course's physics chapters, in order: falling bodies, the character among them, joints. */
+/** The course's physics chapters, in order: falling bodies, the character among them, joints
+ *  and vehicles. */
 export const PHYSICS_CHAPTERS: ChapterCode[] = [
   {
     id: 'make-things-fall',
@@ -72,6 +73,23 @@ world.physics.add(joint.rackAndPinion(pinion, rack, { axis: [0, 0, 1], axisB: [0
 world.physics.add(joint.pulley(bucket, weight, { over: [[6, 8, 0], [9, 8, 0]] }));
 world.physics.add(joint.path(cart, null, { path: trackPoints, loop: true }));
 world.physics.add(joint.swingTwist(arm, body, { axis: [1, 0, 0], limits: { swing: 0.8, min: -0.5, max: 0.5 } }));`,
+      `// A car: a body, and four wheel meshes on it where they rest; it faces −z.
+const car = object.mesh(geometry.box(1.8, 0.45, 4.4), material.meshStandard({ color: '#c8102e' }));
+car.physics = { mass: 1470 };
+const wheels = [-1.35, 1.35].flatMap((z) => [-0.8, 0.8].map((x) => {
+  const wheel = object.mesh(geometry.cylinder(0.33, 0.33, 0.26), material.meshStandard({ color: '#222' }));
+  wheel.position.set(x, -0.2, z);
+  wheel.rotation.z = Math.PI / 2; // its axle along x
+  car.add(wheel);
+  return wheel;
+}));
+world.scene.add(car);
+
+const driven = vehicle.car(car, { wheels }); // or vehicle.motorcycle, vehicle.tracked
+world.physics.add(driven);
+world.controls.vehicle = driven; // W S A D and Space drive it
+world.controls.kind = 'vehicle';
+world.onFrame(() => console.log(driven.speed, driven.gear, driven.rpm));`,
     ],
   },
 ];

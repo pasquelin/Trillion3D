@@ -3,6 +3,8 @@ import type { NormalCone } from '../../page/cone/cone.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { SelectionUniforms } from '../core/selection.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
+import type { ClusterStructureIndex } from '../../page/selection/types.ts';
+import type { CullingLinks } from '../../page/cut/readiness.ts';
 
 /**
  * The view one run of the kernel serves: a camera's uniforms, or a shadow face's with `light`, the
@@ -40,7 +42,19 @@ export type DagRoot = {
   parked?: boolean;
   /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them
    *  among all placements of a primitive; without them, the layout derives them itself. */
-  culling?: { nodes: Float64Array; stride: number; bounds?: Float64Array };
+  culling?: { nodes: Float64Array; stride: number; bounds?: Float64Array; links?: CullingLinks };
+  /** Group links: what the cut rule's residency is derived from (`../../page/cut/readiness.ts`). */
+  structure?: ClusterStructureIndex;
+};
+/** What a placement's cut residency is derived from, and where its pages and nodes sit in the
+ *  packing (`readiness.ts`). */
+export type DagCutLinks = {
+  structure?: ClusterStructureIndex;
+  links: CullingLinks;
+  pageBase: number;
+  pageCount: number;
+  nodeBase: number;
+  nodeCount: number;
 };
 export type PackedDag = {
   kind: 'dag';
@@ -68,6 +82,8 @@ export type PackedDag = {
   recordShift: Uint32Array;
   rootCount: number;
   pageUrls: string[];
+  /** Per placement, its group and culling links (`readiness.ts`). */
+  cutLinks: DagCutLinks[];
 };
 
 /**

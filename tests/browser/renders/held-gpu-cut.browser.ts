@@ -58,8 +58,8 @@ for (const image of images) {
     `frame ${image.i}: the engine declares a fallback to the CPU cut`,
   );
   assert.equal(image.uncoveredTriangles, 0, `frame ${image.i}: hole in coverage`);
-  // The proof only holds if residency is the bottleneck: otherwise nothing escalates and it is
-  // empty of meaning. The budget holds fewer pages than the DAG counts.
+  // The proof only holds if residency is the bottleneck: otherwise no ancestor stands in for a
+  // missing page and it is empty of meaning. The budget holds fewer pages than the DAG counts.
   assert.ok(image.residentPages <= 2, `frame ${image.i}: ${image.residentPages} resident pages`);
   assert.ok(image.clusters > 0, `frame ${image.i}: empty cut`);
 }

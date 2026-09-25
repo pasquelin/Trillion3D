@@ -451,8 +451,9 @@ world.controls.pushStrength = 400; // a stronger push
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
 `handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
-with `drive` can be driven; the physics' own vehicles arrive with #501. Setting `kind = 'vehicle'`
-while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move the camera.
+with `drive` can be driven, the physics' own vehicles first (`vehicle.car`, see [Physics](#physics)).
+Setting `kind = 'vehicle'` while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move
+the camera: a page follows the vehicle with it.
 
 ### Picking, moving and saving
 
@@ -635,6 +636,18 @@ material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPP
 `cloneObject` stays the deep copy: it shares nothing with the source, a mesh's geometry and
 materials included. The former aliases of the node, `HostNode`,
 `HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
+
+The engine's geometries hold the same vertex attributes as a world's `Geometry`: a
+`BufferAttribute` owning its numbers, or an `InterleavedBufferAttribute` viewing `itemSize` numbers
+at `offset` of each vertex of an `InterleavedBuffer` (`VertexAttribute` names either).
+`new BufferAttribute(array, itemSize, normalized)` reads an integer attribute declared normalised
+as its value over the largest of its type, and writes it back the same way; `needsUpdate = true`
+bumps `version` (the buffer's, for a view), which the renderer compares before uploading the same
+bytes again, and `addUpdateRange` limits that upload to the numbers written. `clone()` copies the
+numbers, their type, normalisation and name; a view's clone owns its numbers. The former engine
+classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` and the types
+`GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
+`InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
 
 ## Batch math for hosts
 
@@ -908,10 +921,11 @@ their floors (the root cover, one texture layer per lane), which they never go b
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
-What a view asks beyond a pool is shown **coarser**, never refused: the cut raises its screen error
-until the cover fits, a texture tile shows its coarser level. The frame metrics say so —
-`coverageBudgetLimited`, `budgetPixelError` (the rung the image is drawn at, `0` when the requested
-detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
+What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU the pages that do not
+fit stay out and their surface is drawn by its nearest resident ancestor, on WebGL2 the cut raises
+its screen error until the cover fits, and a texture tile shows its coarser level. The frame metrics
+say so — `coverageBudgetLimited`, `budgetPixelError` (WebGL2: the threshold the image is drawn at,
+`0` when the requested detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
 is too small for that view). A value that cannot be held as given is brought to what can be, and
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the
@@ -1062,6 +1076,29 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   `1 / ratio` whole — it wraps each hinge's angle to one turn); any other gear ties the speeds
   only, and may slip by a fraction of a tooth under load. Live example:
   [gears and pulleys](../site/examples/gears-and-pulleys.html).
+- **Vehicles.** `vehicle.car | motorcycle | tracked(body, { wheels, ...spec })` puts a dynamic
+  body on wheels with Jolt's own vehicle constraint — engine, automatic gearbox, differentials,
+  suspension and anti-roll bars — and `world.physics.add(v)` makes it once its body is simulated
+  (`remove(v)` takes it out, the body left without wheels). The wheels are meshes, children of the
+  body, placed at their centre as they rest on flat ground, the axle along the body's x; each one's
+  radius and width are read from its bounds, and the simulation turns, steers and lifts it on its
+  suspension every tick. As Jolt's own vehicle samples build theirs, the body's centre of mass is
+  lowered to the bottom of its shape, midway between its wheels, and given back when the vehicle
+  leaves. The body faces −z: the forward wheels steer. A car has three wheels or
+  more, one differential per driven axle (`drive: 'front' | 'rear' | 'all'`) and the handbrake on
+  its rear wheels; a motorcycle two, driven at the rear, and it leans into a turn; a tracked
+  vehicle two or more a side, each track driven by its rearmost wheel, steered by slowing one
+  track and pivoting on the spot at a standstill. A vehicle is a `VehicleDriver`:
+  `world.controls.vehicle = v` drives it with the keys; `v.drive(input)` from code does the same.
+  The brake pedal stops it, then backs it up; the throttle stops one rolling back first. `v.speed`
+  (m/s forward), `v.gear` (−1 reverse, 0 neutral) and `v.rpm` read the last step. Each kind is a
+  real machine (`VEHICLE_SPECS`: a Corvette C5, a Yamaha XJ900, an M1 Abrams), every number
+  sourced in `vehicleSpec.ts`: the engine's torque per kilogram of the body (`torquePerKg`), its
+  torque curve, idle and redline, the gear ratios, shift points and final drive, the suspension's
+  frequency, damping and travel, the anti-roll bars, the turning radius the steering lock is read
+  from, the time a hand takes to full lock, the brakes' grip, a motorcycle's lean and a track's
+  turn; any of them is an option. A wheel that is not a child of the body, a wrong wheel count or
+  more than six gears throws `RangeError`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
@@ -1113,5 +1150,5 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   landing, which then runs in slow motion for a short moment; the page's `physics` stage is
   0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
   The renderer's own work for 10,000 moved instances is measured apart (#432). Joints and cooked
-  colliders are here (above), not measured at this scale; advanced joints arrive with #500, the
-  physics' own vehicles with #501, soft bodies with #399.
+  colliders are here (above), not measured at this scale, nor are advanced joints and vehicles;
+  soft bodies arrive with #399.

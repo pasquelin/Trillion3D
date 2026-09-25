@@ -70,12 +70,6 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapp
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
-export {
-  GraphAttribute,
-  GraphInterleavedAttribute,
-  GraphInterleavedBuffer,
-} from '../../sdk-browser/src/host/graph/attributes.ts';
-export type { GraphArray, GraphElements } from '../../sdk-browser/src/host/graph/attributes.ts';
 export { GraphGeometry } from '../../sdk-browser/src/host/graph/geometry.ts';
 export { GraphMesh } from '../../sdk-browser/src/host/graph/mesh.ts';
 export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';
@@ -138,7 +132,15 @@ export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryB
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts';
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
-export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
+export { vehicle, Vehicle } from '../../sdk-core/src/physics/vehicle.ts';
+export type {
+  VehicleDriver,
+  VehicleInput,
+  VehicleKind,
+  VehicleOptions,
+} from '../../sdk-core/src/physics/vehicle.ts';
+export { VEHICLE_SPECS } from '../../sdk-core/src/physics/vehicleSpec.ts';
+export type { VehicleSpec, VehicleSpecs } from '../../sdk-core/src/physics/vehicleSpec.ts';
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
 export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
