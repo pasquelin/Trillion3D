@@ -119,6 +119,14 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
   return sphere;
 }
 
+/** Number `component` of vertex `index` as the world's geometry reads it: stored, a normalised
+ *  integer unscaled, when the attribute owns its list, as the world has always drawn it; through
+ *  `getComponent`, at the value it stands for, when it views an interleaved buffer. */
+export const readComponent = (attribute: VertexAttribute, index: number, component: number) =>
+  attribute.kind === 'attribute'
+    ? attribute.stored(index, component)
+    : attribute.getComponent(index, component);
+
 /** The positions as a list of numbers: the stored array itself when the attribute owns it, as the
  *  world's geometry has always been drawn; an interleaved one copied vertex by vertex, three per
  *  vertex; none without an attribute. */

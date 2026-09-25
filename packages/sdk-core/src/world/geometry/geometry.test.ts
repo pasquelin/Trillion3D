@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Geometry, withRecipe } from './geometry.ts';
 import { drawnTriangles } from './drawn.ts';
+import { wireframe } from './lines.ts';
 import {
   BufferAttribute,
   InterleavedBuffer,
@@ -73,6 +74,44 @@ test('a two-wide position is drawn with z = 1, a moved one as its stored numbers
   );
   moved.translate(1, 0, 0);
   assert.deepEqual(Array.from(moved.attributes.position.array), [2, 2, 3]);
+});
+
+// #457: the world has always drawn, edged and moved a list it owns as its stored numbers, the
+// position as every other; a normalised integer colour, normal or uv is read so, not over 255.
+const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3);
+const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
+  new BufferAttribute(array, itemSize, true);
+
+test('a normalised colour, normal and uv that own their list are drawn as their stored numbers', () => {
+  const g = new Geometry()
+    .setAttribute('position', triangle())
+    .setAttribute('normal', normalised(new Int8Array([0, 0, 127, 0, 0, 127, 0, 0, -128]), 3))
+    .setAttribute('uv', normalised(new Uint16Array([0, 0, 65535, 0, 0, 32768]), 2))
+    .setAttribute('color', normalised(new Uint8Array([255, 128, 0, 0, 255, 0, 0, 0, 1]), 3));
+  const drawn = drawnTriangles(g, 'triangles')!;
+  assert.deepEqual(Array.from(drawn.normals), [0, 0, 127, 0, 0, 127, 0, 0, -128]);
+  assert.deepEqual(Array.from(drawn.uvs!), [0, 0, 65535, 0, 0, 32768]);
+  assert.deepEqual(Array.from(drawn.colors!), [255, 128, 0, 1, 0, 255, 0, 1, 0, 0, 1, 1]);
+});
+
+test('a normalised position gives its edges as its stored numbers', () => {
+  const g = new Geometry().setAttribute(
+    'position',
+    normalised(new Int16Array([0, 0, 0, 32767, 0, 0, 0, 16384, 0]), 3),
+  );
+  assert.deepEqual(
+    Array.from(wireframe(g).attributes.position.array),
+    [0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 16384, 0, 0, 16384, 0, 0, 0, 0],
+  );
+});
+
+test('a normalised normal that owns its list is turned as its stored numbers', () => {
+  const g = new Geometry()
+    .setAttribute('position', triangle())
+    .setAttribute('normal', normalised(new Int8Array([127, 0, 0, 0, 0, 127, 0, 0, 127]), 3));
+  g.rotateZ(Math.PI / 2);
+  // (127, 0, 0) turned is the unit (0, 1, 0), written as it is into the stored integers.
+  assert.deepEqual(Array.from(g.attributes.normal.array), [0, 1, 0, 0, 0, 1, 0, 0, 1]);
 });
 
 test('a sphere reaches the farthest vertex from the centre of the box', () => {
