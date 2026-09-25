@@ -54,10 +54,11 @@ export function worldBudget(
   // What the last frame published, `null` or `undefined` when it held no such pool.
   const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   const split = () => splitOf(pools);
-  /** What the GPU total leaves a pool beside the shadows and the other pool as asked. */
+  /** What the GPU total leaves a pool beside the shadows, the bounce probes and the other pool
+   *  as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
     const shares = split();
-    const left = (pools.gpu ?? DEFAULT_GPU_BUDGET) - shares.shadowPool;
+    const left = (pools.gpu ?? DEFAULT_GPU_BUDGET) - shares.shadowPool - shares.bounceProbes;
     return Math.max(1, Math.min(ceiling, left - (pools[other] ?? shares[other])));
   };
   return {
@@ -87,10 +88,10 @@ export function worldBudget(
       splitMemoryBudget(pools.gpu ?? DEFAULT_GPU_BUDGET, bytes);
       pools.cpu = bytes;
     },
-    /** How the two totals are shared: the shadow pool at its largest, then half each to the
-     *  geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then
-     *  the decoded-page cache takes the rest of the CPU total. What the rule gives, before a pool
-     *  set on its own. */
+    /** How the two totals are shared: the shadow pool and the bounce probes at their largest,
+     *  then half each to the geometry and texture pools, capped at their ceilings; the shadow
+     *  table's host mirror, then the decoded-page cache takes the rest of the CPU total. What the
+     *  rule gives, before a pool set on its own. */
     get split() {
       return split();
     },
@@ -103,7 +104,7 @@ export function worldBudget(
       return DEFAULT_TEXTURE_POOL_BUDGET;
     },
     /** Bytes of GPU memory kept for geometry pages; set it to change the envelope, within what
-     *  `gpu` leaves beside the shadows and the texture pool. */
+     *  `gpu` leaves beside the shadows, the bounce probes and the texture pool. */
     get geometryPool() {
       return held('geometryPoolBytes') ?? pools.geometryPool ?? split().geometryPool;
     },
@@ -112,8 +113,8 @@ export function worldBudget(
       rebalance();
     },
     /** Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool
-     *  (WebGL2); set it to change the envelope, within what `gpu` leaves beside the shadows and
-     *  the geometry pool. */
+     *  (WebGL2); set it to change the envelope, within what `gpu` leaves beside the shadows, the
+     *  bounce probes and the geometry pool. */
     get texturePool(): number | null {
       if (renderer() === 'webgl2') return null;
       return held('texturePoolBytes') ?? pools.texturePool ?? split().texturePool;

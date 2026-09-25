@@ -3,6 +3,7 @@ import { BOUNCE_GRID_WGSL } from './gridWgsl.ts';
 import { residentProxyWgsl } from './nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
 import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
+import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64;
@@ -108,15 +109,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   let sample=rayRadiance(origin,d,reach);
   let span=sample.w;
   travelled+=span;
-  sums[0]+=sample.rgb*0.2820948;
-  sums[1]+=sample.rgb*0.4886025*d.x;
-  sums[2]+=sample.rgb*0.4886025*d.y;
-  sums[3]+=sample.rgb*0.4886025*d.z;
-  sums[4]+=sample.rgb*1.0925484*d.x*d.y;
-  sums[5]+=sample.rgb*1.0925484*d.y*d.z;
-  sums[6]+=sample.rgb*0.3153916*(3.0*d.z*d.z-1.0);
-  sums[7]+=sample.rgb*1.0925484*d.x*d.z;
-  sums[8]+=sample.rgb*0.5462742*(d.x*d.x-d.y*d.y);
+  ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
   let weight=abs(d);
   let positive=select(vec3f(0.0),weight,d>vec3f(0.0));
   sums[9]+=positive*span;
