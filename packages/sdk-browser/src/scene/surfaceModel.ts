@@ -28,6 +28,14 @@ export const SURFACE_MODEL = {
 export const MODEL_SHIFT = 17;
 /** Surface-buffer flags of the lit models the resolve shades apart: 2 stays the physical one. */
 export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const;
+/** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
+ *  and composed with neither exposure nor the display curve (`shownAsIs`). */
+export const AS_IS_FLAG = 3;
+
+/** The one rule for debug views on both paths: a normal or depth surface is output untouched —
+ *  no exposure, no tone mapping —, as the reference never tone maps those two materials. */
+export const shownAsIs = (model: number | undefined) =>
+  model === SURFACE_MODEL.normal || model === SURFACE_MODEL.depth;
 
 /** The model a surface declares by its family; the physical model otherwise. */
 export function hostSurfaceModel({ family }: HostShadedMaterial): number {

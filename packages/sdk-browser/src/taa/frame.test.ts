@@ -19,7 +19,8 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 /** The strict minimum of an engine: the fake pass, its inputs, the camera and the revisions. */
 function runtime() {
   const encoded: unknown[] = [];
-  const output = { output: true } as unknown as GPUTextureView;
+  const output = { color: {}, share: {} };
+  const flags = { flags: true } as unknown as GPUTextureView;
   const temporal = {
     uniform: {} as GPUBuffer,
     motion: {
@@ -49,6 +50,7 @@ function runtime() {
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
     capture: { capturing: false },
   } as unknown as WebgpuPagesRuntime;
+  rt.gpu.surfaces = { views: () => [{}, {}, {}, flags] } as never;
   const { device, writes } = fakeDevice();
   const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera;
   const hdr = rt.gpu.hdrView!;
@@ -60,7 +62,7 @@ function runtime() {
     encodeTaaPass(rt, device, {} as GPUCommandEncoder, cam, hdr);
     return writes.length > before ? (writes[writes.length - 1].data as Float32Array) : null;
   };
-  return { rt, cam, temporal, encoded, frame };
+  return { rt, cam, temporal, encoded, frame, flags };
 }
 
 test("without accumulation this frame, the render matrix is the camera's and composition reads the lit image", () => {
@@ -79,7 +81,7 @@ test("without accumulation this frame, the render matrix is the camera's and com
 });
 
 test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {
-  const { rt, cam, temporal, encoded, frame } = runtime();
+  const { rt, cam, temporal, encoded, frame, flags } = runtime();
   let u = frame(false)!;
   assert.notEqual(
     taaRenderMatrix(rt, cam),
@@ -87,6 +89,8 @@ test('an accumulated frame advances jitter, writes the uniform and returns the w
     'the render matrix carries the jitter',
   );
   assert.equal(encoded.length, 1);
+  // The surface flags the as-is share is resolved from, beside the colour.
+  assert.equal((encoded[0] as TaaInputs).flags, flags);
   assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken');
   // Without history, `params.y` is 0; the next frame has it, and nobody moved (`params.z`).
   assert.equal(u[37], 0);
