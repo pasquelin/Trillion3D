@@ -2015,5 +2015,19 @@
       "joints": "Joints",
       "broken": "Broken"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "Change the clockwork's speed, raise the lift, and drop weights in the bucket to lift the counterweight.",
+    "controls": {
+      "speed": "Clockwork speed (rad/s)",
+      "raiseLift": "Raise the lift",
+      "addWeight": "Drop a weight",
+      "emptyBucket": "Empty the bucket"
+    },
+    "readouts": {
+      "lift": "Lift",
+      "load": "Weights",
+      "rope": "Rope run"
+    }
   }
 }
