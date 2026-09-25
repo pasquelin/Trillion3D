@@ -97,7 +97,8 @@ fn soft_body(
         .get("indices")
         .map(|id| accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32())
         .transpose()?;
-    let placement = trs(matrix).ok_or_else(|| refuse("A soft body's node shears.".into()))?;
+    let placement =
+        trs(matrix).ok_or_else(|| refuse("A soft body's node shears or has no scale.".into()))?;
     let s = placement.2;
     let record = soft_record(&pos, corners.as_deref(), s, &declared).map_err(refuse)?;
     let (stretch, bend) = (declared.stretch as f32, declared.bend as f32);
