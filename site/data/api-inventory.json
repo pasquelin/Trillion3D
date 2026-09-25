@@ -934,7 +934,8 @@
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
-        "packages/sdk-browser/src/world/saved/saved.test.ts"
+        "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/savedGeometry.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".BufferAttribute"
@@ -3261,6 +3262,7 @@
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/savedGeometry.test.ts",
         "scripts/docs-examples-water.test.ts",
         "scripts/docs/examples/chess-pieces.ts",
         "scripts/docs/examples/mesh.ts",
@@ -3317,6 +3319,7 @@
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
+        "packages/sdk-browser/src/world/saved/savedGeometry.test.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
         "packages/sdk-browser/src/world/session/disposeSource.ts",
         "scripts/docs/examples/mesh.ts",
@@ -4254,7 +4257,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/accessors.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/prepared/accessors.ts",
+        "packages/sdk-browser/src/world/saved/savedGeometry.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBuffer"
     },
@@ -4265,7 +4271,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/accessors.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/prepared/accessors.ts",
+        "packages/sdk-browser/src/world/saved/savedGeometry.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBufferAttribute"
     },
@@ -5573,6 +5582,7 @@
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/core/worldSprite.test.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
+        "packages/sdk-browser/src/world/saved/savedGeometry.test.ts",
         "scripts/docs-examples-water.test.ts",
         "scripts/docs-scene-editor.test.ts"
       ],
