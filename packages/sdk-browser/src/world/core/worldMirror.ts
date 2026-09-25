@@ -57,21 +57,20 @@ export function buildWorldMirror(input: MirrorInput) {
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
   const geometries = new Map<Cut, GraphGeometry>(),
+    // One surface per material, and a second one when the material asks for vertex colours and
+    // is worn by geometries with and without them: the material decides, as in the reference
+    // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
+    // it is worn by lines: the line surface is widened and lifted (`hostSurface`).
+    surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
-  // One surface per material and per way of drawing: a material worn by lines and by faces is
-  // two surfaces, the line one widened and lifted (`hostSurface`).
-  const surfaces = {
-    faces: new Map<Material, GraphSurface>(),
-    lines: new Map<Material, GraphSurface>(),
-  };
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    const lines = !!cut.drawn.lines,
-      held = lines ? surfaces.lines : surfaces.faces;
-    let surface = held.get(material);
-    if (!surface)
-      held.set(material, (surface = hostSurface(material, !!cut.drawn.colors, textures, lines)));
+    const tinted = !!material.vertexColors && !!cut.drawn.colors,
+      lines = !!cut.drawn.lines;
+    let worn = surfaces.get(material);
+    if (!worn) surfaces.set(material, (worn = []));
+    const surface = (worn[lines ? 2 : +tinted] ??= hostSurface(material, tinted, textures, lines));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
@@ -92,11 +91,9 @@ export function buildWorldMirror(input: MirrorInput) {
   /** Writes a repainted material entry's values into the host surface built for it; false when
    *  this mirror built none. */
   const repaint = (material: Material) => {
-    const drawn = [surfaces.faces.get(material), surfaces.lines.get(material)].filter(
-      (surface) => !!surface,
-    );
-    for (const surface of drawn) repaintHostSurface(surface, material);
-    return drawn.length > 0;
+    const worn = surfaces.get(material);
+    for (const surface of worn ?? []) if (surface) repaintHostSurface(surface, material);
+    return !!worn;
   };
   return { root, twins, associations, repaint };
 }

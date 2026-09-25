@@ -21,8 +21,6 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      // Waits for #347: WebGPU multiplies the base colour by the `color` vertex attribute when the
-      // material asks for `vertexColors`; until then the planet draws white there.
       import { createWorld, geometry, material, object, light, buffer, math } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 

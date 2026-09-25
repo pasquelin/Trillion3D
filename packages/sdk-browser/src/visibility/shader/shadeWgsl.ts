@@ -72,6 +72,8 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
    // pixels the raster had written the depth of, and leave holes.
    `rgb=rgb*${lecture('colorSample', 'base')}.xyz;`,
  )}
+ // The vertex colour, perspective-correct like the texture coordinate, as the forward path reads it.
+ if(HAS_VERTEX_COLOR){rgb*=(pageColor(page,h,i0)*bary.x+pageColor(page,h,i1)*bary.y+pageColor(page,h,i2)*bary.z).xyz;}
  if(uni.mode==1u){
   let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
   return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW),request);
