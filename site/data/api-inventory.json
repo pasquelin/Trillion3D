@@ -2678,6 +2678,7 @@
       "affectedConsumers": [
         "bench/perf/browser/support/coreEquivalence.ts",
         "bench/perf/core/three-vs-core-vectors.perf.ts",
+        "packages/sdk-browser/src/gpu/shadow/cullShader.test.ts",
         "tests/kit/lighting/transforms.ts"
       ],
       "disposition": "retained",
@@ -7902,6 +7903,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/gpu/shadow/batchBudget.ts",
         "packages/sdk-browser/src/gpu/shadow/cull.ts",
+        "packages/sdk-browser/src/gpu/shadow/cullShader.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadowBatches.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/casters.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
