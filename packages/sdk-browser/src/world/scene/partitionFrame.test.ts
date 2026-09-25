@@ -12,6 +12,8 @@ import type { createPageStreamer } from '../../streaming/pages.ts';
 import { createPartitionFrame, primePartitions } from './partitionFrame.ts';
 
 type Io = Parameters<PartitionCells['frame']>[2];
+/** No arrival budget: what a test places never depends on the time the machine takes. */
+const budget = { admits: () => true, spend() {} };
 
 /** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
 function recording() {
@@ -43,6 +45,7 @@ test('no partition, no step before the frame', () => {
     streamer: streamer().port,
     camera: hostFramingCamera(60, 1, 0.1, 100),
     active: () => ({}) as RenderBackend,
+    budget,
   });
   assert.equal(frame, null);
 });
@@ -57,6 +60,7 @@ test('a frame reads the cells within the far plane of its camera, visible first 
     streamer: port,
     camera,
     active: () => ({}) as RenderBackend,
+    budget,
   })!();
   assert.deepEqual(seen[0].eye, [3, 4, 5]);
   assert.equal(seen[0].reach, cellReach(camera));
@@ -93,6 +97,7 @@ test('a pebble far below any error target is read while the far plane lets it be
     streamer: port,
     camera: hostFramingCamera(60, 16 / 9, 0.1, 300),
     active: () => ({}) as RenderBackend,
+    budget,
   })!();
   assert.deepEqual(asked, [[['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE]]);
 });
@@ -105,6 +110,7 @@ test('a reach past the rows sized at open asks the owner to open the session aga
     streamer: streamer().port,
     camera: hostFramingCamera(60, 1, 0.1, 100),
     active: () => ({}) as RenderBackend,
+    budget,
     renew,
   })!();
   assert.equal(seen[0].io.outgrown, renew);
@@ -165,6 +171,7 @@ test('on a WebGPU session, which grows no buffer, a walk never leaves a cell wai
     streamer: port,
     camera,
     active: () => ({}) as RenderBackend,
+    budget,
   })!;
   for (let step = 0; step <= 46; step++) {
     camera.position.set(5 + step * 5, 2, 5 + step * 5);

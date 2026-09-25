@@ -45,8 +45,7 @@ export function createWebgpuCutAdopter(options: {
     ready: false,
     visible: 0,
     selectedTriangles: 0,
-    uncoveredTriangles: 0,
-    /** Share of the cut that goes to draw: `selectedTriangles` minus the hole. */
+    /** Share of the cut that goes to draw: all of it, since the rule draws what it selects. */
     drawnTriangles: 0,
     transparentTriangles: 0,
     frustumRejected: 0,
@@ -116,7 +115,6 @@ export function createWebgpuCutAdopter(options: {
     // (`../pages/render/cpu.ts`).
     metrics.ready = true;
     metrics.selectedTriangles = cut.result.selectedTriangles;
-    metrics.uncoveredTriangles = cut.result.uncoveredTriangles;
     metrics.drawnTriangles = cut.result.drawnTriangles;
     metrics.transparentTriangles = cut.result.transparentTriangles;
     metrics.frustumRejected = cut.result.frustumRejected;

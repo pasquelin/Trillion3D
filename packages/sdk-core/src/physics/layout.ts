@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 11;
+export const PHYSICS_LAYOUT_VERSION = 12;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -31,6 +31,7 @@ export const OP = {
   /** The vehicles' (`vehicleLayout.ts`). */ vehicle: 21,
   unvehicle: 22,
   drive: 23,
+  /** The soft bodies' (`softLayout.ts`). */ soft: 24,
 } as const;
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */

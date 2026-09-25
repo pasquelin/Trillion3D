@@ -5,7 +5,7 @@ import { shadowTransmittanceBytes } from '../gpu/shadow/transmittance.ts';
 import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/table.ts';
 import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
-import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
+import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
 
@@ -48,17 +48,22 @@ const checkTotal = (bytes: number, name: string) => {
  *   static layer and its transmittance layer take on the largest screen, with the page table and
  *   the other fixed shadow buffers; then the bounce probe cascades at their largest
  *   (`BOUNCE_PROBE_BYTES`); the rest in two halves, the geometry pool and the texture pool, each
- *   no larger than its ceiling. The shadows never shrink: a total under the shadow pool is
- *   refused by name. A total that leaves the other two less than their floors — the
+ *   no larger than its ceiling. The shadows and the probes never shrink: a total under the two
+ *   is refused by name. A total that leaves the other two less than their floors — the
  *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
- *   screen; the decoded-page cache takes the rest. A total under the mirror is refused by name.
+ *   screen; the decoded-page cache takes the rest (`pageCache.ts`), the session's manifest tables
+ *   and transfer queue reserved off it. A total under the mirror is refused by name.
+ *   The cut's host tables — group closure and the rule's readiness, sized by the placed pages —
+ *   are held in the cache's share too: once the engine is prepared, the session reserves their
+ *   exact bytes there (`hostTableBytes`, the streamer's `reserve`), and the decoded pages keep the
+ *   rest.
  * At the defaults, the split gives each pool its own default.
  */
 export function splitMemoryBudget(gpu: number, cpu: number) {
   checkTotal(gpu, 'INVALID_GPU_BUDGET');
   checkTotal(cpu, 'INVALID_CPU_BUDGET');
-  if (gpu < SHADOW_POOL_BYTES) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
+  if (gpu < SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
   if (cpu <= SHADOW_HOST_BYTES) throw new Error('CPU_BUDGET_UNDER_SHADOW_MIRROR');
   const half = Math.floor((gpu - SHADOW_POOL_BYTES - BOUNCE_PROBE_BYTES) / 2);
   return {
