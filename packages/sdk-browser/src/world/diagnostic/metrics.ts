@@ -5,7 +5,7 @@ import { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 import { BACKEND_METRIC_KEYS } from '../../diagnostic/metricKeys.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 type State = () => {
   loaded: number;

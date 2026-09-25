@@ -1627,12 +1627,9 @@
       "spotEdgeSoftness": "Largura da borda suavizada de um cone de spot, em unidades de cosseno: contra o serrilhado.",
       "sunFarShadowOffsetMetres": "Deslocamento da origem do raio de sombra distante ao longo da normal, em metros. Só serve para deixar o plano da superfície iluminada; o remédio real contra autossombreamento é o início ao longo do raio, abaixo.",
       "sunFarShadowStartCells": "Início do raio de sombra distante ao longo de sua própria direção, em células de proxy. O ponto iluminado vem da geometria fina, o oclusor do proxy grosseiro: onde o proxy fica acima da superfície real, um raio iniciado em zero atingiria a própria superfície que ilumina. Uma célula de proxy é a escala abaixo da qual o proxy não diz nada; começar a partir dali pula esse falso contato sem inventar uma sombra. A consequência é nomeada: um oclusor mais próximo que uma célula ao longo do raio não carrega sombra distante, e esse fica com os níveis de clipmap.",
-      "shadowDepthBias": "Viés de sombra em metros, nunca em unidades de profundidade: a profundidade projetada de um recorte é altamente não linear, uma constante em profundidade normalizada seria metros perto da luz e milímetros longe. O shader traz esses metros de volta à profundidade no ponto considerado.",
-      "shadowSlopeBias": "Viés de inclinação, em metros por unidade de `tan(acos(N·L))`, limitado por `shadowSlopeBiasMax`.",
-      "shadowSlopeBiasMax": "Maior viés de inclinação.",
       "shadowNearFraction": "Plano próximo de um recorte: uma fração do alcance, nunca menor que esse piso.",
       "shadowNearMin": "Distância de sombra mais próxima.",
-      "shadowNormalOffsetTexels": "Deslocamento do ponto de amostra ao longo da normal, em texels de recorte. É o que fecha a costura entre duas faces de uma luz pontual e remove a acne rasante; está em texels e não em metros para permanecer proporcional à resolução que a luz obteve.",
+      "shadowNormalOffsetTexels": "Deslocamento do ponto de amostra ao longo da normal, em texels do mapa lido: meio texel, a margem para o que não é o plano do receptor — a sua curvatura dentro de um texel, o arredondamento das duas profundidades. A inclinação do receptor é coberta por uma margem de profundidade sobre o alcance do PCF, e além de 45° por um deslocamento adicional, nos mesmos texels (`shadowDepthMargin`, `shadowNormalTexels`): nenhum viés é um comprimento da cena.",
       "shadowPagesPerBatch": "Páginas de sombra que um lote de GPU desenha: o tamanho dos buffers de um lote, nunca um limite do quadro. Um quadro desenha cada página que marca, em tantos lotes quantos forem precisos.",
       "lampFaceSize": "Lado do mip mais fino de uma face de lâmpada, em texels: 32 × 32 páginas de 128 (o pool: `shadowPoolSide`).",
       "shadowRequestCap": "Páginas virtuais que o sombreamento pode pedir por quadro; o resto pede de novo no quadro seguinte.",
@@ -2523,6 +2520,19 @@
     "members": {
       "source": "De onde as páginas são lidas.",
       "workers": "Quantos workers buscam e decodificam páginas de uma vez."
+    }
+  },
+  "PageStreamerOptions": {
+    "summary": "Como um leitor de páginas lê (`createPageStreamer`).",
+    "description": "Além das suas páginas, o seu cache reserva as tabelas do manifesto e a fila de transferência; cada membro tem um valor padrão.",
+    "members": {
+      "signal": "Cancela todas as leituras quando abortado.",
+      "workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
+      "maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
+      "onEvict": "Ouve cada página que sai do cache.",
+      "maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
+      "onDiagnostic": "Ouve cada passo de cada leitura.",
+      "maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
     }
   },
   "PanZoomCameraControls": {
@@ -4035,7 +4045,7 @@
       "texturePool": "Bytes de memória GPU reservados para páginas de textura, `null` num motor sem reservatório de texturas (WebGL2); defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras, das sondas de ressalto e do reservatório de geometria.",
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
-      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo do reservatório de sombras é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina.",
+      "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo das três partes fixas — o reservatório de sombras, as sondas de ressalto e os alvos de efeitos — é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina.",
       "canvas": "O maior canvas que o mundo declara, em pixels do buffer de desenho: os alvos da cadeia de efeitos são reservados no seu tamanho (`split.effectTargets`); 3840 × 2160 por omissão, e o `gpu` por omissão só cresce dessa reserva. Defina-o para redistribuir cada reservatório pela regra. Um canvas desenhado maior continua a ser renderizado inteiro: os diagnósticos dizem `effect targets over budget` com os bytes além da reserva.",
       "cpu": "Bytes de memória CPU que o mundo pode ocupar: primeiro o espelho no host da tabela de páginas de sombra, depois as páginas decodificadas, suas tabelas de manifesto, sua fila de transferências e as tabelas de corte do motor juntas. Uma mudança se aplica na hora: as páginas saem por último uso até caberem. Um total que não excede o espelho é recusado (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca lido da máquina.",
       "split": "Como os dois totais são divididos: o reservatório de sombras e as sondas de ressalto no máximo, os alvos da cadeia de efeitos no `canvas` declarado, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o espelho no host da tabela de sombras, depois o cache de páginas decodificadas fica com o resto do total de CPU, inteiro, e dentro dele a sessão em curso reserva as suas tabelas de manifesto, a sua fila de transferências e as tabelas de corte do motor. O que a regra dá, antes de um reservatório definido sozinho."
@@ -4773,7 +4783,17 @@
   },
   "createPageStreamer": {
     "summary": "Leituras limitadas, priorizadas e deduplicadas.",
-    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la."
+    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la.",
+    "parameters": {
+      "options": "Como um leitor de páginas lê (`createPageStreamer`). Além das suas páginas, o seu cache reserva as tabelas do manifesto e a fila de transferência; cada membro tem um valor padrão.",
+      "options.signal": "Cancela todas as leituras quando abortado.",
+      "options.workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
+      "options.maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
+      "options.onEvict": "Ouve cada página que sai do cache.",
+      "options.maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
+      "options.onDiagnostic": "Ouve cada passo de cada leitura.",
+      "options.maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
+    }
   },
   "createPathGovernor": {
     "summary": "Um regulador."
