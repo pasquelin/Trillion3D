@@ -1,5 +1,6 @@
 import {
   BODY_INDEX,
+  FLAG,
   SOFT_STATE_WORDS,
   SOFT_VERTEX_WORDS,
   softBodyOf,
@@ -14,8 +15,8 @@ type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> };
 
 /**
  * Writes the SOFT command of `mesh`, a soft body placed at `pose` and scaled by `size`: its slot
- * claimed with its vertices counted against the budget, its vertex map kept in `maps`. Returns
- * the slot.
+ * claimed with its vertices counted against the budget, its vertex map kept in `maps`. SOFT has
+ * no flags word: the contact events a handler asks for follow in FLAGS. Returns the slot.
  */
 export function addSoftBody(
   writer: CommandWriter,
@@ -39,6 +40,7 @@ export function addSoftBody(
     ...{ settings: p.soft!, record },
   });
   maps[id & BODY_INDEX] = record.map;
+  if (p.listens) writer.flags(id & BODY_INDEX, FLAG.events);
   return id & BODY_INDEX;
 }
 
