@@ -5,7 +5,7 @@ import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 function gpuHarness() {
-  const { device, buffers, writes, destroyed } = fakeDevice();
+  const { device, buffers, writes, destroyed, bindGroups } = fakeDevice();
   const passes: {
     descriptor: GPURenderPassDescriptor;
     pipeline?: GPURenderPipeline;
@@ -39,6 +39,7 @@ function gpuHarness() {
   const surface = { views: () => [view(), view(), view(), view()] } as unknown as SurfaceBuffer;
   return {
     device,
+    bindGroups,
     encoder,
     view,
     surface,
@@ -143,5 +144,30 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
   assert.deepEqual([...h.writes[0].slice(28, 32)], [3, 2, 1, 1]);
   lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false);
   assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0]);
+  lighting.dispose();
+});
+
+test('an effect target is composed with the share of the image it read, one group per pair', async () => {
+  const h = gpuHarness(),
+    lighting = await createDeferredLighting(h.device, {} as GPUBuffer);
+  lighting.bind(h.surface, h.view(), h.view(), false);
+  const target = h.view(),
+    shares = [h.view(), h.view()];
+  const before = h.bindGroups.length;
+  // The chain writes one target while the TAA histories, and their shares, alternate.
+  for (let frame = 0; frame < 4; frame++)
+    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, {
+      color: target,
+      share: shares[frame % 2],
+    });
+  lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, { color: target });
+  const made = h.bindGroups.slice(before).map((group) => Array.from(group.entries));
+  assert.equal(made.length, 3, "two shares, then the still image's flags, each bound once");
+  assert.deepEqual(
+    made.slice(0, 2).map((entries) => entries[2]!.resource),
+    shares,
+  );
+  assert.ok(!shares.includes(made[2][2]!.resource as GPUTextureView), 'no share: the flags');
+  assert.ok(made.every((entries) => entries[0]!.resource === target));
   lighting.dispose();
 });

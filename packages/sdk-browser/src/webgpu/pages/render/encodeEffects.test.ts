@@ -7,7 +7,7 @@ import { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../../sdk-core/src/world/effect/index.ts';
 import { holdWebgpuFrame, keepWebgpuFrame } from '../../frame/hold.ts';
 import { settledRt } from '../../frame/hold.fixture.ts';
-import { encodeEffects } from './encodeEffects.ts';
+import { effectsUnsettled, encodeEffects } from './encodeEffects.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { AccumulatedImage } from '../../../lighting/deferred/program.ts';
 
@@ -82,9 +82,13 @@ test('a diagnostic view, a capture and an empty chain make nothing and hand the 
   chain.add(effect.bloom());
   Object.assign(rt.run, { diagnostic: 'normals' });
   assert.equal(encodeEffects(rt, device, encoder, input), input);
+  assert.equal(rt.gpu.effectsRevision, chain.revision, 'a diagnostic view shows no chain to miss');
   Object.assign(rt.run, { diagnostic: 'beauty' });
   rt.capture.capturing = true;
   assert.equal(encodeEffects(rt, device, encoder, input), input);
   assert.deepEqual([rt.gpu.effects, textures.length], [undefined, 0]);
-  assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same');
+  // The main view a capture restores is drawn without the chain: the next image draws it again.
+  assert.equal(rt.gpu.effectsRevision, -1);
+  rt.capture.capturing = false;
+  assert.equal(effectsUnsettled(rt), true, 'no hold on that image');
 });

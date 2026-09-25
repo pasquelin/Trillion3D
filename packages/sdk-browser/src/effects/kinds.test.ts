@@ -44,7 +44,7 @@ test('WebGL2 hands each pass to its kind, with its rank among that kind', (t) =>
   WEBGL_KINDS.bloom = () => kind.webgl;
   const effects = createWebglEffects(createTestContext().gl);
   effects.begin(chain, 8, 4);
-  effects.end(chain, null, { toneMapped: true, toneCurve: 0, background: [0, 0, 0] });
+  effects.end(chain, null, { toneMapped: true, toneCurve: 0, background: [0, 0, 0], depth: false });
   assert.deepEqual(kind.sized, [[8, 4, 2]], 'sized once for its two passes');
   assert.deepEqual(kind.drawn, [
     [chain[0], 0],
