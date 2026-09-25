@@ -71,4 +71,6 @@ export interface GltfNode {
   rotation?: readonly number[];
   scale?: readonly number[];
   children?: number[];
+  /** What the compiler reads beside the node: a soft body's `physics` options. */
+  extras?: { physics?: object };
 }
