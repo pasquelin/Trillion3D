@@ -98,6 +98,19 @@ GPU result is read back; asynchronous readback serves streaming and diagnostics 
 current camera's selection. `capabilities.gpuDriven` denotes this opaque selection-to-draw path, not
 a completely GPU-autonomous engine.
 
+**Requests ahead of the camera.** A moving camera's cut also evaluates a view ahead
+(`gpu/core/aheadView.ts`, `gpu/dag/shader/aheadWgsl.ts`): the eye moved by its velocity over
+`PREFETCH_HORIZON_MS` (250 ms, the time to full detail after a stop), inside a frustum that holds
+the current and the predicted one, each side opened by the angle the camera turns over the horizon.
+It is one descent: what the camera rejects is tried against the view ahead, never drawn, only
+requested, in a lower request tier ranked after every visible request, at most half the readback.
+The host serves those pages through the one residency queue as a lower tier after the camera's and
+the light cuts' (`webgpu/residency/lowerTier.ts`): never pinned, never evicting a camera page, and
+replaced by an empty list once the camera stops. A still camera sends no view ahead and cuts as
+before. Admission spends the published main-thread share `STREAMING_FRAME_MS` (1 ms) per display
+frame and resumes on the next frame (`webgpu/residency/frameBudget.ts`); fetching and decoding stay
+in workers. WebGL2 keeps its own path (#490).
+
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
 reduction in reverse-Z); pass 2 retests the withdrawn and previously rejected rows against it. The

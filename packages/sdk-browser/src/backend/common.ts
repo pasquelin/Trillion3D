@@ -15,8 +15,19 @@ export const DEFAULT_FOV = 55,
   ARRIVAL_QUEUE_BATCH = 64,
   /** Milliseconds a frame spends at most integrating arrived pages. */
   ARRIVAL_BUDGET_MS = 2,
-  /** Main-thread milliseconds of an upload burst before yielding. */
-  UPLOAD_SLICE_MS = 2,
+  /**
+   * The residency queue's PUBLISHED main-thread share of one display frame, in milliseconds: its
+   * admissions stop there and resume on the next frame (`../webgpu/residency/frameBudget.ts`). Half
+   * of the programme's 2 ms main-thread frame (#483); the cut, the physics page stage and the encode
+   * share the other half. Fetching and decoding run in workers and spend none of it.
+   */
+  STREAMING_FRAME_MS = 1,
+  /**
+   * How far ahead of a moving camera the cut requests pages, in milliseconds: the programme's time
+   * to full detail after a stop (#483). A page the camera reaches within it is asked for now, so the
+   * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
+   */
+  PREFETCH_HORIZON_MS = 250,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
