@@ -1012,7 +1012,10 @@ world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
 Reading a pool back gives what the engine holds, not what was asked; a pool write is clamped to
 `world.budget.geometryPoolCeiling` / `texturePoolCeiling` and to what `gpu` leaves beside the
 shadows and the other pool, so the pools never sum past the total — save a total too small for
-their floors (the root cover, one texture layer per lane), which they never go below. Two writes before the next frame
+their floors (the root cover, one texture layer per lane), which they never go below. On WebGPU the
+geometry pool pays first for the vertex buffers held beside its page slots (the float geometry of
+what no page covers, one placeholder vertex at least): `geometryAllocationBytes`, which counts both,
+never passes `geometryPool` above that floor. Two writes before the next frame
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
