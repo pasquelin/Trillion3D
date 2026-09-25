@@ -18,20 +18,22 @@
  * batch appends to one list (`VIEW_APPEND`) as long as the catalogue, and the same caster asked by
  * each sun level and each batch filled it with repeats, so a late batch's own casters fell past it
  * (`LIST_FULL`) and its coarse pages were drawn again every frame without ever being asked for.
- * Each page keeps its best request of the frame (`askedWord`): the first view to raise it from zero
- * lists the page, and once the frame's cuts are done `dagAskedBest` writes that best word over its
- * entry — the highest priority any view gave it, whatever view won the race.
+ * Each page keeps its best priority of the frame, plus one (`askedWord`): zero is "not asked yet",
+ * even for page zero at priority zero, whose request word is zero. The first view to raise it from
+ * zero lists the page, and once the frame's cuts are done `dagAskedBest` writes the request at that
+ * best priority over its entry — the highest any view gave it, whatever view won the race.
  */
 export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
  let priority=quantizePriority(pixels);
- if(isLightCut()&&atomicMax(&work[askedWord(page)],packRequest(page,priority))!=0u){return;}
+ if(isLightCut()&&atomicMax(&work[askedWord(page)],priority+1u)!=0u){return;}
  emitWord(page,priority,true);
 }
 /** After a frame's last light cut: each listed page at the best request its views made of it. */
 @compute @workgroup_size(64)
 fn dagAskedBest(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=min(atomicLoad(&out.count),views[0u].listCap)){return;}
- out.pages[s]=atomicLoad(&work[askedWord(out.pages[s]&((1u<<PAGE_BITS)-1u))]);
+ let page=out.pages[s]&((1u<<PAGE_BITS)-1u);
+ out.pages[s]=packRequest(page,atomicLoad(&work[askedWord(page)])-1u);
 }
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
 fn emitWord(page:u32,priority:u32,declare:bool){
