@@ -370,6 +370,7 @@
       "top": "Borda superior da caixa ortográfica.",
       "bottom": "Borda inferior da caixa ortográfica.",
       "projection": "`'perspective'` faz coisas distantes ficarem pequenas; `'orthographic'` mantém todo tamanho.",
+      "copy": "Toma os valores de nó de `source` e, de uma câmera, sua óptica; sua própria `projection` permanece.",
       "updateProjectionMatrix": "Mantido para páginas escritas contra um renderizador que precise dele: toda escrita de ótica já redesenha.",
       "rayThrough": "O raio do mundo que passa por um ponto da imagem, segundo a projeção própria do motor (`engineCamera.ts`): a partir do olho ao longo da vista para uma câmera em perspectiva, reto no eixo da vista a partir da caixa para uma ortográfica. Sua direção é um vetor unitário.",
       "set": "Coloca o olho em `pose.position`, olhando para `pose.target`, no campo que ela nomeia."
@@ -1358,10 +1359,6 @@
   "HostGeometry": {
     "summary": "Uma geometria de host: seus atributos, e a caixa local que o host calculou sobre eles."
   },
-  "HostGraphNode": {
-    "summary": "Um nó do grafo do host como uma travessia o vê: sua identidade, sua pose local, a matriz de mundo que o host resolveu para ele, e sua cadeia.",
-    "description": "O motor calcula suas PRÓPRIAS matrizes de mundo a partir das poses locais (`../world/tree.ts`); `matrixWorld` é lida onde a resolução própria do HOST é o que uma fronteira lhe devolve. POR QUE `HostPlaced` (`../resources.ts`) TAMBÉM DESCREVE UM NÓ POSICIONADO. Os dois não são uma cópia: são indexados pelas duas resoluções diferentes que um host oferece. `HostPlaced` pede `updateWorldMatrix(ancestors, descendants)` — a cadeia de UM nó, o que uma travessia de posicionamento e de visibilidade sobe; este pede `updateMatrixWorld(force)` — a SUBÁRVORE sob um nó, o que uma varredura, uma união de limites e uma replicação resolvem em uma única chamada. Um host que oferece só um dos dois satisfaz só o contrato ao qual responde, então nenhum pode substituir o outro."
-  },
   "HostMaterial": {
     "summary": "Um material de host como o motor o lê: os parâmetros de superfície que todo material de host compartilha, lidos uma vez na fronteira para o `VisMaterial` do motor; só `sideOf` lê `side`."
   },
@@ -1370,9 +1367,6 @@
   },
   "HostMesh": {
     "summary": "Um mesh de host, mantido por identidade: o registro de desenho, a tabela de transparência e os conjuntos de seleção nomeiam a superfície que o host posicionou."
-  },
-  "HostNode": {
-    "summary": "Um nó do grafo de cena do host, mantido por identidade e pelos dois campos de que uma travessia precisa."
   },
   "HostNodeMatrix": {
     "summary": "Os mesmos dezesseis floats, GRAVÁVEIS termo a termo: a pose que uma fronteira recoloca em um nó de host ou em uma câmera de host que ela restaura.",
@@ -1424,9 +1418,6 @@
   },
   "HostTexture": {
     "summary": "Uma textura de host: a imagem que o host decodificou e o estado de amostragem que declarou, também mantida por identidade."
-  },
-  "HostTraversable": {
-    "summary": "Um nó de host que o motor percorre: a subárvore sob ele, ele mesmo primeiro, na ordem própria do host."
   },
   "HostVector": {
     "summary": "Três números de uma pose, como o host os guarda e uma fronteira os recoloca.",
@@ -1604,6 +1595,7 @@
       "height": "Altura de uma luz retangular.",
       "radius": "Raio da esfera emissora; `emitterRadius` no armazenamento do motor.",
       "kind": "Que tipo de luz é: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Toma os valores de nó de `source` e, de uma luz, seus números, cores, coeficientes e alvo; seu próprio `kind` permanece.",
       "needsUpdate": "`light.needsUpdate = true` depois de escrever `sh` no lugar: o mundo o relê.",
       "lookAt": "Mira a luz em um ponto do mundo: uma luz direcional ou spot move seu `target` até lá — sua direção é lida a partir dele —, e o nó também gira, o que é o que um retângulo usa para se voltar."
     }
@@ -2028,6 +2020,8 @@
       "remove": "Tira filhos deste nó.",
       "destroy": "Liberta o nó e tudo abaixo dele agora, em vez de quando forem recolhidos.",
       "removeFromParent": "Tira o nó de seu pai.",
+      "clone": "Um nó do mesmo tipo com os mesmos valores; os seus filhos também copiados salvo indicação em contrário.",
+      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário.",
       "clear": "Tira todo filho deste nó.",
       "traverse": "Chama `fn` neste nó e em todos abaixo dele.",
       "traverseVisible": "Chama `fn` em cada nó visível a partir daqui para baixo.",
@@ -2040,11 +2034,7 @@
       "rotateY": "Gira o nó ao redor de seu próprio eixo y.",
       "rotateZ": "Gira o nó ao redor de seu próprio eixo z.",
       "translateOnAxis": "Move o nó ao longo de seu próprio `axis`.",
-      "getWorldPosition": "Onde o nó está no mundo.",
-      "getWorldQuaternion": "Como o nó está girado no mundo.",
       "getWorldDirection": "Para onde o nó aponta no mundo.",
-      "localToWorld": "Um ponto do referencial do nó, no mundo.",
-      "worldToLocal": "Um ponto do mundo, no referencial do nó.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum."
     }
   },
@@ -2055,7 +2045,11 @@
       "matrixWorld": "Matriz de mundo como composta pela última vez (`updateMatrixWorld`), uma view da árvore.",
       "matrixAutoUpdate": "Falso quando `matrix` É a pose e nada a recompõe.",
       "matrixWorldNeedsUpdate": "Ativado quando a matriz local mudou e a matriz do mundo não a acompanhou.",
-      "updateMatrixWorld": "Compõe a matriz de mundo deste nó e a de seus descendentes, tomando a do pai como está."
+      "updateMatrixWorld": "Compõe a matriz de mundo deste nó e a de seus descendentes, tomando a do pai como está.",
+      "getWorldPosition": "Onde o nó está no mundo.",
+      "getWorldQuaternion": "Como o nó está girado no mundo.",
+      "localToWorld": "Um ponto do referencial do nó, no mundo.",
+      "worldToLocal": "Um ponto do mundo, no referencial do nó."
     }
   },
   "OcclusionFrameMetrics": {
@@ -3867,8 +3861,8 @@
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
       "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo do reservatório de sombras é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina.",
-      "cpu": "Bytes de memória CPU que as páginas decodificadas do mundo podem ocupar; aplicado no próximo carregamento de cena.",
-      "split": "Como os dois totais são divididos: o reservatório de sombras no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o cache de páginas decodificadas fica com o total de CPU. O que a regra dá, antes de um reservatório definido sozinho."
+      "cpu": "Bytes de memória CPU que o mundo pode ocupar: primeiro o espelho no host da tabela de páginas de sombra, depois as páginas decodificadas; aplicado no próximo carregamento de cena. Um total que não excede o espelho é recusado (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca lido da máquina.",
+      "split": "Como os dois totais são divididos: o reservatório de sombras no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o espelho no host da tabela de sombras, depois o cache de páginas decodificadas fica com o resto do total de CPU. O que a regra dá, antes de um reservatório definido sozinho."
     }
   },
   "world.diagnostic": {
@@ -7177,14 +7171,9 @@
   "GraphNode": {
     "members": {
       "serial": "O número do nó, único na sessão.",
-      "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue.",
-      "parent": "Seu pai.",
-      "children": "Os nós que este contém, por ordem.",
-      "traverse": "A subárvore sob o nó, ele mesmo primeiro, na ordem própria do host.",
-      "clone": "Um nó do mesmo tipo com os mesmos valores; os seus filhos também copiados salvo indicação em contrário.",
-      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
+      "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue."
     },
-    "summary": "Um nó do grafo: o seu nome, a sua pose, a sua matriz do mundo, o seu pai e os seus filhos."
+    "summary": "Um nó do grafo: o nó do núcleo, distinguido pelo seu `kind`, copiado pelo `clone` do núcleo."
   },
   "GraphSurface": {
     "members": {
@@ -7289,7 +7278,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "O que um nó do grafo é: um nó simples, a raiz, um grupo, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
+    "summary": "O que um nó do grafo é: a raiz, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",

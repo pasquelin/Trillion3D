@@ -61,7 +61,7 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
     // host is not required to walk anything up. The cache must still start over, otherwise the
     // Hi-Z test would receive the previous view's rectangles.
     const { hold, view } = settled();
-    const rig = new G.GraphGroup();
+    const rig = new G.Group();
     rig.add(view);
     rig.position.x = 3;
     hold.reframe(cameraMoteur(view), 1280, 720, 1);

@@ -22,10 +22,11 @@ type DisplayNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
   readonly kind?: string;
   readonly visible: boolean;
-  readonly serial: number;
   readonly renderOrder: number;
   readonly children: readonly DisplayNode[];
 };
+/** A drawn node: the engine's mesh, numbered in creation order (a group or a bare node is not). */
+type DrawnNode = DisplayNode & { readonly serial: number };
 type DisplayScene = ClusterDrawScene & {
   readonly children: readonly DisplayNode[];
   onBeforeRender?(): void;
@@ -60,7 +61,7 @@ export function createSceneDraw(
   };
   // Reused from frame to frame: a draw allocates no list.
   const opaque: WholeMesh[] = [],
-    seeThrough: DisplayNode[] = [];
+    seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
     opened = false;
   // The projection times the view, and each drawn mesh's depth, read once a frame.
@@ -71,7 +72,8 @@ export function createSceneDraw(
   const collect = (node: DisplayNode) => {
     if (!node.visible) return;
     if (node.kind === 'mesh' || node.kind === 'instancedMesh') {
-      if (copied.has(node) || firstMaterial(node.material!)?.transparent) seeThrough.push(node);
+      if (copied.has(node) || firstMaterial(node.material!)?.transparent)
+        seeThrough.push(node as DrawnNode);
       else opaque.push(node as WholeMesh);
       depths.set(node, depthOf(node, screen));
     }
@@ -88,12 +90,12 @@ export function createSceneDraw(
     if (rank === undefined) ranks.set(surface, (rank = nextRank++));
     return rank;
   };
-  const frontToBack = (a: DisplayNode, b: DisplayNode) =>
+  const frontToBack = (a: DrawnNode, b: DrawnNode) =>
     a.renderOrder - b.renderOrder ||
     rankOf(a as WholeMesh) - rankOf(b as WholeMesh) ||
     depth(a) - depth(b) ||
     a.serial - b.serial;
-  const backToFront = (a: DisplayNode, b: DisplayNode) =>
+  const backToFront = (a: DrawnNode, b: DrawnNode) =>
     a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.serial - b.serial;
   return {
     render(_camera: HostCamera) {
@@ -113,7 +115,7 @@ export function createSceneDraw(
         followCopies();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
         for (const child of scene.children) collect(child);
-        (opaque as DisplayNode[]).sort(frontToBack);
+        (opaque as DrawnNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
         owner.draw(
           NO_BATCHES,

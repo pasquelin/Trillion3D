@@ -2,18 +2,25 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/table.ts';
+import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
 
 /** The shadows at their largest — the pool on the largest screen, its static layer, and the
  *  fixed buffers beside it, the page table first: they never hold more, whatever the screen. */
-export const SHADOW_POOL_BYTES =
-  2 * shadowAtlasBytes(shadowPoolSide(Infinity, Infinity)) + SHADOW_BUFFER_BYTES;
+const SHADOW_POOL_SIDE = shadowPoolSide(Infinity, Infinity);
+export const SHADOW_POOL_BYTES = 2 * shadowAtlasBytes(SHADOW_POOL_SIDE) + SHADOW_BUFFER_BYTES;
+/** The shadow page table's host mirror at its largest, whatever the screen: the table's words and
+ *  change flags, and the pool's page records and eviction bits, as the two allocate them. */
+export const SHADOW_HOST_BYTES =
+  shadowTableHostBytes(SHADOW_POOL_SIDE ** 2) + shadowPoolHostBytes(SHADOW_POOL_SIDE);
 /** The GPU total by default: the three pools at their defaults, what a world held before it had
  *  one total. */
 export const DEFAULT_GPU_BUDGET =
   SHADOW_POOL_BYTES + DEFAULT_GEOMETRY_POOL_BUDGET + DEFAULT_TEXTURE_POOL_BUDGET;
-/** The CPU total by default: the decoded-page cache's default. */
-export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES;
+/** The CPU total by default: the shadow page table's host mirror, then the decoded-page cache's
+ *  default, what a world's cache held before the mirror was counted. */
+export const DEFAULT_CPU_BUDGET = SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES;
 
 const checkTotal = (bytes: number, name: string) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
@@ -27,18 +34,21 @@ const checkTotal = (bytes: number, name: string) => {
  *   its ceiling. The shadows never shrink: a total under the
  *   shadow pool is refused by name. A total that leaves the other two less than their floors — the
  *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
- * - CPU: the decoded-page cache takes the whole total, the only CPU pool the engine bounds.
+ * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
+ *   screen; the decoded-page cache takes the rest. A total under the mirror is refused by name.
  * At the defaults, the split gives each pool its own default.
  */
 export function splitMemoryBudget(gpu: number, cpu: number) {
   checkTotal(gpu, 'INVALID_GPU_BUDGET');
   checkTotal(cpu, 'INVALID_CPU_BUDGET');
   if (gpu < SHADOW_POOL_BYTES) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
+  if (cpu <= SHADOW_HOST_BYTES) throw new Error('CPU_BUDGET_UNDER_SHADOW_MIRROR');
   const half = Math.floor((gpu - SHADOW_POOL_BYTES) / 2);
   return {
     shadowPool: SHADOW_POOL_BYTES,
     geometryPool: Math.max(1, Math.min(DEFAULT_GEOMETRY_POOL_BUDGET, half)),
     texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
-    pageCache: cpu,
+    shadowMirror: SHADOW_HOST_BYTES,
+    pageCache: cpu - SHADOW_HOST_BYTES,
   };
 }

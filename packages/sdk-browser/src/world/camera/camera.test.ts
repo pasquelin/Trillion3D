@@ -13,7 +13,7 @@ import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement;
 
 /** The old non-autonomous path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
-function referenceFraming(graph: G.GraphNode) {
+function referenceFraming(graph: G.Object3D) {
   const source = threeGraph(graph);
   const bounds = new THREE.Box3();
   source.updateMatrixWorld(true); // the old `objects()` of ../../scene/meshes.ts resolved the subtree before walking it
@@ -27,13 +27,13 @@ function referenceFraming(graph: G.GraphNode) {
 
 /** Hostile subtree, depth 3: negative then non-uniform scale. */
 function hostileScene() {
-  const racine = new G.GraphGroup();
+  const racine = new G.Group();
   racine.scale.set(-3, 1, 1);
-  const enfant = new G.GraphGroup();
+  const enfant = new G.Group();
   enfant.position.set(2, -4, 6);
   enfant.scale.set(1, 0.25, 5);
   racine.add(enfant);
-  const petitEnfant = new G.GraphGroup();
+  const petitEnfant = new G.Group();
   petitEnfant.position.set(1, 1, 1);
   enfant.add(petitEnfant);
   const mesh = G.mesh(G.boxGeometry(2, 3, 4), G.basicSurface());
@@ -67,7 +67,7 @@ test('createExplorerCamera (non-autonomous) yields the same bounds, centre and r
 
 test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference pagesBounds/expandByObject', () => {
   const geometry = new G.GraphGeometry();
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   const mesh = G.mesh(geometry, G.basicSurface());
   mesh.position.set(4, -2, 0);
   source.add(mesh);
@@ -93,8 +93,8 @@ test('createExplorerCamera (autonomous) yields the same bounds, centre and radiu
 });
 
 test('createExplorerCamera throws on a scene with no geometry, empty bounds', () => {
-  const source = new G.GraphGroup();
-  source.add(new G.GraphGroup());
+  const source = new G.Group();
+  source.add(new G.Group());
   assert.throws(
     () =>
       createExplorerCamera(
