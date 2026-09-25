@@ -53,12 +53,12 @@ const moved = new Float64Array(BOX_VALUES),
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
  * box, reprojected from its local box, and its parked flag, which `park` hands to a GPU cut when
  * the engine has one; `posed` hears the rank of every root the rows pose, with the pose it now
- * has when only its pose may have changed, and says whether it moved (`MOVE_*`); `follow` names
- * each root that reads a written row. `touched` hears, root by root, the box each moved or
- * flipped root left and entered, and whether it was moving already: a row of the range left where
- * it stands — a pose written again unchanged, a row between two written ones — touches nothing,
- * and two roots far apart are two boxes, never the room between them. Returns whether a drawn
- * root moved: a still scene pays nothing downstream.
+ * has and whether its row was taken or parked — a move whatever its pose —, and says whether it
+ * moved (`MOVE_*`); `follow` names each root that reads a written row. `touched` hears, root by
+ * root, the box each moved or flipped root left and entered, and whether it was moving already: a
+ * row of the range left where it stands — a pose written again unchanged, a row between two
+ * written ones — touches nothing, and two roots far apart are two boxes, never the room between
+ * them. Returns whether a drawn root moved: a still scene pays nothing downstream.
  */
 export function followPlacementRows<T>(
   roots: readonly ClusterRoot<T>[],
@@ -66,7 +66,7 @@ export function followPlacementRows<T>(
   from: number,
   to: number,
   park?: (rank: number, parked: boolean) => void,
-  posed?: (rank: number, world?: ArrayLike<number>) => number,
+  posed?: (rank: number, world: ArrayLike<number>, forced: boolean) => number,
   follow?: (rank: number) => void,
   touched?: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
 ) {
@@ -80,8 +80,7 @@ export function followPlacementRows<T>(
     const parked = rows.live[index] === 0 || !!root.hidden,
       flipped = parked !== !!root.parked;
     // A row taken or parked moved, whatever its pose; otherwise its pose says whether it moved.
-    const move = posed ? posed(rank, flipped ? undefined : root.world.elements) : MOVE_PROMOTED;
-    if (move === MOVE_NONE) continue;
+    const move = posed ? posed(rank, root.world.elements, flipped) : MOVE_PROMOTED;
     boxEmpty(moved, 0);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
     if (flipped) {
@@ -92,7 +91,8 @@ export function followPlacementRows<T>(
     if (root.worldBox && root.localBox)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1);
-    if (boxIsEmpty(moved, 0)) continue;
+    // Its rows and box follow the row all the same; only a move stales shadow pages.
+    if (move === MOVE_NONE || boxIsEmpty(moved, 0)) continue;
     any = true;
     touched?.(movedMin, movedMax, move === MOVE_MOVING);
   }
