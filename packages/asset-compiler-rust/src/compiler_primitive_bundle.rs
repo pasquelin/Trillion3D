@@ -24,18 +24,24 @@ fn pack(
             ));
         }
         let bytes = size(*rank);
-        let mut merged = needed.clone();
-        merged.extend(holders);
-        merged.sort_unstable();
-        merged.dedup();
-        if !current.is_empty() && (held + bytes > STREAM_BUNDLE_BYTES || merged.len() > bound) {
+        let fresh = holders
+            .iter()
+            .filter(|holder| needed.binary_search(holder).is_err())
+            .count();
+        if !current.is_empty()
+            && (held + bytes > STREAM_BUNDLE_BYTES || needed.len() + fresh > bound)
+        {
             bundles.push(std::mem::take(&mut current));
             held = 0;
-            merged = holders.clone();
+            needed.clear();
+        }
+        for &holder in holders {
+            if let Err(at) = needed.binary_search(&holder) {
+                needed.insert(at, holder);
+            }
         }
         current.push(*rank);
         held += bytes;
-        needed = merged;
     }
     if !current.is_empty() {
         bundles.push(current);
