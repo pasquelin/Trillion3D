@@ -1972,6 +1972,16 @@
       "Look for": "Hãy xem"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Kéo độ mờ đục: bóng của tấm kính giữa đổi theo, mất hẳn ở 0 và đậm hẳn ở 1.",
+    "controls": {
+      "opacity": "Độ mờ đục",
+      "sunHeight": "Độ cao mặt trời"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Độ mờ đục của tấm kính giữa"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng, và thả phím trên băng để trượt.",
     "controls": {
