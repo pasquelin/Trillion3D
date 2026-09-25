@@ -72,11 +72,12 @@ export function lightCutFrame() {
     best = () => new Uint32Array(work.getMappedRange());
   /** `dagAskedBest`: each listed page takes its best request of the frame. */
   const askedBest = () => {
-    const list = out();
+    const list = out(),
+      words = best();
     for (let s = 0; s < Math.min(list[OUT_COUNT], CASTERS); s++) {
       const at = SELECTION_HEADER_WORDS + s;
       const page = requestPage(list[at]);
-      list[at] = packRequest(page, best()[askedAt + page] - 1);
+      list[at] = packRequest(page, words[askedAt + page] - 1);
     }
   };
   /** The GPU running the cut just encoded, over a view that wants each `[caster, priority]` of
