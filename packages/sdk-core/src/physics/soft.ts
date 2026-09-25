@@ -99,7 +99,7 @@ export const softOf = (option: PhysicsOption) =>
 
 /** Reads a soft body's options, refusing a value out of its range. */
 export function softSettings(o: SoftBodyOptions): SoftSettings {
-  const rigid = o as PhysicsBodyOptions;
+  const rigid = o as unknown as PhysicsBodyOptions;
   for (const name of ['shape', 'sensor', 'ccd', 'decorative'] as const)
     if (rigid[name] !== undefined) throw new RangeError(`A soft body takes no ${name}.`);
   if (rigid.damping?.angular !== undefined)
