@@ -68,7 +68,11 @@ test('the proof expects Jolt from the pages whose own source turns physics on, a
   assert.ok(turnsPhysicsOn('world.physics.enabled = true;'));
   assert.ok(!turnsPhysicsOn("createWorld('view', { physics: false })"));
   assert.ok(!turnsPhysicsOn("createWorld('view', { 'physics': undefined })"));
+  assert.ok(turnsPhysicsOn("createWorld('view', { size: fit(at(1), 2), physics: true })"));
   assert.ok(!turnsPhysicsOn("createWorld('view', { controls: 'orbit' }); // physics: true"));
+  assert.ok(!turnsPhysicsOn("createWorld('physics', { controls: 'orbit' })"));
+  assert.ok(!turnsPhysicsOn("createWorld('view', {\n  controls: 'orbit', // no physics\n})"));
+  assert.ok(!turnsPhysicsOn("createWorld('view', { physics: false, ready: () => w.physics })"));
   // #503: a ready page that sets a body or reads the world's physics is one that turns it on,
   // `ride-a-roller-coaster` (#634) included, which the hand-kept list the derivation replaced
   // missed; a page with no physics is left out.

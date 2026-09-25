@@ -52,9 +52,9 @@ test('every example file renders an image on its own, fetching Jolt only when it
     // #276: with the machine's WebGPU device, then with none — a published example renders on
     // both, since it names no backend and the engine reads the machine it was opened on. Every
     // page is opened before the verdict, so the list names every example that stayed blank.
+    const physics = await physicsExamples(ready);
     const blank: string[] = [],
-      jolt: string[] = [],
-      physics = await physicsExamples(ready);
+      jolt: string[] = [];
     for (const gpu of [true, false])
       for (const example of ready) {
         const share = leastDrawn(example.id, gpu);
