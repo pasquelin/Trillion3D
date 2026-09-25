@@ -2016,6 +2016,8 @@
       "remove": "이 노드에서 자식들을 뗀다.",
       "destroy": "노드와 그 아래 모든 것을 수집을 기다리지 않고 지금 해제한다.",
       "removeFromParent": "이 노드를 그 부모에서 뗀다.",
+      "clone": "같은 종류, 같은 값의 노드. 달리 말하지 않으면 자식도 복사됩니다.",
+      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다.",
       "clear": "이 노드에서 모든 자식을 뗀다.",
       "traverse": "이 노드와 그 아래 모든 것에 `fn`을 호출한다.",
       "traverseVisible": "여기서부터 아래로, 보이는 각 노드에 `fn`을 호출한다.",
@@ -2028,11 +2030,7 @@
       "rotateY": "노드를 자기 자신의 y축 중심으로 회전시킨다.",
       "rotateZ": "노드를 자기 자신의 z축 중심으로 회전시킨다.",
       "translateOnAxis": "노드를 자기 자신의 `axis`를 따라 이동시킨다.",
-      "getWorldPosition": "노드가 월드 안 어디에 서 있는가.",
-      "getWorldQuaternion": "노드가 월드 안에서 어떻게 회전해 있는가.",
       "getWorldDirection": "노드가 월드 안에서 어느 쪽을 향하는가.",
-      "localToWorld": "노드 프레임의 한 점을, 월드에서.",
-      "worldToLocal": "월드의 한 점을, 노드 프레임에서.",
       "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다."
     }
   },
@@ -2043,7 +2041,11 @@
       "matrixWorld": "마지막으로 합성된(`updateMatrixWorld`) 월드 행렬. 트리의 뷰.",
       "matrixAutoUpdate": "`matrix`가 곧 자세이고 아무것도 그것을 다시 합성하지 않을 때 false.",
       "matrixWorldNeedsUpdate": "로컬 행렬이 바뀌었는데 월드 행렬이 따라가지 않았을 때 설정됩니다.",
-      "updateMatrixWorld": "이 노드와 그 후손들의 월드 행렬을 합성한다. 부모는 있는 그대로 사용된다."
+      "updateMatrixWorld": "이 노드와 그 후손들의 월드 행렬을 합성한다. 부모는 있는 그대로 사용된다.",
+      "getWorldPosition": "노드가 월드 안 어디에 서 있는가.",
+      "getWorldQuaternion": "노드가 월드 안에서 어떻게 회전해 있는가.",
+      "localToWorld": "노드 프레임의 한 점을, 월드에서.",
+      "worldToLocal": "월드의 한 점을, 노드 프레임에서."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7158,11 +7160,9 @@
   "GraphNode": {
     "members": {
       "serial": "세션에서 고유한 노드 번호.",
-      "kind": "노드가 무엇인지: 그래프를 읽는 모든 쪽이 타입을 좁히는 기준.",
-      "clone": "같은 종류, 같은 값의 노드. 달리 말하지 않으면 자식도 복사됩니다.",
-      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다."
+      "kind": "노드가 무엇인지: 그래프를 읽는 모든 쪽이 타입을 좁히는 기준."
     },
-    "summary": "그래프의 노드: 이름, 포즈, 월드 행렬, 부모와 자식."
+    "summary": "그래프의 노드: 코어의 노드로, `kind`로 구별되고 코어의 `clone`으로 복사된다."
   },
   "GraphSurface": {
     "members": {

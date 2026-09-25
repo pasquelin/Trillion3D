@@ -2016,6 +2016,8 @@
       "remove": "Çocukları bu düğümden çıkarır.",
       "destroy": "Düğümü ve altındaki her şeyi toplanmalarını beklemeden hemen serbest bırakır.",
       "removeFromParent": "Düğümü ebeveyninden çıkarır.",
+      "clone": "Aynı türde, aynı değerlerde bir düğüm; aksi söylenmedikçe çocukları da kopyalanır.",
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır.",
       "clear": "Her çocuğu bu düğümden çıkarır.",
       "traverse": "`fn`'i bu düğümde ve altındaki her şeyde çağırır.",
       "traverseVisible": "`fn`'i buradan aşağı her görünür düğümde çağırır.",
@@ -2028,11 +2030,7 @@
       "rotateY": "Düğümü kendi y ekseni etrafında döndürür.",
       "rotateZ": "Düğümü kendi z ekseni etrafında döndürür.",
       "translateOnAxis": "Düğümü kendi `axis`'i boyunca hareket ettirir.",
-      "getWorldPosition": "Düğümün dünyada nerede durduğu.",
-      "getWorldQuaternion": "Düğümün dünyada nasıl döndürüldüğü.",
       "getWorldDirection": "Düğümün dünyada baktığı yön.",
-      "localToWorld": "Düğümün çerçevesinin bir noktası, dünyada.",
-      "worldToLocal": "Dünyanın bir noktası, düğümün çerçevesinde.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
     }
   },
@@ -2043,7 +2041,11 @@
       "matrixWorld": "En son bileşik hâliyle (`updateMatrixWorld`) dünya matrisi, ağacın bir görünümü.",
       "matrixAutoUpdate": "`matrix` pozun KENDİSİ olduğunda ve hiçbir şey onu yeniden oluşturmadığında yanlış.",
       "matrixWorldNeedsUpdate": "Yerel matris değiştiğinde ve dünya matrisi onu izlemediğinde ayarlanır.",
-      "updateMatrixWorld": "Bu düğümün dünya matrisini ve torunlarınınkini, ebeveyninkini olduğu gibi alarak oluşturur."
+      "updateMatrixWorld": "Bu düğümün dünya matrisini ve torunlarınınkini, ebeveyninkini olduğu gibi alarak oluşturur.",
+      "getWorldPosition": "Düğümün dünyada nerede durduğu.",
+      "getWorldQuaternion": "Düğümün dünyada nasıl döndürüldüğü.",
+      "localToWorld": "Düğümün çerçevesinin bir noktası, dünyada.",
+      "worldToLocal": "Dünyanın bir noktası, düğümün çerçevesinde."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7196,12 +7198,10 @@
     }
   },
   "GraphNode": {
-    "summary": "Grafın bir düğümü: adı, pozu, dünya matrisi, ebeveyni ve çocukları.",
+    "summary": "Grafın bir düğümü: çekirdeğin düğümü, `kind` değeriyle ayırt edilir, çekirdeğin `clone` yöntemiyle kopyalanır.",
     "members": {
       "serial": "Düğümün oturumda benzersiz numarası.",
-      "kind": "Düğümün ne olduğu: grafın her okuyucusunun daralttığı şey.",
-      "clone": "Aynı türde, aynı değerlerde bir düğüm; aksi söylenmedikçe çocukları da kopyalanır.",
-      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
+      "kind": "Düğümün ne olduğu: grafın her okuyucusunun daralttığı şey."
     }
   },
   "GraphNodeKind": {

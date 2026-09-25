@@ -22,7 +22,6 @@ import type { GraphSurface } from '../graph/surface.ts';
 import { GraphMesh } from '../graph/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { cloneNode } from '../graph/node.ts';
 import { type GraphCamera } from '../graph/camera.ts';
 import { type GraphLight } from '../graph/light.ts';
 
@@ -54,7 +53,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   /** The object a node names, or its copy when several nodes name it. */
   const reference = (kind: keyof typeof counts, rank: number, made: Object3D) => {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made;
-    const copy = cloneNode(made);
+    const copy = made.clone();
     const walk = (from: Object3D, to: Object3D) => {
       const held = ranks.get(from);
       if (held) ranks.set(to, held);

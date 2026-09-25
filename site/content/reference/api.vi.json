@@ -2034,6 +2034,8 @@
       "remove": "Gỡ các con khỏi node này.",
       "destroy": "Giải phóng nút và mọi thứ bên dưới ngay bây giờ, thay vì khi chúng bị thu gom.",
       "removeFromParent": "Gỡ node khỏi cha của nó.",
+      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không.",
       "clear": "Gỡ mọi con khỏi node này.",
       "traverse": "Gọi `fn` trên node này và mọi thứ bên dưới nó.",
       "traverseVisible": "Gọi `fn` trên mỗi node khả kiến từ đây trở xuống.",
@@ -2046,11 +2048,7 @@
       "rotateY": "Xoay node quanh trục y riêng của nó.",
       "rotateZ": "Xoay node quanh trục z riêng của nó.",
       "translateOnAxis": "Di chuyển node dọc theo `axis` riêng của nó.",
-      "getWorldPosition": "Nơi node đứng trong thế giới.",
-      "getWorldQuaternion": "Node được xoay như thế nào trong thế giới.",
       "getWorldDirection": "Hướng mà node hướng tới trong thế giới.",
-      "localToWorld": "Một điểm trong khung của node, trong thế giới.",
-      "worldToLocal": "Một điểm của thế giới, trong khung của node.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
     }
   },
@@ -2061,7 +2059,11 @@
       "matrixWorld": "Ma trận thế giới như lần dựng gần nhất (`updateMatrixWorld`), một view vào cây đó.",
       "matrixAutoUpdate": "Sai (false) khi `matrix` CHÍNH LÀ tư thế và không gì dựng lại nó.",
       "matrixWorldNeedsUpdate": "Được đặt khi ma trận cục bộ đã đổi mà ma trận thế giới chưa theo kịp.",
-      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng."
+      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng.",
+      "getWorldPosition": "Nơi node đứng trong thế giới.",
+      "getWorldQuaternion": "Node được xoay như thế nào trong thế giới.",
+      "localToWorld": "Một điểm trong khung của node, trong thế giới.",
+      "worldToLocal": "Một điểm của thế giới, trong khung của node."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7197,12 +7199,10 @@
     }
   },
   "GraphNode": {
-    "summary": "Một nút của đồ thị: tên, tư thế, ma trận thế giới, cha và các con của nó.",
+    "summary": "Một nút của đồ thị: nút của lõi, phân biệt bằng `kind` của nó, được sao chép bằng `clone` của lõi.",
     "members": {
       "serial": "Số của nút, duy nhất trong phiên.",
-      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu.",
-      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
-      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu."
     }
   },
   "GraphNodeKind": {
