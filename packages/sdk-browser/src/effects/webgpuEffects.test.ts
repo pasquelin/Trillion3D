@@ -29,12 +29,8 @@ const input = { input: true } as unknown as GPUTextureView;
 
 async function loaded() {
   const gpu = fakeDevice();
-  let ready = 0;
-  const effects = createWebgpuEffects(gpu.device, {
-    ready: () => void ready++,
-    failed: (error) => assert.fail(String(error)),
-  });
-  return { gpu, effects, ready: () => ready };
+  const effects = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)));
+  return { gpu, effects };
 }
 
 test('an empty chain returns its input and creates, writes and encodes nothing', async () => {
@@ -50,13 +46,12 @@ test('an empty chain returns its input and creates, writes and encodes nothing',
 });
 
 test('a bloom compiles once, then draws 2 × levels passes into targets made once per size', async () => {
-  const { gpu, effects, ready } = await loaded();
+  const { gpu, effects } = await loaded();
   const bloom = effect.bloom({ intensity: 0.5 });
   const { encoder, passes } = recorder();
   assert.equal(effects.encode(encoder, [bloom], input, 64, 32), input, 'compiling: no chain yet');
   assert.equal(effects.loading, true);
   while (effects.loading) await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(ready(), 1, 'its arrival asks for the image again');
   const levels = bloomLevelSizes(64, 32).length;
   const output = effects.encode(encoder, [bloom], input, 64, 32);
   assert.notEqual(output, input);
