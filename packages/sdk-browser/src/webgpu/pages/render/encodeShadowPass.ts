@@ -53,7 +53,8 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
 }
 
 /**
- * Shadow depth pass: first the casters of each light view drawn, selected from the light and
+ * Shadow depth pass of one batch, pages `[from, to)` of the frame's list in `count` regions: first
+ * their face uniforms, then the casters of each light view drawn, selected from the light and
  * culled per region (`encodeShadowCasters`); then the static layer's pages drawn in full, if any;
  * then the moving casters of each restored page tested against its static layer; then one render
  * pass over the pool, where each region starts from its page cleared to far or restored from the
@@ -71,16 +72,19 @@ export function encodeShadowAtlas(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   count: number,
+  from: number,
+  to: number,
+  runBase: number,
 ) {
   const { lights, vis, run } = rt,
     { shadows, cull, regions, staticLayer, occlusion } = lights;
-  lights.shadowDraws = 0;
   if (!count || !shadows?.view || !cull || !vis.visBindGroupLayout) return false;
   if (regions.layered && !staticLayer) return false;
   if (!shadowRegionGroup(rt, device, 0)) return false;
-  if (!encodeShadowCasters(rt, encoder, count)) return false;
+  shadows.flushPages(count);
+  if (!encodeShadowCasters(rt, encoder, count, from, to, runBase)) return false;
   cull.counts.sample(encoder, cull.indirect, count, run.frame);
-  lights.shadowDraws = count;
+  lights.shadowDraws += count;
   const drawsBefore = run.gpuDrawCalls;
   const draw = (target: GPUTextureView, label: string, layer: boolean, tested: boolean) => {
     const pass = encoder.beginRenderPass({
@@ -123,7 +127,7 @@ export function encodeShadowAtlas(
     ? shadows.ensureTransmittance(encoder)
     : shadows.transmittance;
   if (transmittance) encodeTransmittance(rt, device, encoder, count, transmittance, tested);
-  lights.shadowDrawCalls = run.gpuDrawCalls - drawsBefore;
+  lights.shadowDrawCalls += run.gpuDrawCalls - drawsBefore;
   return true;
 }
 
