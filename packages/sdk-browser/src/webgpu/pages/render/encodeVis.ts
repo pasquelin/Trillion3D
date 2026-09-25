@@ -75,7 +75,6 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // along the way the previous image's verdicts, which this image's test has not yet zeroed: that is
   // what feeds the occluder history.
   const { twoPass } = encodeWebgpuPartition(rt, encoder, cam, useIndirect);
-  // Row words restat the rows: uploading their runs is what consumes the change flag.
   if (useIndirect) {
     sendDrawItemWords(rt);
     // The camera draws its own rows: under the CPU cut, the light casters it adds sit behind them.
@@ -85,7 +84,6 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
       maxVertexCount,
       run.gpuFrameActive ? run.gpuSelection : undefined,
     );
-    rows.rowsChanged = false;
   }
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
   // when it exists, blends its own between its passes — small triangles under the reference split,
