@@ -30,13 +30,10 @@ export interface DeferredSources {
   direct: boolean;
   bounce?: boolean;
 }
-/** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export interface AccumulatedImage {
-  color: GPUTextureView;
-  share: GPUTextureView;
-}
 /** What composition reads: a colour and its accumulated share, else the lit image's flags. */
 export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView };
+/** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
+export type AccumulatedImage = Required<ComposedImage>;
 export interface DeferredBindings {
   uniform: GPUBuffer;
   directLights: GPUBuffer;
@@ -100,10 +97,10 @@ export async function createDeferredProgram(
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One per colour read (lit image, TAA history, effect target); weak: a dropped target frees its.
-  type Bound = { group: GPUBindGroup; share: GPUTextureView };
-  type Composition = (typeof compositions)['still'] & Bound;
-  let composed = new WeakMap<GPUTextureView, Composition>();
+  // One per colour read (lit image, TAA history, effect target) and share beside it — an effect
+  // target follows the alternating TAA histories —; weak: a dropped target frees its own.
+  type Composition = (typeof compositions)['still'] & { group: GPUBindGroup };
+  let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
     get lightGroup() {
@@ -115,8 +112,10 @@ export async function createDeferredProgram(
       const view = image?.color ?? boundHdr;
       if (!view || !boundSurface) return undefined;
       const share = image?.share ?? boundSurface.views()[3];
-      let composition = composed.get(view);
-      if (composition?.share !== share) {
+      let byShare = composed.get(view);
+      if (!byShare) composed.set(view, (byShare = new WeakMap()));
+      let composition = byShare.get(share);
+      if (!composition) {
         const kind = compositions[image?.share ? 'accumulated' : 'still'];
         const group = device.createBindGroup({
           layout: kind.layout,
@@ -126,7 +125,7 @@ export async function createDeferredProgram(
             { binding: 2, resource: share },
           ],
         });
-        composed.set(view, (composition = { ...kind, group, share }));
+        byShare.set(share, (composition = { ...kind, group }));
       }
       return composition;
     },
