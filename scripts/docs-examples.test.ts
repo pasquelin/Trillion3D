@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { markdownLinks } from './check-links.ts';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
+import { observatoryMaterials } from './docs/observatory/scene.ts';
 import { exampleModules, thumbnailDelay } from './docs/examples/capture.ts';
 import exampleWords from '../site/examples/i18n/en.json' with { type: 'json' };
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
@@ -26,6 +27,12 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
+// #719: the sky a page loading the observatory adds, from the court's limestone in its source.
+const [, court] =
+  observatoryMaterials.find(([name]) => name === 'Warm limestone') ??
+  assert.fail('the observatory names no Warm limestone');
+const limestone = court.slice(0, 3);
+const observatorySky = `light.hemisphere({ color: '#a6c6ff', groundColor: [${limestone.join(', ')}], intensity: sun.intensity / 5 })`;
 await loadDictionary('fr');
 
 test('no Markdown page links an example parked until the engine draws it', () => {
@@ -80,6 +87,9 @@ test('every example is one standalone HTML file that imports the built engine', 
     // A scene built in code loads nothing; one that loads a compiled cache names a published one.
     const manifest = html.match(/scene\.load\('\.\.\/(assets\/[^']+)'\)/)?.[1];
     if (!manifest) continue;
+    // #719: its scene file carries only a sun, so the page adds the sky.
+    if (manifest.startsWith('assets/gallery/signature-architecture/'))
+      assert.ok(html.includes(observatorySky), entry.id);
     await access(new URL(manifest, site));
     // A scene built around an imported model credits its author on the page, in its words.
     if (
