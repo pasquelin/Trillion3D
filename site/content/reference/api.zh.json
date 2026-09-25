@@ -709,7 +709,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "每簇 DAG 误差的缓存标识:投影到组包围球上的组 QEM 误差。"
+    "summary": "按簇 DAG 误差的缓存标识：组在位置、法线和纹理坐标上的绝对 QEM 误差，限制在组的范围内；v1 缓存会被拒绝。"
   },
   "DEFAULT_SCOPE": {
     "summary": "未指定时模型被编译所采用的范围:按页流式加载。"
@@ -6967,6 +6967,7 @@
       "sensor": "物体是否只报告接触。",
       "ccd": "连续碰撞是否开启。",
       "decorative": "物体是否为装饰碎片。",
+      "damping": "每秒自行损失的速度比例，线速度与角速度（`dv/dt = −c·v`）。",
       "velocity": "线速度，m/s，即上一步留下的值；写入它可抛出物体。",
       "asleep": "物体是否在睡眠：静止，直到被唤醒前不再模拟。",
       "mass": "质量，单位千克；`undefined` 取材质密度乘以体积。",
@@ -7001,7 +7002,8 @@
       "ccd": "连续碰撞，用于可能穿过薄墙的小而快的物体。",
       "decorative": "碎片：只与静态世界碰撞，且只在范围内并可见时模拟。受 `budget.physics.decorative` 限制。",
       "friction": "覆盖材质的摩擦，0 及以上。",
-      "restitution": "覆盖材质的回弹，0 到 1。"
+      "restitution": "覆盖材质的回弹，0 到 1。",
+      "damping": "物体每秒自行损失多少速度，如空气和滚动所致：`dv/dt = −c·v`，0 及以上，线速度与角速度分开；0 则全部保留。创建时设定：要更改，请重新设置 `obj.physics`。"
     }
   },
   "PhysicsBudget": {
@@ -7386,6 +7388,103 @@
       "setW": "为顶点 `i` 写入第四个数字。",
       "setXY": "为顶点 `i` 写入两个数字。",
       "setXYZ": "为顶点 `i` 写入三个数字。"
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "车辆起步所用的三台机器，按类型。",
+    "members": {
+      "car": "雪佛兰科尔维特 C5：后轮驱动，每千克 0.32 N·m，六挡。",
+      "motorcycle": "雅马哈 XJ900 与骑手：每千克 0.26 N·m，六挡。",
+      "tracked": "M1 艾布拉姆斯：燃气轮机，每千克 0.083 N·m，四挡。"
+    }
+  },
+  "Vehicle": {
+    "summary": "车辆：由 Jolt 的车辆约束架在车轮上的车身，带发动机、变速箱、差速器、悬架和防倾杆，由 `vehicle.*` 创建，并由 `world.physics.add` 加入模拟。",
+    "description": "它是一个 `VehicleDriver`：`world.controls.vehicle = car` 就能驾驶它。",
+    "parameters": {
+      "options": "`vehicle.*` 接受的内容：车轮，以及任意数量的机器参数（`VehicleSpec`）。",
+      "options.wheels": "车轮：车身的子网格，每个放在它平地着地时的中心，轮轴沿车身的 x 轴。半径和宽度从其包围盒读取。车身朝向 −z：前面的车轮转向。",
+      "options.torquePerKg": "车身每千克的发动机峰值扭矩，N·m/kg。",
+      "options.idleRPM": "发动机怠速，转/分。",
+      "options.maxRPM": "发动机红线，转/分。",
+      "options.torqueCurve": "最多五个点 `[rpm / maxRPM, 扭矩 / 峰值]`，转速比例递增。",
+      "options.gears": "最多六个前进挡传动比，一挡在先。",
+      "options.reverse": "倒挡的传动比。",
+      "options.finalDrive": "主减速比（履带车辆为主动轮减速）。",
+      "options.shiftUpRPM": "高于此值时升挡，转/分。",
+      "options.shiftDownRPM": "低于此值时降挡，转/分。",
+      "options.clutch": "每 rad/s 打滑的离合器扭矩，N·m·s。",
+      "options.suspensionFrequency": "悬架频率，Hz。",
+      "options.suspensionDamping": "阻尼比，从 0（无）到 1（临界）。",
+      "options.suspensionTravel": "车轮从完全伸展到完全压缩的行程，米。",
+      "options.antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。",
+      "options.turnRadius": "满舵时的转弯半径，米。",
+      "options.steerTime": "从中位打到满舵的秒数。",
+      "options.brakeGrip": "刹车锁死车轮时的摩擦。",
+      "options.drive": "汽车的驱动轮。",
+      "options.trackTurn": "履带车辆转向时内侧履带的速度，与外侧之比。",
+      "options.maxLean": "摩托车的最大倾角，弧度。"
+    },
+    "members": {
+      "kind": "车辆的类型。",
+      "body": "车轮承载的车身。",
+      "wheels": "车轮，车身的子节点。",
+      "spec": "机器：其类型自带的（`VEHICLE_SPECS`），选项覆盖其上。",
+      "input": "它此刻接收的踏板和方向盘。",
+      "speed": "上一步之后向前的速度（米/秒），后退为负。",
+      "rpm": "上一步之后发动机的每分钟转速。",
+      "gear": "上一步之后的挡位：1 及以上为前进，−1 为倒挡，0 为空挡。",
+      "drive": "每次按键改变踏板和方向盘时、开始被驾驶时接收它们，停止被驾驶时接收全部松开的状态。"
+    }
+  },
+  "VehicleKind": {
+    "summary": "物理的车辆，每种都基于 Jolt 的车辆约束。"
+  },
+  "VehicleOptions": {
+    "summary": "`vehicle.*` 接受的内容：车轮，以及任意数量的机器参数（`VehicleSpec`）。",
+    "members": {
+      "wheels": "车轮：车身的子网格，每个放在它平地着地时的中心，轮轴沿车身的 x 轴。半径和宽度从其包围盒读取。车身朝向 −z：前面的车轮转向。"
+    }
+  },
+  "VehicleSpec": {
+    "summary": "车辆由什么组成：发动机、变速箱、悬架、转向和刹车，每个默认值都来自一台真实的机器（`VEHICLE_SPECS`）。",
+    "members": {
+      "torquePerKg": "车身每千克的发动机峰值扭矩，N·m/kg。",
+      "idleRPM": "发动机怠速，转/分。",
+      "maxRPM": "发动机红线，转/分。",
+      "torqueCurve": "最多五个点 `[rpm / maxRPM, 扭矩 / 峰值]`，转速比例递增。",
+      "gears": "最多六个前进挡传动比，一挡在先。",
+      "reverse": "倒挡的传动比。",
+      "finalDrive": "主减速比（履带车辆为主动轮减速）。",
+      "shiftUpRPM": "高于此值时升挡，转/分。",
+      "shiftDownRPM": "低于此值时降挡，转/分。",
+      "clutch": "每 rad/s 打滑的离合器扭矩，N·m·s。",
+      "suspensionFrequency": "悬架频率，Hz。",
+      "suspensionDamping": "阻尼比，从 0（无）到 1（临界）。",
+      "suspensionTravel": "车轮从完全伸展到完全压缩的行程，米。",
+      "antiRoll": "每根防倾杆的刚度与其车桥弹簧之比；0 表示没有。",
+      "turnRadius": "满舵时的转弯半径，米。",
+      "steerTime": "从中位打到满舵的秒数。",
+      "brakeGrip": "刹车锁死车轮时的摩擦。",
+      "drive": "汽车的驱动轮。",
+      "trackTurn": "履带车辆转向时内侧履带的速度，与外侧之比。",
+      "maxLean": "摩托车的最大倾角，弧度。"
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "每种载具起步时的机器。",
+    "members": {
+      "car": "雪佛兰科尔维特 C5：后轮驱动，每千克 0.32 N·m，六个挡位。",
+      "motorcycle": "雅马哈 XJ900 及其骑手：每千克 0.26 N·m，六个挡位。",
+      "tracked": "M1 艾布拉姆斯：燃气轮机，每千克 0.083 N·m，四个挡位。"
+    }
+  },
+  "vehicle": {
+    "summary": "`vehicle` 家族：由 `world.controls` `'vehicle'` 驾驶的车身及其车轮。",
+    "members": {
+      "car": "两根或以上车桥上的三个或以上车轮，前轮转向，`drive` 所指的车轮驱动。",
+      "motorcycle": "两个车轮，前轮转向，后轮驱动；它自己保持直立。",
+      "tracked": "装在左右两条履带上的车轮，每条履带由最后面的车轮驱动；减慢一条履带来转向，静止时原地转向。"
     }
   }
 }

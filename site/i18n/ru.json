@@ -478,7 +478,6 @@
       "breaking-things": "интеграция физического движка",
       "cloth-and-rope": "интеграция физического движка",
       "soft-bodies": "интеграция физического движка",
-      "drive-a-car": "интеграция физического движка",
       "a-room-in-vr": "сессия WebXR",
       "a-360-photo-in-vr": "сессия WebXR",
       "vr-composition-layers": "сессия WebXR: слои",
@@ -1078,7 +1077,8 @@
           "<code>limits</code> останавливает соединение: радианы для петли, метры для направляющей. <code>spring</code> делает упор мягким.",
           "<code>motor</code> доводит петлю или направляющую до скорости или положения. Меняйте <code>joint.motor</code> в любой момент.",
           "<code>breakForce</code> — усилие в ньютонах, после которого соединение рвётся: <code>joint.broken</code> становится true, и вызывается <code>joint.on('break', …)</code>.",
-          "Продвинутые соединения связывают движения: <code>joint.gear(a, b, { ratio })</code> вращает два колеса на петлях как одну передачу, <code>joint.rackAndPinion</code> превращает вращение в скольжение, <code>joint.pulley(a, b, { over })</code> вешает два груза на одну верёвку, <code>joint.path(a, b, { path })</code> держит вагонетку на колее, а <code>swingTwist</code> и <code>sixDof</code> делают плечи и свои соединения."
+          "Продвинутые соединения связывают движения: <code>joint.gear(a, b, { ratio })</code> вращает два колеса на петлях как одну передачу, <code>joint.rackAndPinion</code> превращает вращение в скольжение, <code>joint.pulley(a, b, { over })</code> вешает два груза на одну верёвку, <code>joint.path(a, b, { path })</code> держит вагонетку на колее, а <code>swingTwist</code> и <code>sixDof</code> делают плечи и свои соединения.",
+          "Транспорт — это тело на колёсах: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> или <code>vehicle.tracked</code>; колёса — сетки на теле там, где они стоят. Добавьте его через <code>world.physics.add</code> и ведите с клавиатуры: <code>world.controls.vehicle = car</code>, затем <code>world.controls.kind = 'vehicle'</code>. Двигатель, коробка, подвеска и тормоза — как у настоящей машины; <code>car.speed</code>, <code>car.gear</code> и <code>car.rpm</code> показывают, как она едет."
         ],
         "tryIt": "Откройте дверь и ящик, затем сбросьте камень на мост. Уменьшите прочность моста и постройте его заново: он сломается под собственным весом."
       },

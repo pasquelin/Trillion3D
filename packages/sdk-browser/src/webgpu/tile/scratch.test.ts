@@ -112,3 +112,33 @@ test('premultiplyAlpha raw texels are written colour times alpha, rows flipped t
   host.version++;
   assert.deepEqual([...upload(host, [1, 2]).rows[0]], [0, 0, 255, 255, 128, 0, 0, 128]);
 });
+
+// A live picture refills its working texture at every frame: the flipped rows are staged in one
+// array kept by the scratch, never a new w·h·4 array a frame.
+test('a live flipped picture refilled 60 times stages its rows in one array', () => {
+  installGpuGlobals();
+  const { device } = mockGpu();
+  const staged = new Set<Uint8Array>();
+  Object.assign(device.queue, {
+    writeTexture: (_to: unknown, data: Uint8Array) => staged.add(data),
+  });
+  const pixels = new Uint8Array([255, 0, 0, 255, 0, 0, 255, 255]);
+  const page = texture.data(pixels, 1, 2);
+  page.flipY = true;
+  const map = importHostTexture(hostTexture(page, true, new Map()));
+  const scratch = createTileScratch(device, {
+    map,
+    width: 1,
+    height: 2,
+    format: 'rgba8unorm',
+    errorCode: 'NONE',
+  });
+  for (let frame = 0; frame < 60; frame++) {
+    pixels[4] = frame;
+    scratch.fill();
+    assert.equal(staged.size, 1, `frame ${frame}: the one staging array`);
+    const [out] = staged;
+    assert.deepEqual([...out], [frame, 0, 255, 255, 255, 0, 0, 255], `frame ${frame} flipped`);
+  }
+  scratch.destroy();
+});
