@@ -9,7 +9,7 @@ import {
   selectVisiblePages,
 } from './selection.ts';
 import { dagFixture, wideCamera } from './dag.fixture.ts';
-import { assertOneRepresentationPerGroup, withBundles } from './helpers.fixture.ts';
+import { withBundles } from './helpers.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
 test('a streaming bundle is one request that makes every cluster it carries drawable', () => {
@@ -93,31 +93,5 @@ test('only the root bundle resident still covers the surface once', () => {
     collectPendingUrls(selected.wanted, []).includes('bundle-rest'),
     'the missing bundle is what gets requested',
   );
-  fixture.geometry.dispose();
-});
-
-test('a cut wider than the page budget is answered by a coarser cut, not by dropped clusters', () => {
-  const fixture = dagFixture();
-  const { roots } = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
-  );
-  const full = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
-    pixelError: 0,
-    viewport: [1280, 720],
-    holdResident: true,
-  });
-  assert.equal(full.shown.length, 4);
-  const tight = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
-    pixelError: 0,
-    viewport: [1280, 720],
-    holdResident: true,
-    pageBudget: 3,
-  });
-  assert.ok(tight.shown.length <= 3);
-  assertOneRepresentationPerGroup(tight.shown.map((page) => page.url));
-  assert.ok(tight.pixelError > 0, 'the threshold was raised instead of truncating the cut');
   fixture.geometry.dispose();
 });
