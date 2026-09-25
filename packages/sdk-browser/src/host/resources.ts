@@ -5,7 +5,6 @@
 import type { GraphElements } from './graph/attributes.ts';
 import type { GraphGeometry } from './graph/geometry.ts';
 import type { GraphMesh } from './graph/mesh.ts';
-import type { GraphNode } from './graph/node.ts';
 import type { GraphSurface } from './graph/surface.ts';
 import type { GraphTexture } from './graph/texture.ts';
 
@@ -51,16 +50,6 @@ export type HostMaterials = GraphSurface | GraphSurface[];
 /** A drawn node of the graph, held by identity: the draw record, the transparent table and the
  *  selection sets name the mesh the engine placed. */
 export type HostMesh = GraphMesh;
-
-/** A node of the graph, held by identity: walked, placed and posed through its own fields. */
-export type HostNode = GraphNode;
-
-/** A node placed in a display graph: the pose the engine writes on it, the world matrix it
- *  resolves for its chain. */
-export type HostPlaced = GraphNode;
-
-/** A node the engine walks: the subtree under it, itself first. */
-export type HostTraversable = GraphNode;
 
 /** A host colour: three linear components, read one by one and written the same way. The engine
  *  never converts here — a colour crosses as the host holds it. */

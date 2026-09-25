@@ -370,6 +370,7 @@
       "top": "Tepi atas kotak orthographic.",
       "bottom": "Tepi bawah kotak orthographic.",
       "projection": "`'perspective'` membuat benda jauh kecil; `'orthographic'` menjaga setiap ukuran.",
+      "copy": "Mengambil nilai simpul dari `source` dan, dari kamera, optiknya; `projection` miliknya sendiri tetap.",
       "updateProjectionMatrix": "Disimpan untuk halaman yang ditulis terhadap sebuah perender yang membutuhkannya: setiap penulisan optik sudah menggambar ulang.",
       "rayThrough": "Sinar dunia yang melewati sebuah titik gambar, menurut proyeksi mesin itu sendiri (`engineCamera.ts`): dari mata sepanjang arah pandang untuk kamera perspektif, lurus searah pandang dari kotak untuk kamera ortografis. Arahnya adalah vektor satuan.",
       "set": "Menaruh mata di `pose.position`, melihat ke `pose.target`, pada bidang yang disebutkannya."
@@ -1370,10 +1371,6 @@
   "HostGeometry": {
     "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya."
   },
-  "HostGraphNode": {
-    "summary": "Sebuah node graf host seperti dilihat sebuah penjelajahan: identitasnya, pose lokalnya, matriks dunia yang diselesaikan host untuknya, dan rantainya.",
-    "description": "Mesin menghitung matriks dunia MILIKNYA SENDIRI dari pose lokal (`../world/tree.ts`); `matrixWorld` dibaca di tempat penyelesaian milik HOST sendiri adalah yang diserahkan sebuah batas kembali kepadanya. KENAPA `HostPlaced` (`../resources.ts`) JUGA MENJELASKAN SEBUAH NODE BERPOSE. Keduanya bukan salinan: mereka dikunci pada dua penyelesaian berbeda yang ditawarkan sebuah host. `HostPlaced` meminta `updateWorldMatrix(ancestors, descendants)` — rantai SATU node, yang didaki sebuah penempatan dan penjelajahan visibilitas; ini meminta `updateMatrixWorld(force)` — SUBTREE di bawah sebuah node, yang diselesaikan sebuah pemindaian, gabungan batas, dan replikasi dalam satu panggilan. Sebuah host yang hanya menawarkan satu dari keduanya hanya memenuhi kontrak yang dijawabnya, jadi tidak ada yang boleh menggantikan yang lain."
-  },
   "HostMaterial": {
     "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`."
   },
@@ -1382,9 +1379,6 @@
   },
   "HostMesh": {
     "summary": "Sebuah mesh host, dipegang lewat identitas: catatan gambar, tabel transparan dan set seleksi menyebut nama permukaan yang ditempatkan host."
-  },
-  "HostNode": {
-    "summary": "Sebuah node graf scene host, dipegang lewat identitas dan dua bidang yang dibutuhkan sebuah penjelajahan."
   },
   "HostNodeMatrix": {
     "summary": "Enam belas float yang sama, BISA DITULIS suku demi suku: pose yang dikembalikan sebuah batas ke sebuah node host atau sebuah kamera host yang dipulihkannya.",
@@ -1436,9 +1430,6 @@
   },
   "HostTexture": {
     "summary": "Sebuah tekstur host: gambar yang diurai host dan status sampler yang dideklarasikannya, juga dipegang lewat identitas."
-  },
-  "HostTraversable": {
-    "summary": "Sebuah node host yang dijelajahi mesin: subtree di bawahnya, dirinya sendiri lebih dulu, dalam urutan host sendiri."
   },
   "HostVector": {
     "summary": "Tiga angka sebuah pose, seperti disimpan host dan dikembalikan sebuah batas.",
@@ -1626,6 +1617,7 @@
       "height": "Tinggi sebuah rectangle light.",
       "radius": "Radius bola pemancar; `emitterRadius` dalam penyimpanan mesin.",
       "kind": "Jenis cahaya apa ini: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Mengambil nilai simpul dari `source` dan, dari cahaya, angka, warna, koefisien, dan arahnya; `kind` miliknya sendiri tetap.",
       "needsUpdate": "`light.needsUpdate = true` setelah menulis `sh` di tempat: dunia membacanya lagi.",
       "lookAt": "Membidikkan cahaya ke sebuah titik dunia: sebuah cahaya directional atau spot menggerakkan `target`-nya ke sana — arahnya dibaca darinya —, dan node itu juga berputar, yang menjadi arah hadap sebuah rectangle."
     }
@@ -2050,6 +2042,8 @@
       "remove": "Melepas anak dari node ini.",
       "destroy": "Membebaskan simpul dan semua di bawahnya sekarang, bukan saat dikumpulkan.",
       "removeFromParent": "Melepas node itu dari induknya.",
+      "clone": "Node dengan jenis dan nilai yang sama; anak-anaknya ikut disalin kecuali diminta tidak.",
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak.",
       "clear": "Melepas setiap anak dari node ini.",
       "traverse": "Memanggil `fn` pada node ini dan semua di bawahnya.",
       "traverseVisible": "Memanggil `fn` pada setiap node terlihat dari sini ke bawah.",
@@ -2062,11 +2056,7 @@
       "rotateY": "Memutar node mengelilingi sumbu y-nya sendiri.",
       "rotateZ": "Memutar node mengelilingi sumbu z-nya sendiri.",
       "translateOnAxis": "Menggerakkan node sepanjang `axis`-nya sendiri.",
-      "getWorldPosition": "Tempat node itu berdiri di dunia.",
-      "getWorldQuaternion": "Bagaimana node itu diputar di dunia.",
       "getWorldDirection": "Arah node itu menghadap di dunia.",
-      "localToWorld": "Sebuah titik kerangka node itu, di dunia.",
-      "worldToLocal": "Sebuah titik dunia, di kerangka node itu.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
     }
   },
@@ -2077,7 +2067,11 @@
       "matrixWorld": "Matriks dunia seperti terakhir disusun (`updateMatrixWorld`), sebuah view pohon itu.",
       "matrixAutoUpdate": "Salah (false) ketika `matrix` ADALAH pose dan tidak ada yang menyusunnya ulang.",
       "matrixWorldNeedsUpdate": "Ditetapkan bila matriks lokal berubah dan matriks dunia belum mengikutinya.",
-      "updateMatrixWorld": "Menyusun matriks dunia node ini dan keturunannya, milik induknya diambil apa adanya."
+      "updateMatrixWorld": "Menyusun matriks dunia node ini dan keturunannya, milik induknya diambil apa adanya.",
+      "getWorldPosition": "Tempat node itu berdiri di dunia.",
+      "getWorldQuaternion": "Bagaimana node itu diputar di dunia.",
+      "localToWorld": "Sebuah titik kerangka node itu, di dunia.",
+      "worldToLocal": "Sebuah titik dunia, di kerangka node itu."
     }
   },
   "OcclusionFrameMetrics": {
@@ -6654,8 +6648,8 @@
       "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya.",
       "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Total di bawah pool bayangan ditolak (`GPU_BUDGET_UNDER_SHADOW_POOL`). Tidak pernah dibaca dari mesin.",
-      "cpu": "Byte memori CPU yang boleh ditahan halaman terdekode dunia; diterapkan pada pemuatan adegan berikutnya.",
-      "split": "Cara kedua total dibagi: pool bayangan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cache halaman terdekode mengambil total CPU. Hasil aturan, sebelum sebuah pool diatur sendiri."
+      "cpu": "Byte memori CPU yang boleh ditahan dunia: pertama cermin host tabel halaman bayangan, lalu halaman terdekode; diterapkan pada pemuatan adegan berikutnya. Total yang tidak melebihi cermin ditolak (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Tidak pernah dibaca dari mesin.",
+      "split": "Cara kedua total dibagi: pool bayangan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU. Hasil aturan, sebelum sebuah pool diatur sendiri."
     }
   },
   "world.camera": {
@@ -7204,14 +7198,9 @@
   "GraphNode": {
     "members": {
       "serial": "Nomor node, unik dalam sesi.",
-      "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya.",
-      "parent": "Induknya.",
-      "children": "Node yang dipegang node ini, berurutan.",
-      "traverse": "Subtree di bawah node itu, dirinya sendiri lebih dulu, dalam urutan host sendiri.",
-      "clone": "Node dengan jenis dan nilai yang sama; anak-anaknya ikut disalin kecuali diminta tidak.",
-      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
+      "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya."
     },
-    "summary": "Node graf: namanya, posenya, matriks dunianya, induknya, dan anak-anaknya."
+    "summary": "Sebuah simpul graf: simpul inti, dibedakan oleh `kind`-nya, disalin oleh `clone` milik inti."
   },
   "GraphSurface": {
     "members": {
@@ -7316,7 +7305,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Apa sebuah node graf: node polos, akar, grup, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
+    "summary": "Apa sebuah node graf: akar, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
   },
   "Joint": {
     "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",

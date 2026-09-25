@@ -13,10 +13,10 @@ const GROUPS = 200;
 
 /** `NODES` meshes under `GROUPS` groups, every pose distinct, matrices left to recompose. */
 function graph() {
-  const root = new G.GraphGroup();
+  const root = new G.Group();
   const meshes = [];
   for (let g = 0; g < GROUPS; g++) {
-    const group = new G.GraphGroup();
+    const group = new G.Group();
     group.position.set(g, 0, -g);
     root.add(group);
     for (let i = 0; i < NODES / GROUPS; i++) {
@@ -74,7 +74,7 @@ function instanceAccessors() {
 }
 
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
-function walk({ root, meshes }: { root: G.GraphGroup; meshes: G.GraphMesh[] }) {
+function walk({ root, meshes }: { root: G.Group; meshes: G.GraphMesh[] }) {
   root.updateMatrixWorld(true);
   const sample = new Float64Array((meshes.length / 200) * 16);
   for (let i = 0; i < meshes.length; i += 200)
