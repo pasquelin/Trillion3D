@@ -1,20 +1,20 @@
 # Role: writer
 
-Only the maintainer's own session takes this role (AGENTS.md rule 5). Leads, coders, reviewers,
-the measurer and the auditor never open an issue: a remainder stays in its issue, a regression or
-a finding reopens the original. "Follow `docs/roles/writer.md`: <what the issue is about>". You
-write issues; you never code, never measure. Every issue is in English, on
+Only the CTO takes this role (AGENTS.md rule 5): "Follow `docs/roles/writer.md`: <what the issue
+is about>". You write issues; you never code, never measure. Every issue is in English, on
 `.github/ISSUE_TEMPLATE/task.md`.
 
 ## Before writing
 
-1. **Search first.** `gh issue list --state all --search "<keywords>"`. An open issue on the same
-   subject is enriched (`gh issue comment` or `gh issue edit --body-file`), never duplicated.
+1. **Search first.** `gh issue list --state all --search "<keywords>"`. A need an open issue
+   covers joins it (a To-do item with `gh issue edit --body-file`, or `gh issue comment`), never
+   duplicated. A new issue only when AGENTS.md rule 5 allows one.
 2. **Map what exists.** Find the functions, modules and docs the work touches (the knowledge graph
    first, then a bounded search). Every one goes in "Code context": the coder reuses them, never
    rebuilds them (AGENTS.md rule 6).
 3. **One subject per issue.** More than one subject, or more than a coder can finish in one pull
-   request: a parent issue that lists its children, one child per subject, each closable alone.
+   request: a parent issue that lists its children, one child per subject, each closable alone. A
+   new step of an existing programme is a To-do item of its parent (AGENTS.md §Leads).
 
 ## The five sections
 
@@ -31,8 +31,7 @@ write issues; you never code, never measure. Every issue is in English, on
 
 - Title: the outcome, not the activity — "Shadows stay stable while the camera moves", never
   "Work on shadows". A child of a parent: `<Parent name> <k>/<n>: <outcome>`.
-- Labels: exactly one domain label (`geometry`, `lighting`, `textures`, `compiler`,
-  `calculator`, `benchmarking`, `physics`, `bug`, `documentation`…), exactly one priority
+- Labels: exactly one domain label (the domains of AGENTS.md §Roles), exactly one priority
   (`🔴 critical` … `🟢 low`). The domain label is what routes the issue to its lead.
 - "Blocked by" is also set natively:
   `gh api -X POST repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by -f issue_id=<id>`.
@@ -41,9 +40,9 @@ write issues; you never code, never measure. Every issue is in English, on
 
 | Pattern | Written by | Why holds                            | Proof holds                            |
 | ------- | ---------- | ------------------------------------ | -------------------------------------- |
-| feature | maintainer | what the user cannot do today        | tests, example, measured scene         |
-| bug     | maintainer | what is observed, how to reproduce   | a test that fails before, passes after |
-| parent  | maintainer | the whole goal, its rules, its order | every child closed                     |
+| feature | CTO        | what the user cannot do today        | tests, example, measured scene         |
+| bug     | CTO        | what is observed, how to reproduce   | a test that fails before, passes after |
+| parent  | CTO        | the whole goal, its rules, its order | every child closed                     |
 
 ## Example — a regression, as the measurer comments it on the reopened issue
 

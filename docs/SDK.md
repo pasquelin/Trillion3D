@@ -1109,7 +1109,8 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   `RangeError`. `world.physics.waterSurface` reads those same waves at the simulation's time, to
   draw them (they run on while every body sleeps, and stand still when paused): `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
   `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
-  goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
+  goes on from where it is. Its example, floating crates, waits for geometry written every frame
+  to be uploaded in place (#573).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the

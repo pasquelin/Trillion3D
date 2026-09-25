@@ -2,6 +2,7 @@
 //! A missing, non-finite, or out-of-bounds field takes the default published in : the light
 //! remains on, it does not disappear because an exporter wrote an impossible number.
 use super::*;
+use crate::shared_math::{divide, length};
 
 pub(super) fn number(value: Option<&Value>, fallback: f64) -> f64 {
     value.and_then(Value::as_f64).unwrap_or(fallback)
@@ -22,11 +23,11 @@ pub(super) fn colour_of(light: &Value) -> [f64; 3] {
 /// of light propagation, exactly what the contract expects from a spot light and the sun.
 pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
     let raw = [-m[8], -m[9], -m[10]];
-    let length = (raw[0] * raw[0] + raw[1] * raw[1] + raw[2] * raw[2]).sqrt();
-    if !length.is_finite() || length <= 1e-9 {
+    let norm = length(raw);
+    if !norm.is_finite() || norm <= 1e-9 {
         return None;
     }
-    Some([raw[0] / length, raw[1] / length, raw[2] / length])
+    Some(divide(raw, norm))
 }
 /// Declared range, otherwise the one imposed by intensity: the distance where irradiance of the strongest
 /// channel drops below . Never infinite, never zero.

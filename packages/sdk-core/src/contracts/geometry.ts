@@ -121,7 +121,8 @@ export interface StreamCatalogue {
   /** Format version. */ version: number;
   /** Bundles always kept. */ pinned: number;
   /** Target bundle size. */ bundleBytes: number;
-  /** Largest dependency count of a bundle, as the compiler published it. */ maxDependencies: number;
+  /** Most bundles holding the parents of one bundle's clusters, fixed before packing. */ dependencyBound: number;
+  /** Longest closed dependency list of a bundle, as the compiler published it. */ maxDependencies: number;
   /** Every bundle. */ pages: StreamBundle[];
 }
 /** One mesh part of a compiled model, with its pages and hierarchy. */ export interface Primitive {
