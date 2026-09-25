@@ -33,8 +33,8 @@ test('a following image does not recompose the set matrix from position, rotatio
 });
 
 test('under a rotated and scaled parent, the obtained world stays the requested world', () => {
-  const source = new G.GraphNode(),
-    parent = new G.GraphNode(),
+  const source = new G.Object3D(),
+    parent = new G.Object3D(),
     mesh = G.mesh();
   mesh.name = 'cible';
   parent.position.set(2, -1, 3);
@@ -49,8 +49,8 @@ test('under a rotated and scaled parent, the obtained world stays the requested 
 });
 
 test('a parent itself sheared does not skew the requested world for its child', () => {
-  const source = new G.GraphNode(),
-    parent = new G.GraphNode(),
+  const source = new G.Object3D(),
+    parent = new G.Object3D(),
     mesh = G.mesh();
   mesh.name = 'cible';
   parent.add(mesh);

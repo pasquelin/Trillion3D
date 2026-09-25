@@ -90,6 +90,17 @@ export class Camera extends Object3D {
   protected override get looksDownNegativeZ() {
     return true;
   }
+  protected override blank(): this {
+    return new Camera(this.projection) as this;
+  }
+  /** Takes `source`'s node values and, from a camera, its optics; its own `projection` stays. */
+  override copy(source: Object3D, recursive = true) {
+    super.copy(source, recursive);
+    if (!(source instanceof Camera)) return this;
+    (this as { _optics: Camera['_optics'] })._optics = { ...source._optics };
+    this.updateProjectionMatrix();
+    return this;
+  }
   /** Kept for pages written against a renderer that needs it: every optic write already redraws. */
   updateProjectionMatrix() {
     this._link?.pose(this);

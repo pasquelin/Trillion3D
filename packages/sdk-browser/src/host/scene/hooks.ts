@@ -4,7 +4,7 @@ import {
   type ObservedComponents,
 } from '../../../../sdk-core/src/world/math/observed.ts';
 import { bump, type Hook, type WriteRevision } from './hookCore.ts';
-import type { HostGraphNode } from './graphNodes.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 const hooks = new WeakMap<object, Hook>();
 
@@ -37,7 +37,7 @@ function hookValue(hook: Hook, value: ObservedComponents, ...faces: Observed[]) 
  * fields the contract lets the host write are the node's own data fields, which no hook may
  * touch without slowing the reference's walk: `scan.ts` compares them per frame.
  */
-export function hookHostNode(node: HostGraphNode, revision: WriteRevision) {
+export function hookHostNode(node: Object3D, revision: WriteRevision) {
   const known = hooks.get(node);
   if (known) {
     if (!known.revisions.includes(revision)) known.revisions.push(revision);
@@ -52,7 +52,7 @@ export function hookHostNode(node: HostGraphNode, revision: WriteRevision) {
 
 /** Forgets `revision` on `node`: its writes no longer bump it. The listeners stay, bumping
  *  nothing once the last watch has left. */
-export function unhookHostNode(node: HostGraphNode, revision: WriteRevision) {
+export function unhookHostNode(node: Object3D, revision: WriteRevision) {
   const hook = hooks.get(node);
   const at = hook ? hook.revisions.indexOf(revision) : -1;
   if (hook && at >= 0) hook.revisions.splice(at, 1);

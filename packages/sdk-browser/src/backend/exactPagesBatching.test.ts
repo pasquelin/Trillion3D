@@ -14,7 +14,7 @@ test('exact pages batch clusters of the same primitive in beauty mode and unbatc
   g2.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   const m1 = G.mesh(g1, G.basicSurface()),
     m2 = G.mesh(g2, G.basicSurface());
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   source.add(m1);
   source.add(m2);
   const p1 = [0, 1].map((id) => ({
