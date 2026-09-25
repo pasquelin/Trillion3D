@@ -29,7 +29,13 @@ function banc() {
   const shown = [packedPages[0], packedPages[1]];
   const desired: PageRec[] = [];
   const delta = createCutDelta(packedPages, desired);
-  const cutPending = createCutPending(packedPages, delta);
+  // Past the page budget the pool accepts only 'c', already loaded: 'd' to 'f' are refused.
+  const wantedPages = [packedPages[2]];
+  const cutPending = createCutPending(
+    packedPages,
+    delta,
+    (page) => !run.coverageBudgetLimited || wantedPages.includes(page),
+  );
   const run = {
     desired,
     shown,
@@ -48,7 +54,7 @@ function banc() {
     run,
     layout: { packedPages },
     setup: { bootstrap, requestStamps: new RequestStamps(6) },
-    services: { bootstrapState: { ready: true }, cutPending },
+    services: { bootstrapState: { ready: true }, cutPending, residencySets: { wantedPages } },
   } as unknown as WebgpuPagesRuntime;
   /** A cut published as the engine publishes it: by its delta, readers included. */
   const publie = (ids: number[]) => {
@@ -89,9 +95,9 @@ test('both lists return what a string set returned, in the same order', () => {
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd']);
   // Only pages without bytes are waited for, deduped the same way.
   assert.deepEqual(pendingUrls(rt), ['d']);
-  // An exceeded budget drops the cut from both lists, without touching the rest.
+  // An exceeded budget keeps in both lists only the part of the cut the pool accepted.
   run.coverageBudgetLimited = true;
-  assert.deepEqual(pageUrls(rt), ['a', 'b']);
+  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c']);
   assert.deepEqual(pendingUrls(rt), []);
 });
 
@@ -112,8 +118,8 @@ test('a held sample returns the list already yielded, and everything else remake
   assert.deepEqual(pendingUrls(rt), ['d', 'e']);
   // The budget flag flips: they start over too, held sample or not.
   run.coverageBudgetLimited = true;
-  assert.deepEqual(pageUrls(rt), ['a', 'b']);
-  assert.deepEqual(pendingUrls(rt), []);
+  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c']);
+  assert.deepEqual(pendingUrls(rt), [], 'the refused pages are never fetched');
   // A sample that is no longer held remakes everything, with nothing else to say so.
   run.coverageBudgetLimited = false;
   run.cutHeld = false;
