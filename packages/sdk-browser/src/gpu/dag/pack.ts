@@ -1,7 +1,8 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
 import { REQUEST_PAGE_MAX } from './request.ts';
 import { SELECTION_NONE as NONE } from '../core/selection.ts';
-import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts';
+import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from './types.ts';
+import { cullingLinks } from '../../page/cut/readiness.ts';
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
 import { CLUSTER_WORDS, COLD_WORDS, coldBase } from './layout.ts';
@@ -68,6 +69,9 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     rootNodes = new Uint32Array(worldSlots).fill(NONE),
     rootBases = new Uint32Array(worldSlots).fill(NONE);
   const records = createRecordTable();
+  // Culling links, shared by the placements of one node array as the hierarchy is.
+  const linksOf = new Map<Float64Array, DagCutLinks['links']>();
+  const cutLinks: DagCutLinks[] = [];
   let cluster = 0,
     node = 0,
     rootClusters = 0;
@@ -81,7 +85,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     const owner = new Uint32Array(root.pages.length).fill(NONE);
     rootBases[w] = nodeBase;
     rootNodes[w] = root.parked ? NONE : nodeBase;
-    node += packCullingNodes(
+    const packedNodes = packCullingNodes(
       nodes,
       nodeInts,
       culling,
@@ -89,6 +93,17 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       { world: w, nodeBase, pageBase },
       owner,
     );
+    node += packedNodes;
+    let links = culling.links ?? linksOf.get(culling.nodes);
+    if (!links) linksOf.set(culling.nodes, (links = cullingLinks(culling, root.pages.length)));
+    cutLinks.push({
+      structure: root.structure,
+      links,
+      pageBase,
+      pageCount: root.pages.length,
+      nodeBase,
+      nodeCount: packedNodes,
+    });
     recordShift[w] = (records.place(root.pages, culling.nodes, owner, nodeBase) - pageBase) >>> 0;
     pageWorlds.fill(w, pageBase, pageBase + root.pages.length);
     for (const rec of root.pages) {
@@ -124,6 +139,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     recordShift,
     rootCount: rootClusters,
     pageUrls,
+    cutLinks,
   };
 }
 

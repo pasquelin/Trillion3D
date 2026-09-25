@@ -57,7 +57,7 @@ fn directory_of_importable_files_is_merged_into_one_scene() {
             plugins::scene::Routed::Driver(plugin, ref files) if plugin.name() == "obj" && files.len() == 2));
     let result = compile(&options, |_| {}).expect("compile dir");
     assert_eq!(result["selectedTriangles"], 4);
-    assert_eq!(result["selectedNodes"].as_array().map(|a| a.len()), Some(2));
+    assert_eq!(result["selectedNodes"], 2);
     fs::remove_dir_all(root).expect("cleanup");
 }
 #[test]

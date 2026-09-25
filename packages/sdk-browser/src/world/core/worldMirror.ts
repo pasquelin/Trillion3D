@@ -19,7 +19,7 @@ import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/dra
 import type { PlacementRows } from '../../placement/rows.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
-import { GraphAttribute } from '../../host/graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
 import { GraphMesh } from '../../host/graph/mesh.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
@@ -30,11 +30,11 @@ import type { PosedTwin } from './worldPoses.ts';
 /** The geometry of drawn triangles, under the attribute names a mesh reads. */
 function hostGeometry(drawn: DrawnTriangles) {
   const geometry = new GraphGeometry();
-  geometry.setAttribute('position', new GraphAttribute(drawn.positions, 3));
-  geometry.setAttribute('normal', new GraphAttribute(drawn.normals, 3));
-  if (drawn.uvs) geometry.setAttribute('uv', new GraphAttribute(drawn.uvs, 2));
-  if (drawn.colors) geometry.setAttribute('color', new GraphAttribute(drawn.colors, 4));
-  geometry.setIndex(new GraphAttribute(drawn.indices, 1));
+  geometry.setAttribute('position', new BufferAttribute(drawn.positions, 3));
+  geometry.setAttribute('normal', new BufferAttribute(drawn.normals, 3));
+  if (drawn.uvs) geometry.setAttribute('uv', new BufferAttribute(drawn.uvs, 2));
+  if (drawn.colors) geometry.setAttribute('color', new BufferAttribute(drawn.colors, 4));
+  geometry.setIndex(new BufferAttribute(drawn.indices, 1));
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
@@ -57,14 +57,20 @@ export function buildWorldMirror(input: MirrorInput) {
     { meshes: number; primitives: number; placements?: PlacementRows }
   >();
   const geometries = new Map<Cut, GraphGeometry>(),
-    surfaces = new Map<Material, GraphSurface>(),
+    // One surface per material, and a second one when the material asks for vertex colours and
+    // is worn by geometries with and without them: the material decides, as in the reference
+    // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
+    // it is worn by lines: the line surface is widened and lifted (`hostSurface`).
+    surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    let surface = surfaces.get(material);
-    if (!surface)
-      surfaces.set(material, (surface = hostSurface(material, !!cut.drawn.colors, textures)));
+    const tinted = !!material.vertexColors && !!cut.drawn.colors,
+      lines = !!cut.drawn.lines;
+    let worn = surfaces.get(material);
+    if (!worn) surfaces.set(material, (worn = []));
+    const surface = (worn[lines ? 2 : +tinted] ??= hostSurface(material, tinted, textures, lines));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
@@ -85,9 +91,9 @@ export function buildWorldMirror(input: MirrorInput) {
   /** Writes a repainted material entry's values into the host surface built for it; false when
    *  this mirror built none. */
   const repaint = (material: Material) => {
-    const surface = surfaces.get(material);
-    if (surface) repaintHostSurface(surface, material);
-    return !!surface;
+    const worn = surfaces.get(material);
+    for (const surface of worn ?? []) if (surface) repaintHostSurface(surface, material);
+    return !!worn;
   };
   return { root, twins, associations, repaint };
 }

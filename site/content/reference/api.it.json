@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue un attributo di buffer da tutto il resto.",
       "type": "Come sono stati dichiarati i valori; un attributo in semi-float è mantenuto in precisione float.",
-      "normalized": "Se i numeri interi si leggono come valori tra 0 e 1.",
       "version": "Incrementato a ogni scrittura dichiarata: ciò che il mondo confronta per vedere che il contenuto è cambiato.",
       "array": "I numeri stessi.",
-      "itemSize": "Quanti numeri appartengono a un vertice: 3 per una posizione.",
       "count": "Quanti vertici descrivono i numeri.",
-      "needsUpdate": "`attribute.needsUpdate = true` dopo aver scritto `array`: il mondo lo rilegge.",
-      "getComponent": "Il numero `component` del vertice `index`.",
-      "getX": "Il primo numero del vertice `i`.",
-      "getY": "Il secondo numero del vertice `i`.",
-      "getZ": "Il terzo numero del vertice `i`.",
-      "getW": "Il quarto numero del vertice `i`.",
-      "setXYZ": "Scrive tre numeri per il vertice `i`.",
-      "setXY": "Scrive due numeri per il vertice `i`.",
-      "setX": "Scrive il primo numero del vertice `i`.",
-      "clone": "Un nuovo attributo con una copia dei numeri."
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica.",
+      "clone": "Un nuovo attributo con una copia dei numeri, del loro tipo, della normalizzazione e del nome.",
+      "kind": "L’attributo possiede il suo buffer.",
+      "updateRanges": "Intervalli di `array` scritti dall’ultimo caricamento, inviati da soli.",
+      "addUpdateRange": "Segna `count` numeri scritti a partire da `start`.",
+      "clearUpdateRanges": "Dimentica gli intervalli scritti, una volta caricati."
     }
   },
   "BufferNumbers": {
@@ -1694,6 +1688,10 @@
       "autoForward": "CROCIERA, disattivata per impostazione predefinita: la camera vola in avanti a `movementSpeed` senza alcun tasto premuto, come un aereo. W aggiunge allora `movementSpeed` (il doppio della velocità) e S lo toglie (la camera resta ferma); non vola mai all'indietro. Nulla si muove prima del prossimo `update`, così un host che ridisegna su `change` richiede un fotogramma quando attiva la crociera."
     }
   },
+  "Fog": {
+    "summary": "Nebbia su ogni superficie: lineare da `near` a `far`, oppure che si infittisce con la distanza secondo `density`, diradandosi in altezza sopra `baseHeight` quando `heightFalloff` è impostato.",
+    "description": "Il colore è la luce che la nebbia diffonde verso l’occhio, esposta e passata per la curva di visualizzazione come quella di una superficie."
+  },
   "FORMAT_VERSION": {
     "summary": "Formato di cache letto da questo motore.",
     "description": "Il formato 5 porta `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; i formati 3 e 4 non hanno questo prodotto e vengono rifiutati in base al loro numero piuttosto che letti a metà."
@@ -1741,8 +1739,8 @@
       "transparentDrawCalls": "Chiamate di disegno trasparenti.",
       "transparentSubmittedTriangles": "Triangoli trasparenti inviati.",
       "coverageReady": "Il ripiego GPU iniziale completo è disponibile; nullo per motori senza questa garanzia.",
-      "coverageBudgetLimited": "Il dettaglio richiesto non può coesistere con il ripiego fissato nel budget di pagine GPU.",
-      "budgetPixelError": "Soglia minima di errore sullo schermo che il budget di pagine GPU impone al taglio, in pixel: `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Nullo per motori senza budget di pagine.",
+      "coverageBudgetLimited": "Il dettaglio richiesto chiede più pagine di quante ne contenga il budget di pagine GPU: il resto viene disegnato più grossolano.",
+      "budgetPixelError": "Solo WebGL2: soglia minima di errore sullo schermo che il suo budget di pagine impone al taglio, in pixel — `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Assente su WebGPU, dove solo la residenza rende l'immagine più grossolana. Nullo per motori senza budget di pagine.",
       "frameHeld": "Vero quando il fotogramma è stato mantenuto: né la scena, né la vista, né le risorse si sono mosse, nessun lavoro asincrono era in attesa, e nessuna fase CPU è girata. I pixel mostrati sono quelli del fotogramma originale, bit per bit. Ciò che HA FATTO il fotogramma mantenuto viene pubblicato così com'è, mai copiato dall'ultimo rendering completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contano solo la presentazione, e le durate CPU e GPU per fase valgono zero quando la fase non è girata, `null` quando nulla l'ha cronometrata. Un motore la cui immagine è una scena disegnata dall'adattatore testimone conta ciò che quell'adattatore ha inviato in quel fotogramma — nulla, per un fotogramma mantenuto. Ciò che MOSTRA il fotogramma mantenuto resta descritto dal taglio che ripropone: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` sono quelli del fotogramma originale, poiché è lo stesso taglio. Assente in un motore che non mantiene i propri fotogrammi.",
       "streamingError": "Errore di caricamento persistente; gli URL falliti chiedono di ricaricare l'esploratore dopo tre tentativi.",
       "gpuPassMs": "Ultima misurazione di pass GPU di questo motore; nullo quando il dispositivo non sa fare timestamp.",
@@ -2469,7 +2467,10 @@
       "array": "I numeri di ogni vertice, disposti uno dopo l'altro.",
       "stride": "Quanti numeri occupa ogni vertice.",
       "count": "Quanti vertici imballa.",
-      "attribute": "Un attributo estratto dal pacchetto, come attributo di float a parte."
+      "attribute": "Un attributo estratto dal pacchetto, come attributo a parte.",
+      "kind": "Una memoria che più attributi osservano.",
+      "version": "Incrementato da `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
     }
   },
   "invertMatrix4": {
@@ -2979,7 +2980,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3017,7 +3018,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3055,7 +3056,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3093,7 +3094,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3131,7 +3132,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3169,7 +3170,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3207,7 +3208,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3245,7 +3246,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3283,7 +3284,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3321,7 +3322,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3359,7 +3360,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3397,7 +3398,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3435,7 +3436,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3473,7 +3474,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3531,7 +3532,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3594,7 +3595,7 @@
       "flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "size": "Dimensione di un punto, per il materiale a punti.",
       "sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "linewidth": "Larghezza di una linea.",
+      "linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "dashSize": "Lunghezza di un trattino.",
       "gapSize": "Lunghezza dello spazio tra due trattini.",
       "vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -4957,8 +4958,8 @@
     "members": {
       "isScene": "Sempre `true`: distingue la radice della scena da qualsiasi altro oggetto.",
       "environment": "Un'immagine dell'ambiente riflessa dalle superfici brillanti; `null` per nessuna.",
-      "fog": "Una nebbia che fonde gli oggetti in `color` tra `near` e `far`; `null` per nessuna.",
       "background": "Ciò che riempie l’immagine dietro ogni oggetto: un colore, o `null` per quello predefinito. Una modifica appare al fotogramma successivo, mantenendo la sessione: un nuovo colore assegnato qui, o quello attuale scritto con i suoi metodi (`set`, `setRGB`, `setHex`, `setHSL`...). Una scrittura diretta di `.r`, `.g` o `.b` non viene rilevata: riassegna `background` dopo. Un’immagine, o qualsiasi valore senza `getHex`, viene rifiutata (`UNSUPPORTED_SCENE_UPDATE`): nessun percorso la disegna.",
+      "fog": "Nebbia su ogni superficie, opaca o trasparente, su entrambi i renderer; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carica un modello compilato — l'URL del suo manifesto — e lo aggiunge a questa scena.",
       "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
       "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un'altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l'altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
@@ -4997,8 +4998,21 @@
     "members": {
       "exposure": "Moltiplicatore della radianza lineare, applicato prima della curva.",
       "toneMapping": "La curva di visualizzazione; `DEFAULT_TONE_MAPPING` se manca.",
-      "irradiance": "L'irradianza che arriva da tutte le direzioni, in 27 numeri: nove coefficienti, ciascuno una tripletta RGB, nell'ordine delle bande costante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Assente, o tutta nulla, nulla illumina una superficie tranne le lampade dichiarate."
+      "irradiance": "L'irradianza che arriva da tutte le direzioni, in 27 numeri: nove coefficienti, ciascuno una tripletta RGB, nell'ordine delle bande costante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Assente, o tutta nulla, nulla illumina una superficie tranne le lampade dichiarate.",
+      "fog": "Nebbia di distanza o di altezza su ogni superficie (`SceneFog`); assente, nessuna."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Nebbia che si infittisce con la distanza: `density` per unità della scena; con `heightFalloff`, si dirada sopra `baseHeight`, divisa per e ogni `1 / heightFalloff` unità verso l’alto.",
+    "members": {
+      "color": "La radianza verso cui la nebbia sfuma gli oggetti, in RGB lineare.",
+      "density": "Estinzione per unità della scena, a `baseHeight`; ≥ 0.",
+      "heightFalloff": "Quanto in fretta la densità cala con l’altezza, per unità della scena; 0, il predefinito, la tiene uniforme a ogni altezza.",
+      "baseHeight": "L’altezza a cui la densità vale `density`; 0 per impostazione predefinita."
+    }
+  },
+  "SceneFog": {
+    "summary": "Nebbia di distanza o di altezza, come la legge l’illuminazione."
   },
   "SceneLight": {
     "summary": "Una luce di scena, versione 2.",
@@ -5023,6 +5037,14 @@
     "summary": "Ciò che l'host chiede di vedere.",
     "description": "`lit` è la vera illuminazione e solo essa; `unlit` è la vista di diagnostica in albedo grezzo — il colore del materiale così com'è, senza luce, senza ambientale e senza emissione — per i banchi di prova di geometria che confrontano immagini pixel per pixel. `auto`, per impostazione predefinita, dà `unlit` finché nessuna luce è dichiarata e `lit` non appena ce n'è una. `bounce` è la terza vista di diagnostica: la sola irradianza indiretta, moltiplicata per l'esposizione e restituita in valori lineari senza ACES né sRGB. È ciò che il banco confronta con l'oracolo del compilatore; non è un'immagine da guardare, ed è nera senza rimbalzo impostato."
   },
+  "SceneLinearFog": {
+    "summary": "Nebbia che inizia a `near` e nasconde tutto da `far` in poi, distanze dall’occhio.",
+    "members": {
+      "color": "La radianza verso cui la nebbia sfuma gli oggetti, in RGB lineare.",
+      "near": "Distanza dall’occhio dove la nebbia inizia.",
+      "far": "Distanza dall’occhio oltre la quale si vede solo nebbia."
+    }
+  },
   "SceneLightStore": {
     "summary": "Le luci di una scena così come le legge la GPU, ordinate e mantenute aggiornate.",
     "members": {
@@ -5034,6 +5056,7 @@
       "ids": "Il nome della luce di ogni posto.",
       "count": "Quante luci.",
       "epoch": "Incrementato quando cambia l'insieme delle luci.",
+      "transportEpoch": "Aumenta con l’epoca, tranne per un cambio della sola nebbia: la nebbia è un termine del raggio di vista, non del trasporto della luce, quindi ciò che tiene in cache la luce trasportata (le sonde di rimbalzo) la conserva.",
       "environment": "L'ambiente della scena.",
       "lightingView": "Vista richiesta dall'host, così com'è: `auto` finché non ha richiesto nulla.",
       "unlit": "Vero quando l'immagine deve uscire in albedo grezzo, senza luce. È il comportamento predefinito finché nessuna luce è dichiarata: una scena senza sorgente non ha nulla da illuminare, e un'immagine nera non aiuterebbe nessun banco di prova di geometria. Non appena esiste una luce, la vera illuminazione prende il sopravvento — salvo che l'host abbia richiesto esplicitamente la vista di diagnostica.",
@@ -5567,7 +5590,7 @@
       "baseMetal": "Colore di base in RGB, A per il metallo.",
       "normalRough": "Normale XYZ nel mondo, A per la ruvidità.",
       "emissiveAo": "Emissione RGB, A per l'occlusione ambientale.",
-      "flags": "0 sfondo, 1 senza luce, 2 letture, 3 diagnostica nello spazio di visualizzazione.",
+      "flags": "0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità.",
       "views": "Le sue viste di texture GPU.",
       "dispose": "La libera."
     }
@@ -6458,8 +6481,8 @@
       "transparentDrawCalls": "Chiamate di disegno trasparenti.",
       "transparentSubmittedTriangles": "Triangoli trasparenti inviati.",
       "coverageReady": "Il ripiego GPU iniziale completo è disponibile; nullo per motori senza questa garanzia.",
-      "coverageBudgetLimited": "Il dettaglio richiesto non può coesistere con il ripiego fissato nel budget di pagine GPU.",
-      "budgetPixelError": "Soglia minima di errore sullo schermo che il budget di pagine GPU impone al taglio, in pixel: `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Nullo per motori senza budget di pagine.",
+      "coverageBudgetLimited": "Il dettaglio richiesto chiede più pagine di quante ne contenga il budget di pagine GPU: il resto viene disegnato più grossolano.",
+      "budgetPixelError": "Solo WebGL2: soglia minima di errore sullo schermo che il suo budget di pagine impone al taglio, in pixel — `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Assente su WebGPU, dove solo la residenza rende l'immagine più grossolana. Nullo per motori senza budget di pagine.",
       "frameHeld": "Vero quando il fotogramma è stato mantenuto: né la scena, né la vista, né le risorse si sono mosse, nessun lavoro asincrono era in attesa, e nessuna fase CPU è girata. I pixel mostrati sono quelli del fotogramma originale, bit per bit. Ciò che HA FATTO il fotogramma mantenuto viene pubblicato così com'è, mai copiato dall'ultimo rendering completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contano solo la presentazione, e le durate CPU e GPU per fase valgono zero quando la fase non è girata, `null` quando nulla l'ha cronometrata. Un motore la cui immagine è una scena disegnata dall'adattatore testimone conta ciò che quell'adattatore ha inviato in quel fotogramma — nulla, per un fotogramma mantenuto. Ciò che MOSTRA il fotogramma mantenuto resta descritto dal taglio che ripropone: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` sono quelli del fotogramma originale, poiché è lo stesso taglio. Assente in un motore che non mantiene i propri fotogrammi.",
       "streamingError": "Errore di caricamento persistente; gli URL falliti chiedono di ricaricare l'esploratore dopo tre tentativi.",
       "gpuPassMs": "Ultima misurazione di pass GPU di questo motore; nullo quando il dispositivo non sa fare timestamp.",
@@ -6793,7 +6816,7 @@
       "format": "Sempre `'trillion3d-scene'`.",
       "formatVersion": "La versione di questa struttura; un'altra viene rifiutata.",
       "background": "Il colore di sfondo, oppure `null`.",
-      "fog": "La nebbia, oppure `null`.",
+      "fog": "La nebbia, il suo colore in componenti lineari, oppure `null`.",
       "camera": "La telecamera salvata con la scena, oppure `null`.",
       "geometries": "Ogni forma, una sola volta, per quante mesh la usino.",
       "materials": "Ogni materiale, una sola volta, per quante mesh lo usino.",
@@ -7129,19 +7152,6 @@
       "handbrake": "Se il freno a mano è tirato."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Quanti vertici.",
-      "array": "La memorizzazione.",
-      "kind": "L’attributo possiede il suo buffer.",
-      "version": "Incrementato da `needsUpdate`.",
-      "updateRanges": "Intervalli di `array` scritti dall’ultimo caricamento, inviati da soli.",
-      "addUpdateRange": "Segna `count` numeri scritti a partire da `start`.",
-      "clearUpdateRanges": "Dimentica gli intervalli scritti, una volta caricati.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    },
-    "summary": "Un attributo che possiede la sua memoria: `itemSize` numeri per vertice, uno dopo l’altro."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "I suoi attributi di vertici.",
@@ -7236,34 +7246,6 @@
       "rotation": "La rotazione, in radianti."
     },
     "summary": "Un’immagine e lo stato di campionamento con cui è letta, e la trasformazione delle sue coordinate."
-  },
-  "GraphArray": {
-    "summary": "Gli array tipizzati che un attributo contiene."
-  },
-  "GraphElements": {
-    "summary": "L’uno o l’altro tipo di attributo."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Un attributo che osserva `itemSize` numeri a `offset` di ogni vertice di un buffer interlacciato.",
-    "members": {
-      "kind": "L’attributo osserva un buffer condiviso.",
-      "data": "Il buffer che osserva.",
-      "offset": "Dove iniziano i suoi numeri in ogni vertice.",
-      "array": "La memoria in cui vivono gli elementi.",
-      "count": "Quanti vertici.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Una memoria che più attributi osservano, un vertice ogni `stride` numeri.",
-    "members": {
-      "kind": "Una memoria che più attributi osservano.",
-      "count": "Quanti vertici.",
-      "version": "Incrementato da `needsUpdate`.",
-      "array": "La memoria.",
-      "stride": "Numeri per vertice.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    }
   },
   "GraphMesh": {
     "summary": "Un nodo disegnato: una geometria e la sua superficie, o una superficie per gruppo della geometria.",
@@ -7365,6 +7347,45 @@
       "pulley": "Una fune da `a` su due ruote (`over`) fino a `b`: uno sale mentre l’altro scende.",
       "gear": "Due ruote che girano insieme secondo `ratio`, ciascuna attorno al proprio perno (`axis`, `axisB`) e tenuta dal suo cardine (la ruota come suo `a`); quando `ratio` o 1 / `ratio` è intero, i loro denti mantengono anche la fase in cui sono stati creati.",
       "rackAndPinion": "Un pignone `a` che ruota attorno ad `axis` muove una cremagliera `b` lungo `axisB`, ciascuno tenuto dal suo cardine o giunto prismatico (il corpo come suo `a`), i denti mantenuti nella fase in cui sono stati creati."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Un attributo che osserva `itemSize` numeri a `offset` di ogni vertice di un buffer interlacciato.",
+    "members": {
+      "isInterleavedBufferAttribute": "Sempre `true`: distingue una vista interlacciata da tutto il resto.",
+      "kind": "L’attributo osserva un buffer condiviso.",
+      "data": "Il buffer che osserva.",
+      "offset": "Dove iniziano i suoi numeri in ogni vertice.",
+      "array": "La memoria in cui vivono gli elementi.",
+      "count": "Quanti vertici descrivono i numeri.",
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica.",
+      "clone": "I suoi numeri, copiati fuori dal pacchetto in un attributo che li possiede."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "L’uno o l’altro tipo di attributo: proprietario della sua memoria o vista su una memoria interlacciata."
+  },
+  "VertexElements": {
+    "summary": "Gli elementi di un attributo di vertice, letti e scritti per componente.",
+    "members": {
+      "name": "Il nome con cui è noto un bersaglio di morph; vuoto per gli altri.",
+      "itemSize": "Quanti numeri appartengono a un vertice: 3 per una posizione.",
+      "normalized": "Se i numeri interi si leggono come valori tra 0 e 1.",
+      "array": "La memoria in cui vivono gli elementi.",
+      "count": "Quanti vertici descrivono i numeri.",
+      "stored": "Il numero `component` del vertice `index` così com’è memorizzato; un intero normalizzato non scalato.",
+      "getComponent": "Il numero `component` del vertice `index`, letto come il numero che rappresenta.",
+      "setComponent": "Scrive il numero `component` del vertice `index`.",
+      "getX": "Il primo numero del vertice `i`.",
+      "getY": "Il secondo numero del vertice `i`.",
+      "getZ": "Il terzo numero del vertice `i`.",
+      "getW": "Il quarto numero del vertice `i`.",
+      "setX": "Scrive il primo numero del vertice `i`.",
+      "setY": "Scrive il secondo numero del vertice `i`.",
+      "setZ": "Scrive il terzo numero del vertice `i`.",
+      "setW": "Scrive il quarto numero del vertice `i`.",
+      "setXY": "Scrive due numeri per il vertice `i`.",
+      "setXYZ": "Scrive tre numeri per il vertice `i`."
     }
   }
 }

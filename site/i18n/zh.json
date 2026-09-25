@@ -327,7 +327,6 @@
       "a-walker-among-balls": "球堆里的行走者"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU上的逐顶点颜色",
       "dashed-lines": "虚线",
       "floating-crates": "每帧重写的几何体",
       "thick-lines": "宽线",
@@ -427,8 +426,6 @@
       "reflections-from-the-screen": "屏幕空间反射",
       "an-ocean": "渲染到贴图:水面反射与折射",
       "a-raging-sea": "自定义着色器材质",
-      "a-town-in-the-fog": "雾",
-      "fog-on-the-ground": "雾:高度雾",
       "fog-that-scatters-light": "体积雾与光束",
       "a-cloud-in-a-box": "体积渲染",
       "a-fire-in-a-volume": "体积渲染",

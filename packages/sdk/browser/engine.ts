@@ -70,12 +70,6 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapp
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
-export {
-  GraphAttribute,
-  GraphInterleavedAttribute,
-  GraphInterleavedBuffer,
-} from '../../sdk-browser/src/host/graph/attributes.ts';
-export type { GraphArray, GraphElements } from '../../sdk-browser/src/host/graph/attributes.ts';
 export { GraphGeometry } from '../../sdk-browser/src/host/graph/geometry.ts';
 export { GraphMesh } from '../../sdk-browser/src/host/graph/mesh.ts';
 export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';

@@ -171,9 +171,8 @@ export function createWebgpuResidentEnsurer({
       } catch (error) {
         if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
         // Pool full of pages the image holds: like the reference streamer, the burst stops there,
-        // without dropping anything. What stays wanted displays through its resident ancestor, and
-        // cut admission, which reads the same state, grows the screen error until everything fits
-        // (`admitGpuCut`).
+        // without dropping anything. What stays wanted displays through its resident ancestor; cut
+        // admission (`admitGpuCut`) only reports that the image asks for more than the slots hold.
         full = true;
         break;
       }

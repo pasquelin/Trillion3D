@@ -122,6 +122,6 @@ export const MANIFEST_IDENTITY = {
   scope: 'full' as const,
   sourceTriangles: 0,
   selectedTriangles: 0,
-  selectedNodes: [] as number[],
+  selectedNodes: 0,
   totalNodes: 0,
 };

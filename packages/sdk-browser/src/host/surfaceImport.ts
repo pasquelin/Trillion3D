@@ -91,6 +91,8 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
       physical && isHostColour(first.attenuationColor)
         ? [first.attenuationColor.r, first.attenuationColor.g, first.attenuationColor.b]
         : [1, 1, 1],
+    vertexColors: first.vertexColors === true,
     model,
+    lineWidth: typeof first.lineWidth === 'number' ? first.lineWidth : 0,
   };
 }

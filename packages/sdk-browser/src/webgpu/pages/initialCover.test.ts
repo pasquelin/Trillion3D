@@ -63,7 +63,7 @@ test('the initial cover also protects regions first discovered after a camera ju
     scope: 'full' as const,
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     primitives: [
       {

@@ -54,5 +54,5 @@ test('every light view of a frame shares one traversal: the same commands as one
   );
   const noyaux = lancements.map((l) => l.noyau);
   assert.ok(!noyaux.includes('dagClearDrawn') && !noyaux.includes('dagDrawPrefix'));
-  assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagEscalate'));
+  assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagMask'));
 });

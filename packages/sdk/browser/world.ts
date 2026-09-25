@@ -37,12 +37,16 @@ export type {
 export { Box3 } from '../../sdk-core/src/world/math/box3.ts';
 export type { BoundedNode } from '../../sdk-core/src/world/math/box3.ts';
 export { budget } from '../../sdk-browser/src/world/budget/index.ts';
+export { buffer } from '../../sdk-core/src/world/buffer/index.ts';
+export type { BufferNumbers } from '../../sdk-core/src/world/buffer/index.ts';
 export {
-  buffer,
   BufferAttribute,
   InterleavedBuffer,
-} from '../../sdk-core/src/world/buffer/index.ts';
-export type { BufferNumbers, BufferTypedArray } from '../../sdk-core/src/world/buffer/index.ts';
+  InterleavedBufferAttribute,
+} from '../../sdk-core/src/world/buffer/attribute.ts';
+export type { VertexAttribute } from '../../sdk-core/src/world/buffer/attribute.ts';
+export { VertexElements } from '../../sdk-core/src/world/buffer/elements.ts';
+export type { BufferTypedArray } from '../../sdk-core/src/world/buffer/elements.ts';
 export { camera } from '../../sdk-core/src/world/camera/index.ts';
 export { Camera } from '../../sdk-core/src/world/camera/camera.ts';
 export type { CameraParameters, CameraPose } from '../../sdk-core/src/world/camera/camera.ts';
@@ -67,6 +71,7 @@ export type {
   XYZWSink,
 } from '../../sdk-core/src/world/math/likes.ts';
 export type { ExtrudeOptions } from '../../sdk-core/src/world/geometry/shape.ts';
+export type { Fog } from '../../sdk-browser/src/world/core/sceneFog.ts';
 export { Frustum, Plane, Ray, Sphere, Triangle } from '../../sdk-core/src/world/math/volumes.ts';
 export { geometry } from '../../sdk-core/src/world/geometry/index.ts';
 export { Geometry } from '../../sdk-core/src/world/geometry/geometry.ts';

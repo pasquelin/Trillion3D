@@ -40,7 +40,6 @@ export function settledRt() {
     blendSubmittedTriangles: 0,
     blendFrustumRejected: 0,
     occluderSignature: 0,
-    budgetPixelError: 0,
   };
   const rows = {
     rowsChanged: false,

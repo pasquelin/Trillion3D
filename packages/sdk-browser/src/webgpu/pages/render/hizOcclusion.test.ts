@@ -27,7 +27,7 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
     scope: DEFAULT_SCOPE,
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     ...scene.metadata,
   };
