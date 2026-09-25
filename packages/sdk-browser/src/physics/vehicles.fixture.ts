@@ -7,7 +7,7 @@ import {
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { jointRig } from './joints.fixture.ts';
+import { jointRig, type Rig } from './joints.fixture.ts';
 
 /** Each kind's body — size, mass, wheels `[x, y, z]` from its centre, wheel radius and width —
  *  drawn from the machines of `VEHICLE_SPECS`. */
@@ -48,18 +48,19 @@ const MACHINES: Record<
 const RELEASED: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
 
 /**
- * A rig on flat stone 2 km wide, with one vehicle of `kind` resting on its wheels at the middle,
- * facing −z. `options` goes over its spec.
+ * A vehicle of `kind` on `rig`, facing −z, its body placed at `x, z` resting on its wheels on
+ * flat ground at `y`. `options` goes over its spec.
  */
-export async function vehicleRig(kind: VehicleKind, options: Partial<VehicleOptions> = {}) {
-  const rig = await jointRig();
-  const ground = new Mesh(box(2000, 1, 2000), new Material('meshStandard', { physics: 'stone' }));
-  ground.position.set(0, -0.5, 0);
-  ground.physics = 'static';
+export function placeVehicle(
+  rig: Rig,
+  kind: VehicleKind,
+  options: Partial<VehicleOptions> = {},
+  [x, y, z] = [0, 0, 0],
+) {
   const machine = MACHINES[kind];
   const body = new Mesh(box(...machine.size), new Material('meshStandard'));
   body.physics = { mass: machine.mass };
-  body.position.set(0, machine.radius - machine.wheels[0][1], 0);
+  body.position.set(x, y + machine.radius - machine.wheels[0][1], z);
   const wheels = machine.wheels.map(([x, y, z]) => {
     const wheel = new Mesh(
       cylinder(machine.radius, machine.radius, machine.width),
@@ -70,16 +71,36 @@ export async function vehicleRig(kind: VehicleKind, options: Partial<VehicleOpti
     body.add(wheel);
     return wheel;
   });
-  rig.scene.add(ground, body);
+  rig.scene.add(body);
   const driven = vehicle[kind](body, { wheels, ...options });
   rig.driven.add(driven);
+  return { body, wheels, machine, vehicle: driven };
+}
+
+/** A rig on flat stone 2 km wide, its top at 0. */
+export async function flatRig() {
+  const rig = await jointRig();
+  const ground = new Mesh(box(2000, 1, 2000), new Material('meshStandard', { physics: 'stone' }));
+  ground.position.set(0, -0.5, 0);
+  ground.physics = 'static';
+  rig.scene.add(ground);
+  return rig;
+}
+
+/**
+ * A rig on flat stone 2 km wide, with one vehicle of `kind` resting on its wheels at the middle,
+ * facing −z. `options` goes over its spec.
+ */
+export async function vehicleRig(kind: VehicleKind, options: Partial<VehicleOptions> = {}) {
+  const rig = await flatRig();
+  const { body, wheels, vehicle: driven } = placeVehicle(rig, kind, options);
   rig.run(90);
   return {
     ...rig,
     body,
     wheels,
     /** Where each wheel was placed on the body. */
-    placed: machine.wheels,
+    placed: MACHINES[kind].wheels,
     vehicle: driven,
     /** Drives with `input` for `seconds`. */
     hold(input: Partial<VehicleInput>, seconds: number) {
