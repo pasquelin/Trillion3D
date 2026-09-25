@@ -6,7 +6,6 @@
 #include <Jolt/Physics/Body/BodyLock.h>
 #include <Jolt/Physics/SoftBody/SoftBodyManifold.h>
 
-#include <algorithm>
 #include <cmath>
 
 using namespace JPH;
@@ -67,9 +66,11 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
   for (const Touch &t : touches) {
     if (t.engine == ~0u) continue;
     uint64_t key = pairKey(ia, t.engine);
-    auto [at, fresh] = world().softPairs.try_emplace(key, SoftPair{ia, world().step});
-    at->second.seen = world().step;
-    if (!fresh) continue;
+    auto [at, fresh] = world().softPairs.try_emplace(key, world().step);
+    if (!fresh) {
+      at->second = world().step;
+      continue;
+    }
     uint32_t &pair = world().pairs[key];
     pair = 1;
     Vec3 point = t.count > 0 ? Vec3(com * (t.point / t.count)) : Vec3(com.GetTranslation());
@@ -97,19 +98,14 @@ void leaveSoft() {
            std::find(w.deactivated.begin(), w.deactivated.end(), engine) != w.deactivated.end();
   };
   for (auto at = w.softPairs.begin(); at != w.softPairs.end();) {
-    auto pair = w.pairs.find(at->first);
-    // Gone from `pairs`: a body of the pair left, and `leaveAll` sent its leave.
-    if (pair == w.pairs.end()) {
-      at = w.softPairs.erase(at);
-      continue;
-    }
     // Touched this step, or both asleep through it: kept, as a rigid pair keeps its own. A body
     // that moved while the soft body slept left it: overlapping it, it would have woken it.
-    uint32_t soft = at->second.soft, low = uint32_t(at->first), other = low == soft ? uint32_t(at->first >> 32) : low;
-    if (at->second.seen == w.step || !(stepped(soft) || stepped(other))) {
+    if (at->second == w.step || !(stepped(uint32_t(at->first)) || stepped(uint32_t(at->first >> 32)))) {
       ++at;
       continue;
     }
+    // Both maps hold a soft pair until it ends: here, or in `leaveAll` when a body of it leaves.
+    auto pair = w.pairs.find(at->first);
     if (pair->second & ENTERED) pushLeave(pair->first);
     w.pairs.erase(pair);
     at = w.softPairs.erase(at);
