@@ -51,7 +51,7 @@ export interface GalleryScene {
   width: number;
   height: number;
   /** The scene folder, relative to the repository root, under a scene root. */
-  scene: string;
+  folder: string;
   texturePoolBytes: number;
   position: [number, number, number];
   target: [number, number, number];
@@ -85,6 +85,6 @@ export async function openGalleryScene(page: Page, scene: GalleryScene): Promise
       await world.awaitPages();
       world.setPose({ ...world.homePose(), position: scene.position, target: scene.target });
     },
-    { sdkUrl: '/sdk/witnesses/measurement.js', manifestUrl: manifestUrlOf(scene.scene), scene },
+    { sdkUrl: '/sdk/witnesses/measurement.js', manifestUrl: manifestUrlOf(scene.folder), scene },
   );
 }
