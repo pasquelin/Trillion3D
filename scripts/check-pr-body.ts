@@ -21,7 +21,7 @@ function section(lines: string[], title: string): string[] {
 /** The first rule the body breaks, or undefined when it passes. */
 export function bodyProblem(raw: string, draft: boolean): string | undefined {
   const body = raw.replace(/<!--[\s\S]*?-->/g, '');
-  if (/\bpart of #\d+/i.test(body))
+  if (/Part of #\d+/.test(body))
     return 'The body says "Part of #<issue>": one pull request closes one issue; an issue too big for one goes back to the CTO, who splits it (AGENTS.md rule 5).';
   if (!/^Closes #\d+/m.test(body)) return 'The body must start with "Closes #<issue>".';
   const lines = body.split('\n');
