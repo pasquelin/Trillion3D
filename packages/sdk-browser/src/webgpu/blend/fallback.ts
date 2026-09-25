@@ -42,7 +42,9 @@ export function writeFallbackBlendUniforms(
     packedInts[base + 37] = item.count;
     packedInts[base + 38] = run.diagnostic === 'wireframe' ? 1 : 0;
     packedInts[base + 39] = item.flags;
+    // No width and no dash: the words a line page of the opaque draw may have left here.
     uniformPacked[base + 40] = 0;
+    uniformPacked[base + 44] = 0;
   }
   device.queue.writeBuffer(
     uniformBuffer,

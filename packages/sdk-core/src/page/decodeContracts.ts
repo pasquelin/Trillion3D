@@ -36,10 +36,11 @@ export interface PageCutPage {
   /** Which attributes it carries. */ flags: number;
   /** Its size once unpacked. */ uncompressedBytes: number;
 }
-/** What a `cut` returns: its pages, and the position grid they were quantized on. */
+/** What a `cut` returns: its pages, and the grids they were quantized on. */
 export interface PageCutPayload {
   /** The pages written. */ pages: PageCutPage[];
   /** Grid step of positions, as a power of two. */ positionExponent: number;
+  /** Grid step of texture coordinates, as a power of two. */ uvExponent: number;
   /** Largest position error on that grid. */ maxPositionError: number;
 }
 
