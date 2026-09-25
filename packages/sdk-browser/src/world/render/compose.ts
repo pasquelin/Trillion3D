@@ -80,7 +80,7 @@ export function createFrameComposer(
     const passes = composed.chain.stage('before-tone-mapping');
     // An emptied chain gives its targets back; one kept aside for a capture keeps them.
     if (!passes.length) effects!.release();
-    return wanted && composed.shown() && effects!.supported() ? passes : NONE;
+    return passes.length && wanted && composed.shown() && effects!.supported() ? passes : NONE;
   };
   /**
    * `reuse` is false where the kept frame is not this engine's: a fallback takes over the image

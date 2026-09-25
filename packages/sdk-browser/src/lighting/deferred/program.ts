@@ -98,8 +98,8 @@ export async function createDeferredProgram(
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One composition group per source read: the lit image or a TAA history, three at most.
-  const composeGroups = new Map<GPUTextureView, GPUBindGroup>();
+  // One group per source read (lit image, TAA history, effect target); weak: dropped targets free theirs.
+  let composeGroups = new WeakMap<GPUTextureView, GPUBindGroup>();
   return {
     light,
     compose,
@@ -139,7 +139,7 @@ export async function createDeferredProgram(
         requests = direct.requests ?? placeholders.requests,
         probes = direct.probes,
         proxy = direct.proxy ?? placeholders.proxy;
-      if (boundHdr !== hdr) composeGroups.clear();
+      if (boundHdr !== hdr) composeGroups = new WeakMap();
       boundHdr = hdr;
       if (
         boundSurface === surface &&
@@ -194,7 +194,7 @@ export async function createDeferredProgram(
       boundProxy = undefined;
       boundHdr = undefined;
       lightGroup = undefined;
-      composeGroups.clear();
+      composeGroups = new WeakMap();
     },
   };
 }

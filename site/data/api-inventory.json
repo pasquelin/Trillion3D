@@ -2733,7 +2733,6 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/effects/webglEffects.ts",
         "packages/sdk-browser/src/effects/webgpuEffects.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.ts",
         "packages/sdk-browser/src/world/render/compose.ts"
       ],
       "disposition": "retained",

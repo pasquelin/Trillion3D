@@ -1,8 +1,5 @@
 import { createWebgpuEffects } from '../../../effects/webgpuEffects.ts';
-import type { EffectPass } from '../../../../../sdk-core/src/world/effect/chain.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-
-const NONE: readonly EffectPass[] = [];
 
 /**
  * The world's effect chain on this image (`../../../effects/webgpuEffects.ts`): the passes that
@@ -20,10 +17,9 @@ export function encodeEffects(
     { gpu, run } = rt;
   if (!chain) return input;
   gpu.effectsRevision = chain.revision;
-  const passes =
-    run.diagnostic === 'beauty' && !rt.capture.capturing
-      ? chain.stage('before-tone-mapping')
-      : NONE;
+  const passes = chain.stage('before-tone-mapping');
+  // A diagnostic view or a capture draws without the chain, which keeps its targets meanwhile.
+  if (passes.length && (run.diagnostic !== 'beauty' || rt.capture.capturing)) return input;
   if (!passes.length && !gpu.effects) return input;
   gpu.effects ??= createWebgpuEffects(device, {
     ready: () => run.gate.resourcesChanged(),
