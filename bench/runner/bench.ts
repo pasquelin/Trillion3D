@@ -54,7 +54,7 @@ async function main() {
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
   const MANIFEST = options.assetsManifest(
     scene,
-    sides.some((side) => !side.cache),
+    readsCache(scene) && sides.some((side) => !side.cache),
   );
   CTX.MANIFEST = MANIFEST;
   for (const side of sides) {

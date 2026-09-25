@@ -66,8 +66,7 @@ export function sceneOf(cache: string | undefined, named?: string) {
 
 /** Manifest URL of an assets scene cache. Required only if a side reads it. */
 export function assetsManifest(scene: string, needed: boolean) {
-  if (needed && readsCache(scene) && !cachePret(scene, ASSETS))
-    throw new Error(`cache absent : ${sceneDerived(scene)}`);
+  if (needed && !cachePret(scene, ASSETS)) throw new Error(`cache absent : ${sceneDerived(scene)}`);
   return `/benchmark-assets/${scene}-derived/native/full/manifest.json`;
 }
 

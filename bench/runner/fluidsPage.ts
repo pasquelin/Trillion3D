@@ -20,9 +20,10 @@ function floatingMeshes(sdk: Sdk, bodies: FluidsScene['bodies']) {
     let shape = geometries.get(key);
     if (!shape) {
       const [x, y, z] = part.position ?? [0, 0, 0];
-      const [a, b, c] = part.type === 'box' ? part.halfExtents.map((h) => h * 2) : [];
       shape = (
-        part.type === 'box' ? sdk.geometry.box(a, b, c) : sdk.geometry.sphere(part.radius, 16, 12)
+        part.type === 'box'
+          ? sdk.geometry.box(...(part.halfExtents.map((h) => h * 2) as [number, number, number]))
+          : sdk.geometry.sphere(part.radius, 16, 12)
       ).translate(x, y, z);
       geometries.set(key, shape);
     }

@@ -25,9 +25,6 @@ import type * as FluidsPage from './fluidsPage.ts';
 type Vec3 = [number, number, number];
 const vec3 = (v: ArrayLike<number>) => Array.from(v) as Vec3;
 
-/** How many of each the scene holds, beside its one ocean. */
-const FLUIDS_COUNTS = { bodies: 100, fires: 20, smokes: 5 } as const;
-
 const primitive = (shape: number, size: readonly [number, number, number]): PhysicsPrimitive => {
   if (shape === SHAPE.sphere) return { type: 'sphere', radius: size[0] };
   if (shape === SHAPE.box) return { type: 'box', halfExtents: size };
@@ -51,17 +48,17 @@ const publicShape = (
 
 /** The scene, the same every run: the fixtures' bodies and waves, stand-ins over their grid. */
 export function fluidsScene() {
-  const bodies = floatingBodies(FLUIDS_COUNTS.bodies).map((body) => ({
+  const bodies = floatingBodies(100).map((body) => ({
     position: vec3(body.position),
     density: body.density,
     shape: publicShape(body),
   }));
-  const fires = Array.from({ length: FLUIDS_COUNTS.fires }, (_, i): Vec3 => [
+  const fires = Array.from({ length: 20 }, (_, i): Vec3 => [
     3 + (i % 5) * 12,
     1.5,
     3 + Math.floor(i / 5) * 16,
   ]);
-  const smokes = Array.from({ length: FLUIDS_COUNTS.smokes }, (_, i): Vec3 => [3 + i * 12, 8, 27]);
+  const smokes = Array.from({ length: 5 }, (_, i): Vec3 => [3 + i * 12, 8, 27]);
   return { water: { waves: OCEAN, level: 0 }, bodies, fires, smokes };
 }
 export type FluidsScene = ReturnType<typeof fluidsScene>;
@@ -71,6 +68,7 @@ function fluidsPayload(side: Side, settings: BenchSettings, scene: FluidsScene) 
   const renderer = side.engine.renderer;
   if (!renderer) throw new Error('--scene fluids draws on --moteur webgpu or webgl2 only');
   return {
+    side: side.name,
     sdkUrl: sdkEntryUrl(side),
     renderer,
     settings,
@@ -82,7 +80,6 @@ export type FluidsPayload = ReturnType<typeof fluidsPayload>;
 
 /** One side on the fluids scene: its page run, its capture written, its report row. */
 async function fluidsRow(
-  side: string,
   page: Page,
   payload: FluidsPayload,
   out: string,
@@ -99,7 +96,7 @@ async function fluidsRow(
   if (capture)
     await writeFile(join(out, payload.captureFile), encodePng(capture.w, capture.h, capture.body));
   return {
-    side,
+    side: payload.side,
     renderer: payload.renderer,
     bodiesSimulated: result.bodies,
     cpuFrameMs: distribution(result.cpuFrameMs),
@@ -128,8 +125,8 @@ export async function runFluids(
     rows: FluidsRow[] = [];
   // Every side is checked before the first runs: a side that cannot draw the scene wastes none.
   const payloads = sides.map((side) => fluidsPayload(side, settings, scene));
-  for (const [i, side] of sides.entries())
-    rows.push(await onFreshPage((page) => fluidsRow(side.name, page, payloads[i], out, captures)));
+  for (const payload of payloads)
+    rows.push(await onFreshPage((page) => fluidsRow(page, payload, out, captures)));
   return rows;
 }
 
@@ -142,14 +139,11 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
     '',
     '| side | renderer | canvas | bodies | CPU frame | GPU frame | rAF interval | physics step (worker) | physics (page) |',
     '|---|---|---|---|---|---|---|---|---|',
-    ...rows.map(
-      (r) =>
-        `| ${r.side} | ${r.renderer} | ${r.canvas.width}×${r.canvas.height} @${r.canvas.dpr} | ${r.bodiesSimulated} | ` +
-        [r.cpuFrameMs, r.gpuFrameMs, r.rafIntervalMs, r.physicsStepMs, r.physicsMainMs]
-          .map(p50p95)
-          .join(' | ') +
-        ' |',
-    ),
+    ...rows.map((r) => {
+      const { width, height, dpr } = r.canvas;
+      const ms = [r.cpuFrameMs, r.gpuFrameMs, r.rafIntervalMs, r.physicsStepMs, r.physicsMainMs];
+      return `| ${[r.side, r.renderer, `${width}×${height} @${dpr}`, r.bodiesSimulated, ...ms.map(p50p95)].join(' | ')} |`;
+    }),
     '',
     ...rows.flatMap((r) => [
       `### ${r.side}: GPU passes`,
