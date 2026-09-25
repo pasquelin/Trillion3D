@@ -18,7 +18,9 @@ disagreement is reported to the maintainer.
    the shared checkout, never touch another session's worktree. Every worktree lives in
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
-5. **Only the CTO opens issues**, from the boss's words, with the writer role. No
+5. **Only the CTO opens issues**, from the boss's words, with the writer role, and no faster
+   than they close: over any seven days, opened stays below closed. A new need joins an open
+   issue first (a To-do item or a comment); a new issue only when none fits. No
    other agent opens one, not even to split an issue. What a pull request does not deliver
    stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
    open. A regression reopens the measured issue with `measure ko`; a finding reopens the audited
