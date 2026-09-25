@@ -1,6 +1,6 @@
-// The shapes an ADD command builds: primitives (a cylinder may taper), shared by their dimensions, the hulls and
-// triangle meshes its data carries, the cooked shapes it names (`restore.cpp`) and compounds of
-// primitives (a hull-and-deck boat). Word layouts: `packages/sdk-core/src/physics/layout.ts`.
+// The shapes an ADD command builds: primitives (a cylinder may taper), shared by their
+// dimensions, the hulls and triangle meshes its data carries, the cooked shapes it names
+// (`restore.cpp`) and compounds of primitives (a hull-and-deck boat). Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
 #include "mesh.h"
 #include "restore.h"
