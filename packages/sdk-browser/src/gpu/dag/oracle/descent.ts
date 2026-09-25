@@ -1,6 +1,7 @@
 import { DAG_NODE_FLOATS } from '../types.ts';
 import { dagNodeFloor, dagNodeVerdict } from './math.ts';
 import { NODE_FIRST_CHILD } from '../packNodes.ts';
+import { castsNoShadow } from '../../../page/cut/select.ts';
 import type { dagViewFrames } from './math.ts';
 
 /**
@@ -29,9 +30,9 @@ export function dagOracleDescent(
     nodeInts = new Uint32Array(nodes.buffer);
   const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
   const frontier: number[] = [];
-  // A light's cut opens no descent on a sprite: it casts no shadow (`spriteOf` in the shader).
+  // A light's cut opens no descent on a sprite (`castsNoShadow`, `spriteOf` in the shader).
   for (let w = 0; w < packed.worldCount; w++)
-    if (packed.rootNodes[w] !== 0xffffffff && !(frames.light && packed.sprite?.[w]))
+    if (packed.rootNodes[w] !== 0xffffffff && !castsNoShadow(packed.sprite?.[w], frames.light))
       frontier.push(packed.rootNodes[w]);
   while (frontier.length) {
     const n = frontier.pop() as number;
