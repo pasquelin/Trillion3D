@@ -426,8 +426,6 @@
       "reflections-from-the-screen": "screen-space reflections",
       "an-ocean": "render to texture: water reflection and refraction",
       "a-raging-sea": "custom shader materials",
-      "a-town-in-the-fog": "fog",
-      "fog-on-the-ground": "fog: height fog",
       "fog-that-scatters-light": "volumetric fog and light shafts",
       "a-cloud-in-a-box": "volume rendering",
       "a-fire-in-a-volume": "volume rendering",
@@ -480,7 +478,6 @@
       "breaking-things": "physics integration",
       "cloth-and-rope": "physics integration",
       "soft-bodies": "physics integration",
-      "drive-a-car": "physics integration",
       "a-room-in-vr": "WebXR session",
       "a-360-photo-in-vr": "WebXR session",
       "vr-composition-layers": "WebXR session: layers",
@@ -1080,7 +1077,8 @@
           "<code>limits</code> stop the joint: radians for a hinge, metres for a slider. A <code>spring</code> makes the stop soft.",
           "A <code>motor</code> drives a hinge or a slider to a speed or a position. Change <code>joint.motor</code> at any time.",
           "<code>breakForce</code> is the pull, in newtons, past which the joint snaps: <code>joint.broken</code> turns true and <code>joint.on('break', …)</code> is called.",
-          "Advanced joints tie motions together: <code>joint.gear(a, b, { ratio })</code> turns two hinged wheels as one train, <code>joint.rackAndPinion</code> turns a wheel into a slide, <code>joint.pulley(a, b, { over })</code> hangs two loads on one rope, <code>joint.path(a, b, { path })</code> keeps a cart on its track, and <code>swingTwist</code> and <code>sixDof</code> make shoulders and joints of your own."
+          "Advanced joints tie motions together: <code>joint.gear(a, b, { ratio })</code> turns two hinged wheels as one train, <code>joint.rackAndPinion</code> turns a wheel into a slide, <code>joint.pulley(a, b, { over })</code> hangs two loads on one rope, <code>joint.path(a, b, { path })</code> keeps a cart on its track, and <code>swingTwist</code> and <code>sixDof</code> make shoulders and joints of your own.",
+          "A vehicle is a body on wheels: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> or <code>vehicle.tracked</code>, its wheels meshes placed on the body where they rest. Add it with <code>world.physics.add</code> and drive it with the keyboard: <code>world.controls.vehicle = car</code>, then <code>world.controls.kind = 'vehicle'</code>. Its engine, gearbox, suspension and brakes are a real machine's; <code>car.speed</code>, <code>car.gear</code> and <code>car.rpm</code> tell how it goes."
         ],
         "tryIt": "Open the door and the drawer, then drop the stone on the bridge. Lower the bridge strength and rebuild it: it breaks under its own weight."
       },

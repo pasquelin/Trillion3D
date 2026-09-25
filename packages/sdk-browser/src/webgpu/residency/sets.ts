@@ -1,5 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { CutDelta } from '../cut/delta.ts';
+import type { CutDelta, IdDelta } from '../cut/delta.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
 import { createBudgetRanking } from './budgetRanking.ts';
@@ -106,8 +106,9 @@ export function createWebgpuResidencySets(options: {
     },
     /** True when this image asks the cache for the key, even past the page budget. */
     requests: (key: number) => desired.has(key),
-    /** Applies one cut difference: only the pages that entered and left are touched. */
-    applyCut(delta: CutDelta) {
+    /** Applies one difference of what the cut asks for — its pages and the groups they close over
+     *  (`../cut/groupClosure.ts`): only the pages that entered and left are touched. */
+    applyCut(delta: IdDelta) {
       askedKeys.apply(delta);
     },
     /** Applies one difference of the drawable cut, which is what the image must not lose. */

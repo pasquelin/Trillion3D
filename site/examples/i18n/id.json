@@ -360,6 +360,22 @@
       "up": "ATAS"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Seret untuk melihat sekeliling. Pilih kabutnya, jangkauannya, dan warnanya.",
+    "controls": {
+      "fog": "Kabut",
+      "reach": "Jangkauan",
+      "height": "Ketinggian",
+      "colour": "Warna"
+    },
+    "choices": {
+      "fog": {
+        "distance": "jarak",
+        "thick": "tebal",
+        "ground": "di tanah"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Geser untuk melihat sekeliling. Manik-manik meluncur di sepanjang tabung.",
     "controls": {
@@ -2028,6 +2044,28 @@
       "lift": "Lift",
       "load": "Beban",
       "rope": "Tali berjalan"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W atau ↑ menambah gas, S atau ↓ mengerem lalu mundur, A D atau ← → berbelok, Spasi menarik rem tangan. Pilih mobil, motor, atau tank di panel.",
+    "controls": {
+      "vehicle": "Kendaraan",
+      "reset": "Kembalikan ke rodanya"
+    },
+    "readouts": {
+      "speed": "Kecepatan",
+      "gear": "Gigi",
+      "rpm": "Mesin (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "mobil sport",
+        "motorcycle": "motor",
+        "tracked": "tank"
+      }
+    },
+    "words": {
+      "credit": "Lembah dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   }
 }
