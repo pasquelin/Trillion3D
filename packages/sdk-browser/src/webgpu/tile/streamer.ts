@@ -77,10 +77,8 @@ export function createWebgpuTileStreamer(options: {
     onFailure: options.onFailure,
   });
   const requests = createTileRequests({ feedback, color, data, counters });
-  const flushAll = () => {
-    color.flush(device);
-    data.flush(device);
-  };
+  const atlases = [color, data];
+  const flushAll = () => atlases.forEach((atlas) => atlas.flush(device));
   const followHeaders = samplingHeaders(color, data);
   return {
     color,
@@ -90,18 +88,17 @@ export function createWebgpuTileStreamer(options: {
     sources,
     /** Pins every queue: what the image shows before any tile is requested. */
     prepare() {
-      for (const atlas of [color, data])
+      for (const atlas of atlases)
         atlas.pinTails(device.queue, (slot, place) => sources.tail(atlas, slot, place));
       followHeaders(true);
       flushAll();
     },
     /**
-     * One pass: requested tiles, served in weight order until the byte or the millisecond budget is
-     * spent; `unbounded` lifts both. The budgets are read after each copy, never before the first:
-     * a budget under one copy still lands a tile, and the copy that crosses it overshoots it — the
-     * peak says by how much. Returns what was served and what is pending — waiting for its bytes,
-     * or deferred to the next pass; a pool refusal is neither — nothing will come, the coarse level
-     * holds, and the image can settle on it — and is counted in the atlas metrics.
+     * One pass: requested tiles, served in weight order until the byte or the millisecond budget
+     * (`FrameBudget`) is spent; `unbounded` lifts both. Both are read after each copy: the first
+     * always lands, the one that crosses a budget overshoots it — the peak says by how much. Returns
+     * what was served and what is pending — waiting for its bytes, or deferred to the next pass; a
+     * pool refusal is neither — nothing will come, the coarse level holds — and is counted.
      */
     pump(frame: number, unbounded = false) {
       const started = now();
@@ -183,7 +180,7 @@ export function createWebgpuTileStreamer(options: {
       }
       return results.reduce((total, result) => total + result.evicted, 0);
     },
-    metrics: () => counters.metrics([color, data], sources, encoding.name),
+    metrics: () => counters.metrics(atlases, sources, encoding.name),
     /** True while a cooked level is being read: a missing tile can still arrive. */
     get reading() {
       return (sources.levels?.inFlight ?? 0) > 0;
