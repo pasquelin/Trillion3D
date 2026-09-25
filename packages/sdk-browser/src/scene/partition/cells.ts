@@ -8,8 +8,8 @@
  * composes for a child of its core parent. A cell past its reach parks its rows; a moved parent
  * rewrites the rows under it. `prime`, before the first frame, sizes the rows for every node the
  * reach can hold at once wherever the parents stand (`sizing.ts`; every node when no owner can
- * reopen the session) and reads the cells it needs. Moving parents never run the rows short; a
- * reach past them, or a parent scaled below its stretch, asks the owner to reopen.
+ * reopen the session) and reads the cells it needs. Moved, turned or scaled up, parents never run
+ * the rows short; a reach past them, or a parent scaled down or stretched unevenly, asks to reopen.
  */
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import {

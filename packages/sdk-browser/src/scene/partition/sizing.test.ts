@@ -95,10 +95,34 @@ test('parents a page moves together never run the rows short: no reopen, nothing
   assert.equal(partitioned.stats().rows, rows, 'nothing grew');
 });
 
+test('a parent scaled up spreads its cells: the rows still hold, no reopen', async () => {
+  const { partitioned, parents, frame, opened, reopened } = twoRows();
+  await opened();
+  const { rows } = partitioned.stats();
+  // Brought onto the first row and doubled: its cells stand 200 m apart, never closer.
+  parents[1].position.set(0, 0, 0);
+  parents[1].scale.set(2, 2, 2);
+  for (let x = 0; x <= 1800; x += 50) {
+    frame(x);
+    assert.deepEqual([partitioned.stats().waiting, reopened()], [0, 0], `eye at ${x}`);
+  }
+  assert.equal(partitioned.stats().rows, rows, 'nothing grew');
+});
+
 test('a parent scaled below its stretch at open asks the owner, like a reach past the rows', async () => {
   const { parents, frame, opened, reopened } = twoRows();
   await opened();
   parents[1].scale.set(0.5, 0.5, 0.5);
+  frame(0);
+  frame(0);
+  assert.equal(reopened(), 1, 'asked once');
+});
+
+test('a parent stretched unevenly past its stretch at open asks the owner once', async () => {
+  const { parents, frame, opened, reopened } = twoRows();
+  await opened();
+  // Its least stretch stays 1, its most doubles: its boxes widen past what the rows counted.
+  parents[1].scale.set(2, 1, 1);
   frame(0);
   frame(0);
   assert.equal(reopened(), 1, 'asked once');
