@@ -1,24 +1,52 @@
+import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts';
+
 /**
  * The guide program, in WGSL and in GLSL, one rule for both: every instance is a segment `a → b`
- * (a point is a segment of zero length) drawn as a quad `width` pixels wide on the screen, capped
- * half a width past each end, so a dot is a square of that side. The segment is first cut at the
- * near plane — `near` is that plane in clip space, which each engine's depth convention names —
- * so an end behind the eye never flips the quad. Depth is the ends', interpolated: the scene in
- * front hides a guide, and the guide writes no depth of its own.
+ * (a point is a segment of zero length) drawn as a quad `width` CSS pixels wide on the screen —
+ * `width × pixelRatio` of the image's pixels, as every line of the engine counts it — capped half
+ * a width past each end, so a dot is a square of that side. Its corners are the engine's line
+ * corners (`lineClip`, `../visibility/shader/lineWgsl.ts`): a corner behind the near plane slides
+ * onto it along the segment, in each engine's depth convention. Depth is the ends', interpolated:
+ * the scene in front hides a guide, and the guide writes no depth of its own.
  */
 
 /** Floats of the view uniform: the matrix, the viewport and the image's jitter in pixels, the
- *  near plane. */
+ *  pixel ratio (padded to the uniform's sixteen-byte size). */
 export const GUIDE_UNIFORM_FLOATS = 24;
 
-/** The clip-space near plane of the WebGPU engine's reversed depth (`z ≤ w`). */
-export const REVERSED_NEAR_PLANE = [0, 0, -1, 1] as const;
-/** The clip-space near plane of the WebGL2 host projection's forward depth (`z ≥ −w`). */
-export const FORWARD_NEAR_PLANE = [0, 0, 1, 1] as const;
+/**
+ * A corner of a guide's quad, `corner` naming its end (`x`: 0 at `a`, 1 at `b`) and its side
+ * (`y`: ±1), in clip space. `lineClip` moves it off the segment by half the width; a second
+ * `lineClip`, along that offset, moves it half a width past its end — the cap. A dot has no
+ * screen direction of its own: it runs along the screen's `x` axis, and its quad is a square. Each
+ * end is first put on the near plane (`lineClip` at no width): a segment whose two ends both slid
+ * there lies wholly behind it and keeps no width, so its caps draw no square either.
+ */
+export const GUIDE_CORNER_WGSL = `fn guideCorner(ca:vec4f,cb:vec4f,corner:vec2f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
+ let run=select(cb-ca,vec4f(1.0,0.0,0.0,0.0),length(cb-ca)==0.0);
+ let na=lineClip(ca,run,0.0,viewport,pixelRatio);
+ let nb=lineClip(cb,run,0.0,viewport,pixelRatio);
+ let shown=select(width,0.0,length(na-ca)>0.0&&length(nb-cb)>0.0);
+ let onPlane=select(na,nb,corner.x>0.5);
+ let side=lineClip(select(ca,cb,corner.x>0.5),run*corner.y,shown,viewport,pixelRatio);
+ return lineClip(side,(side-onPlane)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
+}`;
+
+/** The same corner in the WebGL2 program, over `LINE_CLIP_GLSL`'s forward depth. */
+export const GUIDE_CORNER_GLSL = `vec4 guideCorner(vec4 ca,vec4 cb,vec2 corner,float width,vec2 viewport,float pixelRatio){
+ vec4 run=length(cb-ca)==0.0?vec4(1.0,0.0,0.0,0.0):cb-ca;
+ vec4 na=lineClip(ca,run,0.0,viewport,pixelRatio);
+ vec4 nb=lineClip(cb,run,0.0,viewport,pixelRatio);
+ float shown=length(na-ca)>0.0&&length(nb-cb)>0.0?0.0:width;
+ vec4 onPlane=corner.x>0.5?nb:na;
+ vec4 side=lineClip(corner.x>0.5?cb:ca,run*corner.y,shown,viewport,pixelRatio);
+ return lineClip(side,(side-onPlane)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
+}`;
 
 /**
  * Writes the view uniform: `viewProjection` times the translation to `anchor`, in double
  * precision, so the instances' anchor-relative positions keep their detail far from the origin.
+ * `pixelRatio` is the host's, read each frame, which a guide's CSS width is multiplied by.
  */
 export function writeGuideView(
   into: Float32Array,
@@ -26,7 +54,7 @@ export function writeGuideView(
   anchor: ArrayLike<number>,
   width: number,
   height: number,
-  near: readonly number[],
+  pixelRatio: number,
   jitter: ArrayLike<number> = [0, 0],
 ) {
   for (let i = 0; i < 12; i++) into[i] = viewProjection[i];
@@ -37,7 +65,7 @@ export function writeGuideView(
       viewProjection[8 + r] * anchor[2] +
       viewProjection[12 + r];
   into.set([width, height, jitter[0], jitter[1]], 16);
-  into.set(near, 20);
+  into[20] = pixelRatio;
   return into;
 }
 
@@ -65,32 +93,19 @@ export function jitterDepthSlack(
 }
 
 export const GUIDE_WGSL = /* wgsl */ `
-struct View { matrix: mat4x4f, viewport: vec4f, near: vec4f };
+struct View { matrix: mat4x4f, viewport: vec4f, pixelRatio: f32 };
 @group(0) @binding(0) var<uniform> view: View;
 struct Out { @builtin(position) position: vec4f, @location(0) color: vec4f };
+${LINE_CLIP_WGSL}
+${GUIDE_CORNER_WGSL}
 @vertex fn vertexMain(@builtin(vertex_index) k: u32, @location(0) a: vec3f, @location(1) b: vec3f,
     @location(2) color: vec4f, @location(3) width: f32) -> Out {
   var corners = array<vec2f, 6>(vec2f(0.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0),
     vec2f(0.0, -1.0), vec2f(1.0, 1.0), vec2f(0.0, 1.0));
-  var ca = view.matrix * vec4f(a, 1.0);
-  var cb = view.matrix * vec4f(b, 1.0);
-  let da = dot(ca, view.near);
-  let db = dot(cb, view.near);
   var out: Out;
   out.color = color;
-  out.position = vec4f(2.0, 2.0, 0.0, 1.0);
-  if (da < 0.0 && db < 0.0) { return out; }
-  if (da < 0.0) { ca = mix(ca, cb, da / (da - db)); }
-  if (db < 0.0) { cb = mix(cb, ca, db / (db - da)); }
-  let half = view.viewport.xy * 0.5;
-  let sa = ca.xy / ca.w * half;
-  let sb = cb.xy / cb.w * half;
-  let len = length(sb - sa);
-  let dir = select(vec2f(1.0, 0.0), (sb - sa) / max(len, 1e-6), len > 1e-4);
-  let corner = corners[k];
-  let c = select(ca, cb, corner.x > 0.5);
-  let offset = (vec2f(-dir.y, dir.x) * corner.y + dir * (corner.x * 2.0 - 1.0)) * width * 0.5;
-  out.position = vec4f(c.xy + offset / half * c.w, c.zw);
+  out.position = guideCorner(view.matrix * vec4f(a, 1.0), view.matrix * vec4f(b, 1.0), corners[k],
+    width, view.viewport.xy, view.pixelRatio);
   return out;
 }
 @group(0) @binding(1) var sceneDepth: texture_depth_2d;
@@ -117,7 +132,7 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
 export const GUIDE_GLSL_VERTEX = /* glsl */ `#version 300 es
 uniform mat4 matrix;
 uniform vec4 viewport;
-uniform vec4 nearPlane;
+uniform float pixelRatio;
 layout(location = 0) in vec3 a;
 layout(location = 1) in vec3 b;
 layout(location = 2) in vec4 color;
@@ -125,25 +140,12 @@ layout(location = 3) in float width;
 out vec4 tint;
 const vec2 CORNERS[6] = vec2[6](vec2(0.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
   vec2(0.0, -1.0), vec2(1.0, 1.0), vec2(0.0, 1.0));
+${LINE_CLIP_GLSL}
+${GUIDE_CORNER_GLSL}
 void main() {
-  vec4 ca = matrix * vec4(a, 1.0);
-  vec4 cb = matrix * vec4(b, 1.0);
-  float da = dot(ca, nearPlane);
-  float db = dot(cb, nearPlane);
   tint = color;
-  gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
-  if (da < 0.0 && db < 0.0) return;
-  if (da < 0.0) ca = mix(ca, cb, da / (da - db));
-  if (db < 0.0) cb = mix(cb, ca, db / (db - da));
-  vec2 half_ = viewport.xy * 0.5;
-  vec2 sa = ca.xy / ca.w * half_;
-  vec2 sb = cb.xy / cb.w * half_;
-  float len = length(sb - sa);
-  vec2 dir = len > 1e-4 ? (sb - sa) / len : vec2(1.0, 0.0);
-  vec2 corner = CORNERS[gl_VertexID % 6];
-  vec4 c = corner.x > 0.5 ? cb : ca;
-  vec2 offset = (vec2(-dir.y, dir.x) * corner.y + dir * (corner.x * 2.0 - 1.0)) * width * 0.5;
-  gl_Position = vec4(c.xy + offset / half_ * c.w, c.zw);
+  gl_Position = guideCorner(matrix * vec4(a, 1.0), matrix * vec4(b, 1.0), CORNERS[gl_VertexID % 6],
+    width, viewport.xy, pixelRatio);
 }`;
 
 export const GUIDE_GLSL_FRAGMENT = /* glsl */ `#version 300 es
