@@ -30,8 +30,10 @@ export interface SoftBodyRecord {
 /** Makes a soft body (`softLayout.ts` SOFT). */
 export function writeSoft(writer: CommandWriter, body: SoftBodyRecord) {
   const { settings: s, record } = body;
-  const cooked = 'cooked' in record ? record.cooked : undefined;
-  const { vertices, indices } = 'cooked' in record ? { vertices: [], indices: [] } : record;
+  const { vertices, indices, cooked } =
+    'cooked' in record
+      ? { vertices: [], indices: [], cooked: record.cooked }
+      : { ...record, cooked: undefined };
   const counts = [vertices.length / SOFT_VERTEX_WORDS, indices.length, cooked?.length ?? 0];
   writer.put(
     [OP.soft, body.id],

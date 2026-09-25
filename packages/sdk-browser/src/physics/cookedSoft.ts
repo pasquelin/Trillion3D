@@ -30,16 +30,8 @@ export function createCookedSoftBodies(
   /** The slots of each open model's soft bodies. */
   const held = new Map<Model, number[]>();
   async function add(model: Model, soft: CookedSoftBody) {
-    const response = await fetch(new URL(soft.settings.url, model.record.base).href);
-    if (!response.ok)
-      throw new EngineError(
-        'PHYSICS_FAILED',
-        `Soft body settings ${soft.settings.url}: ${response.status}.`,
-      );
-    const cooked = new Uint8Array(await response.arrayBuffer());
-    const slots = held.get(model);
-    if (!slots) return;
-    const { position, quaternion, scale } = tilePose({ model, instance: soft });
+    // Refused before its bytes are fetched: a scale is read from the model alone.
+    const { scale } = tilePose({ model, instance: soft });
     const at = soft.scale;
     if (
       [scale.x, scale.y, scale.z].some(
@@ -51,6 +43,17 @@ export function createCookedSoftBodies(
         `The soft body of node ${soft.node} was cooked at scale ${at.join(', ')}: its model is placed at another.`,
         { node: soft.node },
       );
+    const response = await fetch(new URL(soft.settings.url, model.record.base).href);
+    if (!response.ok)
+      throw new EngineError(
+        'PHYSICS_FAILED',
+        `Soft body settings ${soft.settings.url}: ${response.status}.`,
+      );
+    const cooked = new Uint8Array(await response.arrayBuffer());
+    const slots = held.get(model);
+    if (!slots) return;
+    // Posed again once fetched: the model may have moved meanwhile, and the pose is scratch.
+    const { position, quaternion } = tilePose({ model, instance: soft });
     const p = new ObjectPhysics(soft.physics);
     const matter = physicsMatterOf({ friction: soft.friction, restitution: soft.restitution });
     const id = bodies.claim(0, soft.vertices);
