@@ -28,7 +28,10 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
 // #719: the sky a page loading the observatory adds, from the court's limestone in its source.
-const limestone = observatoryMaterials.find(([name]) => name === 'Warm limestone')![1].slice(0, 3);
+const [, court] =
+  observatoryMaterials.find(([name]) => name === 'Warm limestone') ??
+  assert.fail('the observatory names no Warm limestone');
+const limestone = court.slice(0, 3);
 const observatorySky = `light.hemisphere({ color: '#a6c6ff', groundColor: [${limestone.join(', ')}], intensity: sun.intensity / 5 })`;
 await loadDictionary('fr');
 
