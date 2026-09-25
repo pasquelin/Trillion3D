@@ -67,6 +67,7 @@
     "check:docs-three": "node scripts/check-docs-three.ts",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
     "generate:api": "node scripts/generate-api-reference.ts",
+    "compile:caches": "node scripts/site-caches.ts",
     "check:i18n": "node scripts/check-i18n.ts",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
