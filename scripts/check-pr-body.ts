@@ -30,7 +30,10 @@ export function bodyProblem(raw: string, draft: boolean): string | undefined {
     return 'The section "Local review before push" is empty: run the simplification and correctness passes first.';
   // A thumbnail-only pull request carries no code to review.
   if (body.includes('Thumbnail only')) return undefined;
-  if (!draft && !section(lines, 'Lead verification').some((l) => /^[-*] .+: (not )?delivered/.test(l)))
+  if (
+    !draft &&
+    !section(lines, 'Lead verification').some((l) => /^[-*] .+: (not )?delivered/.test(l))
+  )
     return 'The section "Lead verification" is missing or empty: the lead maps every To-do item to its file and test before marking the pull request ready.';
   for (const name of REVIEW_LINES) {
     const line = new RegExp(`^[-* ]*\`?${name}\`?:\\s*\\S`);
