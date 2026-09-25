@@ -5525,7 +5525,8 @@
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
       "pages": "Cuántos paquetes.",
-      "maxDependencies": "Mayor número de dependencias de un paquete: el límite que publica el compilador."
+      "maxDependencies": "La lista de dependencias cerrada más larga de un paquete.",
+      "dependencyBound": "Máximo de paquetes que contienen los padres de los clústeres de un paquete, fijado antes del empaquetado."
     }
   },
   "SlimStructure": {
@@ -5672,7 +5673,8 @@
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
       "pages": "Cada paquete.",
-      "maxDependencies": "Mayor número de dependencias de un paquete, tal como lo publicó el compilador."
+      "maxDependencies": "La lista de dependencias cerrada más larga de un paquete, tal como la publicó el compilador.",
+      "dependencyBound": "Máximo de paquetes que contienen los padres de los clústeres de un paquete, fijado antes del empaquetado."
     }
   },
   "StreamPage": {
