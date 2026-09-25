@@ -4,6 +4,7 @@ import { WebglClusterRenderer } from './renderer.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
+import type { HostMaterials } from '../../host/resources.ts';
 
 /**
  * The one draw owner of a session's paged clusters, diagnostic pages and scene copies. A draw
@@ -20,7 +21,19 @@ export class WebglClusterOwner {
   private restored = () => {
     this.release();
     this.renderer = this.display = new WebglClusterRenderer(this.context);
+    this.censused = false;
   };
+  /** Whether the maps' readers hold the scene's census; a restored context starts a new one. */
+  censused = false;
+  /**
+   * The scene's census of mip readers (#42): every mesh it holds, hidden ones included, filed
+   * once — the census WebGPU takes at prepare over the same meshes, so a hidden opaque reader
+   * keeps a map plain on both paths. A mesh drawn later is filed at its first bind.
+   */
+  census(meshes: readonly { material: HostMaterials }[]) {
+    for (const { material } of meshes) this.display.textures.file(material);
+    this.censused = true;
+  }
   constructor(context: WebGL2RenderingContext) {
     this.context = context;
     this.renderer = this.display = new WebglClusterRenderer(context);
