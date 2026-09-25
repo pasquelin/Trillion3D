@@ -107,8 +107,9 @@ export function worldBudget(
     },
     /** How the two totals are shared: the shadow pool at its largest, then half each to the
      *  geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then
-     *  the decoded-page cache takes the rest of the CPU total, less the manifest tables and the
-     *  transfer queue of the session in place. What the rule gives, before a pool set on its own. */
+     *  the decoded-page cache takes the whole rest of the CPU total, within which the session in
+     *  place reserves its manifest tables and its transfer queue. What the rule gives, before a
+     *  pool set on its own. */
     get split() {
       return split();
     },
