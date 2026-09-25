@@ -7,13 +7,11 @@
 // reference, `api.<language>.json`, hold only what translators write, keyed by entry id and row
 // name: nothing here writes them.
 import { statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { FAMILIES } from '../site/content/model.ts';
-import { buildReference } from './api-reference/exports.ts';
-import { apiInventory } from './sdk-api-inventory.ts';
 import { repositoryFiles } from './repository-files.ts';
-import { ROOT, writeGenerated } from './sdk-api-model.ts';
+
+const ROOT = resolve(import.meta.dirname, '..');
 
 /** Where the reference and the inventory are written. */
 export const API_FILES = {
@@ -36,8 +34,16 @@ function current(): boolean {
 /** Writes the reference and the inventory from the current sources, unless they are current. */
 export async function generateApiFiles(): Promise<void> {
   if (current()) return;
-  await writeGenerated(API_FILES.reference, json(buildReference(new Set(FAMILIES))), false);
-  await writeGenerated(API_FILES.inventory, json(apiInventory()), false);
+  // Loaded only here: TypeScript and the model cost a second to every reader of current files.
+  const [{ FAMILIES }, { buildReference }, { apiInventory }, { writeGenerated }] =
+    await Promise.all([
+      import('../site/content/model.ts'),
+      import('./api-reference/exports.ts'),
+      import('./sdk-api-inventory.ts'),
+      import('./sdk-api-model.ts'),
+    ]);
+  await writeGenerated(API_FILES.reference, json(buildReference(new Set(FAMILIES))));
+  await writeGenerated(API_FILES.inventory, json(apiInventory()));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
