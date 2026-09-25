@@ -1,6 +1,8 @@
 use super::*;
 pub(in crate::tests) mod buffers_budget;
 pub(in crate::tests) mod chalet_fixture;
+pub(in crate::tests) mod chalet_roof;
+pub(in crate::tests) mod coarse_normals;
 pub(in crate::tests) mod cooked_pages;
 pub(in crate::tests) mod dag_bundles;
 pub(in crate::tests) mod dag_dependencies;
