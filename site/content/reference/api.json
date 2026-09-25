@@ -11335,8 +11335,8 @@
     "kind": "Type",
     "title": "PhysicsPrimitive",
     "signature": "type PhysicsPrimitive",
-    "summary": "An exact primitive: its sizes in the object's own frame.",
-    "description": "A cylinder's `radius` is its top's; a `radiusBottom` that differs tapers it, as `geometry.cylinder(radiusTop, radiusBottom, height)` draws one."
+    "summary": "An exact primitive: its sizes in the object's own frame (a cylinder tapers from its top's `radius` to a `radiusBottom` that differs, as `geometry.cylinder` draws one).",
+    "description": ""
   },
   {
     "id": "PhysicsShape",
