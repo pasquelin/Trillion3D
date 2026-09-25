@@ -26,10 +26,7 @@ export function contentType(extension: string, charset: readonly string[] = []):
 }
 
 /** A URL prefix served from a directory. */
-export interface Mount {
-  prefix: string;
-  dir: string;
-}
+export type Mount = { prefix: string; dir: string };
 
 /** The file the URL-encoded `path` names under `dir`, or `null` when it leaves `dir`. */
 export function fileUnder(dir: string, path: string): string | null {
