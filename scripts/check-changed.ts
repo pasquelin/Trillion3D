@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
 import { repositoryFiles } from './repository-files.ts';
 import { INVENTORY_TEST, isUnitTest, movesInventory } from './unit-tests.ts';
@@ -73,6 +74,8 @@ async function main(): Promise<void> {
   );
   const testFiles = relatedTests(files, changed);
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`);
+  // The lint and the tests read the generated API files, which git never tracks.
+  await generateApiFiles();
   if (!process.argv.includes('--tests-only')) {
     run('node', ['scripts/check-file-lines.ts', '--changed']);
     const formatted = existing.filter((file) => formatPattern.test(file));

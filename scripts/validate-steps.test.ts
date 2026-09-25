@@ -47,6 +47,11 @@ test('the unit suite runs where the compiled compiler and dist both exist', () =
     );
 });
 
+test('the groups whose gates read the generated API files write them first', () => {
+  assert.equal(VALIDATE_GROUPS.quick[0], 'generate:api', 'lint, knip and check:i18n read them');
+  assert.equal(VALIDATE_GROUPS.typescript[0], 'generate:api', 'the site types read them');
+});
+
 test('an unknown group stops the run instead of silently checking nothing', () => {
   assert.throws(() => stepsToRun({}, 'typescipt'), /Unknown validate group 'typescipt'/);
 });

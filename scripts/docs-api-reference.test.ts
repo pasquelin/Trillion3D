@@ -12,8 +12,10 @@ import { LEARN_SECTIONS } from '../site/app/portal/routes.ts';
 import { NOTES } from '../site/content/entries/reference.ts';
 import { entrySummary, FAMILIES, SECTIONS } from '../site/content/model.ts';
 import type { PortalEntry } from '../site/content/model.ts';
+import { API_FILES } from './generate-api-reference.ts';
+import { gitPathsSync } from './git-paths.ts';
 import { repositoryFiles } from './repository-files.ts';
-import { apiProgram, entryModules, PUBLIC_ENTRIES } from './sdk-api-model.ts';
+import { apiProgram, entryModules, PUBLIC_ENTRIES, ROOT } from './sdk-api-model.ts';
 
 const api = entriesIn('en').filter((entry) => !LEARN_SECTIONS.includes(entry.section));
 const ids = new Set(api.map((entry) => entry.id));
@@ -95,4 +97,10 @@ test('a destructured parameter is named in the signatures, never by its placehol
     placeholders.map(({ id }) => id),
     [],
   );
+});
+
+test('the generated API files are never tracked: git ignores them, every reader writes them', () => {
+  const files = Object.values(API_FILES);
+  assert.deepEqual(gitPathsSync(['ls-files', '-z', '--', ...files], ROOT), []);
+  assert.deepEqual(gitPathsSync(['check-ignore', '-z', '--', ...files], ROOT), files);
 });
