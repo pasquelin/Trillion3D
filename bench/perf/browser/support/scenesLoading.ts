@@ -147,7 +147,7 @@ export function manifesteEtScene({
     scope: DEFAULT_SCOPE,
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     primitives: liste,
   };

@@ -114,7 +114,7 @@ export interface CompilationPointer extends CompilationSummary {
 /** What `prepare` returns. */ export interface CompilationResult extends CompilationSummary {
   /** Result format. */ schema: number;
   /** Cache format. */ formatVersion?: number;
-  /** Nodes kept. */ selectedNodes: number[];
+  /** Nodes kept. */ selectedNodes: number;
   /** Primitives. */ primitives: unknown[];
   /** Reuse proof. */ reused?: ReusedFolder | null;
   [key: string]: unknown;

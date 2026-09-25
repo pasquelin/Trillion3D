@@ -71,8 +71,16 @@ export function buildWorldSource(plan: WorldPlan) {
     const { metadata, scene: graph } = model.record;
     for (const primitive of absolutePrimitives(model))
       primitives.push({ ...primitive, mesh: primitive.mesh + offset });
-    for (const [node, link] of graph.associations)
-      associations.set(node, { ...link, meshes: (link.meshes ?? 0) + offset });
+    for (const [node, link] of graph.associations) {
+      const moved = { ...link, meshes: (link.meshes ?? 0) + offset };
+      // Rows a partition's cells place are sized on the model's own link: the session reads them there.
+      if (link.placements)
+        Object.defineProperty(moved, 'placements', {
+          get: () => link.placements,
+          enumerable: true,
+        });
+      associations.set(node, moved);
+    }
     offset += Math.max(-1, ...metadata.primitives.map((p) => p.mesh)) + 1;
   }
   // One primitive per geometry resource, however many batches wear it and rows place it.
@@ -114,7 +122,7 @@ export function buildWorldSource(plan: WorldPlan) {
     geometryPages: { formatVersion: GEOMETRY_PAGE_FORMAT_VERSION, codec: GEOMETRY_PAGE_CODEC },
     sourceTriangles: triangles,
     selectedTriangles: triangles,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     autonomousScene: null,
     primitives,
@@ -137,6 +145,8 @@ export function buildWorldSource(plan: WorldPlan) {
         associations,
         textureIndices: first?.scene.textureIndices ?? new Map(),
         framingLot: null,
+        // Each model's cells follow the session's camera; their rows hang under the model's twin.
+        partitions: models.flatMap((model) => model.record.scene.partitions),
       },
     },
   };
