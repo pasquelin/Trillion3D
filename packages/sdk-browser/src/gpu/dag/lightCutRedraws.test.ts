@@ -60,10 +60,35 @@ test('the pages of a frame that dropped work are drawn again, in fewer views unt
   await frame([4, 9, 12, 20, 21], true, [0, 0, 0, 1, 1]);
   assert.equal(redraws.viewLimit, 2, 'five pages in two views fit: no swing back to three');
   redraws.residencyChanged();
-  assert.equal(redraws.viewLimit, 24, 'residency moved: the drop is forgotten');
+  assert.equal(redraws.viewLimit, 2, 'residency moved, the camera moves: the drop holds');
+  redraws.rest();
+  assert.equal(redraws.viewLimit, 24, 'residency moved, the camera rests: the drop is forgotten');
   flag.value = WORK_DROPPED;
   for (let i = 0; i < 6; i++) await frame([1, 2], true, [0, 1]);
   assert.equal(redraws.viewLimit, 1, 'drops floor the limit at one view');
+});
+
+// Under a moving camera residency changes every frame. A batch whose lists hold two views' casters
+// drops past them; the limit settles there and stays, and no batch drops again, until the camera
+// rests and the views may grow back (#525).
+test('while the camera moves and residency changes, a batch that dropped work does not drop again', async () => {
+  const flag = { value: 0 };
+  const { redraws, frame } = redrawsWith(flag);
+  const drops: number[] = [];
+  for (let at = 0; at < 8; at++) {
+    const views = Array.from({ length: Math.min(redraws.viewLimit, 8) }, (_, view) => view);
+    flag.value = views.length > 2 ? WORK_DROPPED : 0;
+    if ((await frame(views, true, views)).length) drops.push(at);
+    redraws.residencyChanged();
+  }
+  assert.deepEqual(
+    drops.filter((at) => at >= 4),
+    [],
+    'the last four frames draw whole',
+  );
+  assert.equal(redraws.viewLimit, 2, 'two views, what the lists hold');
+  redraws.rest();
+  assert.equal(redraws.viewLimit, 24, 'at rest the views may grow back');
 });
 
 // A view drew a placement coarser than it wanted: every page it drew waits for residency to move
