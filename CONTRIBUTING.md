@@ -16,7 +16,9 @@
   A stage that is out of order is not out of scope.
 - **The bar, in this order: a perfect image, then a frame that never drops below 60 fps.** The
   same engine runs on the web and in a native application, with the same image in both. A frame
-  holds 60 fps at the least and never needs more than 120; an open world opens and is crossed
+  holds 60 fps at the least and never needs more than 120, at the screen's own resolution and
+  pixel ratio (up to 4K); a lower internal resolution is allowed only when temporal reconstruction
+  makes the image proof show no loss; an open world opens and is crossed
   without a hitch, a pop or a hole. A change that lowers the image or the frame rate is refused.
 - **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
   Commercial engines are not open source and their sources are licence-covered; reimplement from
