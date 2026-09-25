@@ -17,7 +17,7 @@ const pathspec = [
 const diff = spawnSync(
   'git',
   [`--attr-source=${base}`, 'diff', '--numstat', `${base}...HEAD`, '--', ...pathspec],
-  { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
+  { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: Number.POSITIVE_INFINITY },
 );
 // A failing diff stops the gate instead of counting zero lines.
 if (diff.error) throw diff.error;
