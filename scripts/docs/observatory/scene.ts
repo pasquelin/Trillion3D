@@ -10,27 +10,34 @@ export const observatoryMaterials: [string, [number, number, number, number], nu
   ['Terracotta', [0.58, 0.16, 0.075, 1], 0, 0.76],
 ];
 
+/** The paving stones' pitch, centre height and size, in metres; the arcades stand on them. */
+export const paving = { pitch: 2, y: 0.11, size: [1.92, 0.08, 1.92] };
+
 /** Solstice Court: an original, deterministic observatory, not a historical reconstruction. */
 export function createObservatory() {
   const w = createWorkshop();
   w.block(0, [0, -0.45, 0], [25, 0.9, 20]);
   w.block(1, [0, 0.04, 0], [23.8, 0.08, 18.8]);
   // Individually raised paving stones cast fine contact shadows without texture assets.
-  for (let z = -8; z <= 8; z += 2)
-    for (let x = -10; x <= 10; x += 2)
-      w.block((x + z) % 4 ? 0 : 1, [x, 0.11, z], [1.92, 0.08, 1.92]);
+  for (let z = -8; z <= 8; z += paving.pitch)
+    for (let x = -10; x <= 10; x += paving.pitch)
+      w.block((x + z) % 4 ? 0 : 1, [x, paving.y, z], paving.size);
   for (let step = 0; step < 7; step++)
     w.block(0, [0, 0.12 + step * 0.13, 7.8 - step * 0.5], [7.4, 0.24 + step * 0.26, 0.5]);
   w.block(0, [0, 0.52, 0.1], [7.4, 1.04, 10.3]);
   w.block(4, [0, 1.06, 0], [6.8, 0.08, 7.3]);
-  // Two open arcades leave long views through carved columns to the central instrument.
+  // Two open arcades leave long views through carved columns to the central instrument; each
+  // column's plinth rests on the fourth paving stone out, centred on it, and the shaft on the plinth.
+  const pavingTop = paving.y + paving.size[1] / 2,
+    plinth = [1.5, 0.52, 1.5],
+    plinthTop = pavingTop + plinth[1];
   for (const side of [-1, 1]) {
-    const x = side * 8.3;
+    const x = side * 4 * paving.pitch;
     for (const z of [-6, -2, 2, 6]) {
-      w.block(0, [x, 0.37, z], [1.5, 0.52, 1.5]);
-      w.turned(1, [x, 0.62, z], 0.46, 4.4, 16);
+      w.block(0, [x, pavingTop + plinth[1] / 2, z], plinth);
+      w.turned(1, [x, plinthTop, z], 0.46, 4.4, 16);
       w.block(1, [x, 5.1, z], [1.25, 0.28, 1.25]);
-      w.turned(3, [x, 0.63, z], 0.52, 0.16, 0, 32);
+      w.turned(3, [x, plinthTop, z], 0.52, 0.16, 0, 32);
     }
     for (const z of [-4, 0, 4]) {
       // The arch lies in the depth plane; its tapered voussoirs remain a curved LOD witness.
@@ -85,5 +92,5 @@ export function createObservatory() {
   w.block(5, [7.5, 1.2, -7.5], [4, 2.2, 3]);
   w.block(1, [7.5, 2.42, -7.5], [4.4, 0.25, 3.4]);
   for (let x = 6; x < 10; x += 0.55) w.block(0, [x, 2.8, -7.5], [0.27, 0.5, 3.2]);
-  return w.surfaces;
+  return { surfaces: w.surfaces, blocks: w.blocks };
 }
