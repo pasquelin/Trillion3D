@@ -144,6 +144,7 @@ export class WebglClusterRenderer {
     srgbDestination: boolean,
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
+    hidden: readonly WholeMesh[] = [],
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
@@ -158,8 +159,8 @@ export class WebglClusterRenderer {
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     // The host's texture units are unknown at frame start, the backdrop pass touches only its own;
     // each record is brought up to its host texture at its first binding of the image, its chain
-    // to the rule of the surfaces the image draws.
-    this.textures.beginFrame([meshes, diagnosticMeshes, copies]);
+    // to the rule of every surface the scene holds, `hidden` ones included.
+    this.textures.beginFrame([meshes, diagnosticMeshes, copies, hidden]);
     this.instanced = undefined;
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();

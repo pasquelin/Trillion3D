@@ -1,4 +1,6 @@
 import { followHostTexture, hostTextureWrites } from '../../host/textureImport.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
+import type { CoverageReaders } from '../../texture/coverage.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts';
 import { SAMPLE_FILTER_MASK } from './sampling.ts';
@@ -27,15 +29,17 @@ export const HEADERS_WRITTEN = 1,
  * host at this render (`followHostTexture`), and rewrites a header only when the record's
  * counters moved past the ones it was last written at: another engine following the same record
  * first does not hide the change from this one. No slot is walked while no host write was
- * announced since the last follow: a still scene costs one comparison, and the coverage rule of
- * its host colour textures (`coverageRules`). `force` writes every header, the first time.
+ * announced since the last follow: a still scene costs one comparison, and one reread of the
+ * readers of its host colour textures (`coverageRules`). `force` writes every header, the first
+ * time.
  * Colour slots whose header moved are added to `colorMoved`; the result is a mask of
  * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same walk hands `copies` each host-image slot
  * whose picture moved since the last follow — a new version of its record —, for its places in
  * the pool to be copied again (#362); one copied counts as a written header.
  */
 export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
-  const atlasHeaders = (atlas: WebgpuTileAtlas) => {
+  const coverage = coverageRules(color);
+  const atlasHeaders = (atlas: WebgpuTileAtlas, copied?: (slot: number) => void) => {
     const { pages, textures } = atlas;
     /** `sampling + placement` of each slot's record when its header was written: both monotonic. */
     const seen = new Float64Array(textures.length).fill(-1);
@@ -50,6 +54,7 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
         if (source.kind === 'host' && pictures[slot] !== texture.version) {
           pictures[slot] = texture.version;
           if (copies?.refresh(atlas, slot)) {
+            copied?.(slot);
             result |= HEADERS_WRITTEN;
             moved?.add(slot);
           }
@@ -65,50 +70,56 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
       return result;
     };
   };
-  const colour = atlasHeaders(color),
-    other = atlasHeaders(data),
-    coverage = coverageRules(color);
+  const colour = atlasHeaders(color, coverage.copied),
+    other = atlasHeaders(data);
   let followed = -1;
   return (force: boolean, colorMoved?: Set<number>, copies?: TileCopies) => {
-    const reduced = copies ? coverage(copies.reduce, colorMoved) : 0;
-    if (!force && followed === hostTextureWrites()) return reduced;
-    followed = hostTextureWrites();
-    return reduced | colour(force, colorMoved, copies) | other(force, undefined, copies);
+    // The readers first: a picture copied again below reduces under the rule they declare now.
+    if (copies) coverage.follow();
+    let result = 0;
+    if (force || followed !== hostTextureWrites()) {
+      followed = hostTextureWrites();
+      result = colour(force, colorMoved, copies) | other(force, undefined, copies);
+    }
+    return copies ? result | coverage.reduce(copies.reduce, colorMoved) : result;
   };
 }
 
 /**
  * The coverage rule each host colour texture's chain was reduced under, followed at every image
- * (#42): a host switches a surface between opaque and masked without a new prepare. The readers
- * are reread once (`CoverageReaders.follow`), and a texture whose rule moved is handed to `reduce`
- * — its chain reduced again and copied into its places —; its slot is added to `moved`. Only host
- * slots are walked: a cooked chain keeps the rule the compiler baked.
+ * (#42): a host switches a surface between opaque and masked without a new prepare. `follow`
+ * rereads the readers once; `reduce` hands each texture whose rule moved to `reduce` — its chain
+ * reduced again and copied into its places — and adds its slot to `moved`; a slot whose picture
+ * was just `copied` already carries the rule now, and is not reduced twice. Only host slots are
+ * walked: a cooked chain keeps the rule the compiler baked.
  */
 function coverageRules(atlas: WebgpuTileAtlas) {
-  const hosts = atlas.textures.flatMap(({ source }, slot) =>
-    source.kind === 'host' && source.coverage
-      ? [
-          {
-            slot,
-            map: source.map,
-            readers: source.coverage,
-            rule: source.coverage.weighs(source.map),
-          },
-        ]
-      : [],
-  );
-  const readers = new Set(hosts.map((host) => host.readers));
-  return (reduce: PictureCopy, moved?: Set<number>) => {
-    for (const census of readers) census.follow();
-    let result = 0;
-    for (const host of hosts) {
-      const rule = host.readers.weighs(host.map);
-      if (rule === host.rule) continue;
-      host.rule = rule;
-      if (!reduce(atlas, host.slot)) continue;
-      result |= HEADERS_WRITTEN;
-      moved?.add(host.slot);
-    }
-    return result;
+  const hosts = new Map<number, { map: Texture; readers: CoverageReaders; rule: boolean }>();
+  atlas.textures.forEach(({ source }, slot) => {
+    if (source.kind !== 'host' || !source.coverage) return;
+    const { map, coverage: readers } = source;
+    hosts.set(slot, { map, readers, rule: readers.weighs(map) });
+  });
+  const census = new Set([...hosts.values()].map((host) => host.readers));
+  return {
+    follow() {
+      for (const readers of census) readers.follow();
+    },
+    copied(slot: number) {
+      const host = hosts.get(slot);
+      if (host) host.rule = host.readers.weighs(host.map);
+    },
+    reduce(reduce: PictureCopy, moved?: Set<number>) {
+      let result = 0;
+      for (const [slot, host] of hosts) {
+        const rule = host.readers.weighs(host.map);
+        if (rule === host.rule) continue;
+        host.rule = rule;
+        if (!reduce(atlas, slot)) continue;
+        result |= HEADERS_WRITTEN;
+        moved?.add(slot);
+      }
+      return result;
+    },
   };
 }
