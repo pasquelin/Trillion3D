@@ -7,7 +7,8 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 ## Loop
 
-1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first. Measuring never blocks anything: you only
+1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
+   issue while it carries `audit ko` (it is measured once the fix is merged). Measuring never blocks anything: you only
    add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
    (step 7), then report; the next `/loop` turn looks again. Never measure anything else.
 2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
@@ -24,7 +25,7 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
    - no regression, image and numbers held: `--remove-label measuring --add-label "measure ok"`;
    - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
      `--remove-label measuring`, then **reopen #<n>** (`gh issue reopen <n>`), comment
-     `Regression after #<pr>:` with the numbers and the captures, and add `measure ko`. Never open
+     `Regression after #<pr>: <cause>` (promise, tests, paperwork or design) with the numbers and the captures, and add `measure ko`. Never open
      a new issue (AGENTS.md rule 5): its lead takes #<n> again and closes it once fixed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
      never estimated, and reopens #<n> the same way.
