@@ -18,10 +18,10 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 /**
  * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
  * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
- * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
- * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing.
+ * the mapped pages it covers. A frame then lists every stale page the image reads, the coarsest
+ * first, and draws them all at rest, a fixed budget of them while the camera moves (`admit.ts`):
+ * what holds the cost is the cache — a page is drawn again only when what it holds changed. A
+ * still scene, whose shading runs no more, asks for nothing and draws nothing.
  *
  * All arrays are allocated once; `plan()` allocates nothing.
  */

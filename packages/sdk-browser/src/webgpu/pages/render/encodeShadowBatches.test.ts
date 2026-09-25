@@ -1,6 +1,7 @@
-// A frame draws every shadow page it marks (#489): the plan's list is cut into the batches the
-// per-batch buffers hold, each after the last, and a batch that cannot be encoded leaves its pages
-// and the rest pending for the next frame — never counted as drawn.
+// A frame at rest draws every shadow page it marks (#489), a moving one what its budget holds
+// (#525): the plan's list is cut into the batches the per-batch buffers hold, each after the last,
+// and a batch that cannot be encoded leaves its pages and the rest pending for the next frame —
+// never counted as drawn.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
@@ -14,12 +15,17 @@ import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** A frame on the CPU cut whose plan lists the floor pages of `suns` new suns. */
-function frame(suns: number) {
+const BOX_MIN = [-50, 0, -50],
+  BOX_MAX = [50, 10, 50];
+
+/** A frame on the CPU cut whose plan lists the floor pages of `suns` new suns, the camera at rest —
+ *  the view of the frame before — unless `moving`. */
+function frame(suns: number, moving = false) {
   const lights = createWebgpuLightState(32);
   for (let k = 0; k < suns; k++)
     lights.store.add({ ...SUN, id: `sun${k}`, direction: [k / 10, -1, 0] });
-  const pages = lights.plan.plan(lights.store, VIEW, [-50, 0, -50], [50, 10, 50], 1, 0);
+  if (!moving) lights.plan.plan(lights.store, VIEW, BOX_MIN, BOX_MAX, 0, 0);
+  const pages = lights.plan.plan(lights.store, VIEW, BOX_MIN, BOX_MAX, 1, 16);
   const rt = { lights, run: { gpuFrameActive: false, frame: 1 }, vis: {} };
   return { rt: rt as unknown as WebgpuPagesRuntime, lights, pages };
 }
@@ -50,6 +56,28 @@ test('a batch that cannot be encoded leaves its pages and the rest pending, none
   assert.equal(lights.shadowPages, 0);
   assert.equal(lights.plan.counts.pendingPages, pages);
   assert.equal(lights.plan.admission.count, 0, 'the list is closed');
+});
+
+// #525: the shadow raster's fixed budget. While the camera moves a frame draws one batch — the
+// coarsest pages first (`admit.ts`) — and leaves the rest pending; the first frame it rests draws
+// every page left, so the still image is the one every page drawn gives.
+test('a moving camera draws one batch a frame, the rest pending, the whole list once it rests', () => {
+  const { rt, lights, pages } = frame(16, true);
+  const { plan } = lights;
+  assert.equal(plan.resting, false, 'a first view is a moving one');
+  const visit = (from: number, to: number) => {
+    plan.commit(undefined, from, to);
+    lights.runs.reset();
+    return true;
+  };
+  const drawn = forEachShadowBatch(rt, visit);
+  assert.equal(drawn, MAX_SHADOW_PAGES, 'one batch while the camera moves');
+  plan.reissue(drawn);
+  assert.equal(plan.counts.pendingPages, pages - MAX_SHADOW_PAGES, 'the rest pending');
+  const left = plan.plan(lights.store, VIEW, BOX_MIN, BOX_MAX, 2, 32);
+  assert.equal(plan.resting, true, 'the same view again: the camera rests');
+  assert.equal(left, pages - MAX_SHADOW_PAGES);
+  assert.equal(forEachShadowBatch(rt, visit), left, 'every page left, in the frame');
 });
 
 // The batches' memory holds the largest pool in full batches (`batchBudget.ts`). Batches cut short —
@@ -112,7 +140,7 @@ test('at the cap, every sun turning every frame is drawn within the bound, none 
   for (let f = 2; f < 2 + 3 * bound; f++) {
     for (let k = 0; k < store.count; k++)
       store.set(`sun${k}`, { direction: [k / 10 + f / 1000, -1, 0] });
-    plan.plan(store, VIEW, [-50, 0, -50], [50, 10, 50], f, f * 16);
+    plan.plan(store, VIEW, BOX_MIN, BOX_MAX, f, f * 16);
     const drawn = forEachShadowBatch(rt, (from, to) => {
       for (let i = from; i < to; i++) {
         const slice = plan.pool.slice[plan.admission.list[i]];
