@@ -88,6 +88,7 @@ uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConst
                  trillion::objectVsBroadPhase, trillion::objectPairs);
   w.system->SetContactListener(&w.listener);
   w.system->SetBodyActivationListener(&w.listener);
+  w.system->SetSoftBodyContactListener(&w.listener);
   w.slots.resize(bodies);
   w.engineOf.assign(bodies, 0);
   return 0;
@@ -122,6 +123,7 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
     trillion::notePaths();
     w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
     trillion::carryPaths();
+    trillion::leaveSoft();
   }
   trillion::breakJoints(dt);
   trillion::writeVehicles();

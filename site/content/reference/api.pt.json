@@ -7113,8 +7113,8 @@
     "summary": "O que um contacto dá aos seus ouvintes: o outro objeto, o impulso e onde tocou.",
     "members": {
       "other": "O objeto tocado; `null` quando saiu da cena.",
-      "impulse": "N·s: a velocidade de aproximação ao longo da normal vezes a massa reduzida do par, estimada antes do solver; 0 em `leave`.",
-      "point": "O ponto de contacto, referencial do mundo; a origem em `leave`."
+      "impulse": "N·s: a velocidade de aproximação ao longo da normal vezes a massa reduzida do par, estimada antes do solver (do lado de um corpo mole: a sua velocidade média e a massa dos seus vértices que tocaram); 0 em `leave`, e entre um corpo mole e um sensor.",
+      "point": "O ponto de contacto, referencial do mundo (o de um corpo mole: a média dos seus vértices que tocaram, o seu centro perante um sensor); a origem em `leave`."
     }
   },
   "ContactEventName": {

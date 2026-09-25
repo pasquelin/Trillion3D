@@ -2803,12 +2803,12 @@
       {
         "name": "impulse",
         "type": "number",
-        "desc": "N·s: the approach speed along the normal times the pair's reduced mass, estimated before the solver runs; 0 on `leave`."
+        "desc": "N·s: the approach speed along the normal times the pair's reduced mass, estimated before the solver runs (a soft body's side: its mean velocity, and the mass of its vertices that touched); 0 on `leave`, and between a soft body and a sensor."
       },
       {
         "name": "point",
         "type": "{ x: number; y: number; z: number; }",
-        "desc": "The contact point, world frame; the origin on `leave`."
+        "desc": "The contact point, world frame (a soft body's: the mean of its vertices that touched, its centre for a sensor); the origin on `leave`."
       }
     ],
     "description": ""
