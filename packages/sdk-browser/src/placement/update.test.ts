@@ -20,7 +20,7 @@ const BOXES = [
 ];
 
 /** The three placements, rows of one buffer; the writer moves rows along x and hands the whole
- *  span as written, each moved root's box to `touched`. */
+ *  span as written, each moved root's box to `touched`, and whether it was moving already. */
 function placed() {
   const rows = createPlacementRows(BOXES.length);
   const roots = BOXES.map((local, index) => {
@@ -34,7 +34,10 @@ function placed() {
   });
   const mobility = createShadowMobility();
   mobility.ensure(roots.length, 1, (rank) => roots[rank].world.elements);
-  return (moves: number[][], touched: (min: ArrayLike<number>, max: ArrayLike<number>) => void) => {
+  const write = (
+    moves: number[][],
+    touched: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
+  ) => {
     for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x;
     const last = BOXES.length - 1;
     return followPlacementRows(
@@ -48,10 +51,11 @@ function placed() {
       touched,
     );
   };
+  return { rows, write };
 }
 
 test('a written range stales each root that moved, apart, and none left where it stands', () => {
-  const write = placed(),
+  const { write } = placed(),
     boxes: number[][] = [];
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>) =>
     boxes.push([...Array.from(min), ...Array.from(max)]);
@@ -74,13 +78,27 @@ test('a written range stales each root that moved, apart, and none left where it
   assert.deepEqual(boxes, []);
 });
 
+test('a row parked or taken back where it stands stales its box', () => {
+  const { rows, write } = placed(),
+    boxes: [number[], boolean][] = [];
+  const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
+    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
+  rows.live[2] = 0;
+  assert.equal(write([], collect), true, 'parked: a move whatever its pose');
+  assert.deepEqual(boxes, [[BOXES[2], false]], 'its first move stales the static layer');
+  boxes.length = 0;
+  rows.live[2] = 1;
+  assert.equal(write([], collect), true, 'taken back: a move whatever its pose');
+  assert.deepEqual(boxes, [[BOXES[2], true]], 'moving already: its moving casters');
+});
+
 test('a caster moving over a still ground, under a moving camera, redraws the pages it sweeps', () => {
   const { store, plan, slice } = light.sunScene();
   const named = sun.sunBlock(plan, slice, [3, 4, 5], [0, 5, 0], 8),
     read = () => sun.entriesOf(plan, slice, named);
   for (let frame = 1; frame < 4; frame++)
     light.cycleDrawn(plan, store, frame, read, light.nudged(frame));
-  const write = placed(),
+  const { write } = placed(),
     current = new Set<number>();
   for (let frame = 4, was = 0; frame < 16; frame++) {
     const x = frame * 0.02,
