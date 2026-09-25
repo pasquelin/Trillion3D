@@ -5,6 +5,7 @@ import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
 import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import type { WebgpuEffects } from '../../effects/webgpuEffects.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 
@@ -93,7 +94,7 @@ export function settledRt() {
       presenter: undefined as unknown,
       colorTexture: undefined as unknown,
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
-      effects: undefined as { loading: boolean } | undefined,
+      effects: undefined as WebgpuEffects | undefined,
       effectsRevision: 0,
       guideRevision: 0,
     },

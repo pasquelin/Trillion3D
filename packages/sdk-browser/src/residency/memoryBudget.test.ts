@@ -38,7 +38,7 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
       beginRenderPass: () => ({ setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }),
     } as unknown as GPUCommandEncoder;
   webgpu.encode(encoder, chain, input, width, height);
-  while (webgpu.loading) await new Promise((resolve) => setImmediate(resolve));
+  await webgpu.settled();
   webgpu.encode(encoder, chain, input, width, height);
   assert.ok(webgpu.bytes > 0 && webgpu.bytes < EFFECT_TARGET_BYTES, `${webgpu.bytes}`);
 });
