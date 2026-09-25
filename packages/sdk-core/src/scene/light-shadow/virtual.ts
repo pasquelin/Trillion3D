@@ -23,8 +23,8 @@ export const SUN_WINDOW: number = LIGHT_SETTINGS.sunLevelPages;
 /** Mips of a lamp face, from `LAMP_SIDE` pages per side down to one. */
 export const LAMP_MIPS = Math.log2(LAMP_SIDE) + 1;
 /** The largest 2D texture side WebGPU guarantees on every device (the default
- *  `maxTextureDimension2D`): the pool's atlas never asks for more, and no image is larger. */
-export const PORTABLE_TEXTURE_SIDE = 8192;
+ *  `maxTextureDimension2D`): the pool's atlas never asks for more. */
+const PORTABLE_TEXTURE_SIDE = 8192;
 /**
  * Physical pages per side of the shadow pool, for a `width × height` screen: a fixed budget,
  * derived once from the screen the first frame draws, never read off the machine.

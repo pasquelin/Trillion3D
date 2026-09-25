@@ -3986,8 +3986,9 @@
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
       "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
+      "canvas": "Dünyanın bildirdiği en büyük tuval, çizim arabelleğinin pikselleriyle: efekt zincirinin hedefleri onun boyutunda ayrılır (`split.effectTargets`); varsayılan 3840 × 2160'dır ve varsayılan `gpu` yalnızca bu rezerv kadar büyür. Her havuzu kurala göre yeniden dağıtmak için ayarlayın. Daha büyük çizilen bir tuval yine de bütünüyle çizilir: tanılama, rezervi aşan baytlarla `effect targets over budget` der.",
       "cpu": "Dünyanın tutabileceği CPU belleği baytı: önce gölge sayfa tablosunun ana makine yansısı, sonra çözülmüş sayfalar, manifest tabloları, aktarım kuyruğu ve motorun kesim tabloları birlikte. Bir değişiklik hemen uygulanır: sayfalar sığana kadar son kullanıma göre çıkar. Yansıyı aşmayan bir toplam reddedilir (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Asla makineden okunmaz.",
-      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu, sekme sondaları ve efekt zincirinin hedefleri en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu ve sekme sondaları en büyük hâlinde, efekt zincirinin hedefleri bildirilen `canvas` üzerinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -4445,7 +4446,7 @@
     "description": "`memory(world)`, dünyanın şu anda tuttuğu şeydir (`world.budget`); iki havuz, bir dünyanın aldığı ayarı oluşturur."
   },
   "budget.memory": {
-    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü."
+    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü, ve efekt hedeflerinin ayrıldığı tuval."
   },
   "budget.geometryPool": {
     "summary": "Bir dünyaya vermeye hazır, `bytes`'lık bir geometri havuzu ayarı.",
