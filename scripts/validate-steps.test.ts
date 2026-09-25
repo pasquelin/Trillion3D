@@ -48,10 +48,9 @@ test('the unit suite runs where the compiled compiler and dist both exist', () =
 });
 
 test('the scene caches, never tracked, are compiled between the compiler and the tests that read them', () => {
-  const [compiler, caches, rust] = ['build:native', 'compile:caches', 'test:native'].map((step) =>
-    (VALIDATE_GROUPS.native as readonly string[]).indexOf(step),
-  );
-  assert.ok(compiler < caches && caches < rust, 'the colliders test reads the caches');
+  const native: readonly string[] = VALIDATE_GROUPS.native;
+  assert.ok(native.indexOf('build:native') < native.indexOf('compile:caches'));
+  assert.ok(native.indexOf('compile:caches') < native.indexOf('test:native'), 'the colliders test');
 });
 
 test('an unknown group stops the run instead of silently checking nothing', () => {

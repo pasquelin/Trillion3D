@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Stage a campaign's evidence as the site's one report (CONTRIBUTING.md, "Measure before
-// optimising"): it replaces the campaign staged before it. No network publication occurs here.
+// Stage a campaign's evidence as the site's one report, replacing the one before; no network use.
 import {
   cpSync,
   existsSync,
@@ -26,8 +25,7 @@ export function publierRapport(source: string, dest: string): string {
     if (!existsSync(join(source, path))) throw new Error(`Missing evidence: ${path}`);
   mkdirSync(reports, { recursive: true });
   cpSync(source, folder, { recursive: true });
-  // Copied first, so a failed copy leaves the report before it. The report modules beside the
-  // campaign are files: only a campaign is a folder.
+  // Copied first, so a failed copy keeps the old report; the report modules are files, not folders.
   for (const entry of readdirSync(reports, { withFileTypes: true }))
     if (entry.isDirectory() && entry.name !== report.id)
       rmSync(join(reports, entry.name), { recursive: true });
