@@ -1,6 +1,6 @@
-// #489: the wait a frame publishes (`counts.waitedMs`, `shadowWaitMs`) is a wait someone had — the
-// time a stale page was read and not yet drawn —, never the time since it went stale while no
-// report named it. Frames are 16 ms apart (`planFrame`); a report is read one frame late.
+// #489: the wait a frame publishes (`waitedMs`, `waitedFrames`) is a wait someone had — the time a
+// stale page was read and not yet drawn —, never the time since it went stale while no report
+// named it. Frames are 16 ms apart (`planFrame`); a report is read one frame late.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cycleDrawn, planFrame, report, sunScene, VIEW } from './lightShadow.fixture.ts';
@@ -22,14 +22,13 @@ test('a page stale while no one read it has waited only from the frame it is rea
   // Frame 42 reads the report of 41: its stale pages are read for the first time, and drawn.
   const listed = planFrame(plan, store, 42);
   assert.ok(listed > 0, 'the pages read are listed');
-  assert.equal(plan.counts.waitedMs, 0, 'stale for 36 frames, read for none of them');
+  const waited = () => [plan.counts.waitedMs, plan.counts.waitedFrames];
+  assert.deepEqual(waited(), [0, 0], 'stale for 36 frames, read for none of them');
   // Its memory guard stops the frame at its first page: they are read, and left undrawn.
   plan.reissue(0);
   report(plan, store, 42, named);
-  planFrame(plan, store, 43);
-  assert.equal(plan.counts.waitedMs, 16, 'read one frame, not yet drawn');
-  plan.commit();
-  report(plan, store, 43, named);
+  cycleDrawn(plan, store, 43, read);
+  assert.deepEqual(waited(), [16, 1], 'read one frame, not yet drawn');
   planFrame(plan, store, 44);
-  assert.equal(plan.counts.waitedMs, 0, 'drawn: nothing waits');
+  assert.deepEqual(waited(), [0, 0], 'drawn: nothing waits');
 });
