@@ -12,11 +12,6 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphMesh } from '../../host/graph/mesh.ts';
-import { GraphSurface } from '../../host/graph/surface.ts';
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** A WebGL2 context that records level-0 uploads, box filters, draws and the reduction's rule. */
 function context() {
@@ -82,37 +77,21 @@ test('a chain is reduced by the coverage rule of the surfaces the frame draws', 
 // A map's mip rule is read from every surface that wears it, a hidden mesh's too, as the WebGPU
 // census reads it: a hidden opaque reader keeps the chain of a drawn masked one plain.
 test('a hidden mesh still reads its map for the mip rule', () => {
-  const picture = new G.GraphTexture({ width: 4, height: 4 } as TexImageSource);
-  const textured = (surface: GraphSurface) => {
-    const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
-    for (const [name, size] of [
-      ['position', 3],
-      ['normal', 3],
-      ['uv', 2],
-    ] as const)
-      geometry.setAttribute(name, new BufferAttribute(new Float32Array(3 * size), size));
-    const made = new GraphMesh(geometry, surface);
-    made.frustumCulled = false;
-    return made;
-  };
-  const hidden = textured(new GraphSurface('standard', { map: picture }));
+  const map = new G.GraphTexture({ width: 4, height: 4 } as TexImageSource);
+  const geometry = new G.Geometry().setIndex([0, 1, 2]);
+  for (const name of ['position', 'normal', 'uv'])
+    geometry.setAttribute(name, G.floatAttribute(new Float32Array(9), name === 'uv' ? 2 : 3));
+  const hidden = G.mesh(geometry, G.standardSurface({ map }));
   hidden.visible = false;
-  const scene = new GraphScene();
-  scene.add(textured(new GraphSurface('standard', { map: picture, alphaTest: 0.5 })), hidden);
+  const scene = new G.GraphScene();
+  scene.add(G.mesh(geometry, G.standardSurface({ map, alphaTest: 0.5 })), hidden);
   // The mip reducer saves the viewport and the colour mask it restores.
-  const viewport = new Int32Array([0, 0, 8, 4]),
-    mask = [true, true, true, true];
   const answer = (name: string) =>
-    name === 'VIEWPORT' ? viewport : name === 'COLOR_WRITEMASK' ? mask : undefined;
+    name === 'COLOR_WRITEMASK' ? [true, true, true, true] : new Int32Array([0, 0, 8, 4]);
   const context = createTestContext({ answers: { getParameter: answer } });
   const draw = createSceneDraw(context.gl, scene);
   draw.render({} as HostCamera);
-  draw.drawHostGeometry(createHostDrawCamera(), {
-    toneMapped: false,
-    framebuffer: null,
-    width: 8,
-    height: 4,
-  });
+  draw.drawHostGeometry(createHostDrawCamera(), { toneMapped: false, width: 8, height: 4 });
   const rules = context
     .of('uniform1i')
     .filter(([at]) => (at as { uniform: string }).uniform === 'weighted');
