@@ -14,11 +14,11 @@ import { TAA_STILL_FRAMES } from './jitter.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { TaaInputs } from './temporalAntialiasing.ts';
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** The strict minimum of an engine: the fake pass, its inputs, the camera and the revisions. */
 function runtime() {
-  const encoded: unknown[] = [],
-    uniforms: Float32Array[] = [];
+  const encoded: unknown[] = [];
   const output = { output: true } as unknown as GPUTextureView;
   const temporal = {
     uniform: {} as GPUBuffer,
@@ -49,22 +49,16 @@ function runtime() {
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
     capture: { capturing: false },
   } as unknown as WebgpuPagesRuntime;
-  const device = {
-    queue: {
-      writeBuffer(_buffer: unknown, _offset: number, data: Float32Array) {
-        uniforms.push(Float32Array.from(data));
-      },
-    },
-  } as unknown as GPUDevice;
+  const { device, writes } = fakeDevice();
   const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera;
   const hdr = rt.gpu.hdrView!;
   /** A whole frame: input, render matrix, pass; returns the written uniform, or `null`. */
   const frame = (quiet: boolean) => {
     beginTaaFrame(rt, cam, quiet);
     taaRenderMatrix(rt, cam);
-    const before = uniforms.length;
+    const before = writes.length;
     encodeTaaPass(rt, device, {} as GPUCommandEncoder, cam, hdr);
-    return uniforms.length > before ? uniforms[uniforms.length - 1] : null;
+    return writes.length > before ? (writes[writes.length - 1].data as Float32Array) : null;
   };
   return { rt, cam, temporal, encoded, frame };
 }

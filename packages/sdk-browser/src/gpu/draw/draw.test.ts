@@ -2,6 +2,7 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { packDrawIndirect } from '../../../../sdk-core/src/index.ts';
 import {
   BIN_BACK,
@@ -114,17 +115,13 @@ test('draw consumers zero firstInstance and pad slot binds to 256 bytes', () => 
 });
 
 test('a device without compute pipelines does not create GPU draw', async () => {
-  const device = {
+  const { device } = fakeDevice({
     limits: { maxBufferSize: 1 << 20 },
-    createBuffer() {
-      throw new Error('should not allocate');
-    },
-  } as unknown as GPUDevice;
+    compute: false,
+    refuse: () => 'throw',
+  });
   assert.equal(await createGpuDraw(device, 8), undefined);
-  assert.equal(
-    await createGpuDraw({ createComputePipeline() {} } as unknown as GPUDevice, 0),
-    undefined,
-  );
+  assert.equal(await createGpuDraw(fakeDevice().device, 0), undefined);
 });
 
 test('a compact shader compilation error leaves GPU draw undefined', async () => {

@@ -26,8 +26,9 @@ test('the water pass is mounted with the blend pipelines only for a scene that t
 
 test('a device that refuses the water pipelines keeps the blends, and the refusal is named', async () => {
   const mount = mountDevice();
-  const create = mount.device.createRenderPipeline;
-  mount.device.createRenderPipeline = (descriptor: GPURenderPipelineDescriptor) => {
+  // The asynchronous creation, the one a device that offers it is asked for.
+  const create = mount.device.createRenderPipelineAsync;
+  mount.device.createRenderPipelineAsync = async (descriptor: GPURenderPipelineDescriptor) => {
     if (descriptor.fragment?.entryPoint === 'fsWater') throw new Error('DEVICE_SAYS_NO');
     return create(descriptor);
   };

@@ -12,6 +12,7 @@ import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 const ROWS = 1000,
   MODEL_ROWS = [3, 4, 400, 401, 402, 997];
@@ -42,10 +43,16 @@ function scatteredScene() {
   cornerHold.epoch = rows.tableEpoch;
   cornerHold.count = ROWS;
   const forgotten: number[] = [],
-    corners: number[] = [],
-    table: number[] = [],
-    spheres: number[] = [];
-  const sphereBuffer = {};
+    corners: number[] = [];
+  const sphereBuffer = {} as GPUBuffer;
+  const { device, writes } = fakeDevice();
+  // Rows each write sent, to the sphere buffer or to the page table.
+  const sent = (toSpheres: boolean) =>
+    writes
+      .filter(({ buffer }) => (buffer === sphereBuffer) === toSpheres)
+      .map(({ size }) => size! / (toSpheres ? 4 : PAGE_INFO_STRIDE));
+  const spheres = () => sent(true),
+    table = () => sent(false);
   const rt = {
     layout: {
       rows,
@@ -57,14 +64,7 @@ function scatteredScene() {
     blendState: { occlusionEpoch: 1 },
     lights: { spheres: { buffer: sphereBuffer, packed: new Float32Array(ROWS * 4), rows: ROWS } },
     timing: { encodeCounts: { lignesTeleversees: 0 } },
-    gpu: {
-      device: {
-        queue: {
-          writeBuffer: (b: unknown, _at: number, _d: unknown, _o: number, size: number) =>
-            b === sphereBuffer ? spheres.push(size / 4) : table.push(size / PAGE_INFO_STRIDE),
-        },
-      },
-    },
+    gpu: { device },
     vis: {
       pageTable: {},
       gpuPartition: {
@@ -87,17 +87,17 @@ test('a model scattered across the table forgets and sends its own rows, run by 
   uploadRowCorners(rt);
   uploadDirtyRows(rt);
   assert.deepEqual(forgotten, [2, 3, 1], 'three runs, 6 rows forgotten of the 995 spanned');
-  assert.deepEqual(spheres, [2, 3, 1], 'the same 6 shadow spheres sent');
+  assert.deepEqual(spheres(), [2, 3, 1], 'the same 6 shadow spheres sent');
   assert.deepEqual(corners, [2, 3, 1], 'the same 6 rows of corners sent');
-  assert.deepEqual(table, [2, 3, 1], 'the same 6 rows of the table sent');
-  assert.equal(rt.timing.encodeCounts.lignesTeleversees, sum(table));
+  assert.deepEqual(table(), [2, 3, 1], 'the same 6 rows of the table sent');
+  assert.equal(rt.timing.encodeCounts.lignesTeleversees, sum(table()));
   assert.equal(rows.dirtyTo, -1, 'every mark consumed');
   assert.equal(rows.dirtyMarks.indexOf(1), -1);
   // A still image: nothing marked, nothing forgotten, nothing sent.
   uploadRowCorners(rt);
   uploadDirtyRows(rt);
   assert.equal(sum(forgotten), 6);
-  assert.equal(sum(table), 6);
+  assert.equal(sum(table()), 6);
   assert.equal(rt.timing.encodeCounts.lignesTeleversees, 0);
 });
 
