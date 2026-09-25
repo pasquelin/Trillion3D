@@ -39,8 +39,6 @@ await mkdir(out, { recursive: true });
 const cacheMounts = threeStackMounts(root, out);
 await buildSite();
 const { server, port } = await startServer({
-  port: 0,
-  captures: new Map(),
   mounts: [...sdkMounts(root), ...cacheMounts, { prefix: '/site/', dir: SITE_OUTPUT }],
 });
 const browser = await launchChrome({ headless: true });

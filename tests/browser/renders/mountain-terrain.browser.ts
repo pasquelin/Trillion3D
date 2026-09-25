@@ -11,8 +11,6 @@ const root = resolve(import.meta.dirname, '../../..'),
   output = measureOutput('mountain-terrain');
 await mkdir(output, { recursive: true });
 const { server, port } = await startServer({
-  port: 0,
-  captures: new Map(),
   mounts: [...sdkMounts(root), { prefix: '/site/', dir: resolve(root, 'site') }],
 });
 const browser = await launchChrome({ headless: true }),

@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
+import { pipeline } from 'node:stream';
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -74,20 +75,23 @@ async function serveFile(
   if (index && found.isDirectory()) found = await stat((file = resolve(file, 'index.html')));
   if (!found.isFile()) return reply(response, 404);
   const text = transform?.(file);
+  const body = text === undefined ? undefined : Buffer.from(text);
   response.writeHead(200, {
-    'content-type': contentType(text === undefined ? extname(file) : '.js', charset),
-    'content-length': text === undefined ? found.size : Buffer.byteLength(text),
+    'content-type': contentType(body ? '.js' : extname(file), charset),
+    'content-length': body ? body.length : found.size,
     ...fileHeaders,
   });
-  if (text === undefined) createReadStream(file).pipe(response);
-  else response.end(text);
+  // A read error past the headers destroys the response, so the socket never waits on it.
+  if (body) response.end(body);
+  else pipeline(createReadStream(file), response, () => {});
 }
 
 /** A server over `options.mounts`; a path no mount takes, or no file answers, is a 404. */
 export function staticServer(options: StaticOptions = {}): Server {
   const { mounts = [], headers = {}, answer } = options;
+  const every = Object.entries(headers);
   return createServer((request, response) => {
-    for (const [name, value] of Object.entries(headers)) response.setHeader(name, value);
+    for (const [name, value] of every) response.setHeader(name, value);
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
     if (answer?.(request, response, url)) return;
     const mount = mounts.find(({ prefix }) => url.pathname.startsWith(prefix));

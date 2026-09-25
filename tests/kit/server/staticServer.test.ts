@@ -7,22 +7,20 @@ import { startServer } from './staticServer.ts';
 import { resolve } from 'node:path';
 import { readOptions } from '../../../bench/runner/options.ts';
 
-/** The header `name` returned by a harness server launched with these options, then closed. */
-async function header(options: { isolation?: boolean }, name: string) {
-  const { server, port } = await startServer({
-    port: 0,
-    mounts: [],
-    captures: new Map(),
-    ...options,
-  });
+/** The response a harness server started with `options` gives on `path`, its body read, the
+ *  server closed. */
+async function served(path: string, options: Partial<Parameters<typeof startServer>[0]> = {}) {
+  const { server, port } = await startServer({ mounts: [], ...options });
   try {
-    const response = await fetch(`http://127.0.0.1:${port}/`);
-    await response.arrayBuffer();
-    return response.headers.get(name);
+    const response = await fetch(`http://127.0.0.1:${port}${path}`);
+    return { headers: response.headers, text: await response.text() };
   } finally {
     server.close();
   }
 }
+
+const header = async (options: { isolation?: boolean }, name: string) =>
+  (await served('/', options)).headers.get(name);
 
 test('without isolation — default — no COOP/COEP header leaves the server', async () => {
   assert.equal(await header({}, 'cross-origin-opener-policy'), null);
@@ -42,34 +40,19 @@ test('--isolation is only on or off, and defaults to off when unstated', () => {
 });
 
 test('portal stylesheets are served as CSS so browser proofs use the real layout', async () => {
-  const { server, port } = await startServer({
-    port: 0,
-    captures: new Map(),
-    mounts: [{ prefix: '/styles/', dir: resolve(import.meta.dirname, '../../../site/styles') }],
+  const dir = resolve(import.meta.dirname, '../../../site/styles');
+  const { headers, text } = await served('/styles/portal.css', {
+    mounts: [{ prefix: '/styles/', dir }],
   });
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/styles/portal.css`);
-    assert.equal(response.headers.get('content-type'), 'text/css; charset=utf-8');
-    assert.match(await response.text(), /render-frame/);
-  } finally {
-    await new Promise((done) => server.close(done));
-  }
+  assert.equal(headers.get('content-type'), 'text/css; charset=utf-8');
+  assert.match(text, /render-frame/);
 });
 
 test('a TypeScript page module is served as JavaScript, its types stripped', async () => {
-  const { server, port } = await startServer({
-    port: 0,
-    captures: new Map(),
-    mounts: [{ prefix: '/runner/', dir: resolve(import.meta.dirname) }],
-  });
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/runner/staticServer.ts`);
-    assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8');
-    const code = await response.text();
-    assert.match(code, /function startServer\(/);
-    assert.match(code, /export \{[^}]*\bstartServer\b/);
-    assert.doesNotMatch(code, /: Mount\[\]/);
-  } finally {
-    await new Promise((done) => server.close(done));
-  }
+  const mounts = [{ prefix: '/runner/', dir: import.meta.dirname }];
+  const { headers, text } = await served('/runner/staticServer.ts', { mounts });
+  assert.equal(headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(text, /function startServer\(/);
+  assert.match(text, /export \{[^}]*\bstartServer\b/);
+  assert.doesNotMatch(text, /: Mount\[\]/);
 });
