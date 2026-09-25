@@ -28,7 +28,8 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
      `Regression after #<pr>: <cause>` (AGENTS.md §Labels) with the numbers and the captures, and add `measure ko`. Never open
      a new issue (AGENTS.md rule 5): its lead takes #<n> again and closes it once fixed.
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
-     never estimated, and reopens #<n> the same way.
+     never estimated, and reopens #<n> the same way; when another open issue #m blocks it, it is
+     written `null`, "Blocked by #m", listed on #m, does not reopen #<n>, and runs when #m closes.
 6. **Thumbnails.** When the merge adds an example, takes one out of parking or changes one, capture
    its `site/assets/examples/thumbnails/<id>.png` on the merge commit in the same stint as the
    measurements, while the machine's one Chrome is yours
