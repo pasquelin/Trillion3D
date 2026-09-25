@@ -62,11 +62,9 @@ export function createSceneDraw(
   const followCopies = () => {
     for (let i = copied.size; i < copies.length; i++) copied.add(copies[i] as DisplayNode);
   };
-  // Reused from frame to frame: a draw allocates no list. `hidden`: the meshes not drawn, whose
-  // surfaces still read their maps — a map's mip rule never follows visibility (#42).
+  // Reused from frame to frame: a draw allocates no list.
   const opaque: WholeMesh[] = [],
-    seeThrough: DrawnNode[] = [],
-    hidden: WholeMesh[] = [];
+    seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
     opened = false;
   // The projection times the view, and each drawn mesh's depth, read once a frame.
@@ -74,16 +72,15 @@ export function createSceneDraw(
     depths = new Map<DisplayNode, number>();
   const depth = (node: DisplayNode) => depths.get(node)!;
   const counters = { triangles: 0 };
-  const collect = (node: DisplayNode, shown: boolean) => {
-    const drawn = shown && node.visible;
+  const collect = (node: DisplayNode) => {
+    if (!node.visible) return;
     if (node.kind === 'mesh' || node.kind === 'instancedMesh') {
-      if (!drawn) hidden.push(node as WholeMesh);
-      else if (copied.has(node) || firstMaterial(node.material!)?.transparent)
+      if (copied.has(node) || firstMaterial(node.material!)?.transparent)
         seeThrough.push(node as DrawnNode);
       else opaque.push(node as WholeMesh);
-      if (drawn) depths.set(node, depthOf(node, screen));
+      depths.set(node, depthOf(node, screen));
     }
-    for (const child of node.children) collect(child, drawn);
+    for (const child of node.children) collect(child);
   };
   // Opaque meshes of one order are grouped by surface, numbered as first met, as the reference
   // groups them by the surfaces it numbers as it meets them — a run of one surface binds it once
@@ -117,11 +114,11 @@ export function createSceneDraw(
       scene.onBeforeRender?.();
       try {
         scene.updateMatrixWorld();
-        opaque.length = seeThrough.length = hidden.length = 0;
+        opaque.length = seeThrough.length = 0;
         depths.clear();
         followCopies();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
-        for (const child of scene.children) collect(child, true);
+        for (const child of scene.children) collect(child);
         (opaque as DrawnNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
         // A linear output is the effect chain's: its own program, which leaves the curve and the
@@ -135,7 +132,6 @@ export function createSceneDraw(
           opaque,
           seeThrough as readonly SceneCopy[],
           output.linear,
-          hidden,
         );
       } finally {
         scene.onAfterRender?.();
