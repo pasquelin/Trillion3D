@@ -26,11 +26,9 @@
 
       const world = createWorld('view', { controls: 'orbit' });
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
-      // The scene file declares its late-afternoon sun and nothing else: a file carries no sky
-      // (`KHR_lights_punctual` has none), so every face the sun misses would be pure black. The
-      // court stands outdoors, so the page adds a clear sky: about a fifth of the sun's light (a
-      // clear day's 20 000 lx of sky to 100 000 lx of sun), blue from above, and from below the
-      // court's warm limestone, the source's own linear colour, sending it back.
+      // A scene file carries no sky, only its sun: what the sun misses would be black. The court
+      // is outdoors, so add a clear sky, a fifth of the sun (20 000 lx of sky to 100 000 lx of
+      // sun), tinted from below by the court's limestone (its linear colour in the source).
       const [sun] = model.lights;
       world.scene.add(light.hemisphere({ color: '#a6c6ff', groundColor: [0.67, 0.48, 0.28], intensity: sun.intensity / 5 }));
       const framing = pose.fromBounds(model.bounds);
