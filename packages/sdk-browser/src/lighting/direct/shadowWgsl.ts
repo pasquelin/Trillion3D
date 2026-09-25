@@ -9,6 +9,7 @@ import {
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 
 /** The PCF's taps, in texels around the read point. */
 export const POISSON_16 = [
@@ -73,9 +74,10 @@ fn requestShadowPage(e:u32){
  * A tap whose bilinear footprint lies in one page is one hardware comparison in that page; one
  * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
  *
- * Each comparison is multiplied by the transmittance layer's texel at its place (\`shadowThrough\`,
- * \`../../gpu/shadow/transmittance.ts\`). A pool without that layer binds a one-texel stand-in,
- * which the PCF never reads: its comparisons are those of before.
+ * Each comparison is multiplied by the transmittance layer at its place (\`shadowThrough\`,
+ * \`../../gpu/shadow/transmittance.ts\`): its two textures are bound at \`transmittanceBinding\` and
+ * the number after it. A pool without that layer binds one-texel stand-ins, which the PCF never
+ * reads: its comparisons are those of before.
  */
 export const directShadowWgsl = (
   dataBinding: number,
@@ -84,7 +86,6 @@ export const directShadowWgsl = (
 ) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
-@group(0) @binding(${transmittanceBinding}) var shadowTransmittance:texture_2d<f32>;
 ${requestWgsl(requestBinding)}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_BIAS:f32=${LIGHT_SETTINGS.shadowDepthBias};
@@ -130,11 +131,7 @@ fn shadowOffset(word:u32,p:vec2i)->vec2f{
 }
 /** Texels a side of the pool: its size is the world's, derived from the screen (\`shadowPoolSide\`). */
 fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
-/** Light the translucent casters let through at atlas texel \`a\`, to a receiver behind them. */
-fn shadowThrough(a:vec2f,reference:f32)->f32{
- let s=textureLoad(shadowTransmittance,vec2i(floor(a)),0);
- return select(1.0,s.r,reference<=s.a);
-}
+${shadowThroughWgsl(transmittanceBinding)}
 fn shadowCompare(offset:vec2f,t:vec2f,reference:f32,through:bool)->f32{
  let lit=textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
  if(!through){return lit;}

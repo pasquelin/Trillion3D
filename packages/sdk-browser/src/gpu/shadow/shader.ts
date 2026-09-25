@@ -27,8 +27,10 @@ import { BLEND_TRANSMITTANCE_WGSL, TRANSMITTANCE_CLEAR_WGSL } from './transmitta
  *
  * A blended cluster casts from a row only this pass reads (`FLAG_BLEND_CASTER`,
  * `../../webgpu/row/blendCasters.ts`), and never into the depth: `shadow_vs` skips its row, and
- * `shadow_blend_vs` draws it alone, into the transmittance layer (`transmittance.ts`), where
- * `shadow_blend_fs` writes the share of the light it lets through and its depth.
+ * `shadow_blend_vs` draws it alone, into the transmittance layer (`transmittance.ts`), at half the
+ * pool's resolution, where `shadow_blend_fs` writes the share of the light it lets through — and,
+ * in the depth-only draw of the same list, its depth. What the pool's opaque depth hides from the
+ * light, at all four of its texels, it discards.
  *
  * It also discards the emitter envelope: a light that declares a radius accepts no depth from a
  * surface closer to its centre than that radius. The rule is Euclidean distance to the centre,
@@ -47,6 +49,7 @@ ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
 struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
+@group(2) @binding(0) var shadowOpaque:texture_depth_2d;
 struct ShadowOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_GEOMETRY_WGSL}
@@ -91,11 +94,19 @@ fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  if(!shadowKeep(in,gx,gy)){discard;}
 }
-/** A blended caster's texel of the transmittance layer, blended multiplicatively. */
+/** True when the pool's opaque depth is nearer the light than \`p\` at the four texels of its
+ *  half-resolution texel: reversed depth, so the farthest of them is the least. */
+fn shadowHiddenByOpaque(p:vec4f)->bool{
+ let q=vec2i(p.xy)*2;
+ let far=min(min(textureLoad(shadowOpaque,q,0),textureLoad(shadowOpaque,q+vec2i(1,0),0)),min(textureLoad(shadowOpaque,q+vec2i(0,1),0),textureLoad(shadowOpaque,q+vec2i(1,1),0)));
+ return p.z<far;
+}
+/** A blended caster's texel of the transmittance layer, blended multiplicatively; the depth-only
+ *  draw masks its colour and keeps its depth. */
 @fragment fn shadow_blend_fs(in:ShadowOut)->@location(0) vec4f{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- if(!shadowKeep(in,gx,gy)){discard;}
- return blendTransmittance(pages[in.instance],in.uv,gx,gy,in.position.z);
+ if(!shadowKeep(in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
+ return blendTransmittance(pages[in.instance],in.uv,gx,gy);
 }
 /** The transmittance of a page cleared: all the light, no translucent caster. */
 @fragment fn shadow_clear_fs()->@location(0) vec4f{
