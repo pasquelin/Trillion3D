@@ -916,7 +916,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/pageObjects.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/elements\".BufferTypedArray"
     },
@@ -4031,10 +4031,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/host/graph/graph.test.ts",
-        "packages/sdk-browser/src/host/prepared/accessors.ts"
-      ],
+      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/accessors.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBuffer"
     },
@@ -4045,10 +4042,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [
-        "packages/sdk-browser/src/host/graph/graph.test.ts",
-        "packages/sdk-browser/src/host/prepared/accessors.ts"
-      ],
+      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/accessors.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBufferAttribute"
     },
