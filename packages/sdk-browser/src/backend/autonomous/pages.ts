@@ -78,7 +78,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     hostCeiling,
     coverMeshes: heldFloor.meshes,
     sceneChanged: gate.sceneChanged,
-    coverChanged: heldFloor.changed,
+    coverChanged: heldFloor.placed,
   });
   const residency = createAutonomousResidency({
     bootstrapUrls,
@@ -108,7 +108,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     blendCopies,
     worlds,
     ...lists,
-    revision: () => heldFloor.revision,
+    revision: () => heldFloor.placements,
     ceiling,
     sync,
     residency,
@@ -155,7 +155,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       scene,
       gate,
       rowsWritten: geometryStore.rowsWritten,
-      coverChanged: heldFloor.changed,
+      coverChanged: heldFloor.placed,
     }),
     ...lightingApi,
     setClearColor: graphBackground(scene, gate.resourcesChanged),
