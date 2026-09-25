@@ -66,7 +66,8 @@ fn every_cut_of_a_chalet_of_thin_closed_shapes_keeps_its_walls_facing_out() {
     assert_eq!(primitives.len(), meshes.len());
     for primitive in primitives {
         let mesh = &meshes[primitive["primitive"].as_u64().expect("primitive") as usize];
-        let defects = cooked_page_defects(&objects, primitive);
+        let positions: Vec<f32> = mesh.positions.iter().flatten().map(|&v| v as f32).collect();
+        let defects = cooked_page_defects(&objects, primitive, &positions);
         assert!(defects.is_empty(), "{defects:#?}");
         let defects = cut_defects(&objects, primitive, mesh);
         assert!(defects.is_empty(), "{defects:#?}");

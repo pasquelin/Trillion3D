@@ -1,13 +1,13 @@
 //! Every cooked page of a primitive decoded back and held against the source it names (#414).
 //!
-//! Level 0 is the source partition: its pages give, per source vertex, the decoded position every
-//! coarser page must reproduce. A page then passes when it decodes, when each decoded corner is
-//! the source vertex its index object names, within both pages' quantization errors, when every
-//! corner lies in the page's published bounds and sphere, and, for a coarse page, when every
-//! vertex it uses belongs to the children of the group that produced it and every point of its
-//! triangles lies near that children's surface: within their longest edge plus the group error.
+//! A page passes when it decodes, when each decoded corner is the source position its index object
+//! names, within the page's quantization error — the exact pages as the coarse ones, so an encode or
+//! decode that moves a vertex fails on every level —, when every corner lies in the page's
+//! published bounds and sphere, and, for a coarse page, when every vertex it uses belongs to the
+//! children of the group that produced it and every point of its triangles lies near that
+//! children's surface: within their longest edge plus the group error.
 use super::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use trillion3d_page_codec as codec;
 
 type Point = [f64; 3];
@@ -56,8 +56,20 @@ fn decode_page(objects: &Path, page: &Value) -> std::result::Result<Decoded, Str
     })
 }
 
-/// The defects of one cooked primitive, one line each; empty when every page is sound.
-pub(in crate::tests) fn cooked_page_defects(objects: &Path, primitive: &Value) -> Vec<String> {
+/// Source vertex `s` of `positions`, flat `xyz`, or `None` past their end.
+fn source_point(positions: &[f32], s: u32) -> Option<Point> {
+    let at = s as usize * 3;
+    let p = positions.get(at..at + 3)?;
+    Some(std::array::from_fn(|a| f64::from(p[a])))
+}
+
+/// The defects of one cooked primitive against its source `positions`, flat `xyz`, one line each;
+/// empty when every page is sound.
+pub(in crate::tests) fn cooked_page_defects(
+    objects: &Path,
+    primitive: &Value,
+    positions: &[f32],
+) -> Vec<String> {
     let pages = primitive["pages"].as_array().expect("pages");
     let mut defects = Vec::new();
     let decoded: Vec<Option<Decoded>> = pages
@@ -69,15 +81,6 @@ pub(in crate::tests) fn cooked_page_defects(objects: &Path, primitive: &Value) -
                 .ok()
         })
         .collect();
-    // Source vertex -> (decoded position, error) from the exact partition.
-    let mut source = HashMap::<u32, (Point, f64)>::new();
-    for (page, d) in pages.iter().zip(&decoded) {
-        if let (Some(d), Some(0)) = (d, page["level"].as_u64()) {
-            for (&s, &p) in d.source.iter().zip(&d.corners) {
-                source.insert(s, (p, d.error));
-            }
-        }
-    }
     for (id, (page, d)) in pages.iter().zip(&decoded).enumerate() {
         let Some(d) = d else { continue };
         let min: Vec<f64> = (0..3)
@@ -91,11 +94,11 @@ pub(in crate::tests) fn cooked_page_defects(objects: &Path, primitive: &Value) -
             .collect();
         let slack = |p: Point| 2.0 * d.error + 1e-5 * p.iter().map(|v| v.abs()).fold(1.0, f64::max);
         for (&s, &p) in d.source.iter().zip(&d.corners) {
-            let Some(&(expected, error)) = source.get(&s) else {
-                defects.push(format!("page {id}: vertex {s} is in no exact page"));
+            let Some(expected) = source_point(positions, s) else {
+                defects.push(format!("page {id}: vertex {s} is past the source"));
                 continue;
             };
-            if distance(p, expected) > d.error + error + slack(p) {
+            if distance(p, expected) > d.error + slack(p) {
                 defects.push(format!(
                     "page {id}: vertex {s} decodes {p:?}, source {expected:?}"
                 ));
@@ -108,7 +111,7 @@ pub(in crate::tests) fn cooked_page_defects(objects: &Path, primitive: &Value) -
             }
         }
     }
-    defects.extend(coarse_defects(primitive, pages, &decoded, &source));
+    defects.extend(coarse_defects(primitive, pages, &decoded, positions));
     defects
 }
 
@@ -118,7 +121,7 @@ fn coarse_defects(
     primitive: &Value,
     pages: &[Value],
     decoded: &[Option<Decoded>],
-    source: &HashMap<u32, (Point, f64)>,
+    positions: &[f32],
 ) -> Vec<String> {
     let groups = primitive["structure"]["groups"].as_array().expect("groups");
     let mut defects = Vec::new();
@@ -141,8 +144,7 @@ fn coarse_defects(
             .collect();
         let points: Vec<Point> = vertices
             .iter()
-            .filter_map(|s| source.get(s))
-            .map(|&(p, _)| p)
+            .filter_map(|&s| source_point(positions, s))
             .collect();
         let longest = children
             .iter()

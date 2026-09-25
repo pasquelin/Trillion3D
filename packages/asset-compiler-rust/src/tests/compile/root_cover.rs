@@ -104,17 +104,16 @@ fn extent_defects(
 #[test]
 fn no_part_of_signature_architecture_leaves_a_cut_under_its_extent() {
     let folder = "site/assets/gallery/signature-architecture/source";
-    let scene = cook_site_scene(folder, "geometry.gltf", "geometry");
-    let (gltf, bin, objects) = (&scene.gltf, scene.bin.as_slice(), &scene.objects);
-    let read = |id: &Value| accessor(gltf, bin, id.as_u64().expect("accessor") as usize, None);
+    let scene = cook_site_scene(folder, "geometry.gltf", "geometry", "qem-endpoints");
     let mut defects = Vec::new();
     for primitive in scene.result["primitives"].as_array().expect("primitives") {
-        let at = |key: &str| primitive[key].as_u64().expect(key) as usize;
-        let written = &gltf["meshes"][at("mesh")]["primitives"][at("primitive")];
-        let positions = read(&written["attributes"]["POSITION"]).and_then(|a| a.collect_f32());
-        let indices = read(&written["indices"]).and_then(|a| a.collect_u32());
-        let (positions, indices) = (positions.expect("positions"), indices.expect("indices"));
-        defects.extend(extent_defects(objects, primitive, &positions, &indices));
+        let (positions, indices) = scene.source(primitive);
+        defects.extend(extent_defects(
+            &scene.objects,
+            primitive,
+            &positions,
+            &indices,
+        ));
     }
     let _ = fs::remove_dir_all(&scene.root);
     assert!(defects.is_empty(), "{defects:#?}");
