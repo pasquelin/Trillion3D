@@ -32,11 +32,16 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    report to the CTO and stop.
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: wait for `validate` to be green on
-   the reviewer's head, which already merged `develop` (`gh pr checks <pr> --watch`). Only when
-   the PR is `DIRTY` (`gh pr view <pr> --json mergeStateStatus`) or `develop`'s new commits touch
-   its files, `gh pr update-branch <pr>` and watch again. Then name it ready to the CTO, who
-   merges it (AGENTS.md §Roles); step 1 may start meanwhile, step 5 follows the merge. A red
-   check, or a point of "Before merge" missed, goes back to step 3.
+   the reviewer's head, which already merged `develop`; only when the PR is `DIRTY`
+   (`gh pr view <pr> --json mergeStateStatus`) or `develop`'s new commits touch its files,
+   `gh pr update-branch <pr>`. Write `## Lead verification`, then take it out of draft
+   (`gh pr ready <pr>`), wait for every check to be green on that head, the body check re-run by
+   `gh pr ready` included (`gh pr checks <pr> --watch`, once that run is listed: until then the
+   draft's earlier green run still shows), then send "ready #<pr>" to the CTO, who merges it in
+   age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On
+   a red check, or a point of "Before merge" missed, put the pull request back in draft
+   (`gh pr ready --undo <pr>`), delete its Lead verification lines (CI cannot tell a stale line
+   from a new one) and go back to step 3.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
    an example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
@@ -50,7 +55,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 **You are accountable for every merge, not the coder or the reviewer.** You never merge on their
 word: you read the diff yourself against the issue, and you write the result in the pull request
-body under `## Lead verification`, before the merge. CI refuses a body without that section.
+body under `## Lead verification`, before the merge. CI refuses a pull request out of draft
+without that section.
 It holds one line per To do and Proof item of the issue:
 `- <item>: delivered in <file:line>, proved by <test name>`, or
 `- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
