@@ -77,15 +77,14 @@ async function copyTree(source: string, target: string, published: boolean) {
 
 /** One step of the build, with the paths under the root (files or folders) it reads and writes:
  *  the development server (`docs-dev.ts`) runs again only the steps a changed path is under. */
-interface SiteStep {
+export interface SiteStep {
   name: string;
   reads: readonly string[];
   /** Only the read files these name, when set. */
   files?: RegExp;
   /** What it writes under the root, read by a later step. */
   writes?: readonly string[];
-  /** Its folder of `out`, emptied before it runs so no chunk of an earlier build stays; `run`
-   *  gets it in place of `out`. */
+  /** Its folder of `out`, emptied first (no earlier chunk stays) and given to `run` as `out`. */
   folder?: string;
   run: (root: string, out: string, published: boolean) => Promise<unknown> | void;
 }
@@ -94,7 +93,7 @@ const scenes = Object.values(COOKED_SCENES);
 
 /** Every step of `buildSite`, in its order: stale API files and caches first, then the build
  *  products (styles, engine runtime and portal in one folder, language flags), the statics last. */
-const SITE_STEPS: readonly SiteStep[] = [
+export const SITE_STEPS: readonly SiteStep[] = [
   {
     name: 'api',
     reads: ['packages', 'site'],
@@ -138,22 +137,6 @@ const SITE_STEPS: readonly SiteStep[] = [
 
 /** The folders of `out` the build products are written in. */
 const BUILT_FOLDERS = SITE_STEPS.flatMap(({ folder }) => folder ?? []);
-
-/** Whether the `/`-separated `path` is `entry` or lies under it. */
-const underOrAt = (path: string, entry: string) => path === entry || path.startsWith(`${entry}/`);
-
-/** The steps, in order, that read one of `paths` (relative to the root, `/`-separated) or what an
- *  earlier one of them writes. */
-export const stepsReading = (paths: Iterable<string>) => {
-  const changed = [...paths];
-  return SITE_STEPS.filter(({ reads, files, writes = [] }) => {
-    const read = changed.some(
-      (path) => (!files || files.test(path)) && reads.some((entry) => underOrAt(path, entry)),
-    );
-    if (read) changed.push(...writes);
-    return read;
-  });
-};
 
 /** Writes the build products into `out`. */
 export const buildBundles = (root: string, out: string) =>
