@@ -7,6 +7,7 @@ import {
   composesWithBackground,
   drawnBlending,
   hostBlending,
+  weighsByAlpha,
 } from './materialBlending.ts';
 import * as G from '../host/graph/graph.fixture.ts';
 import { clusterMaterialReason } from '../host/surfaceGate.ts';
@@ -72,4 +73,9 @@ test('the gate and the draws refuse a blending by the same words', () => {
   assert.ok(
     clusterMaterialReason(glass, { position, normal }, true)!.includes(refusal('additive', true)!),
   );
+});
+
+test('only the modes that weigh the source colour by its alpha take that alpha as coverage', () => {
+  assert.deepEqual(BLEND_MODES.filter(weighsByAlpha), ['normal', 'additive']);
+  assert.equal(weighsByAlpha(undefined), false, 'a mode no path draws weighs nothing');
 });
