@@ -49,6 +49,10 @@ origin/develop`, nothing else written there) at start and after every merge you 
 ## Each supervision pass
 
 - **Activity:** every domain with work has a live lead session. A lead session that ended, or stays stuck after a `SendMessage`, is named to the boss with its command (`/t3d-lead <domain>`) to reopen; its state is in GitHub labels. Never two leads on one domain. The `/loop` sessions relaunch themselves.
+- **Open pull requests first, every pass:** a ready one is merged within minutes (age order); one
+  with no push for 20 minutes gets a `SendMessage` to its lead; one whose lead session is gone
+  is named to the boss at once with its command (`/t3d-lead <domain>`). No pull request stays
+  open past the hour of AGENTS.md rule 11.
 - **Flow:** each lead within AGENTS.md §Leads; one lead per issue. Name to each lead its
   green-but-unmerged, red, conflicting or stale PR; merge the ready ones in the order of
   AGENTS.md rule 11.
