@@ -9,8 +9,14 @@ import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFar
 import { INVERSE_PI } from '../shaderConstants.ts';
 import { FOG_WGSL } from '../fogShader.ts';
 
-/** Shadow bindings of the opaque resolve: records and page table, then the request buffer. */
-export const CONTRACT_SHADOW_BINDINGS = { data: 8, requests: 14 };
+/** Shadow bindings of the opaque resolve: records and page table, the request buffer, and the
+ *  transmittance layer's two textures — on the numbers the water composite reads them at too. */
+export const CONTRACT_SHADOW_BINDINGS = {
+  data: 8,
+  requests: 14,
+  transmittance: 18,
+  translucentDepth: 19,
+};
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -28,11 +34,12 @@ const lightingBase = (
   proxyBinding: number,
   shadowBinding: number,
   requestBinding: number | null,
+  transmittanceBinding: number,
 ) => `
 ${DIRECT_LIGHT_WGSL}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
 ${sunFarShadowWgsl(requestBinding !== null)}
-${directShadowWgsl(shadowBinding, requestBinding)}
+${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
 ${FOG_WGSL}
@@ -81,7 +88,7 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * over every light of the tile, character for character.
  */
 export const DIRECT_LIGHTING_WGSL = `
-${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests)}
+${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
 /** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
@@ -111,8 +118,12 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  * With no list — a device that could not fit the tile pass —, the loop falls back on the
  * declared lights, bounded by `MAX_LIGHTS`, a constant known before the frame (X2).
  */
-export const declaredLightingWgsl = (proxyBinding: number, shadowBinding: number) => `
-${lightingBase(proxyBinding, shadowBinding, null)}
+export const declaredLightingWgsl = (
+  proxyBinding: number,
+  shadowBinding: number,
+  transmittanceBinding: number,
+) => `
+${lightingBase(proxyBinding, shadowBinding, null, transmittanceBinding)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  let tilesX=u32(uni.lightTiles.x);
  let tilesY=u32(uni.lightTiles.y);

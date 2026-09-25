@@ -19,7 +19,7 @@ test('deferred resolve samples on a ranked image and walks every light at rank z
     assert.equal(occurrences(shader, HASH_UNIT_WGSL), 1, 'one hash, defined once');
   }
   // The blend pass shades its lights in full: a forward surface has no history to average.
-  assert.equal(occurrences(declaredLightingWgsl(11, 18), 'sampledTileLighting'), 0);
+  assert.equal(occurrences(declaredLightingWgsl(11, 18, 26), 'sampledTileLighting'), 0);
 });
 
 test('the sample budget is the published setting, and a list within it is summed in full', () => {

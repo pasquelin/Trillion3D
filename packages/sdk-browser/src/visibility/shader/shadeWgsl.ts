@@ -82,7 +82,7 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  if(uni.mode==3u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
  if(uni.mode==4u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5),request);}
  if(uni.mode==5u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
- if(uni.mode==6u){let ratio=clamp(page.pad4.x,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
+ if(uni.mode==6u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
  if(uni.mode==7u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
  var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,0.0525,1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.

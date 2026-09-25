@@ -3,6 +3,7 @@
 // arguments. Written apart from its comparison (`transparent-scatter-gpu.ts`), like the
 // other "GPU actually run" kernels.
 import { dansPageWebgpu } from './pageWebgpu.ts';
+import type { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
 
 /** The single dispatch call's argument: one bind group, four buffers to read back none of, and
  * the two words the kernel must produce (`instanceWords`, `argsWords`). */
@@ -17,6 +18,8 @@ export interface EtalementArg {
   scratchWords: number;
   /** Group-0 layout, read from `blendExpandBindEntries`: the page has no module to import it from. */
   layoutEntries: GPUBindGroupLayoutEntry[];
+  /** Group-0 binding of each buffer by WGSL name (`EXPAND_BINDING`), for `namedBufferEntries`. */
+  bindings: typeof EXPAND_BINDING;
   noms: string[];
   lancements: number[];
   uniBytes: number;
@@ -40,27 +43,28 @@ async function dansLaPage(arg: EtalementArg) {
     return buffer;
   };
   const LU = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
-  const uniforms = tampon(arg.uni, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const buffers = [
-    tampon(arg.plan, LU),
-    tampon(arg.keep, LU),
-    tampon(arg.draws, LU),
-    tampon(arg.indirect, LU),
-    tampon(arg.clusters, LU),
-    tampon(new Uint32Array(arg.scratchWords), LU),
-    tampon(new Uint32Array(arg.instanceWords), LU),
-    tampon(new Uint32Array(arg.argsWords), LU),
-  ];
+  // Each buffer under its WGSL name: `namedBufferEntries` lays it at that name's binding.
+  const buffers = {
+    uni: {
+      buffer: tampon(arg.uni, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
+      size: arg.uniBytes,
+    },
+    plan: { buffer: tampon(arg.plan, LU) },
+    keep: { buffer: tampon(arg.keep, LU) },
+    draws: { buffer: tampon(arg.draws, LU) },
+    counts: { buffer: tampon(arg.indirect, LU) },
+    clusters: { buffer: tampon(arg.clusters, LU) },
+    scratch: { buffer: tampon(new Uint32Array(arg.scratchWords), LU) },
+    expanded: { buffer: tampon(new Uint32Array(arg.instanceWords), LU) },
+    args: { buffer: tampon(new Uint32Array(arg.argsWords), LU) },
+  };
   const layout = device.createBindGroupLayout({ entries: arg.layoutEntries });
   const { module, compilation } = await appareil.compile(arg.code);
   if (compilation.length) return { compilation };
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const groupe = device.createBindGroup({
     layout,
-    entries: [
-      { binding: 0, resource: { buffer: uniforms, size: arg.uniBytes } },
-      ...buffers.map((buffer, i) => ({ binding: i + 1, resource: { buffer } })),
-    ],
+    entries: globalThis.namedBufferEntries(arg.bindings, buffers),
   });
   const encoder = device.createCommandEncoder();
   const passe = encoder.beginComputePass();
@@ -77,12 +81,17 @@ async function dansLaPage(arg: EtalementArg) {
     passe.dispatchWorkgroups(arg.lancements[step]);
   }
   passe.end();
-  const relu = [arg.instanceWords, arg.argsWords].map((mots, k) => {
+  const relu = (
+    [
+      [buffers.expanded.buffer, arg.instanceWords],
+      [buffers.args.buffer, arg.argsWords],
+    ] as const
+  ).map(([source, mots]) => {
     const cible = device.createBuffer({
       size: mots * 4,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
-    encoder.copyBufferToBuffer(buffers[6 + k], 0, cible, 0, mots * 4);
+    encoder.copyBufferToBuffer(source, 0, cible, 0, mots * 4);
     return cible;
   });
   device.queue.submit([encoder.finish()]);
