@@ -91,6 +91,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     return bound;
   };
   const release = () => {
+    if (!passes) return; // free already: nothing is allocated for it
     texture?.destroy();
     uniform?.destroy();
     texture = uniform = undefined;

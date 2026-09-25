@@ -35,9 +35,10 @@ export function encodeEffects(
   return output === input ? accumulated : { color: output, share: accumulated?.share };
 }
 
-/** True while the image does not show the chain as it stands: changed since the last image, or
- *  its programs still compiling. */
-export function effectsUnsettled(rt: WebgpuPagesRuntime) {
-  const chain = rt.context.effects;
-  return !!chain && (chain.revision !== rt.gpu.effectsRevision || !!rt.gpu.effects?.loading);
-}
+/** True while the chain's programs compile: a later image will change, with the chain drawn. */
+export const effectsLoading = (rt: WebgpuPagesRuntime) => !!rt.gpu.effects?.loading;
+
+/** True when the page changed the chain since the last encoded image: a held frame would miss it.
+ *  The chain runs after the resolve, so its change leaves the accumulation still. */
+export const effectsMoved = (rt: WebgpuPagesRuntime) =>
+  !!rt.context.effects && rt.context.effects.revision !== rt.gpu.effectsRevision;

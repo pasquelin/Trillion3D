@@ -51,6 +51,7 @@ export function createWebgpuEffects(
     counts = {} as Record<EffectKind, number>,
     nth = {} as Record<EffectKind, number>;
   let failed = false,
+    disposed = false,
     draws = 0,
     width = 0,
     height = 0;
@@ -60,11 +61,14 @@ export function createWebgpuEffects(
     if (failed || pending.has(kind)) return;
     const loaded = WEBGPU_KINDS[kind](device).then(
       (implementation) => {
+        // Arrived after the chain was disposed (a closed session, a lost device): freed, unsaid.
+        if (disposed) return implementation.dispose();
         made[kind] = implementation;
         pending.delete(kind);
         events.ready();
       },
       (error) => {
+        if (disposed) return;
         failed = true;
         pending.delete(kind);
         events.failed(error);
@@ -157,6 +161,7 @@ export function createWebgpuEffects(
       return view;
     },
     dispose() {
+      disposed = true;
       release();
       for (const kind of KINDS) made[kind]?.dispose();
     },
