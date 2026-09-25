@@ -12,6 +12,8 @@ import type { Distribution, PassesGpu } from '../summaryPasses.ts';
 import type { BenchSettings } from '../options.ts';
 import type { Bounds } from '../poses.ts';
 import type { LightsPlan } from '../lamps.ts';
+import type { LimitsProbe } from '../limits.ts';
+import type { FluidsRow } from '../fluids.ts';
 
 /** What `bench.ts` builds before playing series, and `series.ts` reads to run one. */
 export interface RunContext {
@@ -178,5 +180,9 @@ export interface Report {
   errors: ErreurPage[];
   bounds?: Bounds;
   lampes?: LightsSummary | null;
+  /** The browser limits, probed once per run (`limits.ts`). */
+  limits?: LimitsProbe;
+  /** One row per side on the fluids scene (`fluids.ts`). */
+  fluids?: FluidsRow[];
   finishedAt?: string;
 }
