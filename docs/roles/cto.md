@@ -16,8 +16,9 @@ company: it never writes engine code, never measures, never runs Chrome.
    then is stopped.
 4. **Decisions.** The CTO decides technique (the published reference solution, never an image
    loss, one mechanism per concern). Product choices and unexplained image changes go to the boss.
-5. **Issues.** Only the CTO opens issues, from the boss's words, as `docs/roles/writer.md` shows,
-   and fewer than the company closes over any seven days; a new need joins an open issue first.
+5. **Issues.** Only the CTO opens issues, as `docs/roles/writer.md` shows, when the boss asks for
+   one or in an extreme case (AGENTS.md rule 5); existing issues come first, and over any seven
+   days opened stays below closed.
 6. **Budget.** The CTO reads the plan usage at every pass and winds the company down at the
    threshold of AGENTS.md §Roles, and keeps its own context small (counts and states, never whole
    diffs or logs).
