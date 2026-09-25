@@ -3,11 +3,11 @@ import {
   BODY_INDEX,
   ObjectPhysics,
   physicsMatterOf,
-  writeSoft,
   type CommandWriter,
   type CookedSoftBody,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { createPhysicsBodies } from './bodies.ts';
+import { writeSoftBody } from './softBodies.ts';
 import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
 
 /** How far, relatively, a model's scale may stray from the one its soft bodies were cooked at. */
@@ -50,22 +50,15 @@ export function createCookedSoftBodies(
     // Posed again once fetched: the model may have moved meanwhile, and the pose is scratch.
     const { position, quaternion } = tilePose({ model, instance: soft });
     const p = new ObjectPhysics(soft.physics);
-    const matter = physicsMatterOf({ friction: soft.friction, restitution: soft.restitution });
     const id = bodies.claim(0, soft.vertices);
     // Held at once: a throw below still leaves the slot for `forget` to release.
     slots.push(id & BODY_INDEX);
     owners.set(id & BODY_INDEX, model);
-    writeSoft(writer, {
-      ...{ id, position, quaternion, scale: at },
-      // As `addSoftBody` maps a page-built body's (`softBodies.ts`): the node's options win over
-      // the matter its collider declares, as `obj.physics` wins over its material.
-      ...{
-        friction: p.friction ?? matter.friction,
-        restitution: p.restitution ?? matter.restitution,
-      },
-      ...{ gravityScale: p.gravityScale, linearDamping: p.damping.linear },
-      ...{ settings: p.soft!, record: { cooked, pressure: soft.pressure } },
-    });
+    // The collider's matter picked: `physics`, the options, is no preset name here.
+    const matter = physicsMatterOf({ friction: soft.friction, restitution: soft.restitution });
+    const record = { cooked, pressure: soft.pressure };
+    const pose = { position, quaternion, scale: at };
+    writeSoftBody(writer, id, p, matter, pose, record);
     invalidate();
   }
   const forget = (model: Model) => {
