@@ -12,8 +12,8 @@ this machine.
    the queue fills.
 4. A feature = a live example. On each merged batch that adds or changes something visible:
    capture its example (still + a short camera move) and post them on the issue for the
-   acceptance agent to judge; missing thumbnail → your thumbnail PR (`Part of #n`, a
-   `## Local review before push` saying "Thumbnail only").
+   acceptance agent to judge. Its thumbnail joins the stint's one thumbnail pull request
+   (`docs/roles/measurer.md` steps 6 and 7).
 5. Measure against the budgets of #483 (frame, main thread, GPU, shadows, memory): what is slow
    or out of budget reopens its issue with `measure ko` and the numbers.
 6. Report to the CTO, not the boss, in your final message, one line per measured issue,
