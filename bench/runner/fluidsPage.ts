@@ -98,12 +98,10 @@ export async function measureFluids({
   // A lost context is published where the bench rereads it (`withGpuIncidents`).
   const lost: string[] = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'));
-  const world = sdk.createWorld(canvas, {
-    renderer,
-    interactive: false,
-    physics: true,
-    temporalAntialiasing,
-  });
+  // The world leads its own loop, as every physics example does: a host-led `world.render()`
+  // never runs the frame's physics (`world.ts`: only the loop's `beforeFrame` steps it), so its
+  // bodies would never reach the worker.
+  const world = sdk.createWorld(canvas, { renderer, physics: true, temporalAntialiasing });
   try {
     await world.ready;
     world.scene.background = sdk.math.color('#9cc3d9');
@@ -116,6 +114,12 @@ export async function measureFluids({
     world.physics.water = scene.water;
     world.scene.add(...floatingMeshes(sdk, scene.bodies));
     const flicker = standIns(sdk, world, scene);
+    // Every frame flickers the fires and asks for the next one: the loop never rests.
+    let ahead = 0;
+    world.beforeFrame(() => {
+      flicker(ahead++);
+      world.invalidate();
+    });
     // Jolt is fetched on first use: the warmup counts from the frame every body is simulated.
     // `bodies` counts what the page registered, `active` comes only with a worker tick; `stats`
     // is reread each frame, the session that holds it starting after the first frames.
@@ -125,7 +129,6 @@ export async function measureFluids({
         throw new Error(
           `${stats().bodies} bodies, ${stats().active} awake: ${world.physics.error}`,
         );
-      world.render();
       await nextFrame();
     }
     const result = {
@@ -136,28 +139,34 @@ export async function measureFluids({
       physicsStepMs: [] as number[],
       physicsMainMs: [] as number[],
     };
-    let previous: number | null = null;
+    let previous: number | null = null,
+      drawn = 0;
     // A WebGPU device lost mid-run reopens the session without an event on the canvas.
     const sessions = world.diagnostic.sessions;
-    for (let i = 0; i < warmup + frames; i++) {
-      const now = await nextFrame();
-      flicker(i);
-      world.render();
-      if (i < warmup) continue;
-      if (previous !== null) result.rafIntervalMs.push(now - previous);
-      previous = now;
-      const frame = sdk.metric.frame(world);
-      result.cpuFrameMs.push(frame.cpuFrameMs);
-      const sample = frame.gpuPassMs;
-      // The device is sampled every few frames: one reading per sampled frame, not per render.
-      if (sample && sample.frame !== result.gpuPassSamples.at(-1)?.frame) {
-        result.gpuPassSamples.push(sample);
-        if (typeof frame.gpuFrameMs === 'number') result.gpuFrameMs.push(frame.gpuFrameMs);
-      }
-      const { stepMs, mainMs } = stats();
-      result.physicsStepMs.push(stepMs);
-      result.physicsMainMs.push(mainMs);
-    }
+    await new Promise<void>((done) => {
+      const remove = world.onFrame(() => {
+        if (++drawn <= warmup) return;
+        // The interval between two frames the world's loop drew: the frame envelope.
+        const now = performance.now();
+        if (previous !== null) result.rafIntervalMs.push(now - previous);
+        previous = now;
+        const frame = sdk.metric.frame(world);
+        result.cpuFrameMs.push(frame.cpuFrameMs);
+        const sample = frame.gpuPassMs;
+        // The device is sampled every few frames: one reading per sampled frame, not per render.
+        if (sample && sample.frame !== result.gpuPassSamples.at(-1)?.frame) {
+          result.gpuPassSamples.push(sample);
+          if (typeof frame.gpuFrameMs === 'number') result.gpuFrameMs.push(frame.gpuFrameMs);
+        }
+        const { stepMs, mainMs } = stats();
+        result.physicsStepMs.push(stepMs);
+        result.physicsMainMs.push(mainMs);
+        if (drawn === warmup + frames) {
+          remove();
+          done();
+        }
+      });
+    });
     const shot = await sdk.capture.buffer(world, { width, height });
     await posterCapture(captureFile, shot.data, shot.width, shot.height);
     if (world.diagnostic.sessions !== sessions)
