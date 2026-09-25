@@ -8,13 +8,14 @@
  *  finest level no side of which exceeds `PREVIEW_BASE` down to 1×1 — and, above it, one lossless
  *  PNG per level in the cache, `bakedLevels` of them from level 0 up. Every level follows the mip
  *  rule the card applied when it regenerated the chain itself (`packages/sdk-browser/src/texture/mips.ts`): linear mean of
- *  the colours, median alpha, level `k` from the quantized level `k - 1`. Their sizes are not
+ *  the colours, weighted by alpha in the colour atlas, median alpha, level `k` from the quantized level `k - 1`. Their sizes are not
  *  written down: they follow from the source dimensions, which `previewLevels.ts` recomputes.
  *  Version 4 bakes every level above the tail, and the tail itself, in the block families the cook
  *  asked for beside the lossless files — the BC family for desktop cards, ASTC 4×4 for mobile ones,
  *  one byte per texel — for the chains a quality gate kept; a chain under the bar stays lossless
- *  in that family, and its entry's layout word says so. */
-export const TEXTURE_PREVIEW_VERSION = 4;
+ *  in that family, and its entry's layout word says so. Version 5 weighs the colours of the
+ *  colour atlas by their alpha (#42), in the same layout. */
+export const TEXTURE_PREVIEW_VERSION = 5;
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,
