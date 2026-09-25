@@ -144,3 +144,11 @@ test('`lightsSampled` is true only on a moving accumulated frame whose resolve r
   temporal.frame.sampledRank = 0;
   assert.equal(metricsOf(rt).lightsSampled, false, 'a still frame shades every light');
 });
+
+// #349: the effect chain's targets count in the frame target bytes, like the frame's own.
+test('the targets of the effect chain count in gpuFrameTargetBytes', () => {
+  const gpu = { positionBuffers: new Map(), targetBytes: 1000, effects: { bytes: 24 } };
+  assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), gpu)).gpuFrameTargetBytes, 1024);
+  const bare = { positionBuffers: new Map(), targetBytes: 1000 };
+  assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), bare)).gpuFrameTargetBytes, 1000);
+});

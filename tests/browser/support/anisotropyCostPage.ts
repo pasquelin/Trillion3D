@@ -9,7 +9,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { batisseur, engine, libere } from './sharedSceneProof.ts';
 import { canvasMap } from './materialImages.ts';
 import type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { median } from '../../kit/median.ts';
+import { median } from '../../../scripts/median.ts';
 import type * as SdkBrowser from '../../../packages/sdk-browser/src/measurement/measurement.ts';
 
 /** Half side of the floor, in scene units: the far edge reaches the horizon of the view. */

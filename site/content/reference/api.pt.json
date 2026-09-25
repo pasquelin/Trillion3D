@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Como uma superfície se mistura com o que está atrás dela, por nome."
   },
+  "Bloom": {
+    "summary": "Luz que transborda em volta do que é brilhante, como uma lente a espalha.",
+    "description": "Com base física: atua na radiância linear da cena, antes do tone mapping, sem limiar, e conserva a energia — o brilho é uma cópia desfocada da imagem misturada a ela, então a luz total continua a mesma.",
+    "parameters": {
+      "options": "O que uma página pode passar para `effect.bloom`.",
+      "options.intensity": "Parte da imagem substituída pelo seu brilho, de 0 (nenhuma) a 1 (só o brilho).",
+      "options.radius": "Espalhamento do brilho em cada nível, em texels desse nível; 1 é o filtro publicado."
+    },
+    "members": {
+      "kind": "Qual passe embutido é este.",
+      "stage": "Se ele roda antes ou depois do tone mapping.",
+      "intensity": "Parte da imagem substituída pelo seu brilho, de 0 a 1.",
+      "radius": "Espalhamento do brilho em cada nível, em texels desse nível; acima de 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "O que uma página pode passar para `effect.bloom`.",
+    "members": {
+      "intensity": "Parte da imagem substituída pelo seu brilho, de 0 (nenhuma) a 1 (só o brilho).",
+      "radius": "Espalhamento do brilho em cada nível, em texels desse nível; 1 é o filtro publicado."
+    }
+  },
   "BounceBudget": {
     "summary": "Orçamento de rebote em milissegundos.",
     "description": "A especificação exige uma duração de tempo, não uma contagem fixa de raios: a taxa de quadros permanece constante, enquanto a luz converge progressivamente. O motor recebe uma duração alvo de quadro, mede marcas de tempo de GPU do passo de rebote, e ajusta dinamicamente a fração da carga de trabalho codificada em seguida. O ajuste é suavizado e limitado: a fração nunca excede 1 (os tetos publicados permanecem limites superiores rígidos) e nunca cai abaixo do piso (garantindo progresso na convergência).",
@@ -242,6 +264,13 @@
       "boxes": "`6 · n` números: caixas de entrada, `minX, minY, minZ, maxX, maxY, maxZ` por elemento.",
       "mats": "`16 · n` números: matrizes em ordem de coluna.",
       "out": "`6 · n` números: caixas transformadas."
+    }
+  },
+  "BudgetCanvas": {
+    "summary": "A maior tela que um orçamento declara: os alvos da cadeia de efeitos são reservados no seu tamanho.",
+    "members": {
+      "width": "Largura em pixels do buffer de desenho.",
+      "height": "Altura em pixels do buffer de desenho."
     }
   },
   "BufferAttribute": {
@@ -842,6 +871,33 @@
     "summary": "Esquema JSON abrangente documentando todas as opções de inicialização do explorador Trillion3D (MeasuredWorldOptions).",
     "description": "Permite que LLMs entendam, validem e ajustem a configuração do motor 3D."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: os passes ordenados desenhados sobre a imagem depois do antialiasing temporal e antes de ela chegar ao canvas.",
+    "description": "Os passes antes do tone mapping leem a radiância linear, na ordem em que foram adicionados; os depois leem a imagem exibida, na deles. Uma cadeia vazia não custa nada: nenhum passe, nenhuma cópia, nenhum alvo.",
+    "members": {
+      "revision": "Conta as mudanças: uma imagem desenhada em outra revisão está desatualizada.",
+      "passes": "Os passes, na ordem em que rodam.",
+      "size": "Quantos passes a cadeia contém.",
+      "add": "Coloca um passe na cadeia, no fim ou em `index`. Um passe pertence a uma cadeia por vez.",
+      "remove": "Tira um passe da cadeia; false se ele não estava nela.",
+      "clear": "Tira todos os passes: a imagem volta a ser a sem a cadeia.",
+      "stage": "Os passes de uma etapa, na ordem da cadeia: a lista que um motor executa. Mantida de uma mudança a outra, para que um quadro não aloque nada."
+    }
+  },
+  "EffectKind": {
+    "summary": "Os passes embutidos que um motor sabe desenhar."
+  },
+  "EffectPass": {
+    "summary": "Um passe da cadeia.",
+    "description": "Um passe diz qual passe embutido é e onde roda; seus ajustes são propriedades cuja escrita chega ao mundo na hora, como as de uma luz.",
+    "members": {
+      "kind": "Qual passe embutido é este.",
+      "stage": "Se ele roda antes ou depois do tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Onde um passe fica em relação à curva de exibição: na radiância linear da cena, antes que a exposição e a curva a levem à faixa de exibição, ou na imagem exibida que elas produziram."
+  },
   "EngineCamera": {
     "summary": "A câmera do motor: os números de um quadro, em buffers próprios reescritos no lugar.",
     "description": "Nenhuma estrutura de biblioteca de host atravessa uma assinatura a jusante de `readCameraWorld` (`world.ts`, a única tradução a partir de uma câmera de host).",
@@ -1069,7 +1125,7 @@
       "gpuFrameMs": "Duração de GPU da imagem que `gpuPassMs.frame` descreve. Nunca somado a um campo `cpu*`. O dispositivo é amostrado a cada poucas imagens, por isso um número pode datar de algumas imagens atrás. Null antes da primeira amostra, desde uma imagem retida até a próxima amostra do dispositivo, num dispositivo sem `timestamp-query` e no WebGL2.",
       "gpuHostGapMs": "Tempo de CPU que a mesma imagem passou entre dois de seus próprios envios, e zero quando envia uma vez. É tempo de host, não tempo de GPU, por isso `gpuFrameMs` o exclui. Nulo quando não medido.",
       "uncoveredTriangles": "Triângulos de clusters que o corte publicado nomeia, mas que o quadro não consegue desenhar — sem página residente e sem ancestral que os cubra. Um buraco real na imagem: zero é o único valor saudável. Nulo quando um backend não consegue dizer (ele desenha o corte que selecionou, então nunca tem um).",
-      "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados, menos os clusters sem página residente que `uncoveredTriangles` conta. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado no mesmo passo que `uncoveredTriangles`, na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`. Relação de cobertura esperada nesta amostra: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`.",
       "cpuSelectMs": "Tempo de CPU do corte de clusters deste quadro, medido apenas ao redor da seleção. Nulo em um motor que não escolhe seu corte na CPU.",
       "gpuSelectionFallback": "Verdadeiro quando o motor tinha uma seleção de GPU e a abandonou: o que é medido desde então é o corte de fallback na CPU. Um fallback também emite o diagnóstico `gpu-selection-fallback`, uma vez; o host o copia como está, e ele está ausente de um motor sem seleção de GPU.",
       "cpuSelectNodesTested": "Nós de hierarquia sobre os quais o corte deste quadro fez um teste — decisão de frustum ou de nível de detalhe. Um nó já decidido e totalmente visível não recebe nenhum: ele é percorrido, não testado. Esta é a medida do trabalho real de um corte hierárquico; um corte plano testa zero deles e percorre cada cluster. Nulo em um motor que não escolhe seu corte na CPU, ou que não o conta.",
@@ -1396,7 +1452,8 @@
       "toneMapping": "A curva de exibição que a cena escolheu; ACES quando ausente.",
       "framebuffer": "Onde desenhar; `null` para a tela.",
       "width": "Largura em pixels.",
-      "height": "Altura em pixels."
+      "height": "Altura em pixels.",
+      "linear": "Radiância linear, sem curva nem codificação, sobre preto transparente: a entrada da cadeia de efeitos, cujo alfa é a cobertura."
     }
   },
   "HostMaterial": {
@@ -1566,9 +1623,6 @@
       "tileSize": "Lado em pixels de um ladrilho de tela da lista de luzes.",
       "samplesPerPixel": "Luzes sombreadas por completo — leitura de sombra incluída — por pixel de uma imagem EM MOVIMENTO (X2): as outras são pesadas sem sua sombra, e as sombreadas são desenhadas em proporção, então a estimativa é não enviesada e o antisserrilhamento temporal a faz convergir. Uma imagem parada sombreia toda luz do seu ladrilho e converge para a soma exata; ali, esse número não tem papel nenhum.",
       "shadowPage": "Lado de uma página de sombra, em texels: a unidade do pool físico, dos mapas virtuais e da invalidação. Um objeto em movimento só invalida as páginas que a sua caixa projetada cobre.",
-      "shadowBudgetMs": "Orçamento da etapa de sombras, em milissegundos de GPU por quadro (X4, RX3). Páginas invalidadas além disso esperam sua vez; nunca são perdidas, e seu atraso é publicado.",
-      "shadowAgingPerFrame": "Peso da espera na prioridade de uma página, por quadro passado na fila: contra a inanição.",
-      "shadowCostBlend": "Fração da amostra de um quadro no custo médio de uma página: suavização exponencial do cronômetro.",
       "pcfTaps": "Amostras PCF por pixel e por luz com sombra (X2).",
       "spotEdgeSoftness": "Largura da borda suavizada de um cone de spot, em unidades de cosseno: contra o serrilhado.",
       "sunFarShadowOffsetMetres": "Deslocamento da origem do raio de sombra distante ao longo da normal, em metros. Só serve para deixar o plano da superfície iluminada; o remédio real contra autossombreamento é o início ao longo do raio, abaixo.",
@@ -1579,7 +1633,7 @@
       "shadowNearFraction": "Plano próximo de um recorte: uma fração do alcance, nunca menor que esse piso.",
       "shadowNearMin": "Distância de sombra mais próxima.",
       "shadowNormalOffsetTexels": "Deslocamento do ponto de amostra ao longo da normal, em texels de recorte. É o que fecha a costura entre duas faces de uma luz pontual e remove a acne rasante; está em texels e não em metros para permanecer proporcional à resolução que a luz obteve.",
-      "shadowPagesPerFrame": "Páginas de sombra desenhadas no máximo por quadro: o teto do buffer, nunca um ajuste de qualidade. O orçamento em milissegundos quase sempre para antes; este teto é apenas um limite último, e o único num dispositivo sem relógio de GPU.",
+      "shadowPagesPerBatch": "Páginas de sombra que um lote de GPU desenha: o tamanho dos buffers de um lote, nunca um limite do quadro. Um quadro desenha cada página que marca, em tantos lotes quantos forem precisos.",
       "lampFaceSize": "Lado do mip mais fino de uma face de lâmpada, em texels: 32 × 32 páginas de 128 (o pool: `shadowPoolSide`).",
       "shadowRequestCap": "Páginas virtuais que o sombreamento pode pedir por quadro; o resto pede de novo no quadro seguinte.",
       "sunLevels": "Níveis de clipmap de uma luz direcional. O nível `L` tem texels de `2^L` metros, e um pixel lê o nível cujo texel não passa da sua própria pegada: dezesseis níveis cobrem uma razão longe/perto de 2^15. Além do último nível, a sombra distante assume.",
@@ -3076,21 +3130,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "O trabalho de sombras do quadro: que páginas virtuais são desenhadas e quais esperam.",
+    "summary": "O trabalho de sombra do quadro: quais páginas virtuais são desenhadas.",
     "members": {
-      "budget": "O orçamento em milissegundos da etapa Sombras e o custo medido de uma página.",
       "counts": "O que o último plano fez, em páginas.",
       "worldChanged": "Um nó moveu-se: a sua caixa invalida as páginas que cobre no plano seguinte.",
       "representationChanged": "O mesmo mundo com outra precisão: a sua caixa espera que a câmera pare.",
       "resting": "A câmera estava em repouso no último plano: sua vista era a do plano anterior.",
       "deferredChanges": "Verdadeiro enquanto uma mudança de representação espera que a câmera pare.",
       "releaseDeferred": "O quadro não planeja nenhuma sombra: as caixas retidas entram na lista de imediato.",
-      "observeCost": "Temporizador do passe Sombras de um quadro, repartido pelas páginas que desenhou.",
-      "setBudgetMs": "Orçamento publicado pelo anfitrião, em milissegundos de GPU por quadro.",
       "setPageInvalidation": "Desliga a invalidação por página: um objeto em movimento invalida todas as páginas das luzes que toca. Ligada por padrão.",
       "pageInvalidation": "Se um objeto em movimento invalida apenas as páginas que a sua caixa cobre.",
-      "plan": "Planeja um quadro: invalida o que se moveu, lê o último relatório, admite as páginas a desenhar.",
-      "reissue": "As páginas do quadro não puderam ser codificadas: continuam invalidadas e esperam pelo quadro seguinte.",
+      "plan": "Planeja um quadro: invalida o que se moveu, lê o último relatório, admite cada página a desenhar.",
+      "reissue": "As páginas do quadro a partir de `from` não puderam ser codificadas: continuam obsoletas, pendentes, e o quadro seguinte as desenha.",
       "reset": "Recomeça.",
       "setThreshold": "O limiar em que os cortes de luz escolhem os projetores de sombra (`thresholds.ts`).",
       "table": "A tabela de páginas: uma palavra por página virtual, e o intervalo que cada luz ocupa nela.",
@@ -3098,11 +3149,11 @@
       "sun": "O clipmap de cada sol: o seu referencial, intervalo de profundidade, nível mais fino e extensões.",
       "records": "As fatias de sombra, uma por luz que projeta sombra.",
       "requests": "Os relatórios de pedidos lidos de volta: o que o último nomeou, alocou ou recusou.",
-      "admission": "As páginas deste quadro, em ordem de admissão.",
+      "admission": "As páginas deste quadro, vista de luz por vista de luz.",
       "stamp": "O que o sombreamento, as luzes e a vista entregam à imagem seguinte: um relatório carimbado com ele que não nomeia nada novo prova que a imagem só lê o que está desenhado.",
       "settled": "Verdadeiro quando um relatório prova que o estado atual não pede nada: a imagem pode ser mantida.",
       "receive": "Voltou um relatório de pedidos; o plano seguinte o lê. Um mais recente substitui um não lido.",
-      "commit": "As páginas do quadro foram codificadas, cada uma na sua entrada `modes`: os seus desenhos chegam antes de algo as ler."
+      "commit": "As páginas `[from, to)` da lista do quadro foram codificadas, a página `from + i` em `modes[i]`: seus desenhos chegam antes que alguém as leia. O último lote fecha a lista."
     }
   },
   "ShadowViewpoint": {
@@ -3969,6 +4020,9 @@
     "summary": "Antisserrilhado temporal: deslocamento subpixel acumulado entre imagens; ativado por padrão.",
     "description": "Escrito, tem efeito na imagem seguinte, histórico descartado, sem reabrir a sessão. Lido, é o que a imagem carrega: false no WebGL2, e enquanto o programa compila depois de ativado."
   },
+  "world.effects": {
+    "summary": "A cadeia de efeitos: passes desenhados sobre a imagem (`effect`)."
+  },
   "world.budget": {
     "summary": "Os pools de memória do mundo, lidos e definidos em bytes.",
     "members": {
@@ -3979,8 +4033,9 @@
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
       "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo do reservatório de sombras é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina.",
+      "canvas": "O maior canvas que o mundo declara, em pixels do buffer de desenho: os alvos da cadeia de efeitos são reservados no seu tamanho (`split.effectTargets`); 3840 × 2160 por omissão, e o `gpu` por omissão só cresce dessa reserva. Defina-o para redistribuir cada reservatório pela regra. Um canvas desenhado maior continua a ser renderizado inteiro: os diagnósticos dizem `effect targets over budget` com os bytes além da reserva.",
       "cpu": "Bytes de memória CPU que o mundo pode ocupar: primeiro o espelho no host da tabela de páginas de sombra, depois as páginas decodificadas, suas tabelas de manifesto, sua fila de transferências e as tabelas de corte do motor juntas. Uma mudança se aplica na hora: as páginas saem por último uso até caberem. Um total que não excede o espelho é recusado (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca lido da máquina.",
-      "split": "Como os dois totais são divididos: o reservatório de sombras e as sondas de ressalto no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o espelho no host da tabela de sombras, depois o cache de páginas decodificadas fica com o resto do total de CPU, inteiro, e dentro dele a sessão em curso reserva as suas tabelas de manifesto, a sua fila de transferências e as tabelas de corte do motor. O que a regra dá, antes de um reservatório definido sozinho."
+      "split": "Como os dois totais são divididos: o reservatório de sombras e as sondas de ressalto no máximo, os alvos da cadeia de efeitos no `canvas` declarado, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o espelho no host da tabela de sombras, depois o cache de páginas decodificadas fica com o resto do total de CPU, inteiro, e dentro dele a sessão em curso reserva as suas tabelas de manifesto, a sua fila de transferências e as tabelas de corte do motor. O que a regra dá, antes de um reservatório definido sozinho."
     }
   },
   "world.diagnostic": {
@@ -4078,7 +4133,7 @@
       "gpuFrameMs": "Duração de GPU da imagem que `gpuPassMs.frame` descreve. Nunca somado a um campo `cpu*`. O dispositivo é amostrado a cada poucas imagens, por isso um número pode datar de algumas imagens atrás. Null antes da primeira amostra, desde uma imagem retida até a próxima amostra do dispositivo, num dispositivo sem `timestamp-query` e no WebGL2.",
       "gpuHostGapMs": "Tempo de CPU que a mesma imagem passou entre dois de seus próprios envios, e zero quando envia uma vez. É tempo de host, não tempo de GPU, por isso `gpuFrameMs` o exclui. Nulo quando não medido.",
       "uncoveredTriangles": "Triângulos de clusters que o corte publicado nomeia, mas que o quadro não consegue desenhar — sem página residente e sem ancestral que os cubra. Um buraco real na imagem: zero é o único valor saudável. Nulo quando um backend não consegue dizer (ele desenha o corte que selecionou, então nunca tem um).",
-      "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados, menos os clusters sem página residente que `uncoveredTriangles` conta. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado no mesmo passo que `uncoveredTriangles`, na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`. Relação de cobertura esperada nesta amostra: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`.",
       "cpuSelectMs": "Tempo de CPU do corte de clusters deste quadro, medido apenas ao redor da seleção. Nulo em um motor que não escolhe seu corte na CPU.",
       "gpuSelectionFallback": "Verdadeiro quando o motor tinha uma seleção de GPU e a abandonou: o que é medido desde então é o corte de fallback na CPU. Um fallback também emite o diagnóstico `gpu-selection-fallback`, uma vez; o host o copia como está, e ele está ausente de um motor sem seleção de GPU.",
       "cpuSelectNodesTested": "Nós de hierarquia sobre os quais o corte deste quadro fez um teste — decisão de frustum ou de nível de detalhe. Um nó já decidido e totalmente visível não recebe nenhum: ele é percorrido, não testado. Esta é a medida do trabalho real de um corte hierárquico; um corte plano testa zero deles e percorre cada cluster. Nulo em um motor que não escolhe seu corte na CPU, ou que não o conta.",
@@ -4440,7 +4495,7 @@
     "description": "`memory(world)` é o que o mundo guarda agora (`world.budget`); os dois pools constroem a configuração que um mundo recebe."
   },
   "budget.memory": {
-    "summary": "Os orçamentos de memória que um mundo tem agora: os totais de GPU e CPU, a sua divisão pela regra, os dois reservatórios e o máximo de cada um."
+    "summary": "Os orçamentos de memória que um mundo tem agora: os totais de GPU e CPU, a sua divisão pela regra, os dois reservatórios e o máximo de cada um, e o canvas em que os alvos de efeitos são reservados."
   },
   "budget.geometryPool": {
     "summary": "Uma configuração de pool de geometria de `bytes`, pronta para entregar a um mundo.",
@@ -4737,7 +4792,7 @@
   },
   "createShadowPlan": {
     "summary": "O escalonador de sombras dos mapas virtuais.",
-    "description": "O sombreamento registra as páginas que lê; o seu relatório, lido de volta quadros depois, aloca do pool fixo o que falta. O que se moveu invalida as páginas mapeadas que cobre. Um quadro desenha então as páginas invalidadas que a imagem lê — as grossas primeiro, até um orçamento em milissegundos —, e o resto espera, nunca perdido, com o seu atraso publicado. Uma cena parada, cujo sombreamento já não corre, não pede nada e não desenha nada. Todos os arrays são alocados uma vez; `plan()` não aloca nada."
+    "description": "O sombreamento anota as páginas que lê; seu relatório, relido alguns quadros depois, aloca o que falta do pool fixo. O que se moveu invalida as páginas alocadas que cobre. Um quadro desenha então cada página obsoleta que a imagem lê, todas nesse quadro: o que segura o custo é o cache — uma página só é redesenhada quando o que ela contém mudou —, e o pool é o único limite. Uma cena parada, cujo sombreamento não roda mais, não pede nada e não desenha nada. Todos os arrays são alocados uma vez; `plan()` não aloca nada."
   },
   "createTerminalProgress": {
     "summary": "Uma barra de progresso no terminal que segue os eventos do compilador.",
@@ -4864,6 +4919,17 @@
   },
   "edge": {
     "summary": "Função de aresta 2D (produto vetorial 2D)."
+  },
+  "effect": {
+    "summary": "A família `effect`: os passes que `world.effects` desenha sobre a imagem."
+  },
+  "effect.bloom": {
+    "summary": "Um brilho em volta do que é brilhante, na imagem linear antes do tone mapping.",
+    "parameters": {
+      "options": "`intensity` e `radius`; os valores publicados quando ausentes.",
+      "options.intensity": "Parte da imagem substituída pelo seu brilho, de 0 (nenhuma) a 1 (só o brilho).",
+      "options.radius": "Espalhamento do brilho em cada nível, em texels desse nível; 1 é o filtro publicado."
+    }
   },
   "emptyIrradiance": {
     "summary": "Uma irradiância sem nada dentro, pronta para receber fontes."
@@ -6906,7 +6972,8 @@
       "recipe": "O membro da família e cada argumento com que ela foi construída.",
       "attributes": "Cada lista por vértice, quando nenhuma chamada reconstrói a forma.",
       "index": "Quais vértices formam cada triângulo.",
-      "groups": "Intervalos de índices desenhados cada um com um material."
+      "groups": "Intervalos de índices desenhados cada um com um material.",
+      "owner": "`'host'` para os vértices de uma cena carregada, lidos pelo seu valor (`Geometry._owner`); ausente para os do mundo."
     }
   },
   "SavedMaterial": {

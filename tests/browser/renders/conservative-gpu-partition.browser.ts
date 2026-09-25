@@ -18,7 +18,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { empaquetePage } from '../probes/pageWebgpu.ts';
-import { startServer, serverPort } from '../../kit/server/staticServer.ts';
+import { startServer } from '../../kit/server/staticServer.ts';
 import { ASSETS, DEFAULT_SCENE, assetsManifest } from '../../../bench/runner/scene.ts';
 import { poseAt } from '../../../bench/runner/poses.ts';
 
@@ -75,8 +75,7 @@ const mounts = [
   { prefix: '/sdk/', dir: join(ROOT, 'dist') },
 ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
 
-const server = await startServer({ port: 0, mounts, captures: new Map() });
-const port = serverPort(server);
+const { server, port } = await startServer({ mounts });
 const browser = await launchChrome({ headless: true });
 let resultat;
 const erreursPage: string[] = [];

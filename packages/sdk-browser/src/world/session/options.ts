@@ -113,6 +113,8 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
+  /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
+  effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
@@ -135,9 +137,6 @@ export interface MeasuredWorldOptions {
    *  frame to split its duration, and therefore renders an image different from production.
    *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
-  /** Shadows-step budget, in GPU milliseconds per frame. 1.0 by default: invalidated pages
-   *  beyond that wait their turn, never lost, their lag published. */
-  shadowBudgetMs?: number;
   /** Page-by-page shadow-map invalidation. On by default; `false` restarts the whole face
    *  as soon as an object moves in its range, as before the virtualized-shadows batch. */
   shadowPageInvalidation?: boolean;

@@ -6,6 +6,7 @@
  */
 import { boxEmpty, boxExpandByPoint } from '../../math/primitives/box.ts';
 import type { VertexAttribute } from '../buffer/attribute.ts';
+import type { Geometry } from './geometry.ts';
 import { Box3 } from '../math/box3.ts';
 import { Vector3 } from '../math/vector3.ts';
 import type { Sphere } from '../math/volumes.ts';
@@ -118,6 +119,26 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
   sphere.radius = Math.sqrt(far);
   return sphere;
 }
+
+/** Whether `geometry` reads `attribute` as its stored numbers, a normalised integer unscaled: a
+ *  list a world geometry owns, as the world has always drawn, edged and turned it. A host
+ *  geometry's lists are read at the value they stand for, as the host always read them, and so
+ *  is a view of an interleaved buffer, as `readPoints` and `spanBox` read it. Not asked for the
+ *  drawn positions, the box or a moved position list: an owned one is read as stored for every
+ *  owner. */
+export const readsStored = (geometry: Pick<Geometry, '_owner'>, attribute: VertexAttribute) =>
+  geometry._owner === 'world' && attribute.kind === 'attribute';
+
+/** Number `component` of vertex `index` of `attribute` as `geometry` reads it (`readsStored`). */
+export const readComponent = (
+  geometry: Pick<Geometry, '_owner'>,
+  attribute: VertexAttribute,
+  index: number,
+  component: number,
+) =>
+  readsStored(geometry, attribute)
+    ? attribute.stored(index, component)
+    : attribute.getComponent(index, component);
 
 /** The positions as a list of numbers: the stored array itself when the attribute owns it, as the
  *  world's geometry has always been drawn; an interleaved one copied vertex by vertex, three per

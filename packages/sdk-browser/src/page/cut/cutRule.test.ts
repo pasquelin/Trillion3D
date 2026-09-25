@@ -1,8 +1,9 @@
 // One cut rule per cluster (#486): on a synthetic DAG whose pages leave at random, every backend
 // covers every leaf exactly once, by the cluster it wants or by that cluster's nearest resident
 // ancestor — never coarser, and never a whole primitive coarsened for one missing page. The kernel
-// model runs twice: with the TypeScript rule, and with the kernel's own WGSL text run in Node. The
-// CPU cut and the WebGL2 image's cut run the same rule on the same DAG.
+// model runs twice: with the TypeScript rule, and with the kernel's own `dagMask` call site run in
+// Node on the residency bits its host uploads. The CPU cut and the WebGL2 image's cut run the same
+// rule on the same DAG (#483 rules 1, 2 and 8).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { coverFault, ruleDag, type RuleDag } from './cutRule.fixture.ts';
@@ -14,93 +15,18 @@ import {
   wgslBackend,
   type CutBackend,
 } from './cutRuleBackends.fixture.ts';
-import { CUT_RULE_WGSL } from './rule.ts';
-import { createCutReadiness } from './readiness.ts';
+import { DEVELOP_FULL_CUT, ruleChecks } from './cutRuleChecks.fixture.ts';
 
 const THRESHOLD = 0.1;
 const dag = ruleDag(256);
 const backends: Record<string, (dag: RuleDag, threshold: number) => CutBackend> = {
   'GPU kernel model': oracleBackend,
-  'GPU kernel WGSL rule': wgslBackend,
+  'GPU kernel WGSL call site': wgslBackend,
   'CPU cut': cpuBackend,
   'WebGL2 cut': webgl2Backend,
 };
 
-/** A reproducible sequence in [0, 1). */
-function random(seed: number) {
-  let s = seed >>> 0;
-  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
-}
-
-const isRoot = (page: number) => dag.pages[page].group === null;
-
-/** The cluster covering unit `u` one level above `page`: the output of its group that holds `u`. */
-function parentAt(page: number, u: number) {
-  const g = dag.pages[page].group!,
-    s = dag.structure;
-  for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
-    const [a, b] = dag.pages[s.outputs[i]].units;
-    if (a <= u && u < b) return s.outputs[i];
-  }
-  throw new Error(`no parent of ${page} covers ${u}`);
-}
-
-/** For each leaf unit, the cluster the rule must draw there: the wanted one, or its nearest
- *  ancestor the cut rule's residency holds. */
-function expectedAt(wanted: number[], ready: Uint8Array) {
-  const at = new Int32Array(dag.leaves);
-  for (const w of wanted) {
-    const [a, b] = dag.pages[w].units;
-    for (let u = a; u < b; u++) {
-      let c = w;
-      while (!ready[c]) c = parentAt(c, u);
-      at[u] = c;
-    }
-  }
-  return at;
-}
-
-function readinessOf(resident: Uint8Array) {
-  const r = createCutReadiness(dag.structure, dag.culling.links, dag.pages.length, 1);
-  resident.forEach((v, page) => r.set(page, v === 1));
-  r.settle();
-  return r.ready;
-}
-
-/** The three invariants, on one frame. */
-function check(name: string, cut: { drawn: number[]; wanted: number[] }, resident: Uint8Array) {
-  assert.equal(coverFault(dag, cut.drawn), -1, `${name}: a leaf is not covered exactly once`);
-  const expected = expectedAt(cut.wanted, readinessOf(resident));
-  for (const page of cut.drawn) {
-    const [a, b] = dag.pages[page].units;
-    for (let u = a; u < b; u++)
-      assert.equal(page, expected[u], `${name}: unit ${u} drawn by ${page}, not ${expected[u]}`);
-  }
-}
-
-const full = () => new Uint8Array(dag.pages.length).fill(1);
-
-/** Forty frames, pages removed at random, the three invariants checked on each. */
-function randomFrames(cut: CutBackend) {
-  const next = random(486);
-  for (let frame = 0; frame < 40; frame++) {
-    const keep = 0.3 + 0.6 * next();
-    const resident = full().map((_, p) => (isRoot(p) || next() < keep ? 1 : 0));
-    check(`frame ${frame}`, cut(resident), resident);
-  }
-}
-
-test('the WGSL run is the kernel text: a rule that forgets the missing finer group opens holes', () => {
-  const forgets = CUT_RULE_WGSL.replace(
-    '(ownPixels<=threshold||!childResident)',
-    'ownPixels<=threshold',
-  );
-  assert.notEqual(forgets, CUT_RULE_WGSL);
-  assert.throws(
-    () => randomFrames(wgslBackend(dag, THRESHOLD, forgets)),
-    /not covered exactly once/,
-  );
-});
+const { isRoot, check, full, randomFrames, digest } = ruleChecks(dag);
 
 for (const [name, backend] of Object.entries(backends)) {
   const cut = backend(dag, THRESHOLD);
@@ -113,12 +39,20 @@ for (const [name, backend] of Object.entries(backends)) {
       const sorted = (ids: number[]) => [...ids].sort((a, b) => a - b);
       assert.deepEqual(sorted(drawn), sorted(wanted), `at ${threshold} px`);
       assert.equal(coverFault(dag, drawn), -1);
+      assert.equal(digest(drawn), DEVELOP_FULL_CUT[threshold], `at ${threshold} px: not develop's`);
     }
     assert.ok(new Set(cut(full()).wanted.map((p) => dag.pages[p].level)).size >= 3);
   });
 
   test(`${name}: pages removed at random, each leaf drawn once by its nearest resident ancestor`, () => {
     randomFrames(cut);
+  });
+
+  test(`${name}: once every page is back, the cut is the full-residency one again`, () => {
+    // No image loss (#483 rule 2): the coarsening is temporary, whatever state the backend kept.
+    const before = digest(cut(full()).drawn);
+    randomFrames(cut);
+    assert.equal(digest(cut(full()).drawn), before);
   });
 
   test(`${name}: one missing page coarsens its neighbourhood by one level, never the primitive`, () => {

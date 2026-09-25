@@ -115,6 +115,14 @@
       "takes": "alır"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Etrafa bakmak için sürükle. Lambaları parıltısız görmek için parıltıyı kapat ya da genişlet.",
+    "controls": {
+      "glow": "Parıltı",
+      "intensity": "Yoğunluk",
+      "radius": "Yayılım"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Etrafa bakmak için sürükle. Feneri salla ve ışığın hareketini izle.",
     "controls": {
