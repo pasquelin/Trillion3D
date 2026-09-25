@@ -173,7 +173,7 @@
     "name": "ma",
     "version": "ma-mel-subset-1-gltf-8"
   },
-  "selectedNodes": [0, 2],
+  "selectedNodes": 2,
   "sidecarSha256": "9d3ca290a8a9d28ceb9a5bf4b9914d2e1749e53ddaaeff5f64d2765d09b94ca7",
   "sourceTriangles": 8,
   "textures": [
