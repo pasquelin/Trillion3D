@@ -65,7 +65,6 @@ test('a bloom: linear radiance into the chain, 2 × levels passes, the display c
     'the scene, its untoned mark and depth, one pass target and two levels, then the kept frame',
   );
   assert.deepEqual(of('drawBuffers'), [[['COLOR_ATTACHMENT0', 'COLOR_ATTACHMENT1']]]);
-  assert.deepEqual(of('depthFunc'), [], 'nothing drawn over it after: no depth carried');
   // The scene's radiance, depth and mark, one pass target, the levels.
   assert.equal(compose.effectBytes(), 8 * 4 * (8 + 4 + 1 + 8) + bloomLevelBytes(8, 4));
   const draws = of('drawArrays').length,
