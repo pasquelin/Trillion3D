@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Her zaman `true`: bir buffer özniteliğini başka her şeyden ayırır.",
       "type": "Değerlerin nasıl bildirildiği; yarım hassasiyetli bir öznitelik float hassasiyetinde tutulur.",
-      "normalized": "Tam sayıların 0 ile 1 arasındaki değerler olarak okunup okunmadığı.",
       "version": "Her bildirilen yazımda artırılır: dünyanın içeriğin değiştiğini görmek için karşılaştırdığı şey.",
       "array": "Sayıların kendisi.",
-      "itemSize": "Bir köşeye kaç sayının ait olduğu: bir pozisyon için 3.",
       "count": "Sayıların kaç köşeyi tanımladığı.",
-      "needsUpdate": "`array`'i yazdıktan sonra `attribute.needsUpdate = true`: dünya onu yeniden okur.",
-      "getComponent": "Köşe `index`'in `component` sayısı.",
-      "getX": "Köşe `i`'nin ilk sayısı.",
-      "getY": "Köşe `i`'nin ikinci sayısı.",
-      "getZ": "Köşe `i`'nin üçüncü sayısı.",
-      "getW": "Köşe `i`'nin dördüncü sayısı.",
-      "setXYZ": "Köşe `i` için üç sayı yazar.",
-      "setXY": "Köşe `i` için iki sayı yazar.",
-      "setX": "Köşe `i`'nin ilk sayısını yazar.",
-      "clone": "Sayıların bir kopyasıyla yeni bir öznitelik."
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler.",
+      "clone": "Sayıların, türlerinin, normalleştirmesinin ve adının bir kopyasıyla yeni bir öznitelik.",
+      "kind": "Öznitelik kendi tamponuna sahiptir.",
+      "updateRanges": "Son yüklemeden beri yazılan `array` aralıkları, tek başına gönderilir.",
+      "addUpdateRange": "`start`'tan itibaren `count` sayıyı yazılmış olarak işaretler.",
+      "clearUpdateRanges": "Yüklendikten sonra yazılan aralıkları unutur."
     }
   },
   "BufferNumbers": {
@@ -1067,8 +1061,8 @@
       "transparentDrawCalls": "Şeffaf çizim çağrıları.",
       "transparentSubmittedTriangles": "Gönderilen şeffaf üçgenler.",
       "coverageReady": "Tam bir başlangıç GPU yedeği kullanılabilir; bu garantisi olmayan backend'lerde null.",
-      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesi içinde sabitlenmiş yedekle bir arada olamaz.",
-      "budgetPixelError": "GPU sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı: istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. Sayfa bütçesi olmayan motorlarda null.",
+      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesinin alabileceğinden fazla sayfa ister: geri kalanı daha kaba çizilir.",
+      "budgetPixelError": "Yalnızca WebGL2: sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı — istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. WebGPU'da yoktur; orada görseli yalnızca yerleşiklik kabalaştırır. Sayfa bütçesi olmayan motorlarda null.",
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
@@ -1442,7 +1436,10 @@
       "array": "Her köşenin sayıları, art arda paketlenmiş.",
       "stride": "Her köşenin kaç sayı kapladığı.",
       "count": "Kaç köşe paketlediği.",
-      "attribute": "Kendi float özniteliği olarak, paketten okunan bir öznitelik."
+      "attribute": "Kendi özniteliği olarak, paketten okunan bir öznitelik.",
+      "kind": "Birkaç özniteliğin baktığı tek bir depo.",
+      "version": "`needsUpdate` ile artırılır.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
     }
   },
   "JobProgress": {
@@ -1753,7 +1750,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -1816,7 +1813,7 @@
       "flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "size": "Noktalar malzemesi için bir noktanın boyutu.",
       "sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "linewidth": "Bir çizginin kalınlığı.",
+      "linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "dashSize": "Bir kesik çizginin uzunluğu.",
       "gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -3976,8 +3973,8 @@
       "transparentDrawCalls": "Şeffaf çizim çağrıları.",
       "transparentSubmittedTriangles": "Gönderilen şeffaf üçgenler.",
       "coverageReady": "Tam bir başlangıç GPU yedeği kullanılabilir; bu garantisi olmayan backend'lerde null.",
-      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesi içinde sabitlenmiş yedekle bir arada olamaz.",
-      "budgetPixelError": "GPU sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı: istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. Sayfa bütçesi olmayan motorlarda null.",
+      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesinin alabileceğinden fazla sayfa ister: geri kalanı daha kaba çizilir.",
+      "budgetPixelError": "Yalnızca WebGL2: sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı — istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. WebGPU'da yoktur; orada görseli yalnızca yerleşiklik kabalaştırır. Sayfa bütçesi olmayan motorlarda null.",
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
@@ -5414,7 +5411,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5452,7 +5449,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5490,7 +5487,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5528,7 +5525,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5566,7 +5563,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5604,7 +5601,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5642,7 +5639,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5680,7 +5677,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5718,7 +5715,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5756,7 +5753,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5794,7 +5791,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5832,7 +5829,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5870,7 +5867,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5908,7 +5905,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -7155,122 +7152,6 @@
       "handbrake": "El freninin çekili olup olmadığı."
     }
   },
-  "VEHICLE_SPECS": {
-    "summary": "Araçların başladığı üç makine, türe göre.",
-    "members": {
-      "car": "Bir Chevrolet Corvette C5: arkadan itiş, kilogram başına 0,32 N·m, altı vites.",
-      "motorcycle": "Bir Yamaha XJ900 ve sürücüsü: kilogram başına 0,26 N·m, altı vites.",
-      "tracked": "Bir M1 Abrams: bir gaz türbini, kilogram başına 0,083 N·m, dört vites."
-    }
-  },
-  "Vehicle": {
-    "summary": "Bir araç: Jolt'un araç kısıtının tekerlekler üzerinde taşıdığı bir gövde; motoru, şanzımanı, diferansiyelleri, süspansiyonu ve viraj denge çubuklarıyla, `vehicle.*` ile yapılır ve `world.physics.add` ile simülasyona eklenir.",
-    "description": "Bir `VehicleDriver`'dır: `world.controls.vehicle = car` onu sürer.",
-    "parameters": {
-      "options": "`vehicle.*`'ın kabul ettiği: tekerlekler ve makinenin istenen sayıda değeri (`VehicleSpec`).",
-      "options.wheels": "Tekerlekler: gövdenin çocuğu olan ağlar, her biri düz zeminde durduğu gibi merkezine yerleştirilmiş, aksı gövdenin x'i boyunca. Yarıçapı ve genişliği sınırlarından okunur. Gövde −z'ye bakar: öndeki tekerlekler döner.",
-      "options.torquePerKg": "Gövdenin kilogramı başına motorun en yüksek torku, N·m/kg.",
-      "options.idleRPM": "Motorun rölanti devri, dev/dk.",
-      "options.maxRPM": "Motorun kırmızı çizgisi, dev/dk.",
-      "options.torqueCurve": "En fazla beş nokta `[rpm / maxRPM, tork / tepe]`, artan devir oranları.",
-      "options.gears": "En fazla altı ileri vites oranı, önce birinci.",
-      "options.reverse": "Geri vitesin oranı.",
-      "options.finalDrive": "Son dişli oranı (paletli bir aracın zincir dişlisi redüksiyonu).",
-      "options.shiftUpRPM": "Şanzıman bunun üstünde vites büyütür, dev/dk.",
-      "options.shiftDownRPM": "Ve bunun altında vites küçültür, dev/dk.",
-      "options.clutch": "Kaymanın rad/s başına debriyaj torku, N·m·s.",
-      "options.suspensionFrequency": "Süspansiyon frekansı, Hz.",
-      "options.suspensionDamping": "Sönüm oranı, 0 (yok) ile 1 (kritik) arası.",
-      "options.suspensionTravel": "Tekerleğin tam açıklıktan tam sıkışmaya yol aralığı, metre.",
-      "options.antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir.",
-      "options.turnRadius": "Tam kilitte dönüş yarıçapı, metre.",
-      "options.steerTime": "Ortadan tam direksiyon kilidine saniye.",
-      "options.brakeGrip": "Frenlerin tekerlekleri kilitlediği sürtünme.",
-      "options.drive": "Bir arabanın çekiş tekerlekleri.",
-      "options.trackTurn": "Paletli bir aracın dönerken iç paletinin hızı, dış paletinkine oranla.",
-      "options.maxLean": "Bir motosikletin en büyük yatışı, radyan."
-    },
-    "members": {
-      "kind": "Aracın ne olduğu.",
-      "body": "Tekerleklerin taşıdığı gövde.",
-      "wheels": "Tekerlekler, gövdenin çocukları.",
-      "spec": "Makine: türünün kendi makinesi (`VEHICLE_SPECS`), seçenekler üstünde.",
-      "input": "Şu an aldığı pedallar ve direksiyon.",
-      "speed": "Son adımdan sonra saniyede metre olarak ileri hız, geri giderken negatif.",
-      "rpm": "Son adımdan sonra motorun dakikadaki devri.",
-      "gear": "Son adımdan sonraki vites: 1 ve üstü ileri, −1 geri, 0 boş.",
-      "drive": "Pedalları ve direksiyonu, bir tuş onları her değiştirdiğinde, sürülmeye başladığında ve sürülmeyi bıraktığında hepsi bırakılmış olarak alır."
-    }
-  },
-  "VehicleKind": {
-    "summary": "Fiziğin araçları, her biri Jolt'un araç kısıtı üzerinde."
-  },
-  "VehicleOptions": {
-    "summary": "`vehicle.*`'ın kabul ettiği: tekerlekler ve makinenin istenen sayıda değeri (`VehicleSpec`).",
-    "members": {
-      "wheels": "Tekerlekler: gövdenin çocuğu olan ağlar, her biri düz zeminde durduğu gibi merkezine yerleştirilmiş, aksı gövdenin x'i boyunca. Yarıçapı ve genişliği sınırlarından okunur. Gövde −z'ye bakar: öndeki tekerlekler döner."
-    }
-  },
-  "VehicleSpec": {
-    "summary": "Bir aracın neyden yapıldığı: motor, şanzıman, süspansiyon, direksiyon ve frenler, her varsayılan gerçek bir makinenin (`VEHICLE_SPECS`).",
-    "members": {
-      "torquePerKg": "Gövdenin kilogramı başına motorun en yüksek torku, N·m/kg.",
-      "idleRPM": "Motorun rölanti devri, dev/dk.",
-      "maxRPM": "Motorun kırmızı çizgisi, dev/dk.",
-      "torqueCurve": "En fazla beş nokta `[rpm / maxRPM, tork / tepe]`, artan devir oranları.",
-      "gears": "En fazla altı ileri vites oranı, önce birinci.",
-      "reverse": "Geri vitesin oranı.",
-      "finalDrive": "Son dişli oranı (paletli bir aracın zincir dişlisi redüksiyonu).",
-      "shiftUpRPM": "Şanzıman bunun üstünde vites büyütür, dev/dk.",
-      "shiftDownRPM": "Ve bunun altında vites küçültür, dev/dk.",
-      "clutch": "Kaymanın rad/s başına debriyaj torku, N·m·s.",
-      "suspensionFrequency": "Süspansiyon frekansı, Hz.",
-      "suspensionDamping": "Sönüm oranı, 0 (yok) ile 1 (kritik) arası.",
-      "suspensionTravel": "Tekerleğin tam açıklıktan tam sıkışmaya yol aralığı, metre.",
-      "antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir.",
-      "turnRadius": "Tam kilitte dönüş yarıçapı, metre.",
-      "steerTime": "Ortadan tam direksiyon kilidine saniye.",
-      "brakeGrip": "Frenlerin tekerlekleri kilitlediği sürtünme.",
-      "drive": "Bir arabanın çekiş tekerlekleri.",
-      "trackTurn": "Paletli bir aracın dönerken iç paletinin hızı, dış paletinkine oranla.",
-      "maxLean": "Bir motosikletin en büyük yatışı, radyan."
-    }
-  },
-  "VehicleSpecs": {
-    "summary": "Her araç türünün başladığı makine.",
-    "members": {
-      "car": "Bir Chevrolet Corvette C5: arkadan itiş, kilogram başına 0,32 N·m, altı vites.",
-      "motorcycle": "Bir Yamaha XJ900 ve sürücüsü: kilogram başına 0,26 N·m, altı vites.",
-      "tracked": "Bir M1 Abrams: gaz türbini, kilogram başına 0,083 N·m, dört vites."
-    }
-  },
-  "vehicle": {
-    "summary": "`vehicle` ailesi: `world.controls` `'vehicle'` ile sürülen bir gövde ve tekerlekleri.",
-    "members": {
-      "car": "İki veya daha fazla aks üzerinde üç veya daha fazla tekerlek, öndekiler yönlendirilir, `drive` olanlar çeker.",
-      "motorcycle": "İki tekerlek, öndeki yönlendirilir, arkadaki çeker; kendi kendine dik durur.",
-      "tracked": "İki palet üzerinde tekerlekler, sol ve sağ, her biri en arkadaki tekerleğiyle çekilir; bir paleti yavaşlatarak döner ve dururken olduğu yerde döner."
-    }
-  },
-  "GraphArray": {
-    "summary": "Bir özniteliğin tuttuğu tipli diziler."
-  },
-  "GraphAttribute": {
-    "summary": "Kendi deposuna sahip bir öznitelik: köşe başına ardışık `itemSize` sayı.",
-    "members": {
-      "kind": "Öznitelik kendi tamponuna sahiptir.",
-      "count": "Kaç köşe.",
-      "version": "`needsUpdate` ile artırılır.",
-      "array": "Depolama.",
-      "updateRanges": "Son yüklemeden beri yazılan `array` aralıkları, tek başına gönderilir.",
-      "addUpdateRange": "`start`'tan itibaren `count` sayıyı yazılmış olarak işaretler.",
-      "clearUpdateRanges": "Yüklendikten sonra yazılan aralıkları unutur.",
-      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
-    }
-  },
-  "GraphElements": {
-    "summary": "İki öznitelik türünden biri."
-  },
   "GraphGeometry": {
     "summary": "Bir ağın çizdiği öznitelikler, onları indeksleyen üçgen listesi, onları hareket ettiren morf hedefleri ve üzerlerinde hesaplanan yerel kutu ile küre.",
     "members": {
@@ -7295,28 +7176,6 @@
       "toNonIndexed": "Aynı üçgenleri indekssiz çizen bir geometri: her köşe kendi başına bir tepe noktası.",
       "computeBoundingBox": "Tüm köşeler üzerinde yerel kutuyu hesaplar.",
       "computeBoundingSphere": "Yerel küreyi hesaplar: kutunun merkezinde, en uzak köşeye kadar."
-    }
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Serpiştirilmiş bir tamponun her köşesinin `offset` konumundaki `itemSize` sayıya bakan bir öznitelik.",
-    "members": {
-      "kind": "Öznitelik paylaşılan bir tampona bakar.",
-      "data": "Baktığı tampon.",
-      "offset": "Sayılarının her köşede nerede başladığı.",
-      "array": "Öğelerin bulunduğu depo.",
-      "count": "Kaç köşe.",
-      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Birkaç özniteliğin baktığı tek bir depo, her `stride` sayıda bir köşe.",
-    "members": {
-      "kind": "Birkaç özniteliğin baktığı tek bir depo.",
-      "count": "Kaç köşe.",
-      "version": "`needsUpdate` ile artırılır.",
-      "array": "Depo.",
-      "stride": "Köşe başına sayı.",
-      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
     }
   },
   "GraphMesh": {
@@ -7488,6 +7347,142 @@
       "pulley": "`a`’dan iki tekerleğin (`over`) üzerinden `b`’ye inen bir ip: biri inerken diğeri çıkar.",
       "gear": "`ratio` oranında birlikte dönen iki tekerlek, her biri kendi pimi (`axis`, `axisB`) etrafında ve kendi menteşesiyle tutulur (tekerlek onun `a`’sı); `ratio` ya da 1 / `ratio` tam sayıysa dişleri yapıldıkları fazı da korur.",
       "rackAndPinion": "`axis` etrafında dönen bir pinyon `a`, bir kremayer `b`’yi `axisB` boyunca sürer; her biri kendi menteşesi veya kızağıyla tutulur (cisim onun `a`’sı), dişleri yapıldıkları fazda kalır."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Serpiştirilmiş bir tamponun her köşesinin `offset` konumundaki `itemSize` sayıya bakan bir öznitelik.",
+    "members": {
+      "isInterleavedBufferAttribute": "Her zaman `true`: serpiştirilmiş bir görünümü başka her şeyden ayırır.",
+      "kind": "Öznitelik paylaşılan bir tampona bakar.",
+      "data": "Baktığı tampon.",
+      "offset": "Sayılarının her köşede nerede başladığı.",
+      "array": "Öğelerin bulunduğu depo.",
+      "count": "Sayıların kaç köşeyi tanımladığı.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler.",
+      "clone": "Kendi sayıları, paketten onlara sahip bir özniteliğe kopyalanmış."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "İki öznitelik türünden biri: kendi deposuna sahip ya da serpiştirilmiş bir depoya bakan."
+  },
+  "VertexElements": {
+    "summary": "Bir köşe özniteliğinin öğeleri, bileşen bileşen okunur ve yazılır.",
+    "members": {
+      "name": "Bir morf hedefinin bilindiği ad; diğerleri için boş.",
+      "itemSize": "Bir köşeye kaç sayının ait olduğu: bir pozisyon için 3.",
+      "normalized": "Tam sayıların 0 ile 1 arasındaki değerler olarak okunup okunmadığı.",
+      "array": "Öğelerin bulunduğu depo.",
+      "count": "Sayıların kaç köşeyi tanımladığı.",
+      "stored": "Köşe `index`'in `component` sayısı, saklandığı gibi; normalleştirilmiş bir tamsayı ölçeklenmeden.",
+      "getComponent": "Köşe `index`'in `component` sayısı, temsil ettiği sayı olarak okunur.",
+      "setComponent": "Köşe `index`'in `component` sayısını yazar.",
+      "getX": "Köşe `i`'nin ilk sayısı.",
+      "getY": "Köşe `i`'nin ikinci sayısı.",
+      "getZ": "Köşe `i`'nin üçüncü sayısı.",
+      "getW": "Köşe `i`'nin dördüncü sayısı.",
+      "setX": "Köşe `i`'nin ilk sayısını yazar.",
+      "setY": "Köşe `i`'nin ikinci sayısını yazar.",
+      "setZ": "Köşe `i`'nin üçüncü sayısını yazar.",
+      "setW": "Köşe `i`'nin dördüncü sayısını yazar.",
+      "setXY": "Köşe `i` için iki sayı yazar.",
+      "setXYZ": "Köşe `i` için üç sayı yazar."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Araçların başladığı üç makine, türe göre.",
+    "members": {
+      "car": "Bir Chevrolet Corvette C5: arkadan itiş, kilogram başına 0,32 N·m, altı vites.",
+      "motorcycle": "Bir Yamaha XJ900 ve sürücüsü: kilogram başına 0,26 N·m, altı vites.",
+      "tracked": "Bir M1 Abrams: bir gaz türbini, kilogram başına 0,083 N·m, dört vites."
+    }
+  },
+  "Vehicle": {
+    "summary": "Bir araç: Jolt'un araç kısıtının tekerlekler üzerinde taşıdığı bir gövde; motoru, şanzımanı, diferansiyelleri, süspansiyonu ve viraj denge çubuklarıyla, `vehicle.*` ile yapılır ve `world.physics.add` ile simülasyona eklenir.",
+    "description": "Bir `VehicleDriver`'dır: `world.controls.vehicle = car` onu sürer.",
+    "parameters": {
+      "options": "`vehicle.*`'ın kabul ettiği: tekerlekler ve makinenin istenen sayıda değeri (`VehicleSpec`).",
+      "options.wheels": "Tekerlekler: gövdenin çocuğu olan ağlar, her biri düz zeminde durduğu gibi merkezine yerleştirilmiş, aksı gövdenin x'i boyunca. Yarıçapı ve genişliği sınırlarından okunur. Gövde −z'ye bakar: öndeki tekerlekler döner.",
+      "options.torquePerKg": "Gövdenin kilogramı başına motorun en yüksek torku, N·m/kg.",
+      "options.idleRPM": "Motorun rölanti devri, dev/dk.",
+      "options.maxRPM": "Motorun kırmızı çizgisi, dev/dk.",
+      "options.torqueCurve": "En fazla beş nokta `[rpm / maxRPM, tork / tepe]`, artan devir oranları.",
+      "options.gears": "En fazla altı ileri vites oranı, önce birinci.",
+      "options.reverse": "Geri vitesin oranı.",
+      "options.finalDrive": "Son dişli oranı (paletli bir aracın zincir dişlisi redüksiyonu).",
+      "options.shiftUpRPM": "Şanzıman bunun üstünde vites büyütür, dev/dk.",
+      "options.shiftDownRPM": "Ve bunun altında vites küçültür, dev/dk.",
+      "options.clutch": "Kaymanın rad/s başına debriyaj torku, N·m·s.",
+      "options.suspensionFrequency": "Süspansiyon frekansı, Hz.",
+      "options.suspensionDamping": "Sönüm oranı, 0 (yok) ile 1 (kritik) arası.",
+      "options.suspensionTravel": "Tekerleğin tam açıklıktan tam sıkışmaya yol aralığı, metre.",
+      "options.antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir.",
+      "options.turnRadius": "Tam kilitte dönüş yarıçapı, metre.",
+      "options.steerTime": "Ortadan tam direksiyon kilidine saniye.",
+      "options.brakeGrip": "Frenlerin tekerlekleri kilitlediği sürtünme.",
+      "options.drive": "Bir arabanın çekiş tekerlekleri.",
+      "options.trackTurn": "Paletli bir aracın dönerken iç paletinin hızı, dış paletinkine oranla.",
+      "options.maxLean": "Bir motosikletin en büyük yatışı, radyan."
+    },
+    "members": {
+      "kind": "Aracın ne olduğu.",
+      "body": "Tekerleklerin taşıdığı gövde.",
+      "wheels": "Tekerlekler, gövdenin çocukları.",
+      "spec": "Makine: türünün kendi makinesi (`VEHICLE_SPECS`), seçenekler üstünde.",
+      "input": "Şu an aldığı pedallar ve direksiyon.",
+      "speed": "Son adımdan sonra saniyede metre olarak ileri hız, geri giderken negatif.",
+      "rpm": "Son adımdan sonra motorun dakikadaki devri.",
+      "gear": "Son adımdan sonraki vites: 1 ve üstü ileri, −1 geri, 0 boş.",
+      "drive": "Pedalları ve direksiyonu, bir tuş onları her değiştirdiğinde, sürülmeye başladığında ve sürülmeyi bıraktığında hepsi bırakılmış olarak alır."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Fiziğin araçları, her biri Jolt'un araç kısıtı üzerinde."
+  },
+  "VehicleOptions": {
+    "summary": "`vehicle.*`'ın kabul ettiği: tekerlekler ve makinenin istenen sayıda değeri (`VehicleSpec`).",
+    "members": {
+      "wheels": "Tekerlekler: gövdenin çocuğu olan ağlar, her biri düz zeminde durduğu gibi merkezine yerleştirilmiş, aksı gövdenin x'i boyunca. Yarıçapı ve genişliği sınırlarından okunur. Gövde −z'ye bakar: öndeki tekerlekler döner."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Bir aracın neyden yapıldığı: motor, şanzıman, süspansiyon, direksiyon ve frenler, her varsayılan gerçek bir makinenin (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Gövdenin kilogramı başına motorun en yüksek torku, N·m/kg.",
+      "idleRPM": "Motorun rölanti devri, dev/dk.",
+      "maxRPM": "Motorun kırmızı çizgisi, dev/dk.",
+      "torqueCurve": "En fazla beş nokta `[rpm / maxRPM, tork / tepe]`, artan devir oranları.",
+      "gears": "En fazla altı ileri vites oranı, önce birinci.",
+      "reverse": "Geri vitesin oranı.",
+      "finalDrive": "Son dişli oranı (paletli bir aracın zincir dişlisi redüksiyonu).",
+      "shiftUpRPM": "Şanzıman bunun üstünde vites büyütür, dev/dk.",
+      "shiftDownRPM": "Ve bunun altında vites küçültür, dev/dk.",
+      "clutch": "Kaymanın rad/s başına debriyaj torku, N·m·s.",
+      "suspensionFrequency": "Süspansiyon frekansı, Hz.",
+      "suspensionDamping": "Sönüm oranı, 0 (yok) ile 1 (kritik) arası.",
+      "suspensionTravel": "Tekerleğin tam açıklıktan tam sıkışmaya yol aralığı, metre.",
+      "antiRoll": "Her viraj denge çubuğunun sertliği, aksının yaylarınınkine oranla; 0 hiç yok demektir.",
+      "turnRadius": "Tam kilitte dönüş yarıçapı, metre.",
+      "steerTime": "Ortadan tam direksiyon kilidine saniye.",
+      "brakeGrip": "Frenlerin tekerlekleri kilitlediği sürtünme.",
+      "drive": "Bir arabanın çekiş tekerlekleri.",
+      "trackTurn": "Paletli bir aracın dönerken iç paletinin hızı, dış paletinkine oranla.",
+      "maxLean": "Bir motosikletin en büyük yatışı, radyan."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "Her araç türünün başladığı makine.",
+    "members": {
+      "car": "Bir Chevrolet Corvette C5: arkadan itiş, kilogram başına 0,32 N·m, altı vites.",
+      "motorcycle": "Bir Yamaha XJ900 ve sürücüsü: kilogram başına 0,26 N·m, altı vites.",
+      "tracked": "Bir M1 Abrams: gaz türbini, kilogram başına 0,083 N·m, dört vites."
+    }
+  },
+  "vehicle": {
+    "summary": "`vehicle` ailesi: `world.controls` `'vehicle'` ile sürülen bir gövde ve tekerlekleri.",
+    "members": {
+      "car": "İki veya daha fazla aks üzerinde üç veya daha fazla tekerlek, öndekiler yönlendirilir, `drive` olanlar çeker.",
+      "motorcycle": "İki tekerlek, öndeki yönlendirilir, arkadaki çeker; kendi kendine dik durur.",
+      "tracked": "İki palet üzerinde tekerlekler, sol ve sağ, her biri en arkadaki tekerleğiyle çekilir; bir paleti yavaşlatarak döner ve dururken olduğu yerde döner."
     }
   }
 }

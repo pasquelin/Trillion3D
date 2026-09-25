@@ -8,6 +8,7 @@ import {
 } from './selection.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
+import { ruleResidency } from './readiness.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
 export const VIEWPORT: [number, number] = [1280, 720];
@@ -53,7 +54,7 @@ export function kernelUrls(
   const result = evaluateDagSelectionKernel(
     dag,
     kernelUniforms(dag, roots, camera, pixelError),
-    resident,
+    resident && ruleResidency(dag, resident),
   );
   return { result, urls: (result[field] ?? []).map((id) => dag.pageUrls[id]).sort() };
 }

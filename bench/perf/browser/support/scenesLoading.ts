@@ -119,8 +119,8 @@ export function manifesteEtScene({
       at += bloc.length;
     }
     const geometry = new G.GraphGeometry();
-    geometry.setIndex(new G.GraphAttribute(sourceIndex, 1));
-    geometry.setAttribute('position', new G.GraphAttribute(new Float32Array(sommet * 3), 3));
+    geometry.setIndex(new G.BufferAttribute(sourceIndex, 1));
+    geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(sommet * 3), 3));
     const mesh = G.mesh(geometry, materiau(p));
     mesh.position.set(p % 10, Math.floor(p / 10), 0);
     source.add(mesh);
@@ -166,11 +166,11 @@ export function catalogueDePages({
 }: { pages?: number; materiaux?: number; seed?: number } = {}): PageRec[] {
   const alea = graine(seed);
   const liste: PageRec[] = [];
-  const attributs: { position: G.GraphAttribute }[] = [];
+  const attributs: { position: G.BufferAttribute }[] = [];
   for (let i = 0; i < materiaux; i++) {
     const positions = new Float32Array(3 * 3 * 64);
     for (let k = 0; k < positions.length; k++) positions[k] = alea() * 4 - 2;
-    attributs.push({ position: new G.GraphAttribute(positions, 3) });
+    attributs.push({ position: new G.BufferAttribute(positions, 3) });
   }
   for (let i = 0; i < pages; i++) {
     const array = i % 9 ? new Uint32Array(3 * (1 + (i % 12))) : undefined;

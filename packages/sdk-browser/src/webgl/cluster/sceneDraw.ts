@@ -12,6 +12,7 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
 import { depthOf } from './meshDepth.ts';
+import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
  *  before the read. */
@@ -46,12 +47,14 @@ const NO_BATCHES: readonly never[] = [];
  * `render(camera)` opens the frame: it zeroes the counters, so that a frame
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
  * `null` before the first frame. Without a context (a session that never draws on the host
- * surface) the draw is refused by name.
+ * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
+ * width to the image's pixels.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
   display: GraphScene,
   copies: readonly object[] = [],
+  pixelRatio: () => number = () => DEFAULT_PIXEL_RATIO,
 ) {
   const scene: DisplayScene = display;
   // The copies list grows with the placement rows (`growBlendCopies`): the set follows it.
@@ -107,6 +110,7 @@ export function createSceneDraw(
       if (!opened) throw new Error('Draw before render');
       owner ??= new WebglClusterOwner(gl);
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
+      owner.pixelRatio = pixelRatio();
       scene.onBeforeRender?.();
       try {
         scene.updateMatrixWorld();

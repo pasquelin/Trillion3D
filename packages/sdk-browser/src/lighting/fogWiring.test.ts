@@ -43,9 +43,10 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
     /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;\s+\}\s+\/\/.*\s+rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\s+\}/,
   );
   assert.match(WATER_COMPOSITE_SHADER, /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\)/);
-  // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own.
-  assert.match(BLEND_VIEW_WGSL, /viewport:vec2f,eye:vec4f,\}/);
-  assert.equal(BLEND_VIEW_SIZE, 128);
+  // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
+  // ratio a line's width is scaled by (#348) follows it, in the struct's 16-byte alignment.
+  assert.match(BLEND_VIEW_WGSL, /viewport:vec2f,eye:vec4f,pixelRatio:f32,\}/);
+  assert.equal(BLEND_VIEW_SIZE, 144);
 });
 
 test('the WebGL2 program fogs every surface before its display curve, a depth or diagnostic one excepted', () => {

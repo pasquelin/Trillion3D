@@ -54,7 +54,6 @@ function writeRecords(
     hot[dst + HOT_PARENT_ERROR] = parent;
     // A cluster that no culling leaf owns is unreachable for the CPU cut too; never select it.
     hotInts[dst + HOT_FLAGS] = packClusterFlags(
-      parent < 0,
       owner[i] === NONE,
       rec.level ?? 0,
       !!rec.transparent,
