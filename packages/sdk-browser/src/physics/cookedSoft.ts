@@ -10,6 +10,12 @@ import type { createPhysicsBodies } from './bodies.ts';
 import { writeSoftBody } from './softBodies.ts';
 import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
 
+/** An open model's opening: its soft bodies, and those made, by engine id. */
+interface Opening {
+  softBodies: readonly CookedSoftBody[];
+  made: Map<number, CookedSoftBody>;
+}
+
 /** How far, relatively, a model's scale may stray from the one its soft bodies were cooked at. */
 const SCALE_TOLERANCE = 1e-4;
 
@@ -27,8 +33,9 @@ export function createCookedSoftBodies(
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  /** Each open model's opening: its soft bodies, and the slots of those made. */
-  const held = new Map<Model, { softBodies: readonly CookedSoftBody[]; slots: number[] }>();
+  const held = new Map<Model, Opening>();
+  /** Soft bodies the worker refused: not made again until their model opens again. */
+  const refused = new WeakSet<CookedSoftBody>();
   /** Each soft body's settings, fetched once: a model moved frame after frame makes its bodies
    *  again from them within the frame, never waiting on the network. */
   const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>();
@@ -53,15 +60,15 @@ export function createCookedSoftBodies(
       );
     return pose;
   }
-  async function add(model: Model, opening: { slots: number[] }, soft: CookedSoftBody) {
+  async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
     const cooked = await settingsOf(model, soft);
     // Forgotten, opened again or moved meanwhile: this opening's bodies are no longer wanted.
-    if (held.get(model) !== opening) return;
+    if (held.get(model) !== opening || refused.has(soft)) return;
     const { position, quaternion } = poseOf(model, soft);
     const p = new ObjectPhysics(soft.physics);
     const id = bodies.claim(0, soft.vertices);
     // Held at once: a throw below still leaves the slot for `forget` to release.
-    opening.slots.push(id & BODY_INDEX);
+    opening.made.set(id, soft);
     // The collider's matter picked: `physics`, the options, is no preset name here.
     const matter = physicsMatterOf({ friction: soft.friction, restitution: soft.restitution });
     const record = { cooked, pressure: soft.pressure };
@@ -70,13 +77,13 @@ export function createCookedSoftBodies(
     invalidate();
   }
   const forget = (model: Model) => {
-    held.get(model)?.slots.forEach(bodies.release);
+    for (const id of held.get(model)?.made.keys() ?? []) bodies.release(id & BODY_INDEX);
     held.delete(model);
   };
   /** Makes the soft bodies `model` was cooked with, the last opening's out: none held twice. */
   function open(model: Model, softBodies: readonly CookedSoftBody[] = []) {
     forget(model);
-    const opening = { softBodies, slots: [] as number[] };
+    const opening = { softBodies, made: new Map<number, CookedSoftBody>() };
     held.set(model, opening);
     for (const soft of softBodies)
       add(model, opening, soft).catch((error) => failed(error as EngineError));
@@ -93,8 +100,18 @@ export function createCookedSoftBodies(
     },
     /** The model a cooked soft body's engine id belongs to, or `null`: what a ray on it hits. */
     modelOf(id: number) {
-      for (const [model, { slots }] of held) if (slots.includes(id & BODY_INDEX)) return model;
+      for (const [model, { made }] of held) if (made.has(id)) return model;
       return null;
+    },
+    /** The worker refused soft body `id`: its slot and budget given back; any other id ignored. */
+    refused(id: number) {
+      for (const { made } of held.values()) {
+        const soft = made.get(id);
+        if (!soft) continue;
+        made.delete(id);
+        bodies.release(id & BODY_INDEX);
+        return void refused.add(soft);
+      }
     },
   };
 }

@@ -44,16 +44,23 @@ export function createTileStreamer(
 ) {
   const models = new Map<Model, Placed[] | null>();
   const byIndex = new Map<number, Placed>();
+  /** Each model's last opening: one that left and came back while its file was on its way lands
+   *  once, from the later opening; the earlier places nothing. */
+  const openings = new WeakMap<Model, object>();
+  /** Tiles the worker refused: not loaded again until their model opens again. */
+  const refusedTiles = new WeakSet<Placed>();
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
     refused = false;
   async function open(model: Model) {
+    const opening = {};
+    openings.set(model, opening);
     models.set(model, null);
     const response = await fetch(new URL('physics.json', model.record.base).href);
     // A model compiled before the cook has no file: it collides nowhere, as before.
     if (!response.ok) return;
     const cooked = readCookedPhysics(await response.json());
-    if (!models.has(model)) return;
+    if (!models.has(model) || openings.get(model) !== opening) return;
     models.set(model, placedOf(model, cooked));
     softs.open(model, cooked.softBodies);
     invalidate();
@@ -74,7 +81,8 @@ export function createTileStreamer(
     fetching++;
     try {
       const bytes = await cookedBytes(p.model, p.tile.url, 'Physics tile');
-      if (!models.get(p.model)) return;
+      // Its model left, or was opened again meanwhile: this tile is no longer one it holds.
+      if (!models.get(p.model)?.includes(p)) return;
       p.id = bodies.claim(p.tile.triangles);
       const handle = p.id & BODY_INDEX;
       byIndex.set(handle, p);
@@ -148,7 +156,7 @@ export function createTileStreamer(
       let room = budget.triangles - bodies.count.triangles,
         asked = bodies.count.triangles;
       for (const [, p] of wanted) {
-        if (p.id >= 0 || p.loading) continue;
+        if (p.id >= 0 || p.loading || refusedTiles.has(p)) continue;
         asked += p.tile.triangles;
         if (p.tile.triangles > room) continue;
         room -= p.tile.triangles;
@@ -160,6 +168,14 @@ export function createTileStreamer(
     },
     /** The model a tile body's or a cooked soft body's engine id belongs to, or `null`. */
     modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? softs.modelOf(id),
+    /** The worker refused body `id`: a tile or a cooked soft body leaves, its slot and budget
+     *  given back, and is not made again until its model opens again; any other body is ignored. */
+    refused(id: number) {
+      const p = byIndex.get(id & BODY_INDEX);
+      if (p?.id !== id) return softs.refused(id);
+      evict(p);
+      refusedTiles.add(p);
+    },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
     materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
     /** A model moved: its resident tiles follow, its cooked soft bodies are made again. */
