@@ -922,7 +922,10 @@ is too small for that view). A value that cannot be held as given is brought to 
   `CPU_BUDGET_UNDER_SHADOW_MIRROR`;
 - a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`;
 - a pool floor the device refuses at prepare: `WEBGPU_GEOMETRY_POOL_REFUSED`,
-  `WEBGPU_TEXTURE_POOL_REFUSED`, below.
+  `WEBGPU_TEXTURE_POOL_REFUSED`, below;
+- a texture pool too small for the tails its textures keep resident whole, one tile each: more
+  textures in one lane than its layers hold tiles (900 a layer), at prepare or when
+  `world.budget.texturePool` shrinks the pool: `TEXTURE_POOL_TAILS`.
 
 **Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
 allocated under an out-of-memory check at prepare, and probed before every rebalance. When the

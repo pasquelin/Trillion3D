@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterErrorPixels, maxStretch } from '../../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
@@ -144,12 +145,11 @@ test('a missing cluster is replaced by its nearest resident ancestor, not by the
 test('a device without compute pipelines keeps the CPU cut by not creating GPU selection', async () => {
   const fixture = dagFixture();
   const { dag } = packed(fixture);
-  const device = {
+  const { device } = fakeDevice({
     limits: { maxBufferSize: 1 << 20 },
-    createBuffer() {
-      throw new Error('should not allocate');
-    },
-  } as unknown as GPUDevice;
+    compute: false,
+    refuse: () => 'throw',
+  });
   assert.equal(await createGpuDagSelection(device, dag), undefined);
   fixture.geometry.dispose();
 });
