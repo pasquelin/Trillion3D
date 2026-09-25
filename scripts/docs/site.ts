@@ -104,16 +104,7 @@ const BUNDLE_STEPS: readonly SiteStep[] = [
   {
     name: 'runtime',
     // The engine's sources and the folders of `site/` the portal imports from.
-    reads: [
-      'packages',
-      'THIRD_PARTY_NOTICES.md',
-      'site/app',
-      'site/content',
-      'site/demos',
-      'site/examples',
-      'site/i18n',
-      'site/reports',
-    ],
+    reads: ['packages', 'THIRD_PARTY_NOTICES.md', 'site/examples', 'site/i18n', ...STYLE_SOURCES],
     run: async (root, out) => {
       const runtime = await emptied(out, 'runtime');
       await buildRuntime(root, runtime);
@@ -135,11 +126,15 @@ const SITE_STEPS: readonly SiteStep[] = [
   },
 ];
 
+/** Whether the `/`-separated `path` is `entry` or lies under it. */
+export const underOrAt = (path: string, entry: string) =>
+  path === entry || path.startsWith(`${entry}/`);
+
 /** The steps, in order, that read one of `paths` (relative to the root, `/`-separated). */
 export const stepsReading = (paths: Iterable<string>) => {
   const changed = [...paths];
   return SITE_STEPS.filter(({ reads }) =>
-    changed.some((path) => reads.some((read) => path === read || path.startsWith(`${read}/`))),
+    changed.some((path) => reads.some((read) => underOrAt(path, read))),
   );
 };
 
