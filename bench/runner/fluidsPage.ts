@@ -20,11 +20,9 @@ function floatingMeshes(sdk: Sdk, bodies: FluidsScene['bodies']) {
     let shape = geometries.get(key);
     if (!shape) {
       const [x, y, z] = part.position ?? [0, 0, 0];
-      const [a, b, c] = part.type === 'box' ? part.halfExtents : [0, 0, 0];
+      const [a, b, c] = part.type === 'box' ? part.halfExtents.map((h) => h * 2) : [];
       shape = (
-        part.type === 'box'
-          ? sdk.geometry.box(a * 2, b * 2, c * 2)
-          : sdk.geometry.sphere(part.radius, 16, 12)
+        part.type === 'box' ? sdk.geometry.box(a, b, c) : sdk.geometry.sphere(part.radius, 16, 12)
       ).translate(x, y, z);
       geometries.set(key, shape);
     }
@@ -153,13 +151,14 @@ export async function measureFluids({
         result.gpuPassSamples.push(sample);
         if (typeof frame.gpuFrameMs === 'number') result.gpuFrameMs.push(frame.gpuFrameMs);
       }
-      result.physicsStepMs.push(world.physics.stats.stepMs);
-      result.physicsMainMs.push(world.physics.stats.mainMs);
+      const { stepMs, mainMs } = stats();
+      result.physicsStepMs.push(stepMs);
+      result.physicsMainMs.push(mainMs);
     }
     const shot = await sdk.capture.buffer(world, { width, height });
     await posterCapture(captureFile, shot.data, shot.width, shot.height);
     const size = { width: canvas.width, height: canvas.height, dpr: devicePixelRatio };
-    return { ...result, bodies: world.physics.stats.bodies, size };
+    return { ...result, bodies: stats().bodies, size };
   } finally {
     world.dispose();
     canvas.remove();

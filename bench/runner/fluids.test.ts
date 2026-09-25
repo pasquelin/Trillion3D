@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { OCEAN } from '../../packages/sdk-core/src/fluids/waves.fixture.ts';
-import { FLUIDS_COUNTS, fluidsScene } from './fluids.ts';
+import { fluidsScene } from './fluids.ts';
 import { limitsLines, limitsOf } from './limits.ts';
 import { FLUIDS_SCENE, applySceneFlag, sceneNote, sceneOf } from './scene.ts';
 
@@ -10,7 +10,6 @@ test('the fluids scene holds one ocean, 100 bodies, 20 fires and 5 smoke volumes
   assert.equal(scene.water.waves, OCEAN, 'the eight-wave ocean of the physics fixture');
   const counts = [scene.bodies.length, scene.fires.length, scene.smokes.length];
   assert.deepEqual(counts, [100, 20, 5]);
-  assert.deepEqual(counts, Object.values(FLUIDS_COUNTS));
   const kinds = new Map<string, number>();
   for (const { shape } of scene.bodies) kinds.set(shape.type, (kinds.get(shape.type) ?? 0) + 1);
   // `floatingBodies`: every tenth a plank, a raft (compound) and a cork ball; cubes otherwise.

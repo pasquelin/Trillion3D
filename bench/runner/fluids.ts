@@ -13,9 +13,9 @@ import { OCEAN } from '../../packages/sdk-core/src/fluids/waves.fixture.ts';
 import { floatingBodies } from '../../packages/sdk-browser/src/physics/water.fixture.ts';
 import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
-import { distribution } from './summary.ts';
+import { distribution, machineLoad } from './summary.ts';
 import { passesGpu } from './seriesPasses.ts';
-import { p50p95 } from './summaryPasses.ts';
+import { p50p95, passes } from './summaryPasses.ts';
 import { sdkEntryUrl } from './dists.ts';
 import { withGpuIncidents } from './seriesPage.ts';
 import type { Side } from './sideOptions.ts';
@@ -82,11 +82,13 @@ export type FluidsPayload = ReturnType<typeof fluidsPayload>;
 
 /** One side on the fluids scene: its page run, its capture written, its report row. */
 async function fluidsRow(
+  side: string,
   page: Page,
   payload: FluidsPayload,
   out: string,
   captures: Map<string, Capture>,
 ) {
+  const loadAtStart = machineLoad();
   const result = await withGpuIncidents(page, () =>
     page.evaluate(
       async ({ module, o }) => ((await import(module)) as typeof FluidsPage).measureFluids(o),
@@ -97,6 +99,7 @@ async function fluidsRow(
   if (capture)
     await writeFile(join(out, payload.captureFile), encodePng(capture.w, capture.h, capture.body));
   return {
+    side,
     renderer: payload.renderer,
     bodiesSimulated: result.bodies,
     cpuFrameMs: distribution(result.cpuFrameMs),
@@ -107,9 +110,10 @@ async function fluidsRow(
     physicsMainMs: distribution(result.physicsMainMs),
     canvas: result.size,
     png: capture ? payload.captureFile : null,
+    charge: { debut: loadAtStart, fin: machineLoad() },
   };
 }
-export type FluidsRow = Awaited<ReturnType<typeof fluidsRow>> & { side: string };
+export type FluidsRow = Awaited<ReturnType<typeof fluidsRow>>;
 
 /** Every side on the fluids scene, each on a fresh page (`onFreshPage`). */
 export async function runFluids(
@@ -123,13 +127,13 @@ export async function runFluids(
     rows: FluidsRow[] = [];
   for (const side of sides) {
     const payload = fluidsPayload(side, settings, scene);
-    const row = await onFreshPage((page) => fluidsRow(page, payload, out, captures));
-    rows.push({ side: side.name, ...row });
+    rows.push(await onFreshPage((page) => fluidsRow(side.name, page, payload, out, captures)));
   }
   return rows;
 }
 
-/** The fluids rows in `resume.md`, p50 / p95 in milliseconds; nothing without a fluids run. */
+/** The fluids rows in `resume.md`, p50 / p95 in milliseconds, then each side's GPU passes and
+ *  machine load; nothing without a fluids run. */
 export function fluidsLines(rows: FluidsRow[] | undefined) {
   if (!rows?.length) return [];
   return [
@@ -146,5 +150,12 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
         ' |',
     ),
     '',
+    ...rows.flatMap((r) => [
+      `### ${r.side}: GPU passes`,
+      '',
+      ...passes(r.passesGpu),
+      `- Machine load at start ${r.charge.debut.join(' ')}, at end ${r.charge.fin.join(' ')}`,
+      '',
+    ]),
   ];
 }

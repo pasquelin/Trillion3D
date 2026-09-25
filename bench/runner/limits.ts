@@ -42,6 +42,8 @@ export function limitsOf(
   };
 }
 export type LimitsProbe = ReturnType<typeof limitsOf>;
+/** What a run records: the probe, or why it failed. */
+export type LimitsRecord = LimitsProbe | { failed: string };
 
 /** Runs in the page: detects both renderers, then asks a device with no limit for the defaults. */
 export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
@@ -64,7 +66,7 @@ export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
 }
 
 /** Runs the probe in `page`, which imports this module from the bench's `/runner/`. */
-export const readLimits = (page: Page, sdkUrl: string) =>
+export const readLimits = (page: Page, sdkUrl: string): Promise<LimitsRecord> =>
   page
     .evaluate(
       async ({ module, url }) =>
@@ -76,7 +78,7 @@ export const readLimits = (page: Page, sdkUrl: string) =>
 const yes = (value: boolean) => (value ? 'yes' : 'no');
 
 /** The probe in `resume.md`: capabilities, then the WebGPU limits the adapter raises. */
-export function limitsLines(probe: Awaited<ReturnType<typeof readLimits>> | undefined) {
+export function limitsLines(probe: LimitsRecord | undefined) {
   if (!probe) return [];
   // A failed probe is said, never fatal: the run it rides with goes on.
   if ('failed' in probe) return ['## Browser limits', '', `Probe failed: ${probe.failed}`, ''];
