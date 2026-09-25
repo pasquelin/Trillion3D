@@ -1197,7 +1197,7 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
   longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
-bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
+  bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
   a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
   out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
   Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex
