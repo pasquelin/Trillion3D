@@ -13,7 +13,7 @@ import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import { VOLUME_WORDS, createVolumeBuffer } from '../../transparent/transmission.ts';
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts';
 import { prepareCones } from './cones.ts';
-import { ensureTargets } from './targets.ts';
+import { grantFrameTargets } from './targetGrant.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, grantCapability } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
@@ -144,7 +144,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   }
   await grantWebgpuPagesCache(rt, gpuDevice);
   const [width, height] = viewport;
-  ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
+  await grantFrameTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   ensureUniform(rt, gpuDevice, cap);
   try {
     if (geometryFailure) throw geometryFailure.error;

@@ -16,7 +16,10 @@ export async function validationScope<T>(
   device.pushErrorScope(filter);
   let value: T;
   try {
-    value = await build();
+    // A build that returns at once is popped at once: no other scope opens between its push and
+    // its pop, so two grants started in one frame never take each other's errors.
+    const built = build();
+    value = built instanceof Promise ? await built : built;
   } catch (error) {
     await device.popErrorScope().catch(() => null);
     throw error;

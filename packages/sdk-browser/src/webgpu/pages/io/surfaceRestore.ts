@@ -3,11 +3,21 @@ import type { HostCamera } from '../../../camera/world.ts';
 import { encodeDraws } from '../render/encodeDraws.ts';
 import { resetHizHistory } from './drops.ts';
 import { renderWebgpuPages } from '../render/render.ts';
+import { grantFrameTargets } from '../prepare/targetGrant.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** Renders through the backend while a capture holds it, which `render` otherwise refuses.
- *  `aspect` is the shape of the surface written into, when it is not the camera's own. */
-export function renderForCapture(rt: WebgpuPagesRuntime, camera: HostCamera, aspect?: number) {
+/** Renders through the backend while a capture holds it, which `render` otherwise refuses, once
+ *  the device granted the targets of the viewport's size (`WEBGPU_FRAME_TARGETS_REFUSED` when it
+ *  refuses them). `aspect` is the shape of the surface written into, when it is not the camera's
+ *  own. */
+export async function renderForCapture(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  camera: HostCamera,
+  aspect?: number,
+) {
+  const [width, height] = rt.setup.viewport;
+  await grantFrameTargets(rt, device, Math.max(1, width), Math.max(1, height));
   rt.capture.surfaceRenderAllowed = true;
   // A capture renders from another camera and then restores the image: nothing is held there.
   rt.run.gate.viewReplaced();
@@ -61,7 +71,7 @@ export async function restoreMainView(
   Object.assign(run.motion, saved.motion);
   try {
     if (run.lost || context.signal?.aborted) return;
-    renderForCapture(rt, saved.main);
+    await renderForCapture(rt, gpuDevice, saved.main);
     await drawResidentCut(rt, gpuDevice);
     if (gpu.presenter && gpu.colorTexture) {
       const encoder = gpuDevice.createCommandEncoder();
