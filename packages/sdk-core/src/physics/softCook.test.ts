@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fromArrays } from '../world/geometry/builder.ts';
 import { softBodyOf, softSettings, type SoftBodyOptions } from './soft.ts';
+import { goldenCloth } from './softCloth.fixture.ts';
 
 /**
  * The records the compiler's cook writes (`physics_cook/soft_page_tests.rs`, which mirrors
@@ -32,16 +33,7 @@ async function cookedRecords() {
   return records;
 }
 
-const cloth = fromArrays(
-  Array.from({ length: 9 }, (_, v) => [
-    (v % 3) * 0.5 - 0.5,
-    Math.floor(v / 3) * 0.5 - 0.5,
-    0,
-  ]).flat(),
-  [],
-  [],
-  [0, 1, 3, 4].flatMap((a) => [a, a + 1, a + 4, a, a + 4, a + 3]),
-);
+const cloth = goldenCloth();
 const seam = fromArrays([0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0.5, 0], [], [], []);
 const tetra = fromArrays(
   [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],

@@ -9,7 +9,7 @@ import {
   SOFT_WORDS,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
-import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
+import { goldenCloth } from '../../../sdk-core/src/physics/softCloth.fixture.ts';
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
 import { createCookedSoftBodies } from './cookedSoft.ts';
@@ -26,17 +26,7 @@ const golden = async () =>
       new URL('../../../../tests/fixtures/physics/cloth-settings.bin', import.meta.url),
     ),
   );
-const cloth = () =>
-  fromArrays(
-    Array.from({ length: 9 }, (_, v) => [
-      (v % 3) * 0.5 - 0.5,
-      Math.floor(v / 3) * 0.5 - 0.5,
-      0,
-    ]).flat(),
-    [],
-    [],
-    [0, 1, 3, 4].flatMap((a) => [a, a + 1, a + 4, a, a + 4, a + 3]),
-  );
+const cloth = goldenCloth;
 const options = { type: 'cloth', pins: [6, 8], bend: 0.01 } as const;
 /** Its nine vertices, each its own: no two at one position. */
 const own = { map: Uint32Array.from({ length: 9 }, (_, v) => v) };
