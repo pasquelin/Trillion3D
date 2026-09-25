@@ -53,6 +53,10 @@ export class Scene extends Object3D {
     this.loader = loader;
     this.type = 'Scene';
   }
+  /** Refused: a world has one scene root, never cloned. */
+  protected override blank(): this {
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'A Scene cannot be cloned: a world has one');
+  }
   /** What fills the image behind every object: a colour, or `null` for the default. A change
    *  shows at the next frame, the session kept: a new colour set here, or the one held written
    *  through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g`
