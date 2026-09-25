@@ -51,7 +51,7 @@ fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
 fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f)->vec4f{
  var along=vec3f(0.0);
  if(${QUANTIZED}){along=clusterNormal(h,page.pageOffset,vertex);}
- return lineClip(clip,vp*vec4f(along,0.0),page.lineWidth,uni.viewport.xy);
+ return lineClip(clip,vp*vec4f(along,0.0),page.lineWidth,uni.viewport.xy,uni.pixelRatio);
 }
 /** Clip position of a page vertex under \`vp\`: every raster's, a line page's widened on screen. */
 fn pageClip(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{

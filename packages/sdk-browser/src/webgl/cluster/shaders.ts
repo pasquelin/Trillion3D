@@ -17,7 +17,7 @@ export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
 in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;in mat4 instanceMatrix;
 uniform mat4 modelViewMatrix,projectionMatrix;uniform mat3 normalMatrix;uniform bool instanced;
-uniform float lineWidth;uniform vec2 viewport;
+uniform float lineWidth,pixelRatio;uniform vec2 viewport;
 out vec3 toEye;out vec3 viewNormal;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
 ${LINE_CLIP_GLSL}
 void main(){vec4 view;vec3 objectNormal=normal;
@@ -27,7 +27,7 @@ else view=modelViewMatrix*vec4(position,1.0);toEye=-view.xyz;
 viewNormal=normalize(normalMatrix*objectNormal);
 texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;
 if(lineWidth>0.0){vec4 along=instanced?instanceMatrix*vec4(normal,0.0):vec4(normal,0.0);
-gl_Position=lineClip(gl_Position,projectionMatrix*(modelViewMatrix*along),lineWidth,viewport);}}`;
+gl_Position=lineClip(gl_Position,projectionMatrix*(modelViewMatrix*along),lineWidth,viewport,pixelRatio);}}`;
 
 // The view vector reads the camera as one homogeneous point (`EngineCamera.viewPoint`), in view
 // space: the origin under a perspective projection, +z under an orthographic one — its weight p

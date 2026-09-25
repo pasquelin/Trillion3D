@@ -119,7 +119,7 @@
         lights: [helper.directionalLight(sun, 0.8), helper.spotLight(spot), helper.pointLight(bulb, 0.3), helper.hemisphereLight(sky, 0.5)],
         camera: [helper.camera(filming)],
       };
-      // A line's width is in pixels, the same near and far: every helper, a short arrow or the
+      // A line's width is in CSS pixels, the same near and far: every helper, a short arrow or the
       // whole grid, draws two pixels wide.
       for (const mark of Object.values(families).flat()) {
         mark.traverse((node) => {
