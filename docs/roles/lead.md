@@ -13,7 +13,10 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
-2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
+2. **Design note, then code.** Before the first coder, comment on the issue in 3–5 lines: the
+   approach, the budget it holds, the paths it touches (WebGPU, WebGL2, CPU cut) and the two
+   scenes that prove it. For a `measure ko` whose cause is `tests`, the note names the fast test
+   (no Chrome) that will catch the failing case when one can express it. Then launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
    (`run_in_background: false`, as every subagent you start) so its result comes back to you, with a
    brief that names the issue, the files to read and, when the batch needs one, the live example
    below; nothing else. It returns a pull request. A batch that adds or changes something a page can
@@ -42,7 +45,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 word: you read the diff yourself against the issue, and you write the result in the pull request
 body under `## Lead verification`, before the merge. CI refuses a pull request without that section.
 It holds one line per To do and Proof item of the issue:
-`- <item>: delivered in <file:line>, proved by <test name>`. An item that cannot be delivered holds the pull request until the CTO splits the issue (AGENTS.md rule 5).
+`- <item>: delivered in <file:line>, proved by <test name>`, then `- rounds: <n>` (coder↔reviewer). An item that cannot be delivered holds the pull request until the CTO splits the issue (AGENTS.md rule 5).
 It then holds one line per point below, checked by you.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
@@ -59,7 +62,8 @@ merges keep coming back `audit ko` is stopped by the CTO.
    after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for
    events, never a fixed delay. An oracle ports the new code, not the old.
 3. **No image loss** (AGENTS.md rule 1). 0 px against `develop`, or the difference declared in the
-   issue and accepted by the maintainer before the merge. No path draws a mode or a light as
+   issue and accepted before the merge: by the CTO when it is proved closer to a reference image
+   (a correction), by the maintainer otherwise. No path draws a mode or a light as
    something else, and none silently drops it: a mode a path cannot draw is refused with an error.
 4. **Reuse** (AGENTS.md rule 6). Search before accepting a new function, class, table or public
    entry point: its line says every new exported symbol was searched in the graph
