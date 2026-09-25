@@ -360,6 +360,22 @@
       "up": "YUKARI"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Etrafa bakmak için sürükleyin. Sisi, erimini ve rengini seçin.",
+    "controls": {
+      "fog": "Sis",
+      "reach": "Erim",
+      "height": "Yükseklik",
+      "colour": "Renk"
+    },
+    "choices": {
+      "fog": {
+        "distance": "uzaklık",
+        "thick": "yoğun",
+        "ground": "yerde"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Etrafa bakmak için sürükle. Boncuklar tüp boyunca kayar.",
     "controls": {
@@ -2014,6 +2030,20 @@
     "readouts": {
       "joints": "Eklemler",
       "broken": "Kırılan"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Mekanizmanın hızını değiştir, asansörü kaldır ve karşı ağırlığı kaldırmak için kovaya ağırlık at.",
+    "controls": {
+      "speed": "Mekanizma hızı (rad/s)",
+      "raiseLift": "Asansörü kaldır",
+      "addWeight": "Ağırlık bırak",
+      "emptyBucket": "Kovayı boşalt"
+    },
+    "readouts": {
+      "lift": "Asansör",
+      "load": "Ağırlıklar",
+      "rope": "İp akışı"
     }
   }
 }

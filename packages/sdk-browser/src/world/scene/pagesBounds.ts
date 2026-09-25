@@ -1,5 +1,5 @@
 import { meshes as objects } from '../../scene/meshes.ts';
-import type { HostGraphMesh, HostGraphNode } from '../../host/scene/graphNodes.ts';
+import type { HostBoundedNode, HostGraphMesh } from '../../host/scene/graphNodes.ts';
 import { hostWorldTree } from '../../host/world/tree.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { emptyWorldBox } from '../../host/world/bounds.ts';
@@ -7,6 +7,7 @@ import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts';
 import { boxUnionCollector } from '../../math/batchBoxes.ts';
 import type { BackendContext } from '../../backend/types.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * World bounds of the exact pages of a prepared scene: what framing and replication read from
@@ -33,9 +34,15 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
   out[at + 5] = item.max[2];
 }
 
+/** The box a mesh placed by rows holds for every row (`host/prepared/placed.ts`): its pages
+ *  bound one placement, and its own pose places none. */
+function placedBox(mesh: HostGraphMesh, associations: BackendContext['associations']) {
+  return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined;
+}
+
 /** Exact pages of `source`: the EXACT size the box lot must carry. */
 function exactPagesCount(
-  source: HostGraphNode,
+  source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
 ) {
@@ -43,14 +50,15 @@ function exactPagesCount(
   let n = 0;
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
-    if (primitive) for (const item of primitive.pages) if (exacte(item)) n++;
+    if (primitive && placedBox(mesh, associations)) n++;
+    else if (primitive) for (const item of primitive.pages) if (exacte(item)) n++;
   }
   return n;
 }
 
 /** The lot that carries these pages, or `null` when there are none: a reservation, not a frame. */
 export async function pagesLot(
-  source: HostGraphNode,
+  source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
 ) {
@@ -61,7 +69,7 @@ export async function pagesLot(
 /** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`; `onMissing`
  *  decides what a mesh without a prepared primitive does, and the mesh is skipped once it returns. */
 export function pagesBounds(
-  source: HostGraphNode,
+  source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   onMissing: (mesh: HostGraphMesh) => void,
@@ -79,6 +87,13 @@ export function pagesBounds(
     }
     // The world matrix is the one the engine computed for this mesh, read once.
     const world = mondes.world(mesh);
+    const placed = placedBox(mesh, associations);
+    if (placed) {
+      const { min, max } = placed;
+      union.boxes.set([min.x, min.y, min.z, max.x, max.y, max.z], union.at);
+      union.pose(world);
+      continue;
+    }
     for (const item of primitive.pages)
       if (exacte(item)) {
         ecritPage(union.boxes, union.at, item);

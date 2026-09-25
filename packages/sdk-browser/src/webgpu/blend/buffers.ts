@@ -1,5 +1,6 @@
 import type { HostAttribute, HostAttributes } from '../../host/resources.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
+import { uvBufferFloats, writeVertexColors } from '../core/vertexColors.ts';
 
 /**
  * Vertex buffers of a transparent primitive, held by the source geometry and not by the mesh that
@@ -32,21 +33,25 @@ export function ensureBlendIndexBuffer(
   return buffer;
 }
 
-/** UVs of a transparent geometry, unfolded once for all of its instances. */
+/** UVs of a transparent geometry, unfolded once for all of its instances, then its vertex colours
+ *  when it has some (`../core/vertexColors.ts`). */
 export function ensureBlendUvBuffer(
   device: GPUDevice,
   attributes: HostAttributes,
   gpu: WebgpuGpuState,
 ) {
   if (gpu.blendUvBuffers.has(attributes)) return gpu.blendUvBuffers.get(attributes);
-  const uv = attributes.uv;
+  const uv = attributes.uv,
+    color = attributes.color,
+    count = uv?.count ?? color?.count ?? 0;
   let buffer: GPUBuffer | undefined;
-  if (uv) {
-    const data = new Float32Array(uv.count * 2);
-    for (let i = 0; i < uv.count; i++) {
+  if (uv || color) {
+    const data = new Float32Array(uvBufferFloats(count, !!color));
+    for (let i = 0; uv && i < count; i++) {
       data[i * 2] = uv.getX(i);
       data[i * 2 + 1] = uv.getY(i);
     }
+    if (color) writeVertexColors(data, count, 0, count, color);
     buffer = upload(device, data, 8, gpu);
   }
   gpu.blendUvBuffers.set(attributes, buffer);

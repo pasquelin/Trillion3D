@@ -13,6 +13,19 @@ import {
   type VisPage,
 } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
+import type { HostAttributes } from '../host/resources.ts';
+import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
+
+/** Interpolated alpha of the vertex colours; a three-component colour reads an alpha of one. */
+function vertexAlpha(
+  color: HostAttributes[string],
+  tri: { i0: number; i1: number; i2: number },
+  bary: { w0: number; w1: number; w2: number },
+) {
+  if (color.itemSize < 4) return 1;
+  const a = (i: number) => color.getComponent(i, 3);
+  return a(tri.i0) * bary.w0 + a(tri.i1) * bary.w1 + a(tri.i2) * bary.w2;
+}
 
 function fillIds(
   ids: Uint32Array,
@@ -66,8 +79,14 @@ function fillIds(
 }
 
 /** CPU visbuffer: packed IDs plus NDC z (background at the far value). Engine depth is
- *  reversed, so the GREATEST wins; at equal depth, the first write stays. */
-export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: [number, number]) {
+ *  reversed, so the GREATEST wins; at equal depth, the first write stays. A line page's quads are
+ *  widened at `pixelRatio` image pixels per CSS pixel, as the GPU rasters widen them. */
+export function rasterVisibility(
+  pages: VisPage[],
+  cam: EngineCamera,
+  viewport: [number, number],
+  pixelRatio = DEFAULT_PIXEL_RATIO,
+) {
   const [width, height] = viewport,
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
@@ -87,13 +106,15 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     // drops — and its own shading (`visibilityLighting`) already flipped the sign.
     const positif = (side === 'back') !== matrixWindingCw(page.matrix.elements);
     const transformed = !!mat.map && uvTransformed(mat.map.transform);
+    // Vertex colours tint, and cut, only where the material asks, as the GPU rows do.
+    const color = mat.vertexColors ? page.attributes.color : undefined;
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
-      const tri = triangleAt(page, t, cam, width, height);
+      const tri = triangleAt(page, t, cam, width, height, pixelRatio);
       if (!tri) continue;
       const area = signedArea(tri.a, tri.b, tri.c);
       if (side !== 'double' && (positif ? area <= 0 : area >= 0)) continue;
-      if (mat.alphaTest > 0 && mat.map) {
+      if (mat.alphaTest > 0 && (mat.map || color)) {
         const uv = page.attributes.uv;
         fillIds(
           ids,
@@ -106,16 +127,20 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
           packVisibilityId(pageIndex, t),
           (x, y, w0, w1, w2) => {
             const bary = perspectiveBary(tri.a, tri.b, tri.c, { w0, w1, w2 });
+            // The base map alpha times the vertex alpha, as the reference cuts
+            // (`maskKeep`, `./shader/pageWgsl.ts`).
+            let alpha = color ? vertexAlpha(color, tri, bary) : 1;
+            const rgba = mat.map && textureRgba(mat.map);
+            if (!rgba) return !color || alpha >= mat.alphaTest;
             const u = uv
               ? uv.getX(tri.i0) * bary.w0 + uv.getX(tri.i1) * bary.w1 + uv.getX(tri.i2) * bary.w2
               : 0;
             const v = uv
               ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
               : 0;
-            const rgba = textureRgba(mat.map!);
-            if (!rgba) return true;
             const texel = mapTexel(rgba, mat.map!, u, v, transformed);
-            return rgba.data[texel + 3] / 255 >= mat.alphaTest;
+            alpha *= rgba.data[texel + 3] / 255;
+            return alpha >= mat.alphaTest;
           },
         );
         continue;
@@ -131,6 +156,7 @@ export function rasterVisibilityIds(
   pages: VisPage[],
   cam: EngineCamera,
   viewport: [number, number],
+  pixelRatio = DEFAULT_PIXEL_RATIO,
 ) {
-  return rasterVisibility(pages, cam, viewport).ids;
+  return rasterVisibility(pages, cam, viewport, pixelRatio).ids;
 }

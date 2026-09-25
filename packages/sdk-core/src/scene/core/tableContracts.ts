@@ -10,13 +10,15 @@
 import { EngineError } from '../../contracts/cache.ts';
 import type { TableDocument } from './tableDocuments.ts';
 import type { TableMaterial, TableTexture } from './tableSurfaces.ts';
+import { assertTablePartition, type TablePartition } from './tablePartition.ts';
 
 /** The name of the file that holds the scene tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json';
 /** Version of the product as a whole; each table it carries is versioned in turn. */
-const SCENE_TABLES_VERSION = 2;
-/** The version of the node table this runtime reads: every node, with its local pose. */
-const NODE_TABLE_VERSION = 2;
+const SCENE_TABLES_VERSION = 3;
+/** The version of the node table this runtime reads: every node but those a cell places, with its
+ *  local pose. */
+const NODE_TABLE_VERSION = 3;
 /** The version of the material table this runtime reads. */
 const MATERIAL_TABLE_VERSION = 4;
 /** The version of the geometry layout this runtime reads. */
@@ -97,8 +99,10 @@ export interface PreparedSceneTables {
   geometryTableVersion: number;
   /** The scene the host opens, and the nodes at its top. */
   scene: { name: string; nodes: readonly number[] };
-  /** Every node. */
+  /** Every node the cells do not place, at its rank in this table. */
   nodes: TableNode[];
+  /** The cells that place the other nodes, read by distance; `null` when the scene has none. */
+  partition: TablePartition | null;
   /** The lights the nodes hang. */
   lights: TableLight[];
   /** The cameras the nodes carry. */
@@ -145,5 +149,6 @@ export function assertSceneTables(value: unknown): PreparedSceneTables {
         ...(tables.documents ? [] : ['documents']),
       ],
     });
+  tables.partition = assertTablePartition(tables.partition);
   return tables;
 }

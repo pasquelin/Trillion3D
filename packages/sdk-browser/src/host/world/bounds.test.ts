@@ -11,7 +11,7 @@ import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.
 import { threeGeometry } from '../../../../../bench/witnesses/three/fromGraph.ts';
 
 /** The same box, flattened, as `Box3.setFromObject` computes it. */
-function referenceBox(graph: G.GraphNode) {
+function referenceBox(graph: G.Object3D) {
   const source = threeGraph(graph);
   const box = new THREE.Box3().setFromObject(source);
   return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
@@ -19,9 +19,9 @@ function referenceBox(graph: G.GraphNode) {
 
 /** Hostile subtree, depth 3: negative then non-uniform scale, two meshes. */
 function hostileScene() {
-  const racine = new G.GraphGroup();
+  const racine = new G.Group();
   racine.scale.set(-2, 1, 1);
-  const enfant = new G.GraphGroup();
+  const enfant = new G.Group();
   enfant.position.set(5, -5, 0);
   enfant.scale.set(1, 3, 0.001);
   racine.add(enfant);
@@ -29,7 +29,7 @@ function hostileScene() {
   const meshA = G.mesh(geometrieA, G.basicSurface());
   meshA.position.set(1, 1, 1);
   enfant.add(meshA);
-  const petitEnfant = new G.GraphGroup();
+  const petitEnfant = new G.Group();
   petitEnfant.position.set(0, 0, 100);
   enfant.add(petitEnfant);
   const geometrieB = G.sphereGeometry(1);
@@ -45,8 +45,8 @@ test('hostWorldBounds agrees with Box3.setFromObject on a hostile subtree, depth
 });
 
 test('a subtree with no geometry at all returns an empty box, like Box3.setFromObject', () => {
-  const source = new G.GraphGroup();
-  source.add(new G.GraphGroup(), new G.GraphNode());
+  const source = new G.Group();
+  source.add(new G.Group(), new G.Object3D());
   const obtenu = hostWorldBounds(source);
   const attendu = new G.Box3().setFromObject(source);
   assert.ok(attendu.isEmpty(), 'the reference must be empty for this test to mean anything');
@@ -68,8 +68,8 @@ test('emptyWorldBox returns an independent empty box on every call', () => {
 });
 
 test('geometry carried by a node that is not a mesh counts, like expandByObject', () => {
-  const source = new G.GraphGroup();
-  const nuage = Object.assign(new G.GraphNode(), { geometry: G.sphereGeometry(3) });
+  const source = new G.Group();
+  const nuage = Object.assign(new G.Object3D(), { geometry: G.sphereGeometry(3) });
   nuage.position.set(10, -10, 10);
   source.add(nuage);
   // The reference reads a point cloud of the same geometry, the library's node carrying one.
@@ -80,7 +80,7 @@ test('geometry carried by a node that is not a mesh counts, like expandByObject'
 });
 
 test("an object's own box (object.boundingBox) wins over its geometry's, like expandByObject", () => {
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   const mesh: G.GraphMesh & { boundingBox?: G.Box3 | null } = G.mesh(
     G.boxGeometry(100, 100, 100),
     G.basicSurface(),

@@ -16,7 +16,7 @@ import type { VisMaterial, VisPage } from '../types.ts';
 import { litMaterial } from './material.fixture.ts';
 
 const attribut = (valeurs: number[], taille: number) =>
-  new G.GraphAttribute(Float32Array.from(valeurs), taille);
+  new G.BufferAttribute(Float32Array.from(valeurs), taille);
 
 const materiau = (overrides: Partial<VisMaterial> = {}) =>
   litMaterial({ baseColor: [0.8, 0.6, 0.4], metalness: 0.3, roughness: 0.4, ...overrides });
