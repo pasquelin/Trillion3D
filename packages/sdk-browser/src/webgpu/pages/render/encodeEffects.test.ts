@@ -47,7 +47,7 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   while (rt.gpu.effects!.loading) await new Promise((resolve) => setImmediate(resolve));
   drawTwice(rt, device);
   const composed = encodeEffects(rt, device, encoder, input);
-  assert.notEqual(composed?.color, input.color, 'composition reads the chain\'s output');
+  assert.notEqual(composed?.color, input.color, "composition reads the chain's output");
   assert.equal(composed?.share, input.share, 'with the as-is share of the image it read');
   const lit = {} as GPUTextureView;
   rt.gpu.hdrView = lit;
