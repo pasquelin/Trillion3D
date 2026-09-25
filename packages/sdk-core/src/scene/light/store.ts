@@ -35,7 +35,8 @@ export function createSceneLightStore() {
   const environmentPacked = new Float32Array(SCENE_ENVIRONMENT_FLOATS);
   let environment: SceneEnvironment | undefined,
     view: SceneLightingView = 'auto',
-    epoch = 1;
+    epoch = 1,
+    fogOnly = 0;
   const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
   /** A light's atlas slice lives in the buffer itself: it is not held twice. */
   const sliceOf = (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.shadowSlice];
@@ -62,6 +63,11 @@ export function createSceneLightStore() {
     /** Bumped when the set of lights changes. */
     get epoch() {
       return epoch;
+    },
+    /** Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not
+     *  light transport, so what caches transported light (the bounce probes) keeps it. */
+    get transportEpoch() {
+      return epoch - fogOnly;
     },
     /** The scene's environment. */
     get environment() {
@@ -166,6 +172,11 @@ export function createSceneLightStore() {
       const validated = validateSceneEnvironment(next);
       // Same rule as `set`: an exposure reset as-is does not stale the frame.
       if (environment && sameSceneEnvironment(environment, validated)) return;
+      if (
+        environment &&
+        sameSceneEnvironment({ ...environment, fog: undefined }, { ...validated, fog: undefined })
+      )
+        fogOnly++;
       environment = validated;
       packEnvironment(environment, environmentPacked);
       epoch++;

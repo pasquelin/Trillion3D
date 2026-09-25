@@ -96,3 +96,35 @@ test('an instance changed or removed leaves the model and the other instances as
   assert.equal(state.allocationBytes, before + bytes(own.geometry));
   assert.ok(bOwn.geometry && bRowed.geometry === rowed.geometry);
 });
+
+// An instance of a large world copies its roots and bootstrap pages one by one: a spread of that
+// many arguments overflows the stack (#404, the crash `pages.ts` had).
+test('an instance of a world with 300,000 roots and bootstrap pages is added whole', () => {
+  const count = 300_000;
+  const identity = { elements: new Float64Array(new G.Matrix4().toArray()) };
+  const basePages = Array.from(
+    { length: count },
+    (_, i) => ({ url: 'p.bin', clusterId: `m/${i}`, matrix: identity }) as unknown as PageRec,
+  );
+  const baseRoots = basePages.map((page) => ({ world: identity, pages: [page] }));
+  const roots: typeof baseRoots = [],
+    bootstrap: PageRec[] = [];
+  const instances = createAutonomousInstances({
+    roots: roots as never,
+    baseRoots: baseRoots as never,
+    allPages: [],
+    basePages,
+    bootstrap,
+    baseBootstrap: basePages,
+    byUrl: new Map(),
+    baseMaterials: new Map(),
+    geometryStore: {} as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
+    cap: Infinity,
+    sceneChanged: () => {},
+    coverChanged: () => {},
+  });
+  instances.addInstance('a', new G.Matrix4().elements.slice());
+  assert.equal(roots.length, count);
+  assert.equal(bootstrap.length, count);
+  assert.equal(bootstrap[count - 1].clusterId, `a/m/${count - 1}`);
+});

@@ -79,7 +79,7 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
   const value = metadata as Record<string, unknown>;
   if (
     !Array.isArray(value.primitives) ||
-    !Array.isArray(value.selectedNodes) ||
+    !Number.isSafeInteger(value.selectedNodes) ||
     typeof value.selectedTriangles !== 'number' ||
     !Number.isFinite(value.selectedTriangles)
   )

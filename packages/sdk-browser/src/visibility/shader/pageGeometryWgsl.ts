@@ -1,6 +1,8 @@
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts';
-import { FLAG_CLUSTER_PAGE } from '../types.ts';
+import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR } from '../types.ts';
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts';
+import { LINE_CLIP_WGSL } from './lineWgsl.ts';
+import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
 
 const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
 
@@ -18,9 +20,15 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  * The header is decoded once per invocation and passed down: it is twenty-one words of the page
  * and a handful of shifts, and a vertex stage that read it per corner would pay it three times a
  * triangle. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
+ *
+ * Vertex colours: quantized on the page, at the tail of the source UV buffer otherwise
+ * (`../../webgpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
+ * rasters cut a masked row at its base map alpha times the vertex alpha (`pageMaskAlpha`), as the
+ * reference multiplies the diffuse alpha by the vertex colour before its alpha test.
  */
 export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}
+${LINE_CLIP_WGSL}
 ${clusterDecodeWgsl('indices')}
 fn pageHeader(page:PageInfo)->ClusterHeader{
  var h:ClusterHeader;
@@ -37,10 +45,35 @@ fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(${QUANTIZED}){return clusterPosition(h,page.pageOffset,vertex);}
  return vertPos(page.vertexBase,vertex);
 }
+/** Clip position \`clip\` of a corner of a line page (\`page.lineWidth\` above zero), widened on
+ *  screen (\`lineClip\`); \`vp\` takes the page's local space to clip space. A line page is a
+ *  quantized page the world cut at run time: a row without one keeps no direction, and no width. */
+fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f)->vec4f{
+ var along=vec3f(0.0);
+ if(${QUANTIZED}){along=clusterNormal(h,page.pageOffset,vertex);}
+ return lineClip(clip,vp*vec4f(along,0.0),page.lineWidth,uni.viewport.xy,uni.pixelRatio);
+}
+/** Clip position of a page vertex under \`vp\`: every raster's, a line page's widened on screen. */
+fn pageClip(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
+ let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);
+ if(page.lineWidth>0.0){return pageLine(page,h,vertex,vp,clip);}
+ return clip;
+}
 /** First texture coordinate of a page vertex. */
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
  if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex);}
  return vertUv(page.vertexBase,vertex);
+}
+${VERTEX_COLOR_WGSL}
+/** Vertex colour of a page vertex. */
+fn pageColor(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
+ if(${QUANTIZED}){return clusterColor(h,page.pageOffset,vertex);}
+ return vertColor(page.vertexBase+vertex);
+}
+/** Alpha a vertex brings to the cutout: its colour's when the row reads its colours, else one. */
+fn pageMaskAlpha(page:PageInfo,h:ClusterHeader,vertex:u32)->f32{
+ if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}
+ return 1.0;
 }`;
 
 /**
