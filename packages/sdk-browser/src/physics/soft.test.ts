@@ -29,7 +29,7 @@ function volumeOf(indices: ArrayLike<number>, v: Float32Array) {
 async function ball(options: Omit<Extract<SoftBodyOptions, { type: 'volume' }>, 'type'>) {
   const jolt = await softWorld();
   const shape = sphere(0.5, 16, 12);
-  const rest = volumeOf(shape.index!.array, shape.getAttribute('position').array as Float32Array);
+  const rest = volumeOf(shape.index!.array, shape.getAttribute('position')!.array as Float32Array);
   const record = addSoft(jolt, shape, { type: 'volume', ...options }, [0, 1, 0]);
   return volumeOf(shape.index!.array, settle(jolt, record, 3)) / rest;
 }
