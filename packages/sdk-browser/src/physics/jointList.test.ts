@@ -103,8 +103,8 @@ test('a distance joint given only limits.min keeps a maximum no shorter than it'
     const sent = worker.words.at(-1)!;
     const at = sent.indexOf(OP.joint),
       floats = new Float32Array(sent.buffer, sent.byteOffset, sent.length);
-    // After the op, the id, the kind and ends, and the two frames: minimum, then maximum.
-    const [min, max] = [floats[at + 23], floats[at + 24]];
+    // After the op, the id, the kind, ends and motor words, and the two frames: minimum, maximum.
+    const [min, max] = [floats[at + 26], floats[at + 27]];
     assert.equal(min, 3);
     assert.ok(max >= min, `max ${max} below min ${min}`);
     physics.dispose();
