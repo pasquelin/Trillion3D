@@ -1,7 +1,8 @@
 // #525: a shadow page costs only what the view reads. A page no receiver on screen reads is never
 // mapped, so never drawn; and the list a frame draws from serves each light's coarse coverage
-// first, so a frame its memory guard stops still lands where every finer page falls back. That a page draws
-// only the casters its own square meets is held beside the shader (`gpu/shadow/cullShader.test.ts`).
+// first, so a frame its memory guard stops still lands where every finer page falls back. That a
+// page draws only the casters its own square meets is held beside the shader
+// (`gpu/shadow/cullShader.test.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_MAPPED, sunFloorLevel } from './virtual.ts';
