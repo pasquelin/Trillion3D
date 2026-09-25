@@ -84,12 +84,8 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
   };
 }
 
-/**
- * The coverage rule each host colour map's chain was reduced under, followed at every image (#42):
- * a host switches a surface between opaque and masked without a new prepare. `reduce` hands each
- * map whose rule moved to `reduce` and adds its slot to `moved`; one whose picture was just
- * `copied` carries the rule already: never reduced twice. A cooked chain keeps the compiler's.
- */
+/** The rule each host colour map's chain was reduced under, followed at every image (#42): a map
+ *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
   const hosts = new Map<number, { map: Texture; readers: CoverageReaders; rule: boolean }>();
   for (const [slot, { source }] of atlas.textures.entries())

@@ -100,7 +100,7 @@ export class WebglMipReducer {
         [w, h] = levelSize(width, height, level);
       attach(gl.READ_FRAMEBUFFER, level - 1);
       attach(gl.DRAW_FRAMEBUFFER, level);
-      if (!(drawn = this.drawable.get(format) ?? this.check(format))) break; // checked at level 1
+      if (!(drawn = this.drawable.get(format) ?? this.check(format))) break;
       gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, sw, sh);
       gl.uniform2i(built.extent, sw, sh);
       gl.viewport(0, 0, w, h);
