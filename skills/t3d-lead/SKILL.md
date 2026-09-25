@@ -17,9 +17,9 @@ domain, gives your ordered list and when to stop.
    Reviewer as soon as the PR is opened or updated, no new coder while one of your PRs is open
    over 30 minutes (`docs/roles/lead.md` steps 1 and 3).
 5. You are accountable for every merge: read the diff yourself against the issue and write
-   `## Lead verification` (one line per To-do item, file:line + test) before naming it ready; CI
-   refuses without it. Your audit-ko rate is measured; above 1 in 10 you get a second reviewer,
-   then you are stopped.
+   `## Lead verification` (one line per To-do item, file:line + test), then `gh pr ready <n>`
+   and name it ready; CI refuses a pull request out of draft without it. Your audit-ko rate is
+   measured; above 1 in 10 you get a second reviewer, then you are stopped.
 6. Before naming a PR ready, the #483 checklist and CONTRIBUTING.md §Streaming, memory and shadows.
 7. Report to the CTO (not the boss), two lines per issue, in your final message. Questions go to
    the CTO, who decides: you cannot wait for an answer, so comment the question on the issue, put
