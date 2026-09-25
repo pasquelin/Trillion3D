@@ -12,6 +12,9 @@ const PHYSICS: &str = "../physics-jolt-wasm";
 /// The page codec (`packages/page-codec-wasm`), a path dependency built into the compiler.
 const CODEC: &str = "../page-codec-wasm";
 
+/// The repository's cargo configuration, which sets the C++ flags meshoptimizer is built with.
+const CARGO_CONFIG: &str = "../../.cargo/config.toml";
+
 fn run(command: &mut Command) {
     let status = command
         .status()
@@ -100,6 +103,8 @@ fn main() -> std::io::Result<()> {
         PathBuf::from("Cargo.lock"),
         PathBuf::from("build.rs"),
         Path::new(CODEC).join("Cargo.toml"),
+        // The C++ flags of meshoptimizer: `-ffp-contract=off` changes the bytes it simplifies to.
+        PathBuf::from(CARGO_CONFIG),
     ]);
     files.sort();
     // The whole source directories are watched, not each file in turn: a module added after the
