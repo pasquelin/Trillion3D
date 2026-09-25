@@ -53,7 +53,7 @@ export const sub = (a: Vec, b: Vec) => a.map((value, i) => value - b[i]);
 export const depthMargin = (texel: number, slope: number, cap = 1) =>
   texel * PCF_REACH * Math.min(slope, cap);
 /** `shadowNormalTexels` at a texel of `texel` metres: the offset in metres along the normal. */
-export const normalOffset = (texel: number, cosine: number) =>
+const normalOffset = (texel: number, cosine: number) =>
   texel *
   (LIGHT_SETTINGS.shadowNormalOffsetTexels +
     PCF_REACH * Math.max(Math.sqrt(1 - cosine * cosine) - cosine, 0));
