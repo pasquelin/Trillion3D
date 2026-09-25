@@ -5,9 +5,6 @@ dist/
 package-lock.json
 
 # Scene assets: compiled caches and generated sources.
-site/assets/kinetic-garden/cache/
-
-site/assets/gallery/offline/
-site/assets/gallery/signature-architecture/cache/
-
-site/assets/examples/*/cache/
+site/assets/**/cache/
+tests/fixtures/scenes/*/cache/
+tests/fixtures/scenes/mountain-terrain/source/
