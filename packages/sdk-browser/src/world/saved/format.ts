@@ -52,8 +52,13 @@ export interface SavedNode {
   userData: Record<string, unknown>;
   /** The nodes below it, in order. */
   children: SavedNode[];
-  /** Ranks in `geometries` and `materials`, and how the triangles are read. */
-  mesh?: { geometry: number; material: number | number[]; primitive: string };
+  /** Ranks in `geometries` and `materials`, how the triangles are read, and a sprite's centre. */
+  mesh?: {
+    geometry: number;
+    material: number | number[];
+    primitive: string;
+    center?: [number, number];
+  };
   /** A light's kind, colours, numbers, aim and probe coefficients. */
   light?: {
     kind: string;

@@ -1,4 +1,5 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
+import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
@@ -15,6 +16,8 @@ const MAPS = ['map', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'emis
 const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv'];
 /** The frame's depth ramp: the fragment holds the view distance, so the perspective weights. */
 const ramp = new Float32Array(3);
+/** A surface's sprite words (`writeSpriteWords`), rewritten at every binding. */
+const sprite = new Float64Array(2);
 /** Units after the six material maps: the frozen backdrop colour, then its depth. */
 export const BACKDROP_UNITS: [number, number] = [6, 7];
 
@@ -63,7 +66,7 @@ export function bindClusterMaterial(
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped ? 1 : 0);
   // An opaque surface covers its pixel whatever its alpha: the linear target of the effect chain
   // reads alpha as coverage (`../../effects/webglOutput.ts`).
-  uniforms.i1(45, 'covering', material.transparent ? 0 : 1);
+  uniforms.i1(47, 'covering', material.transparent ? 0 : 1);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&
@@ -101,6 +104,9 @@ export function bindClusterMaterial(
   uniforms.f1(39, 'lineWidth', mat.lineWidth ?? 0);
   // A dashed line's dash and gap (`CLUSTER_FRAGMENT`); zero keeps every pixel.
   uniforms.f2(43, 'dash', mat.dashSize ?? 0, mat.gapSize ?? 0);
+  // A sprite's turn and size rule (`CLUSTER_VERTEX`); zero draws the triangles as they are.
+  writeSpriteWords(sprite, 0, mat.sprite);
+  uniforms.f2(45, 'sprite', sprite[0], sprite[1]);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
   // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).

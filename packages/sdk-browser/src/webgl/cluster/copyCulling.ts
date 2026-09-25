@@ -8,16 +8,18 @@ import {
 import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import { placementsSphere } from './meshDepth.ts';
 import { readHostBox } from '../../host/boxBounds.ts';
-import { isTransmissive } from '../../visibility/shader/material.ts';
+import { isTransmissive, visMaterial } from '../../visibility/shader/material.ts';
+import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 
 type Centre = { x: number; y: number; z: number };
-/** What the cull reads of a scene copy: its declared culling, its local bounds, its world
- *  placement — and, drawn at several placements, the placements themselves. */
+/** What the cull reads of a scene copy: its declared culling, its surface, its local bounds,
+ *  its world placement — and, drawn at several placements, the placements themselves. */
 type CulledCopy = {
   frustumCulled: boolean;
+  material: WholeMesh['material'];
   matrixWorld: { elements: ArrayLike<number> };
   geometry: {
     boundingBox: Parameters<typeof readHostBox>[1] | null;
@@ -37,8 +39,9 @@ export type SceneCopy = WholeMesh & CulledCopy;
 
 /**
  * Frustum test of the scene copies the owner draws, the one the host renderer would apply: a
- * copy declared `frustumCulled` is skipped when its world box leaves the frustum. What it
- * saves is not the copy's draw alone but the backdrop pass a transmissive copy asks for.
+ * copy declared `frustumCulled` is skipped when its world box leaves the frustum, unless its
+ * surface is never culled (`neverCulled`). What it saves is not the copy's draw alone but the
+ * backdrop pass a transmissive copy asks for.
  */
 class WebglClusterCopyCulling {
   private viewProjection = new Float32Array(16);
@@ -50,7 +53,7 @@ class WebglClusterCopyCulling {
     clipPlanesFromMatrix(this.planes, this.viewProjection);
   }
   visible(copy: CulledCopy) {
-    if (!copy.frustumCulled) return true;
+    if (!copy.frustumCulled || neverCulled(visMaterial(copy.material))) return true;
     const box = this.box;
     if (copy.kind === 'instancedMesh' && copy.instanceMatrix) this.placementsBox(copy);
     else {
