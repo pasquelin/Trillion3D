@@ -1426,7 +1426,7 @@
         "packages/sdk-browser/src/world/session/backendsTextureLevels.test.ts",
         "packages/sdk-browser/src/world/session/manifest.ts",
         "packages/sdk-browser/src/world/session/pageSources.ts",
-        "packages/sdk-browser/src/world/session/proxyAfterLoss.test.ts",
+        "packages/sdk-browser/src/world/session/proxySession.fixture.ts",
         "packages/sdk-browser/src/world/session/session.ts",
         "tests/browser/probes/cameraSitesEngines.ts",
         "tests/browser/support/sharedSceneProof.ts",
@@ -7084,7 +7084,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/bounce/traceWgsl.ts",
-        "packages/sdk-browser/src/world/session/proxyAfterLoss.test.ts"
+        "packages/sdk-browser/src/world/session/proxySession.fixture.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/proxy\".PROXY_TRIANGLE_FLOATS"
@@ -7504,7 +7504,7 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/session/proxyAfterLoss.test.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/world/session/proxySession.fixture.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/proxy\".SCENE_PROXY_HEADER_WORDS"
     },
@@ -7515,7 +7515,7 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/session/proxyAfterLoss.test.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/world/session/proxySession.fixture.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/proxy\".SCENE_PROXY_MAGIC"
     },
@@ -7526,7 +7526,7 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/session/proxyAfterLoss.test.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/world/session/proxySession.fixture.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/proxy\".SCENE_PROXY_VERSION"
     },
