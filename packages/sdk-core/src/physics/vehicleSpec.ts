@@ -50,8 +50,13 @@
  *   as in that sample. In a steady turn it leans to 0.7 to 0.8 of `atan(v² / (r g))`: the
  *   controller's own righting impulse carries the rest of the turn.
  * - TRACKS grip their ground with a friction of 1 along and 0.5 across, the tractive and lateral
- *   resistance coefficients of a track on firm ground (Wong, "Theory of Ground Vehicles"); a
- *   track and its road wheels weigh a twentieth of the vehicle, turning at the sprocket's radius.
+ *   resistance coefficients of a track on firm ground (Wong, "Theory of Ground Vehicles").
+ * - TRACK MASS 0.05, a game's choice, declared: each track and its road wheels spin as a twentieth
+ *   of the vehicle's mass at the sprocket's radius (`vehicles.cpp` TRACK_MASS), an inertia of
+ *   0.05 m r². Seen from the ground, that inertia adds 0.05 m to the mass the sprocket drives, so
+ *   the hull's pull-away and a pivot turn's spin-up take 1 / 1.05 of the engine's force per
+ *   kilogram. Sensitivity: doubled to 0.1 they are 4.5 % slower (1.05 / 1.10), halved to 0.025
+ *   2.4 % faster (1.05 / 1.025); top speed and the pivot's final rate do not change.
  * - TRACK TURN 0.6, a game's choice, declared (Jolt's tank sample): steering slows the inner track
  *   to 0.6 of the outer; below 1 m/s the tracks turn opposite ways, a pivot turn.
  */
