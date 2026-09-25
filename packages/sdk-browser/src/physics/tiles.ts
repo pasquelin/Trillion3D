@@ -48,7 +48,7 @@ export function createTileStreamer(
   const byIndex = new Map<number, Placed>();
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
-    refused = false;
+    overBudget = false;
   async function open(model: Model) {
     const placed: Placed[] = [];
     models.set(model, placed);
@@ -73,12 +73,13 @@ export function createTileStreamer(
     softs.forget(model);
   };
   async function load(p: Placed) {
+    const opening = models.get(p.model);
     p.loading = true;
     fetching++;
     try {
       const bytes = await cookedBytes(p.model, p.tile.url, 'Physics tile');
       // Its model left, or was opened again meanwhile: this tile is no longer one it holds.
-      if (!models.get(p.model)?.includes(p)) return;
+      if (models.get(p.model) !== opening) return;
       p.id = bodies.claim(p.tile.triangles);
       const handle = p.id & BODY_INDEX;
       byIndex.set(handle, p);
@@ -158,9 +159,9 @@ export function createTileStreamer(
         room -= p.tile.triangles;
         if (fetching < FETCHES) void load(p);
       }
-      if (asked > budget.triangles && !refused)
+      if (asked > budget.triangles && !overBudget)
         failed(physicsBudgetError('triangles', budget.triangles, asked));
-      refused = asked > budget.triangles;
+      overBudget = asked > budget.triangles;
     },
     /** The model a tile body's or a cooked soft body's engine id belongs to, or `null`. */
     modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? softs.modelOf(id),

@@ -39,7 +39,8 @@
       const world = createWorld('view', { controls: 'orbit', physics: true });
       world.scene.background = math.color('#cfe0ee');
       const MODEL = '../assets/examples/flag/cache/native/full/manifest.json';
-      let model = await world.scene.load(MODEL);
+      let model = await world.scene.load(MODEL),
+        reloading = false;
 
       const sun = light.directional({ intensity: 3, castShadow: true });
       sun.position.set(6, 12, 8);
@@ -50,9 +51,12 @@
       controls(
         {
           // Loaded again, the flag is restored again, straight out: it sags anew at once.
+          // One load at a time: a second press while one is on its way would leave two flags.
           again: async () => {
+            if (reloading) return;
+            reloading = true;
             world.scene.remove(model);
-            model = await world.scene.load(MODEL);
+            model = await world.scene.load(MODEL).finally(() => (reloading = false));
           },
           slowMotion: false,
         },
