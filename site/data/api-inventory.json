@@ -653,7 +653,6 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
@@ -2984,7 +2983,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/framing\".framingFromBounds"
     },
@@ -6349,7 +6348,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["bench/perf/browser/support/publicScene.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/world/pose/index\".pose"
     },
@@ -9435,7 +9434,6 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "bench/perf/browser/support/publicScene.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
