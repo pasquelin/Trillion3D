@@ -1,6 +1,7 @@
 import { EngineError, IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { Color, type ColorInput } from '../../../sdk-core/src/world/math/color.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { poseSourceOf } from '../world/helper/mark.ts';
 import { objectPieces, type GuidePiece } from './guideObject.ts';
 import { packGuides, type GuideEntry } from './guidePack.ts';
 
@@ -18,7 +19,8 @@ export interface GuideHandle {
   readonly visible: boolean;
   /** Shows or hides it, its vertices still counted against the ceiling. */
   setVisible(on: boolean): GuideHandle;
-  /** Places it: sixteen column-major numbers, or a matrix — `node.matrixWorld` follows a node. */
+  /** Places it: sixteen column-major numbers, or a matrix; a guide `add` drew then stops
+   *  following its node. */
   setTransform(matrix: ArrayLike<number> | { elements: ArrayLike<number> }): GuideHandle;
   /** Takes it out of the world, its vertices given back; a second call does nothing. */
   remove(): void;
@@ -30,7 +32,7 @@ export interface GuideLines {
   positions: ArrayLike<number>;
   /** Their colour; white by default. */
   color?: ColorInput;
-  /** Width on the screen, in pixels. @defaultValue 1 */
+  /** Width on the screen, in CSS pixels, as every line of the engine. @defaultValue 1 */
   width?: number;
 }
 /** Dots to draw. */
@@ -39,7 +41,7 @@ export interface GuidePoints {
   positions: ArrayLike<number>;
   /** Their colour; white by default. */
   color?: ColorInput;
-  /** Side of each square dot on the screen, in pixels. @defaultValue 4 */
+  /** Side of each square dot on the screen, in CSS pixels. @defaultValue 4 */
   size?: number;
 }
 
@@ -55,8 +57,10 @@ export interface Guides {
   points(points: GuidePoints): GuideHandle;
   /**
    * Draws the line and point meshes of `object` — every `helper` builds them —, in their material
-   * colours, placed where the object stands now; its triangles are not guides and are skipped.
-   * @param options - `width` of its lines and `size` of its dots, in pixels.
+   * colours; its triangles are not guides and are skipped. The guide follows the object — a light
+   * or camera helper, the node it shows — moved at each image where that node moved, never
+   * otherwise.
+   * @param options - `width` of its lines and `size` of its dots, in CSS pixels.
    */
   add(object: Object3D, options?: { width?: number; size?: number }): GuideHandle;
   /** Removes every guide. */
@@ -73,6 +77,8 @@ const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).ge
  */
 export function createGuideSet(onChange: () => void = () => {}) {
   const entries = new Set<GuideEntry>();
+  /** The guides `add` drew, each with the node whose world pose it takes. */
+  const following = new Map<GuideEntry, Object3D>();
   let vertices = 0,
     revision = 0,
     packedAt = -1,
@@ -81,7 +87,24 @@ export function createGuideSet(onChange: () => void = () => {}) {
     revision++;
     onChange();
   };
-  const open = (pieces: GuidePiece[]): GuideHandle => {
+  /** Puts `entry` at `next`; the same pose moves nothing, so a held frame stays. */
+  const place = (entry: GuideEntry, next: ArrayLike<number>) => {
+    if (entry.matrix.every((value, i) => value === next[i])) return false;
+    entry.matrix.set(next);
+    return entries.has(entry);
+  };
+  /**
+   * Moves each shown guide that follows a node to where the node stands now, read in the frame
+   * that draws: it moves the revision, and asks for no frame of its own.
+   */
+  const follow = () => {
+    for (const [entry, node] of following) {
+      if (!entry.visible) continue;
+      node.updateWorldMatrix(true, false);
+      if (place(entry, node.matrixWorld.elements)) revision++;
+    }
+  };
+  const open = (pieces: GuidePiece[], node?: Object3D): GuideHandle => {
     const count = pieces.reduce((sum, piece) => sum + piece.vertices, 0);
     if (vertices + count > GUIDE_VERTEX_CEILING)
       throw new EngineError(
@@ -97,6 +120,7 @@ export function createGuideSet(onChange: () => void = () => {}) {
     };
     entries.add(entry);
     vertices += count;
+    if (node) following.set(entry, node);
     changed();
     const handle: GuideHandle = {
       get visible() {
@@ -109,14 +133,12 @@ export function createGuideSet(onChange: () => void = () => {}) {
         return handle;
       },
       setTransform(matrix) {
-        // A page re-placing a guide every frame at the same pose moves nothing: a held frame stays.
-        const next = 'elements' in matrix ? matrix.elements : matrix;
-        if (entry.matrix.every((value, i) => value === next[i])) return handle;
-        entry.matrix.set(next);
-        if (entries.has(entry)) changed();
+        following.delete(entry);
+        if (place(entry, 'elements' in matrix ? matrix.elements : matrix)) changed();
         return handle;
       },
       remove() {
+        following.delete(entry);
         if (!entries.delete(entry)) return;
         vertices -= entry.vertices;
         changed();
@@ -129,8 +151,9 @@ export function createGuideSet(onChange: () => void = () => {}) {
     get vertexCount() {
       return vertices;
     },
-    /** Moves at every change: what a held frame compares. */
+    /** Moves at every change, a followed node's move included: what a held frame compares. */
     get revision() {
+      follow();
       return revision;
     },
     lines({ positions, color, width = 1 }: GuideLines) {
@@ -149,12 +172,13 @@ export function createGuideSet(onChange: () => void = () => {}) {
     },
     add(object: Object3D, options: { width?: number; size?: number } = {}) {
       object.updateWorldMatrix(true, true);
-      const handle = open(objectPieces(object, options.width ?? 1, options.size ?? 4));
-      return handle.setTransform(object.matrixWorld);
+      const pieces = objectPieces(object, options.width ?? 1, options.size ?? 4);
+      return open(pieces, poseSourceOf(object));
     },
     clear() {
       if (!entries.size) return;
       entries.clear();
+      following.clear();
       vertices = 0;
       changed();
     },
@@ -164,6 +188,7 @@ export function createGuideSet(onChange: () => void = () => {}) {
     },
     /** The visible guides as instances (`packGuides`), packed again only when `revision` moved. */
     pack() {
+      follow();
       if (packedAt === revision) return packed;
       packedAt = revision;
       return (packed = packGuides(entries));

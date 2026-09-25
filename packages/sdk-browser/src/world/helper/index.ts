@@ -12,7 +12,7 @@ import type { ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Plane } from '../../../../sdk-core/src/world/math/volumes.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-import { markedFamily } from './mark.ts';
+import { markedFamily, markFollowing } from './mark.ts';
 
 /** Line segments through `points` (two corners per segment), in one colour. */
 function lines(points: number[], color: ColorInput) {
@@ -45,7 +45,8 @@ function boxEdges(min: Vector3, max: Vector3) {
   return pairs.flatMap(c);
 }
 
-/** A group of marks that follows `target`'s pose when the page calls `update()`. */
+/** A group of marks that follows `target`'s pose when the page calls `update()`; a guide drawn
+ *  from it (`world.guides.add`) follows `target` by itself (`poseSourceOf`). */
 function following(target: Object3D, marks: Object3D[]) {
   const group = Object.assign(new Group(), {
     update() {
@@ -55,6 +56,7 @@ function following(target: Object3D, marks: Object3D[]) {
   });
   group.add(...marks);
   group.update();
+  markFollowing(group, target);
   return group;
 }
 
