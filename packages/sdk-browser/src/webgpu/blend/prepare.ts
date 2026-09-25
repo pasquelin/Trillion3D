@@ -5,6 +5,7 @@ import { refreshBlendBounds } from './worlds.ts';
 import {
   FLAG_BACK,
   FLAG_DOUBLE,
+  FLAG_HAS_COLOR,
   FLAG_HAS_NORMAL,
   FLAG_HAS_TANGENT,
   FLAG_LIT,
@@ -51,13 +52,14 @@ export function prepareWebgpuBlend(
     const normal = paged
       ? undefined
       : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
-    const hasNormal = paged ? !!copy.geometry.attributes.normal : !!normal;
+    const hasNormal = !!copy.geometry.attributes.normal;
     const opacity = mat.opacity;
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
     if (mat.doubleSided) flags |= FLAG_DOUBLE;
     if (hasNormal) flags |= FLAG_HAS_NORMAL;
     if (tangentAttr) flags |= FLAG_HAS_TANGENT;
+    if (mat.vertexColors && copy.geometry.attributes.color) flags |= FLAG_HAS_COLOR;
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
     // Its water rank, one-based and compact over the transmissive items, rides above the flags:

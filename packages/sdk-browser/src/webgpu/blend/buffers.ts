@@ -1,5 +1,6 @@
 import type { HostAttribute, HostAttributes } from '../../host/resources.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
+import { normalBufferFloats, writeVertexColors } from '../core/vertexColors.ts';
 
 /**
  * Vertex buffers of a transparent primitive, held by the source geometry and not by the mesh that
@@ -53,7 +54,8 @@ export function ensureBlendUvBuffer(
   return buffer;
 }
 
-/** Normal and tangent of a transparent geometry, in the same buffer and the same order as before. */
+/** Normal and tangent of a transparent geometry, in the same buffer and the same order as before,
+ *  then its vertex colours when it has some (`../core/vertexColors.ts`). */
 export function ensureBlendNormalBuffer(
   device: GPUDevice,
   attributes: HostAttributes,
@@ -61,11 +63,13 @@ export function ensureBlendNormalBuffer(
 ) {
   if (gpu.blendNormalBuffers.has(attributes)) return gpu.blendNormalBuffers.get(attributes);
   const normal = attributes.normal,
-    tangent = attributes.tangent;
+    tangent = attributes.tangent,
+    color = attributes.color,
+    count = normal?.count ?? color?.count ?? 0;
   let buffer: GPUBuffer | undefined;
-  if (normal) {
-    const data = new Float32Array(normal.count * 7);
-    for (let i = 0; i < normal.count; i++) {
+  if (normal || color) {
+    const data = new Float32Array(normalBufferFloats(count, !!color));
+    for (let i = 0; normal && i < count; i++) {
       data[i * 7] = normal.getX(i);
       data[i * 7 + 1] = normal.getY(i);
       data[i * 7 + 2] = normal.getZ(i);
@@ -76,6 +80,7 @@ export function ensureBlendNormalBuffer(
         data[i * 7 + 6] = tangent.getW(i);
       }
     }
+    if (color) writeVertexColors(data, count, 0, count, color);
     buffer = upload(device, data, 12, gpu);
   }
   gpu.blendNormalBuffers.set(attributes, buffer);
