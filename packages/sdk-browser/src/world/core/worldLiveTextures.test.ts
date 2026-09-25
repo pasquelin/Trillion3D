@@ -24,7 +24,11 @@ test('120 redrawn pictures keep one entry, blended or shared, and no value is co
     map.needsUpdate = true;
     assert.equal(table.entryOf(glass), entry, `frame ${frame}: the entry kept`);
     assert.equal(table.entryOf(other), entry, `frame ${frame}: for both wearers`);
-    assert.deepEqual(table.takeRepainted(), [entry], `frame ${frame}: repainted once`);
+    assert.deepEqual(
+      table.takeRepainted(),
+      [{ entry, values: false }],
+      `frame ${frame}: repainted once, no value`,
+    );
   }
   assert.equal(table.counts.duplicates, 1, 'only the first fold');
   // A value written on a blended surface is still copied on write.
@@ -38,7 +42,10 @@ test('a canvas redrawn for 120 frames refreshes the open session and never reope
   const { session } = sessionStandIn();
   let opened = 0,
     refreshed = 0;
-  Object.assign(session, { refreshMaterials: () => (refreshed++, true) });
+  const calls = new Set<boolean | undefined>();
+  Object.assign(session, {
+    refreshMaterials: (values?: boolean) => (calls.add(values), refreshed++, true),
+  });
   const open = (async () => (opened++, session)) as unknown as Open;
   const runtime = runtimeOf(scene, ready, (error) => assert.fail(String(error)), open);
   const map = texture.canvas(canvas());
@@ -55,4 +62,5 @@ test('a canvas redrawn for 120 frames refreshes the open session and never reope
   runtime.dispose();
   assert.equal(opened, 1, 'one session for 120 frames');
   assert.equal(refreshed, 120, 'refreshed at each new picture');
+  assert.deepEqual([...calls], [false], 'as a picture alone: no row rewritten');
 });
