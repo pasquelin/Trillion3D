@@ -41,4 +41,5 @@ site/content/reference/api.json
 site/data/api-inventory.json
 # Compiled from their sources by `pnpm run compile:caches`, the site deploy and the test runners.
 site/assets/**/cache/
+site/assets/**/cache-none/
 tests/fixtures/scenes/*/cache/
