@@ -61,7 +61,8 @@ export function evaluateDagSelectionKernel(
       light: uniforms.light,
       rule,
     });
-  const { coneRejects, visible, bandPixels, draws } = predicates(frames, nodeFlags);
+  const camera = predicates(frames, nodeFlags);
+  const { coneRejects, visible, draws } = camera;
   // The view ahead reads every kept leaf, the camera's and its own.
   const aheadView =
     aheadFrames &&
@@ -69,14 +70,16 @@ export function evaluateDagSelectionKernel(
       aheadFrames,
       nodeFlags.map((f) => (f === AHEAD_LEAF ? 0 : f)),
     );
+  /** The error the page's replacement removes, or its own when nothing replaces it (`dagWanted`). */
+  const replaced = (view: ReturnType<typeof predicates>, i: number) =>
+    view.bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1);
   const aheadIds: number[] = [],
     aheadPriorities: number[] = [];
   /** `wantAhead`: a page the camera does not request, requested ahead when that view selects it. */
   const wantAhead = (i: number) => {
     if (!aheadView || !aheadView.visible(i)) return;
     if (!aheadView.draws(i, pixelError, true, true)) return;
-    const at = bandError(records, i, 1) < 0 ? 0 : 1;
-    aheadPriorities.push(quantizeRequestPriority(aheadView.bandPixels(i, at), true));
+    aheadPriorities.push(quantizeRequestPriority(replaced(aheadView, i), true));
     aheadIds.push(i);
   };
   const coneCache = cacheCone ? new Map<number, boolean>() : undefined;
@@ -113,8 +116,7 @@ export function evaluateDagSelectionKernel(
     }
     const level = clusterLevel(flagsOf(records, i));
     if (level > lodLevel) lodLevel = level;
-    // Replacement error, or its own when nothing replaces it: `dagWanted` does the same.
-    priorites.push(quantizeRequestPriority(bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1)));
+    priorites.push(quantizeRequestPriority(replaced(camera, i)));
     pageIds.push(i);
   }
   // `dagMask`: the cut rule on every live cluster — visible, not rejected by its cone. Without
@@ -131,10 +133,9 @@ export function evaluateDagSelectionKernel(
   }
   // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU:
   // every priority here is of the visible tier, so its raw order is `requestRank`'s.
-  const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
-  const aheadRanks = aheadIds
-    .map((_, i) => i)
-    .sort((a, b) => aheadPriorities[b] - aheadPriorities[a]);
+  const byPriority = (p: number[]) => p.map((_, i) => i).sort((a, b) => p[b] - p[a]);
+  const rangs = byPriority(priorites),
+    aheadRanks = byPriority(aheadPriorities);
   return {
     pageIds: rangs.map((r) => pageIds[r]),
     aheadPageIds: aheadRanks.map((r) => aheadIds[r]),

@@ -67,7 +67,7 @@ function banc() {
     rt,
     residencySets,
     createGroupClosure([], packedPages),
-    tiers,
+    { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
   );
   return {
     publication,

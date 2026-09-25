@@ -35,8 +35,7 @@ fn keepsAhead(node:CullNode,w:u32)->bool{
  vi=AHEAD_VIEW;
  if(outsideAhead(w,node.minimum,node.maximum)){return false;}
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError){return false;}
- return !floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal);
+ return !tooCoarse(node,e,stretch,focal)&&!floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal);
 }
 /** A node the camera rejected, tried against the view ahead. */
 fn descendAhead(src:u32,node:CullNode,w:u32){
