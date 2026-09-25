@@ -36,7 +36,9 @@ function gpuHarness() {
     },
   } as unknown as GPUCommandEncoder;
   const view = () => ({}) as GPUTextureView;
-  const surface = { views: () => [view(), view(), view(), view()] } as unknown as SurfaceBuffer;
+  // Stable views, as a real surface keeps: a composition is keyed by the flags view it reads.
+  const surfaceViews = [view(), view(), view(), view()],
+    surface = { views: () => surfaceViews } as unknown as SurfaceBuffer;
   return {
     device,
     bindGroups,
@@ -147,27 +149,38 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
   lighting.dispose();
 });
 
-test('an effect target is composed with the share of the image it read, one group per pair', async () => {
+test('an image is composed with the share it read, one group per pair (#349)', async () => {
   const h = gpuHarness(),
     lighting = await createDeferredLighting(h.device, {} as GPUBuffer);
-  lighting.bind(h.surface, h.view(), h.view(), false);
-  const target = h.view(),
-    shares = [h.view(), h.view()];
-  const before = h.bindGroups.length;
-  // The chain writes one target while the TAA histories, and their shares, alternate.
+  const hdr = h.view();
+  lighting.bind(h.surface, h.view(), hdr, false);
+  // The two TAA histories, each its colour beside its share, written in turn.
+  const images = [0, 1].map(() => ({ color: h.view(), share: h.view() }));
   for (let frame = 0; frame < 4; frame++)
-    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, {
-      color: target,
-      share: shares[frame % 2],
-    });
+    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, images[frame % 2]);
+  for (let frame = 0; frame < 2; frame++) lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
+  // A new surface under the same lit image: its flags are read, not the old surface's.
+  const flags = [h.view(), h.view(), h.view(), h.view()],
+    resized = { views: () => flags } as unknown as SurfaceBuffer;
+  lighting.bind(resized, h.view(), hdr, false);
+  lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
+  // The effect chain's target without TAA has no share of its own: it reads the flags.
+  const target = h.view();
   lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, { color: target });
-  const made = h.bindGroups.slice(before).map((group) => Array.from(group.entries));
-  assert.equal(made.length, 3, "two shares, then the still image's flags, each bound once");
+  // A composition group reads three resources; the lighting groups read more.
+  const composed = h.bindGroups
+    .map((group) => Array.from(group.entries))
+    .filter((entries) => entries.length === 3);
+  assert.equal(composed.length, 5, 'each history, the lit image, its new flags, the effect target');
   assert.deepEqual(
-    made.slice(0, 2).map((entries) => entries[2]!.resource),
-    shares,
+    composed.map((entries) => [entries[0]!.resource, entries[2]!.resource]),
+    [
+      [images[0].color, images[0].share],
+      [images[1].color, images[1].share],
+      [hdr, h.surface.views()[3]],
+      [hdr, flags[3]],
+      [target, flags[3]],
+    ],
   );
-  assert.ok(!shares.includes(made[2][2]!.resource as GPUTextureView), 'no share: the flags');
-  assert.ok(made.every((entries) => entries[0]!.resource === target));
   lighting.dispose();
 });
