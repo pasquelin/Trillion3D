@@ -54,7 +54,17 @@ test('a sphere’s seam and poles are welded: one vertex per position, no degene
     assert.equal(new Set(indices.subarray(t, t + 3)).size, 3);
   // Its default pressure rests its weight on a quarter of its mean cross-section (area / 4).
   assert.ok(Math.abs(pressure - (4 * SOFT_AREAL_DENSITY * 9.81) / SOFT_FOOTPRINT) < 1e-6);
-  assert.equal(of({ type: 'volume', pressure: 900 }, one, ball).pressure, 900);
+  assert.equal(of({ type: 'volume', pressure: 200 }, one, ball).pressure, 200);
+  // Past what its skin holds within a tenth of its volume, a pressure is refused; a light fine
+  // skin's default is capped there, below its weight's.
+  assert.throws(() => of({ type: 'volume', pressure: 900 }, one, ball), RangeError);
+  const fine = sphere(0.1, 32, 24);
+  const held = of({ type: 'volume' }, one, fine).pressure;
+  assert.ok(held < pressure, `${held} Pa`);
+  assert.throws(() => of({ type: 'volume', pressure: held * 1.01 }, one, fine), RangeError);
+  // An edge that gives holds less, and one that is not there holds none.
+  assert.ok(of({ type: 'volume', stretch: 1e-3 }, one, fine).pressure < held);
+  assert.equal(of({ type: 'volume', stretch: Infinity }, one, ball).pressure, 0);
 });
 
 test('a rope is its vertices in order, weighing its length times the rope’s', () => {
@@ -82,7 +92,7 @@ test('soft options out of range are refused, and a soft body keeps its type and 
 });
 
 test('SOFT carries its fixed words at their layout offsets, then the vertices and corners', () => {
-  const settings = softSettings({ type: 'volume', stretch: 0.25, bend: 0.5, pressure: 7 });
+  const settings = softSettings({ type: 'volume', stretch: 0.25, bend: 0.5, pressure: 0.5 });
   const record = softBodyOf(plane(1, 1, 1, 1), one, settings);
   const writer = new CommandWriter();
   writeSoft(writer, {
@@ -95,7 +105,7 @@ test('SOFT carries its fixed words at their layout offsets, then the vertices an
   assert.deepEqual([...words.subarray(0, 3)], [OP.soft, 9, 4]);
   assert.deepEqual(
     [...floats.subarray(3, 20)],
-    [1, 2, 3, 0, 0, 0, 1, 2, 3, 4, 0.125, 0.375, 0.5, 0.0625, 0.25, 0.5, 7],
+    [1, 2, 3, 0, 0, 0, 1, 2, 3, 4, 0.125, 0.375, 0.5, 0.0625, 0.25, 0.5, 0.5],
   );
   assert.deepEqual([words[20], words[21]], [4, 6]);
   assert.deepEqual([...floats.subarray(SOFT_WORDS, SOFT_WORDS + 16)], [...record.vertices]);

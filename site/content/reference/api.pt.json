@@ -2047,7 +2047,7 @@
   },
   "SOFT_FOOTPRINT": {
     "summary": "Declarada: a parte da sua secção média — um quarto da sua área, para qualquer forma convexa (Cauchy) — sobre a qual um volume em repouso no chão abate, o seu gás a apoiar ali o seu peso.",
-    "description": "A sua pressão padrão é então `4·m·g / (share·area)`: 31 Pa para uma pele de `SOFT_AREAL_DENSITY`. Metade da parte, o dobro da pressão. Uma pressão muito acima da do seu peso incha-o para lá da sua forma de repouso: cada passo move um vértice `pressure·dt² / (kg/m²)`, mais do que as suas arestas então seguram."
+    "description": "A sua pressão padrão é então `4·m·g / (share·area)`: 31 Pa para uma pele de `SOFT_AREAL_DENSITY`. Metade da parte, o dobro da pressão. Nunca passa do máximo que a sua pele segura dentro de um décimo do seu volume de repouso."
   },
   "SOFT_LINEAR_DENSITY": {
     "summary": "Uma corda de poliamida de 10 mm, kg/m: as tabelas dos fabricantes dão de 0,06 a 0,07."
@@ -2082,7 +2082,7 @@
     "summary": "As opções de um volume: uma malha fechada sustentada pelo gás dentro.",
     "members": {
       "type": "Um volume.",
-      "pressure": "A pressão do gás acima da do ar em repouso, Pa; apertado, sobe quando o volume desce (lei de Boyle). Os triângulos devem virar-se para fora. Omitida, a pressão que assenta o peso do volume sobre `SOFT_FOOTPRINT` da sua secção média."
+      "pressure": "A pressão do gás acima da do ar em repouso, Pa; apertado, sobe quando o volume desce (lei de Boyle). Os triângulos devem virar-se para fora. Omitida, a pressão que assenta o peso do volume sobre `SOFT_FOOTPRINT` da sua secção média, ou o máximo que a sua pele segura se for menos. Recusada acima do máximo que a sua pele segura dentro de um décimo do seu volume de repouso."
     }
   },
   "TransformNode": {

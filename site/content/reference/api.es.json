@@ -4146,7 +4146,7 @@
   },
   "SOFT_FOOTPRINT": {
     "summary": "Declarada: la parte de su sección media — un cuarto de su área, para cualquier forma convexa (Cauchy) — sobre la que se hunde un volumen en reposo en el suelo, con su gas apoyando allí su peso.",
-    "description": "Su presión por defecto es entonces `4·m·g / (share·area)`: 31 Pa para una piel de `SOFT_AREAL_DENSITY`. Mitad de parte, doble de presión. Una presión muy por encima de la de su peso lo hincha más allá de su forma en reposo: cada paso mueve un vértice `pressure·dt² / (kg/m²)`, más de lo que sus aristas sostienen entonces."
+    "description": "Su presión por defecto es entonces `4·m·g / (share·area)`: 31 Pa para una piel de `SOFT_AREAL_DENSITY`. Mitad de parte, doble de presión. Nunca pasa de lo máximo que su piel sostiene dentro de una décima de su volumen en reposo."
   },
   "SOFT_LINEAR_DENSITY": {
     "summary": "Una cuerda de poliamida de 10 mm, kg/m: las tablas de los fabricantes dan de 0,06 a 0,07."
@@ -4181,7 +4181,7 @@
     "summary": "Las opciones de un volumen: una malla cerrada sostenida por el gas de dentro.",
     "members": {
       "type": "Un volumen.",
-      "pressure": "La presión del gas por encima de la del aire en reposo, Pa; al apretarlo, sube cuando el volumen baja (ley de Boyle). Los triángulos deben mirar hacia fuera. Si se omite, la presión que apoya el peso del volumen sobre `SOFT_FOOTPRINT` de su sección media."
+      "pressure": "La presión del gas por encima de la del aire en reposo, Pa; al apretarlo, sube cuando el volumen baja (ley de Boyle). Los triángulos deben mirar hacia fuera. Si se omite, la presión que apoya el peso del volumen sobre `SOFT_FOOTPRINT` de su sección media, o lo máximo que su piel sostiene si es menos. Rechazada por encima de lo máximo que su piel sostiene dentro de una décima de su volumen en reposo."
     }
   },
   "TransformNode": {

@@ -2065,7 +2065,7 @@
   },
   "SOFT_FOOTPRINT": {
     "summary": "Dinyatakan: bagian penampang rata-ratanya — seperempat luasnya, untuk bentuk cembung apa pun (Cauchy) — tempat volume yang diam di tanah melesak, gasnya menahan beratnya di sana.",
-    "description": "Tekanan bawaannya lalu `4·m·g / (share·area)`: 31 Pa untuk kulit `SOFT_AREAL_DENSITY`. Setengah bagian, dua kali tekanan. Tekanan jauh di atas tekanan beratnya menggembungkannya melewati bentuk diamnya: tiap langkah menggeser verteks sebesar `pressure·dt² / (kg/m²)`, lebih dari yang saat itu ditahan rusuknya."
+    "description": "Tekanan bawaannya lalu `4·m·g / (share·area)`: 31 Pa untuk kulit `SOFT_AREAL_DENSITY`. Setengah bagian, dua kali tekanan. Tak pernah melewati tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
   },
   "SOFT_LINEAR_DENSITY": {
     "summary": "Tali poliamida 10 mm, kg/m: tabel pembuat memberi 0,06 sampai 0,07."
@@ -2100,7 +2100,7 @@
     "summary": "Opsi volume: mesh tertutup yang ditopang gas di dalamnya.",
     "members": {
       "type": "Sebuah volume.",
-      "pressure": "Tekanan gas di atas tekanan udara saat diam, Pa; bila ditekan, naik saat volume turun (hukum Boyle). Segitiga harus menghadap keluar. Bila dihilangkan, tekanan yang meletakkan berat volume pada `SOFT_FOOTPRINT` penampang rata-ratanya."
+      "pressure": "Tekanan gas di atas tekanan udara saat diam, Pa; bila ditekan, naik saat volume turun (hukum Boyle). Segitiga harus menghadap keluar. Bila dihilangkan, tekanan yang meletakkan berat volume pada `SOFT_FOOTPRINT` penampang rata-ratanya, atau tekanan terbesar yang ditahan kulitnya bila lebih kecil. Ditolak di atas tekanan terbesar yang ditahan kulitnya dalam sepersepuluh volume diamnya."
     }
   },
   "TransformNode": {

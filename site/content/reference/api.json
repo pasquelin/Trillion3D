@@ -12571,7 +12571,7 @@
     "title": "SOFT_FOOTPRINT",
     "signature": "const SOFT_FOOTPRINT: 0.25",
     "summary": "Declared: the share of its mean cross-section — a quarter of its area, for any convex shape (Cauchy) — a volume at rest on the ground sags onto, its gas pressing its weight there.",
-    "description": "Its default pressure is then `4·m·g / (share·area)`: 31 Pa for a skin of `SOFT_AREAL_DENSITY`. Half the share, twice the pressure. A pressure far above its weight's swells it past its rest shape: each step moves a vertex by `pressure·dt² / (kg/m²)`, more than its edges then hold."
+    "description": "Its default pressure is then `4·m·g / (share·area)`: 31 Pa for a skin of `SOFT_AREAL_DENSITY`. Half the share, twice the pressure. It never passes the most its skin holds within a tenth of its rest volume."
   },
   {
     "id": "SOFT_LINEAR_DENSITY",
@@ -14669,7 +14669,7 @@
       {
         "name": "pressure?",
         "type": "number | undefined",
-        "desc": "The gas's pressure above the air's at rest, Pa; squeezed, it rises as the volume falls (Boyle's law). The triangles must face out. Left out, the pressure that rests the volume's weight on `SOFT_FOOTPRINT` of its mean cross-section."
+        "desc": "The gas's pressure above the air's at rest, Pa; squeezed, it rises as the volume falls (Boyle's law). The triangles must face out. Left out, the pressure that rests the volume's weight on `SOFT_FOOTPRINT` of its mean cross-section, or the most its skin holds if less. Refused past the most its skin holds within a tenth of its rest volume."
       }
     ],
     "description": ""

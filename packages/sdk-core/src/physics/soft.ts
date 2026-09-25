@@ -1,6 +1,6 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
-import { GRAVITY_PRESETS, type PhysicsOption } from './options.ts';
+import { GRAVITY_PRESETS, PHYSICS_STEP, type PhysicsOption } from './options.ts';
 import { SOFT_VERTEX_WORDS } from './softLayout.ts';
 
 /** A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or
@@ -27,7 +27,8 @@ export interface SoftVolumeOptions extends SoftBodyCommon {
   /** A volume. */ type: 'volume';
   /** The gas's pressure above the air's at rest, Pa; squeezed, it rises as the volume falls
    *  (Boyle's law). The triangles must face out. Left out, the pressure that rests the volume's
-   *  weight on `SOFT_FOOTPRINT` of its mean cross-section. */
+   *  weight on `SOFT_FOOTPRINT` of its mean cross-section, or the most its skin holds if less.
+   *  Refused past the most its skin holds within a tenth of its rest volume. */
   pressure?: number;
 }
 /** A soft body's options: a cloth, a rope, or a volume with the pressure of its gas. */
@@ -42,10 +43,29 @@ export const SOFT_LINEAR_DENSITY = 0.065;
  * Declared: the share of its mean cross-section — a quarter of its area, for any convex shape
  * (Cauchy) — a volume at rest on the ground sags onto, its gas pressing its weight there. Its
  * default pressure is then `4·m·g / (share·area)`: 31 Pa for a skin of `SOFT_AREAL_DENSITY`. Half
- * the share, twice the pressure. A pressure far above its weight's swells it past its rest shape:
- * each step moves a vertex by `pressure·dt² / (kg/m²)`, more than its edges then hold.
+ * the share, twice the pressure. It never passes the most its skin holds within a tenth of its rest volume.
  */
 export const SOFT_FOOTPRINT = 0.25;
+
+/** Declared: a volume keeps within a tenth of its rest volume, or its pressure is refused. */
+const SOFT_MAX_SWELL = 0.1;
+/** Jolt's substeps of a soft body per step: `SoftBodyCreationSettings::mNumIterations`, its default. */
+const SOFT_SUBSTEPS = 5;
+
+/**
+ * The most gauge pressure, Pa, a volume's skin holds within `SOFT_MAX_SWELL`. The gas stretches
+ * the skin to `P·R / 2` N/m (Laplace, R the radius of a sphere of its area), `1/√3` of which pulls
+ * on each edge per metre of its length. An edge gives under it by its compliance: `stretch`, plus
+ * the solver's own, `dt² / m` for a substep `dt` and a vertex of `m` kg (XPBD). The stretch it
+ * reaches swells the volume by its cube. Measured on spheres of 0.1 to 2 m, 8 to 32 segments,
+ * weightless: at this pressure they keep within 8 %, at twice they swell by 10 to 14 %.
+ */
+function heldPressure(vertexMass: number, area: number, stretch: number) {
+  const dt = PHYSICS_STEP / SOFT_SUBSTEPS,
+    radius = Math.sqrt(area / (4 * Math.PI));
+  const give = ((stretch + dt ** 2 / vertexMass) * radius) / (2 * Math.sqrt(3));
+  return (Math.cbrt(1 + SOFT_MAX_SWELL) - 1) / give;
+}
 
 /** A soft body's options once read: every default filled. */
 export interface SoftSettings {
@@ -125,7 +145,16 @@ export function softBodyOf(geometry: Geometry, scale: Scale, settings: SoftSetti
   const density = settings.type === 'rope' ? SOFT_LINEAR_DENSITY : SOFT_AREAL_DENSITY;
   const factor = settings.mass === undefined ? density : settings.mass / measure;
   for (let i = 0; i < kept.length; i++) vertices[i * SOFT_VERTEX_WORDS + 3] *= factor;
-  const pressure = settings.pressure ?? (4 * factor * GRAVITY_PRESETS.earth) / SOFT_FOOTPRINT;
+  const held =
+    settings.type === 'volume'
+      ? heldPressure((factor * measure) / kept.length, measure, settings.stretch)
+      : 0;
+  const pressure =
+    settings.pressure ?? Math.min((4 * factor * GRAVITY_PRESETS.earth) / SOFT_FOOTPRINT, held);
+  if (pressure > held)
+    throw new RangeError(
+      `A soft volume's pressure ${pressure} Pa swells it past a tenth: its skin holds ${held.toFixed(1)}.`,
+    );
   for (const pin of settings.pins) {
     if (!(Number.isInteger(pin) && pin >= 0 && pin < count))
       throw new RangeError(`A soft body's pin ${pin} names no vertex of its ${count}.`);
