@@ -55,20 +55,26 @@ export async function followSite(root: string, out: string, port = 0) {
   });
 
   let changed = new Set<string>();
+  /** The paths of a failed rebuild: their steps run again with the next change. */
+  let failed: string[] = [];
   let building: Promise<void> | undefined;
   /** Runs the steps the changed paths name until no change is left, then reloads the pages. */
   async function rebuild() {
     // A save is often several events: they are gathered before the first step runs.
     await new Promise((settle) => setTimeout(settle, 50));
     while (changed.size) {
-      const steps = stepsReading(changed);
+      const paths = [...failed, ...changed];
+      const steps = stepsReading(paths);
       changed = new Set();
       try {
         await buildSite(root, out, false, steps);
       } catch (error) {
-        console.error('docs:dev: the rebuild failed, the pages keep the last build:', error);
+        // A step empties its folder first: the pages are not reloaded onto a half-built tree.
+        failed = paths;
+        console.error('docs:dev: the rebuild failed, it runs again with the next change:', error);
         continue;
       }
+      failed = [];
       console.log(`docs:dev: rebuilt ${steps.map(({ name }) => name).join(', ')}`);
       for (const page of pages) page.write('data: reload\n\n');
     }
@@ -83,8 +89,10 @@ export async function followSite(root: string, out: string, port = 0) {
     }),
   );
   /** Stops following and closes the server, the open pages' streams with it. */
-  const close = () => {
+  const close = async () => {
     for (const watcher of watchers) watcher.close();
+    // A rebuild under way ends first, so nothing is written into `out` once it is closed.
+    await building;
     const closed = new Promise((done) => server.close(done));
     server.closeAllConnections();
     return closed;
