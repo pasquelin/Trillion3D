@@ -10,17 +10,11 @@ import { servedPages } from './servedPages.fixture.ts';
 const TRANSFER = 64;
 
 const open = (pages: StreamPage[], cache: ReturnType<typeof createPageCache>) =>
-  createPageStreamerWith(
+  createPageStreamerWith(pages, 'http://cache/', {
     cache,
-    pages,
-    'http://cache/',
-    undefined,
-    1,
-    undefined,
-    undefined,
-    TRANSFER,
-    undefined,
-  );
+    workerCount: 1,
+    maxTransferBytes: TRANSFER,
+  });
 
 test('a session reopened after a device loss rebuilds the same cut, fetching nothing it held', async () => {
   const fixture = dagFixture(),
@@ -78,17 +72,12 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
   const reserved = manifestTableBytes(pages) + TRANSFER;
   const cache = createPageCache(reserved + 4 * 12);
   const evicted: string[] = [];
-  const streamer = createPageStreamerWith(
+  const streamer = createPageStreamerWith(pages, 'http://cache/', {
     cache,
-    pages,
-    'http://cache/',
-    undefined,
-    1,
-    undefined,
-    (url) => evicted.push(url),
-    TRANSFER,
-    undefined,
-  );
+    workerCount: 1,
+    onEvict: (url) => evicted.push(url),
+    maxTransferBytes: TRANSFER,
+  });
   await streamer.request(urls);
   streamer.retain(['a.bin']);
   // `b` read again: the least recently used is now `c`, then `d`.

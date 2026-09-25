@@ -8,7 +8,7 @@ import type { createFrameComposer } from './compose.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { retainVisiblePages } from '../../page/retainVisiblePages.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';
 import type { ExplorerHostState } from './hostState.ts';
 import type { ExplorerSession } from '../session/session.ts';
