@@ -60,7 +60,9 @@ export function createShadowMobility() {
     },
     /**
      * Writes the row words of rows `[from, to]` — every row after a placement turned moving —
-     * from each row's placement, and hands the span to push, or nothing.
+     * from each row's placement, and hands the span to push, or nothing. A row from
+     * `alwaysMoving` on is a blended caster's, which the static layer never keeps: its shadow
+     * lives in the transmittance layer, which a restored page starts again from.
      */
     writeRows(
       placementOf: (row: number) => number,
@@ -68,6 +70,7 @@ export function createShadowMobility() {
       from: number,
       to: number,
       push: (first: number, count: number) => void,
+      alwaysMoving = rowCount,
     ) {
       if (wholeRows) {
         from = 0;
@@ -78,7 +81,7 @@ export function createShadowMobility() {
       if (last < from) return;
       for (let row = from; row <= last; row++) {
         const placement = placementOf(row);
-        rows[row] = placement >= 0 && moving[placement] ? 1 : 0;
+        rows[row] = row >= alwaysMoving || (placement >= 0 && moving[placement]) ? 1 : 0;
       }
       push(from, last - from + 1);
     },

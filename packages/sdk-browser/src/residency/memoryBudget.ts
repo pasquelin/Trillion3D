@@ -1,6 +1,7 @@
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
+import { shadowTransmittanceBytes } from '../gpu/shadow/transmittance.ts';
 import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/table.ts';
 import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
@@ -8,10 +9,14 @@ import { DEFAULT_CACHED_BYTES } from '../streaming/pages.ts';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
 
-/** The shadows at their largest — the pool on the largest screen, its static layer, and the
- *  fixed buffers beside it, the page table first: they never hold more, whatever the screen. */
+/** The shadows at their largest — the pool on the largest screen, its static layer, its
+ *  transmittance layer, and the fixed buffers beside it, the page table first: they never hold
+ *  more, whatever the screen. */
 const SHADOW_POOL_SIDE = shadowPoolSide(Infinity, Infinity);
-export const SHADOW_POOL_BYTES = 2 * shadowAtlasBytes(SHADOW_POOL_SIDE) + SHADOW_BUFFER_BYTES;
+export const SHADOW_POOL_BYTES =
+  2 * shadowAtlasBytes(SHADOW_POOL_SIDE) +
+  shadowTransmittanceBytes(SHADOW_POOL_SIDE) +
+  SHADOW_BUFFER_BYTES;
 /** The shadow page table's host mirror at its largest, whatever the screen: the table's words and
  *  change flags, and the pool's page records and eviction bits, as the two allocate them. */
 export const SHADOW_HOST_BYTES =
@@ -39,12 +44,12 @@ const checkTotal = (bytes: number, name: string) => {
 
 /**
  * One memory budget, split by a fixed rule — never by what the machine says it has:
- * - GPU: the shadow pool first, at its largest (`SHADOW_POOL_BYTES`), what the atlas and its
- *   static layer take on the largest screen, with the page table and the other fixed shadow
- *   buffers; then the bounce probe cascades at their largest (`BOUNCE_PROBE_BYTES`); the rest in
- *   two halves, the geometry pool and the texture pool, each no larger than
- *   its ceiling. The shadows never shrink: a total under the
- *   shadow pool is refused by name. A total that leaves the other two less than their floors — the
+ * - GPU: the shadow pool first, at its largest (`SHADOW_POOL_BYTES`), what the atlas, its
+ *   static layer and its transmittance layer take on the largest screen, with the page table and
+ *   the other fixed shadow buffers; then the bounce probe cascades at their largest
+ *   (`BOUNCE_PROBE_BYTES`); the rest in two halves, the geometry pool and the texture pool, each
+ *   no larger than its ceiling. The shadows never shrink: a total under the shadow pool is
+ *   refused by name. A total that leaves the other two less than their floors — the
  *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
  *   screen; the decoded-page cache takes the rest. A total under the mirror is refused by name.
