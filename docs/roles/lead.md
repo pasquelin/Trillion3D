@@ -30,8 +30,9 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    review again. Three rounds at most; past that, report to the CTO and stop.
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: bring the branch up to date with
-   `develop` (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
-   (`gh pr checks <pr> --watch`), then name it ready to the CTO, who merges it (AGENTS.md
+   `develop` (`gh pr update-branch <pr>`), write `## Lead verification`, then take it out of
+   draft (`gh pr ready <pr>`), wait for every check to be green on that head
+   (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it (AGENTS.md
    §Roles). A red check, or a point of "Before merge" missed, goes back to step 3.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
@@ -46,7 +47,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 **You are accountable for every merge, not the coder or the reviewer.** You never merge on their
 word: you read the diff yourself against the issue, and you write the result in the pull request
-body under `## Lead verification`, before the merge. CI refuses a body without that section.
+body under `## Lead verification`, before the merge. CI refuses a pull request out of draft
+without that section.
 It holds one line per To do and Proof item of the issue:
 `- <item>: delivered in <file:line>, proved by <test name>`, or
 `- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
