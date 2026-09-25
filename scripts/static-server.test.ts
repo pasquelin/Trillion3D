@@ -12,7 +12,11 @@ const SITE = resolve(import.meta.dirname, '../site');
 async function fetched(server: Server, path: string) {
   const response = await fetch(`http://127.0.0.1:${await listen(server)}${path}`);
   await response.arrayBuffer();
-  server.close();
+  // Every connection closed before the caller reads what the server recorded; a kept-alive one
+  // would hold the close back for seconds.
+  const closed = new Promise((done) => server.close(done));
+  server.closeAllConnections();
+  await closed;
   return [response.status, response.headers.get('content-type')];
 }
 
