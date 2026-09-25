@@ -615,6 +615,27 @@ Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A pr
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
 `report.refused` names it with Jolt's reason, and the compile goes on, its render cache the same.
 
+### Soft bodies a model declares
+
+A drawn node whose `extras.physics` holds the options `obj.physics` takes for a soft body —
+`{ "type": "cloth" | "rope" | "volume", "pins", "mass", "stretch", "bend", "pressure", … }`, `bend`
+left out for none, JSON having no `Infinity` — is cooked as a soft body, not as static ground
+(`src/physics_cook/soft.rs`). Its mesh must hold one primitive. Its vertices become the simulated
+ones exactly as the page's `softBodyOf` makes them (`soft_record.rs`): those at one position welded,
+their masses from the area — a rope's length — each holds at the node's world scale, or the
+declared `mass` spread so, the pins held, a volume's default pressure. Each stored value is rounded
+to 32 bits where the page rounds it. Native Jolt then builds the `SoftBodySharedSettings` with the
+physics worker's own builder (`packages/physics-jolt-wasm/src/softSettings.h`, compiled into both),
+optimised, and writes them with `SaveWithMaterials` under their SHA-256, like a tile. At runtime,
+loading one is a decode and a copy: the page fetches the bytes and hands them to Jolt's
+`sRestoreWithMaterials` in one SOFT command, and builds nothing. The golden cloth
+(`tests/fixtures/physics/cloth-settings.bin`, rewritten with `TRILLION3D_WRITE_GOLDEN=1`) is restored
+by the physics module's test and swings as the same cloth built on the page
+(`packages/sdk-browser/src/physics/cookedSoft.test.ts`). A node the cook refuses — two primitives, a
+shearing matrix, an option out of range, a pin naming no vertex — is named in `report.softRefused`
+with the page's own words; the compile goes on. The node is still drawn as compiled: its simulated
+vertices reach no drawn surface until dynamic geometry is uploaded in place (#573).
+
 ## Cutouts declared as blend
 
 The virtualized path takes opaque and masked materials, not blended ones: a blended primitive costs
