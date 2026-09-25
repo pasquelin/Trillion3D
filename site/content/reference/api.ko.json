@@ -7210,6 +7210,14 @@
       "maxLean": "오토바이의 최대 기울기, 라디안."
     }
   },
+  "VehicleSpecs": {
+    "summary": "각 종류의 차량이 처음 갖는 기계.",
+    "members": {
+      "car": "쉐보레 콜벳 C5: 후륜구동, 킬로그램당 0.32 N·m, 6단.",
+      "motorcycle": "야마하 XJ900과 라이더: 킬로그램당 0.26 N·m, 6단.",
+      "tracked": "M1 에이브럼스: 가스 터빈, 킬로그램당 0.083 N·m, 4단."
+    }
+  },
   "vehicle": {
     "summary": "`vehicle` 패밀리: 바디와 그 바퀴를 `world.controls` `'vehicle'`로 운전합니다.",
     "members": {

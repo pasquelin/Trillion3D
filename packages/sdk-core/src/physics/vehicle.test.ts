@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { box, cylinder } from '../world/geometry/basic.ts';
 import { Material } from '../world/material/material.ts';
 import { Mesh } from '../world/object/mesh.ts';
-import { Group } from '../world/object/object3d.ts';
+import { Group, type Object3D } from '../world/object/object3d.ts';
 import { vehicle, type VehicleKind } from './vehicle.ts';
 import { CommandWriter } from './commands.ts';
 import { OP } from './layout.ts';
@@ -32,7 +32,7 @@ const roles = (words: number[]) => words.filter((_, i) => i % WHEEL_WORDS === 5)
 test('each kind refuses what it cannot be made of', () => {
   const { body, wheels } = rig(FOUR);
   const make =
-    (kind: VehicleKind, list = wheels, spec = {}) =>
+    (kind: VehicleKind, list: readonly Object3D[] = wheels, spec = {}) =>
     () =>
       vehicle[kind](body, { wheels: list, ...spec });
   assert.throws(make('motorcycle'), /two wheels/);

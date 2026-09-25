@@ -7210,6 +7210,14 @@
       "maxLean": "Bir motosikletin en büyük yatışı, radyan."
     }
   },
+  "VehicleSpecs": {
+    "summary": "Her araç türünün başladığı makine.",
+    "members": {
+      "car": "Bir Chevrolet Corvette C5: arkadan itiş, kilogram başına 0,32 N·m, altı vites.",
+      "motorcycle": "Bir Yamaha XJ900 ve sürücüsü: kilogram başına 0,26 N·m, altı vites.",
+      "tracked": "Bir M1 Abrams: gaz türbini, kilogram başına 0,083 N·m, dört vites."
+    }
+  },
   "vehicle": {
     "summary": "`vehicle` ailesi: `world.controls` `'vehicle'` ile sürülen bir gövde ve tekerlekleri.",
     "members": {

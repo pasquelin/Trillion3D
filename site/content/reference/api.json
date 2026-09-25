@@ -18096,6 +18096,34 @@
     "description": ""
   },
   {
+    "id": "VehicleSpecs",
+    "module": "packages/sdk-core/src/physics/vehicleSpec.ts",
+    "exports": ["VehicleSpecs"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleSpecs",
+    "signature": "interface VehicleSpecs",
+    "summary": "The machine each kind of vehicle starts as.",
+    "members": [
+      {
+        "name": "car",
+        "type": "VehicleSpec",
+        "desc": "A Chevrolet Corvette C5: rear-wheel drive, 0.32 N·m per kilogram, six gears."
+      },
+      {
+        "name": "motorcycle",
+        "type": "VehicleSpec",
+        "desc": "A Yamaha XJ900 and its rider: 0.26 N·m per kilogram, six gears."
+      },
+      {
+        "name": "tracked",
+        "type": "VehicleSpec",
+        "desc": "An M1 Abrams: a gas turbine, 0.083 N·m per kilogram, four gears."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "WaterSpec",
     "module": "packages/sdk-core/src/fluids/buoyancy.ts",
     "exports": ["WaterSpec"],

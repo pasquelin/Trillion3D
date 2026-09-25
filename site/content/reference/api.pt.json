@@ -7210,6 +7210,14 @@
       "maxLean": "A maior inclinação de uma moto, em radianos."
     }
   },
+  "VehicleSpecs": {
+    "summary": "A máquina com que cada tipo de veículo começa.",
+    "members": {
+      "car": "Um Chevrolet Corvette C5: tração traseira, 0,32 N·m por quilograma, seis marchas.",
+      "motorcycle": "Uma Yamaha XJ900 e seu piloto: 0,26 N·m por quilograma, seis marchas.",
+      "tracked": "Um M1 Abrams: uma turbina a gás, 0,083 N·m por quilograma, quatro marchas."
+    }
+  },
   "vehicle": {
     "summary": "A família `vehicle`: um corpo e suas rodas, dirigidos por `world.controls` `'vehicle'`.",
     "members": {
