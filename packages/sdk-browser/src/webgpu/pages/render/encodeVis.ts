@@ -2,15 +2,12 @@ import type { EngineCamera } from '../../../camera/world.ts';
 import { encodeMaterialPasses } from '../../core/materialPasses.ts';
 import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts';
 import { encodeWebgpuPartition } from '../../visibility/partition.ts';
-import { uploadRowCorners } from '../../visibility/corners.ts';
-import { refreshDrawItemWords, sendDrawItemWords } from '../../visibility/itemWords.ts';
+import { sendDrawItemWords } from '../../visibility/itemWords.ts';
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
-import { visLayerTop } from '../../visibility/uniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './encoder.ts';
 import { encodeSurfaceLighting } from './encodeBlend.ts';
-import { uploadDirtyRows } from './encodeDraws.ts';
-import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
+import { followDirtyRows } from './encodeDraws.ts';
 import {
   encodeEmptySurfaces,
   computeRasterStages,
@@ -40,23 +37,11 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const idsView = vis.visView,
     depthTarget = gpu.depthView;
   const [width, height] = gpu.targetSize;
-  // Row words follow only the row table: this image's dirty rows, and nothing more. They must be
-  // kept up to date BEFORE `uploadDirtyRows`, which clears those marks. An image with no visibility
-  // row sends them too: the blended casters' rows, behind, still feed its shadows, and rows left
-  // dirty would keep the frame from being held (#198).
-  refreshDrawItemWords(rt, visLayerTop(rt.vis), vis.gpuDraw);
+  // Row words, spheres, mobility and corners follow only the row table: this image's dirty rows.
+  // An image with no visibility row sends them too: the blended casters' rows, behind, still feed
+  // its shadows, and rows left dirty would keep the frame from being held (#198).
   timing.encodeCounts.fichesTeleversees = 0;
-  // World spheres of the rows the table just changed, run by run like the table itself, and their
-  // mobility on the interval that covers those runs: that is what shadow culling reads, and
-  // nothing else writes them.
-  if (rt.lights.cull) {
-    uploadClusterSpheres(rt, device);
-    uploadRowMobility(rt, device, rows.dirtyFrom, rows.dirtyTo);
-  }
-  // World corners of the same rows, run by run: what GPU projection reads. Like the two above, it is
-  // taken BEFORE `uploadDirtyRows`, which clears those marks.
-  uploadRowCorners(rt);
-  uploadDirtyRows(rt);
+  followDirtyRows(rt, device);
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
   ensureGpuRaster(rt, device);
