@@ -42,6 +42,46 @@ export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
     );
   return response;
 }
+/** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
+export const corruptObject = (
+  url: string,
+  announced: { bytes: number; sha256: string },
+  bytes: number,
+  sha256: string | undefined,
+) =>
+  new EngineError(
+    'INVALID_CACHE',
+    sha256 !== undefined
+      ? `Corrupt cache object: SHA-256 ${sha256}, ${announced.sha256} announced`
+      : `Corrupt cache object: ${bytes} bytes received, ${announced.bytes} announced`,
+    {
+      url,
+      bytes,
+      expected: announced.bytes,
+      sha256: sha256 ?? null,
+      expectedSha256: announced.sha256,
+    },
+  );
+
+/**
+ * Reads the cache object at `url` (`checked`) and hands its bytes back only when they are the ones
+ * its manifest `announced`, size then fingerprint; `corruptObject` otherwise. The size is taken
+ * before the fingerprint, which transfers the buffer to a decode worker and back.
+ */
+export async function fetchVerified(
+  url: string,
+  announced: { bytes: number; sha256: string },
+  signal?: AbortSignal,
+) {
+  const buffer = await (await checked(url, signal)).arrayBuffer();
+  const bytes = buffer.byteLength;
+  signal?.throwIfAborted();
+  if (bytes !== announced.bytes) throw corruptObject(url, announced, bytes, undefined);
+  const verified = await verifyPageBytes(buffer);
+  if (verified.sha256 !== announced.sha256)
+    throw corruptObject(url, announced, bytes, verified.sha256);
+  return verified.source;
+}
 export async function loadClusterPages(
   pages: Array<{ url: string; bytes: number; sha256: string }>,
   base: string,
@@ -61,16 +101,9 @@ export async function loadClusterPages(
       while (next < pages.length) {
         combined.throwIfAborted();
         const page = pages[next++];
-        let buffer = await (await checked(new URL(page.url, base).href, combined)).arrayBuffer();
-        // Size sampled before the fingerprint: the buffer leaves transferred, then comes back transferred.
-        const byteLength = buffer.byteLength;
-        combined.throwIfAborted();
-        if (byteLength !== page.bytes) throw new Error('Corrupt cluster page');
-        const verified = await verifyPageBytes(buffer);
-        buffer = verified.source;
-        if (verified.sha256 !== page.sha256) throw new Error('Corrupt cluster page');
+        const buffer = await fetchVerified(new URL(page.url, base).href, page, combined);
         indices.set(page.url, new Uint32Array(buffer));
-        pageBytesRead += byteLength;
+        pageBytesRead += buffer.byteLength;
         progress(++loaded, pages.length);
       }
     },
