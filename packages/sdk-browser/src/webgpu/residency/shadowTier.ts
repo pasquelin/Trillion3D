@@ -2,7 +2,8 @@ import type { PageRec } from '../../page/selection/selection.ts';
 
 /**
  * The lower residency tier: the pages the light cuts asked for, in their order — highest
- * replacement error first — without repeats, and no longer than the pool. The camera's tier is
+ * replacement error first — each with the groups it closes over (`../cut/groupClosure.ts`),
+ * without repeats, and no longer than the pool. The camera's tier is
  * served first and pinned; this one only fills what the camera leaves (`residentEnsurer.ts`).
  *
  * The list is replaced whole each time a frame's light cuts report: a frame that redraws no
@@ -13,9 +14,12 @@ export function createShadowTier(options: {
   keyCount: number;
   keyOf: (page: PageRec) => number;
   room: () => number;
+  closeOver: (ids: ArrayLike<number>, visit: (id: number) => void) => void;
 }) {
-  const { packedPages, keyOf, room } = options;
+  const { packedPages, keyOf, room, closeOver } = options;
   const pages: PageRec[] = [];
+  /** The CPU light cuts' packed ids, reused from one report to the next. */
+  const ids: number[] = [];
   const stamps = new Uint32Array(Math.max(1, options.keyCount));
   let stamp = 0;
   const begin = () => {
@@ -25,7 +29,8 @@ export function createShadowTier(options: {
       stamp = 1;
     }
   };
-  const push = (rec: PageRec | undefined) => {
+  const push = (id: number) => {
+    const rec = packedPages[id];
     if (!rec || pages.length >= room()) return;
     const key = keyOf(rec);
     if (stamps[key] === stamp) return;
@@ -37,14 +42,20 @@ export function createShadowTier(options: {
     /** True when the last light-cut report names this key: a caster a light still wants. */
     has: (key: number) => stamp !== 0 && stamps[key] === stamp,
     /** The light cuts' GPU requests: page indices of the packed catalogue. */
-    offerIds(ids: ArrayLike<number>) {
+    offerIds(requested: ArrayLike<number>) {
       begin();
-      for (let i = 0; i < ids.length; i++) push(packedPages[ids[i]]);
+      closeOver(requested, push);
     },
     /** The CPU light cuts' wanted pages, one list per redrawn face. */
     offerPages(lists: ReadonlyArray<readonly PageRec[]>, count: number) {
       begin();
-      for (let run = 0; run < count; run++) for (const rec of lists[run]) push(rec);
+      ids.length = 0;
+      for (let run = 0; run < count; run++)
+        for (const rec of lists[run]) {
+          const id = rec.packedIndex ?? -1;
+          if (id >= 0) ids.push(id);
+        }
+      closeOver(ids, push);
     },
   };
 }

@@ -1,5 +1,4 @@
 import { meshes as objects } from '../../scene/meshes.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import { assertFiniteTransform } from '../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { pagesBounds, pagesLot } from './pagesBounds.ts';
@@ -17,6 +16,10 @@ import type { BackendContext, MeasuredWorldOptions } from '../../backend/types.t
 import type { ExplorerEmitters } from '../session/session.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';
+import { createPartitionCells } from '../../scene/partition/cells.ts';
+import type { ByteMeter } from '../../cluster/byteMeter.ts';
+import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** World matrix of a mesh at load, reused from mesh to mesh. */
 const monde = new Float64Array(MATRIX_VALUES);
@@ -31,7 +34,7 @@ function manquante(): never {
 
 /** Scene-bounds buffer, at the exact size of the compute that follows. */
 function sceneBoundsLot(
-  source: HostGraphNode,
+  source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   autonomous: boolean,
@@ -67,8 +70,14 @@ function resourceProgress(
   };
 }
 
+/** What a load that counts bytes adds: the meter of each read, and who hears the tables read. */
+type Metered = { meter?: ByteMeter; onTables?: (tables: PreparedSceneTables) => void };
+
+/** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
+ *  the bytes of each as they arrive, `onTables` hears the tables before those files are read;
+ *  `onPreparation` hears the tables read, then each resource. */
 export async function loadPreparedScene(
-  options: MeasuredWorldOptions,
+  options: MeasuredWorldOptions & Metered,
   metadata: ClusterManifest,
   sceneFile: string,
   base: string,
@@ -76,7 +85,7 @@ export async function loadPreparedScene(
   autonomous: boolean,
   signal: AbortSignal | undefined,
   diagnose: ExplorerEmitters['diagnose'],
-  registerSource: (source: HostGraphNode) => void,
+  registerSource: (source: Object3D) => void,
 ) {
   // The compute path the host asked for holds FROM LOAD: the governor receives it before the
   // first lot, and `configureExplorer` will tell it again without changing anything. Module
@@ -88,8 +97,16 @@ export async function loadPreparedScene(
   // `textureSource` arrives resolved against the paths that will draw (`resolveTextureSource`):
   // it reads `'host'` wherever one of them samples the images themselves.
   const readAt = performance.now();
-  const { tables, bytes } = await loadPreparedSceneTables(base, signal);
+  const { tables, bytes } = await loadPreparedSceneTables(base, signal, options.meter);
   const buildAt = performance.now();
+  signal?.throwIfAborted();
+  options.onTables?.(tables);
+  options.onPreparation?.({
+    phase: 'tables',
+    completed: 1,
+    total: 1,
+    message: 'Read the scene tables',
+  });
   const skipBaked = options.textureSource !== 'host';
   const built = await buildPreparedScene({
     tables,
@@ -99,6 +116,7 @@ export async function loadPreparedScene(
     skipBaked,
     signal,
     track: resourceProgress(options, diagnose, scope, signal),
+    meter: options.meter,
   });
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
@@ -109,10 +127,28 @@ export async function loadPreparedScene(
     });
   const { associations, textureIndices } = built;
   let source = built.source;
+  const replicas = options.replicaCount ?? 1;
+  // The cells a partition reads by distance place rows the replicas would share.
+  if (tables.partition && replicas > 1)
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a partitioned scene is not replicated', {
+      replicas,
+    });
+  const partitions = tables.partition
+    ? [
+        createPartitionCells({
+          partition: tables.partition,
+          base,
+          root: source,
+          parents: built.nodes,
+          meshes: built.placed,
+        }),
+      ]
+    : [];
   diagnose('prepared-scene', 'Scene built from the cache tables', {
     kind: 'preparation',
     scope,
     nodes: tables.nodes.length,
+    cells: tables.partition?.cells.length ?? 0,
     materials: tables.materials.length,
     textures: textureIndices.size,
     bytes,
@@ -128,7 +164,6 @@ export async function loadPreparedScene(
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
   await calculEnLot;
-  const replicas = options.replicaCount ?? 1;
   // Load buffers, reserved before they are written and returned as soon as they are read:
   // scene bounds — exact pages of an autonomous scene, host boxes otherwise, and only when
   // replication asks for them — then replica matrices. Reserve by lot, never per frame.
@@ -152,5 +187,5 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
-  return { source, sceneLightingSource, associations, textureIndices, framingLot };
+  return { source, sceneLightingSource, associations, textureIndices, framingLot, partitions };
 }

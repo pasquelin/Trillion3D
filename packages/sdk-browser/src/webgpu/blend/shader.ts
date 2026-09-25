@@ -12,8 +12,10 @@ import { TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts';
 import { BLEND_BINDINGS } from '../core/bindLayout.ts';
 import { BLEND_ITEM_WGSL } from './items.ts';
 import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
-import { FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
+import { FLAG_HAS_COLOR, FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
+import { VERTEX_COLOR_WGSL } from '../core/vertexColors.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
+import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts';
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
@@ -27,7 +29,7 @@ import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
  */
 /** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
  *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,}`;
 
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
@@ -40,6 +42,7 @@ ${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
 ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
+${VERTEX_COLOR_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
@@ -59,6 +62,7 @@ ${TILE_REQUEST_WGSL}
 struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
 ${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
+${LINE_CLIP_WGSL}
 // What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
 // maps, their factors and the flags. They are constant over the call, therefore FLAT — the
 // fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
@@ -103,8 +107,12 @@ ${FACING_WGSL}
  out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let id=it.vertexBase+indices[base+local];
+ // The material colour times the vertex colour, alpha included, as the forward path reads it.
+ if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=vertColor(id);}
  let world=it.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;
+ // A line quad widens on screen (\`lineClip\`), along the direction its corner's normal carries.
+ if(it.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u],0.0)),it.lineWidth,uni.viewport,uni.pixelRatio);}
  out.tri=0u;
  out.diagId=0u;
  if((flags&0x1c000000u)!=0u){out.diagId=clusterId;}
@@ -151,12 +159,16 @@ ${BLEND_SURFACE_WGSL}
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
  let clamped=clamp(s.rough,0.0525,1.0);
- if(!unlit&&(flags&1u)!=0u){
-  let m=clamp(s.metal,0.0,1.0);
-  // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
-  // itself under an orthographic camera.
-  shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
-  rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
+ if(!unlit){
+  if((flags&1u)!=0u){
+   let m=clamp(s.metal,0.0,1.0);
+   // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
+   // itself under an orthographic camera.
+   shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
+   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
+  }
+  // Lit or unlit, the surface is seen through the fog.
+  rgb=fogged(rgb,in.view,uni.eye.xyz);
  }
  return BlendOut(vec4f(rgb,s.alpha),s.request);
 }

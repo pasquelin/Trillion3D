@@ -103,11 +103,11 @@ test('a world without physics starts no worker; enabling it starts one', async (
     physics.handle.enabled = true;
     await loaded();
     assert.equal(started.length, 1);
-    assert.deepEqual(clocks[0], { type: 'water', water: lake });
+    assert.deepEqual(clocks[0], { type: 'water', water: lake, epoch: 1 });
     assert.equal(physics.handle.waterSurface?.height(5, -3), 2, 'still water drawn at its level');
     physics.handle.water = null;
     assert.equal(physics.handle.waterSurface, null);
-    assert.deepEqual(clocks.at(-1), { type: 'water', water: null });
+    assert.deepEqual(clocks.at(-1), { type: 'water', water: null, epoch: 2 });
     const steep = { direction: [1, 0], wavelength: 1, amplitude: 1, steepness: 2 } as const;
     assert.throws(() => (physics.handle.water = { waves: [steep], level: 0 }), RangeError);
     // A time scale of 0 stands still: the worker is paused, never scheduled infinitely far.

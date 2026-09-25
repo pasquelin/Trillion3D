@@ -1,7 +1,7 @@
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
-import { FRAME_VEC4 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
+import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
 import {
   DRAW_ITEM_U32,
   evaluateDrawCompact,
@@ -16,6 +16,7 @@ import {
 } from './mockComputeBlend.ts';
 import {
   SELECTION_HEADER_WORDS,
+  childBase,
   residentFlags,
   writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
@@ -124,10 +125,14 @@ export function simulateComputeDispatch(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   );
   const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
-  // Residency lives in bits behind the cold records: the double rereads it through the shared
-  // decoder, in the buffer the host writes, where the shader reads it.
+  // The rule's residency lives in bits behind the cold records: the double rereads it through the
+  // shared decoder, in the buffer the host writes, where the shader reads it.
+  const cold = words(byBinding.get(DAG_BINDING.cold)!.data);
   const resident = residentCut
-    ? residentFlags(words(byBinding.get(DAG_BINDING.cold)!.data), packed.pageCount)
+    ? {
+        ready: residentFlags(cold, packed.pageCount),
+        childReady: residentFlags(cold, packed.pageCount, childBase(packed.pageCount)),
+      }
     : undefined;
   // World matrices are read IN THE BOUND BUFFER, where the shader reads them: image entry writes
   // them there brought back to the eye, and the view and planes of the same uniform block are of
@@ -138,7 +143,7 @@ export function simulateComputeDispatch(
   // So is each primitive's root, behind its stretch in the frame buffer: a parked one is NONE
   // (`parkWorld`), and the cut skips it as the shader does.
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data);
-  const rootNodes = packed.rootNodes.map((_, w) => frames[(w * FRAME_VEC4 + 6) * 4 + 1]);
+  const rootNodes = packed.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1]);
   const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident);
   if (residentCut) {
     const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
@@ -157,7 +162,6 @@ export function simulateComputeDispatch(
   ints[0] = result.pageIds.length;
   ints[1] = result.frustumRejected;
   ints[2] = result.lodLevel;
-  ints[3] = result.complete === false ? 2 : 0;
   writeTriangleTotals(ints, result);
   ints.set(result.pageIds, SELECTION_HEADER_WORDS);
 }

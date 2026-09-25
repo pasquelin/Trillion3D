@@ -13,9 +13,9 @@ export {
 export {
   Joint,
   joint,
-  type JointHost,
   type JointKind,
   type JointLimits,
   type JointMotor,
   type JointOptions,
+  type SixDofAxis,
 } from './joint.ts';

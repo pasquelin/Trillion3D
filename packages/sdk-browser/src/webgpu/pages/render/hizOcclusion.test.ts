@@ -27,7 +27,7 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
     scope: DEFAULT_SCOPE,
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     ...scene.metadata,
   };
@@ -53,7 +53,7 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
 
 test('a visbuffer encode failure restores occlusion culling as unsupported', async () => {
   installGpuGlobals();
-  const { device } = mockGpu(undefined, undefined, false, false, true);
+  const { device } = mockGpu({ failVisPass: true });
   const { source, metadata, indices, associations, geometry, material } = quadScene();
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
   const backend = webgpuPagesBackend({
@@ -85,7 +85,7 @@ test('a visbuffer encode failure restores occlusion culling as unsupported', asy
 
 test('a missing r32uint vis target keeps the page raster and lists visibility buffer as unsupported', async () => {
   installGpuGlobals();
-  const { device, draws } = mockGpu(undefined, undefined, false, true);
+  const { device, draws } = mockGpu({ rejectR32: true });
   const { fixture, backend: created } = quadBackend(device);
   const backend = created as WebgpuPagesBackend;
   await backend.prepare();

@@ -83,7 +83,7 @@ export function floatingScene(count: number) {
  */
 export function runWater(jolt: JoltModule, water: WaterSpec, scene: Uint32Array, steps: number) {
   const step = createWaterStep();
-  step.set(water);
+  step.set(water, 0);
   jolt.step(scene, 0);
   const last = new Map<number, number[]>();
   const ms: number[] = [];

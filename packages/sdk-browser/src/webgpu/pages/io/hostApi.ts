@@ -1,6 +1,7 @@
 import { createSynchronousCanvasCapture } from '../../../gpu/core/presentation.ts';
 import { collectPendingUrls, type PageRec } from '../../../page/selection/selection.ts';
 import { awaitedPages } from '../../row/pageSlots.ts';
+import { withClosure } from '../../../page/selection/bundleDependencies.ts';
 import { rasterVisibilityIds, shadeVisibility } from '../../../visibility/buffer.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { defaultEngineCamera } from '../../../camera/world.ts';
@@ -86,19 +87,21 @@ function engineCameraOf(rt: WebgpuPagesRuntime) {
 
 export function visibilityIds(rt: WebgpuPagesRuntime) {
   const size = rt.setup.viewport ?? rt.gpu.targetSize;
-  return rasterVisibilityIds(drawnOpaquePages(rt), engineCameraOf(rt), size);
+  return rasterVisibilityIds(drawnOpaquePages(rt), engineCameraOf(rt), size, rt.setup.pixelRatio());
 }
 
 export function rasterRgba(rt: WebgpuPagesRuntime) {
   const size = rt.setup.viewport ?? rt.gpu.targetSize,
     pages = drawnOpaquePages(rt),
-    cam = engineCameraOf(rt);
+    cam = engineCameraOf(rt),
+    pixelRatio = rt.setup.pixelRatio();
   return shadeVisibility(
-    rasterVisibilityIds(pages, cam, size),
+    rasterVisibilityIds(pages, cam, size, pixelRatio),
     pages,
     cam,
     size,
     rt.run.clearColor,
+    pixelRatio,
   );
 }
 
@@ -162,7 +165,7 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
   stamps.begin();
   stamps.mark(rt.setup.bootstrap, urlScratch);
   stamps.mark(run.shown, urlScratch);
-  if (!run.coverageBudgetLimited) stamps.mark(run.desired, urlScratch);
+  if (!run.coverageBudgetLimited) withClosure(run.desired, (list) => stamps.mark(list, urlScratch));
   return urlScratch;
 }
 
@@ -189,6 +192,6 @@ export function retainedRanks(rt: WebgpuPagesRuntime) {
   ranks.begin();
   ranks.mark(rt.setup.bootstrap);
   ranks.mark(run.shown);
-  if (!run.coverageBudgetLimited) ranks.mark(run.desired);
+  if (!run.coverageBudgetLimited) withClosure(run.desired, ranks.mark);
   return ranks.finish();
 }

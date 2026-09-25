@@ -10,6 +10,10 @@ import type { ClusterBatchStats, ClusterDrawOwner } from './batches.ts';
 import { firstMaterial } from '../../../../packages/sdk-browser/src/scene/materialSide.ts';
 import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
 import type { ClusterDrawScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
+import type { Object3D } from '../../../../packages/sdk-core/src/world/object/object3d.ts';
+
+/** A scene copy of the witness: a mesh of no graph, its world resolved by the draw itself. */
+export type BatchCopy = SceneCopy & Pick<Object3D, 'updateWorldMatrix'>;
 
 /** Submissions a material asks for this frame: none while hidden, otherwise its passes. */
 const passCount = (material: WholeMesh['material']) =>
@@ -19,7 +23,7 @@ export function drawClusterBatches(
   owner: ClusterDrawOwner,
   active: readonly { mesh?: ClusterDrawMesh }[],
   diagnosticMeshes: readonly WholeMesh[],
-  copies: readonly SceneCopy[],
+  copies: readonly BatchCopy[],
   scene: ClusterDrawScene,
   camera: HostDrawCamera,
   toneMapped: boolean,
@@ -27,6 +31,10 @@ export function drawClusterBatches(
   stats: ClusterBatchStats,
 ) {
   scene.updateMatrixWorld();
+  // The copies enter no graph, so no graph resolves their world: each reads its pose — the
+  // engine's world storage, rewritten by a move — into the world matrix the owner culls and
+  // draws with, every frame.
+  for (const copy of copies) copy.updateWorldMatrix(false, false);
   const meshes: ClusterDrawMesh[] = [];
   for (const group of active) if (group.mesh) meshes.push(group.mesh);
   const start = performance.now();

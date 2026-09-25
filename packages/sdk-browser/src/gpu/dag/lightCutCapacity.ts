@@ -42,7 +42,7 @@ export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {
       if (Math.min(shape.levelSizes[level] * views, queueCap) > threads) return false;
     const frames = views * shape.worldCount * FRAME_VEC4 * 16,
       flags = (queueCap * LEVEL_QUEUES + shape.pageCount * 4) * 4,
-      work = dagWorkLayout(shape.blockCount, shape.worldCount, views).words * 4;
+      work = dagWorkLayout(shape.blockCount, views).words * 4;
     return Math.max(frames, flags, work) <= bytes;
   };
   let views = DAG_MAX_VIEWS;

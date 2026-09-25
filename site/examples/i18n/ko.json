@@ -360,6 +360,22 @@
       "up": "위"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "드래그해서 둘러보세요. 안개의 종류, 거리, 색을 고르세요.",
+    "controls": {
+      "fog": "안개",
+      "reach": "거리",
+      "height": "높이",
+      "colour": "색"
+    },
+    "choices": {
+      "fog": {
+        "distance": "거리",
+        "thick": "짙은",
+        "ground": "지면"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "끌어서 둘러봐. 구슬이 관을 따라 달려.",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "시작을 누르고, W A S D로 달리고 스페이스로 뛰어.",
+    "banner": "시작을 누르고, W A S D로 달리고 스페이스로 뛰어. 일찍 놓아: 돌 위에서는 멈추기 전에 조금 미끄러져.",
     "controls": {
       "keys": "엔진의 캐릭터 조작: 메뉴의 ‘시작’이 마우스를 잠가 둘러보게 해, W A S D로 달리기 (AZERTY에서는 Z Q S D), Shift로 전력 질주, 스페이스로 점프, Esc로 마우스 풀기. 이 페이지는 R로 다시 달리기, M으로 소리 끄기를 더했어.",
       "look": "시점",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} 구슬 · R로 다시 달리기",
       "muted": "M 음소거",
       "sound": "M 소리"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "세계가 도착하는 동안 막대가 차오르는 걸 봐. 첫 바이트부터 보려면 다시 로드를 눌러.",
+    "controls": {
+      "loadAgain": "다시 로드"
+    },
+    "readouts": {
+      "phase": "단계",
+      "bytes": "바이트",
+      "pages": "첫 페이지"
+    },
+    "words": {
+      "credit": "이 예제를 위해 코드로 만든 항아리 거리, CC0 — assets/examples/CREDITS.md 참고",
+      "bytes": "바이트 읽는 중",
+      "manifest": "매니페스트 읽음",
+      "tables": "씬 테이블 읽음",
+      "resources": "씬 파일",
+      "pages": "첫 페이지",
+      "ready": "준비됨"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀어 보세요.",
+    "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀고, 얼음 위에서 키를 놓아 미끄러져 보세요.",
     "controls": {
       "pushStrength": "미는 힘 (N)",
       "platformSpeed": "발판 속도",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "관절",
       "broken": "끊어짐"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "장치의 속도를 바꾸고, 리프트를 올리고, 양동이에 추를 떨어뜨려 평형추를 들어 올려 보세요.",
+    "controls": {
+      "speed": "장치 속도 (rad/s)",
+      "raiseLift": "리프트 올리기",
+      "addWeight": "추 떨어뜨리기",
+      "emptyBucket": "양동이 비우기"
+    },
+    "readouts": {
+      "lift": "리프트",
+      "load": "추",
+      "rope": "줄 이동"
     }
   }
 }

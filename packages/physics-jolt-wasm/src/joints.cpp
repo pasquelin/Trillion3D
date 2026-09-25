@@ -1,8 +1,9 @@
 // The world's joints: Jolt's own two-body constraints — fixed, point, hinge, slider, distance and
-// cone — between two bodies or a body and the world, with their limits, limit springs and motors.
-// A joint past its break force is taken out after the step and reported. Word layouts: layout.ts
-// (JOINT, UNJOINT, MOTOR).
+// cone here, the advanced kinds in `advancedJoints.cpp` — between two bodies or a body and the
+// world, with their limits, limit springs and motors. A joint past its break force is taken out
+// after the step and reported. Word layouts: layout.ts (JOINT, UNJOINT, MOTOR).
 #include "binding.h"
+#include "joints.h"
 #include "words.h"
 
 #include <Jolt/Physics/Constraints/ConeConstraint.h>
@@ -20,8 +21,6 @@ namespace trillion {
 
 namespace {
 
-enum Kind : uint32_t { FIXED, POINT, HINGE, SLIDER, DISTANCE, CONE };
-enum Motor : uint32_t { OFF, VELOCITY, POSITION };
 /// The engine id that names the world rather than a body (layout.ts MISS).
 constexpr uint32_t WORLD_BODY = 0xFFFFFFFFu;
 
@@ -31,6 +30,10 @@ struct Joint {
   uint32_t id = 0, a = WORLD_BODY, b = WORLD_BODY, kind = 0;
   /** Newtons of pull past which it breaks; 0 never. */
   float breakForce = 0;
+  /** Its axis on `a` and on `b`, in each body's frame: what matches a gear to its wheels' hinges. */
+  Vec3 axisA = Vec3::sZero(), axisB = Vec3::sZero();
+  /** A gear's or a rack and pinion's body order and phase correction. */
+  GearOrder order;
 };
 
 std::vector<Joint> joints;
@@ -39,9 +42,6 @@ std::vector<uint32_t> broken;
 
 /// A body's frame from the words (`point, axis, normal` in its own frame), its point moved from
 /// the body's origin to its centre of mass (Jolt's `LocalToBodyCOM`); the world's frame as given.
-struct Frame {
-  Vec3 point, axis, normal;
-};
 Frame frameOf(const uint32_t *w, uint32_t engine) {
   Vec3 point = vec3(w);
   if (engine != WORLD_BODY) {
@@ -61,7 +61,7 @@ bool bodyOf(uint32_t engine, BodyID &id) {
   return (id = slots[index].id, true);
 }
 
-/// The settings of a joint kind between two frames; `v` is `min, max, frequency, damping`.
+/// The settings of a core joint kind between two frames; `v` is `min, max, frequency, damping`.
 Ref<TwoBodyConstraintSettings> settingsOf(uint32_t kind, const Frame &f1, const Frame &f2, const uint32_t *v) {
   float min = f32(v), max = f32(v + 1);
   SpringSettings spring(ESpringMode::FrequencyAndDamping, f32(v + 2), f32(v + 3));
@@ -111,9 +111,10 @@ Ref<TwoBodyConstraintSettings> settingsOf(uint32_t kind, const Frame &f1, const 
   }
 }
 
-/// Drives a hinge (radians) or a slider (metres) by its motor: off, to a velocity or to a position,
-/// with at most `maxForce` (N·m or N; 0 is no bound). Other kinds have no motor.
-void drive(Joint &joint, uint32_t mode, float target, float maxForce) {
+/// Drives a hinge (radians), a slider (metres), a swing-twist, a six-DOF's `axis` or a path by its
+/// motor: off, to a velocity or to a position, with at most `maxForce` (N·m or N; 0 is no bound).
+/// Other kinds have no motor.
+void drive(Joint &joint, uint32_t mode, float target, float maxForce, uint32_t axis) {
   float limit = maxForce > 0 && std::isfinite(maxForce) ? maxForce : FLT_MAX;
   EMotorState state = mode == VELOCITY ? EMotorState::Velocity : mode == POSITION ? EMotorState::Position : EMotorState::Off;
   if (joint.kind == HINGE) {
@@ -128,7 +129,7 @@ void drive(Joint &joint, uint32_t mode, float target, float maxForce) {
     slider->SetMotorState(state);
     if (mode == VELOCITY) slider->SetTargetVelocity(target);
     else if (mode == POSITION) slider->SetTargetPosition(target);
-  } else return;
+  } else if (!driveAdvanced(joint.constraint.GetPtr(), joint.kind, state, target, limit, axis)) return;
   world().system->GetBodyInterfaceNoLock().ActivateConstraint(joint.constraint);
 }
 
@@ -144,7 +145,8 @@ float pull(const Joint &joint) {
       return slider->GetTotalLambdaPosition().Length() + std::abs(slider->GetTotalLambdaPositionLimits());
     }
     case DISTANCE: return std::abs(static_cast<DistanceConstraint *>(c)->GetTotalLambdaPosition());
-    default: return static_cast<ConeConstraint *>(c)->GetTotalLambdaPosition().Length();
+    case CONE: return static_cast<ConeConstraint *>(c)->GetTotalLambdaPosition().Length();
+    default: return advancedPull(c, joint.kind);
   }
 }
 
@@ -159,19 +161,48 @@ void add(const uint32_t *w) {
   remove(joints[index]);
   BodyID a, b;
   // A body refused or gone since the page wrote the joint: the page removes the joint in turn.
-  if (kind > CONE || !bodyOf(w[3], a) || !bodyOf(w[4], b) || a == b) return;
+  if (kind > RACK_AND_PINION || !bodyOf(w[3], a) || !bodyOf(w[4], b) || a == b) return;
   // `b` is Jolt's first body, `a` its second: a motor, a limit and a slide measure `a` from `b`
-  // (from the world when `b` names none), and Jolt solves the turn from the steadier side.
-  Ref<TwoBodyConstraintSettings> settings = settingsOf(kind, frameOf(w + 14, w[4]), frameOf(w + 5, w[3]), w + 23);
+  // (from the world when `b` names none), and Jolt solves the turn from the steadier side. A rack
+  // and pinion, and some gears, Jolt makes `a` first (`gearOrder`).
+  Frame f1 = frameOf(w + 17, w[4]), f2 = frameOf(w + 8, w[3]);
+  Ref<TwoBodyConstraintSettings> settings = kind <= CONE ? settingsOf(kind, f1, f2, w + 26)
+                                                         : advancedSettings(kind, f1, f2, w + 26, w + JOINT_WORDS, w[7], vec3(w + 17));
+  if (!settings) return;
   BodyInterface &bodies = world().system->GetBodyInterfaceNoLock();
   Joint &joint = joints[index];
-  joint.constraint = bodies.CreateConstraint(settings, b, a);
-  joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 30);
+  joint.order = gearOrder(kind, w + JOINT_WORDS, w[7]);
+  joint.constraint = joint.order.aFirst ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
+  joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32);
+  joint.axisA = f2.axis, joint.axisB = f1.axis;
   joint.a = w[3] == WORLD_BODY ? WORLD_BODY : w[3] & INDEX_MASK;
   joint.b = w[4] == WORLD_BODY ? WORLD_BODY : w[4] & INDEX_MASK;
   world().system->AddConstraint(joint.constraint);
   bodies.ActivateConstraint(joint.constraint);
-  drive(joint, w[27], f32(w + 28), f32(w + 29));
+  drive(joint, w[5], f32(w + 30), f32(w + 31), w[6]);
+}
+
+/// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
+/// body's frame; null when none does.
+const Constraint *holder(uint32_t kind, uint32_t slot, Vec3 axis) {
+  for (const Joint &joint : joints)
+    if (joint.constraint && joint.kind == kind && joint.a == slot && joint.axisA.Dot(axis) > 0.999f)
+      return joint.constraint.GetPtr();
+  return nullptr;
+}
+
+/// Hands each gear its wheels' hinges and each rack and pinion its pinion's hinge and its rack's
+/// slider, those that hold the body as their `a` about the same axis, so Jolt keeps the teeth in
+/// the phase they were made in. Run whenever a joint is made or taken out: none keeps one gone.
+void link() {
+  for (Joint &joint : joints) {
+    if (!joint.constraint || !joint.order.inPhase) continue;
+    const Constraint *onA = holder(HINGE, joint.a, joint.axisA);
+    const Constraint *onB = holder(joint.kind == GEAR ? HINGE : SLIDER, joint.b, joint.axisB);
+    if (!onA || !onB) onA = onB = nullptr;
+    bool aFirst = joint.order.aFirst;
+    linkGear(joint.constraint, joint.kind, aFirst ? onA : onB, aFirst ? onB : onA);
+  }
 }
 
 }  // namespace
@@ -182,19 +213,24 @@ uint32_t jointCommand(const uint32_t *w) {
   Joint *joint = index < joints.size() && joints[index].constraint && joints[index].id == w[1] ? &joints[index] : nullptr;
   if (w[0] == JOINT) {
     add(w);
-    return JOINT_WORDS;
+    link();
+    return JOINT_WORDS + w[7];
   }
   if (w[0] == UNJOINT) {
-    if (joint) remove(*joint);
+    if (joint) {
+      remove(*joint);
+      link();
+    }
     return UNJOINT_WORDS;
   }
-  if (joint) drive(*joint, w[2], f32(w + 3), f32(w + 4));
+  if (joint) drive(*joint, w[2], f32(w + 4), f32(w + 5), w[3]);
   return MOTOR_WORDS;
 }
 
 void dropJoints(uint32_t index) {
   for (Joint &joint : joints)
     if (joint.constraint && (joint.a == index || joint.b == index)) remove(joint);
+  link();
 }
 
 void breakJoints(float dt) {
@@ -205,6 +241,7 @@ void breakJoints(float dt) {
       broken.push_back(joint.id);
       remove(joint);
     }
+  if (!broken.empty()) link();
 }
 
 }  // namespace trillion

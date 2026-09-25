@@ -1,7 +1,6 @@
 // Batch F oracles, scene and page-source side: `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
 // `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
-import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
 import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import type {
   ClusterManifest,
@@ -10,6 +9,7 @@ import type {
 } from '../../../packages/sdk-core/src/index.ts';
 import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { meshes as objects } from '../../../packages/sdk-browser/src/scene/meshes.ts';
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
 
 /** A manifest page whose optional `geometry` descriptor is present. */
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor };
@@ -17,7 +17,7 @@ const hasGeometry = (page: Page): page is PageWithGeometry => !!page.geometry;
 
 /** `pagesBounds` before batch F: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
-  source: GraphNode,
+  source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   onMissing: (mesh: GraphMesh) => void,

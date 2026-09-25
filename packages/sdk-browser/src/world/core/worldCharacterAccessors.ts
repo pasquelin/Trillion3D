@@ -55,14 +55,19 @@ export function characterSettingAccessors(
     set airControl(value: number) {
       setting('airControl', value);
     },
-    /** Character only: seconds to reach 95 % of the wished speed on the ground; 0.12 by default. */
+    /** Character only: seconds the legs take to reach 95 % of the wished speed on the ground; 0.12 by
+     *  default. The floor's friction bounds the start first: a sole pushes at most `μ g`, `μ` a
+     *  rubber sole's grip on the floor's `material.physics` (stone without physics), so a jog is
+     *  reached in 0.45 s on stone and 2.2 s on ice. */
     get responseTime() {
       return settings.responseTime;
     },
     set responseTime(value: number) {
       setting('responseTime', value);
     },
-    /** Character only: seconds to lose 95 % of the speed once no key is held, on the ground; 0.08 by default. */
+    /** Character only: seconds the legs take to lose 95 % of the speed once no key is held, on the
+     *  ground; 0.12 by default. The floor's friction bounds the stop first: a jog glides
+     *  `v² / (2 μ g)`, 0.8 m on stone and 3.8 m on ice; a longer time brakes more gently. */
     get stopTime() {
       return settings.stopTime;
     },

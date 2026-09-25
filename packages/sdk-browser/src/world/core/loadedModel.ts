@@ -1,15 +1,19 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { lightFromRecord, type Light } from '../../../../sdk-core/src/world/light/light.ts';
-import { loadImportedLights } from '../../lighting/importedLights.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
+import { importedLightsUrl, loadImportedLights } from '../../lighting/importedLights.ts';
+import { sceneDocument, sceneTablesUrl } from '../../scene/tables.ts';
+import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../scene/manifestLoad.ts';
+import { byteMeter, unmetered } from '../../cluster/byteMeter.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
 import { findGraphNode, modelNode } from './modelNodes.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -58,9 +62,9 @@ export class LoadedModel extends Object3D {
     return this.add(...nodes);
   }
   /** The scene node standing for each graph node a page looked up, and for its ancestors. */
-  private readonly looked = new Map<HostGraphNode, Object3D>();
+  private readonly looked = new Map<Object3D, Object3D>();
   /** The scene node of `graph`, built with its missing ancestors on first ask (`modelNode`). */
-  private nodeOf(graph: HostGraphNode): Object3D {
+  private nodeOf(graph: Object3D): Object3D {
     let node = this.looked.get(graph);
     if (node) return node;
     node = modelNode(graph);
@@ -86,6 +90,10 @@ export class LoadedModel extends Object3D {
       new Vector3(flat[3], flat[4], flat[5]),
     );
   }
+  /** Refused: a model is loaded again with `scene.load`, never cloned. */
+  protected override blank(): this {
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'A LoadedModel cannot be cloned');
+  }
   /** The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the
    *  clusters its pages hold, every level of its DAGs counted. */
   get metadata() {
@@ -101,11 +109,33 @@ export class LoadedModel extends Object3D {
   }
 }
 
+/** The document a world's model draws. */
+const SCENE_FILE = 'source.gltf';
+
+/**
+ * The files a model load reads once its manifest is, at the length the manifest declares each,
+ * addressed as their readers address them: the scene tables, the lights, the scene's binary. The
+ * manifest and its binary are read before any plan; an image is read only when a surface samples
+ * it, so none is planned.
+ */
+function plannedFiles(
+  declared: ReadonlyMap<string, number>,
+  base: string,
+  tables: PreparedSceneTables,
+) {
+  const { bufferUrl } = sceneDocument(tables, SCENE_FILE, base);
+  const read = [sceneTablesUrl(base), importedLightsUrl(base), bufferUrl];
+  return new Map(
+    read.flatMap((url) => (url && declared.has(url) ? [[url, declared.get(url)!]] : [])),
+  );
+}
+
 /**
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
  * WebGPU world's first model does; any other path samples the images themselves. `onProgress`
- * hears the manifest read, then each resource the scene reads (`loadPreparedScene`).
+ * hears `bytes` against the files it reads (`plannedFiles`) as each chunk lands (`byteMeter`), the
+ * manifest read, the scene tables read, then each resource the scene reads (`loadPreparedScene`).
  */
 export async function loadModel(
   manifestUrl: string,
@@ -117,17 +147,28 @@ export async function loadModel(
   },
 ): Promise<LoadedModel> {
   const { signal, textureSource, onProgress } = options;
+  const meter = onProgress
+    ? byteMeter((completed, total) =>
+        onProgress({ phase: 'bytes', completed, total, message: `${completed} of ${total} bytes` }),
+      )
+    : unmetered;
   // A scope the page named is enforced; none named, the model is read at the one its pointer
   // declares (`loadClusterManifest`).
-  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal);
-  const { metadata, metadataUrl, base } = loaded,
+  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter);
+  const { metadata, metadataUrl, base, declared } = loaded,
     scope = metadata.scope;
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` });
   const [scene, imported] = await Promise.all([
     loadPreparedScene(
-      { manifestUrl, textureSource, onPreparation: (event) => onProgress?.({ ...event }) },
+      {
+        manifestUrl,
+        textureSource,
+        meter,
+        onTables: (tables) => meter.plan(plannedFiles(declared, base, tables)),
+        onPreparation: (event) => onProgress?.({ ...event }),
+      },
       metadata,
-      'source.gltf',
+      SCENE_FILE,
       base,
       scope,
       false,
@@ -139,8 +180,9 @@ export async function loadModel(
       read.framingLot?.release();
       return read;
     }),
-    loadImportedLights(base, signal),
+    loadImportedLights(base, signal, meter),
   ]);
+  meter.settle();
   const model = new LoadedModel({
     manifestUrl,
     metadataUrl,

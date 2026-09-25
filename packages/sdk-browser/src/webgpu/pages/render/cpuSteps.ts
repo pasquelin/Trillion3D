@@ -1,4 +1,5 @@
-import { addCpuSteps, cpuStepTable } from '../../../stage/cpuSteps.ts';
+import { addCpuSteps } from '../../../stage/cpuSteps.ts';
+import { CPU_STEP, CPU_STEP_STAGES } from './cpuStepTable.ts';
 import { sunFarCounts } from '../prepare/sunFar.ts';
 import {
   frameCostAuditEnabled,
@@ -8,51 +9,12 @@ import {
 import type { HostCpuStep } from '../../../host/cpuProfile.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/**
- * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits
- * into. Name, stage and write index all come from this one table. The first four cover what the
- * image does before opening its own timer; the four after encode are sampled by the host, which
- * deposits them by name. `tilesPumpMs` is the streamer's pass: an image whose feedback named no
- * tile writes `NaN` there, which the profiler drops, so the stage stays unmeasured rather than zero.
- */
-const CPU = cpuStepTable([
-  ['physicsMs', 'physics'],
-  ['gateMs', 'animations'],
-  ['tilesPumpMs', 'textures'],
-  ['worldMs', 'animations'],
-  ['blendWorldMs', 'transparents'],
-  ['lightsMs', 'lights'],
-  ['adoptCutMs', 'cutAdoption'],
-  ['transparentSelectMs', 'transparents'],
-  ['transparentPrepareMs', 'transparents'],
-  ['transparentDrawMs', 'transparents'],
-  ['transparentEncodeMs', null],
-  ['admissionMs', 'residency'],
-  ['residencyQueueMs', 'residency'],
-  ['syncRowsMs', 'uploads'],
-  ['residencyUploadMs', 'uploads'],
-  ['selectionDispatchMs', 'selection'],
-  ['partitionMs', 'partition'],
-  ['encodeRestMs', 'encode'],
-  ['queueSubmitMs', 'submit'],
-  ['arrivalsMs', 'residency'],
-  ['pendingMs', 'hostPages'],
-  ['retainMs', 'hostPages'],
-  ['submitMs', 'submit'],
-  ['encodeSubmitMs', null],
-  ['totalMs', null],
-] as const);
-export const CPU_STEP_NAMES = CPU.names;
-export const CPU_STEP = CPU.at;
-/** Stage of each bound, in profile-row order; `null` for a sum. */
-export const CPU_STEP_STAGES = CPU.stages;
-
 /** Deposits the image's CPU bounds into the public per-stage profile, when it is mounted. */
 function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
     stages = timing.stages;
   if (!stages) return;
-  stages.frameCpu((add) => addCpuSteps(CPU.stages, timing.cpuProfile.row, add));
+  stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
   const tiles = rt.vis.textures?.counters;
   if (tiles)
     stages.setCounts('textures', {
@@ -172,7 +134,7 @@ export function publishCpuProfile(rt: WebgpuPagesRuntime) {
 
 /** Deposits the duration of a host-sampled step: arrivals, wait, retain, submit. */
 export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: number) {
-  rt.timing.cpuProfile.row[CPU.at[step]] = ms;
+  rt.timing.cpuProfile.row[CPU_STEP[step]] = ms;
 }
 
 /**
@@ -184,7 +146,7 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt;
   if (!timing.rowFilled) return;
   timing.rowFilled = false;
-  const total = timing.cpuProfile.row[CPU.at.totalMs];
+  const total = timing.cpuProfile.row[CPU_STEP.totalMs];
   timing.cpuProfile.record(run.frame, total);
   timing.cpuWindow.record(run.frame, total);
   recordStages(rt);

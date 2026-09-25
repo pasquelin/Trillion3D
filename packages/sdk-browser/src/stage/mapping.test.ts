@@ -1,11 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addGpuPasses, directLightTimings, shadowPagesGpuMs } from './mapping.ts';
+import {
+  addGpuPasses,
+  directLightTimings,
+  gpuPassStageOf,
+  gpuShadowPartOf,
+  shadowPagesGpuMs,
+} from './mapping.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
+import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
 import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { DEFERRED_LIGHTING_PASS } from '../lighting/deferred/deferred.ts';
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts';
+import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts';
 
 function sample(passes: GpuPassTimings['passes'], truncated = false): GpuPassTimings {
   return { frame: 1, totalMs: null, truncated, passes };
@@ -63,7 +71,13 @@ test('directLightTimings reads the three durations by label, null if the pass is
       { name: LIGHT_TILES_PASS, gpuMs: 3 },
     ]),
   );
-  assert.deepEqual(timings, { gpuLightListsMs: 3, gpuShadowsMs: 2, gpuLightingMs: null });
+  assert.deepEqual(timings, {
+    gpuLightListsMs: 3,
+    gpuShadowsMs: 2,
+    gpuShadowCullMs: null,
+    gpuShadowRasterMs: 2,
+    gpuLightingMs: null,
+  });
 });
 
 test('direct lighting keeps its values even when another stage is invalidated', () => {
@@ -76,7 +90,74 @@ test('direct lighting keeps its values even when another stage is invalidated', 
       { name: 'Trillion3D opaque fallback', gpuMs: 1 },
     ]),
   );
-  assert.deepEqual(timings, { gpuLightListsMs: 3, gpuShadowsMs: 2, gpuLightingMs: 4 });
+  assert.deepEqual(timings, {
+    gpuLightListsMs: 3,
+    gpuShadowsMs: 2,
+    gpuShadowCullMs: null,
+    gpuShadowRasterMs: 2,
+    gpuLightingMs: 4,
+  });
+});
+
+test('shadow time splits into choosing the casters and drawing them, from the same sample', () => {
+  const timings = directLightTimings(
+    sample([
+      { name: LIGHT_CUT_PASS, gpuMs: 1 },
+      { name: 'Trillion3D shadow cull', gpuMs: 0.5 },
+      { name: 'Trillion3D shadow page pyramids', gpuMs: 0.25 },
+      { name: 'Trillion3D shadow occlusion', gpuMs: 0.25 },
+      { name: SHADOW_LAYER_PASS, gpuMs: 3 },
+      { name: SHADOW_PASS, gpuMs: 4 },
+      { name: DEFERRED_LIGHTING_PASS, gpuMs: 5 },
+    ]),
+  );
+  assert.equal(timings.gpuShadowCullMs, 2);
+  assert.equal(timings.gpuShadowRasterMs, 7);
+  // The light cut is its own stage: the Shadows stage keeps its meaning.
+  assert.equal(timings.gpuShadowsMs, 8);
+  const unmeasured = directLightTimings(
+    sample([
+      { name: 'Trillion3D shadow cull', gpuMs: null },
+      { name: SHADOW_PASS, gpuMs: 4 },
+    ]),
+  );
+  assert.equal(unmeasured.gpuShadowCullMs, null, 'an unmeasured pass voids its part');
+  assert.equal(unmeasured.gpuShadowRasterMs, 4);
+});
+
+// One table names every pass: a shadow row without its part would drop out of the split silently.
+test('every pass of a shadow stage names its shadow part, and no other pass does', () => {
+  const parts = {
+    [LIGHT_CUT_PASS]: 'cull',
+    'Trillion3D shadow cull': 'cull',
+    'Trillion3D shadow page pyramids': 'cull',
+    'Trillion3D shadow occlusion': 'cull',
+    [SHADOW_LAYER_PASS]: 'raster',
+    [SHADOW_PASS]: 'raster',
+    [LIGHT_TILES_PASS]: 'other',
+    [DEFERRED_LIGHTING_PASS]: 'other',
+    'Trillion3D DAG selection': 'other',
+    'never-seen pass': 'other',
+  };
+  for (const [label, part] of Object.entries(parts)) {
+    assert.equal(gpuShadowPartOf(label), part, label);
+    const shadowStage = ['shadows', 'shadowCasters'].includes(gpuPassStageOf(label));
+    assert.equal(part !== 'other', shadowStage, label);
+  }
+});
+
+test('the bench reference reads the same shadow split as the engine', () => {
+  const s = sample([
+    { name: LIGHT_CUT_PASS, gpuMs: 1 },
+    { name: 'Trillion3D shadow cull', gpuMs: 0.5 },
+    { name: 'Trillion3D shadow page pyramids', gpuMs: 0.25 },
+    { name: 'Trillion3D shadow occlusion', gpuMs: 0.25 },
+    { name: SHADOW_LAYER_PASS, gpuMs: 3 },
+    { name: SHADOW_PASS, gpuMs: 4 },
+    { name: LIGHT_TILES_PASS, gpuMs: 2 },
+    { name: DEFERRED_LIGHTING_PASS, gpuMs: 5 },
+  ]);
+  assert.deepEqual(referenceDirectLightTimings(s), directLightTimings(s));
 });
 
 test('the three transparent passes sum onto their stage, never onto geometry', () => {

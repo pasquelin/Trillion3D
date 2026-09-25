@@ -360,6 +360,22 @@
       "up": "YUKARI"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Etrafa bakmak için sürükleyin. Sisi, erimini ve rengini seçin.",
+    "controls": {
+      "fog": "Sis",
+      "reach": "Erim",
+      "height": "Yükseklik",
+      "colour": "Renk"
+    },
+    "choices": {
+      "fog": {
+        "distance": "uzaklık",
+        "thick": "yoğun",
+        "ground": "yerde"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Etrafa bakmak için sürükle. Boncuklar tüp boyunca kayar.",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Oyna'ya bas, sonra W A S D ile koş ve Boşluk ile zıpla.",
+    "banner": "Oyna'ya bas, sonra W A S D ile koş ve Boşluk ile zıpla. Erken bırak: taşta durmadan önce biraz kayarsın.",
     "controls": {
       "keys": "Motorun karakter kontrolü: menüdeki Oyna bakmak için fareyi kilitler, koşmak için W A S D (AZERTY'de Z Q S D), hızlı koşmak için Shift, zıplamak için Boşluk, Esc fareyi bırakır. Sayfa yeniden koşmak için R, sesi kapatmak için M ekler.",
       "look": "Bakış",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} küre · yeniden koşmak için R",
       "muted": "M sessiz",
       "sound": "M ses"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "Dünya gelirken çubuğun dolmasını izle. İlk bayttan görmek için Yeniden yükle'ye bas.",
+    "controls": {
+      "loadAgain": "Yeniden yükle"
+    },
+    "readouts": {
+      "phase": "Adım",
+      "bytes": "Bayt",
+      "pages": "İlk sayfalar"
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md",
+      "bytes": "baytlar okunuyor",
+      "manifest": "manifest okundu",
+      "tables": "sahne tabloları okundu",
+      "resources": "sahne dosyaları",
+      "pages": "ilk sayfalar",
+      "ready": "hazır"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin.",
+    "banner": "Etrafa bakmak için tıklayın, sonra W A S D ile yürüyün ve Boşluk ile zıplayın: merdiveni ve rampayı çıkın, platforma binin, kutuları itin ve kaymak için buzun üstünde tuşları bırakın.",
     "controls": {
       "pushStrength": "İtme kuvveti (N)",
       "platformSpeed": "Platform hızı",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "Eklemler",
       "broken": "Kırılan"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Mekanizmanın hızını değiştir, asansörü kaldır ve karşı ağırlığı kaldırmak için kovaya ağırlık at.",
+    "controls": {
+      "speed": "Mekanizma hızı (rad/s)",
+      "raiseLift": "Asansörü kaldır",
+      "addWeight": "Ağırlık bırak",
+      "emptyBucket": "Kovayı boşalt"
+    },
+    "readouts": {
+      "lift": "Asansör",
+      "load": "Ağırlıklar",
+      "rope": "İp akışı"
     }
   }
 }

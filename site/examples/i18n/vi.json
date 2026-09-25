@@ -360,6 +360,22 @@
       "up": "LÊN"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Kéo để nhìn quanh. Chọn sương mù, tầm xa và màu của nó.",
+    "controls": {
+      "fog": "Sương mù",
+      "reach": "Tầm xa",
+      "height": "Độ cao",
+      "colour": "Màu"
+    },
+    "choices": {
+      "fog": {
+        "distance": "khoảng cách",
+        "thick": "dày",
+        "ground": "sát đất"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Kéo để nhìn quanh. Những hạt cườm chạy dọc theo ống.",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Nhấn Chơi, rồi chạy bằng W A S D và nhảy bằng phím cách.",
+    "banner": "Nhấn Chơi, rồi chạy bằng W A S D và nhảy bằng phím cách. Thả phím sớm: trên đá bạn trượt một chút trước khi dừng.",
     "controls": {
       "keys": "Điều khiển nhân vật của engine: nút Chơi trong menu khóa chuột để nhìn, W A S D để chạy (Z Q S D trên AZERTY), Shift để chạy nhanh, phím cách để nhảy, Esc thả chuột. Trang thêm R để chạy lại, M để tắt tiếng.",
       "look": "Nhìn",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} quả cầu · R để chạy lại",
       "muted": "M tắt tiếng",
       "sound": "M có tiếng"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "Xem thanh đầy dần khi thế giới đến. Bấm Tải lại để xem từ byte đầu tiên.",
+    "controls": {
+      "loadAgain": "Tải lại"
+    },
+    "readouts": {
+      "phase": "Bước",
+      "bytes": "Byte",
+      "pages": "Trang đầu tiên"
+    },
+    "words": {
+      "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md",
+      "bytes": "đang đọc byte",
+      "manifest": "đã đọc manifest",
+      "tables": "đã đọc bảng cảnh",
+      "resources": "tệp của cảnh",
+      "pages": "trang đầu tiên",
+      "ready": "sẵn sàng"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng.",
+    "banner": "Nhấp để nhìn quanh, rồi đi bằng W A S D và nhảy bằng phím cách: leo cầu thang và dốc, đứng trên bệ di chuyển, đẩy các thùng, và thả phím trên băng để trượt.",
     "controls": {
       "pushStrength": "Lực đẩy (N)",
       "platformSpeed": "Tốc độ bệ",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "Khớp nối",
       "broken": "Đã gãy"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Đổi tốc độ bộ máy, nâng thang máy và thả quả nặng vào xô để kéo đối trọng lên.",
+    "controls": {
+      "speed": "Tốc độ bộ máy (rad/s)",
+      "raiseLift": "Nâng thang máy",
+      "addWeight": "Thả một quả nặng",
+      "emptyBucket": "Đổ sạch xô"
+    },
+    "readouts": {
+      "lift": "Thang máy",
+      "load": "Quả nặng",
+      "rope": "Dây đã chạy"
     }
   }
 }

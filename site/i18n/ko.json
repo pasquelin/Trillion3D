@@ -218,6 +218,7 @@
       "observatory-streamed": "스트리밍되는 클러스터",
       "memory-on-a-budget": "메모리 예산",
       "detail-by-pixel-error": "픽셀 오차에 따른 디테일",
+      "watch-a-world-load": "세계가 로드되는 모습 보기",
       "ten-thousand-objects": "만 개의 물체",
       "compressed-textures": "압축된 텍스처",
       "what-hides-what": "무엇이 무엇을 가리는가",
@@ -312,6 +313,7 @@
       "soft-bodies": "부드러운 물체",
       "rolling-on-terrain": "지형 위를 구르기",
       "hinges-and-joints": "경첩과 관절",
+      "gears-and-pulleys": "기어와 도르래",
       "walk-with-collisions": "충돌하며 걷기",
       "drive-a-car": "자동차 운전하기",
       "a-room-in-vr": "VR 속 방",
@@ -325,8 +327,8 @@
       "a-walker-among-balls": "공 사이를 걷는 사람"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU에서의 정점별 색상",
       "dashed-lines": "점선",
+      "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
       "a-line-that-draws-itself": "지오메트리의 그리기 범위",
       "shapes-from-an-svg": "SVG 경로 불러오기",
@@ -339,9 +341,6 @@
       "a-capped-section": "클리핑 평면: 스텐실 마개",
       "decals-on-a-surface": "선택(레이캐스트)",
       "sculpt-a-sphere": "선택(레이캐스트)",
-      "a-video-on-a-screen": "실시간 영상 텍스처",
-      "the-webcam-as-a-texture": "실시간 영상 텍스처",
-      "four-ways-to-blend": "모든 혼합 모드",
       "avif-textures": "추가 원본 불러오기: AVIF 이미지",
       "object-space-normals": "오브젝트 공간 노멀맵",
       "a-bumpy-surface": "범프, 변위, 패럴랙스 맵",
@@ -412,7 +411,6 @@
       "a-medical-scan": "볼륨 렌더링",
       "a-city-from-3d-tiles": "3D Tiles 불러오기",
       "rendering-in-a-worker": "워커에서의 렌더링(OffscreenCanvas)",
-      "a-video-panorama": "실시간 영상 텍스처",
       "an-atmospheric-sky": "하늘 모델",
       "chrome-in-a-room": "환경 조명(IBL)",
       "lit-by-an-hdr-image": "환경 조명(IBL)",
@@ -428,8 +426,6 @@
       "reflections-from-the-screen": "화면 공간 반사",
       "an-ocean": "텍스처로 렌더링: 물의 반사와 굴절",
       "a-raging-sea": "직접 만드는 셰이더 재질",
-      "a-town-in-the-fog": "안개",
-      "fog-on-the-ground": "안개: 높이 안개",
       "fog-that-scatters-light": "볼류메트릭 안개와 빛줄기",
       "a-cloud-in-a-box": "볼륨 렌더링",
       "a-fire-in-a-volume": "볼륨 렌더링",
@@ -1081,7 +1077,8 @@
           "<code>anchor</code>는 물체들이 이어지는 지점이고 <code>axis</code>는 핀이나 레일의 방향입니다. 둘 다 세계 좌표이며 관절을 만들 때 읽힙니다.",
           "<code>limits</code>가 관절을 멈춥니다. 경첩은 라디안, 슬라이더는 미터. <code>spring</code>은 멈춤을 부드럽게 합니다.",
           "<code>motor</code>는 경첩이나 슬라이더를 속도나 위치로 움직입니다. <code>joint.motor</code>는 언제든 바꿀 수 있습니다.",
-          "<code>breakForce</code>는 관절이 끊어지는 당김의 크기(뉴턴)입니다. 끊어지면 <code>joint.broken</code>이 true가 되고 <code>joint.on('break', …)</code>가 호출됩니다."
+          "<code>breakForce</code>는 관절이 끊어지는 당김의 크기(뉴턴)입니다. 끊어지면 <code>joint.broken</code>이 true가 되고 <code>joint.on('break', …)</code>가 호출됩니다.",
+          "고급 관절은 움직임을 서로 묶습니다. <code>joint.gear(a, b, { ratio })</code>는 경첩에 달린 두 바퀴를 하나의 기어열처럼 돌리고, <code>joint.rackAndPinion</code>은 회전을 미끄러짐으로 바꾸고, <code>joint.pulley(a, b, { over })</code>는 한 줄에 두 짐을 매달고, <code>joint.path(a, b, { path })</code>는 수레를 궤도 위에 두며, <code>swingTwist</code>와 <code>sixDof</code>로 어깨와 나만의 관절을 만듭니다."
         ],
         "tryIt": "문과 서랍을 열고, 다리 위에 돌을 떨어뜨려 보세요. 다리 강도를 낮추고 다시 지으면 자기 무게로 부서집니다."
       },

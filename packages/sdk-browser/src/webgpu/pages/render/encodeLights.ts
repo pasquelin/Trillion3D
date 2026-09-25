@@ -11,7 +11,8 @@ import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** The floats the deferred pass rereads: lights, tiles in X and Y, exposure, display curve. */
+/** The floats the deferred and blend passes reread: lights, tiles in X and Y, exposure, display
+ *  curve, then the eye the fog is measured from. */
 const directParams = new Float32Array(8);
 /** Camera world position, reused from one image to the next: bounce allocates nothing. */
 const viewpoint = new Float64Array(3);
@@ -41,6 +42,8 @@ export function encodeDirectLights(
   // the declared lights do not already light.
   directParams[3] = environment ? environment.exposure : 1;
   directParams[4] = TONE_MAPPING_RANK[environment?.toneMapping ?? DEFAULT_TONE_MAPPING];
+  // The eye itself, under any projection: an orthographic camera's view point is a direction.
+  directParams.set(cam.eye, 5);
   // The unlit view reads neither light lists nor an atlas: it therefore encodes none of them.
   // The slices survive it, so a representation change held for the camera to rest is released
   // to the list now: the plan of the first lit frame stales its pages, whatever the camera does.
@@ -78,7 +81,7 @@ export function encodeDirectLights(
   noteShadowFrame(lights, pagesSlot, encoded);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
-  tiles.update(inverseViewProjection, width, height, active);
+  tiles.update(inverseViewProjection, width, height);
   if (!tiles.encode(encoder)) return directParams;
   directParams[0] = active;
   directParams[1] = tiles.tilesX;
@@ -118,9 +121,9 @@ function encodeBounce(
   if (!probes) return;
   probes.setIrradianceView(irradiance);
   // The store revision rises as soon as a light is added, set or removed: that is the only signal
-  // the grid needs to restart, and it costs no read.
-  if (bounce.lightEpoch !== lights.store.epoch) {
-    bounce.lightEpoch = lights.store.epoch;
+  // the grid needs to restart, and it costs no read. A change of fog alone is not one.
+  if (bounce.lightEpoch !== lights.store.transportEpoch) {
+    bounce.lightEpoch = lights.store.transportEpoch;
     probes.restart();
   }
   // Camera world position, posted by image entry: cascades re-centre on it by cell step. No
@@ -180,7 +183,6 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowWaitFrames: lights.plan.counts.waitedFrames,
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowMsPerPage: lights.plan.budget.msPerPage,
-    shadowsDenied: lights.plan.counts.denied,
     poolPages: lights.shadows
       ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
       : null,

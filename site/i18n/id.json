@@ -626,7 +626,8 @@
           "<code>anchor</code> adalah titik tempat benda-benda terhubung dan <code>axis</code> arah pasak atau rel; keduanya di dunia dan dibaca saat sambungan dibuat.",
           "<code>limits</code> menghentikan sambungan: radian untuk engsel, meter untuk rel. <code>spring</code> membuat penahannya lunak.",
           "<code>motor</code> menggerakkan engsel atau rel ke suatu kecepatan atau posisi. Ubah <code>joint.motor</code> kapan saja.",
-          "<code>breakForce</code> adalah tarikan dalam newton yang membuat sambungan putus bila dilewati: <code>joint.broken</code> menjadi true dan <code>joint.on('break', …)</code> dipanggil."
+          "<code>breakForce</code> adalah tarikan dalam newton yang membuat sambungan putus bila dilewati: <code>joint.broken</code> menjadi true dan <code>joint.on('break', …)</code> dipanggil.",
+          "Sambungan lanjutan mengikat gerakan: <code>joint.gear(a, b, { ratio })</code> memutar dua roda berengsel seperti satu rangkaian, <code>joint.rackAndPinion</code> mengubah putaran menjadi geseran, <code>joint.pulley(a, b, { over })</code> menggantung dua beban pada satu tali, <code>joint.path(a, b, { path })</code> menjaga kereta di relnya, serta <code>swingTwist</code> dan <code>sixDof</code> membuat bahu dan sambungan buatanmu sendiri."
         ],
         "tryIt": "Buka pintu dan laci, lalu jatuhkan batu ke jembatan. Turunkan kekuatan jembatan dan bangun ulang: jembatan patah oleh beratnya sendiri."
       },
@@ -1401,6 +1402,7 @@
       "observatory-streamed": "Cluster di-stream",
       "memory-on-a-budget": "Anggaran memori",
       "detail-by-pixel-error": "Detail menurut galat piksel",
+      "watch-a-world-load": "Melihat dunia dimuat",
       "ten-thousand-objects": "Sepuluh ribu objek",
       "compressed-textures": "Tekstur terkompresi",
       "what-hides-what": "Apa menyembunyikan apa",
@@ -1495,6 +1497,7 @@
       "soft-bodies": "Benda lunak",
       "rolling-on-terrain": "Bergulir di medan",
       "hinges-and-joints": "Engsel dan sendi",
+      "gears-and-pulleys": "Roda gigi dan katrol",
       "walk-with-collisions": "Berjalan dengan tabrakan",
       "drive-a-car": "Mengemudikan mobil",
       "a-room-in-vr": "Sebuah ruangan dalam VR",
@@ -1508,8 +1511,8 @@
       "a-walker-among-balls": "Pejalan di antara bola"
     },
     "missing": {
-      "colours-on-the-vertices": "warna per-vertex di WebGPU",
       "dashed-lines": "garis putus-putus",
+      "floating-crates": "geometri yang ditulis ulang setiap bingkai",
       "thick-lines": "garis lebar",
       "a-line-that-draws-itself": "rentang gambar geometri",
       "shapes-from-an-svg": "impor jalur SVG",
@@ -1522,9 +1525,6 @@
       "a-capped-section": "bidang clipping: tutup stencil",
       "decals-on-a-surface": "pemilihan (raycast)",
       "sculpt-a-sphere": "pemilihan (raycast)",
-      "a-video-on-a-screen": "tekstur video langsung",
-      "the-webcam-as-a-texture": "tekstur video langsung",
-      "four-ways-to-blend": "setiap mode blending",
       "avif-textures": "importer sumber lain: gambar AVIF",
       "object-space-normals": "normal map ruang objek",
       "a-bumpy-surface": "peta bump, displacement dan parallax",
@@ -1595,7 +1595,6 @@
       "a-medical-scan": "rendering volume",
       "a-city-from-3d-tiles": "input 3D Tiles",
       "rendering-in-a-worker": "rendering worker OffscreenCanvas",
-      "a-video-panorama": "tekstur video langsung",
       "an-atmospheric-sky": "model langit",
       "chrome-in-a-room": "pencahayaan lingkungan (IBL)",
       "lit-by-an-hdr-image": "pencahayaan lingkungan (IBL)",
@@ -1611,8 +1610,6 @@
       "reflections-from-the-screen": "pantulan screen-space",
       "an-ocean": "render ke tekstur: pantulan dan pembiasan air",
       "a-raging-sea": "material shader kustom",
-      "a-town-in-the-fog": "kabut",
-      "fog-on-the-ground": "kabut: kabut ketinggian",
       "fog-that-scatters-light": "kabut volumetrik dan berkas cahaya",
       "a-cloud-in-a-box": "rendering volume",
       "a-fire-in-a-volume": "rendering volume",

@@ -6,7 +6,7 @@ import { EngineError } from '../contracts/cache.ts';
  * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
  * commit, and a reader refuses another.
  */
-const PHYSICS_FORMAT_VERSION = 1;
+const PHYSICS_FORMAT_VERSION = 2;
 /** The Jolt commit the engine's physics module is built from: the pin of the submodule
  *  `packages/physics-jolt-wasm/JoltPhysics`, which the compiler's cook reads (`build.rs`). A test
  *  fails while the two differ (`physics.test.ts`). */
@@ -49,6 +49,26 @@ export interface CookedInstance {
   restitution?: number;
 }
 
+/** A primitive whose collider Jolt refused: it collides with nothing, and is drawn all the same. */
+interface CookRefusal {
+  primitive: number;
+  mesh: number;
+  meshPrimitive: number;
+  /** Jolt's own error. */
+  reason: string;
+}
+
+/** The stage's counts, its largest tolerance and measured distance, and the refused primitives. */
+interface CookReport {
+  colliders: number;
+  instances: number;
+  unplaced: number;
+  triangles: number;
+  hausdorff: number;
+  tolerance: number;
+  refused: CookRefusal[];
+}
+
 /** The whole file. */
 export interface CookedPhysics {
   formatVersion: number;
@@ -56,7 +76,7 @@ export interface CookedPhysics {
   stage: { name: string; version: number };
   colliders: CookedCollider[];
   instances: CookedInstance[];
-  report: Record<string, number>;
+  report: CookReport;
 }
 
 /**

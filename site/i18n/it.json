@@ -218,6 +218,7 @@
       "observatory-streamed": "Cluster in streaming",
       "memory-on-a-budget": "Budget di memoria",
       "detail-by-pixel-error": "Dettaglio per errore in pixel",
+      "watch-a-world-load": "Guardare un mondo che si carica",
       "ten-thousand-objects": "Diecimila oggetti",
       "compressed-textures": "Texture compresse",
       "what-hides-what": "Cosa nasconde cosa",
@@ -312,6 +313,7 @@
       "soft-bodies": "Corpi morbidi",
       "rolling-on-terrain": "Rotolare sul terreno",
       "hinges-and-joints": "Cerniere e giunti",
+      "gears-and-pulleys": "Ingranaggi e carrucole",
       "walk-with-collisions": "Camminare con collisioni",
       "drive-a-car": "Guidare un'auto",
       "a-room-in-vr": "Una stanza in VR",
@@ -325,8 +327,8 @@
       "a-walker-among-balls": "Un camminatore tra le palline"
     },
     "missing": {
-      "colours-on-the-vertices": "colori per vertice su WebGPU",
       "dashed-lines": "linee tratteggiate",
+      "floating-crates": "geometria riscritta a ogni fotogramma",
       "thick-lines": "linee larghe",
       "a-line-that-draws-itself": "intervallo di disegno di una geometria",
       "shapes-from-an-svg": "importazione di tracciati SVG",
@@ -339,9 +341,6 @@
       "a-capped-section": "piani di taglio: tappi a stencil",
       "decals-on-a-surface": "selezione a raggio (raycast)",
       "sculpt-a-sphere": "selezione a raggio (raycast)",
-      "a-video-on-a-screen": "texture video dal vivo",
-      "the-webcam-as-a-texture": "texture video dal vivo",
-      "four-ways-to-blend": "tutte le modalità di fusione",
       "avif-textures": "altri import sorgente: immagini AVIF",
       "object-space-normals": "mappe di normali in spazio oggetto",
       "a-bumpy-surface": "mappe di rilievo, spostamento e parallasse",
@@ -412,7 +411,6 @@
       "a-medical-scan": "rendering volumetrico",
       "a-city-from-3d-tiles": "importazione di 3D Tiles",
       "rendering-in-a-worker": "rendering in un worker (OffscreenCanvas)",
-      "a-video-panorama": "texture video dal vivo",
       "an-atmospheric-sky": "modello di cielo",
       "chrome-in-a-room": "illuminazione d'ambiente (IBL)",
       "lit-by-an-hdr-image": "illuminazione d'ambiente (IBL)",
@@ -428,8 +426,6 @@
       "reflections-from-the-screen": "riflessi in spazio schermo",
       "an-ocean": "rendering su texture: riflesso e rifrazione dell'acqua",
       "a-raging-sea": "materiali con shader su misura",
-      "a-town-in-the-fog": "nebbia",
-      "fog-on-the-ground": "nebbia: nebbia in quota",
       "fog-that-scatters-light": "nebbia volumetrica e raggi di luce",
       "a-cloud-in-a-box": "rendering volumetrico",
       "a-fire-in-a-volume": "rendering volumetrico",
@@ -1081,7 +1077,8 @@
           "<code>anchor</code> è dove i corpi si collegano e <code>axis</code> la direzione del perno o della guida, entrambi nel mondo, letti quando il giunto viene creato.",
           "<code>limits</code> ferma il giunto: radianti per un cardine, metri per una guida. Uno <code>spring</code> rende morbido il fermo.",
           "Un <code>motor</code> porta un cardine o una guida a una velocità o a una posizione. Cambia <code>joint.motor</code> quando vuoi.",
-          "<code>breakForce</code> è la trazione, in newton, oltre la quale il giunto si spezza: <code>joint.broken</code> diventa vero e viene chiamato <code>joint.on('break', …)</code>."
+          "<code>breakForce</code> è la trazione, in newton, oltre la quale il giunto si spezza: <code>joint.broken</code> diventa vero e viene chiamato <code>joint.on('break', …)</code>.",
+          "I giunti avanzati legano i movimenti: <code>joint.gear(a, b, { ratio })</code> fa girare due ruote su cardini come un unico treno, <code>joint.rackAndPinion</code> trasforma una rotazione in uno scorrimento, <code>joint.pulley(a, b, { over })</code> appende due carichi alla stessa fune, <code>joint.path(a, b, { path })</code> tiene un vagone sul suo tracciato, e <code>swingTwist</code> e <code>sixDof</code> creano spalle e giunti su misura."
         ],
         "tryIt": "Apri la porta e il cassetto, poi lascia cadere la pietra sul ponte. Abbassa la resistenza del ponte e ricostruiscilo: si spezza sotto il suo stesso peso."
       },

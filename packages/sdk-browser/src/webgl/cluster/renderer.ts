@@ -12,7 +12,7 @@ import { WebglClusterTextures } from './textures.ts';
 import { unsupportedClusterLight, WebglClusterLights, type WebglClusterScene } from './lights.ts';
 import { WebglClusterState } from './state.ts';
 import { TONE_MAPPING_RANK, normalMatrix3 } from '../../../../sdk-core/src/index.ts';
-import { multiplyMatrix4 } from './matrices.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './uniforms.ts';
 import { WebglClusterMaterialUniforms } from './materialUniforms.ts';
@@ -55,7 +55,7 @@ export class WebglClusterRenderer {
   backdropPasses = 0;
   /** The display curve's rank (`TONE_MAPPING_RANK`), written by the owner before a frame. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
-  private pass: ClusterMaterialPass;
+  readonly pass: ClusterMaterialPass;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     const program = (this.program = createClusterProgram(gl));
@@ -100,7 +100,7 @@ export class WebglClusterRenderer {
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
     const model = drawWorld(mesh);
-    multiplyMatrix4(this.modelView, camera.view, model);
+    multiplyMatrix4Typed(this.modelView, camera.view, model);
     this.state.applyWinding(model);
     this.modelViewUpload.set(this.modelView);
     gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelViewUpload);
@@ -160,7 +160,7 @@ export class WebglClusterRenderer {
     // each record is brought up to its host texture at its first binding of the image.
     this.textures.invalidateBindings();
     this.instanced = undefined;
-    this.pass.beginFrame(camera);
+    this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
     this.triangles = 0;
     let backdropSubmissions = 0,

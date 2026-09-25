@@ -56,18 +56,13 @@ export function shadowsFollowTextures(
 }
 
 /**
- * The threshold the light cuts select casters at: the camera's, budget included. The plan keeps
- * the one each page was drawn at, and redraws, once the camera rests, only the pages drawn at
- * another (`thresholds.ts`). Returns the threshold.
+ * The threshold the light cuts select casters at: the camera's. The plan keeps the one each page
+ * was drawn at, and redraws, once the camera rests, only the pages drawn at another
+ * (`thresholds.ts`). Returns the threshold.
  */
-export function followLightThreshold(
-  lights: WebgpuLightState,
-  pixelError: number,
-  budgetPixelError: number,
-) {
-  const threshold = Math.max(pixelError, budgetPixelError);
-  lights.plan.setThreshold(threshold);
-  return threshold;
+export function followLightThreshold(lights: WebgpuLightState, pixelError: number) {
+  lights.plan.setThreshold(pixelError);
+  return pixelError;
 }
 
 /**

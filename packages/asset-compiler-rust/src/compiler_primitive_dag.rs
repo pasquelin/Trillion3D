@@ -58,52 +58,18 @@ pub(super) fn build_dag_primitive(
     store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
-    // Every texture set the pages carry, and only those: the fallback DAG weld crosses no seam a
-    // material samples, and a set no material reads never stalls a group.
-    let uv_sets: Vec<&[f32]> = carried
-        .iter()
-        .filter(|a| a.flag == geometry_page::FLAG_UV || a.flag == geometry_page::FLAG_UV1)
-        .map(|a| &a.values[..])
-        .collect();
+    let attributes = crate::dag::DagAttributes { carried };
     let mut laps = perf::Laps::start();
     let (dag, groups, tallies, stalls) =
-        crate::dag::build_dag_tallied(pos, &uv_sets, index_values, strategy, &|| check(o))?;
+        crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
     laps.lap("dagMs");
-    if dag
-        .iter()
-        .filter(|c| c.level == 0)
-        .map(|c| c.triangles())
-        .sum::<usize>()
-        != index_values.len() / 3
-    {
-        return Err(CompilerError::new(
-            "INCOMPLETE_CLUSTER_PARTITION",
-            "Level 0 clusters do not cover the source triangles",
-        ));
-    }
-    if triangle_fingerprint(
-        index_values
-            .as_chunks::<3>()
-            .0
-            .iter()
-            .map(|tri| tri.as_slice()),
-    ) != triangle_fingerprint(dag.iter().filter(|c| c.level == 0).flat_map(|c| {
-        c.indices
-            .as_chunks::<3>()
-            .0
-            .iter()
-            .map(|tri| tri.as_slice())
-    })) {
-        return Err(CompilerError::new(
-            "INVALID_CLUSTER_PARTITION",
-            "Level 0 clusters are not the source triangles",
-        ));
-    }
+    let quality =
+        compiler_primitive_checks::check_dag(&dag, pos, attributes.normals(), index_values)?;
     // The proxy coarse cut is read here, where the DAG and the positions are both
     // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
     let (dag_report, warnings) =
-        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls);
+        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, &quality);
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
         let _t = perf::Timer::new(perf::Phase::Culling);
@@ -122,10 +88,15 @@ pub(super) fn build_dag_primitive(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
     );
-    let (pages, reused, stream_report) =
-        bundle_dag_pages(o, &dag, &order, base_id, pos, &|slice: &[u32]| {
-            store_packed(slice, position_exponent)
-        })?;
+    let (pages, reused, stream_report) = bundle_dag_pages(
+        o,
+        &dag,
+        &groups,
+        &order,
+        base_id,
+        pos,
+        &|slice: &[u32]| store_packed(slice, position_exponent),
+    )?;
     laps.lap("pagesMs");
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.

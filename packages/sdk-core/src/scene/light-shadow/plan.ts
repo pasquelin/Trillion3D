@@ -35,7 +35,8 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     budget = createShadowBudget(),
     counts = createShadowCounts(),
     admission = createShadowAdmission(capacity, pool.pages),
-    thresholds = createShadowThresholds(pool);
+    thresholds = createShadowThresholds(pool),
+    posed = new Int32Array(records.taken.length);
   let byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
@@ -73,7 +74,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
     get deferredChanges() {
       return changes.deferred || thresholds.pending;
     },
-    /** The frame plans no shadow: the held union enters the list at once. */
+    /** The frame plans no shadow: the held boxes enter the list at once. */
     releaseDeferred: changes.releaseDeferred,
     /** Timer of a frame's Shadows pass, reported to the pages it drew. */
     observeCost: budget.observe,
@@ -115,16 +116,15 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         if (!castsShadow(store, slot)) continue;
         const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
         let slice = store.sliceOf(slot);
-        if (slice < 0) slice = records.claim();
-        if (slice < 0 || !records.fit(slice, rank)) {
-          counts.deny();
-          store.assignSlice(slot, -1);
-          continue;
+        if (slice < 0) {
+          slice = records.claim();
+          posed[slice] = frame;
         }
+        records.fit(slice, rank);
         store.assignSlice(slot, slice);
         const light = store.light(store.ids[slot]);
         if (!light) continue;
-        let whole = records.moved(slice, store.revision[slot]);
+        let whole = records.moved(slice, light);
         if (rank === LIGHT_KIND.directional) {
           if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
             whole = true;
@@ -146,6 +146,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
           nowMs,
           frame,
         );
+        if (whole) posed[slice] = frame;
       }
       changes.settled();
       if (still) counts.invalidatedPages += thresholds.restale(nowMs, frame);
@@ -156,13 +157,14 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         requests.consume(read, nowMs, frame);
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
-      const waiting = admission.run(pool, table, records, sun, budget, requests.latest, frame);
+      requests.floors(posed, view, nowMs, frame);
+      const left = admission.run(pool, table, records, sun, budget, requests.latest, frame, posed);
       for (let i = 0; i < admission.count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
       }
       // What the pool cannot hold waits for nothing: it is published, never pending.
-      counts.endFrame(pool, records, requests.latest, waiting, nowMs, frame);
+      counts.endFrame(pool, records, requests.latest, left, nowMs, frame);
       return admission.count;
     },
     /** The frame's pages were encoded, each in its `modes` entry: their draws land before
@@ -172,12 +174,10 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         pool.drew(table, admission.list[i], modes ? modes[i] : DRAW_ALL);
         thresholds.drew(admission.list[i]);
       }
-      pool.hideStale(table);
       admission.reset();
     },
     /** The frame's pages could not be encoded: they stay stale, and wait for the next frame. */
     reissue() {
-      pool.hideStale(table);
       admission.reset();
     },
     /** Starts over. */

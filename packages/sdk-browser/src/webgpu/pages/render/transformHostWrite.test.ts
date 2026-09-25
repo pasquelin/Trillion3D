@@ -11,7 +11,7 @@ import { hostWorldPlacements } from '../../../host/world/placements.ts';
 
 /** Two drawn models, A and B, watched by the gate as the first image leaves them. */
 function twoModels() {
-  const source = new G.GraphGroup(),
+  const source = new G.Group(),
     a = G.mesh(),
     b = G.mesh();
   a.name = 'A';

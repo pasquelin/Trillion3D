@@ -7,6 +7,7 @@ import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { INVERSE_PI } from '../shaderConstants.ts';
+import { FOG_WGSL } from '../fogShader.ts';
 
 /** Shadow bindings of the opaque resolve: records and page table, then the request buffer. */
 export const CONTRACT_SHADOW_BINDINGS = { data: 8, requests: 14 };
@@ -34,6 +35,7 @@ ${sunFarShadowWgsl(requestBinding !== null)}
 ${directShadowWgsl(shadowBinding, requestBinding)}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
+${FOG_WGSL}
 fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  if(isRect(light)){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
  let incidence=directIncidence(light,P);

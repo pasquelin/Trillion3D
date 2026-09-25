@@ -37,7 +37,7 @@ export function transmissionScene(glass = {}) {
     G.basicSurface({ color: 0x0000ff, transparent: true, opacity: 0.5 }),
   );
   blend.position.x = 0.21;
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   source.add(opaque, copy, blend);
   const primitive = (mesh: G.GraphMesh, primitiveIndex: number, pages: (typeof page)[]) => ({
     mesh: 0,
@@ -58,7 +58,7 @@ export function transmissionScene(glass = {}) {
       scope: 'full' as const,
       sourceTriangles: 6,
       selectedTriangles: 6,
-      selectedNodes: [],
+      selectedNodes: 0,
       totalNodes: 3,
       errorModel: 'dag-group-qem-v1',
       clusterStrategy: 'dag-groups',
@@ -69,7 +69,7 @@ export function transmissionScene(glass = {}) {
       ],
     },
     indices: new Map([['quad', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
-    associations: new Map<G.GraphNode, { meshes: number; primitives: number }>([
+    associations: new Map<G.Object3D, { meshes: number; primitives: number }>([
       [opaque, { meshes: 0, primitives: 0 }],
       [copy, { meshes: 0, primitives: 1 }],
       [blend, { meshes: 0, primitives: 2 }],

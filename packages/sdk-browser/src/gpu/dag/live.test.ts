@@ -6,7 +6,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeDagKernels } from './encode.ts';
 import { DAG_SELECTION_SHADER } from './selection.ts';
-import { ESCALATION_ROUNDS } from '../../page/selection/types.ts';
 import { encodeurTemoin, ressources, ETAGES, LIVE, CAND } from './encode.fixture.ts';
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
@@ -14,7 +13,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
   const parNoyau = new Map(lancements.map((l) => [l.noyau, l]));
   // Live clusters: the previous verdict, spoken on them alone.
-  for (const noyau of ['dagEscalate', 'dagCheck', 'dagMask', 'dagDrawScatter']) {
+  for (const noyau of ['dagMask', 'dagDrawScatter']) {
     assert.equal(parNoyau.get(noyau)?.groupes, 'indirect', `${noyau} follows a list`);
     assert.equal(parNoyau.get(noyau)?.liste, LIVE, `${noyau} follows the live list`);
   }
@@ -30,7 +29,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   ]);
   const ordre = lancements.map((l) => l.noyau);
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'));
-  assert.ok(ordre.indexOf('dagEscalate') > ordre.indexOf('dagWanted'));
+  assert.ok(ordre.indexOf('dagMask') > ordre.indexOf('dagWanted'));
   // The count launched flat is that of primitives, blocks or a hierarchy level:
   // never that of clusters.
   const plats = lancements.filter((l) => l.groupes !== 'indirect').map((l) => l.noyau);
@@ -40,9 +39,9 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
 test('wait between launches depends only on depth, not on cluster count', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
-  // Log clear, prepare, one pass per level, candidates, three escalations,
-  // check, mask, prefix and compaction.
-  assert.equal(lancements.length, ESCALATION_ROUNDS + 7 + 3);
+  // Log clear, prepare, one pass per level (three), candidates, mask, prefix and compaction: the
+  // cut rule decides each cluster once, in the mask, with no round per primitive before it.
+  assert.equal(lancements.length, 9);
   const noyaux = lancements.map((l) => l.noyau);
   assert.ok(!noyaux.includes('dagArgs') && !noyaux.includes('dagDrawCount'));
   assert.equal(noyaux[0], 'dagClearDrawn');
@@ -59,11 +58,10 @@ test('wait between launches depends only on depth, not on cluster count', () => 
   assert.equal(profond.lancements.length, lancements.length + 1);
 });
 
-test('without a resident cut, the mask follows the list and escalations are not encoded', () => {
+test('without a resident cut, the mask follows the list and nothing is compacted', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(false));
   const noyaux = lancements.map((l) => l.noyau);
-  assert.ok(!noyaux.includes('dagEscalate') && !noyaux.includes('dagCheck'));
   assert.ok(!noyaux.includes('dagDrawPrefix') && !noyaux.includes('dagDrawScatter'));
   const masque = lancements.find((l) => l.noyau === 'dagMask');
   assert.equal(masque?.groupes, 'indirect');
@@ -76,7 +74,7 @@ test('without a resident cut, the mask follows the list and escalations are not 
 test('list kernels read their cluster from the list, not from their thread id', () => {
   // The rejection these kernels used to do themselves — `visible` — has left their body: a cluster
   // missing from the list is exactly a cluster whose `visible` was false.
-  for (const noyau of ['dagEscalate', 'dagCheck', 'dagMask']) {
+  for (const noyau of ['dagMask']) {
     const corps = DAG_SELECTION_SHADER.split(`fn ${noyau}(`)[1].split('\n}')[0];
     assert.match(corps, /=liveAt\(s\);/, `${noyau} reads the list`);
     assert.doesNotMatch(corps, /visible\(/, `${noyau} does not redo the rejection`);

@@ -1,11 +1,9 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { ESCALATED_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
+import { MAX_SHADOW_PAGES as PAGES } from '../shadow/recordPack.ts';
+import { COARSER_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
 
 /** Frames whose flag word may be in flight at once: a readback maps a frame or two later. */
 const SLOTS = 8;
-/** Pages a frame draws at most, whatever views they fall in. */
-const PAGES: number = LIGHT_SETTINGS.shadowPagesPerFrame;
 
 /**
  * WHICH PAGES A LIGHT CUT DREW SHORT, TO BE DRAWN AGAIN. Every frame that runs a cut copies its
@@ -16,10 +14,10 @@ const PAGES: number = LIGHT_SETTINGS.shadowPagesPerFrame;
  *   bisected between the most a frame drew whole and the fewest one dropped with
  *   (`createViewLimit`). A single view never fills the lists, so the bisection ends at one view at
  *   worst — and a view takes every page the budget pays for: the pages never starve.
- * - **Escalation** (`ESCALATED_VIEWS`, one bit per view): a view drew a placement coarser than it
- *   wanted, a cluster of it not resident — and every page of that view with it, not only the
+ * - **Coarser** (`COARSER_VIEWS`, one bit per view): a view wanted a cluster that is not resident
+ *   and drew its nearest resident ancestor — and every page of that view is sent back, not only the
  *   pages over the missing cluster, which alone a residency change stales. Those pages, and only
- *   those of the views that escalated, wait for residency to change and the camera to rest, then
+ *   those of the views that drew coarser, wait for residency to change and the camera to rest, then
  *   are drawn again: like any change of representation (`changes.ts`), a camera that only moves
  *   redraws no page whose casters and light stayed where they were.
  *
@@ -43,14 +41,15 @@ export function createLightCutRedraws(
     reading: Promise.resolve(),
   }));
   /** Each page to draw again, and whether its depth is wrong — dropped work, or a flag nobody
-   *  reads — and is hidden meanwhile, or only coarser — an escalation — and stays read. */
+   *  reads — and is withdrawn meanwhile, or only coarser — a missing cluster — and stays read. */
   const redraw = new Map<number, boolean>(),
     waiting = new Set<number>();
   const limit = createViewLimit(viewCap);
   let epoch = 0,
     /** Residency changed since the waiting pages were last released. */
     moved = false;
-  const again = (page: number, hide: boolean) => redraw.set(page, hide || !!redraw.get(page));
+  const again = (page: number, withdraw: boolean) =>
+    redraw.set(page, withdraw || !!redraw.get(page));
   const add = (pages: ArrayLike<number>, count: number) => {
     for (let i = 0; i < count; i++) again(pages[i], true);
   };
@@ -63,9 +62,9 @@ export function createLightCutRedraws(
     // Residency moved since the frame was encoded: what it lacked may be there now. A frame whose
     // requests were not copied waits for nothing: what it lacked was never asked for.
     const now = slot.epoch !== epoch || !slot.reported,
-      escalated = flags >>> ESCALATED_VIEWS;
+      coarser = flags >>> COARSER_VIEWS;
     for (let i = 0; i < slot.count; i++)
-      if ((escalated >>> slot.views[i]) & 1)
+      if ((coarser >>> slot.views[i]) & 1)
         if (now) again(slot.pages[i], false);
         else waiting.add(slot.pages[i]);
   };
@@ -131,11 +130,11 @@ export function createLightCutRedraws(
     get viewLimit() {
       return limit.value;
     },
-    /** Hands every page to draw again to `visit`, and whether it is hidden until then; forgets
+    /** Hands every page to draw again to `visit`, and whether it is withdrawn until then; forgets
      *  them; returns how many. */
-    takeRedraw(visit: (page: number, hide: boolean) => void) {
+    takeRedraw(visit: (page: number, withdraw: boolean) => void) {
       const count = redraw.size;
-      for (const [page, hide] of redraw) visit(page, hide);
+      for (const [page, withdraw] of redraw) visit(page, withdraw);
       redraw.clear();
       return count;
     },

@@ -218,6 +218,7 @@
       "observatory-streamed": "流式加载的集群",
       "memory-on-a-budget": "内存预算",
       "detail-by-pixel-error": "按像素误差决定细节",
+      "watch-a-world-load": "看一个世界加载",
       "ten-thousand-objects": "一万个物体",
       "compressed-textures": "压缩贴图",
       "what-hides-what": "谁挡住了谁",
@@ -312,6 +313,7 @@
       "soft-bodies": "软体",
       "rolling-on-terrain": "在地形上滚动",
       "hinges-and-joints": "铰链与关节",
+      "gears-and-pulleys": "齿轮与滑轮",
       "walk-with-collisions": "带碰撞的行走",
       "drive-a-car": "驾驶一辆车",
       "a-room-in-vr": "VR里的一个房间",
@@ -325,8 +327,8 @@
       "a-walker-among-balls": "球堆里的行走者"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU上的逐顶点颜色",
       "dashed-lines": "虚线",
+      "floating-crates": "每帧重写的几何体",
       "thick-lines": "宽线",
       "a-line-that-draws-itself": "几何体的绘制范围",
       "shapes-from-an-svg": "SVG路径导入",
@@ -339,9 +341,6 @@
       "a-capped-section": "裁剪平面:模板封盖",
       "decals-on-a-surface": "拾取(射线检测)",
       "sculpt-a-sphere": "拾取(射线检测)",
-      "a-video-on-a-screen": "实时视频贴图",
-      "the-webcam-as-a-texture": "实时视频贴图",
-      "four-ways-to-blend": "所有混合模式",
       "avif-textures": "更多源格式导入:AVIF图像",
       "object-space-normals": "物体空间法线贴图",
       "a-bumpy-surface": "凹凸、置换与视差贴图",
@@ -412,7 +411,6 @@
       "a-medical-scan": "体积渲染",
       "a-city-from-3d-tiles": "3D Tiles 输入",
       "rendering-in-a-worker": "在worker中渲染(OffscreenCanvas)",
-      "a-video-panorama": "实时视频贴图",
       "an-atmospheric-sky": "天空模型",
       "chrome-in-a-room": "环境光照(IBL)",
       "lit-by-an-hdr-image": "环境光照(IBL)",
@@ -428,8 +426,6 @@
       "reflections-from-the-screen": "屏幕空间反射",
       "an-ocean": "渲染到贴图:水面反射与折射",
       "a-raging-sea": "自定义着色器材质",
-      "a-town-in-the-fog": "雾",
-      "fog-on-the-ground": "雾:高度雾",
       "fog-that-scatters-light": "体积雾与光束",
       "a-cloud-in-a-box": "体积渲染",
       "a-fire-in-a-volume": "体积渲染",
@@ -1081,7 +1077,8 @@
           "<code>anchor</code> 是物体相连的位置，<code>axis</code> 是销轴或滑轨的方向，二者都在世界坐标中，在创建关节时读取。",
           "<code>limits</code> 让关节停下：铰链用弧度，滑轨用米。<code>spring</code> 让止挡变软。",
           "<code>motor</code> 把铰链或滑轨驱动到某个速度或位置。随时修改 <code>joint.motor</code>。",
-          "<code>breakForce</code> 是关节断开的拉力（牛顿）：超过它，<code>joint.broken</code> 变为 true，并调用 <code>joint.on('break', …)</code>。"
+          "<code>breakForce</code> 是关节断开的拉力（牛顿）：超过它，<code>joint.broken</code> 变为 true，并调用 <code>joint.on('break', …)</code>。",
+          "高级关节把运动联系在一起：<code>joint.gear(a, b, { ratio })</code> 让两个铰链上的轮像一个齿轮组一样转动，<code>joint.rackAndPinion</code> 把转动变成滑动，<code>joint.pulley(a, b, { over })</code> 用一根绳挂起两个重物，<code>joint.path(a, b, { path })</code> 让车厢留在轨道上，<code>swingTwist</code> 和 <code>sixDof</code> 则能做出肩关节和你自己的关节。"
         ],
         "tryIt": "打开门和抽屉，再把石头扔到桥上。降低桥的强度并重建：它会在自身重量下断裂。"
       },

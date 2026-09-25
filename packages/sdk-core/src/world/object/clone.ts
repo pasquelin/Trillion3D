@@ -13,13 +13,7 @@ function copyContent(source: Object3D): Object3D {
     const matter = Array.isArray(worn) ? worn.map((m) => m.clone()) : worn.clone();
     return new Mesh(source.geometry.clone(), matter, source.primitive);
   }
-  if (source instanceof Light) {
-    const { color, groundColor, sh, target } = source;
-    const copy = new Light(source.kind, { ...source._values, color, groundColor });
-    copy.target.position.copy(target.position);
-    copy.sh = sh && [...sh];
-    return copy;
-  }
+  if (source instanceof Light) return source.clone(false);
   return source instanceof Group ? new Group() : new Object3D();
 }
 

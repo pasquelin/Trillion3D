@@ -4,6 +4,7 @@ import { probeWorldRenderer } from '../capability/worldReady.ts';
 import { holdWorldDevice, worldRecovered } from './worldDevice.ts';
 import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import { createPageCache } from '../../streaming/pageCache.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 const canvas = {} as HTMLCanvasElement;
 
@@ -29,14 +30,6 @@ test('an adapter that refuses its device leaves the world on WebGL2', async () =
     Reflect.set(globalThis, 'document', saved.document);
   }
 });
-
-/** A device whose loss the test decides. */
-const fakeDevice = () => {
-  let lose!: (info: { reason: string; message: string }) => void;
-  const lost = new Promise<{ reason: string; message: string }>((resolve) => (lose = resolve));
-  const device = { lost, destroyed: false, destroy: () => void (device.destroyed = true) };
-  return { device, lose };
-};
 
 test('a lost device is asked for again, and the session reopened on the new one', async () => {
   const devices = [fakeDevice(), fakeDevice()];
@@ -71,7 +64,7 @@ test('a lost device is asked for again, and the session reopened on the new one'
   held.dispose();
   devices[1].lose({ reason: 'destroyed', message: '' });
   await new Promise(setImmediate);
-  assert.equal(devices[1].device.destroyed, true);
+  assert.ok(devices[1].destroyed.includes(devices[1].device));
   assert.equal(asked, 2);
 });
 

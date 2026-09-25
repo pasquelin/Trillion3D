@@ -15,6 +15,7 @@ import {
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { ruleResidency } from './readiness.fixture.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 
@@ -39,15 +40,16 @@ function uniforms(seuil: number, z = 16) {
   return cameraSelectionUniforms(cameraMoteur(camera), seuil, VIEWPORT);
 }
 
-test('the three totals are taken on the full drawable cut, hole included', () => {
+test('the totals are taken on what the cut rule draws, and nothing is uncovered', () => {
   const { pages, packed, uni } = scene(1);
-  // One page in three resident: the cut will want to draw what is missing, and the hole will be real.
+  // One page in three resident: the rule draws fewer pages than the cut wants.
   const resident = Uint32Array.from({ length: packed.pageCount }, (_, id) => (id % 3 ? 0 : 1));
-  const releve = evaluateDagSelectionKernel(packed, uni, resident);
+  const releve = evaluateDagSelectionKernel(packed, uni, ruleResidency(packed, resident));
   const { selectedTriangles, drawnTriangles, uncoveredTriangles, drawablePageIds } = releve;
-  assert.ok(uncoveredTriangles > 0, 'residency must dig a hole, otherwise the invariant is empty');
-  assert.ok(drawnTriangles > 0, 'and the frame must still draw');
-  assert.equal(selectedTriangles - drawnTriangles - uncoveredTriangles, 0);
+  assert.ok(drawnTriangles > 0, 'the frame must still draw');
+  assert.ok(drawablePageIds!.length < releve.pageIds.length, 'residency must withhold a page');
+  assert.equal(selectedTriangles, drawnTriangles);
+  assert.equal(uncoveredTriangles, 0);
   // `drawn` is exactly the sum of the pages the readback declares drawable — no more, no less.
   const somme = (ids: readonly number[]) =>
     ids.reduce((total, id) => total + (pages[id].triangles as number), 0);

@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 7;
+export const PHYSICS_LAYOUT_VERSION = 9;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -79,19 +79,37 @@ export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const;
 export const MISS = 0xffffffff;
 
 /** Joint kinds of the JOINT command, each one of Jolt's two-body constraints. */
-export const JOINT = { fixed: 0, point: 1, hinge: 2, slider: 3, distance: 4, cone: 5 } as const;
+export const JOINT = {
+  fixed: 0,
+  point: 1,
+  hinge: 2,
+  slider: 3,
+  distance: 4,
+  cone: 5,
+  swingTwist: 6,
+  sixDof: 7,
+  path: 8,
+  pulley: 9,
+  gear: 10,
+  rackAndPinion: 11,
+} as const;
 /** What a joint's motor does: nothing, drive to a velocity, or drive to a position. */
 export const MOTOR = { off: 0, velocity: 1, position: 2 } as const;
 /**
- * Words of JOINT: `op, joint id, kind, engine id a, engine id b`, then for `a` and for `b` its
- * frame — `point x, y, z, axis x, y, z, normal x, y, z` in that body's own frame, the world's
- * when the engine id is `MISS` — then `limit min, limit max, spring frequency, spring damping,
- * motor mode, motor target, motor max force, break force`. The joint id is a slot and its
- * generation, as a body's engine id (`BODY_INDEX`). A joint whose body is gone is not made.
- * UNJOINT is `op, joint id`; MOTOR is `op, joint id, mode, target, max force`. After a step, the
- * module lists the joints pulled past their break force and takes them out (`jolt_broken`).
+ * Words of JOINT: `op, joint id, kind, engine id a, engine id b, motor mode, motor axis, extra
+ * count`, then for `a` and for `b` its frame — `point x, y, z, axis x, y, z, normal x, y, z` in
+ * that body's own frame, the world's when the engine id is `MISS` — then `limit min, limit max,
+ * spring frequency, spring damping, motor target, motor max force, break force`, then the kind's
+ * own `extra count` words: a swing-twist's swing half angle; a six-DOF's `min, max` per axis (`x,
+ * y, z`, then turns about them; min +∞ locks one); a path's `loop, follow, point count` and per
+ * point `position, tangent, normal` in `b`'s frame; a pulley's `ratio`, `a`'s wheel and `b`'s
+ * wheel in the world; a gear's or a rack and pinion's `ratio`. The motor axis is the one a
+ * six-DOF's motor drives, 0 to 5. The joint id is a slot and its generation, as a body's engine
+ * id (`BODY_INDEX`). A joint whose body is gone is not made. UNJOINT is `op, joint id`; MOTOR is
+ * `op, joint id, mode, axis, target, max force`. After a step, the module lists the joints pulled
+ * past their break force and takes them out (`jolt_broken`).
  */
-export const JOINT_WORDS = 31;
+export const JOINT_WORDS = 33;
 
 /** Per-body flag bits: sensor, continuous collision, contact events wanted, hidden (no pose). */
 export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8 } as const;
@@ -166,8 +184,9 @@ export const CHARACTER_WORDS = 10;
 export const CHARACTER_MOVE_WORDS = 5;
 /**
  * Words of the character's state after a step: `present, feet x, y, z, ground, ground velocity
- * x, y, z`; `ground` is `GROUND`, the ground velocity that of the point it stands on.
+ * x, y, z, ground friction`; `ground` is `GROUND`, the ground velocity that of the point it stands
+ * on, the ground friction that of the body it stands on (`material.physics`), -1 when none.
  */
-export const CHARACTER_STATE_WORDS = 8;
+export const CHARACTER_STATE_WORDS = 9;
 /** What the character stands on: a floor, a slope too steep, a touch that holds nothing, air. */
 export const GROUND = { floor: 0, steep: 1, unsupported: 2, air: 3 } as const;

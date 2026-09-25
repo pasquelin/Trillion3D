@@ -644,6 +644,7 @@
       "top": "Bord du haut de la boîte orthographique.",
       "bottom": "Bord du bas de la boîte orthographique.",
       "projection": "`'perspective'` rend petit ce qui est loin ; `'orthographic'` garde toutes les tailles.",
+      "copy": "Prend les valeurs de nœud de `source` et, d’une caméra, son optique ; sa propre `projection` reste.",
       "updateProjectionMatrix": "Gardé pour les pages écrites pour un moteur de rendu qui en a besoin : chaque écriture d’optique redessine déjà.",
       "set": "Place l’œil en `pose.position`, qui regarde `pose.target`, avec le champ qu’elle donne.",
       "rayThrough": "Le rayon du monde qui passe par un point de l’image, selon la projection du moteur (`engineCamera.ts`) : depuis l’œil le long de la vue pour une caméra en perspective, droit dans l’axe de la vue depuis la boîte pour une caméra orthographique. Sa direction est un vecteur unitaire."
@@ -894,7 +895,9 @@
       "texturePreviewSha": "L’empreinte de chaque aperçu de texture.",
       "texturePreviewPixels": "Les pixels des aperçus.",
       "texturePreviewBc7": "Les blocs BC7 des aperçus.",
-      "texturePreviewAstc": "Les blocs ASTC des aperçus."
+      "texturePreviewAstc": "Les blocs ASTC des aperçus.",
+      "bundleDependencyCount": "Combien de paquets chaque paquet attend.",
+      "bundleDependency": "Les paquets que chaque paquet attend, jusqu’aux racines."
     }
   },
   "ColumnKind": {
@@ -1072,7 +1075,8 @@
       "bundles": "Paquets.",
       "previews": "Aperçus de textures.",
       "previewBytes": "Octets de la colonne de pixels, chaque niveau de chaque entrée mis bout à bout.",
-      "previewBlockBytes": "Octets de chaque colonne de blocs : la fin des chaînes gardées, compressée, en blocs entiers, entrées à la suite, rien pour une chaîne que la famille a laissée sans perte."
+      "previewBlockBytes": "Octets de chaque colonne de blocs : la fin des chaînes gardées, compressée, en blocs entiers, entrées à la suite, rien pour une chaîne que la famille a laissée sans perte.",
+      "bundleDependencies": "Dépendances des paquets, les listes de tous les paquets mises bout à bout."
     }
   },
   "CpuStepSummary": {
@@ -1158,7 +1162,7 @@
   },
   "createSceneLightStore": {
     "summary": "Lumières de la scène, en nombre fixe.",
-    "description": "Le tampon est alloué une fois pour `maxLights` lumières et n’est jamais réalloué ; ajouter, régler ou retirer une lumière n’écrit que ses seize flottants et augmente sa révision. La `revision` par lumière est ce que lit le planificateur d’ombres pour savoir qu’une lumière a changé : aucune structure n’est reconstruite par image."
+    "description": "Le tampon est alloué une fois pour `maxLights` lumières et n’est jamais réalloué ; ajouter, régler ou retirer une lumière n’écrit que ses seize flottants et augmente sa révision. La `revision` par lumière indique à un lecteur qu’une lumière a changé : aucune structure n’est reconstruite par image. Le planificateur d’ombres lit lui-même la forme de la lumière, si bien qu’un changement d’intensité ou de couleur ne périme aucune page d’ombre."
   },
   "createSceneRoot": {
     "summary": "Crée une hiérarchie de scène vide et versionnée.",
@@ -1690,6 +1694,10 @@
       "autoForward": "CROISIÈRE, désactivée par défaut : la caméra vole vers l’avant à `movementSpeed` sans aucune touche, comme un avion. W ajoute alors `movementSpeed` (deux fois plus vite) et S le retire (la caméra reste sur place) ; elle ne recule jamais. Rien ne bouge avant le prochain `update`, donc un hôte qui redessine sur `change` demande une image quand il active la croisière."
     }
   },
+  "Fog": {
+    "summary": "Un brouillard sur chaque surface : linéaire de `near` à `far`, ou qui s’épaissit avec la distance selon `density`, et s’éclaircit en hauteur au-dessus de `baseHeight` quand `heightFalloff` est donné.",
+    "description": "La couleur est la lumière que le brouillard renvoie vers l’œil, exposée et passée par la courbe d’affichage comme celle d’une surface."
+  },
   "FORMAT_VERSION": {
     "summary": "Format de cache que lit ce moteur.",
     "description": "Le format 5 porte `scene-tables.json`, les tables de nœuds et de matériaux contre lesquelles la scène préparée est vérifiée ; les formats 3 et 4 n’ont pas ce produit et sont refusés par leur numéro plutôt qu’à moitié lus."
@@ -1745,8 +1753,8 @@
       "transparentDrawCalls": "Appels de dessin transparents.",
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
-      "coverageBudgetLimited": "Le détail demandé ne peut pas coexister avec le repli épinglé dans le budget de pages GPU.",
-      "budgetPixelError": "Plancher d’erreur à l’écran qu’impose à la coupe le budget de pages GPU, en pixels : `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Null pour les moteurs sans budget de pages.",
+      "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
+      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -2388,10 +2396,6 @@
   "HostGeometry": {
     "summary": "Une géométrie de l’hôte : ses attributs, et la boîte locale que l’hôte a calculée dessus."
   },
-  "HostGraphNode": {
-    "summary": "Un nœud du graphe de l’hôte tel que le voit un parcours : son identité, sa pose locale, la matrice du monde que l’hôte a résolue pour lui, et sa chaîne.",
-    "description": "Le moteur calcule ses PROPRES matrices du monde à partir des poses locales (`../world/tree.ts`) ; `matrixWorld` est lue là où c’est la résolution propre à l’HÔTE qu’une frontière lui rend. POURQUOI `HostPlaced` (`../resources.ts`) DÉCRIT AUSSI UN NŒUD PLACÉ. Les deux ne sont pas une copie : ils s’appuient sur les deux résolutions différentes qu’offre un hôte. `HostPlaced` demande `updateWorldMatrix(ancestors, descendants)` — la chaîne d’UN nœud, ce que remontent un placement et un parcours de visibilité ; celui-ci demande `updateMatrixWorld(force)` — le SOUS-ARBRE sous un nœud, ce que résolvent en un appel un parcours, une union de limites et une réplication. Un hôte qui n’offre que l’une des deux ne satisfait que le contrat auquel il répond, donc aucun ne peut remplacer l’autre."
-  },
   "HostMaterial": {
     "summary": "Un matériau de l’hôte tel que le lit le moteur : les paramètres de surface que partage tout matériau de l’hôte, lus une fois à la frontière dans le `VisMaterial` du moteur ; seul `sideOf` lit `side`."
   },
@@ -2400,9 +2404,6 @@
   },
   "HostMesh": {
     "summary": "Un maillage de l’hôte, tenu par son identité : l’enregistrement de dessin, la table transparente et les ensembles de sélection nomment la surface qu’a placée l’hôte."
-  },
-  "HostNode": {
-    "summary": "Un nœud du graphe de scène de l’hôte, tenu par son identité et par les deux champs dont un parcours a besoin."
   },
   "HostNodeMatrix": {
     "summary": "Les mêmes seize flottants, MODIFIABLES terme à terme : la pose qu’une frontière remet sur un nœud de l’hôte ou sur une caméra de l’hôte qu’elle restaure.",
@@ -2454,9 +2455,6 @@
   },
   "HostTexture": {
     "summary": "Une texture de l’hôte : l’image que l’hôte a décodée et l’état d’échantillonnage qu’il a déclaré, tenue aussi par son identité."
-  },
-  "HostTraversable": {
-    "summary": "Un nœud de l’hôte que le moteur parcourt : le sous-arbre en dessous, lui d’abord, dans l’ordre propre à l’hôte."
   },
   "HostVector": {
     "summary": "Trois nombres d’une pose, tels que l’hôte les range et qu’une frontière les remet.",
@@ -2734,6 +2732,7 @@
       "height": "Hauteur d’une lumière rectangulaire.",
       "radius": "Rayon de la sphère qui émet ; `emitterRadius` dans le stockage du moteur.",
       "kind": "Quel genre de lumière c’est : `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Prend les valeurs de nœud de `source` et, d’une lumière, ses nombres, couleurs, coefficients et visée ; son propre `kind` reste.",
       "needsUpdate": "`light.needsUpdate = true` après avoir écrit `sh` sur place : le monde le relit.",
       "lookAt": "Vise un point du monde avec la lumière : une lumière directionnelle ou un spot y déplace sa `target` — sa direction en découle —, et le nœud tourne aussi, ce qui oriente un rectangle."
     }
@@ -2788,7 +2787,6 @@
       "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de tranche. C’est ce qui ferme la couture entre deux faces d’une lumière ponctuelle et retire l’acné rasante ; il est en texels et non en mètres pour rester proportionnel à la résolution qu’a obtenue la lumière.",
       "shadowPagesPerFrame": "Pages d’ombre dessinées au plus par image : le plafond des tampons, jamais un réglage de qualité. Le budget en millisecondes s’arrête presque toujours avant ; ce plafond n’est qu’une borne ultime, et la seule limite d’un appareil sans horloge GPU.",
       "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSide`).",
-      "shadowTableEntries": "Entrées de la table des pages d’ombre, un mot par page virtuelle : un tampon fixe de 4 Mio. Elle loge seize soleils ou 128 lampes ponctuelles ; une lumière qui n’y trouve pas de place n’a pas d’ombre, et elle est comptée.",
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
       "sunLevels": "Niveaux du clipmap d’une lumière directionnelle. Le niveau `L` a des texels de `2^L` mètres, et un pixel lit le niveau dont le texel est au plus son empreinte : seize niveaux couvrent un rapport lointain/proche de 2^15. Au-delà du dernier niveau, l’ombre lointaine prend le relais.",
       "sunLevelPages": "Pages par côté de la fenêtre d’un niveau du clipmap autour de la caméra. C’est une capacité, pas un réglage : chaque pixel lit sa propre densité tant que `height / tan(halfFovY)` reste sous `sunLevelPages · shadowPage / 2` = 4096 (un écran 4K à 55° de champ vertical) ; au-delà, les pixels du bord lisent le niveau suivant, à densité moitié."
@@ -2909,7 +2907,7 @@
       "scope": "`'full'` demande tout le cache, `'progressive'` sa tranche en flux ; un modèle d’une autre portée est refusé par son nom. Sans valeur, le modèle est lu à la portée que déclare son pointeur.",
       "stream": "Un flux que la page a réglé ; la session du monde fait arriver les pages avec le sien.",
       "position": "Où va l’origine du modèle dans la scène.",
-      "onProgress": "Entend où en est le chargement : `manifest` une fois le manifeste lu, puis `resources` à l’arrivée de chaque fichier que lit la scène (`completed` sur le `total` connu jusque-là). L’événement est un `JobProgress` : un `createJob` qui enveloppe le chargement passe ici son `progress`."
+      "onProgress": "Entend où en est le chargement : `bytes` à chaque morceau de chaque fichier lu, jusqu’à `completed === total` ; `manifest` une fois le manifeste lu, `tables` une fois les tables de la scène lues, puis `resources` à l’arrivée de chaque fichier que lit la scène (`completed` sur le `total` connu jusque-là). L’événement est un `JobProgress` : un `createJob` qui enveloppe le chargement passe ici son `progress`, et `world.awaitPages` rapporte les premières pages sous la même forme."
     }
   },
   "LOD_QUALITY": {
@@ -2993,7 +2991,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3031,7 +3029,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3069,7 +3067,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3107,7 +3105,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3145,7 +3143,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3183,7 +3181,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3221,7 +3219,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3259,7 +3257,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3297,7 +3295,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3335,7 +3333,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3373,7 +3371,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3411,7 +3409,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3449,7 +3447,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3487,7 +3485,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3545,7 +3543,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3608,7 +3606,7 @@
       "flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "size": "Taille d’un point, pour le matériau de points.",
       "sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "linewidth": "Largeur d’une ligne.",
+      "linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "dashSize": "Longueur d’un tiret.",
       "gapSize": "Longueur de l’espace entre deux tirets.",
       "vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -4110,32 +4108,45 @@
       "castShadow": "Si le nœud projette des ombres.",
       "receiveShadow": "Si les ombres tombent sur le nœud.",
       "renderOrder": "Ordre de dessin parmi les choses transparentes.",
+      "frustumCulled": "Si un moteur de rendu peut l’omettre hors de la vue.",
       "userData": "De la place libre pour les données de la page.",
       "visible": "Si le nœud et ses enfants sont dessinés.",
       "parent": "Le parent dans la scène, ou null s’il est détaché.",
       "children": "Enfants attachés dans l’ordre d’ajout. La liste renvoyée ne peut pas être modifiée.",
-      "matrix": "La matrice locale, une vue sur la place de ce nœud dans l’arbre de transformations.",
-      "matrixWorld": "Matrice dans le monde telle que composée en dernier (`updateMatrixWorld`), une vue sur l’arbre.",
       "add": "Fait des objets les enfants de ce nœud.",
       "remove": "Retire des enfants de ce nœud.",
+      "destroy": "Libère le nœud et tout ce qui est dessous tout de suite, plutôt qu’à leur collecte.",
       "removeFromParent": "Retire le nœud de son parent.",
+      "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire.",
       "clear": "Retire tous les enfants de ce nœud.",
       "traverse": "Appelle `fn` sur ce nœud et tous ceux en dessous.",
       "traverseVisible": "Appelle `fn` sur chaque nœud visible à partir d’ici.",
       "getObjectByName": "Le premier nœud en dessous qui porte ce nom.",
-      "updateMatrixWorld": "Compose la matrice dans le monde de ce nœud et de ses descendants, en prenant celle du parent telle quelle.",
+      "updateMatrix": "Compose la matrice locale à partir de la pose.",
+      "applyMatrix4": "Applique `m` par-dessus la pose du nœud, puis relit la pose dans le produit.",
       "lookAt": "Tourne le nœud vers un point du monde (`lookAtNode`) : `+z` vers lui, `-z` pour un œil.",
       "rotateOnAxis": "Tourne le nœud autour de `axis` de `angle` radians.",
       "rotateX": "Tourne le nœud autour de son propre axe x.",
       "rotateY": "Tourne le nœud autour de son propre axe y.",
       "rotateZ": "Tourne le nœud autour de son propre axe z.",
       "translateOnAxis": "Déplace le nœud le long de son propre `axis`.",
+      "getWorldDirection": "Le sens dans lequel le nœud regarde dans le monde.",
+      "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
+    }
+  },
+  "TransformNode": {
+    "summary": "Un nœud de scène lu à travers les matrices de la référence, rangé dans l’arbre des transformations du moteur.",
+    "members": {
+      "matrix": "La matrice locale, une vue sur la place de ce nœud dans l’arbre de transformations.",
+      "matrixWorld": "Matrice dans le monde telle que composée en dernier (`updateMatrixWorld`), une vue sur l’arbre.",
+      "matrixAutoUpdate": "Faux quand `matrix` EST la pose et que rien ne la recompose.",
+      "matrixWorldNeedsUpdate": "Levé quand la matrice locale a changé et que la matrice du monde n’a pas suivi.",
+      "updateMatrixWorld": "Compose la matrice dans le monde de ce nœud et de ses descendants, en prenant celle du parent telle quelle.",
       "getWorldPosition": "Où se tient le nœud dans le monde.",
       "getWorldQuaternion": "Comment le nœud est tourné dans le monde.",
-      "getWorldDirection": "Le sens dans lequel le nœud regarde dans le monde.",
       "localToWorld": "Un point du repère du nœud, dans le monde.",
-      "worldToLocal": "Un point du monde, dans le repère du nœud.",
-      "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
+      "worldToLocal": "Un point du monde, dans le repère du nœud."
     }
   },
   "OcclusionFrameMetrics": {
@@ -4958,8 +4969,8 @@
     "members": {
       "isScene": "Toujours `true` : distingue la racine de la scène de tout autre objet.",
       "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
-      "fog": "Un brouillard qui fond les objets dans `color` entre `near` et `far` ; `null` pour aucun.",
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
+      "fog": "Un brouillard sur chaque surface, opaque ou transparente, sur les deux moteurs de rendu ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
       "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
@@ -4998,8 +5009,21 @@
     "members": {
       "exposure": "Multiplicateur de la radiance linéaire, appliqué avant la courbe.",
       "toneMapping": "La courbe d’affichage ; `DEFAULT_TONE_MAPPING` si elle manque.",
-      "irradiance": "L’irradiance qui arrive de toutes les directions, en 27 nombres : neuf coefficients, chacun un triplet RVB, dans l’ordre des bandes constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absente, ou toute nulle, rien n’éclaire une surface sauf les lampes déclarées."
+      "irradiance": "L’irradiance qui arrive de toutes les directions, en 27 nombres : neuf coefficients, chacun un triplet RVB, dans l’ordre des bandes constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absente, ou toute nulle, rien n’éclaire une surface sauf les lampes déclarées.",
+      "fog": "Brouillard de distance ou de hauteur sur chaque surface (`SceneFog`) ; absent, aucun."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Un brouillard qui s’épaissit avec la distance : `density` par unité de la scène ; avec `heightFalloff`, il s’éclaircit au-dessus de `baseHeight`, divisé par e toutes les `1 / heightFalloff` unités vers le haut.",
+    "members": {
+      "color": "La radiance vers laquelle le brouillard fond les objets, en RVB linéaire.",
+      "density": "L’extinction par unité de la scène, à `baseHeight` ; ≥ 0.",
+      "heightFalloff": "La vitesse à laquelle la densité baisse avec la hauteur, par unité de la scène ; 0, la valeur par défaut, la garde uniforme à toute hauteur.",
+      "baseHeight": "La hauteur où la densité vaut `density` ; 0 par défaut."
+    }
+  },
+  "SceneFog": {
+    "summary": "Brouillard de distance ou de hauteur, tel que l’éclairage le lit."
   },
   "SceneLight": {
     "summary": "Une lumière de scène, version 2.",
@@ -5024,6 +5048,14 @@
     "summary": "Ce que l’hôte demande de voir.",
     "description": "`lit` est le vrai éclairage et lui seul ; `unlit` est la vue de diagnostic en albédo brut — la couleur du matériau telle quelle, sans lumière, sans ambiante et sans émission — pour les bancs d’essai de géométrie qui comparent des images au pixel près. `auto`, par défaut, donne `unlit` tant qu’aucune lumière n’est déclarée et `lit` dès qu’il y en a une. `bounce` est la troisième vue de diagnostic : l’irradiance indirecte seule, multipliée par l’exposition et sortie en valeurs linéaires sans ACES ni sRGB. C’est ce que le banc compare à l’oracle du compilateur ; ce n’est pas une image à regarder, et elle est noire sans rebond réglé."
   },
+  "SceneLinearFog": {
+    "summary": "Un brouillard qui commence à `near` et cache tout à partir de `far`, distances depuis l’œil.",
+    "members": {
+      "color": "La radiance vers laquelle le brouillard fond les objets, en RVB linéaire.",
+      "near": "Distance depuis l’œil où le brouillard commence.",
+      "far": "Distance depuis l’œil où l’on ne voit plus que le brouillard."
+    }
+  },
   "SceneLightStore": {
     "summary": "Les lumières d’une scène telles que le GPU les lit, rangées et tenues à jour.",
     "members": {
@@ -5035,6 +5067,7 @@
       "ids": "Le nom de la lumière de chaque place.",
       "count": "Combien de lumières.",
       "epoch": "Augmenté quand l’ensemble des lumières change.",
+      "transportEpoch": "Augmenté avec l’époque, sauf par un changement du seul brouillard : le brouillard est un terme du rayon de vue, pas du transport de la lumière, donc ce qui met en cache la lumière transportée (les sondes de rebond) la garde.",
       "environment": "L’environnement de la scène.",
       "lightingView": "Vue demandée par l’hôte, telle quelle : `auto` tant qu’il n’a rien demandé.",
       "unlit": "Vrai quand l’image doit sortir en albédo brut, sans lumière. C’est le comportement par défaut tant qu’aucune lumière n’est déclarée : une scène sans source n’a rien à éclairer, et une image noire n’aiderait aucun banc d’essai de géométrie. Dès qu’une lumière existe, le vrai éclairage prend le relais — sauf si l’hôte a demandé explicitement la vue de diagnostic.",
@@ -5070,8 +5103,8 @@
       "visible": "S’il est dessiné.",
       "parent": "Le parent dans la scène, ou null s’il est détaché.",
       "children": "Enfants attachés dans l’ordre d’ajout. La liste renvoyée ne peut pas être modifiée.",
-      "localMatrix": "En lecture seule par contrat ; utilise setLocalMatrix pour marquer la transformation à refaire.",
-      "worldMatrix": "Matrice actuelle dans le monde ; appelle updateWorldMatrix après avoir changé une pose.",
+      "localMatrix": "En lecture seule par contrat, valable tant que le nœud vit ; setLocalMatrix marque la transformation à refaire.",
+      "worldMatrix": "Matrice actuelle dans le monde, valable tant que le nœud vit ; appelle updateWorldMatrix après un changement de pose.",
       "add": "Ajoute un enfant.",
       "remove": "Retire un enfant.",
       "clear": "Retire chaque enfant.",
@@ -5141,7 +5174,6 @@
     "summary": "Ce que partagent tous les nœuds d’une scène : son arbre de transformations et ses index.",
     "members": {
       "tree": "L’arbre de transformations.",
-      "nodes": "Nœuds par emplacement.",
       "ids": "Nœuds par nom.",
       "nextId": "Le prochain numéro de nom libre.",
       "root": "La racine de la scène."
@@ -5214,6 +5246,8 @@
       "shadowWaitMs": "Combien de temps elles ont attendu.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
+      "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
+      "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
       "gpuLightingMs": "Temps GPU de l’éclairage.",
       "shadowLightCuts": "Coupes de grappes lancées depuis les lumières : une par face d’ombre redessinée, zéro sur une image immobile.",
       "shadowPagesRequested": "Pages d’ombre virtuelles que l’image a lues, telles que son dernier rapport de demandes les nomme : ce que marquent les récepteurs vus par la caméra.",
@@ -5233,7 +5267,7 @@
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",
-      "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : l’union tenue entre tout de suite dans la liste, où la lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
+      "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : les boîtes tenues entrent tout de suite dans la liste, où les lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
       "observeCost": "Minuterie de la passe Ombres d’une image, rapportée aux pages qu’elle a redessinées.",
       "setBudgetMs": "Budget publié par l’hôte ; une valeur non finie ou négative est refusée, pas arrondie.",
       "setPageInvalidation": "Coupe l’invalidation par page : chaque face touchée repart en entier. Actif par défaut.",
@@ -5296,6 +5330,10 @@
   },
   "Side": {
     "summary": "Quelles faces dessine un matériau : `'front'`, `'back'` ou `'double'`."
+  },
+  "SixDofAxis": {
+    "summary": "Les axes d’une liaison à six degrés de liberté : glisser le long de `x`, `y`, `z` et tourner autour.",
+    "description": "`x` suit l’`axis` de la liaison, `y` est aussi proche du haut du monde qu’il peut l’être en lui restant perpendiculaire."
   },
   "sideOf": {
     "summary": "Le côté que déclare un matériau de l’hôte, lu une fois à la frontière dans l’énumération propre au moteur."
@@ -5376,7 +5414,8 @@
       "version": "Version du format.",
       "pinned": "Paquets toujours gardés.",
       "bundleBytes": "Taille visée d’un paquet.",
-      "pages": "Combien de paquets."
+      "pages": "Combien de paquets.",
+      "maxDependencies": "Le plus grand nombre de dépendances d’un paquet : la borne que publie le compilateur."
     }
   },
   "SlimStructure": {
@@ -5511,7 +5550,8 @@
       "url": "Où on le lit.",
       "sha256": "Empreinte de ses octets.",
       "bytes": "Sa taille.",
-      "count": "Clusters qu’il contient."
+      "count": "Clusters qu’il contient.",
+      "dependencies": "Les paquets qui tiennent les parents de ses clusters, jusqu’aux racines toujours chargées, dans l’ordre : il est installé après chacun d’eux."
     }
   },
   "StreamCatalogue": {
@@ -5521,7 +5561,8 @@
       "version": "Version du format.",
       "pinned": "Paquets toujours gardés.",
       "bundleBytes": "Taille visée d’un paquet.",
-      "pages": "Chaque paquet."
+      "pages": "Chaque paquet.",
+      "maxDependencies": "Le plus grand nombre de dépendances d’un paquet, tel que le compilateur l’a publié."
     }
   },
   "StreamPage": {
@@ -5560,7 +5601,7 @@
       "baseMetal": "Couleur de base en RVB, A pour le métal.",
       "normalRough": "Normale XYZ dans le monde, A pour la rugosité.",
       "emissiveAo": "Émission RVB, A pour l’occlusion ambiante.",
-      "flags": "0 fond, 1 sans lumière, 2 lectures, 3 diagnostic en espace d’affichage.",
+      "flags": "0 fond, 1 non éclairé (dans le brouillard), 2 lu, 3 montré tel quel : un diagnostic, une vue des normales ou de la profondeur.",
       "views": "Ses vues de texture GPU.",
       "dispose": "Le libère."
     }
@@ -5681,7 +5722,7 @@
   },
   "texture": {
     "summary": "La famille `texture` : une image et la façon de l’échantillonner.",
-    "description": "Les images de couleur sont en sRGB, les images de données en linéaire ; `needsUpdate` après avoir écrit les pixels les fait relire."
+    "description": "Les images de couleur sont en sRGB, les images de données en linéaire ; `needsUpdate` après avoir écrit les pixels les fait relire, copiés sur place dans la texture déjà sur le GPU — seule une nouvelle taille la reconstruit. Une vidéo est vivante : ses images arrivent d’elles-mêmes."
   },
   "texture.image": {
     "summary": "Une texture de couleur à partir d’une image déjà dans la page : une image, un bitmap ou une image de vidéo.",
@@ -5700,12 +5741,14 @@
   },
   "texture.canvas": {
     "summary": "Une texture qui montre ce que contient un canevas.",
+    "description": "Après avoir redessiné le canevas, mettez `needsUpdate` : les nouveaux pixels sont copiés dans la texture déjà sur le GPU, rien n’est reconstruit.",
     "parameters": {
       "c": "Le canevas à montrer."
     }
   },
   "texture.video": {
-    "summary": "Une texture qui montre une vidéo en lecture.",
+    "summary": "Une texture qui montre une vidéo en lecture, ou un flux de caméra lu dans une vidéo.",
+    "description": "Chaque nouvelle image est copiée d’elle-même dans la texture déjà sur le GPU ; une vidéo en pause ne coûte rien.",
     "parameters": {
       "v": "La vidéo à montrer."
     }
@@ -5835,7 +5878,8 @@
       "textureLevelReads": "Les sources. `textureLevelReads` : niveaux cuits en cours de lecture dans le cache. `textureLevelsDecoded` : niveaux cuits décodés depuis le début. `textureLevelCacheBytes` : octets de l’hôte des niveaux décodés gardés pour y découper d’autres tuiles, sous un budget fixe. `textureScratchBuilds` : textures de travail construites pour une texture sans chaîne cuite, toute la source à chaque fois.",
       "textureLevelsDecoded": "Niveaux décodés.",
       "textureLevelCacheBytes": "Octets des niveaux décodés gardés.",
-      "textureScratchBuilds": "Textures temporaires construites."
+      "textureScratchBuilds": "Textures temporaires construites.",
+      "textureLiveBytes": "Octets que gardent les textures vivantes : une texture de travail chacune, à sa propre taille. Déduits de `texturePoolBytes`."
     }
   },
   "TextureLayout": {
@@ -5994,7 +6038,7 @@
   },
   "TransformTree": {
     "summary": "Hiérarchie de transformations du moteur, orientée données : un nœud est un indice dans des tableaux à plat — parent, drapeaux, position, quaternion `(x, y, z, w)`, taille, matrice locale et matrice du monde colonne par colonne.",
-    "description": "`localViews[i]` et `worldViews[i]` sont des vues de seize nombres sur `local` et `world`, créées à la croissance et jamais pendant une mise à jour : le GPU lit tout le tampon, les formules des noyaux lisent la vue d’un nœud. Les écritures passent par les fonctions de réglage, qui marquent ce qu’elles changent. Une croissance remplace chaque tableau : un appelant relit `tree.world` ou `tree.worldViews` après un ajout.",
+    "description": "`localViews[i]` et `worldViews[i]` sont des vues de seize nombres sur `local` et `world`, créées à la croissance et jamais pendant une mise à jour : le GPU lit tout le tampon, les formules des noyaux lisent la vue d’un nœud. Les écritures passent par les fonctions de réglage, qui marquent ce qu’elles changent. Une croissance remplace chaque tableau : un appelant relit `tree.world` ou `tree.worldViews` après un ajout. Chaque nœud liste ses enfants : un parcours de sous-arbre ne lit jamais hors du sous-arbre (`links.ts`).",
     "members": {
       "capacity": "Combien de nœuds tiennent avant qu’il grandisse.",
       "end": "Indices servis : chaque nœud vivant est sous cette limite.",
@@ -6011,14 +6055,12 @@
       "seen": "La version du parent vue en dernier par chaque nœud.",
       "free": "Indices libérés, réutilisés avant d’agrandir `end`.",
       "freeCount": "Combien d’indices libérés attendent.",
-      "order": "Ordre de mise à jour, les parents avant les enfants, et le rang de chaque nœud dans cet ordre.",
-      "orderAt": "Le rang de chaque nœud dans `order`.",
-      "orderCount": "Nœuds dans `order`.",
-      "orderDirty": "Si `order` doit être reconstruit.",
-      "depth": "Tampons de travail du parcours : profondeur, chaîne des ancêtres, seaux, marques.",
+      "firstChild": "Les enfants de chaque nœud en liste chaînée, −1 pour aucun : un parcours de sous-arbre coûte le sous-arbre.",
+      "lastChild": "Dernier enfant, où un rattachement se lie.",
+      "nextSibling": "Enfant suivant du même parent.",
+      "previousSibling": "Enfant précédent du même parent.",
       "chain": "Tampon de la chaîne des ancêtres.",
-      "buckets": "Tampon de seaux.",
-      "stamp": "Tampon de marques.",
+      "stamp": "Tampon de marques : ce qu’un parcours transmet d’un parent à ses enfants.",
       "call": "Numéro du parcours en cours."
     }
   },
@@ -6296,8 +6338,8 @@
       "gravity": "Personnage seulement : accélération vers le bas pendant la montée, en m/s² ; 9,80665 par défaut.",
       "fallGravity": "Personnage seulement : accélération vers le bas pendant la chute, en m/s² ; 1,6 g par défaut, pour qu’un saut ne flotte pas.",
       "airControl": "Personnage seulement : à quelle vitesse les touches dirigent en l’air, en fraction du démarrage au sol ; 0,05 par défaut, 0 est balistique.",
-      "responseTime": "Personnage seulement : secondes pour atteindre 95 % de la vitesse voulue, au sol ; 0,12 par défaut.",
-      "stopTime": "Personnage seulement : secondes pour perdre 95 % de la vitesse une fois toutes les touches relâchées, au sol ; 0,08 par défaut.",
+      "responseTime": "Personnage seulement : secondes que mettent les jambes pour atteindre 95 % de la vitesse voulue, au sol ; 0,12 par défaut. Le frottement du sol borne d’abord le départ : une semelle pousse au plus `μ g`, `μ` l’adhérence d’une semelle de caoutchouc sur le `material.physics` du sol (pierre sans physique), si bien qu’un footing est atteint en 0,45 s sur la pierre et 2,2 s sur la glace.",
+      "stopTime": "Personnage seulement : secondes que mettent les jambes pour perdre 95 % de la vitesse une fois toutes les touches relâchées, au sol ; 0,12 par défaut. Le frottement du sol borne d’abord l’arrêt : un footing glisse `v² / (2 μ g)`, 0,8 m sur la pierre et 3,8 m sur la glace ; un temps plus long freine plus doucement.",
       "capsuleRadius": "Personnage seulement : rayon du corps, en mètres ; une demi-largeur d’épaules (0,23 m) par défaut.",
       "capsuleHeight": "Personnage seulement : hauteur du corps, en mètres ; 1,75 par défaut.",
       "eyeHeight": "Personnage seulement : hauteur de la caméra au-dessus des pieds, en mètres ; 1,64 par défaut.",
@@ -6346,9 +6388,9 @@
       "texturePool": "Octets de mémoire GPU gardés pour les pages de texture, `null` sur un moteur sans réservoir de textures (WebGL2) ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres et du réservoir de géométrie.",
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
-      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Jamais lu sur la machine.",
-      "cpu": "Octets de mémoire CPU que le monde peut tenir : ses pages décodées, ses tables de manifeste et sa file de transferts ensemble. Un changement s’applique aussitôt : les pages partent par dernier usage jusqu’à tenir.",
-      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le cache de pages décodées prend le total CPU, moins les tables de manifeste et la file de transferts de la session en place. Ce que donne la règle, avant un réservoir réglé seul."
+      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous le réservoir d’ombres est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
+      "cpu": "Octets de mémoire CPU que le monde peut tenir : d’abord le miroir hôte de la table des pages d’ombre, puis les pages décodées, leurs tables de manifeste et leur file de transferts ensemble. Un changement s’applique aussitôt : les pages partent par dernier usage jusqu’à tenir. Un total qui ne dépasse pas le miroir est refusé (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Jamais lu sur la machine.",
+      "split": "Le partage des deux totaux : le réservoir d’ombres à son maximum, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU, moins les tables de manifeste et la file de transferts de la session en place. Ce que donne la règle, avant un réservoir réglé seul."
     }
   },
   "world.diagnostic": {
@@ -6405,7 +6447,10 @@
     "summary": "Ouvre une nouvelle fenêtre `cpuSteps()`."
   },
   "world.awaitPages": {
-    "summary": "Se termine quand les pages que lit la vue actuelle sont résidentes (`awaitViewPages`)."
+    "summary": "Se termine quand les pages que lit la vue actuelle sont résidentes (`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress` entend `pages`, `completed` sur `total`, à mesure qu’elles arrivent."
+    }
   },
   "world.dispose": {
     "summary": "Arrête le monde et rend tout ce qu’il a pris : mémoire GPU, boucle, contrôles."
@@ -6447,8 +6492,8 @@
       "transparentDrawCalls": "Appels de dessin transparents.",
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
-      "coverageBudgetLimited": "Le détail demandé ne peut pas coexister avec le repli épinglé dans le budget de pages GPU.",
-      "budgetPixelError": "Plancher d’erreur à l’écran qu’impose à la coupe le budget de pages GPU, en pixels : `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Null pour les moteurs sans budget de pages.",
+      "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
+      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -6476,6 +6521,8 @@
       "shadowWaitMs": "Combien de temps elles ont attendu.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
+      "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
+      "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
       "gpuLightingMs": "Temps GPU de l’éclairage.",
       "hizTestedClusters": "Ce qu’a fait le test d’occultation sur une image : les clusters qu’on lui a donnés, ceux qu’il a éliminés, et ceux dont l’empreinte à l’écran au niveau 0 dépasse le noyau de seize texels et répondent donc depuis un mip plus grossier. `hiz*Triangles` sont les triangles de ces mêmes clusters. Sur le chemin GPU, ils décrivent une image PLUS ANCIENNE que celle qui les rend — `hizCountedFrame` dit laquelle — comme `gpuPassMs`, et deux images voisines portent souvent la même mesure. Aucun n’est estimé : `null` pour un moteur qui ne teste pas l’occultation, sur un appareil dont les verdicts ne peuvent pas être relus, et tant qu’aucune image n’a été comptée.",
       "hizRejectedClusters": "Clusters cachés.",
@@ -6504,6 +6551,7 @@
       "textureLevelsDecoded": "Niveaux décodés.",
       "textureLevelCacheBytes": "Octets des niveaux décodés gardés.",
       "textureScratchBuilds": "Textures temporaires construites.",
+      "textureLiveBytes": "Octets que gardent les textures vivantes : une texture de travail chacune, à sa propre taille. Déduits de `texturePoolBytes`.",
       "gpuAllocatedBytes": "Octets alloués actifs sur l’appareil, toutes ressources confondues.",
       "gpuAllocatedByLabel": "Octets alloués groupés par étiquette de ressource. Les allocations sans étiquette sont groupées sous 'unlabeled'.",
       "gpuAllocationsUnknownFormat": "Nombre de textures aux formats non reconnus. La valeur attendue est 0.",
@@ -6644,7 +6692,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UN PERSONNAGE, vu par ses yeux : un corps avec une masse qui marche, court, saute et tombe, et heurte les triangles du monde comme une capsule debout.",
-    "description": "Le pointeur tourne la tête comme en première personne (`look.ts`). Les touches, par `KeyboardEvent.code` pour que chaque disposition de clavier joue les mêmes touches : W/S ou les flèches haut et bas pour avancer et reculer, A/D ou les flèches de côté pour se décaler, Maj pour sprinter, Espace pour sauter. Le corps ne démarre ni ne s’arrête d’un coup : il prend de la vitesse en `responseTime` et freine en `stopTime`, garde son élan en l’air, monte sous `gravity` et retombe sous `fallGravity`, monte les rebords jusqu’à `stepHeight`, glisse le long des murs et tient sur les pentes jusqu’à `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La caméra est l’œil, à `eyeHeight` au-dessus des pieds, qui oscille avec la foulée de `headBob` et s’affaisse à l’atterrissage selon `landingDip` (`sdk-core/src/collision/characterEye.ts`) ; les deux s’appliquent à l’œil après le pas du corps et ne déplacent jamais le corps. Un hôte qui déplace lui-même la caméra y téléporte le corps, au repos. Un personnage immobile — au sol, sans vitesse, sans touche, sans affaissement restant — n’émet rien, donc la scène reste immobile.",
+    "description": "Le pointeur tourne la tête comme en première personne (`look.ts`). Les touches, par `KeyboardEvent.code` pour que chaque disposition de clavier joue les mêmes touches : W/S ou les flèches haut et bas pour avancer et reculer, A/D ou les flèches de côté pour se décaler, Maj pour sprinter, Espace pour sauter. Le corps ne démarre ni ne s’arrête d’un coup : il prend de la vitesse en `responseTime` et freine en `stopTime`, jamais plus vite que le frottement de son sol ne laisse pousser une semelle, si bien qu’un arrêt glisse un peu sur la pierre et loin sur la glace, garde son élan en l’air, monte sous `gravity` et retombe sous `fallGravity`, monte les rebords jusqu’à `stepHeight`, glisse le long des murs et tient sur les pentes jusqu’à `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La caméra est l’œil, à `eyeHeight` au-dessus des pieds, qui oscille avec la foulée de `headBob` et s’affaisse à l’atterrissage selon `landingDip` (`sdk-core/src/collision/characterEye.ts`) ; les deux s’appliquent à l’œil après le pas du corps et ne déplacent jamais le corps. Un hôte qui déplace lui-même la caméra y téléporte le corps, au repos. Un personnage immobile — au sol, sans vitesse, sans touche, sans affaissement restant — n’émet rien, donc la scène reste immobile.",
     "members": {
       "velocity": "La vitesse du corps en mètres par seconde, en direct : `[x, y, z]`, y vers le haut.",
       "onGround": "Si les pieds sont sur un sol.",
@@ -6771,7 +6819,7 @@
       "format": "Toujours `'trillion3d-scene'`.",
       "formatVersion": "La version de cette disposition ; une autre est refusée.",
       "background": "La couleur de fond, ou `null`.",
-      "fog": "Le brouillard, ou `null`.",
+      "fog": "Le brouillard, sa couleur en composantes linéaires, ou `null`.",
       "camera": "La caméra enregistrée avec la scène, ou `null`.",
       "geometries": "Chaque forme, une fois, quel que soit le nombre de maillages qui la portent.",
       "materials": "Chaque matériau, une fois, quel que soit le nombre de maillages qui le portent.",
@@ -7148,41 +7196,10 @@
   },
   "GraphNode": {
     "members": {
-      "name": "Le nom que l’hôte lui donne.",
-      "parent": "Son parent.",
-      "position": "Où il se tient.",
-      "rotation": "Comment il est tourné, en angles.",
-      "quaternion": "Les deux faces de la rotation d’un nœud — le quaternion que compare le moteur, et les angles d’Euler qui s’y recopient — chacune ANNONÇANT ses propres écritures : un rappel que l’hôte enchaîne déjà, qu’un crochet prolonge au lieu de le remplacer (`hooks.ts`). Les deux membres soulignés sont un privé de la bibliothèque de l’hôte, donc ils sont écrits ici, là où le crochet en a besoin, sans recevoir de nom à eux. Cela garde le privé hors de la liste des contrats publiés du SDK ; cela ne le garde PAS hors de la surface publiée, puisque `HostGraphNode` le porte. Comparer la pose à chaque image, comme le fait déjà le parcours, est ce qui supprimerait ce couplage — ce n’est pas le travail de ce lot.",
-      "scale": "Comment il est étiré.",
-      "matrix": "Sa matrice locale.",
-      "matrixWorld": "Sa matrice dans le monde.",
-      "matrixAutoUpdate": "Faux quand l’hôte a réglé `matrix` lui-même : la matrice EST la pose et rien ne la recompose.",
-      "visible": "S’il est dessiné.",
-      "userData": "Là où le moteur marque une copie à lui, que l’hôte n’a jamais vue et ne peut pas écrire.",
-      "traverse": "Le sous-arbre sous le nœud, lui d’abord, dans l’ordre propre à l’hôte.",
-      "updateMatrixWorld": "Résout les matrices dans le monde du sous-arbre DANS LE GRAPHE DE L’HÔTE, pour les propres lecteurs de l’hôte.",
-      "id": "Le numéro du nœud, unique dans la session.",
-      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint.",
-      "children": "Les nœuds que celui-ci tient, dans l’ordre.",
-      "up": "Quel sens est le haut pour `lookAt`.",
-      "matrixWorldAutoUpdate": "Faux quand rien n’écrit `matrixWorld`.",
-      "matrixWorldNeedsUpdate": "Levé quand la matrice locale a changé et que la matrice du monde n’a pas suivi.",
-      "castShadow": "S’il projette des ombres.",
-      "receiveShadow": "Si des ombres tombent dessus.",
-      "frustumCulled": "Si un moteur de rendu peut l’omettre hors de la vue.",
-      "renderOrder": "Ordre de dessin parmi les choses transparentes.",
-      "add": "Fait de `nodes` des enfants de celui-ci, chacun d’abord retiré de son parent précédent.",
-      "remove": "Retire `nodes` de celui-ci.",
-      "removeFromParent": "Retire ce nœud de son parent.",
-      "clear": "Retire tous les enfants de ce nœud.",
-      "updateMatrix": "Compose la matrice locale à partir de la pose.",
-      "updateWorldMatrix": "Résout la matrice du monde de ce nœud, celle de ses ancêtres d’abord si demandé, son sous-arbre ensuite.",
-      "applyMatrix4": "Applique `m` par-dessus la pose du nœud, puis relit la pose dans le produit.",
-      "lookAt": "Tourne le nœud vers un point du monde, donné en point ou en trois nombres.",
-      "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
-      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
+      "serial": "Le numéro du nœud, unique dans la session.",
+      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint."
     },
-    "summary": "Un nœud du graphe : son nom, sa pose, sa matrice du monde, son parent et ses enfants."
+    "summary": "Un nœud du graphe : le nœud du cœur, distingué par son `kind`, copié par le `clone` du cœur."
   },
   "GraphSurface": {
     "members": {
@@ -7246,17 +7263,6 @@
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
   },
-  "GraphAngles": {
-    "summary": "La même orientation en trois angles et leur ordre, qui annonce ses écritures de la même façon.",
-    "members": {
-      "x": "Le premier angle, en radians.",
-      "set": "Écrit les trois angles, et l’ordre s’il est donné ; annoncé une fois.",
-      "setFromRotation": "Les angles de `q` dans cet ordre (l’`Euler` du cœur) ; annoncé sauf si `quiet`.",
-      "y": "Le deuxième angle, en radians.",
-      "z": "Le troisième angle, en radians.",
-      "order": "L’ordre dans lequel tournent les trois angles, `'XYZ'` sauf réglage."
-    }
-  },
   "GraphArray": {
     "summary": "Les tableaux typés que tient un attribut."
   },
@@ -7298,61 +7304,34 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Ce qu’est un nœud du graphe : un nœud nu, la racine, un groupe, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
-  },
-  "GraphRotation": {
-    "summary": "Une orientation `(x, y, z, w)` dont les écritures appellent `_onChangeCallback`.",
-    "members": {
-      "x": "Le premier nombre.",
-      "set": "Écrit les quatre nombres, annoncé une fois.",
-      "copy": "Prend les nombres d’une autre rotation.",
-      "fromArray": "Lit quatre nombres dans une liste.",
-      "setFromAngles": "La rotation de `angles`, dans leur ordre (`localTurnQuaternion`) ; annoncé sauf si `quiet`.",
-      "setFromRotationMatrix": "La rotation du 3×3 supérieur d’une matrice rangée par colonnes dont les colonnes sont unitaires.",
-      "premultiply": "Devient `q` suivi de cette rotation, `q · this`.",
-      "invert": "Devient la rotation inverse.",
-      "y": "Le deuxième nombre.",
-      "z": "Le troisième nombre.",
-      "w": "Le quatrième nombre."
-    }
-  },
-  "GraphVector": {
-    "summary": "Trois nombres d’une pose ou d’un point : des champs de données simples, et les opérations qu’utilise un contrôleur.",
-    "members": {
-      "set": "Écrit les trois nombres.",
-      "copy": "Prend les nombres d’un autre point.",
-      "clone": "Une copie.",
-      "add": "Ajoute un autre vecteur.",
-      "sub": "Retranche un autre vecteur.",
-      "multiplyScalar": "Multiplie les trois nombres.",
-      "length": "Sa longueur.",
-      "setLength": "Garde la direction, fixe la longueur.",
-      "distanceTo": "Distance à un point.",
-      "fromArray": "Lit trois nombres dans une liste.",
-      "x": "De gauche à droite.",
-      "y": "De bas en haut.",
-      "z": "D’arrière en avant."
-    }
+    "summary": "Ce qu’est un nœud du graphe : la racine, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",
     "description": "Elle tient tant que les deux corps sont simulés, et jusqu’à ce qu’elle rompe.",
     "parameters": {
       "options": "Ce qu’accepte `joint.*`. Points et axes sont dans le monde, lus quand la liaison est créée pour la première fois.",
-      "options.anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance sur `a`.",
-      "options.anchorB": "Le bout d’une distance sur `b`.",
-      "options.axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône.",
-      "options.limits": "Charnière, glissière, distance et cône : jusqu’où elle bouge. Une distance garde par défaut sa longueur.",
-      "options.spring": "Charnière, glissière et distance : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
-      "options.motor": "Charnière et glissière : un moteur, modifiable à tout moment par `joint.motor`.",
-      "options.breakForce": "Newtons de traction au-delà desquels la liaison rompt ; absent, jamais."
+      "options.anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance ou de la corde d’une poulie sur `a`.",
+      "options.anchorB": "Le bout d’une distance ou de la corde d’une poulie sur `b`.",
+      "options.axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône ou d’une rotule à torsion, le `x` d’une liaison à six degrés de liberté, l’axe d’un engrenage ou d’un pignon (`a`).",
+      "options.axisB": "L’axe d’un engrenage sur `b`, le rail d’une crémaillère (`b`).",
+      "options.limits": "Charnière, glissière, distance, cône, rotule à torsion et poulie : jusqu’où elle bouge. Une distance garde par défaut sa longueur, la corde d’une poulie va de 0 à sa longueur.",
+      "options.axes": "Les axes d’une liaison à six degrés de liberté qui bougent, librement (`'free'`) ou dans des limites ; les autres sont bloqués.",
+      "options.spring": "Charnière, glissière, distance et six degrés de liberté : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
+      "options.motor": "Charnière, glissière, rotule à torsion (sa torsion), six degrés de liberté et chemin : un moteur, modifiable à tout moment par `joint.motor`.",
+      "options.path": "La voie d’un chemin : au moins deux points, ceux de `b` (ou du monde) tels qu’ils sont à la création ; `a` part du point de la voie le plus proche d’`anchor`.",
+      "options.loop": "La voie d’un chemin se referme sur elle-même.",
+      "options.follow": "Le `a` d’un chemin tourne avec la voie, comme un wagon, plutôt que librement, comme une perle.",
+      "options.over": "Les deux roues d’une poulie, dans le monde : la corde de `a` monte jusqu’à la première, celle de `b` jusqu’à la seconde.",
+      "options.ratio": "Pour un engrenage, les tours de `b` par tour de `a` (les dents de `a` sur celles de `b`), en sens inverse ; pour un pignon, les radians par mètre de crémaillère, 1 / son rayon ; pour une poulie, les mètres de corde de `b` par mètre de celle de `a`.",
+      "options.breakForce": "Newtons de traction au-delà desquels la liaison rompt (N·m de couple entre les dents d’un engrenage ou d’une crémaillère) ; absent, jamais."
     },
     "members": {
       "kind": "Ce qu’est la liaison.",
       "a": "Le premier corps.",
       "b": "Le second corps, ou `null` pour le monde.",
       "options": "Ce avec quoi elle a été créée.",
-      "motor": "Le moteur, d’une charnière ou d’une glissière ; `null` la laisse tourner ou glisser librement.",
+      "motor": "Le moteur d’une charnière, d’une glissière, d’une rotule à torsion, d’une liaison à six degrés de liberté ou d’un chemin ; `null` la laisse bouger librement.",
       "broken": "Si elle a rompu : tirée au-delà de sa `breakForce`. Une liaison rompue ne tient plus rien.",
       "on": "Appelle `handler` quand la liaison rompt."
     }
@@ -7361,31 +7340,40 @@
     "summary": "Les liaisons entre corps, chacune une contrainte de Jolt."
   },
   "JointLimits": {
-    "summary": "Jusqu’où une liaison peut bouger : en radians pour une charnière, en mètres pour une glissière ou une distance, le demi-angle du cône (`max`) pour un cône.",
+    "summary": "Jusqu’où une liaison peut bouger : en radians pour une charnière ou une rotation, en mètres pour une glissière, une distance ou la corde d’une poulie, le demi-angle du cône (`max`) pour un cône.",
     "members": {
-      "min": "Celle d’une charnière de −π à 0, celle d’une glissière 0 ou moins.",
-      "max": "Celle d’une charnière de 0 à π, celle d’une glissière 0 ou plus."
+      "min": "Celle d’une charnière de −π à 0, celle d’une glissière 0 ou moins ; la torsion d’une rotule à torsion à partir de −π.",
+      "max": "Celle d’une charnière de 0 à π, celle d’une glissière 0 ou plus ; la torsion d’une rotule à torsion jusqu’à π.",
+      "swing": "Le cône d’une rotule à torsion : jusqu’où son `axis` oscille, un demi-angle jusqu’à π."
     }
   },
   "JointMotor": {
-    "summary": "Le moteur d’une charnière ou d’une glissière : il entraîne la liaison vers une vitesse ou une position.",
+    "summary": "Le moteur d’une liaison : il l’entraîne vers une vitesse ou une position.",
     "members": {
-      "mode": "`'velocity'` : rad/s ou m/s ; `'position'` : radians ou mètres depuis la pose où la liaison a été créée.",
+      "mode": "`'velocity'` : rad/s ou m/s ; `'position'` : radians ou mètres depuis la pose où la liaison a été créée — pour un chemin, le point le long de lui (1.5 : à mi-chemin entre son deuxième et son troisième).",
       "target": "La vitesse ou la position à atteindre.",
-      "maxForce": "N·m pour une charnière, N pour une glissière ; absent, sans borne."
+      "maxForce": "N·m pour une rotation, N pour un glissement ; absent, sans borne.",
+      "axis": "L’axe qu’il entraîne, pour une liaison à six degrés de liberté."
     }
   },
   "JointOptions": {
     "summary": "Ce qu’accepte `joint.*`.",
     "description": "Points et axes sont dans le monde, lus quand la liaison est créée pour la première fois.",
     "members": {
-      "anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance sur `a`.",
-      "anchorB": "Le bout d’une distance sur `b`.",
-      "axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône.",
-      "limits": "Charnière, glissière, distance et cône : jusqu’où elle bouge. Une distance garde par défaut sa longueur.",
-      "spring": "Charnière, glissière et distance : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
-      "motor": "Charnière et glissière : un moteur, modifiable à tout moment par `joint.motor`.",
-      "breakForce": "Newtons de traction au-delà desquels la liaison rompt ; absent, jamais."
+      "anchor": "Où les corps se relient : l’axe d’une charnière, la rotule d’une liaison ponctuelle, le bout d’une distance ou de la corde d’une poulie sur `a`.",
+      "anchorB": "Le bout d’une distance ou de la corde d’une poulie sur `b`.",
+      "axis": "L’axe d’une charnière, le rail d’une glissière, le milieu d’un cône ou d’une rotule à torsion, le `x` d’une liaison à six degrés de liberté, l’axe d’un engrenage ou d’un pignon (`a`).",
+      "axisB": "L’axe d’un engrenage sur `b`, le rail d’une crémaillère (`b`).",
+      "limits": "Charnière, glissière, distance, cône, rotule à torsion et poulie : jusqu’où elle bouge. Une distance garde par défaut sa longueur, la corde d’une poulie va de 0 à sa longueur.",
+      "axes": "Les axes d’une liaison à six degrés de liberté qui bougent, librement (`'free'`) ou dans des limites ; les autres sont bloqués.",
+      "spring": "Charnière, glissière, distance et six degrés de liberté : au-delà des limites, un ressort la ramène au lieu d’un mur ; `frequency` en Hz, `damping` de 0 (aucun) à 1 (critique).",
+      "motor": "Charnière, glissière, rotule à torsion (sa torsion), six degrés de liberté et chemin : un moteur, modifiable à tout moment par `joint.motor`.",
+      "path": "La voie d’un chemin : au moins deux points, ceux de `b` (ou du monde) tels qu’ils sont à la création ; `a` part du point de la voie le plus proche d’`anchor`.",
+      "loop": "La voie d’un chemin se referme sur elle-même.",
+      "follow": "Le `a` d’un chemin tourne avec la voie, comme un wagon, plutôt que librement, comme une perle.",
+      "over": "Les deux roues d’une poulie, dans le monde : la corde de `a` monte jusqu’à la première, celle de `b` jusqu’à la seconde.",
+      "ratio": "Pour un engrenage, les tours de `b` par tour de `a` (les dents de `a` sur celles de `b`), en sens inverse ; pour un pignon, les radians par mètre de crémaillère, 1 / son rayon ; pour une poulie, les mètres de corde de `b` par mètre de celle de `a`.",
+      "breakForce": "Newtons de traction au-delà desquels la liaison rompt (N·m de couple entre les dents d’un engrenage ou d’une crémaillère) ; absent, jamais."
     }
   },
   "joint": {
@@ -7396,13 +7384,13 @@
       "hinge": "Un axe en `anchor` le long de `axis` : une porte, une roue. `limits` en radians.",
       "slider": "Un rail le long de `axis` : un tiroir, un piston. `limits` en mètres.",
       "distance": "Garde `anchor` sur `a` et `anchorB` sur `b` à leur distance, ou dans `limits`.",
-      "cone": "Une rotule dont l’`axis` oscille dans un cône de demi-angle `limits.max`."
-    }
-  },
-  "JointHost": {
-    "summary": "Le côté monde d’une liaison : ce qu’une écriture sur elle demande à la simulation.",
-    "members": {
-      "motor": "Le moteur a changé."
+      "cone": "Une rotule dont l’`axis` oscille dans un cône de demi-angle `limits.max`.",
+      "swingTwist": "Une épaule : `axis` oscille dans un cône de demi-angle `limits.swing` et se tord sur lui-même entre `limits.min` et `max` ; son moteur entraîne la torsion.",
+      "sixDof": "Six axes, chacun bloqué, libre ou limité (`axes`) : toute liaison entre les autres.",
+      "path": "`a` court le long d’une voie lisse passant par `path`, fixée à `b` ou au monde : des montagnes russes.",
+      "pulley": "Une corde de `a` passant sur deux roues (`over`) jusqu’à `b` : l’un monte quand l’autre descend.",
+      "gear": "Deux roues qui tournent ensemble selon `ratio`, chacune autour de son axe (`axis`, `axisB`) et tenue par sa charnière (la roue en est le `a`) ; quand `ratio` ou 1 / `ratio` est entier, leurs dents gardent aussi la phase où elles ont été faites.",
+      "rackAndPinion": "Un pignon `a` qui tourne autour d’`axis` entraîne une crémaillère `b` le long d’`axisB`, chacun tenu par sa charnière ou sa glissière (le corps en est le `a`), leurs dents gardées dans la phase où elles ont été faites."
     }
   }
 }

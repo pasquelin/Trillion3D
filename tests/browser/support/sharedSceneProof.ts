@@ -35,9 +35,9 @@ export function carre(demi: number): G.GraphGeometry {
  * clusters that nothing replaces — the smallest legal DAG — one triangle each.
  */
 export function batisseur() {
-  const source = new G.GraphGroup(),
+  const source = new G.Group(),
     indices = new Map<string, Uint32Array>(),
-    associations = new Map<G.GraphNode, { meshes?: number; primitives?: number }>(),
+    associations = new Map<G.Object3D, { meshes?: number; primitives?: number }>(),
     primitives: Primitive[] = [],
     geometries: G.GraphGeometry[] = [],
     materials: G.GraphSurface[] = [];
@@ -93,7 +93,7 @@ export function batisseur() {
         scope: 'slice',
         sourceTriangles: primitives.length,
         selectedTriangles: primitives.length,
-        selectedNodes: [],
+        selectedNodes: 0,
         totalNodes: primitives.length,
         primitives,
       };

@@ -56,7 +56,7 @@ export function windingComparisons() {
     witnessScene = new THREE.Scene(),
     witnessMesh = threeMeshCopy({ geometry: mesh.geometry, material: mesh.ownMaterial }),
     camera = G.perspectiveCamera(60, 1, 0.1, 10),
-    rig = new G.GraphNode();
+    rig = new G.Object3D();
   witness.outputColorSpace = THREE.SRGBColorSpace;
   witness.toneMapping = THREE.NoToneMapping;
   witness.setClearColor(0, 1);

@@ -67,6 +67,7 @@ export type {
   XYZWSink,
 } from '../../sdk-core/src/world/math/likes.ts';
 export type { ExtrudeOptions } from '../../sdk-core/src/world/geometry/shape.ts';
+export type { Fog } from '../../sdk-browser/src/world/core/sceneFog.ts';
 export { Frustum, Plane, Ray, Sphere, Triangle } from '../../sdk-core/src/world/math/volumes.ts';
 export { geometry } from '../../sdk-core/src/world/geometry/index.ts';
 export { Geometry } from '../../sdk-core/src/world/geometry/geometry.ts';
@@ -122,6 +123,7 @@ export type {
   TransformSnap,
   TransformSpace,
 } from '../../sdk-browser/src/world/controls/transformMath.ts';
+export { TransformNode } from '../../sdk-core/src/world/object/transformNode.ts';
 export { Vector3 } from '../../sdk-core/src/world/math/vector3.ts';
 export type { Vec3Input } from '../../sdk-core/src/world/math/vector3.ts';
 export type { WorldControls } from '../../sdk-browser/src/world/core/worldCamera.ts';

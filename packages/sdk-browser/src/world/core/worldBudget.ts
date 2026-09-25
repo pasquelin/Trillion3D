@@ -10,7 +10,7 @@ import {
   splitMemoryBudget,
 } from '../../residency/memoryBudget.ts';
 import { raycastTreeBudget } from '../../../../sdk-core/src/world/object/raycastTrees.ts';
-import { createPageCache, type PageCache } from '../../streaming/pageCache.ts';
+import { createPageCache, DEFAULT_CACHED_BYTES, type PageCache } from '../../streaming/pageCache.ts';
 
 /** The pools a page asks for, and the two totals, kept to open every later session with them; and
  *  the world's decoded-page cache, which every session reads through — one reopened, on a device
@@ -23,8 +23,8 @@ export type Pools = {
   readonly pageCache: PageCache;
 };
 
-/** A world's pools, none asked yet, and its page cache at the default CPU total. */
-export const worldPools = (): Pools => ({ pageCache: createPageCache(DEFAULT_CPU_BUDGET) });
+/** A world's pools, none asked yet, and its page cache at its share of the default CPU total. */
+export const worldPools = (): Pools => ({ pageCache: createPageCache(DEFAULT_CACHED_BYTES) });
 
 /** The split of the totals as asked, the defaults for those not set. */
 const splitOf = (pools: Pools) =>
@@ -77,7 +77,8 @@ export function worldBudget(
      *  physics starts; exceeding one raises `PHYSICS_BUDGET`. */
     physics,
     /** Bytes of GPU memory the world may hold, all pools together; set it to redraw every pool
-     *  by the split rule (`split`). Never read from the machine. */
+     *  by the split rule (`split`). A total under the shadow pool is refused
+     *  (`GPU_BUDGET_UNDER_SHADOW_POOL`). Never read from the machine. */
     get gpu() {
       return pools.gpu ?? DEFAULT_GPU_BUDGET;
     },
@@ -88,8 +89,10 @@ export function worldBudget(
       pools.texturePool = shares.texturePool;
       rebalance();
     },
-    /** Bytes of CPU memory the world may hold: its decoded pages, its manifest tables and its
-     *  transfer queue together. A change applies at once: pages leave by last use until they fit. */
+    /** Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the
+     *  decoded pages, their manifest tables and their transfer queue together. A change applies at
+     *  once: pages leave by last use until they fit. A total not above the mirror is refused
+     *  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine. */
     get cpu() {
       return pools.cpu ?? DEFAULT_CPU_BUDGET;
     },
@@ -99,8 +102,9 @@ export function worldBudget(
       pools.pageCache.resize(pageCache);
     },
     /** How the two totals are shared: the shadow pool at its largest, then half each to the
-     *  geometry and texture pools, capped at their ceilings; the decoded-page cache takes the CPU
-     *  total, less the manifest tables and the transfer queue of the session in place. What the rule gives, before a pool set on its own. */
+     *  geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then
+     *  the decoded-page cache takes the rest of the CPU total, less the manifest tables and the
+     *  transfer queue of the session in place. What the rule gives, before a pool set on its own. */
     get split() {
       return split();
     },

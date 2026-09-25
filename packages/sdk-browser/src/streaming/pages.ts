@@ -141,9 +141,14 @@ export function createPageStreamer(
     retain,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
+    /** Reads `urls` the catalog holds, once each; `onPage` hears 0 resident, then each landing. */
     async request(
       urls: readonly string[],
-      options: { signal?: AbortSignal; priority?: number } = {},
+      options: {
+        signal?: AbortSignal;
+        priority?: number;
+        onPage?: (resident: number, requested: number) => void;
+      } = {},
     ) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
@@ -152,7 +157,12 @@ export function createPageStreamer(
         requested: urls.length,
         unique: unique.length,
       }));
-      await Promise.all(unique.map((url) => subscribe(url, options.signal, options.priority ?? 1)));
+      let resident = 0;
+      options.onPage?.(resident, unique.length);
+      const landed = () => options.onPage?.(++resident, unique.length);
+      await Promise.all(
+        unique.map((url) => subscribe(url, options.signal, options.priority ?? 1).then(landed)),
+      );
     },
     stats() {
       return {

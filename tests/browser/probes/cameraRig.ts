@@ -28,7 +28,7 @@ export const POSES_SANS_PARENT = Array.from({ length: 24 }, (_, i) => ({
 export type PoseParent = { x: number; z: number; ry: number };
 /** A pose of a parentless camera, posed directly: local position and yaw/pitch. */
 export type PoseLibre = { x: number; y: number; z: number; ry: number; rx: number };
-export type Rig = { parent: G.GraphGroup; camera: G.GraphCamera };
+export type Rig = { parent: G.Group; camera: G.GraphCamera };
 
 const regle = (camera: G.GraphCamera, fov: number, aspect: number): G.GraphCamera => {
   camera.fov = fov;
@@ -41,7 +41,7 @@ const regle = (camera: G.GraphCamera, fov: number, aspect: number): G.GraphCamer
 
 /** The camera is posed locally, never looked at a point: no parent is read. */
 export function creeRig(fov = 55, aspect = 16 / 9): Rig {
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   const camera = regle(G.perspectiveCamera(), fov, aspect);
   camera.position.set(0.3, 0.2, 5);
   camera.rotation.set(-0.02, 0.04, 0);

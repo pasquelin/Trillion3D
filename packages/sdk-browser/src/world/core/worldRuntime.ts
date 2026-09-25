@@ -1,4 +1,4 @@
-import type { FrameMetrics, SceneToneMapping } from '../../../../sdk-core/src/index.ts';
+import type { FrameMetrics, SceneFog, SceneToneMapping } from '../../../../sdk-core/src/index.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts';
@@ -11,7 +11,7 @@ import { createWorldLights } from './worldLights.ts';
 import { createWorldLink } from './worldLink.ts';
 import { createWorldBackground } from './worldBackground.ts';
 import { watchFirstFrame } from '../session/openWatch.ts';
-import { copyWorldCamera, createCanvasFit, drawnAspect } from './worldCamera.ts';
+import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { Scene } from './scene.ts';
@@ -26,8 +26,8 @@ type Inputs = {
   /** Runs on every new session, before its first frame: diagnostic mode, pools. */
   opened: (explorer: MeasuredWorld) => void;
   frame: (metrics: FrameMetrics) => void;
-  /** The display chain the page set: exposure and curve; the lights add their irradiance. */
-  display: () => { exposure: number; toneMapping: SceneToneMapping };
+  /** What the page set: exposure, curve and fog; the lights add their irradiance. */
+  display: () => { exposure: number; toneMapping: SceneToneMapping; fog?: SceneFog };
   /** Whether the world has drawn a frame yet. */
   drawn: () => boolean;
   /** Settles once the world's renderer — and its device — is granted, a lost one asked again. */
@@ -48,6 +48,7 @@ export function createWorldRuntime(inputs: Inputs) {
     lights = createWorldLights(),
     background = createWorldBackground(scene);
   const { poses, cuts } = contents;
+  const placeCamera = followPageCamera(camera, canvas);
   let explorer: MeasuredWorld | null = null,
     mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
     twins = new Map<Object3D, PosedTwin>(),
@@ -92,10 +93,11 @@ export function createWorldRuntime(inputs: Inputs) {
     }
     mirror = built;
     try {
-      // The session reads at the scope its first model was read at, or the default.
-      const scope = built.source.metadata.scope;
+      const scope = built.source.metadata.scope; // its first model's scope, or the default
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
-      explorer = await open(canvas, { ...inputs.options(), scope }, built.source);
+      const options = { ...inputs.options(), scope, onRowsOutgrown: reopens.request };
+      // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
+      explorer = await open(canvas, options, { ...built.source, placeCamera });
     } catch (error) {
       closed = 'its session failed to open';
       if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing
@@ -158,7 +160,7 @@ export function createWorldRuntime(inputs: Inputs) {
     apply();
     if (!explorer) return;
     fit.apply(explorer);
-    copyWorldCamera(camera(), explorer.camera, drawnAspect(canvas));
+    placeCamera(explorer.camera);
   };
   // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
   watchFirstFrame(() => {
@@ -176,8 +178,6 @@ export function createWorldRuntime(inputs: Inputs) {
     get explorer() {
       return explorer;
     },
-    /** Settles once the scene changes made so far are resolved, drawn or not. */
-    resolved: () => resolving ?? Promise.resolve(),
     /** Settles once the session reflects every change made so far. */
     async settled() {
       while (resolving || reopens.running) await (resolving ?? reopens.running);

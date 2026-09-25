@@ -360,6 +360,22 @@
       "up": "OBEN"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Ziehen, um sich umzusehen. Wähle den Nebel, seine Reichweite und seine Farbe.",
+    "controls": {
+      "fog": "Nebel",
+      "reach": "Reichweite",
+      "height": "Höhe",
+      "colour": "Farbe"
+    },
+    "choices": {
+      "fog": {
+        "distance": "Entfernung",
+        "thick": "dicht",
+        "ground": "Boden"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Ziehe, um dich umzusehen. Die Perlen fahren am Rohr entlang.",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Drücke Spielen, dann lauf mit W A S D und spring mit der Leertaste.",
+    "banner": "Drücke Spielen, dann lauf mit W A S D und spring mit der Leertaste. Lass früh los: Auf Stein gleitest du ein wenig, bevor du stehst.",
     "controls": {
       "keys": "Die Figurensteuerung der Engine: Spielen im Menü fängt die Maus zum Umsehen, W A S D zum Laufen (Z Q S D auf AZERTY), Umschalt zum Sprinten, Leertaste zum Springen, Esc gibt die Maus frei. Die Seite fügt R für einen neuen Lauf und M zum Stummschalten hinzu.",
       "look": "Umsehen",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} Kugeln · R für einen neuen Lauf",
       "muted": "M stumm",
       "sound": "M Ton"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "Sieh zu, wie sich der Balken füllt, während die Welt ankommt. Drücke Neu laden, um es ab dem ersten Byte zu sehen.",
+    "controls": {
+      "loadAgain": "Neu laden"
+    },
+    "readouts": {
+      "phase": "Schritt",
+      "bytes": "Bytes",
+      "pages": "Erste Seiten"
+    },
+    "words": {
+      "credit": "Urnenallee für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md",
+      "bytes": "Bytes werden gelesen",
+      "manifest": "Manifest gelesen",
+      "tables": "Szenentabellen gelesen",
+      "resources": "Dateien der Szene",
+      "pages": "erste Seiten",
+      "ready": "bereit"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben.",
+    "banner": "Klicken, um sich umzusehen, dann mit W A S D laufen und mit Leertaste springen: Treppe und Rampe hinauf, auf der Plattform mitfahren, die Kisten schieben, und auf dem Eis die Tasten loslassen, um zu rutschen.",
     "controls": {
       "pushStrength": "Schubkraft (N)",
       "platformSpeed": "Plattformtempo",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "Gelenke",
       "broken": "Gebrochen"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Ändere das Tempo des Uhrwerks, fahre den Aufzug hoch und wirf Gewichte in den Eimer, um das Gegengewicht zu heben.",
+    "controls": {
+      "speed": "Tempo des Uhrwerks (rad/s)",
+      "raiseLift": "Aufzug hochfahren",
+      "addWeight": "Gewicht fallen lassen",
+      "emptyBucket": "Eimer leeren"
+    },
+    "readouts": {
+      "lift": "Aufzug",
+      "load": "Gewichte",
+      "rope": "Seillauf"
     }
   }
 }

@@ -85,6 +85,7 @@ export function createWebgpuTileStreamer(options: {
     data,
     feedback,
     counters,
+    sources,
     /** Pins every queue: what the image shows before any tile is requested. */
     prepare() {
       for (const atlas of [color, data])
@@ -144,12 +145,12 @@ export function createWebgpuTileStreamer(options: {
       counters.pass(now() - started, unbounded);
       return { served, pending: counters.pending };
     },
-    /** Follows the atlases' records and writes the headers that moved, signalled as a landed tile
-     *  is: a held image released, the cutout shadows of a colour texture redrawn (#360, #361).
-     *  True when a filter rule switched on or off: the rows that wear it change resolve class. */
+    /** Follows the atlases' records, writes the headers that moved and copies a moved host picture
+     *  again (#362), signalled as a landed tile is (#360, #361). True when a filter rule switched
+     *  on or off: the rows that wear it change resolve class. */
     followSampling() {
       colorChanged.clear();
-      const found = followHeaders(false, colorChanged);
+      const found = followHeaders(false, colorChanged, sources.refresh);
       if (!(found & HEADERS_WRITTEN)) return false;
       flushAll();
       options.onColorChanged(colorChanged);
@@ -170,8 +171,7 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Every lane pool whose layers change is replaced while keeping its tiles; returns the
-     *  evicted tiles. Layers already held change nothing, and nothing is signalled. */
+    /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
     resize(layers: AtlasLanes) {
       const results = [color.resize(device, layers.color), data.resize(device, layers.data)];
       if (results.some((result) => result.replaced)) {
@@ -180,7 +180,7 @@ export function createWebgpuTileStreamer(options: {
       }
       return results.reduce((total, result) => total + result.evicted, 0);
     },
-    metrics: () => counters.metrics([color, data], sources.levels, encoding.name),
+    metrics: () => counters.metrics([color, data], sources, encoding.name),
     /** True while a cooked level is being read: a missing tile can still arrive. */
     get reading() {
       return (sources.levels?.inFlight ?? 0) > 0;

@@ -25,19 +25,15 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
     scope: 'full',
     sourceTriangles: 4,
     selectedTriangles: 4,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
   };
   const viewport: [number, number] = [32, 32];
   const collected = collectClusterPages(source, metadata, indices, associations);
-  const { device, passes, computes, textures, draws } = mockGpu(
-    undefined,
-    packDagSelection(collected.roots),
-    false,
-    false,
-    false,
-    true,
-  );
+  const { device, passes, computes, textures, draws } = mockGpu({
+    packed: packDagSelection(collected.roots),
+    compute: true,
+  });
   const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport);
   const { cam, cpu } = run,
     backend = run.backend as ReturnType<typeof webgpuPagesBackend> & {
@@ -79,14 +75,7 @@ test('a successful vis+compact pipeline drops indirect draw from unsupported', a
   installGpuGlobals();
   const { source, metadata, indices, associations, geometry, material } = quadScene();
   const collected = collectClusterPages(source, metadata, indices, associations);
-  const { device } = mockGpu(
-    undefined,
-    packDagSelection(collected.roots),
-    false,
-    false,
-    false,
-    true,
-  );
+  const { device } = mockGpu({ packed: packDagSelection(collected.roots), compute: true });
   const backend = webgpuPagesBackend({
     source,
     metadata,
@@ -108,15 +97,11 @@ test('a compact pipeline failure keeps the per-page draw loop', async () => {
   installGpuGlobals();
   const { source, metadata, indices, associations, geometry, material } = quadScene();
   const collected = collectClusterPages(source, metadata, indices, associations);
-  const { device, draws } = mockGpu(
-    undefined,
-    packDagSelection(collected.roots),
-    false,
-    false,
-    false,
-    true,
-    true,
-  );
+  const { device, draws } = mockGpu({
+    packed: packDagSelection(collected.roots),
+    compute: true,
+    failCompact: true,
+  });
   const backend = webgpuPagesBackend({
     source,
     metadata,

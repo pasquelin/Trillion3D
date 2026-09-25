@@ -2,9 +2,9 @@
 // sun straight overhead that casts —, and what stands in for the shading: a request report that
 // names the pages a frame read, stamped as the engine stamps it.
 import type { SceneLight, ShadowViewpoint } from '../light/contracts.ts';
-import type { SceneLightStore } from '../light/store.ts';
-import type { ShadowPlan } from './plan.ts';
-import { lampEntry, sunEntry } from './virtual.ts';
+import { createSceneLightStore, type SceneLightStore } from '../light/store.ts';
+import { createShadowPlan, type ShadowPlan } from './plan.ts';
+import { LAMP_MIPS, SUN_LEVELS, lampEntry, sunEntry } from './virtual.ts';
 
 export const VIEW: ShadowViewpoint = {
   position: [0, 5, 0],
@@ -51,6 +51,15 @@ export function report(plan: ShadowPlan, store: SceneLightStore, frame: number, 
 export const sunPages = (plan: ShadowPlan, slice: number, level: number, pages: number[][]) =>
   pages.map(([ax, ay]) => plan.table.baseOf(slice) + sunEntry(level, ax, ay));
 
+/** Table entry of the sun's floor page over the camera of the fixture: the one page of its last
+ *  level every fixture page lies under. Counted here, not read from the scheduler it tests. */
+export const sunFloor = (plan: ShadowPlan, slice: number) =>
+  sunPages(plan, slice, plan.sun.finest[slice] + SUN_LEVELS - 1, [[0, 0]])[0];
+
+/** Table entry of lamp `face`'s floor page, its one-page mip. */
+export const lampFloor = (plan: ShadowPlan, slice: number, face: number) =>
+  plan.table.baseOf(slice) + lampEntry(face, LAMP_MIPS - 1, 0, 0);
+
 /** Table entries of every page of lamp `face` at `mip`, for the light in `slice`. */
 export function lampPages(plan: ShadowPlan, slice: number, face: number, mip: number) {
   const side = 32 >> mip,
@@ -61,19 +70,39 @@ export function lampPages(plan: ShadowPlan, slice: number, face: number, mip: nu
   return entries;
 }
 
-/**
- * The engine's frame loop, reduced to the scheduler: plan, commit what was admitted, then report
- * what the shading read. Returns the pages drawn.
- */
-export function cycle(
+/** The engine's frame loop, reduced to the scheduler: plan, commit what was admitted, then report
+ *  what the shading read. Returns the physical pages the frame drew. */
+export function cycleDrawn(
   plan: ShadowPlan,
   store: SceneLightStore,
   frame: number,
   read: () => number[],
   view: ShadowViewpoint = VIEW,
 ) {
-  const drawn = planFrame(plan, store, frame, view);
+  planFrame(plan, store, frame, view);
+  const drawn = new Set(plan.admission.list.subarray(0, plan.admission.count));
   plan.commit();
   report(plan, store, frame, read());
   return drawn;
+}
+
+/** `cycleDrawn`, returning how many pages the frame drew. */
+export const cycle = (...args: Parameters<typeof cycleDrawn>) => cycleDrawn(...args).size;
+
+/** The physical pages of the light in `slice` the shading reads now. */
+export function readPages(plan: ShadowPlan, slice: number) {
+  const { pool } = plan,
+    pages: number[] = [];
+  for (let page = 0; page < pool.pages; page++)
+    if (pool.owner[page] >= 0 && pool.slice[page] === slice && pool.valid[page]) pages.push(page);
+  return pages;
+}
+
+/** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
+export function lampScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24, 32);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0);
+  return { store, plan, slice: store.sliceOf(0) };
 }

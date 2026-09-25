@@ -1,4 +1,3 @@
-import type { HostTraversable } from '../../host/resources.ts';
 import type {
   AssetScope,
   CameraPose,
@@ -9,6 +8,7 @@ import type {
 import type { ComparisonLayout } from '../../measurement/comparison.ts';
 import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from '../../backend/types.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** A named view of a scene a page can jump to. */
 export type PointOfInterest = {
@@ -28,6 +28,9 @@ export interface MeasuredWorldOptions {
   renderer?: 'webgpu' | 'webgl2';
   /** Called before every frame the interactive session draws: the host writes its scene then. */
   beforeFrame?: () => void;
+  /** Asked once the camera's reach outgrew the rows a partitioned scene sized when the session
+   *  opened: the owner opens the session again, sized for that reach. */
+  onRowsOutgrown?: () => void;
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean;
   /** Called after every frame the session draws, with that frame's metrics. */
@@ -118,7 +121,7 @@ export interface MeasuredWorldOptions {
    *  reads those levels; where one of them samples the host images, the session reads them
    *  as under `'host'` (`resolveTextureSource`). */
   textureSource?: 'host' | 'cache';
-  sceneLighting?: HostTraversable;
+  sceneLighting?: Object3D;
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */

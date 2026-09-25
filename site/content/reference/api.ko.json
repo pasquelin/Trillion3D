@@ -309,7 +309,9 @@
       "texturePreviewSha": "각 텍스처 미리보기의 지문.",
       "texturePreviewPixels": "미리보기들의 픽셀.",
       "texturePreviewBc7": "미리보기들의 BC7 블록.",
-      "texturePreviewAstc": "미리보기들의 ASTC 블록."
+      "texturePreviewAstc": "미리보기들의 ASTC 블록.",
+      "bundleDependencyCount": "각 번들이 몇 개의 번들에 의존하는지.",
+      "bundleDependency": "각 번들이 의존하는 번들, 루트까지."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -368,6 +370,7 @@
       "top": "정사영 박스의 위쪽 경계.",
       "bottom": "정사영 박스의 아래쪽 경계.",
       "projection": "`'perspective'`는 먼 것을 작게 만들고, `'orthographic'`은 모든 크기를 그대로 유지한다.",
+      "copy": "`source`의 노드 값과, 카메라에서는 그 광학 값을 가져온다. 자신의 `projection`은 그대로다.",
       "updateProjectionMatrix": "그것을 필요로 하는 렌더러를 전제로 작성된 페이지들을 위해 남겨져 있다: 모든 광학 값 쓰기는 이미 다시 그리기를 유발한다.",
       "rayThrough": "그림의 한 점을 지나는 월드 광선으로, 엔진 자체의 투영(`engineCamera.ts`)을 따릅니다: 원근 카메라는 눈에서 시선을 따라, 직교 카메라는 상자에서 시선 방향으로 곧게 나갑니다. 방향은 단위 벡터입니다.",
       "set": "눈을 `pose.position`에 두고, `pose.target`을 바라보게 하며, 지정된 화각으로 맞춘다."
@@ -652,7 +655,8 @@
       "bundles": "번들 수.",
       "previews": "텍스처 미리보기 수.",
       "previewBytes": "픽셀 열의 바이트 수. 모든 항목의 모든 레벨을 이어붙인 것.",
-      "previewBlockBytes": "각 블록 열의 바이트 수: 유지된 체인들의 꼬리는 압축되고, 블록 전체를 유지한 경우 항목이 연속으로 이어지며, 그 계열이 무손실로 남겨 둔 체인에는 아무것도 없다."
+      "previewBlockBytes": "각 블록 열의 바이트 수: 유지된 체인들의 꼬리는 압축되고, 블록 전체를 유지한 경우 항목이 연속으로 이어지며, 그 계열이 무손실로 남겨 둔 체인에는 아무것도 없다.",
+      "bundleDependencies": "번들 의존성, 모든 번들의 목록을 이어 붙인 것."
     }
   },
   "CpuStepSummary": {
@@ -1016,6 +1020,10 @@
       "rollInput": "[-1, 1] 범위의 롤 기울임, Q와 마찬가지로 왼쪽이 양수; 나머지는 `pitchInput`과 같다."
     }
   },
+  "Fog": {
+    "summary": "모든 표면 위의 안개: `near` 에서 `far` 까지 선형이거나, `density` 에 따라 거리와 함께 짙어지고 `heightFalloff` 를 주면 `baseHeight` 위에서 높이와 함께 옅어지는 안개.",
+    "description": "색은 안개가 눈 쪽으로 산란시키는 빛으로, 표면의 빛처럼 노출되고 디스플레이 곡선을 거칩니다."
+  },
   "FrameInfo": {
     "summary": "프레임 훅이 받는 것: 지난 프레임 이후 경과 초, 그리고 월드가 시작된 이후 경과 초.",
     "description": "월드가 가진 단 하나의 객체로, 매 프레임 다시 쓰인다: 값을 유지하고 싶은 훅은 그것을 복사해 두어야 한다.",
@@ -1059,8 +1067,8 @@
       "transparentDrawCalls": "투과 드로우 콜 수.",
       "transparentSubmittedTriangles": "전송된 투과 삼각형 수.",
       "coverageReady": "완전한 초기 GPU 대체 수단을 사용할 수 있는지 여부; 이 보장이 없는 백엔드에서는 null.",
-      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산 안에서 고정된 대체 수단과 공존할 수 없다.",
-      "budgetPixelError": "GPU 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위: 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. 페이지 예산이 없는 엔진에서는 null.",
+      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산에 들어가는 것보다 많은 페이지를 요구한다: 나머지는 더 거칠게 그려진다.",
+      "budgetPixelError": "WebGL2 전용: 그 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위 — 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. WebGPU에는 없으며, 그곳에서는 상주 여부만이 이미지를 거칠게 한다. 페이지 예산이 없는 엔진에서는 null.",
       "frameHeld": "그 프레임이 유지되었을 때 true: 씬도, 뷰도, 리소스도 움직이지 않았고, 대기 중인 비동기 작업도 없었으며, 어떤 CPU 단계도 실행되지 않았다. 표시되는 픽셀은 원본 프레임의 것과 비트 단위로 정확히 같다. 유지된 프레임이 실제로 한 일은 있는 그대로 공개되며, 마지막 완전한 렌더링에서 복사되는 일은 결코 없다: `drawCalls`, `triangles`, `submittedTriangles`, `totalSubmittedTriangles`는 현재 값만 세고, 단계별 CPU/GPU 시간은 그 단계가 실행되지 않았으면 0, 아무것도 측정하지 않았으면 `null`이다. 엔진의 이미지가 대조 어댑터가 그리는 씬일 경우, 이 프레임에서 그 어댑터가 제출한 것을 센다 — 유지된 프레임에서는 아무것도 없다. 유지된 프레임이 실제로 **보여주는** 것은 그것이 다시 표시하는 컷에 의해 계속 설명된다: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel`, `residentPages`는 원본 프레임의 값이다, 같은 컷이기 때문이다. 프레임을 유지하지 않는 엔진에는 이 항목이 없다.",
       "streamingError": "끈질기게 남는 로딩 오류; 실패한 URL은 세 번 시도한 뒤 익스플로러 재로드를 필요로 한다.",
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
@@ -1355,10 +1363,6 @@
   "HostGeometry": {
     "summary": "호스트 지오메트리: 그 속성들과, 호스트가 그것들로부터 계산한 로컬 박스."
   },
-  "HostGraphNode": {
-    "summary": "순회에서 본 호스트 그래프의 노드 하나: 그 식별자, 로컬 자세, 호스트가 그것에 대해 해석한 월드 행렬, 그리고 그 연쇄.",
-    "description": "엔진은 로컬 자세로부터 **자신만의** 월드 행렬을 계산한다(`../world/tree.ts`); `matrixWorld`가 읽히는 곳은, 경계가 돌려주어야 하는 값이 **호스트 자신의** 해석 결과인 경우다. **왜 `HostPlaced`(`../resources.ts`)도 자세를 가진 노드를 기술하는가.** 이 둘은 서로의 복사본이 아니다: 호스트가 제공하는 두 가지 서로 다른 해석 방식에 각각 대응한다. `HostPlaced`가 요구하는 것은 `updateWorldMatrix(ancestors, descendants)` — **하나의** 노드의 연쇄로, 배치와 가시성 순회가 타고 오르는 것; 이것이 요구하는 것은 `updateMatrixWorld(force)` — 어떤 노드 **아래의 서브트리 전체**로, 스캔, 경계 통합, 복제가 한 번의 호출로 해석하는 것이다. 둘 중 하나만 제공하는 호스트는 자신이 응답하는 계약만을 만족시키므로, 어느 쪽도 다른 쪽을 대신할 수 없다."
-  },
   "HostMaterial": {
     "summary": "엔진이 읽는 형태의 호스트 재질: 모든 호스트 재질이 공유하는 표면 매개변수로, 경계에서 한 번만 엔진의 `VisMaterial`로 읽힌다; `side`만은 `sideOf`가 읽는다."
   },
@@ -1367,9 +1371,6 @@
   },
   "HostMesh": {
     "summary": "식별자로 보관되는 호스트 메시: 드로우 레코드, 투명 테이블, 선택 집합이 호스트가 배치한 표면에 이름을 붙인다."
-  },
-  "HostNode": {
-    "summary": "호스트 씬 그래프의 노드 하나. 식별자와, 순회가 필요로 하는 두 필드로 보관된다."
   },
   "HostNodeMatrix": {
     "summary": "같은 16개의 부동소수점, 항별로 **쓰기 가능**: 경계가 어떤 호스트 노드나 복원 중인 호스트 카메라에 다시 써 넣는 자세.",
@@ -1421,9 +1422,6 @@
   },
   "HostTexture": {
     "summary": "호스트 텍스처: 호스트가 디코딩한 이미지와 그것이 선언한 샘플러 상태. 이것 역시 식별자로 보관된다."
-  },
-  "HostTraversable": {
-    "summary": "엔진이 순회하는 호스트 노드: 그 아래의 서브트리, 노드 자신이 먼저, 호스트 자신의 순서로."
   },
   "HostVector": {
     "summary": "자세의 세 숫자, 호스트가 저장하고 경계가 다시 써 넣는 형태로.",
@@ -1544,7 +1542,6 @@
       "shadowNormalOffsetTexels": "샘플 지점의, 법선 방향 오프셋. 슬라이스 텍셀 단위. 이것이 점광원의 두 면 사이 이음매를 닫아 주고 스침각에서의 여드름 같은 결함을 없애 준다; 미터가 아니라 텍셀 단위인 이유는, 그 조명이 얻은 해상도에 비례한 채로 유지되도록 하기 위해서다.",
       "shadowPagesPerFrame": "프레임당 그리는 섀도 페이지의 최대치: 버퍼 한도일 뿐 품질 설정이 아닙니다. 거의 항상 밀리초 예산이 먼저 멈추며, 이 한도는 마지막 경계일 뿐이고 GPU 클록이 없는 장치에서는 유일한 제한입니다.",
       "lampFaceSize": "램프 면의 가장 세밀한 밉 한 변(텍셀): 128 크기 페이지 32 × 32(풀: `shadowPoolSide`).",
-      "shadowTableEntries": "섀도 페이지 테이블 항목, 가상 페이지마다 한 워드: 고정 4 MiB 버퍼입니다. 태양 16개 또는 점광원 128개를 담으며, 자리를 찾지 못한 조명은 그림자를 받지 못하고 집계됩니다.",
       "shadowRequestCap": "셰이딩이 프레임당 요청할 수 있는 가상 페이지 수. 나머지는 다음 프레임에 다시 요청합니다.",
       "sunLevels": "방향광의 클립맵 레벨. 레벨 `L`의 텍셀은 `2^L` 미터이며, 픽셀은 텍셀이 자기 풋프린트 이하인 레벨을 읽습니다. 16개 레벨이 원/근 비율 2^15를 덮고, 마지막 레벨 너머는 원거리 그림자가 맡습니다.",
       "sunLevelPages": "카메라 주변 클립맵 레벨 범위의 한 변당 페이지 수. 조정값이 아니라 용량입니다: `height / tan(halfFovY)`가 `sunLevelPages · shadowPage / 2` = 4096(수직 시야 55°의 4K 캔버스) 이하인 동안 모든 픽셀이 자기 밀도를 읽고, 그 너머에서는 바깥 픽셀이 다음 레벨을 절반 밀도로 읽습니다."
@@ -1602,6 +1599,7 @@
       "height": "직사각형 조명의 높이.",
       "radius": "발광 구의 반지름; 엔진 저장소에서는 `emitterRadius`.",
       "kind": "이것이 어떤 종류의 조명인가: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "`source`의 노드 값과, 조명에서는 그 수치, 색, 계수, 조준을 가져온다. 자신의 `kind`는 그대로다.",
       "needsUpdate": "`sh`를 그 자리에서 쓴 뒤의 `light.needsUpdate = true`: 세계가 그것을 다시 읽는다.",
       "lookAt": "조명을 월드 상의 어떤 점으로 겨냥한다: 방향광이나 스포트라이트는 그 `target`을 그곳으로 옮기고(그 방향은 거기서 읽힌다) — 노드 자체도 회전한다, 이것이 바로 직사각형 조명이 향하는 기준이다."
     }
@@ -1659,7 +1657,7 @@
       "scope": "`'full'`은 캐시 전체를 요구하고, `'progressive'`는 그 스트리밍된 조각을 요구한다; 다른 범위의 모델은 이름으로 거부된다. 설정되지 않으면 모델은 그 포인터가 선언하는 범위로 읽힌다.",
       "stream": "페이지가 구성한 스트리머; 월드의 세션은 자신만의 것으로 스트리밍한다.",
       "position": "모델의 원점이 씬 안 어디에 놓이는가.",
-      "onProgress": "로딩이 얼마나 진행됐는지 듣는다: 매니페스트를 읽으면 `manifest`, 이어서 씬이 읽는 각 파일이 도착할 때마다 `resources`(그때까지 알려진 `total` 중 `completed`). 이벤트는 `JobProgress`이며, 로딩을 감싼 `createJob`은 자신의 `progress`를 여기에 넘긴다."
+      "onProgress": "로드가 어디까지 왔는지 듣습니다. 읽는 모든 파일의 조각마다 `bytes`(`completed === total`까지), 매니페스트를 읽으면 `manifest`, 씬 테이블을 읽으면 `tables`, 그다음 씬이 읽는 파일이 도착할 때마다 `resources`(지금까지 알려진 `total` 중 `completed`). 이벤트는 `JobProgress`입니다. 로드를 감싸는 `createJob`은 여기에 자신의 `progress`를 넘기고, `world.awaitPages`는 첫 페이지들을 같은 형태로 알립니다."
     }
   },
   "LoadedModel": {
@@ -1755,7 +1753,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -1818,7 +1816,7 @@
       "flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "size": "점 재질에서, 점의 크기.",
       "sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "linewidth": "선의 두께.",
+      "linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "dashSize": "점선 한 조각의 길이.",
       "gapSize": "두 점선 조각 사이 간격의 길이.",
       "vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -2017,32 +2015,45 @@
       "castShadow": "노드가 그림자를 드리우는지 여부.",
       "receiveShadow": "그림자가 노드에 드리워지는지 여부.",
       "renderOrder": "투과되는 것들 사이의 그리기 순서.",
+      "frustumCulled": "시야 밖에서 렌더러가 건너뛰어도 되는지 여부.",
       "userData": "페이지 자신의 데이터를 위한 자유 공간.",
       "visible": "노드와 그 자식들이 그려지는지 여부.",
       "parent": "씬에서의 부모, 분리되어 있는 동안은 null.",
       "children": "삽입 순서대로 붙어 있는 자식들. 반환된 목록은 변경할 수 없다.",
-      "matrix": "로컬 행렬. 이 노드의 변환 트리 내 슬롯의 뷰.",
-      "matrixWorld": "마지막으로 합성된(`updateMatrixWorld`) 월드 행렬. 트리의 뷰.",
       "add": "오브젝트들을 이 노드의 자식으로 만든다.",
       "remove": "이 노드에서 자식들을 뗀다.",
+      "destroy": "노드와 그 아래 모든 것을 수집을 기다리지 않고 지금 해제한다.",
       "removeFromParent": "이 노드를 그 부모에서 뗀다.",
+      "clone": "같은 종류, 같은 값의 노드. 달리 말하지 않으면 자식도 복사됩니다.",
+      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다.",
       "clear": "이 노드에서 모든 자식을 뗀다.",
       "traverse": "이 노드와 그 아래 모든 것에 `fn`을 호출한다.",
       "traverseVisible": "여기서부터 아래로, 보이는 각 노드에 `fn`을 호출한다.",
       "getObjectByName": "여기서부터 아래로, 이 이름을 가진 첫 번째 노드.",
-      "updateMatrixWorld": "이 노드와 그 후손들의 월드 행렬을 합성한다. 부모는 있는 그대로 사용된다.",
+      "updateMatrix": "포즈로부터 로컬 행렬을 조합합니다.",
+      "applyMatrix4": "노드의 포즈 위에 `m`을 적용한 뒤, 곱에서 포즈를 다시 읽습니다.",
       "lookAt": "노드를 월드 상의 어떤 점으로 향하게 한다(`lookAtNode`): 그것에게는 `+z`, 관찰자에게는 `-z`.",
       "rotateOnAxis": "노드를 `axis` 중심으로 `angle` 라디안 회전시킨다.",
       "rotateX": "노드를 자기 자신의 x축 중심으로 회전시킨다.",
       "rotateY": "노드를 자기 자신의 y축 중심으로 회전시킨다.",
       "rotateZ": "노드를 자기 자신의 z축 중심으로 회전시킨다.",
       "translateOnAxis": "노드를 자기 자신의 `axis`를 따라 이동시킨다.",
+      "getWorldDirection": "노드가 월드 안에서 어느 쪽을 향하는가.",
+      "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다."
+    }
+  },
+  "TransformNode": {
+    "summary": "레퍼런스의 행렬로 읽는 장면 노드로, 엔진의 변환 트리에 보관된다.",
+    "members": {
+      "matrix": "로컬 행렬. 이 노드의 변환 트리 내 슬롯의 뷰.",
+      "matrixWorld": "마지막으로 합성된(`updateMatrixWorld`) 월드 행렬. 트리의 뷰.",
+      "matrixAutoUpdate": "`matrix`가 곧 자세이고 아무것도 그것을 다시 합성하지 않을 때 false.",
+      "matrixWorldNeedsUpdate": "로컬 행렬이 바뀌었는데 월드 행렬이 따라가지 않았을 때 설정됩니다.",
+      "updateMatrixWorld": "이 노드와 그 후손들의 월드 행렬을 합성한다. 부모는 있는 그대로 사용된다.",
       "getWorldPosition": "노드가 월드 안 어디에 서 있는가.",
       "getWorldQuaternion": "노드가 월드 안에서 어떻게 회전해 있는가.",
-      "getWorldDirection": "노드가 월드 안에서 어느 쪽을 향하는가.",
       "localToWorld": "노드 프레임의 한 점을, 월드에서.",
-      "worldToLocal": "월드의 한 점을, 노드 프레임에서.",
-      "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다."
+      "worldToLocal": "월드의 한 점을, 노드 프레임에서."
     }
   },
   "OcclusionFrameMetrics": {
@@ -2750,8 +2761,8 @@
     "members": {
       "isScene": "항상 `true`: 다른 어떤 오브젝트와도 씬 루트를 구분한다.",
       "environment": "광택 있는 표면이 반사하는 주변 환경의 그림; 없으면 `null`.",
-      "fog": "`near`와 `far` 사이에서 오브젝트를 `color`로 서서히 사라지게 하는 안개; 없으면 `null`.",
       "background": "모든 객체 뒤의 이미지를 채우는 것: 색 또는 기본값인 `null`. 변경은 세션을 유지한 채 다음 프레임에 표시됩니다: 여기서 설정한 새 색, 또는 메서드(`set`, `setRGB`, `setHex`, `setHSL`...)로 바꾼 현재 색. `.r`, `.g`, `.b`에 직접 쓰는 것은 감지되지 않습니다: 그 뒤에 `background`를 다시 설정하세요. 이미지나 `getHex`가 없는 값은 거부됩니다(`UNSUPPORTED_SCENE_UPDATE`): 그것을 그리는 경로가 없습니다.",
+      "fog": "모든 표면 위의 안개로, 불투명이든 투명이든 두 렌더러 모두에서 적용됩니다; 기본값 `null` 은 안개 없음이며 비용도 없습니다. `{ color, near, far }` 는 물체를 `near` 에서 `far` 까지 `color` 로 녹여 들입니다(거리는 카메라에서); `{ color, density }` 는 거리 단위마다 `density` 만큼 짙어집니다; `heightFalloff`(와 기본값 0 인 `baseHeight`)를 더하면 땅에 깔리며 `baseHeight` 위에서 옅어집니다 — 위로 `1 / heightFalloff` 단위마다 e 로 나뉩니다. 변경은 다음 프레임에 보입니다: 여기서 새로 설정한 안개, 또는 그 메서드로 쓴 색. `near`, `far`, `density`... 에 직접 쓰는 것은 감지되지 않습니다: 그 뒤 `fog` 를 다시 설정하세요. 범위를 벗어난 안개 — `far` 가 `near` 보다 멀지 않음, 음수 밀도 — 는 거부됩니다(`INVALID_SCENE_ENVIRONMENT`).",
       "load": "컴파일된 모델(그 매니페스트 URL)을 로드하여 이 씬에 추가한다.",
       "toJSON": "버전이 붙은 단순한 JSON으로 된 장면: 물체, 모양은 만든 호출로, 재질, 조명, 불러온 모델은 주소로 저장합니다. `camera`를 주면 그 자세도 들어갑니다.",
       "fromJSON": "장면의 내용을 `toJSON`으로 저장한 장면으로 바꾸고, `helper` 표시는 남깁니다. 모델을 다 불러오면 완료됩니다. 다른 형식이나 버전은 거부됩니다(`UNSUPPORTED_SCENE_FORMAT`). 읽는 도중에 한 호출은 순서대로 하나씩 실행되고, 각각 앞의 호출이 남긴 것 위에서 동작합니다: 저장된 두 장면이 섞이는 일은 없습니다."
@@ -2762,8 +2773,21 @@
     "members": {
       "exposure": "커브를 적용하기 전에 선형 복사휘도에 곱해지는 배율.",
       "toneMapping": "디스플레이 커브; 없으면 `DEFAULT_TONE_MAPPING`.",
-      "irradiance": "모든 방향에서 도달하는 조도. 27개의 숫자로: 아홉 개의 계수, 각각 RGB 세 쌍, 상수, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`라는 밴드 순서로. 없거나 전부 0이면, 선언된 조명 외에는 아무것도 표면을 비추지 않는다."
+      "irradiance": "모든 방향에서 도달하는 조도. 27개의 숫자로: 아홉 개의 계수, 각각 RGB 세 쌍, 상수, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`라는 밴드 순서로. 없거나 전부 0이면, 선언된 조명 외에는 아무것도 표면을 비추지 않는다.",
+      "fog": "모든 표면 위의 거리 안개 또는 높이 안개(`SceneFog`); 없으면 안개 없음."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "거리와 함께 짙어지는 안개: 장면 단위당 `density`; `heightFalloff` 가 있으면 `baseHeight` 위에서 옅어지며, 위로 `1 / heightFalloff` 단위마다 e 로 나뉩니다.",
+    "members": {
+      "color": "안개가 물체를 녹여 들이는 복사휘도, 선형 RGB.",
+      "density": "`baseHeight` 에서의 장면 단위당 소광; ≥ 0.",
+      "heightFalloff": "높이에 따라 밀도가 얼마나 빨리 줄어드는지, 장면 단위당; 기본값 0 은 모든 높이에서 균일하게 유지합니다.",
+      "baseHeight": "밀도가 `density` 인 높이; 기본값 0."
+    }
+  },
+  "SceneFog": {
+    "summary": "조명이 읽는 형태의 거리 안개 또는 높이 안개."
   },
   "SceneLight": {
     "summary": "씬 조명, 버전 2.",
@@ -2795,6 +2819,7 @@
       "ids": "각 슬롯의 조명 이름.",
       "count": "조명 수.",
       "epoch": "조명 집합이 바뀔 때 증가한다.",
+      "transportEpoch": "에포크와 함께 증가하지만, 안개만 바뀐 경우는 제외합니다: 안개는 빛 전달이 아니라 시선 광선의 항이므로, 전달된 빛을 캐시하는 것(바운스 프로브)은 그것을 유지합니다.",
       "environment": "씬의 환경.",
       "lightingView": "호스트가 요청한, 있는 그대로의 뷰: 아무것도 요청하지 않은 동안은 `auto`.",
       "unlit": "이미지가 빛 없이 원본 알베도로 나와야 할 때 true. 이것은 조명이 하나도 선언되지 않은 한 기본 동작이다: 광원이 없는 씬은 비출 것이 없고, 새까만 이미지는 어떤 지오메트리 벤치에도 도움이 되지 않는다. 조명이 하나라도 존재하면 실제 라이팅이 이어받는다 — 호스트가 명시적으로 진단 뷰를 요청한 경우는 예외.",
@@ -2812,6 +2837,14 @@
   "SceneLightingView": {
     "summary": "호스트가 보고 싶어 하는 것.",
     "description": "`lit`는 실제 라이팅이며 그것뿐이다; `unlit`은 원본 알베도 진단 뷰다 — 재질 색상을 그대로, 빛도 앰비언트도 발광도 없이 — 픽셀 단위로 정확히 이미지를 비교하는 지오메트리 벤치를 위한 것이다. 기본값인 `auto`는 조명이 하나도 선언되지 않은 한 `unlit`을, 하나라도 있으면 `lit`을 낸다. `bounce`는 세 번째 진단 뷰다: 간접 조도만을, 노출값으로 곱하고 ACES나 sRGB 없이 선형 값으로 출력한다. 이것은 하니스가 컴파일러 오라클과 비교하는 것이며, 보기 위한 이미지가 아니고, 미리 준비된 바운스가 없으면 검게 나온다."
+  },
+  "SceneLinearFog": {
+    "summary": "`near` 에서 시작해 `far` 부터 모든 것을 가리는 안개, 거리는 눈에서 잽니다.",
+    "members": {
+      "color": "안개가 물체를 녹여 들이는 복사휘도, 선형 RGB.",
+      "near": "안개가 시작되는, 눈으로부터의 거리.",
+      "far": "안개만 보이게 되는, 눈으로부터의 거리."
+    }
   },
   "SceneLink": {
     "summary": "어떤 노드가 자신이 매달려 있는 세계에 보고하는 것: 자세가 움직였다, 트리가 바뀌었다, 내용이 바뀌었다.",
@@ -2834,8 +2867,8 @@
       "visible": "그려지는지 여부.",
       "parent": "씬에서의 부모, 분리되어 있는 동안은 null.",
       "children": "삽입 순서대로 붙어 있는 자식들. 반환된 목록은 변경할 수 없다.",
-      "localMatrix": "계약상 읽기 전용; 변환을 더티로 표시하려면 setLocalMatrix를 사용할 것.",
-      "worldMatrix": "현재의 월드 행렬; 자세를 바꾼 뒤에는 updateWorldMatrix를 호출할 것.",
+      "localMatrix": "계약상 읽기 전용이며 노드가 살아 있는 동안만 유효; setLocalMatrix가 변환을 더티로 표시한다.",
+      "worldMatrix": "현재의 월드 행렬이며 노드가 살아 있는 동안만 유효; 자세를 바꾼 뒤에는 updateWorldMatrix를 호출할 것.",
       "add": "자식을 추가한다.",
       "remove": "자식을 제거한다.",
       "clear": "모든 자식을 제거한다.",
@@ -2905,7 +2938,6 @@
     "summary": "한 씬의 모든 노드가 공유하는 것: 그 변환 트리와 그 인덱스들.",
     "members": {
       "tree": "변환 트리.",
-      "nodes": "슬롯별 노드들.",
       "ids": "이름별 노드들.",
       "nextId": "다음으로 비어 있는 이름 번호.",
       "root": "씬 루트."
@@ -2941,6 +2973,8 @@
       "shadowWaitMs": "그것들이 얼마나 기다렸는가.",
       "gpuLightListsMs": "조명 목록의 GPU 시간.",
       "gpuShadowsMs": "그림자의 GPU 시간.",
+      "gpuShadowCullMs": "프레임이 그리는 그림자 페이지의 투사체를 고르는 GPU 시간: 라이트 컷, 페이지별 컬링, 그리고 움직이는 투사체의 가림 테스트와 그것이 읽는 피라미드.",
+      "gpuShadowRasterMs": "그 투사체를 페이지에 그리는 GPU 시간: 정적 레이어, 그다음 풀.",
       "gpuLightingMs": "라이팅의 GPU 시간.",
       "shadowLightCuts": "조명에서 실행한 클러스터 컷: 그린 조명 뷰마다 하나, 정지 프레임에서는 0.",
       "shadowPagesRequested": "이미지가 읽은 가상 섀도 페이지, 최신 요청 보고서가 지목한 대로: 카메라의 수신면이 표시한 것.",
@@ -2960,7 +2994,7 @@
       "representationChanged": "다른 정밀도의 같은 월드: 그 박스는 카메라가 멈출 때까지 기다립니다.",
       "resting": "마지막 계획에서 카메라가 정지해 있었음: 그 뷰가 이전 계획의 뷰와 같았습니다.",
       "deferredChanges": "표현 변경이 카메라가 멈추기를 기다리는 동안 참.",
-      "releaseDeferred": "프레임이 그림자를 계획하지 않습니다: 보류된 합집합이 즉시 목록에 들어갑니다.",
+      "releaseDeferred": "프레임이 그림자를 계획하지 않습니다: 보류된 박스들이 즉시 목록에 들어갑니다.",
       "observeCost": "프레임 Shadows 패스의 타이머, 그린 페이지에 나눠 배분.",
       "setBudgetMs": "호스트가 게시한 예산, 프레임당 GPU 밀리초.",
       "setPageInvalidation": "페이지별 무효화를 끕니다: 움직이는 객체가 닿은 조명의 모든 페이지를 낡게 만듭니다. 기본값은 켜짐.",
@@ -3011,6 +3045,10 @@
   },
   "Side": {
     "summary": "재질이 어느 면을 그리는가: `'front'`, `'back'`, 또는 `'double'`."
+  },
+  "SixDofAxis": {
+    "summary": "6자유도 관절의 축: `x`, `y`, `z`를 따라 미끄러지고 그 둘레로 돕니다.",
+    "description": "`x`는 관절의 `axis`를 따르고, `y`는 그에 수직을 유지하면서 월드의 위쪽에 최대한 가깝습니다."
   },
   "SlimClusterManifest": {
     "summary": "긴 목록들이 옆에 있는 이진 파일에 존재하는 매니페스트.",
@@ -3072,7 +3110,8 @@
       "version": "포맷 버전.",
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
-      "pages": "번들 수."
+      "pages": "번들 수.",
+      "maxDependencies": "번들의 최대 의존 수: 컴파일러가 공개하는 상한."
     }
   },
   "SlimStructure": {
@@ -3165,7 +3204,8 @@
       "url": "그것이 읽히는 위치.",
       "sha256": "그 바이트의 지문.",
       "bytes": "그 크기.",
-      "count": "그것이 담고 있는 클러스터 수."
+      "count": "그것이 담고 있는 클러스터 수.",
+      "dependencies": "그 클러스터의 부모를 담은 번들, 항상 올라와 있는 루트까지, 오름차순: 그 각각의 뒤에 설치된다."
     }
   },
   "StreamCatalogue": {
@@ -3175,7 +3215,8 @@
       "version": "포맷 버전.",
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
-      "pages": "모든 번들."
+      "pages": "모든 번들.",
+      "maxDependencies": "번들의 최대 의존 수, 컴파일러가 공개한 그대로."
     }
   },
   "StreamPage": {
@@ -3211,7 +3252,7 @@
       "baseMetal": "RGB가 기본 색상, A가 금속도.",
       "normalRough": "XYZ가 월드 법선, A가 거칠기.",
       "emissiveAo": "RGB가 발광, A가 환경광 차폐.",
-      "flags": "0은 배경, 1은 무광, 2는 읽기, 3은 디스플레이 공간 진단.",
+      "flags": "0 배경, 1 조명 없음(안개 적용), 2 읽음, 3 그대로 표시: 진단, 법선 또는 깊이 뷰.",
       "views": "그 GPU 텍스처 뷰들.",
       "dispose": "그것을 해제한다."
     }
@@ -3436,7 +3477,8 @@
       "textureLevelReads": "출처들. `textureLevelReads`: 캐시에서 읽히고 있는 베이크된 레벨. `textureLevelsDecoded`: 시작 이후 디코딩된 베이크된 레벨. `textureLevelCacheBytes`: 고정된 예산 아래, 추가 타일을 잘라내기 위해 보관되는 디코딩된 레벨의 호스트 바이트 수. `textureScratchBuilds`: 베이크된 체인이 없는 텍스처를 위해 매번 원본 전체로부터 만들어지는 작업용 텍스처 수.",
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
-      "textureScratchBuilds": "만들어진 작업용 텍스처 수."
+      "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다."
     }
   },
   "TextureLayout": {
@@ -3520,7 +3562,7 @@
   },
   "TransformTree": {
     "summary": "데이터 지향적인 엔진 변환 계층 구조: 노드는 평평한 배열에 대한 인덱스다 — 부모, 플래그, 위치, 쿼터니언 `(x, y, z, w)`, 스케일, 로컬 행렬, 그리고 열 우선 월드 행렬.",
-    "description": "`localViews[i]`와 `worldViews[i]`는 `local`과 `world`에 대한 16개 숫자 뷰로, 성장할 때만 만들어지고 업데이트 중에는 결코 만들어지지 않는다: GPU는 버퍼 전체를 읽고, 커널 공식은 노드 하나의 뷰를 읽는다. 쓰기는 세터를 거치며, 그것들은 무엇을 바꿨는지 표시한다. 성장할 때마다 모든 배열이 교체된다: 호출자는 추가 이후 `tree.world`나 `tree.worldViews`를 다시 읽는다.",
+    "description": "`localViews[i]`와 `worldViews[i]`는 `local`과 `world`에 대한 16개 숫자 뷰로, 성장할 때만 만들어지고 업데이트 중에는 결코 만들어지지 않는다: GPU는 버퍼 전체를 읽고, 커널 공식은 노드 하나의 뷰를 읽는다. 쓰기는 세터를 거치며, 그것들은 무엇을 바꿨는지 표시한다. 성장할 때마다 모든 배열이 교체된다: 호출자는 추가 이후 `tree.world`나 `tree.worldViews`를 다시 읽는다. 각 노드는 자식 목록을 가진다: 하위 트리 순회는 하위 트리 밖을 절대 읽지 않는다 (`links.ts`).",
     "members": {
       "capacity": "성장하기 전에 담을 수 있는 노드 수.",
       "end": "처리되는 인덱스: 살아있는 모든 노드는 이 경계 아래에 있다.",
@@ -3537,14 +3579,12 @@
       "seen": "각 노드가 마지막으로 본 부모의 버전.",
       "free": "해제된 인덱스, `end`를 확장하기 전에 재사용된다.",
       "freeCount": "대기 중인 해제된 인덱스 수.",
-      "order": "업데이트 순서, 부모가 자식보다 먼저, 그리고 그 순서 안에서 각 노드의 순위.",
-      "orderAt": "`order` 안에서 각 노드의 순위.",
-      "orderCount": "`order` 안의 노드 수.",
-      "orderDirty": "`order`를 재구축해야 하는지 여부.",
-      "depth": "순회 작업용 버퍼: 깊이, 조상 연쇄, 버킷, 스탬프.",
+      "firstChild": "각 노드의 자식을 연결 리스트로, 없으면 −1: 하위 트리 순회 비용은 하위 트리만큼이다.",
+      "lastChild": "마지막 자식, 붙이기가 연결되는 곳.",
+      "nextSibling": "같은 부모의 다음 자식.",
+      "previousSibling": "같은 부모의 이전 자식.",
       "chain": "조상 연쇄 버퍼.",
-      "buckets": "버킷 버퍼.",
-      "stamp": "스탬프 버퍼.",
+      "stamp": "스탬프 버퍼: 순회가 부모에서 자식으로 전달하는 것.",
       "call": "현재 순회 번호."
     }
   },
@@ -3796,8 +3836,8 @@
       "gravity": "캐릭터 전용: 상승 중 아래 방향 가속도, m/s²; 기본값 9.80665.",
       "fallGravity": "캐릭터 전용: 낙하 중 아래 방향 가속도, m/s²; 기본값 1.6g. 이로써 점프가 흐물흐물해지지 않는다.",
       "airControl": "캐릭터 전용: 공중에서 키가 얼마나 빠르게 조종할 수 있는지, 지상 출발 대비 비율; 기본값 0.05, 0이면 탄도적.",
-      "responseTime": "캐릭터 전용: 지상에서 목표 속도의 95%에 도달하기까지의 초; 기본값 0.12.",
-      "stopTime": "캐릭터 전용: 키를 떼고 나서 지상에서 속도의 95%를 잃기까지의 초; 기본값 0.08.",
+      "responseTime": "캐릭터 전용: 지상에서 원하는 속도의 95%에 도달하는 데 다리가 걸리는 초; 기본값 0.12. 바닥의 마찰이 출발을 먼저 제한한다: 밑창은 최대 `μ g`로 밀며, `μ`는 바닥의 `material.physics`에 대한 고무 밑창의 접지력(물리 없이는 돌)이므로, 조깅 속도에 돌에서는 0.45초, 얼음에서는 2.2초에 도달한다.",
+      "stopTime": "캐릭터 전용: 키를 떼고 나서 지상에서 속도의 95%를 잃는 데 다리가 걸리는 초; 기본값 0.12. 바닥의 마찰이 정지를 먼저 제한한다: 조깅은 `v² / (2 μ g)` 미끄러지며, 돌에서 0.8 m, 얼음에서 3.8 m; 더 긴 시간은 더 부드럽게 제동한다.",
       "capsuleRadius": "캐릭터 전용: 몸체의 반지름, 미터; 기본값은 어깨너비의 절반(0.23m).",
       "capsuleHeight": "캐릭터 전용: 몸체의 높이, 미터; 기본값 1.75.",
       "eyeHeight": "캐릭터 전용: 발로부터 카메라까지의 높이, 미터; 기본값 1.64.",
@@ -3846,9 +3886,9 @@
       "texturePool": "텍스처 페이지용 GPU 메모리 바이트, 텍스처 풀이 없는 엔진(WebGL2)에서는 `null`; 설정하면 범위가 바뀐다(`gpu`가 그림자와 지오메트리 풀 옆에 남기는 만큼 안에서).",
       "physics": "물리의 한계(물체, 삼각형, 장식 물체, 메모리). 시작할 때 한 번 읽으며, 넘으면 `PHYSICS_BUDGET`이 발생합니다.",
       "raycastTrees": "`raycast`가 삼각형 트리를 위해 유지하는 CPU 메모리 바이트 수로, 페이지의 모든 월드가 공유합니다. 이를 넘으면 가장 오래 사용되지 않은 트리가 버려집니다. 설정하면 한도가 바뀝니다.",
-      "gpu": "월드가 차지할 수 있는 GPU 메모리 바이트, 모든 풀 합계; 설정하면 분할 규칙(`split`)으로 모든 풀을 다시 정한다. 기기에서 읽지 않는다.",
-      "cpu": "월드가 차지할 수 있는 CPU 메모리 바이트: 디코딩된 페이지, 매니페스트 표, 전송 대기열을 합친 것. 변경은 즉시 적용된다: 들어맞을 때까지 페이지가 마지막 사용 순으로 나간다.",
-      "split": "두 합계를 나누는 방식: 그림자 풀을 최대 크기로, 나머지를 지오메트리 풀과 텍스처 풀에 절반씩(각 상한까지); 디코딩된 페이지 캐시는 현재 세션의 매니페스트 표와 전송 대기열을 뺀 CPU 합계를 가진다. 풀을 따로 설정하기 전의 규칙 값."
+      "gpu": "월드가 차지할 수 있는 GPU 메모리 바이트, 모든 풀 합계; 설정하면 분할 규칙(`split`)으로 모든 풀을 다시 정한다. 그림자 풀보다 작은 합계는 거부된다(`GPU_BUDGET_UNDER_SHADOW_POOL`). 기기에서 읽지 않는다.",
+      "cpu": "월드가 차지할 수 있는 CPU 메모리 바이트: 먼저 그림자 페이지 테이블의 호스트 미러, 그다음 디코딩된 페이지, 매니페스트 표, 전송 대기열을 합친 것. 변경은 즉시 적용된다: 들어맞을 때까지 페이지가 마지막 사용 순으로 나간다. 미러를 넘지 않는 합계는 거부된다(`CPU_BUDGET_UNDER_SHADOW_MIRROR`). 기기에서 읽지 않는다.",
+      "split": "두 합계를 나누는 방식: 그림자 풀을 최대 크기로, 나머지를 지오메트리 풀과 텍스처 풀에 절반씩(각 상한까지); 그림자 테이블의 호스트 미러, 그다음 디코딩된 페이지 캐시가 CPU 합계의 나머지에서 현재 세션의 매니페스트 표와 전송 대기열을 뺀 만큼을 가진다. 풀을 따로 설정하기 전의 규칙 값."
     }
   },
   "world.diagnostic": {
@@ -3891,7 +3931,10 @@
     "summary": "세션 프레임들의 단계별 프로파일."
   },
   "world.awaitPages": {
-    "summary": "현재 뷰가 읽는 페이지들이 상주하게 되면 이행된다(`awaitViewPages`)."
+    "summary": "현재 뷰가 읽는 페이지들이 상주하게 되면 이행된다(`awaitViewPages`).",
+    "parameters": {
+      "options": "`onProgress`는 페이지가 도착할 때마다 `pages`(`total` 중 `completed`)를 듣습니다."
+    }
   },
   "world.dispose": {
     "summary": "월드를 멈추고 그것이 가져간 모든 것(GPU 메모리, 루프, 컨트롤)을 돌려준다."
@@ -3933,8 +3976,8 @@
       "transparentDrawCalls": "투과 드로우 콜 수.",
       "transparentSubmittedTriangles": "전송된 투과 삼각형 수.",
       "coverageReady": "완전한 초기 GPU 대체 수단을 사용할 수 있는지 여부; 이 보장이 없는 백엔드에서는 null.",
-      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산 안에서 고정된 대체 수단과 공존할 수 없다.",
-      "budgetPixelError": "GPU 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위: 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. 페이지 예산이 없는 엔진에서는 null.",
+      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산에 들어가는 것보다 많은 페이지를 요구한다: 나머지는 더 거칠게 그려진다.",
+      "budgetPixelError": "WebGL2 전용: 그 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위 — 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. WebGPU에는 없으며, 그곳에서는 상주 여부만이 이미지를 거칠게 한다. 페이지 예산이 없는 엔진에서는 null.",
       "frameHeld": "그 프레임이 유지되었을 때 true: 씬도, 뷰도, 리소스도 움직이지 않았고, 대기 중인 비동기 작업도 없었으며, 어떤 CPU 단계도 실행되지 않았다. 표시되는 픽셀은 원본 프레임의 것과 비트 단위로 정확히 같다. 유지된 프레임이 실제로 한 일은 있는 그대로 공개되며, 마지막 완전한 렌더링에서 복사되는 일은 결코 없다: `drawCalls`, `triangles`, `submittedTriangles`, `totalSubmittedTriangles`는 현재 값만 세고, 단계별 CPU/GPU 시간은 그 단계가 실행되지 않았으면 0, 아무것도 측정하지 않았으면 `null`이다. 엔진의 이미지가 대조 어댑터가 그리는 씬일 경우, 이 프레임에서 그 어댑터가 제출한 것을 센다 — 유지된 프레임에서는 아무것도 없다. 유지된 프레임이 실제로 **보여주는** 것은 그것이 다시 표시하는 컷에 의해 계속 설명된다: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel`, `residentPages`는 원본 프레임의 값이다, 같은 컷이기 때문이다. 프레임을 유지하지 않는 엔진에는 이 항목이 없다.",
       "streamingError": "끈질기게 남는 로딩 오류; 실패한 URL은 세 번 시도한 뒤 익스플로러 재로드를 필요로 한다.",
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
@@ -3962,6 +4005,8 @@
       "shadowWaitMs": "그것들이 얼마나 기다렸는가.",
       "gpuLightListsMs": "조명 목록의 GPU 시간.",
       "gpuShadowsMs": "그림자의 GPU 시간.",
+      "gpuShadowCullMs": "프레임이 그리는 그림자 페이지의 투사체를 고르는 GPU 시간: 라이트 컷, 페이지별 컬링, 그리고 움직이는 투사체의 가림 테스트와 그것이 읽는 피라미드.",
+      "gpuShadowRasterMs": "그 투사체를 페이지에 그리는 GPU 시간: 정적 레이어, 그다음 풀.",
       "gpuLightingMs": "라이팅의 GPU 시간.",
       "hizTestedClusters": "한 프레임에서 오클루전 테스트가 한 일: 그것에 넘겨진 클러스터, 그것이 제외한 클러스터, 그리고 레벨 0 화면 점유 영역이 16텍셀 커널을 넘어서 더 거친 밉에서 답을 구하는 클러스터. `hiz*Triangles`는 그와 같은 클러스터들의 삼각형이다. GPU 경로에서 이것들은 이를 렌더링하는 프레임보다 **더 이른** 프레임을 기술한다 — `hizCountedFrame`이 어느 것인지 알려준다 — `gpuPassMs`처럼, 인접한 두 프레임이 종종 같은 샘플을 담고 있다. 어느 것도 추정되지 않는다: 오클루전을 테스트하지 않는 엔진에서, 판정을 다시 읽을 수 없는 기기에서, 그리고 아직 어떤 프레임도 세어지지 않은 동안은 `null`.",
       "hizRejectedClusters": "숨겨진 것으로 처리된 클러스터.",
@@ -3990,6 +4035,7 @@
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
       "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
+      "textureLiveBytes": "라이브 텍스처가 유지하는 바이트: 각각 자신의 크기인 작업용 텍스처 하나. `texturePoolBytes`에서 차감됩니다.",
       "gpuAllocatedBytes": "기기상의, 모든 리소스에 걸친 현재 활성 할당 바이트 수.",
       "gpuAllocatedByLabel": "리소스 라벨별로 묶은 할당 바이트 수. 라벨이 없는 할당은 'unlabeled'로 묶인다.",
       "gpuAllocationsUnknownFormat": "인식되지 않는 포맷을 가진 텍스처 수. 기대값은 0.",
@@ -4585,7 +4631,7 @@
   },
   "createSceneLightStore": {
     "summary": "고정된 용량의 씬 조명들.",
-    "description": "버퍼는 `maxLights`개의 조명을 위해 한 번만 할당되며 결코 재할당되지 않는다; 조명을 추가·설정·제거하는 것은 그 열여섯 개의 부동소수점을 쓰고 리비전을 증가시킬 뿐이다. 그림자 스케줄러가 어떤 조명이 바뀌었는지 알기 위해 읽는 것이 바로 조명별 `revision`이다: 프레임마다 구조가 재구축되는 일은 없다."
+    "description": "버퍼는 `maxLights`개의 조명을 위해 한 번만 할당되며 결코 재할당되지 않는다; 조명을 추가·설정·제거하는 것은 그 열여섯 개의 부동소수점을 쓰고 리비전을 증가시킬 뿐이다. 조명별 `revision`은 어떤 조명이 바뀌었음을 읽는 쪽에 알려 준다: 프레임마다 구조가 재구축되는 일은 없다. 그림자 스케줄러는 조명의 형태를 직접 읽으므로, 강도나 색상의 변경은 어떤 그림자 페이지도 낡게 만들지 않는다."
   },
   "createSceneRoot": {
     "summary": "비어 있는, 버전이 관리되는 씬 계층 구조를 생성한다.",
@@ -5539,7 +5585,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5577,7 +5623,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5615,7 +5661,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5653,7 +5699,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5691,7 +5737,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5729,7 +5775,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5767,7 +5813,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5805,7 +5851,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5843,7 +5889,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5881,7 +5927,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5919,7 +5965,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5957,7 +6003,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5995,7 +6041,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -6033,7 +6079,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -6427,7 +6473,7 @@
   },
   "texture": {
     "summary": "`texture` 계열: 이미지와 그것이 샘플링되는 방식.",
-    "description": "색상 이미지는 sRGB, 데이터 이미지는 선형; 픽셀을 쓴 뒤의 `needsUpdate`는 샘플러가 그것들을 다시 읽게 한다."
+    "description": "색상 이미지는 sRGB, 데이터 이미지는 선형입니다. 픽셀을 쓴 뒤의 `needsUpdate`는 샘플러가 그것들을 다시 읽게 하며, GPU에 이미 있는 텍스처에 제자리에서 복사됩니다. 크기가 바뀔 때만 다시 만듭니다. 동영상은 라이브이며, 프레임이 저절로 도착합니다."
   },
   "texture.image": {
     "summary": "이미 페이지 안에 있는 그림으로 만든 색상 텍스처: 이미지, 비트맵, 또는 비디오 프레임.",
@@ -6446,12 +6492,14 @@
   },
   "texture.canvas": {
     "summary": "캔버스가 담고 있는 것을 보여주는 텍스처.",
+    "description": "캔버스에 다시 그린 뒤 `needsUpdate`를 설정하세요. 새 픽셀은 GPU에 이미 있는 텍스처에 복사되며, 아무것도 다시 만들지 않습니다.",
     "parameters": {
       "c": "보여줄 캔버스."
     }
   },
   "texture.video": {
-    "summary": "재생 중인 비디오를 보여주는 텍스처.",
+    "summary": "재생 중인 동영상, 또는 동영상으로 재생한 카메라 스트림을 보여 주는 텍스처.",
+    "description": "새 프레임마다 GPU에 이미 있는 텍스처에 저절로 복사됩니다. 일시 정지된 동영상은 비용이 들지 않습니다.",
     "parameters": {
       "v": "보여줄 비디오."
     }
@@ -6630,7 +6678,7 @@
   },
   "CharacterCameraControls": {
     "summary": "그 눈을 통해 본 **캐릭터**: 질량을 가지고, 걷고, 달리고, 뛰고, 떨어지며, 똑바로 선 캡슐로서 세계의 삼각형과 충돌하는 몸체.",
-    "description": "포인터는 1인칭 시점에서와 같은 방식으로 머리를 돌린다(`look.ts`). 키는 `KeyboardEvent.code` 기준이므로 어떤 키보드 배열에서도 같은 키가 쓰인다: W/S 또는 위아래 화살표로 앞뒤로 걷고, A/D 또는 좌우 화살표로 옆으로 움직이며, Shift로 전력질주, 스페이스로 점프한다. 몸체는 즉시 출발하거나 멈추지 않는다: `responseTime` 동안 속도를 쌓고, `stopTime` 동안 제동을 걸며, 공중에서는 운동량을 유지하고, `gravity` 아래에서 상승하고 `fallGravity` 아래에서 낙하하며, `stepHeight`까지의 턱을 오르고, 벽을 따라 미끄러지며, `maxSlope`까지의 경사면 위에 설 수 있다(`sdk-core/src/collision/characterBody.ts`). 카메라는 눈이며, 발에서 `eyeHeight`만큼 위에 있고, 걸음에 맞춰 `headBob`만큼 위아래로 흔들리며, 착지 시 `landingDip`만큼 가라앉는다(`sdk-core/src/collision/characterEye.ts`); 이 둘 모두 몸체의 각 걸음 뒤에 눈 위치에 얹힐 뿐, 몸체를 움직이는 일은 결코 없다. 카메라를 스스로 움직이는 호스트는 몸체를 그곳으로, 정지한 상태로 순간이동시켜야 한다. 정지한 캐릭터 — 땅에 닿아 있고, 속도도, 키 입력도, 남은 가라앉음도 없는 — 는 아무것도 내보내지 않으므로 장면은 정지 상태를 유지한다.",
+    "description": "포인터는 1인칭 시점에서와 같은 방식으로 머리를 돌린다(`look.ts`). 키는 `KeyboardEvent.code` 기준이므로 어떤 키보드 배열에서도 같은 키가 쓰인다: W/S 또는 위아래 화살표로 앞뒤로 걷고, A/D 또는 좌우 화살표로 옆으로 움직이며, Shift로 전력질주, 스페이스로 점프한다. 몸체는 즉시 출발하거나 멈추지 않는다: `responseTime` 동안 속도를 쌓고, `stopTime` 동안 제동을 걸며(바닥의 마찰이 밑창에 허락하는 것보다 빠르지는 않아, 돌 위에서는 조금, 얼음 위에서는 멀리 미끄러지며 멈춘다), 공중에서는 운동량을 유지하고, `gravity` 아래에서 상승하고 `fallGravity` 아래에서 낙하하며, `stepHeight`까지의 턱을 오르고, 벽을 따라 미끄러지며, `maxSlope`까지의 경사면 위에 설 수 있다(`sdk-core/src/collision/characterBody.ts`). 카메라는 눈이며, 발에서 `eyeHeight`만큼 위에 있고, 걸음에 맞춰 `headBob`만큼 위아래로 흔들리며, 착지 시 `landingDip`만큼 가라앉는다(`sdk-core/src/collision/characterEye.ts`); 이 둘 모두 몸체의 각 걸음 뒤에 눈 위치에 얹힐 뿐, 몸체를 움직이는 일은 결코 없다. 카메라를 스스로 움직이는 호스트는 몸체를 그곳으로, 정지한 상태로 순간이동시켜야 한다. 정지한 캐릭터 — 땅에 닿아 있고, 속도도, 키 입력도, 남은 가라앉음도 없는 — 는 아무것도 내보내지 않으므로 장면은 정지 상태를 유지한다.",
     "members": {
       "velocity": "몸체의 속도, 초당 미터. 실시간 값: `[x, y, z]`, y가 위.",
       "onGround": "발이 바닥 위에 있는지 여부.",
@@ -6771,7 +6819,7 @@
       "format": "항상 `'trillion3d-scene'`.",
       "formatVersion": "이 구조의 버전. 다른 버전은 거부됩니다.",
       "background": "배경 색, 또는 `null`.",
-      "fog": "안개, 또는 `null`.",
+      "fog": "안개, 그 색은 선형 성분으로, 또는 `null`.",
       "camera": "장면과 함께 저장된 카메라, 또는 `null`.",
       "geometries": "모든 모양을 한 번씩. 몇 개의 메시가 쓰든 같습니다.",
       "materials": "모든 재질을 한 번씩. 몇 개의 메시가 쓰든 같습니다.",
@@ -7148,41 +7196,10 @@
   },
   "GraphNode": {
     "members": {
-      "name": "그것에 대한 호스트의 이름.",
-      "parent": "그것의 부모.",
-      "position": "그것이 서 있는 위치.",
-      "rotation": "어떻게 회전해 있는가, 각도로.",
-      "quaternion": "노드 회전의 두 가지 얼굴 — 엔진이 비교하는 쿼터니언과, 거기로 복사되는 오일러 각 — 각각이 자신의 쓰기를 스스로 **알린다**: 호스트가 이미 체인으로 연결해 둔 콜백이며, 훅은 그것을 대체하는 대신 확장한다(`hooks.ts`). 밑줄이 붙은 이 두 멤버는 호스트 라이브러리의 비공개 구현이므로, 그것이 필요한 이곳에 적혀 있으며 자신만의 이름은 부여받지 않는다. 이는 그 비공개 구현을 SDK의 공개 계약 목록에서는 제외하지만, `HostGraphNode`가 그것을 담고 있으므로 공개된 표면에서 제외하지는 **않는다**. 스캔이 이미 하고 있듯이 프레임마다 자세를 비교하는 것이야말로 이 결합을 없앨 방법이겠지만, 그것은 이번 작업의 몫이 아니다.",
-      "scale": "어떻게 늘어나 있는가.",
-      "matrix": "그것의 로컬 행렬.",
-      "matrixWorld": "그것의 월드 행렬.",
-      "matrixAutoUpdate": "호스트가 `matrix` 자체를 설정했을 때 false다: 행렬 자체가 자세이며 아무것도 그것을 다시 합성하지 않는다.",
-      "visible": "그려지는지 여부.",
-      "userData": "엔진이 자신만의 사본을 표시해 두는 곳. 호스트는 이것을 한 번도 본 적이 없고 쓸 수도 없다.",
-      "traverse": "그 노드 아래의 서브트리. 노드 자신이 먼저, 호스트 자신의 순서로.",
-      "updateMatrixWorld": "**호스트 그래프 안에서** 서브트리의 월드 행렬을 해석한다, 호스트 자신의 리더들을 위해.",
-      "id": "세션에서 고유한 노드 번호.",
-      "kind": "노드가 무엇인지: 그래프를 읽는 모든 쪽이 타입을 좁히는 기준.",
-      "children": "이 노드가 담는 노드들, 순서대로.",
-      "up": "`lookAt`에서 어느 쪽이 위인지.",
-      "matrixWorldAutoUpdate": "아무것도 `matrixWorld`를 쓰지 않을 때 거짓.",
-      "matrixWorldNeedsUpdate": "로컬 행렬이 바뀌었는데 월드 행렬이 따라가지 않았을 때 설정됩니다.",
-      "castShadow": "그림자를 드리우는지 여부.",
-      "receiveShadow": "그림자가 드리워지는지 여부.",
-      "frustumCulled": "시야 밖에서 렌더러가 건너뛰어도 되는지 여부.",
-      "renderOrder": "반투명한 것들 사이의 그리기 순서.",
-      "add": "`nodes`를 이 노드의 자식으로 만듭니다. 각각 먼저 이전 부모에서 떼어냅니다.",
-      "remove": "이 노드에서 `nodes`를 떼어냅니다.",
-      "removeFromParent": "이 노드를 부모에서 떼어냅니다.",
-      "clear": "이 노드에서 모든 자식을 떼어냅니다.",
-      "updateMatrix": "포즈로부터 로컬 행렬을 조합합니다.",
-      "updateWorldMatrix": "이 노드의 월드 행렬을 구합니다. 요청하면 조상의 것을 먼저, 그 뒤에 하위 트리를.",
-      "applyMatrix4": "노드의 포즈 위에 `m`을 적용한 뒤, 곱에서 포즈를 다시 읽습니다.",
-      "lookAt": "노드를 월드의 한 점(점 또는 세 숫자로 지정)으로 향하게 합니다.",
-      "clone": "같은 종류, 같은 값의 노드. 달리 말하지 않으면 자식도 복사됩니다.",
-      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다."
+      "serial": "세션에서 고유한 노드 번호.",
+      "kind": "노드가 무엇인지: 그래프를 읽는 모든 쪽이 타입을 좁히는 기준."
     },
-    "summary": "그래프의 노드: 이름, 포즈, 월드 행렬, 부모와 자식."
+    "summary": "그래프의 노드: 코어의 노드로, `kind`로 구별되고 코어의 `clone`으로 복사된다."
   },
   "GraphSurface": {
     "members": {
@@ -7246,17 +7263,6 @@
     },
     "summary": "이미지와, 그것을 읽는 샘플러 상태, 그리고 좌표 변환."
   },
-  "GraphAngles": {
-    "summary": "같은 방향을 세 각도와 그 순서로 나타낸 것. 쓰기를 같은 방식으로 알립니다.",
-    "members": {
-      "x": "첫 번째 각도(라디안).",
-      "set": "세 각도와, 주어진 경우 순서를 씁니다. 한 번 알립니다.",
-      "setFromRotation": "이 순서로 된 `q`의 각도(코어의 `Euler`). `quiet`가 아니면 알립니다.",
-      "y": "두 번째 각도(라디안).",
-      "z": "세 번째 각도(라디안).",
-      "order": "세 각도가 회전하는 순서. 설정하지 않으면 `'XYZ'`."
-    }
-  },
   "GraphArray": {
     "summary": "속성이 담는 형식화 배열."
   },
@@ -7298,61 +7304,34 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "그래프의 노드가 무엇인지: 빈 노드, 루트, 그룹, 그려지는 메시(한 배치 또는 여러 배치), 눈, 또는 장면이 선언하는 조명 중 하나."
-  },
-  "GraphRotation": {
-    "summary": "쓰기가 `_onChangeCallback`을 호출하는 방향 `(x, y, z, w)`.",
-    "members": {
-      "x": "첫 번째 숫자.",
-      "set": "숫자 네 개를 씁니다. 한 번 알립니다.",
-      "copy": "다른 회전의 숫자를 가져옵니다.",
-      "fromArray": "목록에서 숫자 네 개를 읽습니다.",
-      "setFromAngles": "`angles`의 순서에 따른 회전(`localTurnQuaternion`). `quiet`가 아니면 알립니다.",
-      "setFromRotationMatrix": "열이 단위 길이인 열 우선 행렬의 왼쪽 위 3×3의 회전.",
-      "premultiply": "`q` 다음에 이 회전이 오는 것, `q · this`가 됩니다.",
-      "invert": "반대 방향 회전이 됩니다.",
-      "y": "두 번째 숫자.",
-      "z": "세 번째 숫자.",
-      "w": "네 번째 숫자."
-    }
-  },
-  "GraphVector": {
-    "summary": "포즈나 점의 세 숫자: 단순한 데이터 필드와 컨트롤러가 쓰는 연산.",
-    "members": {
-      "set": "세 숫자를 씁니다.",
-      "copy": "다른 점의 숫자를 가져옵니다.",
-      "clone": "복사본.",
-      "add": "다른 벡터를 더합니다.",
-      "sub": "다른 벡터를 뺍니다.",
-      "multiplyScalar": "세 숫자의 크기를 조정합니다.",
-      "length": "그 길이.",
-      "setLength": "방향을 유지하고 길이를 설정합니다.",
-      "distanceTo": "한 점까지의 거리.",
-      "fromArray": "목록에서 숫자 세 개를 읽습니다.",
-      "x": "왼쪽에서 오른쪽으로.",
-      "y": "아래에서 위로.",
-      "z": "뒤에서 앞으로."
-    }
+    "summary": "그래프의 노드가 무엇인지: 루트, 그려지는 메시(한 배치 또는 여러 배치), 눈, 또는 장면이 선언하는 조명 중 하나."
   },
   "Joint": {
     "summary": "두 물체, 또는 물체와 세계(`b`가 null) 사이의 관절. `joint.*`로 만들고 `world.physics.add`로 시뮬레이션에 추가합니다.",
     "description": "두 물체가 시뮬레이션되는 동안, 끊어질 때까지 유지됩니다.",
     "parameters": {
       "options": "`joint.*`가 받는 것. 점과 축은 세계 좌표이며 관절이 처음 만들어질 때 읽힙니다.",
-      "options.anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리의 끝.",
-      "options.anchorB": "`b` 쪽 거리의 끝.",
-      "options.axis": "경첩의 핀, 슬라이더의 레일, 원뿔의 가운데.",
-      "options.limits": "경첩, 슬라이더, 거리, 원뿔: 얼마나 움직이는지. 거리의 기본값은 그 길이입니다.",
-      "options.spring": "경첩, 슬라이더, 거리: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
-      "options.motor": "경첩과 슬라이더: `joint.motor`로 언제든 바꿀 수 있는 모터.",
-      "options.breakForce": "관절이 끊어지는 당김의 크기(뉴턴). 생략하면 끊어지지 않습니다."
+      "options.anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리나 도르래 줄의 끝.",
+      "options.anchorB": "`b` 쪽 거리나 도르래 줄의 끝.",
+      "options.axis": "경첩의 핀, 슬라이더의 레일, 원뿔이나 스윙-트위스트의 가운데, 6자유도 관절의 `x`, 기어나 피니언의 핀(`a`).",
+      "options.axisB": "`b` 쪽 기어의 핀, 랙의 레일(`b`).",
+      "options.limits": "경첩, 슬라이더, 거리, 원뿔, 스윙-트위스트, 도르래: 얼마나 움직이는지. 거리의 기본값은 그 길이, 도르래 줄은 0부터 그 길이까지.",
+      "options.axes": "6자유도 관절에서 움직이는 축들, 자유롭게(`'free'`) 또는 한계 안에서. 나머지는 잠깁니다.",
+      "options.spring": "경첩, 슬라이더, 거리, 6자유도: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
+      "options.motor": "경첩, 슬라이더, 스윙-트위스트(그 비틀림), 6자유도, 경로: `joint.motor`로 언제든 바꿀 수 있는 모터.",
+      "options.path": "경로의 궤도: 두 점 이상, 만들 때의 `b`(또는 월드)의 점. `a`는 `anchor`에 가장 가까운 궤도 위의 점에서 출발합니다.",
+      "options.loop": "경로의 궤도가 고리처럼 닫힙니다.",
+      "options.follow": "경로의 `a`가 수레처럼 궤도를 따라 방향을 바꿉니다. 구슬처럼 자유롭게 돌지 않습니다.",
+      "options.over": "월드에 있는 도르래의 두 바퀴: `a`의 줄은 첫 번째로, `b`의 줄은 두 번째로 올라갑니다.",
+      "options.ratio": "기어는 `a` 한 바퀴당 `b`의 회전 수(`a`의 톱니 수 ÷ `b`의 톱니 수), 반대 방향. 피니언은 랙 1미터당 라디안, 1 / 반지름. 도르래는 `a`의 줄 1미터당 `b`의 줄 미터 수.",
+      "options.breakForce": "관절이 끊어지는 당김의 크기(뉴턴. 기어나 랙은 톱니 사이의 토크 N·m). 생략하면 끊어지지 않습니다."
     },
     "members": {
       "kind": "관절의 종류.",
       "a": "첫 번째 물체.",
       "b": "두 번째 물체, 또는 세계를 뜻하는 `null`.",
       "options": "만들 때 쓴 설정.",
-      "motor": "경첩이나 슬라이더의 모터. `null`이면 자유롭게 돌거나 미끄러집니다.",
+      "motor": "경첩, 슬라이더, 스윙-트위스트, 6자유도 관절, 경로의 모터. `null`이면 자유롭게 움직입니다.",
       "broken": "끊어졌는지: `breakForce`를 넘어 당겨졌습니다. 끊어진 관절은 더 이상 아무것도 붙잡지 않습니다.",
       "on": "관절이 끊어지면 `handler`를 호출합니다."
     }
@@ -7361,31 +7340,40 @@
     "summary": "물체 사이의 관절. 각각 Jolt 자체의 제약 조건입니다."
   },
   "JointLimits": {
-    "summary": "관절이 움직일 수 있는 범위: 경첩은 라디안, 슬라이더나 거리는 미터, 원뿔은 원뿔의 반각(`max`).",
+    "summary": "관절이 움직일 수 있는 범위: 경첩이나 회전은 라디안, 슬라이더·거리·도르래 줄은 미터, 원뿔은 원뿔의 반각(`max`).",
     "members": {
-      "min": "경첩은 −π부터 0까지, 슬라이더는 0 이하.",
-      "max": "경첩은 0부터 π까지, 슬라이더는 0 이상."
+      "min": "경첩은 −π부터 0, 슬라이더는 0 이하. 스윙-트위스트의 비틀림은 −π부터.",
+      "max": "경첩은 0부터 π, 슬라이더는 0 이상. 스윙-트위스트의 비틀림은 π까지.",
+      "swing": "스윙-트위스트의 원뿔: `axis`가 얼마나 흔들리는지, π까지의 반각."
     }
   },
   "JointMotor": {
-    "summary": "경첩이나 슬라이더의 모터: 관절을 속도나 위치로 움직입니다.",
+    "summary": "관절의 모터: 관절을 어떤 속도나 위치로 움직입니다.",
     "members": {
-      "mode": "`'velocity'`: rad/s 또는 m/s. `'position'`: 관절을 만든 자리에서부터의 라디안 또는 미터.",
+      "mode": "`'velocity'`: rad/s 또는 m/s. `'position'`: 관절을 만든 자세에서의 라디안 또는 미터. 경로에서는 경로 위의 점(1.5: 두 번째와 세 번째 점의 한가운데).",
       "target": "도달할 속도나 위치.",
-      "maxForce": "경첩은 N·m, 슬라이더는 N. 생략하면 제한 없음."
+      "maxForce": "회전은 N·m, 미끄러짐은 N. 생략하면 제한 없음.",
+      "axis": "6자유도 관절에서 모터가 움직이는 축."
     }
   },
   "JointOptions": {
     "summary": "`joint.*`가 받는 것.",
     "description": "점과 축은 세계 좌표이며 관절이 처음 만들어질 때 읽힙니다.",
     "members": {
-      "anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리의 끝.",
-      "anchorB": "`b` 쪽 거리의 끝.",
-      "axis": "경첩의 핀, 슬라이더의 레일, 원뿔의 가운데.",
-      "limits": "경첩, 슬라이더, 거리, 원뿔: 얼마나 움직이는지. 거리의 기본값은 그 길이입니다.",
-      "spring": "경첩, 슬라이더, 거리: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
-      "motor": "경첩과 슬라이더: `joint.motor`로 언제든 바꿀 수 있는 모터.",
-      "breakForce": "관절이 끊어지는 당김의 크기(뉴턴). 생략하면 끊어지지 않습니다."
+      "anchor": "물체들이 이어지는 곳: 경첩의 핀, 점 관절의 공, `a` 쪽 거리나 도르래 줄의 끝.",
+      "anchorB": "`b` 쪽 거리나 도르래 줄의 끝.",
+      "axis": "경첩의 핀, 슬라이더의 레일, 원뿔이나 스윙-트위스트의 가운데, 6자유도 관절의 `x`, 기어나 피니언의 핀(`a`).",
+      "axisB": "`b` 쪽 기어의 핀, 랙의 레일(`b`).",
+      "limits": "경첩, 슬라이더, 거리, 원뿔, 스윙-트위스트, 도르래: 얼마나 움직이는지. 거리의 기본값은 그 길이, 도르래 줄은 0부터 그 길이까지.",
+      "axes": "6자유도 관절에서 움직이는 축들, 자유롭게(`'free'`) 또는 한계 안에서. 나머지는 잠깁니다.",
+      "spring": "경첩, 슬라이더, 거리, 6자유도: 한계를 넘으면 벽 대신 스프링이 끌어당깁니다. `frequency`는 Hz, `damping`은 0(없음)부터 1(임계)까지.",
+      "motor": "경첩, 슬라이더, 스윙-트위스트(그 비틀림), 6자유도, 경로: `joint.motor`로 언제든 바꿀 수 있는 모터.",
+      "path": "경로의 궤도: 두 점 이상, 만들 때의 `b`(또는 월드)의 점. `a`는 `anchor`에 가장 가까운 궤도 위의 점에서 출발합니다.",
+      "loop": "경로의 궤도가 고리처럼 닫힙니다.",
+      "follow": "경로의 `a`가 수레처럼 궤도를 따라 방향을 바꿉니다. 구슬처럼 자유롭게 돌지 않습니다.",
+      "over": "월드에 있는 도르래의 두 바퀴: `a`의 줄은 첫 번째로, `b`의 줄은 두 번째로 올라갑니다.",
+      "ratio": "기어는 `a` 한 바퀴당 `b`의 회전 수(`a`의 톱니 수 ÷ `b`의 톱니 수), 반대 방향. 피니언은 랙 1미터당 라디안, 1 / 반지름. 도르래는 `a`의 줄 1미터당 `b`의 줄 미터 수.",
+      "breakForce": "관절이 끊어지는 당김의 크기(뉴턴. 기어나 랙은 톱니 사이의 토크 N·m). 생략하면 끊어지지 않습니다."
     }
   },
   "joint": {
@@ -7396,13 +7384,13 @@
       "hinge": "`anchor`에서 `axis`를 따르는 핀: 문, 바퀴. `limits`는 라디안.",
       "slider": "`axis`를 따르는 레일: 서랍, 피스톤. `limits`는 미터.",
       "distance": "`a`의 `anchor`와 `b`의 `anchorB`를 그 길이, 또는 `limits` 안으로 유지합니다.",
-      "cone": "`axis`가 반각 `limits.max`인 원뿔 안에서 흔들리는 볼 관절."
-    }
-  },
-  "JointHost": {
-    "summary": "관절의 세계 쪽: 관절에 쓰기가 시뮬레이션에 요청하는 것.",
-    "members": {
-      "motor": "모터가 바뀌었습니다."
+      "cone": "`axis`가 반각 `limits.max`인 원뿔 안에서 흔들리는 볼 관절.",
+      "swingTwist": "어깨: `axis`가 반각 `limits.swing`의 원뿔 안에서 흔들리고 `limits.min`과 `max` 사이에서 스스로 비틀립니다. 모터는 비틀림을 움직입니다.",
+      "sixDof": "각각 잠김·자유·제한(`axes`)인 여섯 축: 다른 관절들 사이의 어떤 관절이든.",
+      "path": "`a`가 `path`를 지나는 매끄러운 궤도를 달립니다. 궤도는 `b`나 월드에 고정: 롤러코스터.",
+      "pulley": "`a`에서 두 바퀴(`over`)를 넘어 `b`로 내려가는 줄: 한쪽이 내려가면 다른 쪽이 올라갑니다.",
+      "gear": "`ratio`의 비로 함께 도는 두 바퀴. 각각 자기 핀(`axis`, `axisB`) 둘레로 돌며 자기 경첩(바퀴가 그 `a`)이 붙잡습니다. `ratio`나 1 / `ratio`가 정수이면 톱니도 만들어질 때의 위상을 유지합니다.",
+      "rackAndPinion": "`axis` 둘레로 도는 피니언 `a`가 랙 `b`를 `axisB`를 따라 움직입니다. 각각 자기 경첩이나 슬라이더(물체가 그 `a`)가 붙잡고, 톱니는 만들어질 때의 위상을 유지합니다."
     }
   }
 }

@@ -89,10 +89,10 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
   var gx=vec2f(0.0);var gy=vec2f(0.0);var stipple=0.0;
   if(uni.stipple!=0u){
    let second=cov.w>0.5;
-   let g=uvGradients(t.a,select(t.b,t.c,second),select(t.c,t.d,second),sample,t.ua,nb,nc,1.0/vec3f(t.ca.w,qb.w,qc.w));
+   let g=uvGradients(t.a,select(t.b,t.c,second),select(t.c,t.d,second),sample,t.ua.xy,nb.xy,nc.xy,1.0/vec3f(t.ca.w,qb.w,qc.w));
    gx=g[0];gy=g[1];stipple=stippleOffset(sample);
   }
-  if(!maskKeep(page,tc,gx,gy,stipple)){return;}
+  if(!maskKeep(page,tc.xy,tc.z,gx,gy,stipple)){return;}
  }
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  let raw=bitcast<u32>(depth);

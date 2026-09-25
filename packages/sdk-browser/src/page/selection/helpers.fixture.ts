@@ -86,9 +86,22 @@ export function withBundles(fixture: ReturnType<typeof dagFixture>) {
     version: 1,
     pinned: 1,
     bundleBytes: 65536,
+    maxDependencies: 1,
     pages: [
-      { url: 'bundle-roots', sha256: 'roots', bytes: rootBytes, count: rootPages.length },
-      { url: 'bundle-rest', sha256: 'rest', bytes: restBytes, count: rest.length },
+      {
+        url: 'bundle-roots',
+        sha256: 'roots',
+        bytes: rootBytes,
+        count: rootPages.length,
+        dependencies: [],
+      },
+      {
+        url: 'bundle-rest',
+        sha256: 'rest',
+        bytes: restBytes,
+        count: rest.length,
+        dependencies: [0],
+      },
     ],
   };
   const pack = (list: typeof pages) => {

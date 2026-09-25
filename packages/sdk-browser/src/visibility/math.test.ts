@@ -41,6 +41,8 @@ function texture(width: number, height: number, fill: (i: number) => number, wra
   for (let i = 0; i < data.length; i++) data[i] = fill(i);
   const map = new G.GraphTexture();
   map.image = { data, width, height };
+  // Raw texels, first row first, as the oracle reads them.
+  map.flipY = false;
   map.wrapS = wrap;
   map.wrapT = wrap;
   return importHostTexture(map);

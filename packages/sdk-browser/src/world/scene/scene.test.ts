@@ -64,7 +64,7 @@ test('pagesBounds yields the same box as the reference, a « coarse » page excl
   const geometry = new G.GraphGeometry();
   const meshFound = G.mesh(geometry, G.basicSurface());
   const meshMissing = G.mesh(geometry, G.basicSurface());
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   source.add(meshFound, meshMissing);
   meshFound.position.set(2, 0, 0);
   const exact = pageDe(0, 'p/0');
@@ -97,20 +97,20 @@ test('pagesBounds yields the same box as the reference, a « coarse » page excl
 // matrix, NaN — and a depth-3 hierarchy.
 test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarchy', () => {
   const geometry = new G.GraphGeometry();
-  const racine = new G.GraphGroup();
+  const racine = new G.Group();
   racine.scale.set(-3, 1, 1); // negative scale
-  const enfant = new G.GraphGroup();
+  const enfant = new G.Group();
   enfant.matrixAutoUpdate = false;
   enfant.matrix.set(1, 0.6, 0, 2, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1); // shear, zero z-row
   racine.add(enfant);
   const singulier = G.mesh(geometry, G.basicSurface());
   enfant.add(singulier);
-  const petitEnfant = new G.GraphGroup();
+  const petitEnfant = new G.Group();
   petitEnfant.position.set(NaN, 5, -0);
   enfant.add(petitEnfant);
   const nanMesh = G.mesh(geometry, G.basicSurface());
   petitEnfant.add(nanMesh);
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   source.add(racine);
   const page0 = pageDe(0, 'p/0');
   page0.min = [-1, -2, -3];
@@ -140,7 +140,7 @@ test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarc
 test('pagesBounds reuses the `into` output instead of allocating one per page', () => {
   const geometry = new G.GraphGeometry();
   const mesh = G.mesh(geometry, G.basicSurface());
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   source.add(mesh);
   const pages = Array.from({ length: 50 }, (_, i) => {
     const p = pageDe(i, `p/${i}`);
