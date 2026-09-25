@@ -1,6 +1,6 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { meshSurface } from '../surface.ts';
-import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
+import { spriteMark } from '../../visibility/shader/spriteWgsl.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts';
 import { objects, quantizationErrorOf } from './helpers.ts';
@@ -121,18 +121,11 @@ export function collectClusterPages(
         world,
         pages,
         // Nodes, their bounds and their links belong to the primitive and are shared by all its
-        // placements; only the force marks are proper to this placement.
-        culling: culling && {
-          ...culling,
-          bounds: shape.bounds!,
-          links: shape.links,
-          marks: structure ? new Int32Array(culling.nodes.length / culling.stride) : undefined,
-        },
+        // placements.
+        culling: culling && { ...culling, bounds: shape.bounds!, links: shape.links },
         worldBox,
         localBox: shape.local.slice(),
         structure,
-        forced: structure ? new Uint8Array(structure.groupCount) : undefined,
-        forcedList: structure ? [] : undefined,
         // No collected page carries a cone: `prepareCones` is the only one to set them, and it
         // raises this flag at the same time. The WebGL2 engine does not call it and therefore no
         // longer pays a `cone` read per tested cluster.
@@ -142,7 +135,7 @@ export function collectClusterPages(
         boxes: true,
         parked,
         placement,
-        ...(neverCulled(surface) ? { unculled: true } : {}),
+        sprite: spriteMark(surface) || undefined,
       });
       // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
       // always has something to fall back on.

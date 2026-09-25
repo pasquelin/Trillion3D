@@ -8,7 +8,7 @@ import { drawMatrix } from './webglClusterPixels.ts';
 /** One triangle, basic-lit, as a `ClusterDrawMesh` batch record; its material kept apart, typed,
  *  since the record's field is the public `Material | Material[]` union. */
 export const triangle = () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     new G.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),

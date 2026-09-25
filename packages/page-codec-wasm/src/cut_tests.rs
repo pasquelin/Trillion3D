@@ -49,8 +49,18 @@ fn run(
     l: &Lens,
     stack_len: usize,
 ) -> Result<(Walk, Vec<u32>), Bail> {
+    run_open(nodes, bounds, &[], l, stack_len)
+}
+
+fn run_open(
+    nodes: &[f64],
+    bounds: &[f64],
+    open: &[u32],
+    l: &Lens,
+    stack_len: usize,
+) -> Result<(Walk, Vec<u32>), Bail> {
     let (mut stack, mut leaves) = (vec![0; stack_len], vec![0; 4]);
-    let w = walk(nodes, MIN_STRIDE, bounds, l, &mut stack, &mut leaves)?;
+    let w = walk(nodes, MIN_STRIDE, bounds, open, l, &mut stack, &mut leaves)?;
     Ok((w, leaves[..w.leaves].to_vec()))
 }
 
@@ -95,4 +105,21 @@ fn exact_threshold_decides_without_projecting() {
     let (w, leaves) = run(&nodes, &bounds, &l, 8).unwrap();
     assert_eq!(leaves, vec![2 << 2 | 1, 1 << 2 | 1]);
     assert_eq!(w.nodes_tested, 3);
+}
+
+#[test]
+fn an_open_subtree_is_descended_past_its_floor() {
+    let (nodes, mut bounds) = tree();
+    // An own floor far above the threshold: every node rejects its subtree.
+    for n in 0..3 {
+        bounds[n * BOUND_STRIDE] = 1e9;
+    }
+    let (w, leaves) = run(&nodes, &bounds, &lens(1.0), 8).unwrap();
+    assert_eq!((leaves.len(), w.nodes_tested), (0, 1));
+    // The second leaf holds a cluster whose finer group is not resident, and so does the root.
+    let (w, leaves) = run_open(&nodes, &bounds, &[1, 0, 1], &lens(1.0), 8).unwrap();
+    assert_eq!(leaves, vec![2 << 2 | 1]);
+    assert_eq!(w.nodes_tested, 3);
+    // An open list shorter than the hierarchy is outside the domain.
+    assert_eq!(run_open(&nodes, &bounds, &[1], &lens(1.0), 8), Err(Bail));
 }

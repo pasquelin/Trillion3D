@@ -8,7 +8,6 @@ import type { FrameMetrics } from '../../../sdk-core/src/index.ts';
 export const BACKEND_METRIC_KEYS = [
   'coverageReady',
   'coverageBudgetLimited',
-  'budgetPixelError',
   'uncoveredTriangles',
   'drawnTriangles',
   'pagesDetached',

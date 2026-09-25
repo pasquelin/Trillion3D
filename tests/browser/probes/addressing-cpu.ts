@@ -48,7 +48,7 @@ const camera = G.perspectiveCamera();
 camera.projectionMatrix.set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.5, 0, 0, -1, 0);
 const positions = G.floatAttribute([-1, 1, -1, 3, 1, -1, -1, -3, -1], 3);
 function texelRaster(c: AdressageCas): [number, number] | null {
-  const geometrie = new G.GraphGeometry();
+  const geometrie = new G.Geometry();
   geometrie.setAttribute('position', positions);
   geometrie.setAttribute('uv', G.floatAttribute([c.u, c.v, c.u, c.v, c.u, c.v], 2));
   const materiau = G.basicSurface({ map: carte(c), side: G.DOUBLE_SIDE });
