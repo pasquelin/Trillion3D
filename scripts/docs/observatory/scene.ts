@@ -10,8 +10,9 @@ export const observatoryMaterials: [string, [number, number, number, number], nu
   ['Terracotta', [0.58, 0.16, 0.075, 1], 0, 0.76],
 ];
 
-/** The paving stones' pitch, centre height and size, in metres; the arcades stand on them. */
-export const paving = { pitch: 2, y: 0.11, size: [1.92, 0.08, 1.92] };
+/** The paving stones' pitch, centre height and size, in metres, and how many stones run out from
+ *  the centre along x and z; the arcades stand on them. */
+export const paving = { pitch: 2, y: 0.11, size: [1.92, 0.08, 1.92], stones: [5, 4] };
 
 /** Solstice Court: an original, deterministic observatory, not a historical reconstruction. */
 export function createObservatory() {
@@ -19,9 +20,9 @@ export function createObservatory() {
   w.block(0, [0, -0.45, 0], [25, 0.9, 20]);
   w.block(1, [0, 0.04, 0], [23.8, 0.08, 18.8]);
   // Individually raised paving stones cast fine contact shadows without texture assets.
-  for (let z = -8; z <= 8; z += paving.pitch)
-    for (let x = -10; x <= 10; x += paving.pitch)
-      w.block((x + z) % 4 ? 0 : 1, [x, paving.y, z], paving.size);
+  for (let j = -paving.stones[1]; j <= paving.stones[1]; j++)
+    for (let i = -paving.stones[0]; i <= paving.stones[0]; i++)
+      w.block((i + j) % 2 ? 0 : 1, [i * paving.pitch, paving.y, j * paving.pitch], paving.size);
   for (let step = 0; step < 7; step++)
     w.block(0, [0, 0.12 + step * 0.13, 7.8 - step * 0.5], [7.4, 0.24 + step * 0.26, 0.5]);
   w.block(0, [0, 0.52, 0.1], [7.4, 1.04, 10.3]);
