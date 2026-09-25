@@ -64,17 +64,19 @@ test('a sparse example is declared by name and backend under the tenth; every ot
 test('the proof expects Jolt from the pages whose own source turns physics on, and from no other', async () => {
   assert.ok(turnsPhysicsOn("createWorld('view', { controls: 'orbit', physics: true })"));
   assert.ok(turnsPhysicsOn("createWorld('view', { physics: { gravity: 'moon' } })"));
+  assert.ok(turnsPhysicsOn("createWorld('view', { size: fit(1, 2), physics: true })"));
   assert.ok(turnsPhysicsOn('world.physics.enabled = true;'));
   assert.ok(!turnsPhysicsOn("createWorld('view', { physics: false })"));
   assert.ok(!turnsPhysicsOn("createWorld('view', { controls: 'orbit' }); // physics: true"));
   // #503: a ready page that sets a body or reads the world's physics is one that turns it on,
   // `ride-a-roller-coaster` (#634) included, which the hand-kept list the derivation replaced
   // missed; a page with no physics is left out.
-  const html = new Map(pages);
+  const ids = new Set(ready.map(({ id }) => id));
   const physics = await physicsExamples(ready);
-  const used = ready
-    .filter(({ id }) => /\.physics\b/.test(html.get(`${id}.html`) ?? ''))
-    .map(({ id }) => id);
+  const used = pages
+    .map(([file, html]) => [file.replace(/\.html$/, ''), html] as const)
+    .filter(([id, html]) => ids.has(id) && /\.physics\b/.test(html))
+    .map(([id]) => id);
   assert.deepEqual([...physics].sort(), used.sort());
   for (const id of ['ride-a-roller-coaster', 'falling-boxes']) assert.ok(physics.has(id), id);
   assert.ok(!physics.has('shapes-on-a-turntable'));
