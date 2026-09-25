@@ -9,6 +9,7 @@ import { buildBlendStatics, refreshBlendPlan } from '../blend/plan.ts';
 import { orderBlendPasses } from '../blend/order.ts';
 import { triangleGeometry } from '../../backend/pagesBackendScenes.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -17,29 +18,20 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 installGpuGlobals();
 const buffer = () => ({ size: 0 }) as unknown as GPUBuffer;
 
-/** A device that builds every pipeline, layout and group as a plain record, and counts the
- *  pipelines by fragment entry and the bind groups. */
+/** A device that records every pipeline and group it builds; `pipelines` names the render
+ *  pipelines by fragment entry, `groups.created` counts the bind groups. */
 export function mountDevice() {
-  const pipelines: string[] = [],
-    groups = { created: 0 };
+  const { device, renderPipelines, bindGroups } = fakeDevice();
   return {
-    pipelines,
-    groups,
-    device: {
-      createBuffer: () => buffer(),
-      createBindGroupLayout: (descriptor: unknown) => descriptor,
-      createPipelineLayout: () => ({}),
-      createRenderPipeline: (descriptor: { fragment: { entryPoint: string } }) => {
-        pipelines.push(descriptor.fragment.entryPoint);
-        return {};
+    get pipelines() {
+      return renderPipelines.map((pipeline) => pipeline.fragment!.entryPoint!);
+    },
+    groups: {
+      get created() {
+        return bindGroups.length;
       },
-      createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
-      createBindGroup: () => {
-        groups.created++;
-        return {};
-      },
-      queue: { writeBuffer: () => {} },
-    } as unknown as GPUDevice,
+    },
+    device,
   };
 }
 export const device = mountDevice().device;
