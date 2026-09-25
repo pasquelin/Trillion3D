@@ -6006,7 +6006,6 @@
       "anisotropy": "Netteté vue de biais.",
       "flipY": "Si les rangées sont retournées.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
       "colorSpace": "Comment ses nombres sont lus.",
       "transform": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées de trois."
     }
