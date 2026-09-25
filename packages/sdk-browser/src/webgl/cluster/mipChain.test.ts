@@ -25,7 +25,7 @@ function sampledContext() {
         if (!held.has(args[1])) held.set(args[1], {});
       }
       // A new level 0 leaves the levels below it stale: the chain is built again or missing.
-      else if (name === 'texImage2D')
+      else if (name === 'texImage2D' || name === 'texSubImage2D')
         Object.assign(bound(), { picture: args[8] as Uint8Array, chain: false });
       else if (name === 'generateMipmap') bound().chain = true;
       else if (name === 'texParameteri' && args[1] === 'TEXTURE_MIN_FILTER')
