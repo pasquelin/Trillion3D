@@ -51,6 +51,16 @@ export function writeSpriteWords(
   out[at + 1] = !sprite ? 0 : sprite.sizeAttenuation ? 1 : -1;
 }
 
+/**
+ * THE NEVER-CULLED MARK: true on a sprite that keeps its size on screen (mode −1). Its quad grows
+ * with its view depth, so no fixed world bound holds it, and every cut and occlusion test lets it
+ * through while it is placed — the CPU and GPU cuts (`ClusterRoot.unculled`), the Hi-Z verdict of
+ * its row and of its transparent entries, a blend item's box, a WebGL2 scene copy —; the shadow
+ * scene box leaves it out, since a sprite casts no shadow. The one test each of them reads.
+ */
+export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
+  surface?.sprite?.sizeAttenuation === false;
+
 /** `SPRITE_WGSL` on the CPU, statement for statement: the software raster's sprite corner. Both
  *  matrices are column-major; writes the point, `w` one, into `out` and returns it. */
 export function spriteAt(
