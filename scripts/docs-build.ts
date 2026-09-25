@@ -7,11 +7,15 @@
  * Nothing built is committed: every consumer builds the tree on demand and the site
  * deployment builds it from main (docs/LEARNING_PORTAL.md).
  */
-import { buildSite, trackedOutput } from './docs/site.ts';
+import { reloadIn } from './docs-dev.ts';
+import { buildSite, SITE_OUTPUT, trackedOutput } from './docs/site.ts';
 
-if (!process.argv.includes('--untracked'))
+if (!process.argv.includes('--untracked')) {
   await buildSite(undefined, undefined, process.argv.includes('--published'));
-else {
+  // The reload of `docs:dev` is added by its server, never written into the tree.
+  const reloading = reloadIn(SITE_OUTPUT);
+  if (reloading.length) throw new Error(`the built site reloads itself: ${reloading.join(', ')}`);
+} else {
   const tracked = trackedOutput();
   if (tracked.length) {
     console.error(
