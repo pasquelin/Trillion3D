@@ -27,9 +27,10 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
-const [, limestone] = observatoryMaterials[0];
+// The court's paving stone, as the observatory's source paints it (linear RGB, escaped).
+const limestone = observatoryMaterials.find(([name]) => name === 'Warm limestone')?.[1] ?? [];
 const groundOfTheCourt = new RegExp(
-  `light\\.hemisphere\\(\\{[^}]*groundColor: \\[${limestone.slice(0, 3).join(', ')}\\]`,
+  `light\\.hemisphere\\(\\{[^}]*groundColor: \\[${limestone.slice(0, 3).join(', ').replaceAll('.', '\\.')}\\]`,
 );
 await loadDictionary('fr');
 
