@@ -1,9 +1,10 @@
-import type { HostBoundedNode, HostGraphNode } from '../scene/graphNodes.ts';
+import type { HostBoundedNode } from '../scene/graphNodes.ts';
 import { BOX_VALUES, boxEmpty } from '../../../../sdk-core/src/index.ts';
 import { boxUnionCollector } from '../../math/batchBoxes.ts';
 import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts';
 import { hostWorldTree } from './tree.ts';
 import type { HierarchyLot } from '../../math/batchHierarchy.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * World bounds of a host subtree, computed by the core on flat boxes.
@@ -41,7 +42,7 @@ function localBoxOf(object: HostBoundedNode) {
 }
 
 /** Bounded objects of the subtree: the EXACT size the box lot must carry. */
-function bornes(source: HostGraphNode) {
+function bornes(source: Object3D) {
   let n = 0;
   source.traverse((object) => {
     if (localBoxOf(object as HostBoundedNode)) n++;
@@ -50,7 +51,7 @@ function bornes(source: HostGraphNode) {
 }
 
 /** Lot that carries this subtree's boxes, or `null` when it has none. */
-export async function hostBoundsLot(source: HostGraphNode) {
+export async function hostBoundsLot(source: Object3D) {
   const n = bornes(source);
   return n ? await createBoxTransformLot(n) : null;
 }
@@ -63,7 +64,7 @@ export async function hostBoundsLot(source: HostGraphNode) {
  * goes alone, by the same `boxTransform` and on the same inputs.
  */
 export function hostWorldBounds(
-  source: HostGraphNode,
+  source: Object3D,
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
   worlds?: HierarchyLot | null,

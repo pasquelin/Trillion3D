@@ -1,6 +1,5 @@
-import type { HostNode } from '../host/resources.ts';
-import type { HostGraphMesh, HostGraphNode } from '../host/scene/graphNodes.ts';
-import { hostGroup, hostMeshCopy } from '../host/scene/graphObjects.ts';
+import type { HostGraphMesh } from '../host/scene/graphNodes.ts';
+import { hostMeshCopy } from '../host/scene/graphObjects.ts';
 import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../../../sdk-core/src/index.ts';
 import type { MultiplyLot } from '../math/batchRuntime.ts';
 import { ENGINE_OWNED } from '../host/scene/watch.ts';
@@ -8,6 +7,7 @@ import { hostWorldBounds } from '../host/world/bounds.ts';
 import { meshes as objects } from './meshes.ts';
 import { resolveHostSubtree } from '../host/world/matrices.ts';
 import { copyElements } from '../math/matrixElements.ts';
+import { Group, type Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * Three owned buffers of replication: group pose, placed pose of copy,
@@ -20,8 +20,8 @@ const groupWorld = new Float64Array(16),
 
 /** Replicate transforms only. Geometry, materials and textures remain shared. */
 export function replicateInstances(
-  source: HostGraphNode,
-  associations: Map<HostNode, { meshes?: number; primitives?: number }>,
+  source: Object3D,
+  associations: Map<Object3D, { meshes?: number; primitives?: number }>,
   count: 1 | 4 | 9 | 12,
   /** Flat world bounds `[minX, minY, minZ, maxX, maxY, maxZ]`, when caller already has them. */
   preparedBounds?: ArrayLike<number>,
@@ -37,7 +37,7 @@ export function replicateInstances(
     sizeX = empty ? 0 : bounds[3] - bounds[0],
     sizeZ = empty ? 0 : bounds[5] - bounds[2];
   const [columns, rows] = count === 12 ? [4, 3] : [Math.sqrt(count), Math.sqrt(count)],
-    group = hostGroup(),
+    group = new Group(),
     meshes = objects(source);
   // Products dispatched IN BATCHES by governor when buffer holds exactly one copy per slot.
   // Otherwise each product runs in place, by same `multiplyMatrix4` on same inputs: same bits.

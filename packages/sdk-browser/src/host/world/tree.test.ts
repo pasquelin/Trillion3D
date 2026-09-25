@@ -41,10 +41,10 @@ const POSITIONS = [
  * A host scene: one root, three levels, five children per first-level node. Each node draws its
  * pose from the lists above; a non-uniform scale under a parent rotation shears the world matrix.
  */
-function scene(pose?: (node: G.GraphNode, rang: number) => void) {
-  const nodes: G.GraphNode[] = [];
-  const ajoute = (parent: G.GraphNode | null) => {
-    const node = new G.GraphGroup();
+function scene(pose?: (node: G.Object3D, rang: number) => void) {
+  const nodes: G.Object3D[] = [];
+  const ajoute = (parent: G.Object3D | null) => {
+    const node = new G.Group();
     const rang = nodes.length;
     node.name = `n${rang}`;
     node.position.fromArray(POSITIONS[rang % POSITIONS.length]);
@@ -64,7 +64,7 @@ function scene(pose?: (node: G.GraphNode, rang: number) => void) {
 }
 
 /** Each node compared to what the reference composed for it. */
-function compare(nodes: readonly G.GraphNode[], mondes: { world(n: G.GraphNode): Float64Array }) {
+function compare(nodes: readonly G.Object3D[], mondes: { world(n: G.Object3D): Float64Array }) {
   for (const node of nodes) assertBits(mondes.world(node), node.matrixWorld.elements);
 }
 
@@ -130,10 +130,10 @@ test('the engine never writes `matrixWorld` on the host', () => {
 
 test('the index covers ancestors of the subtree root: the engine does not start from a stale parent', () => {
   const { racine, nodes } = scene();
-  const grandParent = new G.GraphGroup();
+  const grandParent = new G.Group();
   grandParent.position.set(9, -9, 9);
   grandParent.scale.set(-2, 1, 1);
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   parent.quaternion.set(0, 1, 0, 0);
   grandParent.add(parent);
   parent.add(racine);
@@ -176,7 +176,7 @@ test('batch views survive a growth of the module memory', async () => {
 
 test('a node outside the index is refused, it does not yield a neutral pose', () => {
   const { racine } = scene();
-  const etranger = new G.GraphGroup();
+  const etranger = new G.Group();
   etranger.name = 'etranger';
   assert.throws(
     () => hostWorldTree(racine).world(etranger),

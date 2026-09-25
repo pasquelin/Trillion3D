@@ -64,9 +64,7 @@
     {
       "id": "colours-on-the-vertices",
       "theme": "geometry",
-      "file": "examples/colours-on-the-vertices.html",
-      "status": "waiting-engine",
-      "issue": 347
+      "file": "examples/colours-on-the-vertices.html"
     },
     {
       "id": "uvs-of-every-shape",

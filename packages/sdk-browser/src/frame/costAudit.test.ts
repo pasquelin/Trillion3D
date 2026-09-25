@@ -70,7 +70,7 @@ test('gpuFrameCostSnapshot: the published pose is the engine camera’s (run.gat
     // Two-level rig nobody else walks: the local host camera stays trivial, only the rig carries
     // the translation. `run.lastCamera` is only a truth marker here — its shape must never be read
     // for the pose, only `run.gate.cam` (already resolved) counts.
-    const rig = new G.GraphNode();
+    const rig = new G.Object3D();
     rig.position.set(3, -6, 9);
     const hostCamera = G.perspectiveCamera(50, 1, 0.1, 100);
     rig.add(hostCamera);

@@ -68,7 +68,7 @@ ${MASK_KEEP_WGSL}
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  let radius=shadow.emitter.w;
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
- if(!maskKeep(pages[in.instance],in.uv,gx,gy,0.0)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0)){discard;}
 }
 /** Resets the slice to FAR without clearing the rest of the atlas. Face depth is reverse-Z
  *  like the camera's (\`../../camera/depthConvention.ts\`): far is zero. */

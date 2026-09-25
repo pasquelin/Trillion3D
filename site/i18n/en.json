@@ -327,7 +327,6 @@
       "a-walker-among-balls": "A walker among balls"
     },
     "missing": {
-      "colours-on-the-vertices": "per-vertex colours on WebGPU",
       "dashed-lines": "dashed lines",
       "floating-crates": "geometry rewritten every frame",
       "thick-lines": "wide lines",

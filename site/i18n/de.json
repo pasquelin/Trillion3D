@@ -327,7 +327,6 @@
       "a-walker-among-balls": "Ein Läufer zwischen Bällen"
     },
     "missing": {
-      "colours-on-the-vertices": "Vertexfarben unter WebGPU",
       "dashed-lines": "gestrichelte Linien",
       "floating-crates": "in jedem Bild neu geschriebene Geometrie",
       "thick-lines": "breite Linien",

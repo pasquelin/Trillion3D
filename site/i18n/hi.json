@@ -1512,7 +1512,6 @@
       "a-walker-among-balls": "गेंदों के बीच चलने वाला"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU पर प्रति-वर्टेक्स रंग",
       "dashed-lines": "टूटी-फूटी रेखाएँ",
       "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "thick-lines": "चौड़ी रेखाएँ",

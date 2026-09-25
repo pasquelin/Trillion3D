@@ -327,7 +327,6 @@
       "a-walker-among-balls": "Ходок среди мячей"
     },
     "missing": {
-      "colours-on-the-vertices": "цвета по вершинам в WebGPU",
       "dashed-lines": "пунктирные линии",
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",
       "thick-lines": "широкие линии",
