@@ -240,10 +240,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   (`SHADOW_POOL_BYTES`), and 178 KiB of host memory in the CPU total's (`SHADOW_HOST_BYTES`). A
   frame that needs more batches — only when a light cut dropped work and its view limit cut
   batches short — draws 171 and leaves the rest pending: a declared limit, counted in
-  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. The next frame's
-  list starts where the last one stopped and wraps around (`admit.ts`), so views re-marked every
-  frame cannot keep the pages behind them waiting: a page that stays read is drawn within
-  ⌈4 096 / 171⌉ = 24 frames at worst, one page a batch. One flag says
+  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. Each page left
+  undrawn counts one more frame waited, and the next list puts the longest-waiting pages first
+  (`admit.ts`), so views re-marked every frame cannot keep the pages behind them waiting: a page
+  that stays read is drawn within ⌈4 096 / 171⌉ + 1 = 25 frames at worst, one page a batch. One flag says
   whether a page is read, the table word's valid
   bit: a page whose
   depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
