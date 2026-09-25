@@ -3986,8 +3986,9 @@
       "physics": "Os limites da física (corpos, triângulos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
       "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo do reservatório de sombras é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina.",
+      "canvas": "O maior canvas que o mundo declara, em pixels do buffer de desenho: os alvos da cadeia de efeitos são reservados no seu tamanho (`split.effectTargets`); 3840 × 2160 por omissão, e o `gpu` por omissão só cresce dessa reserva. Defina-o para redistribuir cada reservatório pela regra. Um canvas desenhado maior continua a ser renderizado inteiro: os diagnósticos dizem `effect targets over budget` com os bytes além da reserva.",
       "cpu": "Bytes de memória CPU que o mundo pode ocupar: primeiro o espelho no host da tabela de páginas de sombra, depois as páginas decodificadas, suas tabelas de manifesto, sua fila de transferências e as tabelas de corte do motor juntas. Uma mudança se aplica na hora: as páginas saem por último uso até caberem. Um total que não excede o espelho é recusado (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca lido da máquina.",
-      "split": "Como os dois totais são divididos: o reservatório de sombras, as sondas de ressalto e os alvos da cadeia de efeitos no máximo, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o espelho no host da tabela de sombras, depois o cache de páginas decodificadas fica com o resto do total de CPU, inteiro, e dentro dele a sessão em curso reserva as suas tabelas de manifesto, a sua fila de transferências e as tabelas de corte do motor. O que a regra dá, antes de um reservatório definido sozinho."
+      "split": "Como os dois totais são divididos: o reservatório de sombras e as sondas de ressalto no máximo, os alvos da cadeia de efeitos no `canvas` declarado, depois metade para cada um dos reservatórios de geometria e texturas, limitados ao seu teto; o espelho no host da tabela de sombras, depois o cache de páginas decodificadas fica com o resto do total de CPU, inteiro, e dentro dele a sessão em curso reserva as suas tabelas de manifesto, a sua fila de transferências e as tabelas de corte do motor. O que a regra dá, antes de um reservatório definido sozinho."
     }
   },
   "world.diagnostic": {
@@ -4445,7 +4446,7 @@
     "description": "`memory(world)` é o que o mundo guarda agora (`world.budget`); os dois pools constroem a configuração que um mundo recebe."
   },
   "budget.memory": {
-    "summary": "Os orçamentos de memória que um mundo tem agora: os totais de GPU e CPU, a sua divisão pela regra, os dois reservatórios e o máximo de cada um."
+    "summary": "Os orçamentos de memória que um mundo tem agora: os totais de GPU e CPU, a sua divisão pela regra, os dois reservatórios e o máximo de cada um, e o canvas em que os alvos de efeitos são reservados."
   },
   "budget.geometryPool": {
     "summary": "Uma configuração de pool de geometria de `bytes`, pronta para entregar a um mundo.",
