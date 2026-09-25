@@ -50,9 +50,9 @@ export class WebglClusterTextures {
   private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
-  /** The frame's readers of each colour map, and the declarations they were read from (#42). */
+  /** The readers of each colour map (#42), each declaration filed once (`file`). */
   private readers = new CoverageReaders();
-  private declarations = new Set<HostMaterials>();
+  private declarations = new WeakSet<object>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.mips = new WebglMipReducer(gl);
@@ -176,24 +176,24 @@ export class WebglClusterTextures {
         grantedAnisotropy(texture, this.maxAnisotropy),
       );
   }
-  /** A new frame: the host's texture units are unknown, and the readers of the colour maps are
-   *  the surfaces of every mesh the scene holds, drawn or hidden, in the frustum or not — as the
-   *  WebGPU census, the rule never follows the camera nor visibility —, each declaration read once. */
-  beginFrame(meshes: readonly (readonly { material: HostMaterials }[])[]) {
+  /** Files a declaration among its maps' readers, once: at its first bind, or in the scene's
+   *  census (`WebglClusterOwner.census`). */
+  file(material: HostMaterials) {
+    if (this.declarations.has(material)) return;
+    this.declarations.add(material);
+    this.readers.read(surfaceOf(material));
+  }
+  /** A new frame: the host's texture units are unknown, and the readers are reread once, as the
+   *  host declares them now — WebGPU's cadence, once per followed image (`coverageRules`). */
+  beginFrame() {
     this.bound.length = 0;
-    this.readers.clear();
-    this.declarations.clear();
-    for (const list of meshes)
-      for (const { material } of list)
-        if (!this.declarations.has(material) && this.declarations.add(material))
-          this.readers.read(surfaceOf(material));
+    this.readers.follow();
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();
     this.fallbacks.clear();
-    this.declarations.clear();
     this.readers.clear();
     this.mips.dispose();
   }
