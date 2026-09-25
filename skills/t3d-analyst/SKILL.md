@@ -11,8 +11,8 @@ from pick to close, where time and tokens go, and why work comes back. `AGENTS.m
 First read what changed in the company's rules since your last run, whose time the CTO's brief
 gives (`git log --oneline --since="<last run>" origin/develop -- AGENTS.md CONTRIBUTING.md
 docs/roles docs/COMPANY.md skills`, then `git show <commit> -- <file>` only for the rule files you
-need): judge today's flow against the rules now in force, never
-re-propose one already applied, and say whether the last applied proposals moved their numbers.
+need): judge today's flow against the rules now in force, never re-propose one already applied,
+and say whether the last applied proposals moved their numbers.
 
 - **Flow:** per issue, the time from `in progress` to merge to close; waits (PR green but not
   merged, conflicts, CI queue, permission prompts, idle leads).
@@ -47,5 +47,5 @@ can be merged with another.
 
 ## Context economy
 
-Read only your role file, the rule changes above and the issue at hand. Query GitHub with `--json … --jq` for counts and
-states, never whole diffs, logs or transcripts. You launch no agent (AGENTS.md rule 9).
+Read only your role file, the rule changes above and the issue at hand. Query GitHub with
+`--json … --jq` for counts and states, never whole diffs, logs or transcripts. You launch no agent (AGENTS.md rule 9).
