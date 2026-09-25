@@ -1,4 +1,5 @@
 import { sameElements } from '../../math/matrixElements.ts';
+import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 
 /**
  * WHICH PLACEMENTS MOVE, as the shadow pages see them. A placement — a root of the cut, the rank
@@ -14,8 +15,9 @@ import { sameElements } from '../../math/matrixElements.ts';
  */
 export function createShadowMobility() {
   let moving = new Uint8Array(0),
-    /** The pose each placement had when the layout was made: a write that leaves it where it
-     *  stands — a sleeping body's pose copied again, a row inside a written range — is no move. */
+    /** The pose each placement was last seen at, from the layout on: a write that leaves it where
+     *  it stands — a sleeping body's pose copied again, a row inside a written range — is no
+     *  move. */
     poses = new Float64Array(0),
     rows = new Uint32Array(0),
     promoted = false,
@@ -41,15 +43,23 @@ export function createShadowMobility() {
       anyMoving = false;
       wholeRows = true;
     },
-    /** Placement `rank` was posed, at `world` when its pose is all that changed: it moved unless
-     *  `world` is the pose it stands at. */
+    /**
+     * Placement `rank` was posed, at `world` when its pose is all that changed: it moved unless
+     * `world` is the pose it was last seen at. Returns `MOVE_NONE`, `MOVE_MOVING` — it was
+     * moving already, its static casters stay — or `MOVE_PROMOTED`, its first move.
+     */
     move(rank: number, world?: ArrayLike<number>) {
-      if (rank < 0 || rank >= moving.length || moving[rank]) return;
-      if (world && sameElements(poses, world, rank * 16)) return;
+      if (rank < 0 || rank >= moving.length) return MOVE_PROMOTED;
+      if (world) {
+        if (sameElements(poses, world, rank * 16)) return MOVE_NONE;
+        poses.set(world, rank * 16);
+      }
+      if (moving[rank]) return MOVE_MOVING;
       moving[rank] = 1;
       promoted = true;
       anyMoving = true;
       wholeRows = true;
+      return MOVE_PROMOTED;
     },
     /** True when a placement turned moving since the last call: the pages it crossed are staled
      *  whole, not only their moving casters. */
