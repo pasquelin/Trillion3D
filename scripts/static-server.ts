@@ -69,7 +69,12 @@ async function serveFile(
   if (!found.isFile()) return reply(response, 404);
   const text = transform?.(file);
   if (text !== undefined)
-    return reply(response, 200, contentType(/\.tsx?$/.test(file) ? '.js' : extname(file)), text);
+    return reply(
+      response,
+      200,
+      contentType(/\.[cm]?tsx?$/.test(file) ? '.js' : extname(file)),
+      text,
+    );
   // The file is opened before the headers leave, so a file it cannot read is still a 404.
   const stream = createReadStream(file);
   await once(stream, 'open');
