@@ -8,11 +8,11 @@ Closes # <!-- one pull request, one issue (AGENTS.md rule 5) -->
 
 ## Local review before push
 
-<!-- Required, checked by the CI: one line per real skill, invoked through the Skill tool and
-     never imitated, with what it found and fixed, copied from its report. -->
+<!-- Required, checked by the CI: one line per pass over the whole diff, with what it found and
+     what was fixed. -->
 
-- `/simplify`:
-- `/code-review`:
+- Simplification pass:
+- Correctness review:
 
 ## Lead verification
 
