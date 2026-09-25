@@ -49,7 +49,7 @@ test('only the vertex stage reads the visibility uniform, at the size of its str
   const entry = (
     visBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] }
   ).entries.find((candidate) => candidate.binding === VIS_BINDINGS.uniform)!;
-  // No fragment of the pass reads it since the cutout stipple left (#55).
+  // No fragment of the pass reads it.
   assert.equal(entry.visibility, GPUShaderStage.VERTEX);
   assert.equal(entry.buffer?.minBindingSize, VIS_UNIFORM_BYTES);
 });
