@@ -52,10 +52,11 @@ export function forEachShadowBatch(
  * reads, the coarsest first (`admit.ts`); the per-batch buffers hold `MAX_SHADOW_PAGES` pages and
  * one light cut's views, so the list is drawn batch after batch in the frame's command buffer, each
  * batch's writes landing in command order (`../../../gpu/shadow/batchWrites.ts`), and each batch's
- * pages committed once encoded, up to the frame's budget (`forEachShadowBatch`). What the frame does not draw — past its budget, or a batch that cannot be
- * encoded, a resource missing — stays stale, pending, for the next frame.
+ * pages committed once encoded, up to the frame's budget (`forEachShadowBatch`). What the frame
+ * does not draw — past its budget, or a batch that cannot be encoded, a resource missing — stays
+ * stale, pending, for the next frame.
  *
- * Returns whether every page was encoded.
+ * Returns whether the whole list was drawn: never for a moving frame whose list passes its budget.
  */
 export function encodeShadowBatches(
   rt: WebgpuPagesRuntime,

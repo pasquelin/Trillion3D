@@ -29,11 +29,11 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * THE PAGES A FRAME DRAWS: every stale page the latest request report named — what the image
  * reads now —, the coarsest of each light first. A frame whose camera rests draws all of them, in
  * the frame that marks them; a frame whose camera moves draws what one fixed budget holds
- * (`frameEnd`), and leaves the rest pending, read meanwhile at the coarser current level each falls back to. The
- * cost is held by caching — a page is drawn only once it is marked, and it is marked only when
- * what it holds changed (`invalidate.ts`) or it was just mapped (`requests.ts`) —, and the pool is
- * the only memory limit: what it cannot hold is refused at allocation and published as memory
- * (`requests.counts.refused`), never shown as current.
+ * (`frameEnd`), and leaves the rest pending, read meanwhile at the coarser current level each
+ * falls back to. The cost is held by caching — a page is drawn only once it is marked, and it is
+ * marked only when what it holds changed (`invalidate.ts`) or it was just mapped (`requests.ts`) —,
+ * and the pool is the only memory limit: what it cannot hold is refused at allocation and
+ * published as memory (`requests.counts.refused`), never shown as current.
  *
  * A stale page nobody reads is not drawn: it costs nothing, and is drawn the frame someone asks for
  * it. It waits unreadable (`pool.withdraw`, the one staleness mechanism): a pass that reads without

@@ -19,8 +19,8 @@ const readMin = new Float64Array(3),
  * Beyond eight, two boxes merge, those whose union costs the least volume.
  *
  * The scheduler consumes them every frame: it derives the stale pages of each face, which
- * then carry the state. The boxes therefore have nothing to retain from one frame to the next, and
- * everything is allocated once.
+ * then carry the state. The boxes therefore have nothing to retain from one frame to the next —
+ * only the held union below waits across frames —, and everything is allocated once.
  *
  * Two kinds of change enter. A **world** change — a node or a light that moves — stales its
  * pages at once. A **representation** change — a cluster that swaps level of detail, a page

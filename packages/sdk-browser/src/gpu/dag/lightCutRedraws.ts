@@ -12,8 +12,8 @@ import { createViewLimit } from './lightCutViewLimit.ts';
  *   pages miss casters. They are drawn again at once, and the views one batch draws in are
  *   bisected between the most a batch drew whole and the fewest one dropped with
  *   (`createViewLimit`). A single view never fills the lists, so the bisection ends at one view at
- *   worst. It bounds a batch, never a frame: a frame draws as many batches as its pages take
- *   (`../../webgpu/pages/render/encodeShadowBatches.ts`).
+ *   worst. It bounds a batch, never a frame: a frame at rest draws as many batches as its pages
+ *   take (`../../webgpu/pages/render/encodeShadowBatches.ts`).
  * - **Coarser** (`COARSER_VIEWS`, one bit per view): a view wanted a cluster that is not resident
  *   and drew its nearest resident ancestor — and every page of that view is sent back, not only the
  *   pages over the missing cluster, which alone a residency change stales. Those pages, and only
