@@ -34,13 +34,14 @@ async function servedProxy() {
 async function openSession(
   metadata: ClusterManifest,
   pageCache: ReturnType<typeof createPageCache>,
+  root = base,
 ) {
   const diagnosticChannel = { enabled: false, detail: 'summary', emit: () => {} };
-  const options = { manifestUrl: `${base}manifest.json`, pageCache, importedLights: false };
+  const options = { manifestUrl: `${root}manifest.json`, pageCache, importedLights: false };
   const pageSources = await createExplorerPageSources(
     metadata,
     options,
-    base,
+    root,
     undefined,
     true,
     [],
@@ -70,7 +71,7 @@ async function openSession(
       },
     ],
     backends: [],
-    base,
+    base: root,
   });
   return { context: context!, close: () => pageSources.streamer.dispose() };
 }
@@ -90,4 +91,17 @@ test('a session reopened after a device loss reads the resident proxy from the k
   assert.deepEqual(relit.data.triangles, lit.data.triangles);
   assert.ok(pageCache.bytes >= metadata.proxy!.bytes, 'its bytes count against the CPU total');
   after.close();
+});
+
+test('another scene the world loads reads its own proxy, not the one kept under the same name', async () => {
+  const { metadata, fetched } = await servedProxy();
+  const pageCache = createPageCache();
+  const first = await openSession(metadata, pageCache);
+  await first.context.readSceneProxy!();
+  first.close();
+  const other = 'http://localhost/other/';
+  const second = await openSession(metadata, pageCache, other);
+  await second.context.readSceneProxy!();
+  assert.deepEqual(fetched, [`${base}proxy.bin`, `${other}proxy.bin`]);
+  second.close();
 });
