@@ -15,7 +15,11 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts';
 export function createLowerTier(options: {
   keyOf: (page: PageRec) => number;
   room: () => number;
-  closeOver: (ids: ArrayLike<number>, visit: (id: number, rec: PageRec) => void) => void;
+  closeOver: (
+    ids: ArrayLike<number>,
+    visit: (id: number, rec: PageRec) => void,
+    full?: () => boolean,
+  ) => void;
 }) {
   const { keyOf, room, closeOver } = options;
   const pages: PageRec[] = [];
@@ -27,8 +31,11 @@ export function createLowerTier(options: {
     pages.length = 0;
     named.clear();
   };
+  /** The list holds the pool: the rest of a report is not walked (a view ahead names up to half
+   *  the sample each readback). */
+  const full = () => pages.length >= room();
   const push = (_id: number, rec: PageRec) => {
-    if (pages.length >= room()) return;
+    if (full()) return;
     const key = keyOf(rec);
     if (named.set(key, 1)) return;
     pages.push(rec);
@@ -45,7 +52,7 @@ export function createLowerTier(options: {
     /** A GPU cut's requests: page indices of the packed catalogue. */
     offerIds(requested: ArrayLike<number>) {
       begin();
-      closeOver(requested, push);
+      closeOver(requested, push, full);
     },
     /** The CPU light cuts' wanted pages, one list per redrawn face. */
     offerPages(lists: ReadonlyArray<readonly PageRec[]>, count: number) {
@@ -56,7 +63,7 @@ export function createLowerTier(options: {
           const id = rec.packedIndex ?? -1;
           if (id >= 0) ids.push(id);
         }
-      closeOver(ids, push);
+      closeOver(ids, push, full);
     },
   };
 }
