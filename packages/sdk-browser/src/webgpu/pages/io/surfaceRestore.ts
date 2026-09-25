@@ -75,5 +75,7 @@ export async function restoreMainView(
   } finally {
     capture.capturing = false;
     capture.surfaceRenderAllowed = false;
+    // The main view was drawn as a capture draws, without the effect chain: nothing holds it.
+    run.gate.viewReplaced();
   }
 }

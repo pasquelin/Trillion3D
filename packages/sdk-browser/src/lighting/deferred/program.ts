@@ -97,8 +97,7 @@ export async function createDeferredProgram(
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One per colour read (lit image, TAA history, effect target) and share beside it — an effect
-  // target follows the alternating TAA histories —; weak: a dropped target frees its own.
+  // One per colour and share read (an effect target reads both TAA shares); weak, freed with them.
   type Composition = (typeof compositions)['still'] & { group: GPUBindGroup };
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
@@ -113,20 +112,23 @@ export async function createDeferredProgram(
       if (!view || !boundSurface) return undefined;
       const share = image?.share ?? boundSurface.views()[3];
       let byShare = composed.get(view);
-      if (!byShare) composed.set(view, (byShare = new WeakMap()));
-      let composition = byShare.get(share);
-      if (!composition) {
-        const kind = compositions[image?.share ? 'accumulated' : 'still'];
-        const group = device.createBindGroup({
-          layout: kind.layout,
-          entries: [
-            { binding: 0, resource: view },
-            { binding: 1, resource: { buffer: bindings.uniform } },
-            { binding: 2, resource: share },
-          ],
-        });
-        byShare.set(share, (composition = { ...kind, group }));
+      if (!byShare) {
+        byShare = new WeakMap();
+        composed.set(view, byShare);
       }
+      const kept = byShare.get(share);
+      if (kept) return kept;
+      const kind = compositions[image?.share ? 'accumulated' : 'still'];
+      const group = device.createBindGroup({
+        layout: kind.layout,
+        entries: [
+          { binding: 0, resource: view },
+          { binding: 1, resource: { buffer: bindings.uniform } },
+          { binding: 2, resource: share },
+        ],
+      });
+      const composition = { ...kind, group };
+      byShare.set(share, composition);
       return composition;
     },
     bind(

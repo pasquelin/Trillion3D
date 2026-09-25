@@ -8,9 +8,9 @@ import { createWebglRenderTarget, type WebglRenderTarget } from '../webgl/core/r
  * background, as the WebGPU composition writes it — an uncovered pixel is the background as it is,
  * a covered one its radiance through the scene's curve and the sRGB transfer, a partly covered one
  * the mix of the two by coverage. The curve spares the share of the coverage `untoned` marks: the
- * surfaces whose material skips it (`CLUSTER_LINEAR_FRAGMENT`). When something is drawn over the
- * image after it (`world.guides`), the scene's depth goes to the destination with the colour, so
- * it hides behind the scene as it does without a chain.
+ * surfaces whose material skips it (`CLUSTER_LINEAR_FRAGMENT`). The scene's depth goes to the
+ * destination with the colour, so what is drawn over the image after it (`world.guides`) is
+ * hidden behind the scene as it is without a chain.
  */
 const OUTPUT_FRAGMENT = `#version 300 es
 precision highp float;precision highp sampler2D;uniform sampler2D image,untoned,depth;uniform bool toneMapped;
@@ -29,8 +29,6 @@ export type WebglEffectOutput = {
   toneCurve: number;
   /** The background, sRGB-encoded. */
   background: readonly [number, number, number];
-  /** Whether the destination takes the scene's depth: something is drawn over it after. */
-  depth: boolean;
 };
 
 /**
@@ -91,13 +89,10 @@ export function createWebglOutput(gl: WebGL2RenderingContext) {
       read(2, scene.depth);
       read(1, scene.untoned);
       read(0, image.texture);
-      // Every pixel takes the scene's depth, whatever the destination held; with the test off
-      // (`setFullscreenPassState`), no depth is written.
-      if (out.depth) {
-        gl.enable(gl.DEPTH_TEST);
-        gl.depthFunc(gl.ALWAYS);
-        gl.depthMask(true);
-      }
+      // Every pixel takes the scene's depth, whatever the destination held.
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.ALWAYS);
+      gl.depthMask(true);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     },
     dispose: () => gl.deleteProgram(program),
