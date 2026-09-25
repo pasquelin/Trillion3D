@@ -1,7 +1,15 @@
 import { crossVector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 import { BufferAttribute } from '../buffer/index.ts';
+import type { VertexAttribute } from '../buffer/attribute.ts';
 import { Geometry } from './geometry.ts';
 import { readComponent } from './bounds.ts';
+
+/** The three numbers of vertex `v` of `position`, as the world's geometry reads them. */
+const at = (position: VertexAttribute, v: number) => [
+  readComponent(position, v, 0),
+  readComponent(position, v, 1),
+  readComponent(position, v, 2),
+];
 
 /** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders. */
 export function edgesOf(geometry: Geometry) {
@@ -11,19 +19,18 @@ export function edgesOf(geometry: Geometry) {
     ? Array.from(geometry.index.array)
     : Array.from({ length: count }, (_, i) => i);
   // Corners that share a position share an edge, whatever their other attributes.
-  const at = (v: number) => [0, 1, 2].map((c) => readComponent(position, v, c));
-  const key = (v: number) => at(v).join(',');
   const edges = new Map<string, { a: number; b: number; normals: number[][] }>();
   for (let t = 0; t + 2 < corners.length; t += 3) {
     const tri = [corners[t], corners[t + 1], corners[t + 2]];
-    const p = tri.map(at);
+    const p = tri.map((v) => at(position, v));
+    const keys = p.map(([x, y, z]) => `${x},${y},${z}`);
     const e1 = p[1].map((x, i) => x - p[0][i]),
       e2 = p[2].map((x, i) => x - p[0][i]);
     const n = crossVector3([0, 0, 0], e1, e2);
     normalizeVector3(n);
     for (let k = 0; k < 3; k++) {
       const [a, b] = [tri[k], tri[(k + 1) % 3]];
-      const id = [key(a), key(b)].sort().join('|');
+      const id = [keys[k], keys[(k + 1) % 3]].sort().join('|');
       const edge = edges.get(id) ?? { a, b, normals: [] };
       edge.normals.push(n);
       edges.set(id, edge);
@@ -38,7 +45,7 @@ function segments(geometry: Geometry, keep: (normals: number[][]) => boolean) {
   const out: number[] = [];
   for (const { a, b, normals } of edgesOf(geometry).values())
     if (keep(normals))
-      for (const v of [a, b]) for (let c = 0; c < 3; c++) out.push(readComponent(position, v, c));
+      for (const v of [a, b]) out.push(...at(position, v));
   const lines = new Geometry();
   lines.setAttribute('position', new BufferAttribute(new Float32Array(out), 3));
   return lines;
