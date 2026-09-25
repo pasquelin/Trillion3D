@@ -3,7 +3,6 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
-import type { FrameBudget } from './frameBudget.ts';
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
 const IDENTITY = { elements: IDENTITY_MATRIX4 };
@@ -77,10 +76,8 @@ export const tierEnsurer = (
   cache: unknown,
   shadowPages: () => readonly PageRec[],
   aheadPages: () => readonly PageRec[] = () => [],
-  budget?: FrameBudget,
 ) =>
   createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
     lowerTiers: () => [shadowPages(), aheadPages()],
-    budget,
   });

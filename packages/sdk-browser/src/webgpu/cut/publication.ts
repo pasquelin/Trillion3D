@@ -14,6 +14,8 @@ import type { WebgpuPagesCore } from '../pages/runtime.ts';
  * engine, and a closure taken inside publication would hold its whole context there.
  */
 const coverageWatcher = (pending: CutPending) => (page: number) => pending.touch(page);
+/** The list ahead of a cut that has no view ahead. */
+const NO_IDS: readonly number[] = [];
 
 /**
  * Publication of a cut, whoever decides it.
@@ -28,11 +30,17 @@ export function createWebgpuCutPublication(
   rt: WebgpuPagesCore,
   residencySets: WebgpuResidencySets,
   closure: GroupClosure,
-  /** Where the view ahead's requests go, below the camera's (`../residency/lowerTier.ts`). */
-  onAhead: (ids: readonly number[]) => void,
+  /** The lower tiers (`../residency/lowerTier.ts`): the view ahead's requests go to `ahead`, below
+   *  the camera's; both count in the host tables. */
+  tiers: {
+    shadow: { readonly hostBytes: number };
+    ahead: { readonly hostBytes: number; offerIds(ids: ArrayLike<number>): void };
+  },
 ) {
   const { run, gpu } = rt,
-    { rows, packedPages } = rt.layout;
+    { rows, packedPages } = rt.layout,
+    { shadow, ahead } = tiers;
+  const onAhead = (ids: ArrayLike<number>) => ahead.offerIds(ids);
   const cutDelta = createCutDelta(packedPages, run.desired);
   // The drawable cut writes its records itself, reading its sequence once: `run.shown` is then
   // only a copy of it, and only when the image adopts the readback that produced it.
@@ -107,9 +115,9 @@ export function createWebgpuCutPublication(
     /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending,
     /** Bytes of the cut's host tables — the group closure, the rule's readiness on the GPU and in
-     *  the CPU cut, the residency sets, the two differences and the pending set —, each sized by
-     *  what the view asks for and the pool holds, never by the catalogue (#483 rule 6), each
-     *  read in constant time, never by walking the placements (#483 rule 7). */
+     *  the CPU cut, the residency sets, the two differences, the pending set and the two lower
+     *  tiers —, each sized by what the view asks for and the pool holds, never by the catalogue
+     *  (#483 rule 6), each read in constant time, never by walking the placements (#483 rule 7). */
     hostTableBytes: () =>
       closure.hostBytes +
       (run.gpuSelection?.hostBytes ?? 0) +
@@ -117,7 +125,9 @@ export function createWebgpuCutPublication(
       residencySets.hostBytes +
       cutDelta.hostBytes +
       drawnDelta.hostBytes +
-      cutPending.hostBytes,
+      cutPending.hostBytes +
+      shadow.hostBytes +
+      ahead.hostBytes,
     adoptGpuCut,
     /**
      * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`
@@ -128,6 +138,8 @@ export function createWebgpuCutPublication(
      * Republishing it as-is changes nothing: the difference is empty.
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
+      // The CPU cut evaluates no view ahead: what the last readback asked for ahead is let go.
+      onAhead(NO_IDS);
       cutDelta.adoptRecords(wanted);
       publishCut();
       drawnDelta.adoptRecords(shown);
