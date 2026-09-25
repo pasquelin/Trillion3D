@@ -69,6 +69,38 @@ for (const kind of ['car', 'motorcycle', 'tracked'] as const) {
     });
 }
 
+test('car: full lock at speed does not roll it over, its anti-roll bars at their own stiffness', async () => {
+  const rig = await vehicleRig('car');
+  rig.hold({ throttle: 1 }, 4);
+  let worst = 0;
+  for (let s = 0; s < 180; s++) {
+    rig.hold({ throttle: 1, steer: 1 }, 1 / 60);
+    worst = Math.max(worst, rig.tilt());
+  }
+  assert.ok(worst < 0.1, `upright: ${worst}`);
+  // Steady in a turn, a bar as stiff as its axle's springs holds each axle with its springs' roll
+  // stiffness twice over (`k t²` against `k t² / 2`): a third of the roll, gravity's lever aside.
+  const roll = async (antiRoll: number) => {
+    const car = await vehicleRig('car', { antiRoll });
+    car.hold({ throttle: 1 }, 3);
+    car.hold({ throttle: 0.2, steer: 0.4 }, 2);
+    return Math.abs(car.roll());
+  };
+  const [free, barred] = [await roll(0), await roll(1)];
+  assert.ok(barred / free > 0.2 && barred / free < 0.4, `a third: ${barred} of ${free}`);
+});
+
+test('motorcycle: in a steady turn it leans as the turn asks, atan(v² / (r g))', async () => {
+  const rig = await vehicleRig('motorcycle');
+  rig.hold({ throttle: 1 }, 2);
+  rig.turning({ throttle: 0.15, steer: 0.4 }, 2);
+  const asked = rig.turning({ throttle: 0.15, steer: 0.4 }, 1);
+  // Jolt's lean controller aims at the tyres' force, and its own righting impulse carries a share
+  // of the turn: the lean falls short of the ideal by up to 30 %.
+  assert.ok(asked > 0.4, `a real turn: ${asked}`);
+  assert.ok(rig.tilt() > 0.7 * asked && rig.tilt() < 1.1 * asked, `lean ${rig.tilt()} of ${asked}`);
+});
+
 test('tracked: steered at a standstill, it turns on the spot', async () => {
   const rig = await vehicleRig('tracked');
   rig.hold({ steer: 1 }, 2);
