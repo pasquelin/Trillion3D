@@ -11,7 +11,7 @@ import { isCancelled } from '../../../backend/common.ts';
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 /** Named approximation of the shadow path, published in the diagnostic (P5). */
 const SHADOW_APPROXIMATIONS = [
-  'a blended cluster casts from a shadow-only row into the transmittance layer: one product of (1 − coverage) and one nearest depth per texel, so a receiver between two stacked panes takes both, and the depth is held at half precision (a receiver within 2^-11 of the depth range behind a pane is not attenuated); additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
+  'a blended cluster casts from a shadow-only row into the transmittance layer, at half the pool resolution and filtered by the same PCF: one 8-bit product of (1 − coverage) and one nearest 32-bit depth per texel, so a receiver between two stacked panes takes both; additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
   'the shadow millisecond budget folds a page fixed cost into an averaged per-page cost',
   'shadow pages are asked for by the opaque resolve alone: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
