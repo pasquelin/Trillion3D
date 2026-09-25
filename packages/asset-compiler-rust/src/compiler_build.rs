@@ -93,7 +93,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     };
     let mut compiled: Vec<CompiledPrimitive> = pool.install(|| {
         jobs.par_iter()
-            .map(|(old, primitive)| compile_primitive(&primitive_inputs, old, primitive))
+            .map(|(m, p)| compile_primitive(&primitive_inputs, m, p).map_err(|e| e.within(m, p)))
             .collect::<Result<Vec<_>>>()
     })?;
     let collisions: Vec<Value> = compiled.iter_mut().map(|c| c.collision.take()).collect();
