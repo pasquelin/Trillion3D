@@ -121,9 +121,9 @@ function encodeBounce(
   if (!probes) return;
   probes.setIrradianceView(irradiance);
   // The store revision rises as soon as a light is added, set or removed: that is the only signal
-  // the grid needs to restart, and it costs no read.
-  if (bounce.lightEpoch !== lights.store.epoch) {
-    bounce.lightEpoch = lights.store.epoch;
+  // the grid needs to restart, and it costs no read. A change of fog alone is not one.
+  if (bounce.lightEpoch !== lights.store.transportEpoch) {
+    bounce.lightEpoch = lights.store.transportEpoch;
     probes.restart();
   }
   // Camera world position, posted by image entry: cascades re-centre on it by cell step. No

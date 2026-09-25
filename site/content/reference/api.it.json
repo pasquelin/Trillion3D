@@ -1694,7 +1694,7 @@
     }
   },
   "Fog": {
-    "summary": "Nebbia su ogni superficie illuminata: lineare da `near` a `far`, oppure che si infittisce con la distanza secondo `density`, diradandosi in altezza sopra `baseHeight` quando `heightFalloff` è impostato.",
+    "summary": "Nebbia su ogni superficie: lineare da `near` a `far`, oppure che si infittisce con la distanza secondo `density`, diradandosi in altezza sopra `baseHeight` quando `heightFalloff` è impostato.",
     "description": "Il colore è la luce che la nebbia diffonde verso l’occhio, esposta e passata per la curva di visualizzazione come quella di una superficie."
   },
   "FORMAT_VERSION": {
@@ -4969,7 +4969,7 @@
       "isScene": "Sempre `true`: distingue la radice della scena da qualsiasi altro oggetto.",
       "environment": "Un'immagine dell'ambiente riflessa dalle superfici brillanti; `null` per nessuna.",
       "background": "Ciò che riempie l’immagine dietro ogni oggetto: un colore, o `null` per quello predefinito. Una modifica appare al fotogramma successivo, mantenendo la sessione: un nuovo colore assegnato qui, o quello attuale scritto con i suoi metodi (`set`, `setRGB`, `setHex`, `setHSL`...). Una scrittura diretta di `.r`, `.g` o `.b` non viene rilevata: riassegna `background` dopo. Un’immagine, o qualsiasi valore senza `getHex`, viene rifiutata (`UNSUPPORTED_SCENE_UPDATE`): nessun percorso la disegna.",
-      "fog": "Nebbia su ogni superficie illuminata, opaca o trasparente, su entrambi i renderer; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
+      "fog": "Nebbia su ogni superficie, opaca o trasparente, su entrambi i renderer; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carica un modello compilato — l'URL del suo manifesto — e lo aggiunge a questa scena.",
       "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
       "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un'altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l'altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
@@ -5009,7 +5009,7 @@
       "exposure": "Moltiplicatore della radianza lineare, applicato prima della curva.",
       "toneMapping": "La curva di visualizzazione; `DEFAULT_TONE_MAPPING` se manca.",
       "irradiance": "L'irradianza che arriva da tutte le direzioni, in 27 numeri: nove coefficienti, ciascuno una tripletta RGB, nell'ordine delle bande costante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Assente, o tutta nulla, nulla illumina una superficie tranne le lampade dichiarate.",
-      "fog": "Nebbia di distanza o di altezza su ogni superficie illuminata (`SceneFog`); assente, nessuna."
+      "fog": "Nebbia di distanza o di altezza su ogni superficie (`SceneFog`); assente, nessuna."
     }
   },
   "SceneExponentialFog": {
@@ -5066,6 +5066,7 @@
       "ids": "Il nome della luce di ogni posto.",
       "count": "Quante luci.",
       "epoch": "Incrementato quando cambia l'insieme delle luci.",
+      "transportEpoch": "Aumenta con l’epoca, tranne per un cambio della sola nebbia: la nebbia è un termine del raggio di vista, non del trasporto della luce, quindi ciò che tiene in cache la luce trasportata (le sonde di rimbalzo) la conserva.",
       "environment": "L'ambiente della scena.",
       "lightingView": "Vista richiesta dall'host, così com'è: `auto` finché non ha richiesto nulla.",
       "unlit": "Vero quando l'immagine deve uscire in albedo grezzo, senza luce. È il comportamento predefinito finché nessuna luce è dichiarata: una scena senza sorgente non ha nulla da illuminare, e un'immagine nera non aiuterebbe nessun banco di prova di geometria. Non appena esiste una luce, la vera illuminazione prende il sopravvento — salvo che l'host abbia richiesto esplicitamente la vista di diagnostica.",
@@ -5595,7 +5596,7 @@
       "baseMetal": "Colore di base in RGB, A per il metallo.",
       "normalRough": "Normale XYZ nel mondo, A per la ruvidità.",
       "emissiveAo": "Emissione RGB, A per l'occlusione ambientale.",
-      "flags": "0 sfondo, 1 senza luce, 2 letture, 3 diagnostica nello spazio di visualizzazione.",
+      "flags": "0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità.",
       "views": "Le sue viste di texture GPU.",
       "dispose": "La libera."
     }

@@ -1020,7 +1020,7 @@
     }
   },
   "Fog": {
-    "summary": "Névoa sobre cada superfície iluminada: linear de `near` a `far`, ou que se adensa com a distância segundo `density`, e rareia em altura acima de `baseHeight` quando `heightFalloff` é dado.",
+    "summary": "Névoa sobre cada superfície: linear de `near` a `far`, ou que se adensa com a distância segundo `density`, e rareia em altura acima de `baseHeight` quando `heightFalloff` é dado.",
     "description": "A cor é a luz que a névoa espalha em direção ao olho, exposta e passada pela curva de exibição como a de uma superfície."
   },
   "FrameInfo": {
@@ -2769,7 +2769,7 @@
       "isScene": "Sempre `true`: distingue a raiz da cena de qualquer outro objeto.",
       "environment": "Uma imagem dos arredores que superfícies brilhantes refletem; `null` para nenhuma.",
       "background": "O que preenche a imagem atrás de cada objeto: uma cor, ou `null` para o padrão. Uma mudança aparece no quadro seguinte, mantendo a sessão: uma nova cor atribuída aqui, ou a atual escrita pelos seus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Uma escrita direta de `.r`, `.g` ou `.b` não é detetada: atribua `background` de novo depois. Uma imagem, ou qualquer valor sem `getHex`, é recusada (`UNSUPPORTED_SCENE_UPDATE`): nenhum caminho a desenha.",
-      "fog": "Névoa sobre cada superfície iluminada, opaca ou transparente, nos dois renderizadores; `null`, o padrão, para nenhuma, sem custo. `{ color, near, far }` esvai os objetos em `color` de `near` a `far`, distâncias a partir da câmera; `{ color, density }` se adensa `density` por unidade de distância; acrescente `heightFalloff` (e `baseHeight`, 0 por padrão) e ela assenta no chão, rareando acima de `baseHeight` — dividida por e a cada `1 / heightFalloff` unidades para cima. Uma mudança aparece no quadro seguinte: uma névoa nova dada aqui, ou sua cor escrita pelos seus métodos. Uma escrita direta de `near`, `far`, `density`... não é ouvida: dê `fog` de novo depois. Uma névoa fora do intervalo — `far` não além de `near`, uma densidade negativa — é recusada (`INVALID_SCENE_ENVIRONMENT`).",
+      "fog": "Névoa sobre cada superfície, opaca ou transparente, nos dois renderizadores; `null`, o padrão, para nenhuma, sem custo. `{ color, near, far }` esvai os objetos em `color` de `near` a `far`, distâncias a partir da câmera; `{ color, density }` se adensa `density` por unidade de distância; acrescente `heightFalloff` (e `baseHeight`, 0 por padrão) e ela assenta no chão, rareando acima de `baseHeight` — dividida por e a cada `1 / heightFalloff` unidades para cima. Uma mudança aparece no quadro seguinte: uma névoa nova dada aqui, ou sua cor escrita pelos seus métodos. Uma escrita direta de `near`, `far`, `density`... não é ouvida: dê `fog` de novo depois. Uma névoa fora do intervalo — `far` não além de `near`, uma densidade negativa — é recusada (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carrega um modelo compilado — a URL de seu manifesto — e o adiciona a esta cena.",
       "toJSON": "A cena como JSON simples e versionado: seus objetos, as formas pela chamada que as construiu, os materiais, as luzes e os modelos carregados por endereço; também a pose de `camera` quando uma é informada.",
       "fromJSON": "Substitui o que a cena contém por uma cena salva com `toJSON`, mantendo suas marcas `helper`; é resolvida quando seus modelos estão carregados. Outro formato ou outra versão é recusado (`UNSUPPORTED_SCENE_FORMAT`). Chamadas feitas enquanto uma está sendo lida rodam uma depois da outra, em ordem, cada uma sobre o que a anterior deixou: duas cenas salvas nunca se misturam."
@@ -2781,7 +2781,7 @@
       "exposure": "Multiplicador da radiância linear, aplicado antes da curva.",
       "toneMapping": "A curva de exibição; `DEFAULT_TONE_MAPPING` quando ausente.",
       "irradiance": "A irradiância chegando de cada direção, como 27 números: nove coeficientes, cada um uma tripla RGB, na ordem de banda constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, ou tudo zero, nada ilumina uma superfície além das lâmpadas declaradas.",
-      "fog": "Névoa de distância ou de altura sobre cada superfície iluminada (`SceneFog`); ausente, nenhuma."
+      "fog": "Névoa de distância ou de altura sobre cada superfície (`SceneFog`); ausente, nenhuma."
     }
   },
   "SceneExponentialFog": {
@@ -2826,6 +2826,7 @@
       "ids": "O nome da luz de cada slot.",
       "count": "Quantas luzes.",
       "epoch": "Incrementado quando o conjunto de luzes muda.",
+      "transportEpoch": "Aumenta com a época, exceto por uma mudança só da névoa: a névoa é um termo do raio de visão, não do transporte de luz, então o que guarda em cache a luz transportada (as sondas de rebote) a mantém.",
       "environment": "O ambiente da cena.",
       "lightingView": "Visão pedida pelo host, como está: `auto` enquanto ele não pediu nada.",
       "unlit": "Verdadeiro quando a imagem precisa sair como albedo bruto, sem luz. Esse é o comportamento padrão enquanto nenhuma luz é declarada: uma cena sem fonte não tem nada para iluminar, e uma imagem preta não ajudaria nenhum benchmark de geometria. Assim que uma luz existe, a iluminação real assume o controle — a menos que o host tenha pedido explicitamente a visão de diagnóstico.",
@@ -3254,7 +3255,7 @@
       "baseMetal": "Cor base RGB, metalicidade A.",
       "normalRough": "Normal de mundo XYZ, aspereza A.",
       "emissiveAo": "Emissão RGB, oclusão ambiente A.",
-      "flags": "0 fundo, 1 sem luz, 2 leituras, 3 diagnóstico em espaço de exibição.",
+      "flags": "0 fundo, 1 não iluminado (com névoa), 2 lido, 3 mostrado como está: um diagnóstico, uma vista de normais ou de profundidade.",
       "views": "Suas views de textura de GPU.",
       "dispose": "A libera."
     }

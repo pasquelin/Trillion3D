@@ -61,10 +61,11 @@ ${WORLD_AT_WGSL}
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
  if(flag==0u){return vec4f(0.0);}
  let base=textureLoad(baseMetal,coord,0);
- if(flag==1u||flag==3u){return vec4f(base.rgb,1.0);}
- let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
+ if(flag==3u){return vec4f(base.rgb,1.0);}
  let z=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,z);
+ if(flag==1u){return vec4f(fogged(base.rgb,P,view.display.yzw),1.0);}
+ let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
  // The pixel's footprint at its depth, the unit its shadow level is chosen in.
  shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),z)-P);
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
@@ -77,8 +78,8 @@ ${WORLD_AT_WGSL}
 /**
  * Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
- * added (P6). Surfaces marked unlit or in display space come out as-is, as before: they are
- * materials with no response to light, not lit surfaces.
+ * added (P6). An unlit material shows its colour with no response to light, still seen through
+ * the fog; a diagnostic, normal or depth surface comes out as-is.
  */
 export const DIRECT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
