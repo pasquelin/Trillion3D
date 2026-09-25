@@ -1,17 +1,14 @@
 // The shadow read of `shadowWgsl.ts` and `shadowFactorWgsl.ts`, restated for the tests of #456:
 // the receiver's bias, and the PCF's bilinear comparisons, over a depth map a test describes as
 // a function. `RESTATED` holds the WGSL lines restated here; the tests pin them.
-import { LIGHT_SETTINGS, type SceneLight } from '../../../../sdk-core/src/index.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { dot } from '../../../../sdk-core/src/math/projectionOracles.ts';
-import { transformHomogeneousPoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
-import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { faceBasis } from '../../../../sdk-core/src/scene/light-shadow/math.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
-import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
+import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
 import { PCF_REACH, POISSON_16, directShadowWgsl } from './shadowWgsl.ts';
 
-type Vec = readonly number[];
+export type Vec = readonly number[];
 /** The depth map: the distance along the light stored at a texel centre. */
 export type Stored = (x: number, y: number) => number;
 
@@ -24,31 +21,39 @@ export const RESTATED = [
   ' let cosine=clamp(dot(N,-axis),1e-3,1.0);',
   ' let slope=sqrt(1.0-cosine*cosine)/cosine;',
   ' let offset=shadowNormalTexels(cosine);',
-  '  let Q=P+N*(texel*offset);',
-  '  let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth;',
+  '  let texel=exp2(f32(level));',
+  '  let Q=P+N*(texel*offset);\n  // Relative',
+  '  let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;',
+  ' let cosine=clamp(dot(N,L),1e-3,1.0);',
+  ' let radius=length(light.positionRange.xyz-P);',
   ' let texel0=2.0*info.y*radius/(f32(LAMP_PAGE_COUNT)*SHADOW_PAGE);',
   ' let k=near*far/(far-near);',
-  '  let d=Q-light.positionRange.xyz;',
+  '  let pages=LAMP_PAGE_COUNT>>mip;',
+  '  let side=f32(pages)*SHADOW_PAGE;',
+  '  let texel=texel0*exp2(f32(mip));',
+  '  let Q=P+N*(texel*offset);\n  let d=Q-light.positionRange.xyz;',
   '  let picked=select(0u,pointFaceOf(d),isPoint);',
   '  if(picked!=face){face=picked;m=shadows.records[index].faces[face];}',
   '  let clip=m*vec4f(Q,1.0);',
   '  let t=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*side;',
   '  let facing=dot(N,vec3f(m[0].w,m[1].w,m[2].w));',
   '  let slope=sqrt(max(1.0-facing*facing,0.0))/(dot(d,d)*cosine);',
-  '  return shadowPcf(map,t,ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w)),home,word,side);',
+  '  let reference=ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w))+SHADOW_DEPTH_ROUNDING;',
+  '  if((!isPoint&&(abs(ndc.x)>1.0||abs(ndc.y)>1.0))||ndc.z<0.0||ndc.z>1.0){return 1.0;}',
+  `const SHADOW_DEPTH_ROUNDING:f32=${SHADOW_DEPTH_ROUNDING};`,
   '  if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}',
   ' if(a.x>=a.y&&a.x>=a.z){return select(1u,0u,direction.x>0.0);}',
   ' if(a.y>=a.z){return select(3u,2u,direction.y>0.0);}',
   ' return select(5u,4u,direction.z>0.0);',
 ];
 
-const along = (p: Vec, n: Vec, s: number) => p.map((value, i) => value + n[i] * s);
-const sub = (a: Vec, b: Vec) => a.map((value, i) => value - b[i]);
+export const along = (p: Vec, n: Vec, s: number) => p.map((value, i) => value + n[i] * s);
+export const sub = (a: Vec, b: Vec) => a.map((value, i) => value - b[i]);
 /** `shadowDepthMargin`, in metres toward the light. */
-const depthMargin = (texel: number, slope: number, cap = 1) =>
+export const depthMargin = (texel: number, slope: number, cap = 1) =>
   texel * PCF_REACH * Math.min(slope, cap);
 /** `shadowNormalTexels` at a texel of `texel` metres: the offset in metres along the normal. */
-const normalOffset = (texel: number, cosine: number) =>
+export const normalOffset = (texel: number, cosine: number) =>
   texel *
   (LIGHT_SETTINGS.shadowNormalOffsetTexels +
     PCF_REACH * Math.max(Math.sqrt(1 - cosine * cosine) - cosine, 0));
@@ -85,12 +90,18 @@ export function pcf(t: Vec, stored: Stored, reference: number, side = 0) {
 /** A face of a profile extruded along z: a segment of the x-y plane, and its outward normal. */
 export type Face = { from: Vec; to: Vec; normal: Vec };
 
+/** A distance along the light as a map `range` metres deep, its near plane at the origin, holds
+ *  it: its normalised depth, `1 − s/range`, rounded to float32 — the depth format's rounding. */
+const float32Depth = (s: number, range: number) => range * (1 - Math.fround(1 - s / range));
+
 /**
  * A sun `zenith` radians from vertical, shining toward +x over a profile of `faces`, read at a
  * texel of `texel` metres, as `sunShadowFactor` reads its level. Returns the lit fraction at the
- * point `x` along face `index` (0 at `from`, 1 at `to`).
+ * point `x` along face `index` (0 at `from`, 1 at `to`). With a map `range`, both depths are
+ * rounded as the depth format rounds them; without, they are exact.
  */
-export function sunOverProfile(faces: Face[], zenith: number, texel: number) {
+export function sunOverProfile(faces: Face[], zenith: number, texel: number, range = 0) {
+  const depth = (s: number) => (range ? float32Depth(s, range) : s);
   const light = [Math.sin(zenith), -Math.cos(zenith)],
     across = [Math.cos(zenith), Math.sin(zenith)];
   /** The distance along the light of the first face met at `u` across it. */
@@ -112,61 +123,9 @@ export function sunOverProfile(faces: Face[], zenith: number, texel: number) {
     const P = along(from, sub(to, from), x);
     const cosine = clamp(-dot(normal, light), 1e-3, 1);
     const Q = along(P, normal, normalOffset(texel, cosine));
-    const reference = dot(Q, light) - depthMargin(texel, Math.sqrt(1 - cosine ** 2) / cosine);
-    return pcf([dot(Q, across) / texel, 0.5], (cx) => stored(cx * texel), reference);
-  };
-}
-
-/** `pointFaceOf`: the major axis of the light-to-point direction, in `POINT_FACE_AXES` order. */
-function pointFaceOf(d: Vec) {
-  const [x, y, z] = d.map(Math.abs);
-  if (x >= y && x >= z) return d[0] > 0 ? 0 : 1;
-  if (y >= z) return d[1] > 0 ? 2 : 3;
-  return d[2] > 0 ? 4 : 5;
-}
-
-/**
- * A point light at `at` over `planes` (a point of each and its normal), its six faces composed by
- * `writeFace` as the record holds them. Returns `lampShadowFactor` at `mip` for the point `P` of
- * normal `N`: the offset point's place in the face it read, and the lit fraction — the map
- * holding, at each texel, the depth along the face's axis of the first plane its ray meets.
- */
-export function pointLampOver(at: Vec, planes: { at: Vec; normal: Vec }[]) {
-  const light = { id: 'lamp', kind: 'point', position: at, range: 20 } as unknown as SceneLight;
-  const m = new Float32Array(6 * 16);
-  let tan = 0;
-  const frames = Array.from({ length: 6 }, (_, face) => {
-    tan = Math.tan(writeFace(m, face * 16, null, 0, light, face).halfFov);
-    return Array.from(faceBasis);
-  });
-  const stored = (face: number, a: number, b: number) => {
-    const f = frames[face],
-      ray = [0, 1, 2].map((i) => f[6 + i] + a * tan * f[i] + b * tan * f[3 + i]);
-    let first = Infinity;
-    for (const plane of planes) {
-      const s = dot(plane.normal, sub(plane.at, at)) / dot(plane.normal, ray);
-      if (s > 0) first = Math.min(first, s);
-    }
-    return first;
-  };
-  return (P: Vec, N: Vec, mip: number) => {
-    const radius = Math.hypot(...sub(P, at)),
-      cosine = clamp(-dot(N, sub(P, at)) / radius, 1e-3, 1);
-    const texel = ((2 * tan * radius) / (LAMP_SIDE * SHADOW_PAGE)) * 2 ** mip;
-    const Q = along(P, N, normalOffset(texel, cosine)),
-      d = sub(Q, at);
-    const face = pointFaceOf(d),
-      o = face * 16,
-      matrix = m.subarray(o, o + 16);
-    const [x, y, , w] = transformHomogeneousPoint([0, 0, 0, 0], matrix, Q[0], Q[1], Q[2]);
-    const ndc = [x / w, y / w],
-      side = (LAMP_SIDE >> mip) * SHADOW_PAGE;
-    const facing = dot(N, [m[o + 3], m[o + 7], m[o + 11]]);
-    const slope = Math.sqrt(Math.max(1 - facing * facing, 0)) / (dot(d, d) * cosine);
-    // The shader brings `k·margin` to depth; in the axial metres the map stores, it is `w²·margin`.
-    const margin = w * w * depthMargin(texel, slope, 1 / (w * w));
-    const t = [(ndc[0] * 0.5 + 0.5) * side, (0.5 - ndc[1] * 0.5) * side];
-    const map = (cx: number, cy: number) => stored(face, (2 * cx) / side - 1, 1 - (2 * cy) / side);
-    return { ndc, lit: pcf(t, map, w - margin, side) };
+    const reference =
+      depth(dot(Q, light) - depthMargin(texel, Math.sqrt(1 - cosine ** 2) / cosine)) -
+      range * SHADOW_DEPTH_ROUNDING;
+    return pcf([dot(Q, across) / texel, 0.5], (cx) => depth(stored(cx * texel)), reference);
   };
 }
