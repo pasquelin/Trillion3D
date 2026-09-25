@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
+import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 
 type Binding = Parameters<typeof bindClusterMaterial>[0];
 
@@ -62,19 +63,32 @@ test('A host recomposition of the UV transform reaches the next bind', () => {
   assert.equal(uploaded[0].value[6], 0.25, 'the offset the host composed is what the shader reads');
 });
 
+/** The value `bindClusterMaterial` gives the flag `name` for `material`. */
+const flagOf = (material: G.GraphSurface, name: string) => {
+  const flags = new Map<string, number>();
+  const { binding } = recorder();
+  (binding.uniforms as unknown as Record<string, unknown>).i1 = (
+    _: number,
+    flag: string,
+    value: number,
+  ) => void flags.set(flag, value);
+  bindClusterMaterial(binding, material, true);
+  return flags.get(name);
+};
+
 test('A Depth material, and it alone, shows the frame depth ramp', () => {
-  const shaded = (material: G.GraphSurface) => {
-    const flags = new Map<string, number>();
-    const { binding } = recorder();
-    (binding.uniforms as unknown as Record<string, unknown>).i1 = (
-      _: number,
-      name: string,
-      value: number,
-    ) => void flags.set(name, value);
-    bindClusterMaterial(binding, material, true);
-    return flags.get('depthShaded');
-  };
-  assert.equal(shaded(new G.GraphSurface('depth')), 1);
-  assert.equal(shaded(G.standardSurface()), 0);
-  assert.equal(shaded(G.basicSurface()), 0);
+  assert.equal(flagOf(new G.GraphSurface('depth'), 'depthShaded'), 1);
+  assert.equal(flagOf(G.standardSurface(), 'depthShaded'), 0);
+  assert.equal(flagOf(G.basicSurface(), 'depthShaded'), 0);
+});
+
+test("A diagnostic view's surfaces, and they alone, stay out of the fog", () => {
+  // The two surfaces a diagnostic view paints on the WebGL2 path: they show a number.
+  const triangles = pageDiagnostics.triangleMaterial(0) as unknown as G.GraphSurface;
+  const cluster = pageDiagnostics.clusterMaterial('7', 0) as unknown as G.GraphSurface;
+  assert.equal(flagOf(triangles, 'fogFree'), 1);
+  assert.equal(flagOf(cluster, 'fogFree'), 1);
+  // An unlit material a scene declares is seen through the fog, as a lit one is.
+  assert.equal(flagOf(G.basicSurface(), 'fogFree'), 0);
+  assert.equal(flagOf(G.standardSurface(), 'fogFree'), 0);
 });

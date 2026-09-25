@@ -426,8 +426,6 @@
       "reflections-from-the-screen": "réflexions en espace écran",
       "an-ocean": "rendu vers une texture : reflets et réfraction de l’eau",
       "a-raging-sea": "matériaux à shader sur mesure",
-      "a-town-in-the-fog": "brouillard",
-      "fog-on-the-ground": "brouillard : brouillard de hauteur",
       "fog-that-scatters-light": "brouillard volumique et rais de lumière",
       "a-cloud-in-a-box": "rendu volumique",
       "a-fire-in-a-volume": "rendu volumique",
