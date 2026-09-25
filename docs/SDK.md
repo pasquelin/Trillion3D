@@ -986,8 +986,10 @@ as `world.budget.split`:
   residency sets and the cut's differences), which follow what the view asks for and the pool
   holds, never the size of the world, and are read each time the cache weighs itself. The scene's
   resident proxy takes its announced size from the moment it is asked, and keeps it, never
-  evicted, until another scene replaces it; it is read on its own request, beside the page queue,
-  and is not counted among the pages read. A change applies at once: pages
+  evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
+  beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
+  a device loss. It is read on its own request, beside the page queue, and is not counted among
+  the pages read. A change applies at once: pages
   leave by last use until they fit, save those the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
@@ -1307,7 +1309,7 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
-  it still holds (the proxy is kept whole inside `world.budget.cpu`).
+  it still holds (the proxy is kept whole inside `world.budget.cpu` unless it yielded to the pages).
   `gpu-device-recovered` says the time from the loss to the first frame drawn after it
   (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
   not implemented.
