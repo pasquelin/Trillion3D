@@ -1365,6 +1365,7 @@
         "packages/sdk-browser/src/webgpu/pages/evictionAndCancel.test.ts",
         "packages/sdk-browser/src/webgpu/pages/gpuSelectionFallback.test.ts",
         "packages/sdk-browser/src/webgpu/pages/pagedQuad.fixture.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/cornersWithoutPartition.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/hizOcclusion.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/pageRaster.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/visCompactPipeline.test.ts",
