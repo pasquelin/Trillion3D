@@ -57,6 +57,8 @@ export type SdkWasm = {
     stride: number,
     bounds: number,
     boundValues: number,
+    open: number,
+    openValues: number,
     lens: number,
     stack: number,
     stackLength: number,

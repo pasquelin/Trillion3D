@@ -35,40 +35,44 @@ export function projectedClusterError(
     perspective,
   );
 }
-export function cutSelects(
+/**
+ * A cluster's own and replacement screen errors, in pixels, written to `out` as `[own, parent]`:
+ * what the cut rule compares (`../cut/rule.ts`).
+ *
+ * A cluster whose parent has no sphere of its own reuses its own: both sides then project the same
+ * sphere, so its view distance is taken once and both errors read it, `projectedErrorAt` getting
+ * the same operands in the same order as `projectedClusterError`.
+ */
+export function clusterPixels(
   rec: ClusterCut,
   e: ArrayLike<number>,
   stretch: number,
   focal: number,
   near: number,
-  pixelError: number,
-  perspective = 1,
+  perspective: number,
+  out: Float64Array,
 ) {
   const sphere = rec.sphere,
     own = rec.lodError ?? 0,
     parent = rec.parentError;
-  // A cluster whose parent has no sphere of its own reuses its own: both sides of the test
-  // then projected the same sphere twice, hence four square roots per record instead of two.
-  // One projection, shared the way `nodeDecision` already shares its own;
-  // `projectedErrorAt` gets the same operands in the same order as `projectedClusterError`.
   if (sphere && own !== 0 && own !== Infinity && rec.parentSphere == null) {
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
       radius = sphere[3];
-    if (
-      projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective) > pixelError
-    )
-      return false;
-    return (
-      projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective) >
-      pixelError
-    );
+    out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective);
+    out[1] = projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective);
+    return out;
   }
-  if (projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective) > pixelError)
-    return false;
-  const parentSphere = rec.parentSphere ?? sphere;
-  return (
-    projectedClusterError(parent, parentSphere, 0, e, stretch, focal, near, perspective) >
-    pixelError
+  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective);
+  out[1] = projectedClusterError(
+    parent,
+    rec.parentSphere ?? sphere,
+    0,
+    e,
+    stretch,
+    focal,
+    near,
+    perspective,
   );
+  return out;
 }

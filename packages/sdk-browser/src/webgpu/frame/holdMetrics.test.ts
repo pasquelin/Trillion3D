@@ -59,6 +59,7 @@ function tenue() {
   const rt = {
     run,
     timing,
+    context: {},
     gpu: {
       presenter: { present: () => {} },
       colorTexture: {},

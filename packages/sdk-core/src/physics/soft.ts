@@ -1,14 +1,23 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
-import { GRAVITY_PRESETS, PHYSICS_STEP, type PhysicsOption } from './options.ts';
+import { readPoints } from '../world/geometry/bounds.ts';
+import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts';
+import type { PhysicsBodyOptions, PhysicsOption } from './options.ts';
 import { SOFT_VERTEX_WORDS } from './softLayout.ts';
 
 /** A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or
  *  a volume (its closed triangles, held up by the gas inside). */
 export type SoftBodyType = 'cloth' | 'rope' | 'volume';
 
-/** What `obj.physics` accepts for a soft body: its vertices are simulated one by one. */
-export interface SoftBodyCommon {
+/** What `obj.physics` accepts for a soft body: its vertices are simulated one by one. Its matter
+ *  and pull as a rigid body's; no angular damping, shape, sensor, CCD nor debris. */
+export interface SoftBodyCommon extends Pick<
+  PhysicsBodyOptions,
+  'friction' | 'restitution' | 'gravityScale'
+> {
+  /** The share of its vertices' speed lost per second, `dv/dt = −c·v`, 0 and up.
+   *  @defaultValue { linear: 0.05 } */
+  damping?: { linear?: number };
   /** Indices of the geometry's vertices held where they are: a flag's pole, a rope's hook.
    *  @defaultValue [] */
   pins?: readonly number[];
@@ -91,6 +100,11 @@ export const softOf = (option: PhysicsOption) =>
 
 /** Reads a soft body's options, refusing a value out of its range. */
 export function softSettings(o: SoftBodyOptions): SoftSettings {
+  const rigid = o as unknown as PhysicsBodyOptions;
+  for (const name of ['shape', 'sensor', 'ccd', 'decorative'] as const)
+    if (rigid[name] !== undefined) throw new RangeError(`A soft body takes no ${name}.`);
+  if (rigid.damping?.angular !== undefined)
+    throw new RangeError('A soft body takes no angular damping: its vertices do not turn.');
   const { pins = [], mass, stretch = 0, bend = Infinity } = o;
   const pressure = o.type === 'volume' ? o.pressure : 0;
   for (const [name, value] of Object.entries({ stretch, bend, mass, pressure }))
@@ -119,7 +133,7 @@ type Scale = { x: number; y: number; z: number };
  * and a volume's pressure.
  */
 export function softBodyOf(geometry: Geometry, scale: Scale, settings: SoftSettings): SoftRecord {
-  const source = geometry.getAttribute('position')?.array ?? new Float32Array(0);
+  const source = Float32Array.from(readPoints(geometry.getAttribute('position')));
   const count = source.length / 3;
   const map = new Uint32Array(count);
   const at = new Map<string, number>();

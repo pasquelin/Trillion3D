@@ -34,13 +34,14 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap = bootstrap.slice();
   const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
-  const cap =
-      context.maxResidentPages ??
-      context.residentPagesDefault ??
-      Math.max(1024, bootstrapUrls.size),
+  // The display graph's page ceiling: the host's, or the default raised to the root cover (#527).
+  const hostCeiling = context.maxResidentPages ?? Infinity,
+    pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
+    cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
-  const shown: PageRec[] = [],
-    desired: PageRec[] = [];
+  // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
+  const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] },
+    { shown } = lists;
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<HostMaterial, HostMaterial>();
   const modifiedPages = new Set<string>();
@@ -56,8 +57,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     scene,
     allPages,
     bootstrap,
-    shown,
-    desired,
+    ...lists,
     byUrl,
     descriptors,
     baseMaterials,
@@ -68,21 +68,23 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
+  const ceiling =
+    hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...tables,
     baseRoots,
     basePages,
     baseBootstrap,
     geometryStore,
-    cap,
+    hostCeiling,
+    coverMeshes: heldFloor.meshes,
     sceneChanged: gate.sceneChanged,
     coverChanged: heldFloor.changed,
   });
   const residency = createAutonomousResidency({
     bootstrapUrls,
     modifiedPages,
-    shown,
-    desired,
+    ...lists,
     geometryStore,
   });
   const pool = createAutonomousPool({
@@ -97,9 +99,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     residency,
     heldFloor,
     instanceCount,
-    settle: () => cut.settle(),
   });
-  const cut = createAutonomousRender({
+  const frame = createAutonomousRender({
     state,
     context,
     gate,
@@ -107,12 +108,11 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     roots,
     blendCopies,
     worlds,
-    shown,
-    desired,
-    bootstrap,
-    cap,
+    ...lists,
+    revision: () => heldFloor.revision,
+    ceiling,
     sync,
-    keptChanged: residency.keptChanged,
+    residency,
     pool: pool.budget,
   });
   return {
@@ -128,7 +128,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
-      if (attachedPages(bootstrap) > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      if (heldFloor.meshes() > hostCeiling) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       await Promise.all(
         [...bootstrapUrls].map(async (url) => {
           context.signal?.throwIfAborted();
@@ -145,7 +145,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     render(camera) {
       hostDraw.render(camera);
-      if (ready) cut.frame(camera);
+      if (ready) frame(camera);
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,

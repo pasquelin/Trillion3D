@@ -837,7 +837,6 @@
       "residency": "レジデンシーとストリーミング",
       "residentPages": "常駐ページ",
       "requestedPages": "要求されたページ",
-      "budgetThreshold": "予算のしきい値",
       "texturesPending": "保留中のテクスチャ",
       "texturesEvicted": "破棄されたテクスチャ",
       "gpuAllocations": "追跡されているGPU割り当て",

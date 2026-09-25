@@ -975,7 +975,8 @@
       "PHYSICS_FAILED": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, üçgenler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`): `world.physics.error` üzerinde.",
       "PHYSICS_FORMAT": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok."
+      "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok.",
+      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi."
     }
   },
   "EngineProfiler": {
@@ -1111,7 +1112,6 @@
       "transparentSubmittedTriangles": "Gönderilen şeffaf üçgenler.",
       "coverageReady": "Tam bir başlangıç GPU yedeği kullanılabilir; bu garantisi olmayan backend'lerde null.",
       "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesinin alabileceğinden fazla sayfa ister: geri kalanı daha kaba çizilir.",
-      "budgetPixelError": "Yalnızca WebGL2: sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı — istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. WebGPU'da yoktur; orada görseli yalnızca yerleşiklik kabalaştırır. Sayfa bütçesi olmayan motorlarda null.",
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
@@ -1155,11 +1155,11 @@
     }
   },
   "Geometry": {
-    "summary": "Yalnızca şekil: köşe başına adlandırılmış öznitelikler, isteğe bağlı bir üçgen indeksi, malzeme grupları.",
+    "summary": "Yalnızca şekil: adlandırılmış köşe başı öznitelikleri, isteğe bağlı üçgen dizini, malzeme grupları, onu hareket ettiren morf hedefleri ve çizilen aralık.",
     "members": {
       "isGeometry": "Her zaman `true`: bir geometriyi başka her şeyden ayırır.",
       "type": "Geometrinin türü, `'Geometry'`.",
-      "attributes": "Ada göre köşe başına listeler: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Ada göre köşe başı listeleri: `position`, `normal`, `uv`, `color`; her biri kendi sayılarına sahiptir ya da iç içe geçmiş bir arabelleği okur.",
       "index": "Hangi köşelerin her üçgeni oluşturduğu, üçgen başına üç sayı; `null` onları sırayla okur.",
       "groups": "Bir mesh birkaçını taşıdığında `material[materialIndex]` ile çizilen indeks aralıkları.",
       "boundingBox": "Bir kez hesaplanan, her köşenin etrafındaki kutu; o zamana kadar `null`.",
@@ -1174,8 +1174,8 @@
       "addGroup": "`start`'tan itibaren `count` indeksi, mesh'in `materialIndex` malzeme numarasıyla çizer.",
       "clearGroups": "Her malzeme grubunu kaldırır.",
       "computeVertexNormals": "Yumuşak normaller: her köşe, alanına göre ağırlıklandırılmış, onu paylaşan yüzleri ortalar.",
-      "computeBoundingBox": "Her köşenin etrafındaki kutuyu ölçer ve `boundingBox`'ta tutar.",
-      "computeBoundingSphere": "Her köşenin etrafındaki küreyi ölçer ve `boundingSphere`'de tutar.",
+      "computeBoundingBox": "Her köşe noktasının ve bir morf hedefinin ona verdiği her şeklin çevresindeki kutuyu ölçer ve `boundingBox` içinde tutar.",
+      "computeBoundingSphere": "Kutuya ortalanmış ve morflu ya da değil en uzak köşeye ulaşan küreyi ölçer ve `boundingSphere` içinde tutar.",
       "applyMatrix4": "Her pozisyonu hareket ettirir, her normali döndürür: bir poz değil, geometrinin kendisi değişir.",
       "translate": "Her köşeyi `(x, y, z)` kadar hareket ettirir.",
       "rotateX": "Her köşeyi x ekseni etrafında `angle` radyan döndürür.",
@@ -1183,8 +1183,17 @@
       "rotateZ": "Her köşeyi z ekseni etrafında `angle` radyan döndürür.",
       "scale": "Her köşeyi `(x, y, z)` kadar gerer.",
       "center": "Geometriyi, kutusu başlangıç noktasında merkezlenecek şekilde hareket ettirir.",
-      "clone": "Her listenin kopyalarıyla yeni bir geometri.",
-      "dispose": "Sahipleri unutur: silinen bir geometriyi kimse çizmez."
+      "clone": "Her listenin, gruplarının, aralığının, verilerinin ve sınırlarının kopyalarıyla ve onu hâlâ kuran tarifle yeni bir geometri.",
+      "dispose": "Geometriyi geri verir: her serbest bırakma kancasını bir kez çalıştırır, tutanları ve ışın ağacını unutur; serbest bırakılmış bir geometriyi kimse çizmez ya da ona ışın atmaz.",
+      "kind": "Kaynağın ne olduğu; sahneyi okuyan kaynakları buna göre ayırır.",
+      "name": "Adı.",
+      "morphAttributes": "Morflanan her öznitelik için morf hedefi başına bir öznitelik.",
+      "morphTargetsRelative": "Bir morf hedefi konum değil yer değiştirme tuttuğunda doğru.",
+      "drawRange": "Dizinin çizilen aralığı.",
+      "userData": "Geometriyi kuranın verileri için serbest alan.",
+      "released": "Geometri geri verildiğinde çağrılır: bir işleyicinin kendi kopyasının dinlediği şey.",
+      "getIndex": "Üçgen listesi ya da `null`.",
+      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası."
     }
   },
   "GeometryPageDescriptor": {
@@ -1276,6 +1285,42 @@
     "members": {
       "isGroup": "Her zaman `true`: bir grubu ayırır.",
       "type": "Düğümün türü, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Bir sayfanın çizdiği bir kılavuz kümesi; her ayarlayıcı tutamacı döndürür.",
+    "members": {
+      "visible": "Çizilip çizilmediği; `setVisible` bunu yazar.",
+      "setVisible": "Onu gösterir ya da gizler; köşeleri sınıra sayılmaya devam eder.",
+      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris — `node.matrixWorld` bir düğümü izler.",
+      "remove": "Onu dünyadan çıkarır, köşelerini geri verir; ikinci çağrı hiçbir şey yapmaz."
+    }
+  },
+  "GuideLines": {
+    "summary": "Çizilecek çizgi segmentleri.",
+    "members": {
+      "positions": "Segment başına iki uç, her biri üç sayı.",
+      "color": "Renkleri; varsayılan beyaz.",
+      "width": "Ekrandaki genişlik, piksel cinsinden."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Çizilecek noktalar.",
+    "members": {
+      "positions": "Nokta başına üç sayı.",
+      "color": "Renkleri; varsayılan beyaz.",
+      "size": "Her kare noktanın ekrandaki kenarı, piksel cinsinden."
+    }
+  },
+  "Guides": {
+    "summary": "Bir dünyanın kılavuzları, bir sayfanın çizdiği gibi: `world.guides`.",
+    "members": {
+      "ceiling": "Kılavuzların birlikte tuttuğu en fazla köşe (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Şu an tutulan köşeler, segment başına iki ve nokta başına bir, gizli kılavuzlar dahil.",
+      "lines": "Her biri iki uçlu çizgi segmentleri çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
+      "points": "Her biri bir konumlu kare noktalar çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
+      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde, nesnenin şu an durduğu yerde çizer; üçgenleri kılavuz değildir ve atlanır.",
+      "clear": "Tüm kılavuzları kaldırır."
     }
   },
   "HALF_PI": {
@@ -1403,9 +1448,6 @@
       "height": "Piksel cinsinden yükseklik.",
       "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
     }
-  },
-  "HostGeometry": {
-    "summary": "Bir host geometrisi: öznitelikleri, ve host'un onlar üzerinden hesapladığı yerel kutu."
   },
   "HostMaterial": {
     "summary": "Motorun okuduğu şekliyle bir host malzemesi: her host malzemesinin paylaştığı, sınırda bir kez motorun `VisMaterial`'ına okunan yüzey parametreleri; yalnızca `sideOf` `side`'ı okur."
@@ -2106,7 +2148,9 @@
   },
   "SoftBodyCommon": {
     "summary": "`obj.physics`'in bir yumuşak cisim için kabul ettiği: köşeleri tek tek simüle edilir.",
+    "description": "Maddesi ve çekimi katı bir cisminki gibi; açısal sönüm, şekil, sensör, CCD veya enkaz yok.",
     "members": {
+      "damping": "Köşelerinin hızından saniyede kaybedilen pay, `dv/dt = −c·v`, 0 ve üzeri.",
       "pins": "Geometrinin yerinde tutulan köşelerinin indisleri: bir bayrağın direği, bir halatın kancası.",
       "mass": "Kilogram, her köşenin taşıdığı alana (halatta: uzunluğa) göre köşelere dağıtılır; verilmezse m² başına `SOFT_AREAL_DENSITY` (halatta m başına `SOFT_LINEAR_DENSITY`).",
       "stretch": "Bir kenar çekildiğinde ne kadar esner, m/N (sertliğinin tersi): 0 hiç uzamaz.",
@@ -3207,7 +3251,8 @@
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
       "pages": "Kaç paket.",
-      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı: derleyicinin yayımladığı sınır."
+      "maxDependencies": "Bir paketin en uzun kapalı bağımlılık listesi.",
+      "dependencyBound": "Bir paketin kümelerinin ebeveynlerini tutan en fazla paket sayısı, paketlemeden önce sabitlenir."
     }
   },
   "SlimStructure": {
@@ -3312,7 +3357,8 @@
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
       "pages": "Her paket.",
-      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı, derleyicinin yayımladığı gibi."
+      "maxDependencies": "Bir paketin en uzun kapalı bağımlılık listesi, derleyicinin yayımladığı şekliyle.",
+      "dependencyBound": "Bir paketin kümelerinin ebeveynlerini tutan en fazla paket sayısı, paketlemeden önce sabitlenir."
     }
   },
   "StreamPage": {
@@ -4000,6 +4046,9 @@
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
   },
+  "world.guides": {
+    "summary": "Görüntünün üzerine çizilen çizgiler, noktalar ve yardımcılar (`Guides`)."
+  },
   "world.onFrame": {
     "summary": "Her kareden önce, karenin zamanıyla bir fonksiyon çalıştırır.",
     "returns": "Kancayı durduran bir fonksiyon.",
@@ -4077,7 +4126,6 @@
       "transparentSubmittedTriangles": "Gönderilen şeffaf üçgenler.",
       "coverageReady": "Tam bir başlangıç GPU yedeği kullanılabilir; bu garantisi olmayan backend'lerde null.",
       "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesinin alabileceğinden fazla sayfa ister: geri kalanı daha kaba çizilir.",
-      "budgetPixelError": "Yalnızca WebGL2: sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı — istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. WebGPU'da yoktur; orada görseli yalnızca yerleşiklik kabalaştırır. Sayfa bütçesi olmayan motorlarda null.",
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
@@ -6351,7 +6399,7 @@
   "object.sprite": {
     "summary": "Kamera nereye bakarsa baksın her zaman kameraya dönük düz bir resim: sprite'ın ölçeği kadar büyük ve malzemesinin `rotation` değeriyle görüntüde döndürülmüş birim kare.",
     "parameters": {
-      "material": "Karenin gösterdiği: bir `material.sprite`."
+      "material": "Karenin gösterdiği: bir `material.sprite`; başka her tür hata fırlatır."
     }
   },
   "orthographicProjection": {
@@ -7095,6 +7143,10 @@
       "none": "Yerçekimi yok."
     }
   },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Bir dünyanın kılavuzlarının birlikte tuttuğu en fazla köşe sayısı: segment başına iki, nokta başına bir.",
+    "description": "Türetilmemiş, beyan edilmiş: geçişin yüklediği tek örnek arabelleğini, sayfa ne isterse istesin 64 Ki × 32 bayt = 2 MiB ile sınırlar — 16 000 çizgilik bir ızgara sığar, taranmış bir şehrin nokta bulutu sığmaz ve sahneye aittir."
+  },
   "GravityInput": {
     "summary": "Bir yerçekimi: bir ön ayarın adı ya da m/s² cinsinden bir vektör."
   },
@@ -7299,32 +7351,6 @@
       "brake": "Fren pedalı, 0 ile 1 arası.",
       "steer": "Direksiyon, −1 tam sol ile 1 tam sağ arası.",
       "handbrake": "El freninin çekili olup olmadığı."
-    }
-  },
-  "GraphGeometry": {
-    "summary": "Bir ağın çizdiği öznitelikler, onları indeksleyen üçgen listesi, onları hareket ettiren morf hedefleri ve üzerlerinde hesaplanan yerel kutu ile küre.",
-    "members": {
-      "kind": "Kaynağın ne olduğu.",
-      "name": "Adı.",
-      "index": "Üçgen listesi ya da köşeleri sırayla çizmek için `null`.",
-      "attributes": "Köşe öznitelikleri.",
-      "morphAttributes": "Her biçim değiştiren öznitelik için, morf hedefi başına bir öznitelik.",
-      "morphTargetsRelative": "Bir morf hedefi konum değil yer değiştirme tuttuğunda doğru.",
-      "groups": "Her biri tek bir yüzeyle çizilen indeks aralıkları.",
-      "drawRange": "İndeksin çizilen aralığı.",
-      "boundingBox": "Host'un hesapladığı yerel kutu.",
-      "boundingSphere": "Hesaplandıktan ya da bildirildikten sonra yerel küre.",
-      "userData": "Geometriyi kuranın verileri için serbest alan.",
-      "getIndex": "Üçgen listesi.",
-      "setIndex": "Üçgen listesini ayarlar.",
-      "getAttribute": "Bu adı taşıyan öznitelik.",
-      "setAttribute": "Bir özniteliğe ad verir.",
-      "deleteAttribute": "Bir özniteliği unutur.",
-      "hasAttribute": "Bu adda bir özniteliği olup olmadığı.",
-      "clone": "Her tamponun, gruplarının, aralığının ve sınırlarının kopyalarını tutan bir geometri.",
-      "toNonIndexed": "Aynı üçgenleri indekssiz çizen bir geometri: her köşe kendi başına bir tepe noktası.",
-      "computeBoundingBox": "Tüm köşeler üzerinde yerel kutuyu hesaplar.",
-      "computeBoundingSphere": "Yerel küreyi hesaplar: kutunun merkezinde, en uzak köşeye kadar."
     }
   },
   "GraphMesh": {
@@ -7636,10 +7662,11 @@
   },
   "Sprite": {
     "summary": "Her zaman kameraya dönük düz bir resim: her çizicinin çizim anında sprite'ın konumu etrafında görüntüye doğru döndürdüğü birim kare.",
-    "description": "Boyutu `x` ve `y` üzerindeki dünya ölçeğidir; görüntü düzlemindeki dönüşü malzemesinin `rotation` değeridir; kendi dönüşü okunmaz. Bir sprite gölge düşürmez.",
+    "description": "Boyutu `x` ve `y` üzerindeki dünya ölçeğidir; görüntü düzlemindeki dönüşü malzemesinin `rotation` değeridir; kendi dönüşü okunmaz. Bir sprite gölge düşürmez. Yalnızca bir `SpriteMaterial` alan referansın `Sprite`’ı gibi, yalnızca bir `material.sprite` taşır: verilen ya da atanan başka her malzeme, türünü adlandıran bir `TypeError` fırlatır.",
     "members": {
       "isSprite": "Her zaman `true`: bir sprite'ı diğer tüm meshlerden ayırır.",
-      "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası."
+      "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası.",
+      "material": "Sprite’ın `material.sprite`’ı; değiştirmek için başka birini atayın."
     }
   }
 }

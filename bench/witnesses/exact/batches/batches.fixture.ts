@@ -13,7 +13,7 @@ export const wears = (material: G.GraphSurface) => ({
 });
 
 export function attributes(count: number) {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute(new Float32Array(count * 3), 3));
   return geometry.attributes;
 }
@@ -33,7 +33,7 @@ export function fixture(): Fixture {
   const arrays = new Map<string, Uint32Array>();
   const add = (
     renderOrder: number,
-    attrs: G.GraphGeometry['attributes'],
+    attrs: G.Geometry['attributes'],
     id: number,
     url: string,
     triangles: number,

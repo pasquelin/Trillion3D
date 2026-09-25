@@ -19,7 +19,7 @@ import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/t
 const alea = graine(67);
 
 /** Fields the winding test never reads: shared across every fixture record. */
-const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
+const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 const pageOf = (matrix: G.Matrix4): PageRec => ({
   id: 0,

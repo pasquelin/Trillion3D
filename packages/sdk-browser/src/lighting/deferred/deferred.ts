@@ -1,14 +1,15 @@
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADER,
+  COMPOSE_SHADERS,
   DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSE_SHADER,
+  UNLIT_COMPOSE_SHADERS,
   UNLIT_LIGHTING_SHADER,
 } from './shaders.ts';
 import { createDeferredPlaceholders } from './setup.ts';
 import {
   createDeferredProgram,
+  type ComposedImage,
   type DeferredProgram,
   type DirectLightResources,
 } from './program.ts';
@@ -46,7 +47,7 @@ export async function createDeferredLighting(
       // exposed or brought into the display range, and albedo must be read as-is (P6).
       {
         lighting: UNLIT_LIGHTING_SHADER,
-        compose: UNLIT_COMPOSE_SHADER,
+        compose: UNLIT_COMPOSE_SHADERS,
         label: 'UNLIT',
         direct: false,
       },
@@ -116,7 +117,7 @@ export async function createDeferredLighting(
             device,
             {
               lighting: wantsBounce ? BOUNCE_LIGHTING_SHADER : DIRECT_LIGHTING_SHADER,
-              compose: COMPOSE_SHADER,
+              compose: COMPOSE_SHADERS,
               label: wantsBounce ? 'BOUNCE' : 'DIRECT',
               direct: true,
               bounce: wantsBounce,
@@ -153,34 +154,28 @@ export async function createDeferredLighting(
         pass.draw(3);
         pass.end();
       },
-      /** Composes `source` — the lit image by default, or the temporal-antialiasing output. */
+      /** Composes the lit image, or `composed`: the temporal output, or the effect chain's. */
       compose(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,
         clear: GPUColor,
         presentation?: GPUTextureView,
-        source?: GPUTextureView,
+        composed?: ComposedImage,
       ) {
-        const group = active.composeGroup(source);
-        if (!group) throw new Error('SURFACE_NOT_BOUND');
+        const composition = active.composition(composed);
+        if (!composition) throw new Error('SURFACE_NOT_BOUND');
         const colorAttachments: GPURenderPassColorAttachment[] = [
           { view: target, loadOp: 'clear', storeOp: 'store', clearValue: clear },
         ];
-        if (presentation)
-          colorAttachments.push({
-            view: presentation,
-            loadOp: 'clear',
-            storeOp: 'store',
-            clearValue: clear,
-          });
+        if (presentation) colorAttachments.push({ ...colorAttachments[0], view: presentation });
         const pass = encoder.beginRenderPass({
           label: presentation
             ? 'Trillion3D HDR composition + present'
             : 'Trillion3D HDR composition',
           colorAttachments,
         });
-        pass.setPipeline(presentation ? active.composePresent : active.compose);
-        pass.setBindGroup(0, group);
+        pass.setPipeline(presentation ? composition.present : composition.draw);
+        pass.setBindGroup(0, composition.group);
         pass.draw(3);
         pass.end();
       },

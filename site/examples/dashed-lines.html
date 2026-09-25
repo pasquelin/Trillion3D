@@ -58,14 +58,16 @@
       for (let k = 0; k < ORBIT_POINTS; k++) cometPath.set(cometAt((k / ORBIT_POINTS) * Math.PI * 2), k * 3);
 
       // Two inks for the orbits, two for the comet: dashed, and solid to compare. Every line is in
-      // the scene from the start; a control only chooses which ink it wears.
+      // the scene from the start; a control only chooses which ink it wears. A line's width is in
+      // CSS pixels, the same near and far: three pixels, so a dash reads as a dash.
+      const WIDTH = 3;
       const inks = {
-        dashed: material.lineDashed({ color: '#8fa6d8', dashSize: 0.3, gapSize: 0.2 }),
-        solid: material.line({ color: '#8fa6d8' }),
+        dashed: material.lineDashed({ color: '#8fa6d8', dashSize: 0.3, gapSize: 0.2, linewidth: WIDTH }),
+        solid: material.line({ color: '#8fa6d8', linewidth: WIDTH }),
       };
       const cometInks = {
-        dashed: material.lineDashed({ color: '#7ff0ff', dashSize: 0.15, gapSize: 0.25 }),
-        solid: material.line({ color: '#7ff0ff' }),
+        dashed: material.lineDashed({ color: '#7ff0ff', dashSize: 0.15, gapSize: 0.25, linewidth: WIDTH }),
+        solid: material.line({ color: '#7ff0ff', linewidth: WIDTH }),
       };
       const orbits = PLANETS.map(({ radius, tilt }) => {
         const orbit = object.lineLoop(circle(radius, tilt), inks.dashed);
@@ -74,6 +76,18 @@
       });
       const cometOrbit = object.lineLoop(geometry.createBuffer({ position: buffer.float32(cometPath, 3) }), cometInks.dashed);
       world.scene.add(cometOrbit);
+
+      // Under the system, a star chart in its own dim, shorter dashes: a ring every half metre and
+      // a spoke every fifteen degrees, the spokes one `lineSegments` of point pairs.
+      const chartInk = material.lineDashed({ color: '#2c3654', dashSize: 0.2, gapSize: 0.15, linewidth: WIDTH });
+      const CHART_RADIUS = 12, SPOKES = 24;
+      for (let ring = 1; ring <= CHART_RADIUS * 2; ring++) world.scene.add(object.lineLoop(circle(ring / 2, 0), chartInk));
+      const spokes = new Float32Array(SPOKES * 6);
+      for (let k = 0; k < SPOKES; k++) {
+        const angle = (k / SPOKES) * Math.PI * 2, x = Math.cos(angle), z = Math.sin(angle);
+        spokes.set([x, 0, z, x * CHART_RADIUS, 0, z * CHART_RADIUS], k * 6);
+      }
+      world.scene.add(object.lineSegments(geometry.createBuffer({ position: buffer.float32(spokes, 3) }), chartInk));
 
       const ball = geometry.sphere(1, 48, 24);
       const planets = PLANETS.map(({ size, colour }) => {
@@ -86,7 +100,8 @@
       const sun = object.mesh(geometry.sphere(0.9, 64, 32), material.meshStandard({ color: '#000000', emissive: '#ffb347', emissiveIntensity: 4 }));
       world.scene.add(comet, sun, light.point({ color: '#fff0d8', intensity: 90, distance: 40 }), light.ambient({ color: '#3a4460', intensity: 0.25 }));
 
-      world.camera.position.set(0, 7.5, 15);
+      // Seen from fifty degrees above the plane, the chart fills the view to its edges.
+      world.camera.position.set(0, 11, 9);
       world.camera.lookAt(0, 0, 0);
       world.controls.target.set(0, 0, 0);
       world.controls.minDistance = 5;

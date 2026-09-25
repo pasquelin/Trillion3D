@@ -1603,7 +1603,8 @@
       "PHYSICS_FAILED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
       "PHYSICS_FORMAT": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "Se asignó `'vehicle'` a `world.controls.kind` mientras `world.controls.vehicle` es `null`: no hay nada que conducir."
+      "NO_VEHICLE": "Se asignó `'vehicle'` a `world.controls.kind` mientras `world.controls.vehicle` es `null`: no hay nada que conducir.",
+      "GUIDE_CEILING": "Una llamada a `world.guides` mantendría más vértices que `GUIDE_VERTEX_CEILING`; no se añadió nada de ella."
     }
   },
   "enginePose": {
@@ -1800,7 +1801,6 @@
       "transparentSubmittedTriangles": "Triángulos transparentes enviados.",
       "coverageReady": "El repliegue de GPU inicial completo está disponible; nulo para motores sin esta garantía.",
       "coverageBudgetLimited": "El detalle solicitado necesita más páginas de las que caben en el presupuesto de páginas de GPU: el resto se dibuja más grueso.",
-      "budgetPixelError": "Solo WebGL2: suelo de error en pantalla que su presupuesto de páginas impone al corte, en píxeles — `0` cuando el detalle solicitado cabe, si no el umbral más grueso al que se dibuja la imagen. Ausente en WebGPU, donde solo la residencia vuelve más gruesa la imagen. Nulo para motores sin presupuesto de páginas.",
       "frameHeld": "Verdadero cuando el fotograma se mantuvo: ni la escena, ni la vista, ni los recursos se movieron, ningún trabajo asíncrono estaba pendiente, y ninguna etapa de CPU corrió. Los píxeles mostrados son los del fotograma original, bit a bit. Lo que HIZO el fotograma mantenido se publica tal cual, nunca copiado del último renderizado completo: `drawCalls`, `triangles`, `submittedTriangles` y `totalSubmittedTriangles` solo cuentan la presentación, y las duraciones de CPU y GPU por etapa valen cero cuando la etapa no corrió, `null` cuando nada la cronometró. Un motor cuya imagen es una escena que dibuja el adaptador testigo cuenta lo que ese adaptador envió en ese fotograma — nada, para un fotograma mantenido. Lo que MUESTRA el fotograma mantenido sigue descrito por el corte que vuelve a mostrar: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` y `residentPages` son los del fotograma original, ya que es el mismo corte. Ausente en un motor que no mantiene sus fotogramas.",
       "streamingError": "Error de carga persistente; las URL fallidas piden recargar el explorador tras tres intentos.",
       "gpuPassMs": "Última medición de pases de GPU de este motor; nulo cuando el dispositivo no sabe hacer marcas de tiempo.",
@@ -2040,11 +2040,11 @@
     }
   },
   "Geometry": {
-    "summary": "La forma sola: atributos nombrados por vértice, un índice de triángulos opcional, grupos de materiales.",
+    "summary": "Solo la forma: atributos por vértice con nombre, un índice de triángulos opcional, grupos de materiales, los objetivos de morph que la mueven y el rango que se dibuja.",
     "members": {
       "isGeometry": "Siempre `true`: distingue una geometría de todo lo demás.",
       "type": "El tipo de la geometría, `'Geometry'`.",
-      "attributes": "Las listas por vértice, por nombre: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Las listas por vértice, por nombre: `position`, `normal`, `uv`, `color`; cada una posee sus números o lee un búfer entrelazado.",
       "index": "Qué vértices forman cada triángulo, tres números por triángulo; `null` los lee en orden.",
       "groups": "Rangos de índices dibujados con `material[materialIndex]` cuando una malla lleva varios.",
       "boundingBox": "La caja alrededor de cada vértice, una vez calculada; `null` antes.",
@@ -2059,8 +2059,8 @@
       "addGroup": "Dibuja `count` índices desde `start` con el material número `materialIndex` de la malla.",
       "clearGroups": "Retira cada grupo de material.",
       "computeVertexNormals": "Normales suaves: cada vértice promedia las caras que lo comparten, ponderadas por su área.",
-      "computeBoundingBox": "Mide la caja alrededor de cada vértice y la guarda en `boundingBox`.",
-      "computeBoundingSphere": "Mide la esfera alrededor de cada vértice y la guarda en `boundingSphere`.",
+      "computeBoundingBox": "Mide la caja alrededor de cada vértice y de cada forma que le da un objetivo de morph, y la guarda en `boundingBox`.",
+      "computeBoundingSphere": "Mide la esfera centrada en la caja que alcanza el vértice más lejano, con morph o sin él, y la guarda en `boundingSphere`.",
       "applyMatrix4": "Mueve cada posición, gira cada normal: es la geometría la que cambia, no una pose.",
       "translate": "Mueve cada vértice en `(x, y, z)`.",
       "rotateX": "Gira cada vértice alrededor del eje x, `angle` radianes.",
@@ -2068,8 +2068,17 @@
       "rotateZ": "Gira cada vértice alrededor del eje z, `angle` radianes.",
       "scale": "Estira cada vértice en `(x, y, z)`.",
       "center": "Mueve la geometría para que su caja quede centrada en el origen.",
-      "clone": "Una nueva geometría con copias de cada lista.",
-      "dispose": "Olvida a quienes la sostienen: una geometría liberada no la dibuja nadie."
+      "clone": "Una nueva geometría con copias de cada lista, sus grupos, rango, datos y límites, y la receta que aún la construye.",
+      "dispose": "Devuelve la geometría: ejecuta cada gancho de liberación una vez, olvida a quienes la sostienen y el árbol de raycast; nadie dibuja ni apunta a una geometría liberada.",
+      "kind": "Qué es el recurso, como un lector de la escena distingue los recursos.",
+      "name": "Su nombre.",
+      "morphAttributes": "Por cada atributo con morph, un atributo por objetivo de morph.",
+      "morphTargetsRelative": "Verdadero cuando un objetivo de morph guarda desplazamientos, no posiciones.",
+      "drawRange": "El rango del índice que se dibuja.",
+      "userData": "Espacio libre para los datos de quien construyó la geometría.",
+      "released": "Se llaman cuando la geometría se devuelve: lo que escucha la copia propia de un renderizador.",
+      "getIndex": "La lista de triángulos, o `null`.",
+      "toNonIndexed": "Una geometría que dibuja los mismos triángulos sin índice: cada esquina es un vértice propio."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2192,6 +2201,42 @@
     "members": {
       "isGroup": "Siempre `true`: distingue un grupo.",
       "type": "El tipo de nodo, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Un conjunto de guías que una página dibujó; cada ajuste devuelve el manejador.",
+    "members": {
+      "visible": "Si se dibuja; `setVisible` lo escribe.",
+      "setVisible": "Lo muestra u oculta; sus vértices siguen contando contra el límite.",
+      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz — `node.matrixWorld` sigue a un nodo.",
+      "remove": "Lo saca del mundo y devuelve sus vértices; una segunda llamada no hace nada."
+    }
+  },
+  "GuideLines": {
+    "summary": "Segmentos de línea que dibujar.",
+    "members": {
+      "positions": "Dos extremos por segmento, tres números cada uno.",
+      "color": "Su color; blanco por defecto.",
+      "width": "Ancho en pantalla, en píxeles."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Puntos que dibujar.",
+    "members": {
+      "positions": "Tres números por punto.",
+      "color": "Su color; blanco por defecto.",
+      "size": "Lado de cada punto cuadrado en pantalla, en píxeles."
+    }
+  },
+  "Guides": {
+    "summary": "Las guías de un mundo, tal como una página las dibuja: `world.guides`.",
+    "members": {
+      "ceiling": "El máximo de vértices que las guías mantienen juntas (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Vértices mantenidos ahora, dos por segmento y uno por punto, guías ocultas incluidas.",
+      "lines": "Dibuja segmentos de línea, dos extremos cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
+      "points": "Dibuja puntos cuadrados, una posición cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
+      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales, colocadas donde el objeto está ahora; sus triángulos no son guías y se omiten.",
+      "clear": "Quita todas las guías."
     }
   },
   "HALF_PI": {
@@ -2439,9 +2484,6 @@
       "height": "Alto en píxeles.",
       "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura."
     }
-  },
-  "HostGeometry": {
-    "summary": "Una geometría del host: sus atributos, y la caja local que el host calculó sobre ella."
   },
   "HostMaterial": {
     "summary": "Un material del host tal como lo lee el motor: los parámetros de superficie que comparte todo material del host, leídos una vez en la frontera hacia el `VisMaterial` del motor; solo `sideOf` lee `side`."
@@ -4173,7 +4215,7 @@
   "object.sprite": {
     "summary": "Una imagen plana que siempre mira a la cámara, mire donde mire: un cuadrado de una unidad, del tamaño de la escala del sprite y girado en la imagen por la `rotation` de su material.",
     "parameters": {
-      "material": "Lo que muestra el cuadrado: un `material.sprite`."
+      "material": "Lo que muestra el cuadrado: un `material.sprite`; cualquier otro tipo lanza un error."
     }
   },
   "Object3D": {
@@ -4230,7 +4272,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Lo que `obj.physics` acepta para un cuerpo blando: sus vértices se simulan uno a uno.",
+    "description": "Su materia y su tirón como los de un cuerpo rígido; sin amortiguación angular, forma, sensor, CCD ni escombros.",
     "members": {
+      "damping": "La parte de la velocidad de sus vértices perdida por segundo, `dv/dt = −c·v`, 0 o más.",
       "pins": "Índices de los vértices de la geometría que se sostienen donde están: el mástil de una bandera, el gancho de una cuerda.",
       "mass": "Kilogramos, repartidos entre los vértices según el área (una cuerda: la longitud) que sostiene cada uno; si se omite, `SOFT_AREAL_DENSITY` por m² (una cuerda: `SOFT_LINEAR_DENSITY` por m).",
       "stretch": "Cuánto cede una arista al tirar de ella, m/N (la inversa de su rigidez): 0 nunca se estira.",
@@ -5542,7 +5586,8 @@
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
       "pages": "Cuántos paquetes.",
-      "maxDependencies": "Mayor número de dependencias de un paquete: el límite que publica el compilador."
+      "maxDependencies": "La lista de dependencias cerrada más larga de un paquete.",
+      "dependencyBound": "Máximo de paquetes que contienen los padres de los clústeres de un paquete, fijado antes del empaquetado."
     }
   },
   "SlimStructure": {
@@ -5689,7 +5734,8 @@
       "pinned": "Paquetes siempre conservados.",
       "bundleBytes": "Tamaño objetivo de un paquete.",
       "pages": "Cada paquete.",
-      "maxDependencies": "Mayor número de dependencias de un paquete, tal como lo publicó el compilador."
+      "maxDependencies": "La lista de dependencias cerrada más larga de un paquete, tal como la publicó el compilador.",
+      "dependencyBound": "Máximo de paquetes que contienen los padres de los clústeres de un paquete, fijado antes del empaquetado."
     }
   },
   "StreamPage": {
@@ -6533,6 +6579,9 @@
       "modes": "Cada modo de vista que ofrece el motor de renderizado actual."
     }
   },
+  "world.guides": {
+    "summary": "Líneas, puntos y ayudas dibujados sobre la imagen (`Guides`)."
+  },
   "world.onFrame": {
     "summary": "Lanza una función antes de cada fotograma, con el tiempo del fotograma.",
     "parameters": {
@@ -6624,7 +6673,6 @@
       "transparentSubmittedTriangles": "Triángulos transparentes enviados.",
       "coverageReady": "El repliegue de GPU inicial completo está disponible; nulo para motores sin esta garantía.",
       "coverageBudgetLimited": "El detalle solicitado necesita más páginas de las que caben en el presupuesto de páginas de GPU: el resto se dibuja más grueso.",
-      "budgetPixelError": "Solo WebGL2: suelo de error en pantalla que su presupuesto de páginas impone al corte, en píxeles — `0` cuando el detalle solicitado cabe, si no el umbral más grueso al que se dibuja la imagen. Ausente en WebGPU, donde solo la residencia vuelve más gruesa la imagen. Nulo para motores sin presupuesto de páginas.",
       "frameHeld": "Verdadero cuando el fotograma se mantuvo: ni la escena, ni la vista, ni los recursos se movieron, ningún trabajo asíncrono estaba pendiente, y ninguna etapa de CPU corrió. Los píxeles mostrados son los del fotograma original, bit a bit. Lo que HIZO el fotograma mantenido se publica tal cual, nunca copiado del último renderizado completo: `drawCalls`, `triangles`, `submittedTriangles` y `totalSubmittedTriangles` solo cuentan la presentación, y las duraciones de CPU y GPU por etapa valen cero cuando la etapa no corrió, `null` cuando nada la cronometró. Un motor cuya imagen es una escena que dibuja el adaptador testigo cuenta lo que ese adaptador envió en ese fotograma — nada, para un fotograma mantenido. Lo que MUESTRA el fotograma mantenido sigue descrito por el corte que vuelve a mostrar: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` y `residentPages` son los del fotograma original, ya que es el mismo corte. Ausente en un motor que no mantiene sus fotogramas.",
       "streamingError": "Error de carga persistente; las URL fallidas piden recargar el explorador tras tres intentos.",
       "gpuPassMs": "Última medición de pases de GPU de este motor; nulo cuando el dispositivo no sabe hacer marcas de tiempo.",
@@ -7095,6 +7143,10 @@
       "none": "Sin gravedad."
     }
   },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "El máximo de vértices que las guías de un mundo mantienen juntas: dos por segmento, uno por punto.",
+    "description": "Declarado, no derivado: limita el único búfer de instancias que sube la pasada a 64 Ki × 32 bytes = 2 MiB, pida lo que pida una página — una rejilla de 16 000 líneas cabe, la nube de puntos de una ciudad escaneada no, y pertenece a la escena."
+  },
   "GravityInput": {
     "summary": "Una gravedad: el nombre de un preajuste, o un vector en m/s²."
   },
@@ -7300,32 +7352,6 @@
       "steer": "Volante, de −1 todo a la izquierda a 1 todo a la derecha.",
       "handbrake": "Si el freno de mano está echado."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Sus atributos de vértices.",
-      "boundingBox": "La caja local calculada por el host.",
-      "kind": "Qué es el recurso.",
-      "name": "Su nombre.",
-      "index": "La lista de triángulos, o `null` para dibujar los vértices en orden.",
-      "morphAttributes": "Por cada atributo deformado, un atributo por objetivo de morph.",
-      "morphTargetsRelative": "Verdadero cuando un objetivo de morph guarda desplazamientos, no posiciones.",
-      "groups": "Rangos del índice dibujados cada uno con una superficie.",
-      "drawRange": "El rango del índice que se dibuja.",
-      "boundingSphere": "La esfera local, una vez calculada o declarada.",
-      "userData": "Espacio libre para los datos de quien construyó la geometría.",
-      "getIndex": "La lista de triángulos.",
-      "setIndex": "Fija la lista de triángulos.",
-      "getAttribute": "El atributo con ese nombre.",
-      "setAttribute": "Nombra un atributo.",
-      "deleteAttribute": "Olvida un atributo.",
-      "hasAttribute": "Si tiene un atributo con ese nombre.",
-      "clone": "Una geometría con copias de cada búfer, sus grupos, su rango y sus límites.",
-      "toNonIndexed": "Una geometría que dibuja los mismos triángulos sin índice: cada esquina es un vértice propio.",
-      "computeBoundingBox": "Calcula la caja local sobre todos los vértices.",
-      "computeBoundingSphere": "Calcula la esfera local: centrada en la caja, hasta el vértice más lejano."
-    },
-    "summary": "Los atributos que dibuja una malla, la lista de triángulos que los indexa, los objetivos de morph que los mueven, y la caja y la esfera locales calculadas sobre ellos."
   },
   "GraphNode": {
     "members": {
@@ -7636,10 +7662,11 @@
   },
   "Sprite": {
     "summary": "Una imagen plana que siempre mira a la cámara: un cuadrado de una unidad que cada renderizador gira hacia la imagen al dibujar, alrededor de la posición del sprite.",
-    "description": "Su tamaño es su escala en el mundo en `x` e `y`; su giro en el plano de la imagen es la `rotation` de su material; su propia rotación no se lee. Un sprite no proyecta sombra.",
+    "description": "Su tamaño es su escala en el mundo en `x` e `y`; su giro en el plano de la imagen es la `rotation` de su material; su propia rotación no se lee. Un sprite no proyecta sombra. Como el `Sprite` de la referencia, que solo acepta un `SpriteMaterial`, solo lleva un `material.sprite`: cualquier otro material, dado o asignado, lanza un `TypeError` que nombra su tipo.",
     "members": {
       "isSprite": "Siempre `true`: distingue un sprite de cualquier otra malla.",
-      "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior."
+      "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior.",
+      "material": "El `material.sprite` del sprite; asigna otro para cambiarlo."
     }
   }
 }

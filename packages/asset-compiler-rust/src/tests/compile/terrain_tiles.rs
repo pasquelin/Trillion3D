@@ -67,7 +67,7 @@ fn terrain_fixture(simplification: &str) -> (PathBuf, Options) {
         "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":meshes,"nodes":nodes,"scenes":[{"nodes":[0,1]}],"scene":0,
         "materials":[{"pbrMetallicRoughness":{"baseColorTexture":{"index":0},"metallicFactor":0.0}}],
         "textures":[{"source":0}],"images":[{"uri":"terrain.png"}]});
-    let (root, mut options) = gltf_fixture("terrain", &gltf, &buffer.bin, 2 * QUADS * QUADS * 2);
+    let (root, mut options) = gltf_fixture("terrain", &gltf, &buffer.bin);
     fs::write(
         options.source.join("terrain.png"),
         png_sized(8, [90, 120, 60, 255]),

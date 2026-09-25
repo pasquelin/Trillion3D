@@ -1,4 +1,4 @@
-import type { HostGeometry, HostMesh } from '../../host/resources.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
@@ -17,6 +17,7 @@ import type { BlendExpand } from './expand.ts';
 import type { WaterPass } from '../water/pass.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { createBlendFootprint } from './footprint.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type BlendGpuItem = {
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
@@ -35,7 +36,7 @@ export type BlendGpuItem = {
    *  row's item is (`placement/hidden.ts`). */
   hidden?: boolean;
   sourceMesh?: HostMesh;
-  sourceGeometry: HostGeometry;
+  sourceGeometry: Geometry;
   /** World box of the item, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`); absent, the item is not rejected. */
   bounds?: Float64Array;
   /** Buffer this box occupies, allocated once for the item when the frustum can reject it.

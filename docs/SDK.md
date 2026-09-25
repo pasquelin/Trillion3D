@@ -536,6 +536,45 @@ values another material shares — is copied on write and opens the session agai
 `world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
 reopen.
 
+### Guides: lines, points and helpers over the image
+
+`world.guides` draws what a page shows _about_ its scene — an axis, a grid, a box, a measured
+segment, a light's cone — without adding it to the scene. A guide is not cut into pages: it is
+drawn by a small pass of its own after the image is composed, as quads of a fixed width in
+device pixels (the drawing buffer's, not CSS pixels), hidden by whatever stands in front of it (the scene's depth is read, never
+written). It never enters temporal accumulation, so it does not smear behind a moving camera
+nor shimmer on a still one.
+
+```js
+const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper, as it stands
+const ruler = world.guides.lines({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', width: 3 });
+const marks = world.guides.points({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', size: 8 });
+ruler.setVisible(false); // kept, not drawn
+grid.setTransform(model.matrixWorld); // placed again, e.g. every frame to follow a node
+marks.remove();
+```
+
+- `add(object, { width, size })` reads the line and point meshes of an object — every `helper`
+  builds them — in their material colours; triangles, like an arrow's head, are not guides.
+  `lines` takes two ends per segment, `points` one position per dot.
+- Every call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
+  numbers or a matrix), `remove()`. `world.guides.clear()` removes them all. Placing a guide
+  at the pose it already holds changes nothing, so a page may re-place it every frame and a still
+  view is still held.
+- The guides of a world hold at most `GUIDE_VERTEX_CEILING` (65,536) vertices, two per segment and
+  one per dot, hidden ones included; a call beyond it throws `EngineError` `GUIDE_CEILING` and
+  adds nothing. `world.guides.vertexCount` reads what is held.
+- Off by default and free when unused: while no guide is shown the pass is not built and not
+  encoded, and a still view is held as before. Changing a guide redraws one frame and leaves
+  temporal accumulation as it was.
+- Both paths draw them: WebGPU over its display target with the reversed depth, WebGL2 over the
+  composed frame with the forward depth. The WebGPU scene depth is drawn with the sub-pixel jitter
+  of temporal accumulation and the guides without it, so a guide lying on a surface is tested
+  with the depth that jitter moved there (the jitter times the surface's depth slope): a grid on
+  a floor or a box's edges stay whole on a still view. Positions are packed relative to the first guide, in
+  double precision, so a guide far from the origin keeps its detail.
+- Text labels are not guides yet (#264).
+
 ## Installation and environment API
 
 The package is private and installed from this repository or a local tarball; it is not published
@@ -662,6 +701,17 @@ numbers, their type, normalisation and name; a view's clone owns its numbers. Th
 classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` and the types
 `GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
 `InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
+
+The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexAttribute`.
+`morphAttributes` lists one attribute per morph target for each morphed attribute, and
+`morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
+and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
+every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
+and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
+centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
+index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
+bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
+hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
 
 ## Batch math for hosts
 
@@ -827,7 +877,9 @@ Nothing lights an opaque surface except a light the host declared. There is no f
 no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
+a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
+`material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
+nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
@@ -958,12 +1010,11 @@ their floors (the root cover, one texture layer per lane), which they never go b
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
-What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU the pages that do not
-fit stay out and their surface is drawn by its nearest resident ancestor, on WebGL2 the cut raises
-its screen error until the cover fits, and a texture tile shows its coarser level. The frame metrics
-say so — `coverageBudgetLimited`, `budgetPixelError` (WebGL2: the threshold the image is drawn at,
-`0` when the requested detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
-is too small for that view). A value that cannot be held as given is brought to what can be, and
+What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU and WebGL2 alike the
+pages that do not fit stay out and their surface is drawn by its nearest resident ancestor, the
+finest detail given up first, and a texture tile shows its coarser level. The frame metrics say so
+— `coverageBudgetLimited`, `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count
+says the pool is too small for that view). A value that cannot be held as given is brought to what can be, and
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`. What is refused, by name, is only this:
 
@@ -1082,7 +1133,8 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   `RangeError`. `world.physics.waterSurface` reads those same waves at the simulation's time, to
   draw them (they run on while every body sleeps, and stand still when paused): `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
   `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
-  goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
+  goes on from where it is. Its example, floating crates, waits for geometry written every frame
+  to be uploaded in place (#573).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
@@ -1091,7 +1143,9 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
   cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
   `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
-  `quaternion` in the object's frame; its scale must be the same on all axes. A dynamic
+  `quaternion` in the object's frame; its scale must be the same on all axes. A declared
+  `{ type: 'cylinder', halfHeight, radius, radiusBottom }` tapers from its top's `radius` to
+  `radiusBottom`, as `geometry.cylinder(radiusTop, radiusBottom, height)` draws it. A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
   teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
@@ -1152,7 +1206,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   radius and width are read from its bounds, and the simulation turns, steers and lifts it on its
   suspension every tick. As Jolt's own vehicle samples build theirs, the body's centre of mass is
   lowered to the bottom of its shape, midway between its wheels, and given back when the vehicle
-  leaves. The body faces −z: the forward wheels steer. A car has three wheels or
+  leaves. Its running gear is solid: a box over the wheels' footprint, from the body's bottom down
+  to their lowest point raised by the suspension's travel, joins its shape while it is a vehicle,
+  so another body never slips under it among its wheels, which Jolt only casts; its mass and
+  inertia stay its own shape's. The body faces −z: the forward wheels steer. A car has three wheels or
   more, one differential per driven axle (`drive: 'front' | 'rear' | 'all'`) and the handbrake on
   its rear wheels; a motorcycle two, driven at the rear, and it leans into a turn; a tracked
   vehicle two or more a side, each track driven by its rearmost wheel, steered by slowing one
@@ -1183,7 +1240,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   weight on a quarter of its mean cross-section (`SOFT_FOOTPRINT`, declared), or the most its skin
   holds if less. A pressure past what its skin holds within a tenth of its rest volume is refused
   with a `RangeError`: its edges give by their `stretch` and by the solver's own compliance, one
-  substep squared over a vertex's mass, so a light, finely cut skin holds less. A soft body is a
+  substep squared over a vertex's mass, so a light, finely cut skin holds less. `friction`,
+  `restitution`, `gravityScale` and `damping: { linear }` act as on a rigid body, on each vertex;
+  `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
+  (its vertices do not turn). A soft body is a
   direct child of the scene; moved by the page, it is made again there; it takes no velocity,
   impulse, joint or vehicle, and sends no contact event. Rigid bodies and the character collide
   with its vertices: the character is turned aside or stopped, never pushing it; a rigid body
@@ -1223,8 +1283,9 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
   `capsule` with `halfHeight` and `radius`) sweeps that shape instead; `maxDistance` defaults to
-  `camera.far`. Without these options `world.raycast` answers at once, from the scene's own
-  geometry, a model on its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
+  `camera.far`; `ignore` names a body the ray or shape passes through, the asker's own. Without
+  `exact` or `shape`, `world.raycast` answers at once, from the scene's own geometry, a model on
+  its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
 - **Character.** With physics on, `world.controls` `'character'` is the physics' own character
   (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 

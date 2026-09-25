@@ -3,16 +3,17 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { HostGeometry } from '../../host/resources.ts';
+
 import { pageCopies } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** A page geometry of `floats` position floats and three indices: `floats * 4 + 12` bytes. */
 function pageGeometry(floats: number) {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(floats), 3));
   geometry.setIndex(new G.BufferAttribute(new Uint32Array(3), 1));
-  return geometry as unknown as HostGeometry;
+  return geometry as unknown as Geometry;
 }
 
 const rec = (url: string, extra: Partial<PageRec> = {}) => ({ url, ...extra }) as PageRec;
@@ -65,12 +66,12 @@ test('the floor counts every geometry the store counts: copies sharing their arr
   // Two records of one page, as the store builds them from one decoded page: two geometries on
   // the same arrays, each uploaded on its own; and an instance's clone of the first.
   const first = pageGeometry(9);
-  const second = new G.GraphGeometry();
-  const source = first as unknown as G.GraphGeometry;
+  const second = new G.Geometry();
+  const source = first as unknown as G.Geometry;
   second.setIndex(new G.BufferAttribute(source.index!.array, 1));
   second.setAttribute('position', new G.BufferAttribute(source.attributes.position.array, 3));
-  const clone = source.clone() as unknown as HostGeometry;
-  const bootstrap = [first, second as unknown as HostGeometry, clone].map((geometry) =>
+  const clone = source.clone() as unknown as Geometry;
+  const bootstrap = [first, second as unknown as Geometry, clone].map((geometry) =>
     rec('root', { geometry }),
   );
   const floor = createHeldFloor({ bootstrap, modifiedPages: new Set(), byUrl: new Map() });

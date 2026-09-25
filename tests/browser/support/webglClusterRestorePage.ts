@@ -32,7 +32,7 @@ const paint = (image: HTMLCanvasElement, color: string) => {
 };
 
 const texturedTriangle = () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     new G.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),

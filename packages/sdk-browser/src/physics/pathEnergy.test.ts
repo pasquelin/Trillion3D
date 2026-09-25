@@ -111,3 +111,20 @@ test('a body run into the end of an open bend stops there and stays', async () =
     assert.ok(gap(rig.at(body), arc[16]) < 1e-3, `held at the end: ${rig.at(body)}`);
   }
 });
+
+test('path carry: a step visits the path joints alone, whatever the other joints', async () => {
+  // Forty point joints, then one path beside them: the step's carry visits per step.
+  const rig = await jointRig();
+  const anchor = rig.cube(0, 0, 6);
+  for (let i = 0; i < 40; i++) rig.wanted.add(joint.point(anchor, null));
+  const perStep = () => {
+    const before = rig.visits.path();
+    rig.run(1);
+    return rig.visits.path() - before;
+  };
+  assert.equal(perStep(), 0, 'forty plain joints and no path: no path visit');
+  const { made } = held(rig, RING, true);
+  assert.equal(perStep(), 1, 'one path beside forty joints: one visit');
+  rig.wanted.delete(made);
+  assert.equal(perStep(), 0, 'the path taken out: no path visit');
+});

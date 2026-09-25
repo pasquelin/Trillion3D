@@ -11,7 +11,7 @@
 /// Frustum planes, four floats each, six of them.
 pub const PLANE_VALUES: usize = 24;
 /// Floats per node bound record and their fields (`packages/sdk-browser/src/page/cut/bounds.ts`).
-pub const BOUND_STRIDE: usize = 13;
+pub const BOUND_STRIDE: usize = 12;
 const OWN_FLOOR: usize = 0;
 const OWN_CEIL: usize = 1;
 const PARENT_FLOOR: usize = 2;
@@ -189,7 +189,7 @@ fn node_decision_at_zero(v: &[f64], at: usize) -> i32 {
     ))
 }
 
-/// `subtreeDecision` outside forcing, on the bound record of `node`.
+/// `subtreeDecision` on the bound record of `node`.
 pub fn subtree_decision(bounds: &[f64], node: usize, l: &Lens) -> Result<i32, Invalid> {
     let at = node * BOUND_STRIDE;
     if l.exact {

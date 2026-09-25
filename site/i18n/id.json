@@ -388,7 +388,6 @@
       "residency": "Residensi dan streaming",
       "residentPages": "Halaman yang berada di memori",
       "requestedPages": "Halaman yang diminta",
-      "budgetThreshold": "Ambang anggaran",
       "texturesPending": "Tekstur tertunda",
       "texturesEvicted": "Tekstur yang dikeluarkan",
       "gpuAllocations": "Alokasi GPU yang dilacak",

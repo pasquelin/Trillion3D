@@ -1,6 +1,7 @@
 //! A chalet of thin closed shapes keeps its walls on every level of its cook (#415). Every cut
 //! decodes onto its source, flips no face, and still shows each wall a camera on any axis sees.
 use super::chalet_fixture::chalet;
+use super::coarse_normals::foreign_normal_defects;
 use super::cooked_pages::cooked_page_defects;
 use super::silhouette::{cut_defects, Mesh};
 use super::*;
@@ -45,12 +46,11 @@ fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":buffer.bin.len()}],
         "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":[{"primitives":primitives}],"nodes":[{"mesh":0}],
         "scenes":[{"nodes":[0]}],"scene":0,"materials":materials});
-    let triangles = meshes.iter().map(|m| m.indices.len() / 3).sum();
-    gltf_fixture(tag, &gltf, &buffer.bin, triangles)
+    gltf_fixture(tag, &gltf, &buffer.bin)
 }
 
 /// The chalet cooked with simplification, without texture families: the cut is the subject.
-fn cook() -> ([Mesh; 2], PathBuf, Options, Value) {
+fn cook() -> ([Mesh; 3], PathBuf, Options, Value) {
     let meshes = chalet();
     let (root, mut options) = mesh_fixture("chalet", &meshes);
     options.texture_formats = Vec::new();
@@ -70,10 +70,17 @@ fn every_cut_of_a_chalet_of_thin_closed_shapes_keeps_its_walls_facing_out() {
         assert!(defects.is_empty(), "{defects:#?}");
         let defects = cut_defects(&objects, primitive, mesh);
         assert!(defects.is_empty(), "{defects:#?}");
+        let defects = foreign_normal_defects(&objects, primitive, mesh);
+        assert!(defects.is_empty(), "{defects:#?}");
     }
-    let levels = primitives[1]["pages"].as_array().expect("pages").iter();
-    let top = levels.filter_map(|p| p["level"].as_u64()).max();
-    assert!(top > Some(1), "the wood must coarsen more than once");
+    for (primitive, name) in [(1, "wood"), (2, "roof")] {
+        let levels = primitives[primitive]["pages"]
+            .as_array()
+            .expect("pages")
+            .iter();
+        let top = levels.filter_map(|p| p["level"].as_u64()).max();
+        assert!(top > Some(1), "the {name} must coarsen more than once");
+    }
     let _ = fs::remove_dir_all(root);
 }
 
@@ -107,7 +114,7 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
     }
 }
 /// Digest of what the chalet cooks to: every page, its objects by digest, its errors and bounds.
-const CHALET_COOK: &str = "9d8ae357203b398a721fa5f3519351a9481a09ea66a91c2451705ac17fcdd1da";
+const CHALET_COOK: &str = "b2dc03df97011a5e876b40f01621566367619c965d785983711696a89072aba5";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
 /// it. A different digest on one platform alone is a cook that is not portable (the C++ of

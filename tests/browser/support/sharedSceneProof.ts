@@ -19,8 +19,8 @@ import type {
 export const VIEWPORT: [number, number] = [96, 96];
 
 /** An indexed square of half-side `demi` in the plane `z = 0`, its two triangles already bounded. */
-export function carre(demi: number): G.GraphGeometry {
-  const geometry = new G.GraphGeometry();
+export function carre(demi: number): G.Geometry {
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute([-demi, -demi, 0, demi, -demi, 0, demi, demi, 0, -demi, demi, 0], 3),
@@ -39,7 +39,7 @@ export function batisseur() {
     indices = new Map<string, Uint32Array>(),
     associations = new Map<G.Object3D, { meshes?: number; primitives?: number }>(),
     primitives: Primitive[] = [],
-    geometries: G.GraphGeometry[] = [],
+    geometries: G.Geometry[] = [],
     materials: G.GraphSurface[] = [];
   return {
     source,

@@ -25,26 +25,6 @@ export function traceAdmission(
   }));
 }
 
-export function traceTransition(
-  rt: WebgpuPagesRuntime,
-  requested: Set<string>,
-  transition: Set<string>,
-  started: number,
-) {
-  const { run, diag } = rt,
-    { tracking, slots } = rt.setup;
-  diag.traceDiagnostic('residency-transition', 'Coverage transition computed', () => ({
-    frame: run.frame,
-    scope: 'cpu/residency-transition',
-    elapsedMs: performance.now() - started,
-    from: tracking.traceSet('transition.from', urlsOf(run.drawn)),
-    to: tracking.traceSet('transition.to', urlsOf(run.shown)),
-    requested: tracking.traceSet('transition.requested', [...requested]),
-    transition: tracking.traceSet('transition.all', [...transition]),
-    slots,
-  }));
-}
-
 export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number) {
   const { run, diag } = rt,
     { tracking } = rt.setup,

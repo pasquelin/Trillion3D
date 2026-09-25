@@ -16,9 +16,9 @@ import type {
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { GraphGeometry } from '../graph/geometry.ts';
 import { type BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { normalisedScale, preparedAccessors } from './accessors.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
 const NAMES: Record<string, string> = {
@@ -43,7 +43,7 @@ const runs = (set: Readonly<Record<string, number>>) =>
 /** The morph targets of a primitive, laid on its geometry as the loader lays them: one list per
  *  morphed attribute, the base attribute standing in for a target that leaves it alone. */
 function morph(
-  geometry: GraphGeometry,
+  geometry: Geometry,
   declared: TablePrimitive,
   attributeOf: ReturnType<typeof preparedAccessors>,
 ) {
@@ -70,7 +70,7 @@ const MORPHED = [
  */
 export function preparedGeometries(document: TableDocument, binary: ArrayBuffer | null) {
   const attributeOf = preparedAccessors(document, binary);
-  const geometries = new Map<string, GraphGeometry>();
+  const geometries = new Map<string, Geometry>();
 
   /** A run's declared corner, at the scale a normalised run is read at. */
   const corner = (rank: number, which: 'min' | 'max') => {
@@ -82,7 +82,7 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
 
   /** The box the positions declare, grown by the largest displacement a morph target declares
    *  (the loader's rule: not conservative, but the size of the shapes it blends). */
-  const bound = (geometry: GraphGeometry, declared: TablePrimitive) => {
+  const bound = (geometry: Geometry, declared: TablePrimitive) => {
     const position = declared.attributes.POSITION;
     const low = position === undefined ? null : corner(position, 'min');
     const high = position === undefined ? null : corner(position, 'max');
@@ -111,7 +111,7 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
     geometry.boundingSphere = new Sphere(centre, Math.sqrt(dx * dx + dy * dy + dz * dz) / 2);
   };
 
-  return (mesh: number, primitive: number): GraphGeometry => {
+  return (mesh: number, primitive: number): Geometry => {
     const declared = document.meshes[mesh].primitives[primitive];
     const semantics = Object.keys(declared.attributes);
     const key = `${declared.indices}:${runs(declared.attributes)}${(declared.targets ?? [])
@@ -119,7 +119,7 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
       .join('')}`;
     let geometry = geometries.get(key);
     if (geometry) return geometry;
-    geometry = new GraphGeometry();
+    geometry = new Geometry();
     for (const semantic of semantics) {
       const name = NAMES[semantic] ?? semantic.toLowerCase();
       if (!(name in geometry.attributes))

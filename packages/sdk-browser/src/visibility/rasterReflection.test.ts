@@ -21,7 +21,7 @@ const VUE: [number, number] = [96, 96];
 const POSITIONS = [-2, -1, 0, -0.5, -1, 0, -1.25, 1, 0, 0.5, -1, 0, 1.25, 1, 0, 2, -1, 0];
 
 function page(matrix: G.Matrix4, side: number): VisPage {
-  const geometrie = new G.GraphGeometry();
+  const geometrie = new G.Geometry();
   geometrie.setAttribute('position', G.floatAttribute(POSITIONS, 3));
   return {
     array: new Uint32Array([0, 1, 2, 3, 4, 5]),

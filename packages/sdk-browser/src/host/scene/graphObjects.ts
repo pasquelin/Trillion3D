@@ -11,12 +11,12 @@ import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphCamera } from '../graph/camera.ts';
 import { GraphMesh } from '../graph/mesh.ts';
-import type { GraphGeometry } from '../graph/geometry.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import type { HostBox } from '../resources.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ControlVector } from '../../camera/controls/types.ts';
 import type { HostGraphMesh } from './graphNodes.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** The camera the explorer frames its scene with, at the optics the framing computed. */
 export const hostFramingCamera = (
@@ -37,6 +37,6 @@ export const hostBox = (flat: ArrayLike<number>): HostBox =>
  *  replication copies transforms alone, and a resource is never rebuilt. */
 export const hostMeshCopy = (mesh: HostGraphMesh): HostGraphMesh =>
   new GraphMesh(
-    mesh.geometry as unknown as GraphGeometry,
+    mesh.geometry as unknown as Geometry,
     mesh.material as unknown as GraphSurface | GraphSurface[],
   );

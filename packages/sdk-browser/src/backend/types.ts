@@ -170,6 +170,8 @@ export interface BackendContext {
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;
+  /** The page's guides, held by its world (`guides/guideSet.ts`): drawn over the image. */
+  guides?: import('../guides/guideSet.ts').GuideSet;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */

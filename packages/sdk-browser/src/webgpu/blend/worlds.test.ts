@@ -14,7 +14,7 @@ import type { BlendGpuItem } from './state.ts';
 /** A transparent item reduced to what the refresh reads: its matrix, box, geometry. The scene
  *  carries the parent from the start: that is the shape the engine indexes at prepare. */
 function item(position: G.Vector3, cullable = true) {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.boundingBox = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1));
   const parent = new G.Group();
   const mesh = G.mesh(geometry);
@@ -34,7 +34,7 @@ function item(position: G.Vector3, cullable = true) {
 }
 
 test('the transparent copy reads the world matrix the engine holds, it keeps no snapshot of it', () => {
-  const mesh = G.mesh(new G.GraphGeometry());
+  const mesh = G.mesh(new G.Geometry());
   mesh.position.set(1, 2, 3);
   const worlds = hostWorldPlacements(mesh);
   const copy = createBlendCopyRecord(mesh, 7, worlds.of(mesh), surfaceOf([]));

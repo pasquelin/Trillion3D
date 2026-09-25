@@ -121,7 +121,7 @@ const SLIVER: f64 = 1e-3;
 
 /// Unit face normal of a triangle by its winding, and its width — its height over its longest
 /// edge; `None` for a sliver.
-pub(super) fn face_normal(positions: &[f32], tri: &[u32; 3]) -> Option<([f64; 3], f64)> {
+pub(crate) fn face_normal(positions: &[f32], tri: &[u32; 3]) -> Option<([f64; 3], f64)> {
     let [a, b, c] = [tri[0], tri[1], tri[2]].map(|v| vector(positions, v));
     let (a, b, c) = (a?, b?, c?);
     let normal = cross(sub(b, a), sub(c, a));

@@ -1,6 +1,5 @@
-// G1: `geometry.ts` detaches by the set of pages actually attached (`attachees`,
-// a `Set` held by `attach`/`detach`) instead of scanning `allPages` — the whole DAG — at each frame.
-// Oracle: the version before batch G, copied as is in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
+// G1: `geometry.ts` detaches by the pages attached (`attachees`), not by a scan of the whole DAG.
+// Oracle: the version before batch G, in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -31,12 +30,12 @@ function makeRec(id: number, triangles: number): Required<Pick<PageRec, 'mesh'>>
     min: [0, 0, 0],
     max: [1, 1, 1],
     depthLayer: 0,
-    attributes: {} as G.GraphGeometry['attributes'],
+    attributes: {} as G.Geometry['attributes'],
     material: surfaceOf({} as unknown as G.GraphSurface),
     declaration: {} as G.GraphSurface,
     matrix: new G.Matrix4(),
     renderOrder: 0,
-    geometry: {} as G.GraphGeometry,
+    geometry: {} as G.Geometry,
     // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
     mesh: { matrix: { fromArray: () => {} } } as unknown as Required<PageRec>['mesh'],
     attached: false,
@@ -54,6 +53,7 @@ function environnement(
     bootstrap: [],
     shown,
     desired: [],
+    requested: [],
     byUrl: new Map(),
     descriptors: new Map(),
     baseMaterials: new Map(),
@@ -156,7 +156,7 @@ test('an attached page wears the host declaration, not the engine surface record
   const declaration = G.standardSurface();
   const rec: PageRec = {
     ...makeRec(0, 1),
-    geometry: new G.GraphGeometry() as PageRec['geometry'],
+    geometry: new G.Geometry() as PageRec['geometry'],
     mesh: undefined,
     declaration,
     material: surfaceOf(declaration),

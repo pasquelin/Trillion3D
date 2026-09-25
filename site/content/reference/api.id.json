@@ -982,7 +982,8 @@
       "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, segitiga, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
       "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan."
+      "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan.",
+      "GUIDE_CEILING": "Sebuah panggilan `world.guides` akan memegang lebih banyak verteks daripada `GUIDE_VERTEX_CEILING`; tidak ada yang ditambahkan."
     }
   },
   "EngineProfiler": {
@@ -1119,7 +1120,6 @@
       "transparentSubmittedTriangles": "Segitiga tembus pandang yang dikirim.",
       "coverageReady": "Fallback GPU awal yang lengkap tersedia; null pada backend tanpa jaminan ini.",
       "coverageBudgetLimited": "Detail yang diminta butuh lebih banyak halaman daripada yang muat di anggaran halaman GPU: sisanya digambar lebih kasar.",
-      "budgetPixelError": "Hanya WebGL2: batas bawah galat layar yang dipaksakan anggaran halamannya pada potongan itu, dalam piksel — `0` saat detail yang diminta muat, kalau tidak ambang batas lebih kasar tempat gambar digambar. Tidak ada di WebGPU, tempat residensi saja yang membuat gambar lebih kasar. Null pada mesin tanpa anggaran halaman.",
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
@@ -1163,11 +1163,11 @@
     }
   },
   "Geometry": {
-    "summary": "Bentuknya saja: atribut per-vertex bernama, indeks segitiga opsional, grup material.",
+    "summary": "Hanya bentuknya: atribut per verteks bernama, indeks segitiga opsional, grup material, target morph yang menggerakkannya, dan rentang yang digambar.",
     "members": {
       "isGeometry": "Selalu `true`: membedakan sebuah geometri dari yang lain.",
       "type": "Jenis geometri itu, `'Geometry'`.",
-      "attributes": "Daftar per-vertex menurut namanya: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Daftar per verteks menurut nama: `position`, `normal`, `uv`, `color`; masing-masing memiliki angkanya sendiri atau membaca buffer berselang-seling.",
       "index": "Vertex mana yang membentuk setiap segitiga, tiga angka per segitiga; `null` membacanya berurutan.",
       "groups": "Rentang indeks yang digambar dengan `material[materialIndex]` saat sebuah mesh membawa beberapa.",
       "boundingBox": "Kotak di sekitar setiap vertex, setelah dihitung; `null` sampai saat itu.",
@@ -1182,8 +1182,8 @@
       "addGroup": "Menggambar `count` indeks dari `start` dengan nomor material `materialIndex` mesh itu.",
       "clearGroups": "Menghapus setiap grup material.",
       "computeVertexNormals": "Normal halus: setiap vertex merata-ratakan sisi yang berbagi dengannya, dibobot menurut luasnya.",
-      "computeBoundingBox": "Mengukur kotak di sekitar setiap vertex dan menyimpannya di `boundingBox`.",
-      "computeBoundingSphere": "Mengukur bola di sekitar setiap vertex dan menyimpannya di `boundingSphere`.",
+      "computeBoundingBox": "Mengukur kotak di sekitar setiap verteks dan setiap bentuk yang diberikan target morph, lalu menyimpannya di `boundingBox`.",
+      "computeBoundingSphere": "Mengukur bola yang berpusat pada kotak dan menjangkau verteks terjauh, di-morph atau tidak, lalu menyimpannya di `boundingSphere`.",
       "applyMatrix4": "Memindahkan setiap posisi, memutar setiap normal: geometrinya sendiri berubah, bukan sebuah pose.",
       "translate": "Memindahkan setiap vertex sebesar `(x, y, z)`.",
       "rotateX": "Memutar setiap vertex mengelilingi sumbu x, sebesar `angle` radian.",
@@ -1191,8 +1191,17 @@
       "rotateZ": "Memutar setiap vertex mengelilingi sumbu z, sebesar `angle` radian.",
       "scale": "Meregangkan setiap vertex sebesar `(x, y, z)`.",
       "center": "Memindahkan geometri agar kotaknya berpusat di titik asal.",
-      "clone": "Sebuah geometri baru dengan salinan setiap daftar.",
-      "dispose": "Melupakan pemegangnya: sebuah geometri yang dibuang tidak digambar siapa pun."
+      "clone": "Geometri baru dengan salinan setiap daftar, grup, rentang, data, dan batasnya, serta resep yang masih membangunnya.",
+      "dispose": "Mengembalikan geometri: menjalankan setiap kait pelepasan sekali, melupakan pemegangnya dan pohon raycast; geometri yang dilepas tidak digambar atau dikenai sinar oleh siapa pun.",
+      "kind": "Apa sumber dayanya, cara pembaca adegan membedakan sumber daya.",
+      "name": "Namanya.",
+      "morphAttributes": "Untuk setiap atribut yang di-morph, satu atribut per target morph.",
+      "morphTargetsRelative": "Benar bila target morph menyimpan perpindahan, bukan posisi.",
+      "drawRange": "Rentang indeks yang digambar.",
+      "userData": "Ruang bebas untuk data siapa pun yang membangun geometri.",
+      "released": "Dipanggil saat geometri dikembalikan: yang didengarkan salinan milik renderer.",
+      "getIndex": "Daftar segitiga, atau `null`.",
+      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut verteksnya sendiri."
     }
   },
   "GeometryPageDescriptor": {
@@ -1284,6 +1293,42 @@
     "members": {
       "isGroup": "Selalu `true`: membedakan sebuah grup.",
       "type": "Jenis node itu, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Satu kumpulan pemandu yang digambar halaman; setiap setter mengembalikan pegangannya.",
+    "members": {
+      "visible": "Apakah ia digambar; `setVisible` menuliskannya.",
+      "setVisible": "Menampilkan atau menyembunyikannya; verteksnya tetap dihitung terhadap batas.",
+      "setTransform": "Menempatkannya: enam belas angka per kolom, atau sebuah matriks — `node.matrixWorld` mengikuti sebuah node.",
+      "remove": "Mengeluarkannya dari dunia, verteksnya dikembalikan; panggilan kedua tidak berbuat apa-apa."
+    }
+  },
+  "GuideLines": {
+    "summary": "Segmen garis yang akan digambar.",
+    "members": {
+      "positions": "Dua ujung per segmen, masing-masing tiga angka.",
+      "color": "Warnanya; putih secara bawaan.",
+      "width": "Lebar di layar, dalam piksel."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Titik yang akan digambar.",
+    "members": {
+      "positions": "Tiga angka per titik.",
+      "color": "Warnanya; putih secara bawaan.",
+      "size": "Sisi setiap titik persegi di layar, dalam piksel."
+    }
+  },
+  "Guides": {
+    "summary": "Pemandu satu dunia, sebagaimana halaman menggambarnya: `world.guides`.",
+    "members": {
+      "ceiling": "Jumlah verteks terbanyak yang dipegang bersama oleh pemandu (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Verteks yang dipegang sekarang, dua per segmen dan satu per titik, termasuk pemandu tersembunyi.",
+      "lines": "Menggambar segmen garis, masing-masing dua ujung; ditolak di atas batas (`GUIDE_CEILING`).",
+      "points": "Menggambar titik persegi, masing-masing satu posisi; ditolak di atas batas (`GUIDE_CEILING`).",
+      "add": "Menggambar mesh garis dan titik dari `object` — setiap `helper` membangunnya — dengan warna materialnya, ditempatkan di posisi objek saat ini; segitiganya bukan pemandu dan dilewati.",
+      "clear": "Menghapus semua pemandu."
     }
   },
   "HALF_PI": {
@@ -1411,9 +1456,6 @@
       "height": "Tinggi dalam piksel.",
       "linear": "Radiansi linear, tanpa kurva dan tanpa pengodean, di atas hitam transparan: masukan rantai efek, yang alfanya adalah cakupan."
     }
-  },
-  "HostGeometry": {
-    "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya."
   },
   "HostMaterial": {
     "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`."
@@ -2124,7 +2166,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Apa yang diterima `obj.physics` untuk benda lunak: verteksnya disimulasikan satu per satu.",
+    "description": "Materi dan tarikannya seperti benda kaku; tanpa redaman sudut, bentuk, sensor, CCD, maupun puing.",
     "members": {
+      "damping": "Bagian kecepatan titik-titiknya yang hilang per detik, `dv/dt = −c·v`, 0 ke atas.",
       "pins": "Indeks verteks geometri yang ditahan di tempatnya: tiang bendera, kait tali.",
       "mass": "Kilogram, dibagi ke verteks menurut luas (tali: panjang) yang ditanggung masing-masing; bila dihilangkan, `SOFT_AREAL_DENSITY` per m² (tali: `SOFT_LINEAR_DENSITY` per m).",
       "stretch": "Seberapa rusuk mengalah saat ditarik, m/N (kebalikan kekakuannya): 0 tak pernah meregang.",
@@ -3288,7 +3332,8 @@
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
       "pages": "Berapa banyak bundle.",
-      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel: batas yang diterbitkan kompiler."
+      "maxDependencies": "Daftar dependensi tertutup terpanjang dari sebuah bundel.",
+      "dependencyBound": "Jumlah bundel terbanyak yang memuat induk klaster satu bundel, ditetapkan sebelum pengemasan."
     }
   },
   "SlimStructure": {
@@ -3393,7 +3438,8 @@
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
       "pages": "Setiap bundle.",
-      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel, seperti yang diterbitkan kompiler."
+      "maxDependencies": "Daftar dependensi tertutup terpanjang dari sebuah bundel, seperti yang diterbitkan kompiler.",
+      "dependencyBound": "Jumlah bundel terbanyak yang memuat induk klaster satu bundel, ditetapkan sebelum pengemasan."
     }
   },
   "StreamPage": {
@@ -4055,7 +4101,6 @@
       "transparentSubmittedTriangles": "Segitiga tembus pandang yang dikirim.",
       "coverageReady": "Fallback GPU awal yang lengkap tersedia; null pada backend tanpa jaminan ini.",
       "coverageBudgetLimited": "Detail yang diminta butuh lebih banyak halaman daripada yang muat di anggaran halaman GPU: sisanya digambar lebih kasar.",
-      "budgetPixelError": "Hanya WebGL2: batas bawah galat layar yang dipaksakan anggaran halamannya pada potongan itu, dalam piksel — `0` saat detail yang diminta muat, kalau tidak ambang batas lebih kasar tempat gambar digambar. Tidak ada di WebGPU, tempat residensi saja yang membuat gambar lebih kasar. Null pada mesin tanpa anggaran halaman.",
       "frameHeld": "Benar saat bingkai ditahan: baik scene, tampilan, maupun sumber daya tidak bergerak, tidak ada pekerjaan asinkron yang tertunda, dan tidak ada tahap CPU yang berjalan. Piksel yang ditampilkan adalah milik bingkai asli, sama persis bit demi bit. Apa yang DILAKUKAN bingkai tertahan diterbitkan apa adanya, tidak pernah disalin dari render lengkap terakhir: `drawCalls`, `triangles`, `submittedTriangles` dan `totalSubmittedTriangles` hanya menghitung yang ada saat ini, dan durasi CPU serta GPU per-tahap nol saat tahap itu tidak berjalan, `null` saat tidak ada yang mewaktuinya. Sebuah mesin yang gambarnya adalah scene yang digambar adaptor saksi menghitung apa yang dikirim adaptor itu bingkai ini — tidak ada, pada yang tertahan. Apa yang DITUNJUKKAN bingkai tertahan tetap dijelaskan potongan yang ditampilkannya ulang: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` dan `residentPages` adalah milik bingkai asli, karena ini potongan yang sama. Tidak ada pada mesin yang tidak menahan bingkainya.",
       "streamingError": "Galat pemuatan yang menempel; URL yang gagal butuh reload explorer setelah tiga percobaan.",
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
@@ -6343,7 +6388,7 @@
   "object.sprite": {
     "summary": "Gambar datar yang selalu menghadap kamera, ke mana pun kamera melihat: persegi satuan, sebesar skala sprite dan diputar di dalam gambar oleh `rotation` materialnya.",
     "parameters": {
-      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`."
+      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`; jenis lain melempar galat."
     }
   },
   "orthographicProjection": {
@@ -6867,6 +6912,9 @@
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },
+  "world.guides": {
+    "summary": "Garis, titik, dan alat bantu yang digambar di atas gambar (`Guides`)."
+  },
   "world.raycast": {
     "summary": "Objek terdekat di bawah sebuah titik canvas (piksel CSS) atau di sepanjang sinar dunia, atau `null`: node yang ditambahkan halaman, titik dunia dan normal yang terkena, serta jaraknya (`worldRaycast`).",
     "parameters": {
@@ -7096,6 +7144,10 @@
       "none": "Tanpa gravitasi."
     }
   },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Jumlah verteks terbanyak yang dipegang bersama oleh pemandu satu dunia: dua per segmen, satu per titik.",
+    "description": "Dinyatakan, bukan diturunkan: membatasi satu-satunya buffer instans yang diunggah pass pada 64 Ki × 32 byte = 2 MiB, apa pun yang diminta halaman — kisi 16 000 garis muat, awan titik kota hasil pindaian tidak, dan tempatnya di adegan."
+  },
   "GravityInput": {
     "summary": "Gravitasi: nama preset, atau vektor dalam m/s²."
   },
@@ -7301,32 +7353,6 @@
       "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
       "handbrake": "Apakah rem tangan ditarik."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Atribut vertex-nya.",
-      "boundingBox": "Kotak lokal yang dihitung host.",
-      "kind": "Apa sumber daya ini.",
-      "name": "Namanya.",
-      "index": "Daftar segitiga, atau `null` untuk menggambar verteks secara berurutan.",
-      "morphAttributes": "Per atribut yang di-morph, satu atribut per target morph.",
-      "morphTargetsRelative": "Benar jika target morph menyimpan perpindahan, bukan posisi.",
-      "groups": "Rentang indeks yang masing-masing digambar dengan satu permukaan.",
-      "drawRange": "Rentang indeks yang digambar.",
-      "boundingSphere": "Bola lokal, setelah dihitung atau dideklarasikan.",
-      "userData": "Ruang bebas untuk data milik siapa pun yang membangun geometri.",
-      "getIndex": "Daftar segitiga.",
-      "setIndex": "Menetapkan daftar segitiga.",
-      "getAttribute": "Atribut dengan nama itu.",
-      "setAttribute": "Menamai sebuah atribut.",
-      "deleteAttribute": "Melupakan sebuah atribut.",
-      "hasAttribute": "Apakah ia memiliki atribut dengan nama itu.",
-      "clone": "Geometri yang menyimpan salinan setiap buffer, grup, rentang, dan batasnya.",
-      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut adalah verteks tersendiri.",
-      "computeBoundingBox": "Menghitung kotak lokal atas semua verteks.",
-      "computeBoundingSphere": "Menghitung bola lokal: berpusat pada kotak, menjangkau verteks terjauh."
-    },
-    "summary": "Atribut yang digambar sebuah mesh, daftar segitiga yang mengindeksnya, target morph yang menggerakkannya, serta kotak dan bola lokal yang dihitung atasnya."
   },
   "GraphNode": {
     "members": {
@@ -7637,10 +7663,11 @@
   },
   "Sprite": {
     "summary": "Gambar datar yang selalu menghadap kamera: persegi satuan yang diputar setiap renderer ke arah gambar saat menggambar, di sekitar posisi sprite.",
-    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan.",
+    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan. Seperti `Sprite` referensi, yang hanya menerima `SpriteMaterial`, ia hanya memakai `material.sprite`: material lain, diberikan atau diset, melempar `TypeError` yang menyebut jenisnya.",
     "members": {
       "isSprite": "Selalu `true`: membedakan sprite dari mesh lain mana pun.",
-      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya."
+      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya.",
+      "material": "`material.sprite` milik sprite; set yang lain untuk menggantinya."
     }
   }
 }
