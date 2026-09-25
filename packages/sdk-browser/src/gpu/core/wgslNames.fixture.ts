@@ -35,9 +35,8 @@ const WGSL_OWN = new Set(
  *  module-scope or local, and, once member names and case colons are gone, every name a type
  *  follows — a parameter or a typed declaration. */
 function declaredNames(code: string) {
-  const declaration =
-    /\b(?:fn|struct|alias|const|let|var(?:\s*<[^>]*>)?|override)\s+(\w+)|(\w+)\s*:/g;
-  return new Set([...code.matchAll(declaration)].map((m) => m[1] ?? m[2]));
+  const declares = /\b(?:fn|struct|alias|const|let|var(?:\s*<[^>]*>)?|override)\s+(\w+)|(\w+)\s*:/g;
+  return new Set([...code.matchAll(declares)].map((m) => m[1] ?? m[2]));
 }
 
 /** The names `source` uses and declares nowhere, sorted: comments, attributes and structure
