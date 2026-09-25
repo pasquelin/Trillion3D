@@ -2,7 +2,7 @@
 //! it carries. The driver never places a light of its own — everything comes from
 //! imported data.
 use super::*;
-use crate::shared_math::{cross, length, normalized_or};
+use crate::shared_math::{cross, divide, length, normalized_or};
 
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
     vec![
@@ -23,8 +23,7 @@ pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64>
         [0.0, 1.0, 0.0]
     };
     let x = cross(up, z);
-    let xl = length(x);
-    let x = [x[0] / xl, x[1] / xl, x[2] / xl];
+    let x = divide(x, length(x));
     let y = cross(z, x);
     let n = &node.node_to_world;
     let mul = |c: [f64; 3]| {
