@@ -118,7 +118,14 @@ test('a row carries its resolve class, the census of the scene knows it before a
   const geometryBlocks = new Map(
     collected.roots.map((root) => [
       root.pages[0].attributes,
-      { vertexBase: 0, count: 3, hasUv: false, hasNormal: true, hasTangent: false },
+      {
+        vertexBase: 0,
+        count: 3,
+        hasUv: false,
+        hasNormal: true,
+        hasTangent: false,
+        hasColor: false,
+      },
     ]),
   );
   const layers = { mapLayer: new Map(), dataLayer: new Map() };

@@ -7,7 +7,8 @@ import {
   PAGE_INFO_STRUCT_WGSL,
   UV_GRADIENTS_WGSL,
 } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from './pageGeometryWgsl.ts';
+import { PAGE_COLOR_WGSL, PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from './pageGeometryWgsl.ts';
+import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
@@ -44,6 +45,8 @@ ${PAGE_GEOMETRY_WGSL}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
 ${PAGE_NORMAL_WGSL}
+${VERTEX_COLOR_WGSL}
+${PAGE_COLOR_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
 ${UV_GRADIENTS_WGSL}

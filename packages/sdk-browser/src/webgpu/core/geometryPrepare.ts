@@ -1,12 +1,7 @@
 import type { HostAttributes } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-type GeometryBlock = {
-  vertexBase: number;
-  count: number;
-  hasUv: boolean;
-  hasNormal: boolean;
-  hasTangent: boolean;
-};
+import type { GeometryBlock } from '../row/pageRowMaterial.ts';
+import { normalBufferFloats, writeVertexColors } from './vertexColors.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 
 /**
@@ -14,7 +9,8 @@ type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
  * quantized page covers — a transparent cluster, whose forward draw reads an index buffer, and a
  * cache that carries no geometry page. A cluster drawn from its page contributes no vertex here,
  * and its primitive contributes none unless another of its clusters needs one: that is the whole
- * point of reading a page in place.
+ * point of reading a page in place. Vertex colours ride at the tail of the normal buffer
+ * (`vertexColors.ts`), which carries none when no packed geometry has any.
  */
 export function prepareWebgpuGeometry(
   device: GPUDevice,
@@ -22,7 +18,8 @@ export function prepareWebgpuGeometry(
   geometryBlocks: GeometryBlocks,
 ) {
   const sourced = allPages.filter((rec) => !rec.geometryPage);
-  let vertexCount = 0;
+  let vertexCount = 0,
+    coloured = false;
   for (const rec of sourced) {
     if (geometryBlocks.has(rec.attributes)) continue;
     const n = rec.attributes.position?.count ?? 0;
@@ -32,13 +29,15 @@ export function prepareWebgpuGeometry(
       hasUv: !!rec.attributes.uv,
       hasNormal: !!rec.attributes.normal,
       hasTangent: !!rec.attributes.tangent,
+      hasColor: !!rec.attributes.color,
     });
+    coloured ||= !!rec.attributes.color;
     vertexCount += n;
   }
   vertexCount = Math.max(1, vertexCount);
   const pos = new Float32Array(vertexCount * 3),
     uv = new Float32Array(vertexCount * 2),
-    nrm = new Float32Array(vertexCount * 7),
+    nrm = new Float32Array(normalBufferFloats(vertexCount, coloured)),
     filled = new Set<HostAttributes>();
   for (const rec of sourced) {
     if (filled.has(rec.attributes)) continue;
@@ -47,7 +46,9 @@ export function prepareWebgpuGeometry(
     const p = rec.attributes.position,
       u = rec.attributes.uv,
       n = rec.attributes.normal,
-      t = rec.attributes.tangent;
+      t = rec.attributes.tangent,
+      c = rec.attributes.color;
+    if (c) writeVertexColors(nrm, vertexCount, block.vertexBase, block.count, c);
     for (let i = 0; i < block.count; i++) {
       const o = block.vertexBase + i;
       if (p) {
