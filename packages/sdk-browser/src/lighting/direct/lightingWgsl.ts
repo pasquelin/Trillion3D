@@ -1,7 +1,7 @@
 import { residentProxyWgsl } from '../../bounce/nodeWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
-import { IRRADIANCE_BAND } from '../../../../sdk-core/src/scene/core/environment.ts';
+import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
@@ -50,9 +50,7 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let e=directLights.environment;
- var E=e[0].rgb*${IRRADIANCE_BAND.constant}+(e[1].rgb*N.y+e[2].rgb*N.z+e[3].rgb*N.x)*${IRRADIANCE_BAND.linear};
- E+=(e[4].rgb*N.x*N.y+e[5].rgb*N.y*N.z+e[7].rgb*N.x*N.z)*${IRRADIANCE_BAND.quadraticCross};
- E+=e[6].rgb*(${IRRADIANCE_BAND.quadraticZ}*N.z*N.z-${IRRADIANCE_BAND.quadraticZOffset})+e[8].rgb*${IRRADIANCE_BAND.quadraticDifference}*(N.x*N.x-N.y*N.y);
+ let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
