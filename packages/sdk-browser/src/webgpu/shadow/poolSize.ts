@@ -33,11 +33,12 @@ export const shadowPoolFor = (wanted: number) => (budgetBytes: number) => {
  *
  * The atlas texture is allocated under an out-of-memory check, like the geometry and texture pools
  * (`grantedShadowPool`): a pool the device refuses is drawn at half its bytes, down to the smallest
- * screen's side, and said under `gpu-out-of-memory`. Until the device answers the frame is drawn
- * whole, without shadows. When it refuses even the floor, shadows stay off for the session and
- * `shadows-off` says so: the frame is still drawn whole, never lost. A world without a
- * light that casts a shadow sizes nothing: its pool would hold no page. The first frame that has
- * one sizes it, before its plan maps any page.
+ * screen's side — coarser shadow pages —, and said under `gpu-out-of-memory`. Until the device
+ * answers, the frame is held (`holdWebgpuFrame`): the previous image stays, or nothing yet, never
+ * one without its shadows. When it refuses even the floor, the shadowed mode cannot be drawn: it
+ * is refused by the `shadows-off` error, and the session goes on without shadows, never lost. A
+ * world without a light that casts a shadow sizes nothing: its pool would hold no page. The first
+ * frame that has one sizes it, before its plan maps any page.
  */
 export function sizeShadowPool(rt: WebgpuPagesRuntime) {
   const { lights, capture, diag, run } = rt,
@@ -64,7 +65,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
         if (run.lost || rt.signal.aborted) return;
         lights.shadowReason = 'shadow pool refused by the device';
         diag.engineDiagnostic('shadows-off', 'The device refused the smallest shadow pool', {
-          kind: 'warning',
+          kind: 'error',
           reason: 'gpu-out-of-memory',
           requestedBytes: shadowAtlasBytes(wanted),
         });
