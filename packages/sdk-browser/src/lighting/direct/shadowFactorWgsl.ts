@@ -22,9 +22,9 @@ import {
  * of a sun and the unshadowed answer of a lamp past their last level only answer before a light's
  * first request report.
  *
- * The receiver's bias is that of the level read (\`shadowReceiverBias\`): its texel, and the slope
- * of the receiver's depth in that map. A point light reads the face its offset point lies in, so
- * that point always projects inside the face it reads.
+ * The receiver moves along its normal by a fraction of the level's texel, and its reference by a
+ * depth margin from that texel and its depth's slope in the map (`shadowDepthMargin`). A point
+ * light reads the face its offset point lies in, so that point always projects inside that face.
  */
 export const SHADOW_FACTOR_WGSL = `
 const SUN_LEVEL_COUNT:i32=${SUN_LEVELS};
@@ -42,7 +42,7 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
  // Field by field: a record is six matrices wide, and the sun reads none of them.
  let f0=shadows.records[index].frame[0];let f1=shadows.records[index].frame[1];
  let right=f0.xyz;let up=f1.xyz;let axis=shadows.records[index].frame[2].xyz;
- let zNear=f0.w;let depth=max(f1.w-zNear,1e-6);
+ let zNear=f0.w;let invDepth=1.0/max(f1.w-zNear,1e-6);
  let info=shadows.records[index].info;
  let finest=i32(info.y);let last=finest+i32(info.x);
  let cosine=clamp(dot(N,-axis),1e-3,1.0);
@@ -53,15 +53,14 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
   let page=texel*SHADOW_PAGE;
   let slot=shadowRing(level,SUN_LEVEL_COUNT);
   let origin=sunOrigin(index,slot);
-  let bias=shadowReceiverBias(texel,slope);
-  let Q=P+N*bias.x;
+  let Q=P+N*texel*SHADOW_NORMAL_TEXELS;
   // Relative to the window's first page, whose world offset is exact in single precision.
   let t=vec2f(dot(Q,right)-f32(origin.x)*page,-dot(Q,up)-f32(origin.y)*page)/texel;
   let map=ShadowMap(u32(info.w)+u32(slot)*SUN_LEVEL_WORDS,1u,SUN_WINDOW_PAGES,origin.x,origin.y);
   let home=vec2i(floor(t/SHADOW_PAGE));
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
-  let reference=1.0-(dot(Q,axis)-zNear)/depth+bias.y/depth;
+  let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope))*invDepth;
   return shadowPcf(map,t,reference,home,word,0.0);
  }
  return sunFarShadowFactor(P,N,-axis);
@@ -75,12 +74,15 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  let wanted=clamp(floor(log2(max(shadowFootprint/texel0,1.0))),0.0,f32(LAMP_MIP_COUNT-1u));
  let near=info.z;
  let far=max(near*1.001,light.positionRange.w);
+ // dz/dw of a perspective projection is near·far/((far−near)·w²) at axial depth w.
+ let k=near*far/(far-near);
  for(var mip=u32(wanted);mip<LAMP_MIP_COUNT;mip++){
   let pages=LAMP_PAGE_COUNT>>mip;
   let side=f32(pages)*SHADOW_PAGE;
   let texel=texel0*exp2(f32(mip));
   let Q=P+N*texel*SHADOW_NORMAL_TEXELS;
-  let face=select(0u,pointFaceOf(Q-light.positionRange.xyz),u32(info.x)==${POINT_FACES}u);
+  let d=Q-light.positionRange.xyz;
+  let face=select(0u,pointFaceOf(d),u32(info.x)==${POINT_FACES}u);
   let m=shadows.records[index].faces[face];
   let clip=m*vec4f(Q,1.0);
   if(clip.w<=0.0){return 1.0;}
@@ -91,15 +93,11 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
   let home=clamp(vec2i(floor(t/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1));
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
-  // The receiver's depth along the face's axis, clip.w, per unit across the face: sin(N, axis)
-  // times cos²(ray, axis) over the incidence cosine — tan(incidence) on the axis.
-  let along=clip.w/max(length(Q-light.positionRange.xyz),1e-6);
-  let facing=(m*vec4f(N,0.0)).w;
-  let slope=sqrt(max(1.0-facing*facing,0.0))*along*along/cosine;
-  // Those metres become a depth margin at the point: dz/dd of a perspective projection is
-  // near·far/((far−near)·d²), so the margin follows the distance to the light.
-  let scale=near*far/((far-near)*max(clip.w*clip.w,1e-4));
-  return shadowPcf(map,t,ndc.z+shadowReceiverBias(texel,slope).y*scale,home,word,side);
+  // The receiver's axial depth, clip.w, changes across the face by sin(N, axis)·cos²(ray, axis)
+  // over the incidence cosine; brought to depth by k/clip.w², the cos² leaves k/|d|².
+  let facing=dot(N,vec3f(m[0].w,m[1].w,m[2].w));
+  let slope=sqrt(max(1.0-facing*facing,0.0))/cosine;
+  return shadowPcf(map,t,ndc.z+shadowDepthMargin(texel,slope)*k/dot(d,d),home,word,side);
  }
  return 1.0;
 }

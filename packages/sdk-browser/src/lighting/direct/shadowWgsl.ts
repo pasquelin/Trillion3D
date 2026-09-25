@@ -105,14 +105,10 @@ const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTING
 ).join(',')});
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
-/** The receiver's bias where the map's texel is \`texel\` metres and the receiver's depth changes
- *  by \`slope\` per unit across the map: the normal offset (x) and the depth margin (y), in metres,
- *  both following the texel, never a length of the scene. The margin covers the receiver's plane
- *  over the PCF's reach, so a plane never shades itself at any slope, and a caster a few texels
- *  from its receiver keeps its contact. ADDED to the reference: shadow depth is reversed. */
-fn shadowReceiverBias(texel:f32,slope:f32)->vec2f{
- return texel*vec2f(SHADOW_NORMAL_TEXELS,SHADOW_PCF_REACH*slope);
-}
+/** Depth margin, in metres toward the light, of a receiver whose depth changes by \`slope\` per
+ *  unit across a map of \`texel\`-metre texels: its plane over the PCF's reach
+ *  (\`shadowNormalOffsetTexels\` says why). ADDED to the reference: shadow depth is reversed. */
+fn shadowDepthMargin(texel:f32,slope:f32)->f32{return texel*SHADOW_PCF_REACH*slope;}
 struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
 fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
 /** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,
