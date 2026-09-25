@@ -91,7 +91,8 @@ test('a hidden mesh still reads its map for the mip rule', () => {
   const context = createTestContext({ answers: { getParameter: answer } });
   const draw = createSceneDraw(context.gl, scene);
   draw.render({} as HostCamera);
-  draw.drawHostGeometry(createHostDrawCamera(), { toneMapped: false, width: 8, height: 4 });
+  const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
+  draw.drawHostGeometry(createHostDrawCamera(), output);
   const rules = context
     .of('uniform1i')
     .filter(([at]) => (at as { uniform: string }).uniform === 'weighted');
