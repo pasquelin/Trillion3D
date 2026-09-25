@@ -9,12 +9,14 @@ export interface CpuSteps {
   steps: Record<string, Spread>;
 }
 
-/** The world as far as profiling goes: its frame hooks and the engine's CPU steps. */
+/** The world as far as profiling goes: its frame hooks, the engine's CPU steps and, when on,
+ *  the physics' clocks (`world.physics.stats`). */
 export interface ProfiledWorld<Frame = unknown> {
   onFrame(hook: (frame: Frame) => void): unknown;
   beforeFrame?(hook: (info: { delta: number; time: number }) => void): unknown;
   cpuSteps?(): CpuSteps | null;
   resetCpuSteps?(): void;
+  physics?: { enabled: boolean; stats: { stepMs: number } };
 }
 
 /** One second of profile, as `window.__profile` holds it; `null` where nothing was measured. */
@@ -28,6 +30,10 @@ export interface ProfileWindow {
   engineMs: Spread | null;
   /** The engine's five costliest CPU steps by p95, sums left out. */
   steps: Array<{ name: string } & Spread>;
+  /** The page's `physics` CPU stage (`physicsMs`), ranked or not among the five. */
+  physicsMs: Spread | null;
+  /** The worker's step (`world.physics.stats.stepMs`) as each drawn frame read it. */
+  workerStepMs: Spread | null;
 }
 
 /** Engine steps that add up others: shown as the total, never ranked beside their parts. */
@@ -41,24 +47,29 @@ function spread(values: number[]): Spread | null {
   return { p50: at(0.5), p95: at(0.95) };
 }
 
-/** A window from the durations of its frames and the engine's CPU steps over the same second. */
+/** A window from the durations of its frames, the engine's CPU steps and the worker's steps
+ *  read over the same second. */
 export function profileWindow(
   frameMs: number[],
   hooksMs: number[],
   engine: CpuSteps | null,
+  workerStepMs: number[] = [],
 ): ProfileWindow {
   const steps = Object.entries(engine?.steps ?? {})
     .filter(([name, { p95 }]) => !SUMS.has(name) && Number.isFinite(p95))
     .map(([name, { p50, p95 }]) => ({ name, p50, p95 }))
     .sort((a, b) => b.p95 - a.p95)
     .slice(0, 5);
-  const total = engine?.steps.totalMs;
+  const measured = (step: Spread | undefined) =>
+    step && Number.isFinite(step.p95) ? { p50: step.p50, p95: step.p95 } : null;
   return {
     frames: frameMs.length,
     frameMs: spread(frameMs),
     hooksMs: spread(hooksMs),
-    engineMs: total && Number.isFinite(total.p95) ? { p50: total.p50, p95: total.p95 } : null,
+    engineMs: measured(engine?.steps.totalMs),
     steps,
+    physicsMs: measured(engine?.steps.physicsMs),
+    workerStepMs: spread(workerStepMs),
   };
 }
 
@@ -84,7 +95,14 @@ export const profiling = () =>
  * `requestAnimationFrame` when it opens, so the clock is wound at the kit's import under
  * `?profile`, before any world opens; a frame counts only once `drew` is set by the world.
  */
-const clock = { frameMs: [] as number[], hooksMs: [] as number[], stamp: -1, tick: 0, hooks: 0 };
+const clock = {
+  frameMs: [] as number[],
+  hooksMs: [] as number[],
+  stepMs: [] as number[],
+  stamp: -1,
+  tick: 0,
+  hooks: 0,
+};
 let drew = false,
   wound = false;
 function windClock() {
@@ -140,13 +158,15 @@ export function startProfile<Frame>(
     beforeFrame = world.beforeFrame?.bind(world);
   onFrame(() => {
     drew = true;
+    if (world.physics?.enabled) clock.stepMs.push(world.physics.stats.stepMs);
   });
   world.onFrame = (hook) => onFrame(timed(hook));
   if (beforeFrame) world.beforeFrame = (hook) => beforeFrame(timed(hook));
   world.resetCpuSteps?.();
   const timer = setInterval(() => {
-    const { frameMs, hooksMs } = clock;
-    publish(profileWindow(frameMs.splice(0), hooksMs.splice(0), world.cpuSteps?.() ?? null));
+    const { frameMs, hooksMs, stepMs } = clock;
+    const engine = world.cpuSteps?.() ?? null;
+    publish(profileWindow(frameMs.splice(0), hooksMs.splice(0), engine, stepMs.splice(0)));
     world.resetCpuSteps?.();
   }, 1000);
   return () => clearInterval(timer);
