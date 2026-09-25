@@ -370,6 +370,7 @@
       "top": "Cạnh trên của hộp trực giao.",
       "bottom": "Cạnh dưới của hộp trực giao.",
       "projection": "`'perspective'` làm vật ở xa nhỏ lại; `'orthographic'` giữ nguyên mọi kích thước.",
+      "copy": "Lấy các giá trị nút của `source` và, từ một camera, quang học của nó; `projection` riêng vẫn giữ.",
       "updateProjectionMatrix": "Được giữ lại cho các trang được viết dựa trên một bộ kết xuất cần đến nó: mọi lần ghi quang học đã tự vẽ lại rồi.",
       "rayThrough": "Tia trong thế giới đi qua một điểm của hình ảnh, theo đúng phép chiếu của bộ máy (`engineCamera.ts`): từ mắt dọc theo hướng nhìn với camera phối cảnh, thẳng theo hướng nhìn từ hộp với camera trực giao. Hướng của nó là một vectơ đơn vị.",
       "set": "Đặt con mắt tại `pose.position`, nhìn về `pose.target`, ở trường nhìn mà nó nêu tên."
@@ -1366,10 +1367,6 @@
   "HostGeometry": {
     "summary": "Một hình học chủ: các thuộc tính của nó, và hộp cục bộ mà ứng dụng chủ đã tính trên chúng."
   },
-  "HostGraphNode": {
-    "summary": "Một node của đồ thị chủ như một lượt duyệt nhìn thấy: định danh của nó, tư thế cục bộ của nó, ma trận thế giới mà ứng dụng chủ đã giải quyết cho nó, và chuỗi tổ tiên của nó.",
-    "description": "Bộ máy tự tính các ma trận thế giới CỦA RIÊNG NÓ từ các tư thế cục bộ (`../world/tree.ts`); `matrixWorld` được đọc ở nơi mà chính lời giải của ỨNG DỤNG CHỦ là thứ mà một ranh giới trao trả lại cho nó. VÌ SAO `HostPlaced` (`../resources.ts`) CŨNG MÔ TẢ MỘT NODE CÓ TƯ THẾ. Hai thứ này không phải bản sao của nhau: chúng được gắn khóa theo hai lời giải khác nhau mà một ứng dụng chủ cung cấp. `HostPlaced` yêu cầu `updateWorldMatrix(ancestors, descendants)` — chuỗi của MỘT node duy nhất, thứ mà một phép đặt vị trí và một lượt duyệt khả kiến leo lên; cái này yêu cầu `updateMatrixWorld(force)` — CÂY CON dưới một node, thứ mà một lượt quét, một phép hợp giới hạn và một phép nhân bản giải quyết trong một lệnh gọi duy nhất. Một ứng dụng chủ chỉ cung cấp một trong hai chỉ thỏa mãn hợp đồng mà nó đáp ứng, nên không cái nào có thể thay thế cái kia."
-  },
   "HostMaterial": {
     "summary": "Một vật liệu chủ đúng như bộ máy đọc nó: các tham số bề mặt mà mọi vật liệu chủ chia sẻ, được đọc một lần tại ranh giới vào `VisMaterial` của bộ máy; chỉ riêng `sideOf` đọc `side`."
   },
@@ -1378,9 +1375,6 @@
   },
   "HostMesh": {
     "summary": "Một mesh chủ, được giữ theo định danh: bản ghi vẽ, bảng trong suốt và các tập lựa chọn nêu tên bề mặt mà ứng dụng chủ đã đặt."
-  },
-  "HostNode": {
-    "summary": "Một node của đồ thị cảnh chủ, được giữ theo định danh và hai trường mà một lượt duyệt cần."
   },
   "HostNodeMatrix": {
     "summary": "Chính mười sáu số thực đó, CÓ THỂ GHI từng số hạng một: tư thế mà một ranh giới đặt trở lại một node chủ hoặc một camera chủ mà nó khôi phục.",
@@ -1432,9 +1426,6 @@
   },
   "HostTexture": {
     "summary": "Một kết cấu chủ: hình ảnh mà ứng dụng chủ đã giải mã và trạng thái bộ lấy mẫu mà nó khai báo, cũng được giữ theo định danh."
-  },
-  "HostTraversable": {
-    "summary": "Một node chủ mà bộ máy duyệt qua: cây con bên dưới nó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ."
   },
   "HostVector": {
     "summary": "Ba con số của một tư thế, đúng như ứng dụng chủ lưu trữ chúng và một ranh giới đặt chúng trở lại.",
@@ -1622,6 +1613,7 @@
       "height": "Chiều cao của một nguồn sáng hình chữ nhật.",
       "radius": "Bán kính của hình cầu phát sáng; `emitterRadius` trong kho lưu trữ của bộ máy.",
       "kind": "Đây là loại nguồn sáng nào: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Lấy các giá trị nút của `source` và, từ một đèn, các số, màu, hệ số và hướng ngắm của nó; `kind` riêng vẫn giữ.",
       "needsUpdate": "`light.needsUpdate = true` sau khi ghi `sh` tại chỗ: thế giới đọc lại nó.",
       "lookAt": "Nhắm nguồn sáng vào một điểm trong thế giới: một nguồn sáng định hướng hoặc spot di chuyển `target` của nó đến đó — hướng của nó được đọc từ đó —, và node cũng xoay theo, đây chính là hướng mà một hình chữ nhật hướng mặt tới."
     }
@@ -2046,6 +2038,8 @@
       "remove": "Gỡ các con khỏi node này.",
       "destroy": "Giải phóng nút và mọi thứ bên dưới ngay bây giờ, thay vì khi chúng bị thu gom.",
       "removeFromParent": "Gỡ node khỏi cha của nó.",
+      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không.",
       "clear": "Gỡ mọi con khỏi node này.",
       "traverse": "Gọi `fn` trên node này và mọi thứ bên dưới nó.",
       "traverseVisible": "Gọi `fn` trên mỗi node khả kiến từ đây trở xuống.",
@@ -2058,11 +2052,7 @@
       "rotateY": "Xoay node quanh trục y riêng của nó.",
       "rotateZ": "Xoay node quanh trục z riêng của nó.",
       "translateOnAxis": "Di chuyển node dọc theo `axis` riêng của nó.",
-      "getWorldPosition": "Nơi node đứng trong thế giới.",
-      "getWorldQuaternion": "Node được xoay như thế nào trong thế giới.",
       "getWorldDirection": "Hướng mà node hướng tới trong thế giới.",
-      "localToWorld": "Một điểm trong khung của node, trong thế giới.",
-      "worldToLocal": "Một điểm của thế giới, trong khung của node.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
     }
   },
@@ -2073,7 +2063,11 @@
       "matrixWorld": "Ma trận thế giới như lần dựng gần nhất (`updateMatrixWorld`), một view vào cây đó.",
       "matrixAutoUpdate": "Sai (false) khi `matrix` CHÍNH LÀ tư thế và không gì dựng lại nó.",
       "matrixWorldNeedsUpdate": "Được đặt khi ma trận cục bộ đã đổi mà ma trận thế giới chưa theo kịp.",
-      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng."
+      "updateMatrixWorld": "Dựng ma trận thế giới của node này và của các hậu duệ của nó, lấy ma trận của cha nguyên trạng.",
+      "getWorldPosition": "Nơi node đứng trong thế giới.",
+      "getWorldQuaternion": "Node được xoay như thế nào trong thế giới.",
+      "localToWorld": "Một điểm trong khung của node, trong thế giới.",
+      "worldToLocal": "Một điểm của thế giới, trong khung của node."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7216,19 +7210,14 @@
     }
   },
   "GraphNode": {
-    "summary": "Một nút của đồ thị: tên, tư thế, ma trận thế giới, cha và các con của nó.",
+    "summary": "Một nút của đồ thị: nút của lõi, phân biệt bằng `kind` của nó, được sao chép bằng `clone` của lõi.",
     "members": {
       "serial": "Số của nút, duy nhất trong phiên.",
-      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu.",
-      "parent": "Cha của nó.",
-      "children": "Các nút mà nút này giữ, theo thứ tự.",
-      "traverse": "Cây con dưới node đó, chính nó trước tiên, theo đúng thứ tự riêng của ứng dụng chủ.",
-      "clone": "Một nút cùng loại với cùng giá trị; các con của nó cũng được sao chép trừ khi được bảo không.",
-      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu."
     }
   },
   "GraphNodeKind": {
-    "summary": "Một nút của đồ thị là gì: một nút trần, gốc, một nhóm, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
+    "summary": "Một nút của đồ thị là gì: gốc, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
   },
   "GraphSurface": {
     "summary": "Một bề mặt: các tham số của một họ, theo giá trị của bản tham chiếu trừ khi cảnh nói khác.",

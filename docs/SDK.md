@@ -618,6 +618,24 @@ costs the subtree it starts from, never the other nodes of the hierarchy. The sc
 one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
 `destroy()` frees a subtree at once.
 
+The engine's graph is built of the same classes: a bare node is an `Object3D` and a group a
+`Group`, and every function of the browser facade that takes or returns a node of that graph names
+`Object3D`. `GraphNode` is abstract: it is only the base of the graph's nodes that draw, look or
+light (`GraphMesh`, and the camera and light classes the engine builds), which add a `kind` and a
+creation number.
+
+`clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
+`Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
+pose, matrices, flags and `userData`, and a `clone` of each child unless `recursive` is `false`;
+`copy(source, recursive)` writes the same values into an existing node. A class whose constructor
+takes arguments says how an empty one is made (`blank`). A `Light` also keeps its colours,
+intensity, range, cone, coefficients and target; a `Camera` its optics (`fov`, `near`, `far`,
+`aspect`, `zoom` and the orthographic box); a `Mesh` its primitive, and shares its geometry and
+material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPPORTED_SCENE_UPDATE`.
+`cloneObject` stays the deep copy: it shares nothing with the source, a mesh's geometry and
+materials included. The former aliases of the node, `HostNode`,
+`HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
