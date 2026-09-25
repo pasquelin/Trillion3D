@@ -1,25 +1,16 @@
-type Copy = { from?: number[]; to?: number[]; size: number[] };
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
-/** A dummy texture device: it notes copies and destroyed textures. */
+/** A texture device that notes copies, by their origins, and destroyed textures. */
 export function textureDevice() {
-  const copies: Copy[] = [];
-  let destroyed = 0;
-  const gpu = {
-    createTexture: () => ({
-      createView: () => ({}),
-      destroy: () => destroyed++,
-      format: 'rgba8unorm',
-    }),
-    createBuffer: () => ({ destroy() {} }),
-    createCommandEncoder: () => ({
-      copyTextureToTexture: (
-        from: { origin?: number[] },
-        to: { origin?: number[] },
-        size: number[],
-      ) => copies.push({ from: from.origin, to: to.origin, size }),
-      finish: () => ({}),
-    }),
-    queue: { writeTexture() {}, writeBuffer() {}, submit() {} },
+  const { device, textures, textureCopies, destroyed } = fakeDevice();
+  return {
+    gpu: device,
+    copies: () =>
+      textureCopies.map(({ from, to, size }) => ({
+        from: from.origin as number[] | undefined,
+        to: to.origin as number[] | undefined,
+        size: size as number[],
+      })),
+    destroyed: () => destroyed.filter((resource) => textures.includes(resource as never)).length,
   };
-  return { gpu: gpu as never, copies, destroyed: () => destroyed };
 }

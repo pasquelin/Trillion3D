@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createTileSources } from './sources.ts';
 import { createTileCounters } from './counters.ts';
 import { tileLayout } from '../../texture/tiles.ts';
@@ -12,6 +13,7 @@ import type { WebgpuTileAtlas } from './atlas.ts';
 test('a block level of the wrong length fails once, is never held, and takes no slot', async () => {
   const placed: unknown[] = [];
   const failures: string[] = [];
+  const { device, textureWrites } = fakeDevice();
   const layout = tileLayout(256, 256);
   const tail = { levels: [], blocks: { bc7: [], astc: [] } };
   const read: string[] = [];
@@ -25,7 +27,7 @@ test('a block level of the wrong length fails once, is never held, and takes no 
     poolOf: () => ({ texture: {} }),
   } as unknown as WebgpuTileAtlas;
   const sources = createTileSources({
-    device: { queue: { writeTexture: () => assert.fail('nothing to write') } } as never,
+    device,
     readLevel: async ({ format }) => (read.push(format), new Uint8Array(1)),
     encoding: poolEncoding('bc7'),
     counters: createTileCounters(),
@@ -42,5 +44,6 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   ]);
   assert.equal(sources.levels?.bytes, 0, 'the short level is not held');
   assert.deepEqual(placed, []);
+  assert.deepEqual(textureWrites, [], 'nothing to write');
   assert.deepEqual(read, ['bc7'], "the level file of the texture's lane, read once");
 });
