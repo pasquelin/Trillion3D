@@ -11,13 +11,12 @@ import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { SHADOW_REQUEST_WORDS } from '../../lighting/direct/shadowWgsl.ts';
 import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
-/** Alignment of a dynamic uniform offset: one drawn page per 256-byte entry. */
-const FACE_STRIDE = 256;
 /** Bytes actually read of an entry: the matrix, the atlas rectangle, the light envelope. */
 const FACE_BYTES = 96;
 /** Bytes of the records, before the page table in the same buffer. */

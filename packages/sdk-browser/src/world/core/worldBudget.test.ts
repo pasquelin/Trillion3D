@@ -11,6 +11,7 @@ import {
   SHADOW_POOL_BYTES,
 } from '../../residency/memoryBudget.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_BATCH_GPU_BYTES, SHADOW_BATCH_HOST_BYTES } from '../../gpu/shadow/batchBudget.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import {
   SHADOW_TABLE_ENTRIES,
@@ -86,19 +87,19 @@ test("the default totals split into each pool's own default", () => {
 test('the shadow share counts the fixed page table, the same on every screen', () => {
   assert.ok(SHADOW_BUFFER_BYTES >= SHADOW_TABLE_ENTRIES * 4);
   const side = shadowPoolSide(Infinity, Infinity);
-  // The depth atlas, its static layer, and the transmittance layer of the blended casters: 8
-  // bytes per 4 page texels, 128 MiB beside the two 256 MiB depth textures.
+  // The atlas and its static layer, 256 MiB each; the blended casters' transmittance, 128 MiB.
   assert.equal(shadowTransmittanceBytes(side), 128 * MiB);
   assert.equal(shadowAtlasBytes(side), 256 * MiB);
   const pool = 2 * shadowAtlasBytes(side) + shadowTransmittanceBytes(side);
-  assert.equal(SHADOW_POOL_BYTES, pool + SHADOW_BUFFER_BYTES);
+  assert.equal(SHADOW_POOL_BYTES, pool + SHADOW_BUFFER_BYTES + SHADOW_BATCH_GPU_BYTES);
   assert.equal(budget('webgpu', null).split.shadowPool, SHADOW_POOL_BYTES);
 });
 
 test('the CPU total counts the shadow table host mirror before the page cache', () => {
   // What a real table and pool allocate at the largest pool, whatever the screen: one size.
   const side = shadowPoolSide(Infinity, Infinity);
-  const host = createShadowTable(side * side).hostBytes + createShadowPool(side).hostBytes;
+  const table = createShadowTable(side * side).hostBytes;
+  const host = table + createShadowPool(side).hostBytes + SHADOW_BATCH_HOST_BYTES;
   assert.equal(SHADOW_HOST_BYTES, host);
   assert.ok(SHADOW_HOST_BYTES > SHADOW_TABLE_ENTRIES * 5, 'the words and their change flags');
   assert.equal(DEFAULT_CPU_BUDGET, SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES);

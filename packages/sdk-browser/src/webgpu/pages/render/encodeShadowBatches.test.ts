@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
+import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
@@ -46,4 +47,21 @@ test('a batch that cannot be encoded leaves its pages and the rest pending, none
   assert.equal(lights.shadowPages, 0);
   assert.equal(lights.plan.counts.pendingPages, pages);
   assert.equal(lights.plan.admission.count, 0, 'the list is closed');
+});
+
+// The batches' memory holds the largest pool in full batches (`batchBudget.ts`). Batches cut short —
+// a view limit bisected after a light cut dropped work — can need more: the frame draws
+// `MAX_SHADOW_BATCHES` of them, and the pages past the last are pending, drawn the next frame.
+test('a frame draws at most the batches its memory holds, the rest pending', () => {
+  const { rt, lights, pages } = frame(64);
+  assert.ok(pages > MAX_SHADOW_BATCHES, `${pages} pages, more than the batches`);
+  lights.plan.admission.batchEnd = (_pool, from) => from + 1;
+  let batches = 0;
+  const drawn = forEachShadowBatch(rt, () => {
+    batches++;
+    lights.runs.reset();
+    return true;
+  });
+  assert.equal(batches, MAX_SHADOW_BATCHES);
+  assert.equal(drawn, MAX_SHADOW_BATCHES, 'where it stopped: the rest wait');
 });

@@ -2,6 +2,7 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowTransmittanceBytes } from '../gpu/shadow/transmittance.ts';
+import { SHADOW_BATCH_GPU_BYTES, SHADOW_BATCH_HOST_BYTES } from '../gpu/shadow/batchBudget.ts';
 import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/table.ts';
 import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
@@ -10,17 +11,21 @@ import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
 
 /** The shadows at their largest — the pool on the largest screen, its static layer, its
- *  transmittance layer, and the fixed buffers beside it, the page table first: they never hold
- *  more, whatever the screen. */
+ *  transmittance layer, the fixed buffers beside it, the page table first, and what the most
+ *  batches a frame draws add (`batchBudget.ts`): they never hold more, whatever the screen. */
 const SHADOW_POOL_SIDE = shadowPoolSide(Infinity, Infinity);
 export const SHADOW_POOL_BYTES =
   2 * shadowAtlasBytes(SHADOW_POOL_SIDE) +
   shadowTransmittanceBytes(SHADOW_POOL_SIDE) +
-  SHADOW_BUFFER_BYTES;
-/** The shadow page table's host mirror at its largest, whatever the screen: the table's words and
- *  change flags, and the pool's page records and eviction bits, as the two allocate them. */
+  SHADOW_BUFFER_BYTES +
+  SHADOW_BATCH_GPU_BYTES;
+/** The shadows' host memory at its largest, whatever the screen: the table's words and change
+ *  flags, the pool's page records and eviction bits, as the two allocate them, and the batches'
+ *  flag pages and CPU cut faces. */
 export const SHADOW_HOST_BYTES =
-  shadowTableHostBytes(SHADOW_POOL_SIDE ** 2) + shadowPoolHostBytes(SHADOW_POOL_SIDE);
+  shadowTableHostBytes(SHADOW_POOL_SIDE ** 2) +
+  shadowPoolHostBytes(SHADOW_POOL_SIDE) +
+  SHADOW_BATCH_HOST_BYTES;
 /**
  * GPU bytes of the bounce probe cascades at their largest — every level of `cascadeSize³` probes,
  * the nine RGB coefficients, visibility and state of each, in both copies the pass binds (the

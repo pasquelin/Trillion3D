@@ -2,7 +2,7 @@ import { invertMatrix4, updateCameraFrame } from '../../../../sdk-core/src/index
 import { createEngineCamera, type EngineCamera } from '../../camera/world.ts';
 import { selectVisiblePages, type PageRec } from '../../page/selection/selection.ts';
 import { createSelectionResult } from '../../page/cut/state.ts';
-import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
+import { MAX_SHADOW_RUNS } from '../../gpu/shadow/batchBudget.ts';
 import { planImageShadows } from '../pages/render/encodeShadows.ts';
 import { forEachShadowBatch } from '../pages/render/encodeShadowBatches.ts';
 import { writeShadowPages } from './pages.ts';
@@ -12,15 +12,16 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 /**
  * The CPU cut's shadow casters: each redrawn face's pages, every batch's, then the same as
  * page-table rows at their own place in one buffer, with one indirect command per face. Allocated
- * at the first CPU light cut, sized by the catalogue; the buffers grow to the next power of two a
- * frame needs.
+ * at the first CPU light cut, sized by the catalogue; the per-face offsets, lengths and commands
+ * hold the faces of the most batches a frame draws (`MAX_SHADOW_RUNS`, `batchBudget.ts`) from the
+ * start and never grow. The rows' buffer grows to the next power of two a frame needs.
  */
 export type CpuCasterLists = ReturnType<typeof createCpuCasterLists>;
 
 /** Usage of the lists' buffers, read when one is made: the GPU globals exist only then. */
 const storage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
 
-function createCpuCasterLists(device: GPUDevice, pageCount: number) {
+export function createCpuCasterLists(device: GPUDevice, pageCount: number) {
   return {
     frame: -1,
     /** Faces of every batch of the frame, together. */
@@ -30,10 +31,10 @@ function createCpuCasterLists(device: GPUDevice, pageCount: number) {
       size: 4,
       usage: storage(),
     }),
-    indirect: device.createBuffer({ size: MAX_SHADOW_REGIONS * 16, usage: storage() }),
-    bases: new Uint32Array(MAX_SHADOW_REGIONS),
-    lengths: new Uint32Array(MAX_SHADOW_REGIONS),
-    commands: new Uint32Array(MAX_SHADOW_REGIONS * 4),
+    indirect: device.createBuffer({ size: MAX_SHADOW_RUNS * 16, usage: storage() }),
+    bases: new Uint32Array(MAX_SHADOW_RUNS),
+    lengths: new Uint32Array(MAX_SHADOW_RUNS),
+    commands: new Uint32Array(MAX_SHADOW_RUNS * 4),
     words: new Uint32Array(1),
     shown: [] as PageRec[][],
     wanted: [] as PageRec[][],
@@ -68,19 +69,14 @@ export function faceEngineCamera(run: ShadowRun, into: EngineCamera, viewport: n
   return into;
 }
 
-/** Room for `runs` faces: the per-face lists, and the offsets and commands that grow by doubling. */
-function holdRuns(lists: CpuCasterLists, device: GPUDevice, runs: number) {
+/** A list of casters for each of `runs` faces: never more than `MAX_SHADOW_RUNS`, what the
+ *  offsets and commands hold. */
+function holdRuns(lists: CpuCasterLists, runs: number) {
+  if (runs > MAX_SHADOW_RUNS) throw new Error(`${runs} shadow faces, at most ${MAX_SHADOW_RUNS}`);
   while (lists.shown.length < runs) {
     lists.shown.push([]);
     lists.wanted.push([]);
   }
-  if (lists.bases.length >= runs) return;
-  const size = 2 ** Math.ceil(Math.log2(runs));
-  lists.bases = new Uint32Array(size);
-  lists.lengths = new Uint32Array(size);
-  lists.commands = new Uint32Array(size * 4);
-  lists.indirect.destroy();
-  lists.indirect = device.createBuffer({ size: size * 16, usage: storage() });
 }
 
 /**
@@ -111,7 +107,7 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
   lists.runs = 0;
   forEachShadowBatch(rt, (from, to, runBase) => {
     writeShadowPages(lights, lights.shadowSlots, cam.eye, lights.shadowPixelError, from, to);
-    holdRuns(lists, device, (lists.runs = runBase + runs.count));
+    holdRuns(lists, (lists.runs = runBase + runs.count));
     for (let r = 0; r < runs.count; r++) {
       const face = runs.list[r],
         at = runBase + r;

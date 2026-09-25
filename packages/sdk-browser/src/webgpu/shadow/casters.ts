@@ -23,7 +23,8 @@ const lightSource = {} as ShadowLightSource;
  * views (`../../gpu/dag/lightCut.ts`), then ONE cull pass over every region, each reading its
  * view's range of the cut's drawn log straight (`../../gpu/shadow/lightCull.ts`): no list is
  * compacted between the two, since the regions draw one command each whatever a cluster's bin.
- * The cut's streaming requests ride back in one copy, read after submission.
+ * The cuts of every batch append their streaming requests to one list, copied once after the
+ * frame's last batch (`encodeShadowRequests`) and read after submission.
  *
  * Under the CPU cut, the same selection has already run on the CPU (`cpuCasters.ts`), and each
  * face's list waits at its own place in one buffer, every batch's: only the region cull runs here.
@@ -72,13 +73,12 @@ export function encodeShadowCasters(
     lightSource.refreshRows = (pass) => map.encode(pass, rows);
     cull.encodeLight(encoder, lightSource, regions, rows);
     lights.lightRuns += runs.count;
-    // Every slot still being read: this batch's requests are not copied, and its coarse pages are
-    // drawn again rather than left waiting on them.
-    const settle = light.reports.encodeReadback(encoder);
-    if (settle) timing.shadowRequests = both(timing.shadowRequests, settle);
+    // The frame's requests are copied once, after its last batch (`encodeShadowRequests`): every
+    // report slot still being read, they will not be, and the coarse pages are drawn again rather
+    // than left waiting on them.
     const list = lights.plan.admission.list.subarray(from, to);
     const redraw = runs.count
-      ? light.redraws.encode(encoder, list, pageViews, to - from, settle !== undefined)
+      ? light.redraws.encode(encoder, list, pageViews, to - from, light.reports.hasRoom)
       : undefined;
     if (redraw) timing.shadowRedraws = both(timing.shadowRedraws, redraw);
     return true;
@@ -99,6 +99,14 @@ export function encodeShadowCasters(
   }
   lights.lightRuns += runs.count;
   return true;
+}
+
+/** Once the frame's batches are encoded: the requests every batch's light cut appended, in one
+ *  copy (`../../gpu/dag/lightCut.ts`). */
+export function encodeShadowRequests(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const { timing } = rt,
+    settle = rt.lights.lightCut?.encodeReports(encoder);
+  if (settle) timing.shadowRequests = both(timing.shadowRequests, settle);
 }
 
 /** The settlements of every batch's readbacks, called in turn once the command buffer is. */

@@ -5,6 +5,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import {
+  MAX_SHADOW_BATCHES,
+  SHADOW_BATCH_WRITE_BYTES,
+  SHADOW_STAGING_BYTES,
+} from './batchBudget.ts';
 
 test('unstaged, a write goes straight to its target', () => {
   const { device, writes, copies } = fakeDevice();
@@ -40,16 +45,28 @@ test('staged, two batches writing one buffer each land in command order', () => 
   );
 });
 
-test('a staging buffer outgrown is destroyed at the next frame, once its copies were submitted', () => {
-  const { device, destroyed } = fakeDevice();
-  const target = device.createBuffer({ size: 1 << 20, usage: 0 }),
-    batches = shadowBatchWrites(device);
+// The staging buffer is sized once, from the most batches a frame draws (`batchBudget.ts`), and
+// counted in the memory budget: the largest frame fits it, and nothing is made at run time.
+test('the staging buffer is made once, at its largest, and holds the largest frame', () => {
+  const { device, buffers } = fakeDevice();
+  const target = device.createBuffer({ size: SHADOW_BATCH_WRITE_BYTES, usage: 0 }),
+    batches = shadowBatchWrites(device),
+    batch = new Uint32Array(SHADOW_BATCH_WRITE_BYTES / 4);
+  for (let frame = 0; frame < 2; frame++) {
+    for (let k = 1; k < MAX_SHADOW_BATCHES; k++) {
+      batches.stage(device.createCommandEncoder());
+      batches.write(target, 0, batch);
+    }
+    batches.end();
+  }
+  const staging = buffers.filter((buffer) => buffer !== target);
+  assert.deepEqual(
+    staging.map(({ size }) => size),
+    [SHADOW_STAGING_BYTES],
+    'one buffer, for every batch of the largest frame but the first',
+  );
   batches.stage(device.createCommandEncoder());
-  batches.write(target, 0, new Uint32Array(8));
-  batches.write(target, 0, new Uint32Array(1 << 15));
+  batches.write(target, 0, batch);
+  assert.throws(() => batches.write(target, 0, Uint32Array.of(1)), /SHADOW_BATCH_WRITES_OVERFLOW/);
   batches.end();
-  assert.equal(destroyed.length, 0, 'the frame still copies from it');
-  batches.stage(device.createCommandEncoder());
-  batches.end();
-  assert.equal(destroyed.length, 1);
 });
