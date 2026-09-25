@@ -6,4 +6,4 @@ tools: Read, Edit, Write, Grep, Glob, Bash, Skill, Agent
 
 Follow `docs/roles/coder.md` for the issue you are given.
 
-You run no review skill and launch no agent: the reviewer runs `simplify` and `code-review` once, on your pull request.
+Before pushing, invoke the real `simplify` and `code-review` (--fix) skills through the Skill tool, never imitate them; they may launch their own review agents, at most 4, which launch none. Launch no other agent.
