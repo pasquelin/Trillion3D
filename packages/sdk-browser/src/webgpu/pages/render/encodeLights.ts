@@ -61,7 +61,8 @@ export function encodeDirectLights(
   // is encoded before the lighting pass that will fill them.
   ensureSunFarShadow(rt, device);
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
-  // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
+  // The pages the frame's budget holds are drawn now, batch after batch — every one the plan
+  // marked when the camera rests (`admit.ts`, `frameEnd`). A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
   // said — a page is readable only once its draw has landed.
   if (pages) encodeShadowBatches(rt, device, encoder, cam.eye);
