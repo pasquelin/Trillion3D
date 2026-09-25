@@ -5,7 +5,7 @@ import { createPageRowConstants } from './pageRowConstants.ts';
 import { slotSampled } from '../tile/samplingHeaders.ts';
 import { materialClassKey } from '../../visibility/shader/materialClass.ts';
 import { MODEL_SHIFT } from '../../scene/surfaceModel.ts';
-import { FLAG_NORMAL, FLAG_UV } from '../../cluster/format.ts';
+import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV } from '../../cluster/format.ts';
 import {
   FLAG_CLUSTER_PAGE,
   FLAG_LIT,
@@ -14,6 +14,7 @@ import {
   FLAG_HAS_MAP,
   FLAG_HAS_NORMAL,
   FLAG_HAS_TANGENT,
+  FLAG_HAS_COLOR,
   FLAG_MASK,
   FLAG_BACK,
   FLAG_HAS_ORM,
@@ -28,6 +29,9 @@ export type GeometryBlock = {
   hasUv: boolean;
   hasNormal: boolean;
   hasTangent: boolean;
+  /** Vertex colours: the page's `COLOR_0`, or the tail of the source normal buffer
+   *  (`../core/vertexColors.ts`). */
+  hasColor: boolean;
   /** The row reads its geometry from the quantized page in its pool slot, not from the source
    *  float buffers: `vertexBase` then addresses nothing. */
   quantized?: boolean;
@@ -54,6 +58,7 @@ export function rowGeometry(
   into.hasUv = (page.flags & FLAG_UV) !== 0;
   into.hasNormal = (page.flags & FLAG_NORMAL) !== 0;
   into.hasTangent = false;
+  into.hasColor = (page.flags & FLAG_COLOR) !== 0;
   into.quantized = true;
   return into;
 }
@@ -65,6 +70,7 @@ export const emptyGeometryBlock = (): GeometryBlock => ({
   hasUv: false,
   hasNormal: false,
   hasTangent: false,
+  hasColor: false,
   quantized: false,
 });
 /** An atlas as a material reads it: its page table, whose headers say which slots take their
@@ -132,6 +138,8 @@ export function rowMaterial(
   if (mat.backSide) flags |= FLAG_BACK;
   if (rough || metal) flags |= FLAG_HAS_ORM;
   if (normal) flags |= FLAG_HAS_NORMAL_MAP;
+  // The material asks for its vertex colours, and the geometry has some: the forward rule.
+  if (mat.vertexColors && geo?.hasColor) flags |= FLAG_HAS_COLOR;
   flags |= (mat.model ?? 0) << MODEL_SHIFT;
   flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao);
   const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal });
