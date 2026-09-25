@@ -783,7 +783,7 @@
     "description": "Ce que donne l’API publique est une de ces copies : un hôte qui écrit dans la copie reçue ne change rien dans le moteur, et un hôte qui modifie une lumière déjà envoyée ne change rien non plus — le stockage a vérifié sa propre copie en entrant. La copie est faite là où l’hôte lit, jamais sur le chemin de l’image : les moteurs lisent l’enregistrement tenu et le tampon rangé, et ne copient rien."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Format de cache externe requis pour le BLEND en clusters ; les manifestes source gardent leur propre format."
+    "summary": "Format de cache externe requis pour le BLEND en clusters (6 avant que `selectedNodes` devienne un nombre) ; les manifestes source gardent leur propre format."
   },
   "clusterErrorAtDepth": {
     "summary": "La même erreur projetée quand la distance du centre à l’axe de vue et sa profondeur (−z de la vue) sont déjà connues : un nœud qui fixe plancher et plafond sur la même sphère partage sa profondeur."
@@ -1754,7 +1754,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Format de cache que lit ce moteur.",
-    "description": "Le format 5 porte `scene-tables.json`, les tables de nœuds et de matériaux contre lesquelles la scène préparée est vérifiée ; les formats 3 et 4 n’ont pas ce produit et sont refusés par leur numéro plutôt qu’à moitié lus."
+    "description": "Le format 5 a ajouté `scene-tables.json`, les tables de nœuds et de matériaux contre lesquelles la scène préparée est vérifiée ; le format 7 porte `selectedNodes` comme un nombre, non une liste (#404). Les formats antérieurs sont refusés par leur numéro plutôt qu’à moitié lus."
   },
   "BeforeFrameInfo": {
     "summary": "Ce que reçoit un crochet d’avant-image : les secondes que les contrôleurs viennent d’intégrer, et depuis le début du monde.",

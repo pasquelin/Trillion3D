@@ -295,7 +295,7 @@
     "summary": "从 stdin 发出协作式中止请求,到强制终止之间的宽限期。"
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "分簇 BLEND 所需的外层缓存格式版本;源清单保留自己的格式版本。"
+    "summary": "分簇 BLEND 所需的外层缓存格式版本(`selectedNodes` 改为计数之前为 6);源清单保留自己的格式版本。"
   },
   "COLUMN_KIND": {
     "summary": "二进制清单中每一列的存储方式:小数、整数,还是原始字节。",
@@ -1031,7 +1031,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "此运行时所读取的缓存格式。",
-    "description": "格式 5 携带 `scene-tables.json`,即预处理场景据以核对的节点表和材质表;格式 3 和 4 没有这项产物,会因版本号被直接拒绝,而不是被半途读取。"
+    "description": "格式 5 加入了 `scene-tables.json`,即预处理场景据以核对的节点表和材质表;格式 7 将 `selectedNodes` 写为计数而非列表(#404)。更早的格式会因版本号被直接拒绝,而不是被半途读取。"
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "视锥体六个平面所对应的浮点数个数。"
