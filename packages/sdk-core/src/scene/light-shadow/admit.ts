@@ -1,21 +1,23 @@
-import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
-import type { ShadowPool } from './pool.ts';
+import { LIGHT_SETTINGS, MAX_SHADOW_SLICES } from '../light/contracts.ts';
+import { RANKS, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import { ringOf } from './virtual.ts';
 
 /** Light views a light holds, its sun levels or lamp faces and mips (`pool.view`). */
 const LIGHT_VIEWS = 4096;
-/** Coarseness ranks a list key spans (`pool.rank`), centred on zero: a rank stays far inside
- *  once the sun's finest level has moved since the page was mapped. */
-const RANKS = 512;
+/** Pages a frame draws while the camera moves: the shadow raster's fixed budget, one batch's
+ *  pages — the ceiling #512 drew a frame at —, a count, never a time read off the machine. */
+const MOVING_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
 /** The light view a page is drawn in — its light, then its sun level or lamp face and mip: the
  *  pages of one view share one caster selection. */
 const viewKeyOf = (pool: ShadowPool, page: number) =>
   pool.slice[page] * LIGHT_VIEWS + pool.view[page];
-/** A page's place in the list: its light, its coarseness — the coarsest first, what a finer page
- *  falls back to while it waits —, then its view. The views of one rank stay contiguous. */
+/** A page's place in the list: its coarseness — the coarsest first, what a finer page falls back
+ *  to while it waits, every light's floor before any finer page —, then its light and view. A view
+ *  has one rank: its pages stay contiguous. */
 const listKeyOf = (pool: ShadowPool, page: number) =>
-  (pool.slice[page] * RANKS + RANKS / 2 - pool.rank[page]) * LIGHT_VIEWS + pool.view[page];
+  ((RANKS / 2 - pool.rank[page]) * MAX_SHADOW_SLICES + pool.slice[page]) * LIGHT_VIEWS +
+  pool.view[page];
 /** The most frames a page's age counts, so that every sort key stays an exact float, under 2^53.
  *  Far past the bound below: it never reorders pages that stayed read. */
 const MAX_AGE = 4095;
@@ -26,9 +28,8 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
 /**
  * THE PAGES A FRAME DRAWS: every stale page the latest request report named — what the image
  * reads now —, the coarsest of each light first. A frame whose camera rests draws all of them, in
- * the frame that marks them; a frame whose camera moves draws what one fixed budget holds, in
- * pages, never in milliseconds read off the machine (`SHADOW_BATCHES_MOVING`, `batchBudget.ts`),
- * and leaves the rest pending, read meanwhile at the coarser current level each falls back to. The
+ * the frame that marks them; a frame whose camera moves draws what one fixed budget holds
+ * (`frameEnd`), and leaves the rest pending, read meanwhile at the coarser current level each falls back to. The
  * cost is held by caching — a page is drawn only once it is marked, and it is marked only when
  * what it holds changed (`invalidate.ts`) or it was just mapped (`requests.ts`) —, and the pool is
  * the only memory limit: what it cannot hold is refused at allocation and published as memory
@@ -38,8 +39,8 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * it. It waits unreadable (`pool.withdraw`, the one staleness mechanism): a pass that reads without
  * asking — blend, water — would otherwise read its old depth for as long as no report names it.
  *
- * While nothing waits, the list holds the pages light by light, the coarsest rank first — the
- * coverage a finer page falls back to lands before it —, then view by view, each view's pages in
+ * While nothing waits, the list holds the pages the coarsest rank first — the coverage a finer
+ * page falls back to lands before it —, then light by light and view by view, each view's pages in
  * page order: what the light cut selects casters for once. The GPU draws it in the batches its
  * buffers hold (`batchEnd`). All arrays are allocated once.
  *
@@ -57,7 +58,8 @@ export function createShadowAdmission(poolPages: number) {
   const list = new Int32Array(poolPages),
     /** The light view of each listed page (`viewKeyOf`), read by the batch cut and the runs. */
     keys = new Int32Array(poolPages),
-    /** One exact sort key per admitted page: its age, then its view, then the page. */
+    /** One exact sort key per admitted page: its age, then its list key (`listKeyOf`), then the
+     *  page. */
     order = new Float64Array(poolPages),
     /** A sort key's weight of one frame of age: a multiple of the pool's pages, past the span of
      *  list keys, a sun level negative or not. */
@@ -108,6 +110,11 @@ export function createShadowAdmission(poolPages: number) {
         opened++;
       }
       return to;
+    },
+    /** Where the frame's drawing stops: the whole list while the camera rests, `MOVING_PAGES`
+     *  while it moves. */
+    frameEnd(resting: boolean) {
+      return resting ? count : Math.min(count, MOVING_PAGES);
     },
     /** Closes the list. The frame drew it up to `stopped`: what it left undrawn stays stale, and
      *  the next list is ordered by age. */
