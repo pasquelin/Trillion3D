@@ -28,12 +28,16 @@ export function createWorldNotices() {
     { enabled: true, detail: 'summary' },
   );
   const said = new Set<string>();
+  const say = (kind: string, message: string, context: Record<string, unknown> = {}) =>
+    channel.emit({ phase: kind, message, context });
   return {
+    /** Says `message` under `kind`: an event the world lives through, each time. */
+    say,
     /** Says `message` under `kind`, unless this world already said something of that kind. */
     once(kind: string, message: string, context: Record<string, unknown> = {}) {
       if (said.has(kind)) return;
       said.add(kind);
-      channel.emit({ phase: kind, message, context });
+      say(kind, message, context);
     },
     close: () => channel.close(),
   };
