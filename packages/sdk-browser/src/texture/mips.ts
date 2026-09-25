@@ -19,7 +19,8 @@ type MipProgram = {
   layout: GPUBindGroupLayout;
   pipelineLayout: GPUPipelineLayout;
   module: GPUShaderModule;
-  pipelines: Map<string, GPURenderPipeline>;
+  /** Per colour rule — plain at 0, weighted at 1 — the pipeline of each format. */
+  pipelines: [Map<GPUTextureFormat, GPURenderPipeline>, Map<GPUTextureFormat, GPURenderPipeline>];
 };
 const programs = new WeakMap<GPUDevice, MipProgram>();
 
@@ -78,7 +79,7 @@ function mipProgram(device: GPUDevice): MipProgram {
     layout,
     pipelineLayout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     module: device.createShaderModule({ code: MIP_SHADER }),
-    pipelines: new Map(),
+    pipelines: [new Map(), new Map()],
   };
   programs.set(device, built);
   return built;
@@ -86,13 +87,12 @@ function mipProgram(device: GPUDevice): MipProgram {
 
 /** The bind group layout and the pipeline of one format and one colour rule. */
 function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
-  const program = mipProgram(device);
-  const { layout, module } = program;
-  const key = `${format}/${Number(weighted)}`;
-  const held = program.pipelines.get(key);
+  const { layout, module, pipelineLayout, pipelines } = mipProgram(device);
+  const byFormat = pipelines[Number(weighted)];
+  const held = byFormat.get(format);
   if (held) return { layout, pipeline: held };
   const pipeline = device.createRenderPipeline({
-    layout: program.pipelineLayout,
+    layout: pipelineLayout,
     vertex: { module, entryPoint: 'vs' },
     fragment: {
       module,
@@ -102,7 +102,7 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: bool
     },
     primitive: { topology: 'triangle-list' },
   });
-  program.pipelines.set(key, pipeline);
+  byFormat.set(format, pipeline);
   return { layout, pipeline };
 }
 
