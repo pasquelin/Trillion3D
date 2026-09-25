@@ -1065,7 +1065,9 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
   cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
   `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
-  `quaternion` in the object's frame; its scale must be the same on all axes. A dynamic
+  `quaternion` in the object's frame; its scale must be the same on all axes. A declared
+  `{ type: 'cylinder', halfHeight, radius, radiusBottom }` tapers from its top's `radius` to
+  `radiusBottom`, as `geometry.cylinder(radiusTop, radiusBottom, height)` draws it. A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
   teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
@@ -1200,8 +1202,9 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
   `capsule` with `halfHeight` and `radius`) sweeps that shape instead; `maxDistance` defaults to
-  `camera.far`. Without these options `world.raycast` answers at once, from the scene's own
-  geometry, a model on its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
+  `camera.far`; `ignore` names a body the ray or shape passes through, the asker's own. Without
+  `exact` or `shape`, `world.raycast` answers at once, from the scene's own geometry, a model on
+  its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
 - **Character.** With physics on, `world.controls` `'character'` is the physics' own character
   (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 
