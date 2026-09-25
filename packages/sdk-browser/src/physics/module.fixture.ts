@@ -21,7 +21,9 @@ export async function startModule(
   const jolt = startJolt(opened, full, pool?.count ?? 1);
   /** The joints the module's gear linking has visited since it started (`jolt_link_visits`). */
   const linkVisits = () => (opened.exports.jolt_link_visits as () => number)();
-  return { ...jolt, linkVisits };
+  /** The path joints the module's step carry has visited since it started (`jolt_path_visits`). */
+  const pathVisits = () => (opened.exports.jolt_path_visits as () => number)();
+  return { ...jolt, linkVisits, pathVisits };
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
