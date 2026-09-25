@@ -123,8 +123,26 @@ test('the same texture twice for one atlas, or data before colour, is refused as
   assert.throws(() => encode(backwards), /not ordered by texture and atlas/);
 });
 
+// #42: a coverage chain (word 2) follows the data entry of its texture and precedes the next
+// texture's colour one — its key never meets a neighbour's.
+test('a coverage chain round-trips after the data entry of its texture, before the next one', () => {
+  const data = { ...preview(3, 8, 8, 1), atlas: 1 };
+  const coverage = { ...preview(3, 8, 8, 2), atlas: 2 };
+  const { slim, buffer } = encode([data, coverage, preview(4, 8, 8, 3)]);
+  const decoded = decodeManifestBinary(slim, buffer).texturePreviews!;
+  assert.deepEqual(
+    decoded.map((p) => [p.texture, p.atlas]),
+    [
+      [3, 1],
+      [3, 2],
+      [4, 0],
+    ],
+  );
+  assert.throws(() => encode([coverage, data]), /not ordered by texture and atlas/);
+});
+
 test('an unknown atlas, or more baked levels than lie above the tail, is refused by both sides', () => {
-  assert.throws(() => encode([{ ...preview(0, 8, 8, 1), atlas: 2 }]), /unknown atlas/);
+  assert.throws(() => encode([{ ...preview(0, 8, 8, 1), atlas: 3 }]), /unknown atlas/);
   assert.throws(
     () => encode([{ ...preview(0, 256, 256, 1), bakedLevels: 3 }]),
     /more levels than lie above its tail/,

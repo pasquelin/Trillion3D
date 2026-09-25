@@ -69,6 +69,7 @@ export function createTileSources(options: {
       height: layout.height,
       format: atlas.poolOf(slot).texture.format,
       atlas: atlas.kind,
+      coverage: source.coverage,
     });
   };
   const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
