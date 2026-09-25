@@ -6,7 +6,7 @@ import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createDocsServer, DOCS_PORT } from './docs-serve.ts';
 import { inHead } from './docs/measurement.ts';
-import { buildSite, SITE_OUTPUT, stepsReading } from './docs/site.ts';
+import { buildSite, SITE_OUTPUT, SITE_STEPS } from './docs/site.ts';
 import { ignoredPaths } from './git-paths.ts';
 import { contentType, listen } from './static-server.ts';
 
@@ -20,6 +20,22 @@ const RELOAD_SCRIPT = `<script>if (self === top) new EventSource('${RELOAD_EVENT
 
 /** The folders followed, under the root: the engine, the site and its examples. */
 const FOLLOWED = ['packages', 'site'];
+
+/** Whether the `/`-separated `path` is `entry` or lies under it. */
+const underOrAt = (path: string, entry: string) => path === entry || path.startsWith(`${entry}/`);
+
+/** The steps, in order, that read one of `paths` (relative to the root, `/`-separated) or what an
+ *  earlier one of them writes. */
+export const stepsReading = (paths: Iterable<string>) => {
+  const changed = [...paths];
+  return SITE_STEPS.filter(({ reads, files, writes = [] }) => {
+    const read = changed.some(
+      (path) => (!files || files.test(path)) && reads.some((entry) => underOrAt(path, entry)),
+    );
+    if (read) changed.push(...writes);
+    return read;
+  });
+};
 
 /** Serves `out` as `docs:serve` does, its pages with the reload script, and rebuilds it from
  *  `root` after each change of a followed folder. `out` is built already. */
