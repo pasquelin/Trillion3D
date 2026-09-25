@@ -113,11 +113,18 @@ const exists = (path: string): boolean => {
   }
 };
 
-export function checkLinks(root: string): CheckLinksResult {
-  const bad: LinkError[] = [];
-  let count = 0;
-  const runtimeRoutes: RuntimeRoute[] = [];
+/** A relative link, image or href of a maintained Markdown page, resolved to the path it names. */
+interface LocalLink {
+  file: string;
+  target: string;
+  dest: string;
+  fragment: string;
+}
 
+/** Every link of the repository's Markdown prose: the local ones resolved, the runtime routes apart. */
+export function markdownLinks(root: string): { local: LocalLink[]; runtime: RuntimeRoute[] } {
+  const local: LocalLink[] = [];
+  const runtime: RuntimeRoute[] = [];
   for (const file of findMarkdownFiles(root)) {
     const s = prose(readFileSync(file, 'utf8'));
     const targets = [
@@ -129,27 +136,29 @@ export function checkLinks(root: string): CheckLinksResult {
       t = t.replace(/^[<>]+/, '').replace(/[<>]+$/, '');
       if (hasScheme(t) || t.startsWith('//')) continue;
       if (t.startsWith('/api/')) {
-        runtimeRoutes.push([file, t]);
+        runtime.push([file, t]);
         continue;
       }
-      count++;
       const { path, fragment } = splitTarget(t);
       const dest = path ? resolve(dirname(file), decode(path)) : file;
-      if (!exists(dest)) {
-        bad.push([file, t, 'missing file']);
-        continue;
-      }
-      if (
-        fragment &&
-        extname(dest).toLowerCase() === '.md' &&
-        !anchors(dest).has(decode(fragment))
-      ) {
-        bad.push([file, t, 'missing anchor']);
-      }
+      local.push({ file, target: t, dest, fragment });
     }
   }
+  return { local, runtime };
+}
 
-  return { localFileLinks: count, errors: bad, runtimeRoutesNotChecked: runtimeRoutes };
+export function checkLinks(root: string): CheckLinksResult {
+  const bad: LinkError[] = [];
+  const { local, runtime } = markdownLinks(root);
+  for (const { file, target, dest, fragment } of local) {
+    if (!exists(dest)) {
+      bad.push([file, target, 'missing file']);
+      continue;
+    }
+    if (fragment && extname(dest).toLowerCase() === '.md' && !anchors(dest).has(decode(fragment)))
+      bad.push([file, target, 'missing anchor']);
+  }
+  return { localFileLinks: local.length, errors: bad, runtimeRoutesNotChecked: runtime };
 }
 
 function main(): void {
