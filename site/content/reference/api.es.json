@@ -15,6 +15,13 @@
       "clipTime": "En qué punto del clip está la acción, según su modo de bucle."
     }
   },
+  "BudgetCanvas": {
+    "summary": "El lienzo más grande que declara un presupuesto: los destinos de la cadena de efectos se reservan a su tamaño.",
+    "members": {
+      "width": "Ancho en píxeles del búfer de dibujo.",
+      "height": "Alto en píxeles del búfer de dibujo."
+    }
+  },
   "adaptivePixelError": {
     "summary": "El umbral adaptativo sube con la velocidad de la cámara para que una vista en movimiento pueda simplificar; una vista inmóvil conserva el pixelError base."
   },
@@ -291,6 +298,28 @@
   "Blending": {
     "summary": "Cómo se mezcla una superficie con lo que hay detrás, por su nombre."
   },
+  "Bloom": {
+    "summary": "Luz que se desborda alrededor de lo brillante, como la esparce una lente.",
+    "description": "De base física: actúa sobre la radiancia lineal de la escena, antes del tone mapping, sin umbral, y conserva la energía — el resplandor es una copia difuminada de la imagen mezclada con ella, así que la luz total sigue siendo la misma.",
+    "parameters": {
+      "options": "Lo que una página puede pasar a `effect.bloom`.",
+      "options.intensity": "Parte de la imagen sustituida por su resplandor, de 0 (nada) a 1 (solo el resplandor).",
+      "options.radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; 1 es el filtro publicado."
+    },
+    "members": {
+      "kind": "Qué pasada integrada es.",
+      "stage": "Si se ejecuta antes o después del tone mapping.",
+      "intensity": "Parte de la imagen sustituida por su resplandor, de 0 a 1.",
+      "radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; mayor que 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Lo que una página puede pasar a `effect.bloom`.",
+    "members": {
+      "intensity": "Parte de la imagen sustituida por su resplandor, de 0 (nada) a 1 (solo el resplandor).",
+      "radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; 1 es el filtro publicado."
+    }
+  },
   "blocksAcross": {
     "summary": "Bloques a lo largo de `texels`, el último completado por el borde cuando el lado no es un múltiplo."
   },
@@ -460,7 +489,7 @@
     "description": "`memory(world)` es lo que el mundo mantiene ahora (`world.budget`); las dos reservas construyen el ajuste que toma un mundo."
   },
   "budget.memory": {
-    "summary": "Los presupuestos de memoria que tiene un mundo ahora: los totales de GPU y CPU, su reparto según la regla, ambos depósitos y el máximo de cada uno."
+    "summary": "Los presupuestos de memoria que tiene un mundo ahora: los totales de GPU y CPU, su reparto según la regla, ambos depósitos y el máximo de cada uno, y el lienzo al que se reservan los destinos de efectos."
   },
   "budget.geometryPool": {
     "summary": "Un ajuste de reserva de geometría de `bytes`, listo para dar a un mundo.",
@@ -1479,6 +1508,17 @@
   "edge": {
     "summary": "Función de arista 2D (producto vectorial 2D)."
   },
+  "effect": {
+    "summary": "La familia `effect`: las pasadas que `world.effects` dibuja sobre la imagen."
+  },
+  "effect.bloom": {
+    "summary": "Un resplandor alrededor de lo brillante, sobre la imagen lineal antes del tone mapping.",
+    "parameters": {
+      "options": "`intensity` y `radius`; los valores publicados si faltan.",
+      "options.intensity": "Parte de la imagen sustituida por su resplandor, de 0 (nada) a 1 (solo el resplandor).",
+      "options.radius": "Extensión del resplandor en cada nivel, en téxeles de ese nivel; 1 es el filtro publicado."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Una irradiancia vacía, lista para recibir fuentes."
   },
@@ -1626,6 +1666,33 @@
     "summary": "Esquema JSON completo que documenta todas las opciones de inicio del explorador Trillion3D (MeasuredWorldOptions).",
     "description": "Permite a los LLM comprender, verificar y ajustar la configuración del motor 3D."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: las pasadas ordenadas que se dibujan sobre la imagen tras el antialiasing temporal y antes de que llegue al canvas.",
+    "description": "Las pasadas anteriores al tone mapping leen la radiancia lineal, en el orden en que se añadieron; las posteriores leen la imagen mostrada, en el suyo. Una cadena vacía no cuesta nada: ninguna pasada, ninguna copia, ningún destino.",
+    "members": {
+      "revision": "Cuenta los cambios: una imagen dibujada en otra revisión está desfasada.",
+      "passes": "Las pasadas, en el orden en que se ejecutan.",
+      "size": "Cuántas pasadas contiene la cadena.",
+      "add": "Pone una pasada en la cadena, al final o en `index`. Una pasada pertenece a una sola cadena a la vez.",
+      "remove": "Saca una pasada de la cadena; false si no estaba en ella.",
+      "clear": "Saca todas las pasadas: la imagen vuelve a ser la de sin cadena.",
+      "stage": "Las pasadas de una etapa, en el orden de la cadena: la lista que ejecuta un motor. Se conserva de un cambio a otro, para que un fotograma no reserve nada."
+    }
+  },
+  "EffectKind": {
+    "summary": "Las pasadas integradas que un motor sabe dibujar."
+  },
+  "EffectPass": {
+    "summary": "Una pasada de la cadena.",
+    "description": "Una pasada dice qué pasada integrada es y dónde se ejecuta; sus ajustes son propiedades cuya escritura llega al mundo en el acto, como los de una luz.",
+    "members": {
+      "kind": "Qué pasada integrada es.",
+      "stage": "Si se ejecuta antes o después del tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Dónde se sitúa una pasada respecto a la curva de visualización: sobre la radiancia lineal de la escena, antes de que la exposición y la curva la lleven al rango de visualización, o sobre la imagen mostrada que produjeron."
+  },
   "exportLightingGltf": {
     "summary": "glTF y un búfer binario separado en little-endian; los adaptadores gestionan el guardado."
   },
@@ -1747,7 +1814,7 @@
       "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2.",
       "gpuHostGapMs": "Tiempo de CPU que el mismo fotograma pasó entre dos de sus propios envíos, y cero cuando solo envía una vez. Es tiempo del host, no de GPU, por eso `gpuFrameMs` lo excluye. Nulo cuando no se mide.",
       "uncoveredTriangles": "Triángulos de los clústeres que nombra el corte publicado pero que la imagen no puede dibujar — sin página residente y sin ancestro que cubra. Un agujero real en la imagen: cero es el único valor sano. Nulo cuando un motor no puede decirlo (dibuja el corte que eligió, así que nunca tiene).",
-      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos, menos los clústeres sin página residente que cuenta `uncoveredTriangles`. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado en el mismo paso que `uncoveredTriangles`, al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`. Relación de cobertura esperada en esta medida: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`.",
       "cpuSelectMs": "Tiempo de CPU del corte de clústeres de este fotograma, medido solo alrededor de la selección. Nulo para un motor que no elige su corte en la CPU.",
       "gpuSelectionFallback": "Verdadero cuando el motor tenía una selección de GPU y la abandonó: lo que se mide desde entonces es el corte de repliegue de CPU. Un repliegue también emite el diagnóstico `gpu-selection-fallback`, una vez; el host lo copia tal cual, y está ausente en un motor sin selección de GPU.",
       "cpuSelectNodesTested": "Nodos de la jerarquía sobre los que el corte de este fotograma hizo una prueba — decisión de frustum o de nivel de detalle. Un nodo ya decidido y totalmente visible no recibe ninguna: se recorre, no se prueba. Es la medida del trabajo real de un corte jerárquico; un corte plano prueba cero y recorre cada clúster. Nulo para un motor que no elige su corte en la CPU, o que no lo cuenta.",
@@ -2421,7 +2488,8 @@
       "toneMapping": "La curva de visualización elegida por la escena; ACES si falta.",
       "framebuffer": "Dónde dibujar; `null` para la pantalla.",
       "width": "Ancho en píxeles.",
-      "height": "Alto en píxeles."
+      "height": "Alto en píxeles.",
+      "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura."
     }
   },
   "HostMaterial": {
@@ -6494,6 +6562,9 @@
     "summary": "Antialiasing temporal: desplazamiento subpíxel acumulado entre imágenes; activado por defecto.",
     "description": "Al escribirlo, surte efecto en la imagen siguiente, se descarta el historial, sin reabrir la sesión. Al leerlo, es lo que lleva la imagen: false en WebGL2, y mientras el programa se compila tras activarlo."
   },
+  "world.effects": {
+    "summary": "La cadena de efectos: pasadas dibujadas sobre la imagen (`effect`)."
+  },
   "world.budget": {
     "summary": "Las reservas de memoria del mundo, leídas y ajustadas en bytes.",
     "members": {
@@ -6504,8 +6575,9 @@
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
       "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Un total por debajo del depósito de sombras se rechaza (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca se lee de la máquina.",
+      "canvas": "El lienzo más grande que declara el mundo, en píxeles del búfer de dibujo: los destinos de la cadena de efectos se reservan a su tamaño (`split.effectTargets`); 3840 × 2160 por defecto, y el `gpu` por defecto solo crece en esa reserva. Ajústalo para repartir de nuevo cada depósito según la regla. Un lienzo dibujado más grande se sigue renderizando entero: los diagnósticos dicen `effect targets over budget` con los bytes que pasan de la reserva.",
       "cpu": "Bytes de memoria CPU que puede ocupar el mundo: primero el espejo en el host de la tabla de páginas de sombras, luego las páginas decodificadas, sus tablas de manifiesto, su cola de transferencias y las tablas de corte del motor juntas. Un cambio se aplica al instante: las páginas salen por último uso hasta caber. Un total que no supera el espejo se rechaza (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca se lee de la máquina.",
-      "split": "Cómo se reparten los dos totales: el depósito de sombras y las sondas de rebote a su máximo, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; el espejo en el host de la tabla de sombras, luego la caché de páginas decodificadas toma el resto del total de CPU, entero, y dentro de él la sesión en curso reserva sus tablas de manifiesto, su cola de transferencias y las tablas de corte del motor. Lo que da la regla, antes de ajustar un depósito por separado."
+      "split": "Cómo se reparten los dos totales: el depósito de sombras y las sondas de rebote a su máximo, los destinos de la cadena de efectos en el `canvas` declarado, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; el espejo en el host de la tabla de sombras, luego la caché de páginas decodificadas toma el resto del total de CPU, entero, y dentro de él la sesión en curso reserva sus tablas de manifiesto, su cola de transferencias y las tablas de corte del motor. Lo que da la regla, antes de ajustar un depósito por separado."
     }
   },
   "world.diagnostic": {
@@ -6617,7 +6689,7 @@
       "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2.",
       "gpuHostGapMs": "Tiempo de CPU que el mismo fotograma pasó entre dos de sus propios envíos, y cero cuando solo envía una vez. Es tiempo del host, no de GPU, por eso `gpuFrameMs` lo excluye. Nulo cuando no se mide.",
       "uncoveredTriangles": "Triángulos de los clústeres que nombra el corte publicado pero que la imagen no puede dibujar — sin página residente y sin ancestro que cubra. Un agujero real en la imagen: cero es el único valor sano. Nulo cuando un motor no puede decirlo (dibuja el corte que eligió, así que nunca tiene).",
-      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos, menos los clústeres sin página residente que cuenta `uncoveredTriangles`. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado en el mismo paso que `uncoveredTriangles`, al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`. Relación de cobertura esperada en esta medida: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`.",
       "cpuSelectMs": "Tiempo de CPU del corte de clústeres de este fotograma, medido solo alrededor de la selección. Nulo para un motor que no elige su corte en la CPU.",
       "gpuSelectionFallback": "Verdadero cuando el motor tenía una selección de GPU y la abandonó: lo que se mide desde entonces es el corte de repliegue de CPU. Un repliegue también emite el diagnóstico `gpu-selection-fallback`, una vez; el host lo copia tal cual, y está ausente en un motor sin selección de GPU.",
       "cpuSelectNodesTested": "Nodos de la jerarquía sobre los que el corte de este fotograma hizo una prueba — decisión de frustum o de nivel de detalle. Un nodo ya decidido y totalmente visible no recibe ninguna: se recorre, no se prueba. Es la medida del trabajo real de un corte jerárquico; un corte plano prueba cero y recorre cada clúster. Nulo para un motor que no elige su corte en la CPU, o que no lo cuenta.",
@@ -6909,7 +6981,8 @@
       "recipe": "El miembro de la familia y cada argumento con el que se construyó.",
       "attributes": "Cada lista por vértice, cuando ninguna llamada vuelve a construir la forma.",
       "index": "Qué vértices forman cada triángulo.",
-      "groups": "Rangos de índices dibujados cada uno con un material."
+      "groups": "Rangos de índices dibujados cada uno con un material.",
+      "owner": "`'host'` para los vértices de una escena cargada, leídos por su valor (`Geometry._owner`); sin definir para los del mundo."
     }
   },
   "SavedMaterial": {
@@ -7051,8 +7124,8 @@
     "summary": "Lo que un contacto da a sus oyentes: el otro objeto, el impulso y dónde tocó.",
     "members": {
       "other": "El objeto tocado; `null` cuando ha salido de la escena.",
-      "impulse": "N·s: la velocidad de aproximación a lo largo de la normal por la masa reducida del par, estimada antes del solver; 0 en `leave`.",
-      "point": "El punto de contacto, en el marco del mundo; el origen en `leave`."
+      "impulse": "N·s: la velocidad de aproximación a lo largo de la normal por la masa reducida del par, estimada antes del solver (del lado de un cuerpo blando: su velocidad media y la masa de sus vértices que tocaron); 0 en `leave`, y entre un cuerpo blando y un sensor.",
+      "point": "El punto de contacto, en el marco del mundo (el de un cuerpo blando: la media de sus vértices que tocaron, su centro ante un sensor); el origen en `leave`."
     }
   },
   "ContactEventName": {

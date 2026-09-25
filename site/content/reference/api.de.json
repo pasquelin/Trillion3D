@@ -15,6 +15,13 @@
       "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Die größte Leinwand, die ein Budget angibt: Die Ziele der Effektkette werden in ihrer Größe reserviert.",
+    "members": {
+      "width": "Breite in Pixeln des Zeichenpuffers.",
+      "height": "Höhe in Pixeln des Zeichenpuffers."
+    }
+  },
   "adaptivePixelError": {
     "summary": "Die adaptive Schwelle steigt mit der Kamerageschwindigkeit, damit eine bewegte Ansicht vereinfachen kann; eine unbewegte Ansicht behält den Basis-pixelError."
   },
@@ -291,6 +298,28 @@
   "Blending": {
     "summary": "Wie sich eine Oberfläche mit dem mischt, was dahinter ist, nach ihrem Namen."
   },
+  "Bloom": {
+    "summary": "Licht, das um Helles herum überläuft, wie eine Linse es streut.",
+    "description": "Physikalisch basiert: Es wirkt auf die lineare Strahldichte der Szene, vor dem Tone Mapping, ohne Schwelle, und erhält die Energie — der Schein ist eine weichgezeichnete Kopie des Bildes, die eingemischt wird, sodass das gesamte Licht gleich bleibt.",
+    "parameters": {
+      "options": "Was eine Seite an `effect.bloom` übergeben kann.",
+      "options.intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "options.radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    },
+    "members": {
+      "kind": "Welcher eingebaute Durchgang das ist.",
+      "stage": "Ob er vor oder nach dem Tone Mapping läuft.",
+      "intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 bis 1.",
+      "radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; über 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Was eine Seite an `effect.bloom` übergeben kann.",
+    "members": {
+      "intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    }
+  },
   "blocksAcross": {
     "summary": "Blöcke entlang `texels`, der letzte durch den Rand ergänzt, wenn die Seite kein Vielfaches ist."
   },
@@ -460,7 +489,7 @@
     "description": "`memory(world)` ist das, was die Welt jetzt hält (`world.budget`); die beiden Reservoirs bauen die Einstellung, die eine Welt annimmt."
   },
   "budget.memory": {
-    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die GPU- und CPU-Summen, ihre Aufteilung nach der Regel, beide Pools und die Obergrenze jedes Pools."
+    "summary": "Die Speicherbudgets, die eine Welt gerade hält: die GPU- und CPU-Summen, ihre Aufteilung nach der Regel, beide Pools und die Obergrenze jedes Pools, und die Leinwand, für die die Effektziele reserviert sind."
   },
   "budget.geometryPool": {
     "summary": "Eine Reservoir-Einstellung für Geometrie von `bytes`, bereit, einer Welt gegeben zu werden.",
@@ -1479,6 +1508,17 @@
   "edge": {
     "summary": "2D-Kantenfunktion (2D-Kreuzprodukt)."
   },
+  "effect": {
+    "summary": "Die Familie `effect`: die Durchgänge, die `world.effects` über das Bild zeichnet."
+  },
+  "effect.bloom": {
+    "summary": "Ein Schein um Helles, auf dem linearen Bild vor dem Tone Mapping.",
+    "parameters": {
+      "options": "`intensity` und `radius`; ohne Angabe die veröffentlichten Werte.",
+      "options.intensity": "Anteil des Bildes, der durch seinen Schein ersetzt wird, von 0 (keiner) bis 1 (nur der Schein).",
+      "options.radius": "Ausbreitung des Scheins auf jeder Stufe, in Texeln dieser Stufe; 1 ist der veröffentlichte Filter."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Eine leere Bestrahlungsstärke, bereit, Quellen zu empfangen."
   },
@@ -1626,6 +1666,33 @@
     "summary": "Vollständiges JSON-Schema, das alle Startoptionen des Trillion3D-Explorers dokumentiert (MeasuredWorldOptions).",
     "description": "Ermöglicht LLMs, die Konfiguration der 3D-Engine zu verstehen, zu prüfen und einzustellen."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: die geordneten Durchgänge, die nach dem temporalen Antialiasing über das Bild gezeichnet werden, bevor es den Canvas erreicht.",
+    "description": "Die Durchgänge vor dem Tone Mapping lesen die lineare Strahldichte, in der Reihenfolge, in der sie hinzugefügt wurden; die danach lesen das angezeigte Bild, in ihrer. Eine leere Kette kostet nichts: kein Durchgang, keine Kopie, kein Ziel.",
+    "members": {
+      "revision": "Zählt die Änderungen: Ein Bild, das bei einer anderen Revision gezeichnet wurde, ist veraltet.",
+      "passes": "Die Durchgänge, in der Reihenfolge, in der sie laufen.",
+      "size": "Wie viele Durchgänge die Kette enthält.",
+      "add": "Fügt einen Durchgang in die Kette ein, am Ende oder bei `index`. Ein Durchgang gehört jeweils zu einer Kette.",
+      "remove": "Nimmt einen Durchgang aus der Kette; false, wenn er nicht darin war.",
+      "clear": "Nimmt alle Durchgänge heraus: Das Bild ist wieder das ohne Kette.",
+      "stage": "Die Durchgänge einer Stufe, in Kettenreihenfolge: die Liste, die eine Engine ausführt. Von Änderung zu Änderung behalten, damit ein Bild nichts alloziert."
+    }
+  },
+  "EffectKind": {
+    "summary": "Die eingebauten Durchgänge, die eine Engine zeichnen kann."
+  },
+  "EffectPass": {
+    "summary": "Ein Durchgang der Kette.",
+    "description": "Ein Durchgang sagt, welcher eingebaute er ist und wo er läuft; seine Einstellungen sind Eigenschaften, deren Schreiben die Welt sofort erreicht, wie bei einem Licht.",
+    "members": {
+      "kind": "Welcher eingebaute Durchgang das ist.",
+      "stage": "Ob er vor oder nach dem Tone Mapping läuft."
+    }
+  },
+  "EffectStage": {
+    "summary": "Wo ein Durchgang relativ zur Anzeigekurve sitzt: auf der linearen Strahldichte der Szene, bevor Belichtung und Kurve sie in den Anzeigebereich bringen, oder auf dem angezeigten Bild, das sie erzeugt haben."
+  },
   "exportLightingGltf": {
     "summary": "glTF und ein getrennter binärer Puffer in Little-Endian; die Adapter übernehmen das Speichern."
   },
@@ -1747,7 +1814,7 @@
       "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
-      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectMs": "CPU-Zeit des Cluster-Schnitts dieses Bildes, gemessen allein um die Auswahl herum. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt.",
       "gpuSelectionFallback": "Wahr, wenn die Engine eine GPU-Auswahl hatte und sie aufgegeben hat: was seitdem gemessen wird, ist der CPU-Rückfallschnitt. Ein Rückfall sendet auch einmal die Diagnose `gpu-selection-fallback`; der Host kopiert sie unverändert, und sie fehlt bei einer Engine ohne GPU-Auswahl.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
@@ -2421,7 +2488,8 @@
       "toneMapping": "Die von der Szene gewählte Anzeigekurve; ACES, wenn sie fehlt.",
       "framebuffer": "Wohin gezeichnet wird; `null` für den Bildschirm.",
       "width": "Breite in Pixeln.",
-      "height": "Höhe in Pixeln."
+      "height": "Höhe in Pixeln.",
+      "linear": "Lineare Strahldichte, weder durch die Kurve gebracht noch kodiert, über transparentem Schwarz: die Eingabe der Effektkette, deren Alpha die Abdeckung ist."
     }
   },
   "HostMaterial": {
@@ -6494,6 +6562,9 @@
     "summary": "Zeitliche Kantenglättung: Subpixel-Versatz, über Bilder hinweg akkumuliert; standardmäßig an.",
     "description": "Geschrieben, wirkt sie ab dem nächsten Bild, der Verlauf wird verworfen, keine Sitzung neu geöffnet. Gelesen, ist sie das, was das Bild trägt: false unter WebGL2 und solange das Programm nach dem Einschalten kompiliert."
   },
+  "world.effects": {
+    "summary": "Die Effektkette: Durchgänge, die über das Bild gezeichnet werden (`effect`)."
+  },
   "world.budget": {
     "summary": "Die Speicherreservoirs der Welt, in Bytes gelesen und eingestellt.",
     "members": {
@@ -6504,8 +6575,9 @@
       "physics": "Die Grenzen der Physik (Körper, Dreiecke, dekorative Körper, Speicher), einmal beim Start gelesen; wer eine überschreitet, löst `PHYSICS_BUDGET` aus.",
       "raycastTrees": "Bytes CPU-Speicher, die `raycast` für Dreiecksbäume behält, geteilt von allen Welten der Seite; darüber hinaus wird der am längsten nicht getroffene Baum verworfen. Setze ihn, um die Hülle zu ändern.",
       "gpu": "Bytes GPU-Speicher, die die Welt halten darf, alle Pools zusammen; setze ihn, um jeden Pool nach der Aufteilungsregel neu zu bemessen (`split`). Eine Summe unter dem Schatten-Pool wird abgelehnt (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nie von der Maschine gelesen.",
+      "canvas": "Die größte Leinwand, die die Welt angibt, in Pixeln des Zeichenpuffers: Die Ziele der Effektkette werden in ihrer Größe reserviert (`split.effectTargets`); standardmäßig 3840 × 2160, und das Standard-`gpu` wächst nur um diese Reserve. Setze sie, um jeden Pool nach der Aufteilung neu zu verteilen. Eine größer gezeichnete Leinwand wird trotzdem vollständig gerendert: Die Diagnose meldet `effect targets over budget` mit den Bytes über der Reserve.",
       "cpu": "Bytes CPU-Speicher, die die Welt halten darf: zuerst der Host-Spiegel der Schatten-Seitentabelle, dann die dekodierten Seiten, ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine zusammen. Eine Änderung gilt sofort: Seiten gehen nach letzter Nutzung, bis sie passen. Eine Summe, die den Spiegel nicht übersteigt, wird abgelehnt (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nie von der Maschine gelesen.",
-      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool und die Bounce-Sonden in voller Größe, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe, ganz, und darin reserviert die laufende Sitzung ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
+      "split": "Wie die beiden Summen geteilt werden: der Schatten-Pool und die Bounce-Sonden in voller Größe, die Ziele der Effektkette auf der angegebenen `canvas`, dann je die Hälfte an Geometrie- und Textur-Pool, begrenzt auf ihre Obergrenzen; der Host-Spiegel der Schattentabelle, dann nimmt der Cache dekodierter Seiten den Rest der CPU-Summe, ganz, und darin reserviert die laufende Sitzung ihre Manifest-Tabellen, ihre Transfer-Warteschlange und die Schnitttabellen der Engine. Was die Regel ergibt, bevor ein Pool einzeln gesetzt wird."
     }
   },
   "world.diagnostic": {
@@ -6617,7 +6689,7 @@
       "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
-      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectMs": "CPU-Zeit des Cluster-Schnitts dieses Bildes, gemessen allein um die Auswahl herum. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt.",
       "gpuSelectionFallback": "Wahr, wenn die Engine eine GPU-Auswahl hatte und sie aufgegeben hat: was seitdem gemessen wird, ist der CPU-Rückfallschnitt. Ein Rückfall sendet auch einmal die Diagnose `gpu-selection-fallback`; der Host kopiert sie unverändert, und sie fehlt bei einer Engine ohne GPU-Auswahl.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
@@ -6909,7 +6981,8 @@
       "recipe": "Das Familienmitglied und jedes Argument, mit dem sie gebaut wurde.",
       "attributes": "Jede Liste pro Eckpunkt, wenn kein Aufruf die Form neu baut.",
       "index": "Welche Eckpunkte jedes Dreieck bilden.",
-      "groups": "Index-Bereiche, die jeweils mit einem Material gezeichnet werden."
+      "groups": "Index-Bereiche, die jeweils mit einem Material gezeichnet werden.",
+      "owner": "`'host'` für die Eckpunkte einer geladenen Szene, nach ihrem Wert gelesen (`Geometry._owner`); nicht gesetzt für die der Welt."
     }
   },
   "SavedMaterial": {
@@ -7051,8 +7124,8 @@
     "summary": "Was ein Kontakt seinen Zuhörern gibt: das andere Objekt, den Impuls und den Berührungspunkt.",
     "members": {
       "other": "Das berührte Objekt; `null`, sobald es die Szene verlassen hat.",
-      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt; 0 bei `leave`.",
-      "point": "Der Kontaktpunkt im Weltrahmen; der Ursprung bei `leave`."
+      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt (auf der Seite eines weichen Körpers: seine mittlere Geschwindigkeit und die Masse seiner berührenden Vertices); 0 bei `leave` und zwischen einem weichen Körper und einem Sensor.",
+      "point": "Der Kontaktpunkt im Weltrahmen (bei einem weichen Körper: das Mittel seiner berührenden Vertices, vor einem Sensor sein Zentrum); der Ursprung bei `leave`."
     }
   },
   "ContactEventName": {

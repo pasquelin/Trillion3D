@@ -39,15 +39,19 @@ const plain = (value: unknown) =>
 function saveGeometry(g: Geometry): SavedGeometry {
   if (g.recipe) return { recipe: plain(g.recipe) };
   const attributes: SavedGeometry['attributes'] = {};
-  for (const [name, a] of Object.entries(g.attributes))
+  for (const [name, attribute] of Object.entries(g.attributes)) {
+    // A view of an interleaved buffer is stored as its own numbers, not the whole pack.
+    const a = attribute.kind === 'attribute' ? attribute : attribute.clone();
     attributes[name] = {
       itemSize: a.itemSize,
       array: Array.from(a.array),
       type: a.array.constructor.name,
       normalized: a.normalized,
     };
+  }
   const index = g.index ? Array.from(g.index.array) : undefined;
-  return { attributes, index, groups: g.groups.map((group) => ({ ...group })) };
+  const groups = g.groups.map((group) => ({ ...group }));
+  return { attributes, index, groups, owner: g._owner === 'host' ? 'host' : undefined };
 }
 
 /** The matter: its kind and each parameter; a texture or a shader cannot be stored. */

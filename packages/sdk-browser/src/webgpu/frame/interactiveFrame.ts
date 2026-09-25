@@ -28,6 +28,10 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   if (gpu.deferred && wantsContractLighting(rt)) await gpu.deferred.settle();
   await services.residency.pending;
   await vis.textures?.settled();
+  // An image drawn while the effect programs compile is drawn again once, when they arrive,
+  // rather than on every frame meanwhile, which would spend the loop's rounds (#349). Waited
+  // last: the feedback above is not held back by a compilation.
+  await gpu.effects?.settled();
   if (run.lost) throw new Error('WEBGPU_LOST');
   return true;
 }

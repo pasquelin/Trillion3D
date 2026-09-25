@@ -47,8 +47,7 @@ export function createSessionHost(
     },
     listened(body) {
       const mesh = meshes()[body._index];
-      // A soft body has no flags word: nothing would read them (softLayout.ts).
-      if (mesh && !body.soft) writer.flags(body._index, flagsOf(mesh));
+      if (mesh) writer.flags(body._index, flagsOf(mesh));
       invalidate();
     },
   };

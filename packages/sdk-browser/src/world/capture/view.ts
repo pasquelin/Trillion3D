@@ -36,7 +36,8 @@ export function createExplorerCaptureView(inputs: Inputs) {
     try {
       reshape(width / height);
       active.render(camera);
-      compose(active, target, false);
+      // The engine's image alone, at the capture's size: the chain's targets keep the view's.
+      compose(active, target, false, false);
       gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
       const pixels = new Uint8Array(width * height * 4);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);

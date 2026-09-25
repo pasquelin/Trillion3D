@@ -1,5 +1,6 @@
 import {
   CommandWriter,
+  FLAG,
   SOFT_STATE_WORDS,
   softBodyOf,
   writeSoft,
@@ -7,9 +8,17 @@ import {
   type SoftBodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
 import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
+import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { body, startModule, type Module } from './module.fixture.ts';
+
+/** A box of `mass` kg and 0.2 m in slot 2, its centre at `y`, with `flags`. */
+export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
+  const writer = new CommandWriter();
+  writer.add({ ...body(2 | (1 << 24), 2, y, 0.1, flags), mass });
+  jolt.step(writer.take(), 0);
+}
 
 /** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
 export const FLAT = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
@@ -69,3 +78,15 @@ export const ropeLine = (count: number, length: number) =>
 
 /** The vertex `v` of `vertices`. */
 export const at = (vertices: Float32Array, v: number) => [...vertices.subarray(v * 3, v * 3 + 3)];
+
+/** A 1 m cloth of 10 × 10 squares laid flat at `y` in slot 1, `pins` held, its events wanted when
+ *  told. */
+export function flatCloth(jolt: Module, y: number, pins: number[], events = false) {
+  const record = addSoft(jolt, plane(1, 1, 10, 10), { type: 'cloth', pins }, [0, y, 0], {
+    quaternion: FLAT,
+  });
+  const writer = new CommandWriter();
+  if (events) writer.flags(1, FLAG.events);
+  jolt.step(writer.take(), 0);
+  return record;
+}
