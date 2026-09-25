@@ -7,8 +7,7 @@ import { listen, staticServer } from './static-server.ts';
 export function createDocsServer(root = SITE_OUTPUT) {
   return staticServer({
     mounts: [{ prefix: '/', dir: root }],
-    index: true,
-    fileHeaders: {
+    headers: {
       'Cache-Control': 'no-store',
       // Cross-origin isolation, as the published site answers (checked by the deploy, pages.yml):
       // `SharedArrayBuffer` for the physics. `credentialless` still lets the consent panel and its

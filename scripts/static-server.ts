@@ -4,14 +4,15 @@ import { once } from 'node:events';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
 import { pipeline } from 'node:stream';
 
 const TYPES: Record<string, string> = {
-  '.html': 'text/html',
-  '.css': 'text/css',
-  '.js': 'text/javascript',
-  '.json': 'application/json',
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
   '.wasm': 'application/wasm',
   '.gltf': 'model/gltf+json',
   '.svg': 'image/svg+xml',
@@ -20,11 +21,9 @@ const TYPES: Record<string, string> = {
   '.ktx2': 'image/ktx2',
 };
 
-/** The content type of a file ending in `extension`, naming utf-8 when `charset` lists it. */
-export function contentType(extension: string, charset: readonly string[] = []): string {
-  const type = TYPES[extension] ?? 'application/octet-stream';
-  return charset.includes(extension) ? `${type}; charset=utf-8` : type;
-}
+/** The content type of a file ending in `extension`; text is always utf-8. */
+export const contentType = (extension: string): string =>
+  TYPES[extension] ?? 'application/octet-stream';
 
 /** A URL prefix served from a directory. */
 export type Mount = { prefix: string; dir: string };
@@ -47,15 +46,7 @@ export interface StaticOptions {
   mounts?: Mount[];
   /** Headers on every response. */
   headers?: Record<string, string>;
-  /** Headers on every file served, besides its type and length. */
-  fileHeaders?: Record<string, string>;
-  /** Extensions whose content type names utf-8. */
-  charset?: readonly string[];
-  /** A directory answers with its `index.html`. */
-  index?: boolean;
-  /** The status of a path that leaves its mount or that `refuse` names (403 by default). */
-  refused?: number;
-  /** Whether a file inside its mount is refused all the same. */
+  /** Whether a file inside its mount is refused all the same, as one outside it is (403). */
   refuse?: (file: string) => boolean;
   /** Answers a request before any file is looked for; returns whether it did. */
   answer?: (request: IncomingMessage, response: ServerResponse, url: URL) => boolean;
@@ -63,30 +54,29 @@ export interface StaticOptions {
   transform?: (file: string) => string | undefined;
 }
 
+/** Serves the file `path` names under `dir`, a directory by its `index.html`. */
 async function serveFile(
-  mount: Mount,
+  dir: string,
   path: string,
   response: ServerResponse,
-  { fileHeaders, charset, index, refused = 403, refuse, transform }: StaticOptions,
+  { refuse, transform }: StaticOptions,
 ) {
-  let file = fileUnder(mount.dir, path);
-  if (file === null || refuse?.(file)) return reply(response, refused);
+  let file = fileUnder(dir, path);
+  if (file === null || refuse?.(file)) return reply(response, 403);
   let found = await stat(file);
-  if (index && found.isDirectory()) found = await stat((file = resolve(file, 'index.html')));
+  if (found.isDirectory()) found = await stat((file = resolve(file, 'index.html')));
   if (!found.isFile()) return reply(response, 404);
   const text = transform?.(file);
-  const body = text === undefined ? undefined : Buffer.from(text);
+  if (text !== undefined) return reply(response, 200, contentType('.js'), text);
   // The file is opened before the headers leave, so a file it cannot read is still a 404.
-  const stream = body ? undefined : createReadStream(file);
-  if (stream) await once(stream, 'open');
+  const stream = createReadStream(file);
+  await once(stream, 'open');
   response.writeHead(200, {
-    'content-type': contentType(body ? '.js' : extname(file), charset),
-    'content-length': body ? body.length : found.size,
-    ...fileHeaders,
+    'content-type': contentType(extname(file)),
+    'content-length': found.size,
   });
   // A read error past the headers destroys the response, so the socket never waits on it.
-  if (stream) pipeline(stream, response, () => {});
-  else response.end(body);
+  pipeline(stream, response, () => {});
 }
 
 /** A server over `options.mounts`; a path no mount takes, or no file answers, is a 404. */
@@ -99,7 +89,7 @@ export function staticServer(options: StaticOptions = {}): Server {
     if (answer?.(request, response, url)) return;
     const mount = mounts.find(({ prefix }) => url.pathname.startsWith(prefix));
     if (!mount) return reply(response, 404);
-    serveFile(mount, url.pathname.slice(mount.prefix.length), response, options).catch(() => {
+    serveFile(mount.dir, url.pathname.slice(mount.prefix.length), response, options).catch(() => {
       if (!response.headersSent) reply(response, 404);
     });
   });
@@ -109,11 +99,7 @@ export function staticServer(options: StaticOptions = {}): Server {
 export function listen(server: Server, port = 0): Promise<number> {
   return new Promise((ready, reject) => {
     server.once('error', reject);
-    server.listen(port, '127.0.0.1', () => {
-      const address = server.address();
-      // A local server binds an IP address, never a pipe.
-      if (address && typeof address !== 'string') ready(address.port);
-      else reject(new Error('server is not listening on a port'));
-    });
+    // A server bound to an IP address has an `AddressInfo`, never a pipe name.
+    server.listen(port, '127.0.0.1', () => ready((server.address() as AddressInfo).port));
   });
 }

@@ -4,7 +4,7 @@ import type { Server } from 'node:http';
 import { resolve } from 'node:path';
 import { createDocsServer } from './docs-serve.ts';
 import { installedServer, type RequestRecord } from './installed-package-server.ts';
-import { fileUnder, listen } from './static-server.ts';
+import { listen } from './static-server.ts';
 
 const SITE = resolve(import.meta.dirname, '../site');
 
@@ -16,13 +16,8 @@ async function fetched(server: Server, path: string) {
   return [response.status, response.headers.get('content-type')];
 }
 
-test('a path that leaves its directory is refused, one inside it resolves under it', () => {
-  assert.equal(fileUnder(SITE, '..%2Fpackage.json'), null);
-  assert.equal(fileUnder(SITE, 'styles/portal.css'), resolve(SITE, 'styles/portal.css'));
-});
-
 test('the docs server answers a directory with its index, an escape with 403', async () => {
-  assert.deepEqual(await fetched(createDocsServer(SITE), '/'), [200, 'text/html']);
+  assert.deepEqual(await fetched(createDocsServer(SITE), '/'), [200, 'text/html; charset=utf-8']);
   assert.deepEqual(await fetched(createDocsServer(SITE), '/..%2Fpackage.json'), [403, null]);
 });
 

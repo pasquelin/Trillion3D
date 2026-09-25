@@ -11,7 +11,6 @@ import {
   type Mount,
 } from '../../../scripts/static-server.ts';
 
-const CHARSET = ['.html', '.css', '.js', '.json'];
 const TYPESCRIPT = /\.m?ts$/;
 
 /** One RGBA capture the page posted, or `null` when its byte count did not match `w × h × 4`. */
@@ -79,10 +78,7 @@ export async function startServer({
 }): Promise<{ server: Server; port: number }> {
   const server = staticServer({
     mounts,
-    headers: isolation ? ISOLATION : {},
-    fileHeaders: { 'cache-control': 'no-store' },
-    charset: CHARSET,
-    refused: 400,
+    headers: { 'cache-control': 'no-store', ...(isolation ? ISOLATION : {}) },
     transform: (file) =>
       TYPESCRIPT.test(file) ? stripTypes(readFileSync(file, 'utf8'), file) : undefined,
     answer: (req, res, url) => {
@@ -92,7 +88,7 @@ export async function startServer({
       // let a 404 pollute page errors.
       if (url.pathname === '/favicon.ico') return reply(res, 204);
       if (url.pathname === '/' || url.pathname === '/index.html')
-        return reply(res, 200, contentType('.html', CHARSET), PAGE);
+        return reply(res, 200, contentType('.html'), PAGE);
       return false;
     },
   });
