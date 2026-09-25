@@ -1,11 +1,11 @@
-// A camera stop releases the representation changes held during the move: their pages go back
-// to the queue, and under a tight shadow budget they wait several frames. Those pages still
-// hold a depth of their extent and must be read until their redraw lands — never skipped to
-// a coarser level or the far proxy, which would drop the shadow. This proof walks the bench's
-// street view of the generated facade (`facade-7`: pale walls the sun cuts into sharp shadows,
-// cast through the windows by walls the camera does not see), stops with a 0.01 ms budget,
-// captures while pages are pending, and counts the pixels the stopped frame shades otherwise
-// than the settled one away from every edge of the settled image.
+// A camera stop releases the representation changes held during the move: their pages are
+// drawn again in the frame that marks them, with every other page it reads (#489) — none waits.
+// Until then they hold a depth of their extent and are read — never skipped to a coarser level
+// or the far proxy, which would drop the shadow. This proof walks the bench's street view of the
+// generated facade (`facade-7`: pale walls the sun cuts into sharp shadows, cast through the
+// windows by walls the camera does not see), stops, captures the first still frame, checks it
+// left no page pending, and counts the pixels it shades otherwise than the settled one away
+// from every edge of the settled image.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -32,7 +32,6 @@ try {
       const { openBenchWorld, settleWorld, shadingGap, png } = await import(worldUrl);
       const { poseAt, VIEWS } = await import(posesUrl);
       const scene: MeasuredWorld = await openBenchWorld('stop', sdkUrl, manifestUrl, size, {
-        shadowBudgetMs: 0.01,
         pixelError,
         clearColor: 0x2a303c,
       });
@@ -51,14 +50,10 @@ try {
         await frame();
         scene.render(pose(step));
       }
-      // The stop: the first still frame releases what the move held; the next ones drain it
-      // under the budget. The capture is taken on the first frame that leaves pages pending.
-      // (The metrics object is the engine's own, rewritten by every frame: read it now.)
-      let pendingAtCapture = 0;
-      for (let i = 0; i < 8 && !pendingAtCapture; i++) {
-        await frame();
-        pendingAtCapture = scene.render(pose(STEPS)).shadowPagesPending ?? 0;
-      }
+      // The stop: the first still frame releases what the move held and draws it. (The metrics
+      // object is the engine's own, rewritten by every frame: read it now.)
+      await frame();
+      const pendingAtCapture = scene.render(pose(STEPS)).shadowPagesPending ?? 0;
       const stopped = new Uint8Array(scene.capture());
       const settledEnd = await settle(pose(STEPS));
       const settled = new Uint8Array(scene.capture());
@@ -96,7 +91,6 @@ try {
     dpr: 1,
     pixelError: PIXEL_ERROR,
     temporalAntialiasing: false,
-    shadowBudgetMs: 0.01,
     ...measured,
     cpuFrameMs: null,
     gpuFrameMs: null,
@@ -105,10 +99,10 @@ try {
   console.log(JSON.stringify(proof));
   assert.equal(proof.settledStart, true, 'the start pose settles');
   assert.equal(proof.settledEnd, true, 'the stop pose settles, with and without the shadow');
-  assert.ok(proof.pendingAtCapture > 0, 'the capture was taken with pages still pending');
+  assert.equal(proof.pendingAtCapture, 0, 'the stopped frame drew every page it marked');
   // The frame tests shadows: the sun's shadow darkens the inside of areas, not only edges.
   assert.ok(proof.shadowedOffEdge > 0, `${proof.shadowed} shadowed pixels, none off an edge`);
-  // Pages awaiting a redraw keep their depth: the stopped frame shades as the settled one but
+  // Pages drawn at the stop keep their place: the stopped frame shades as the settled one but
   // within `PIXEL_ERROR` of an edge of the settled image, where a cluster of the stopped cut —
   // or of the casters it draws into the pages — may stand that far from its settled place. A
   // shadow that dropped out, or that came from a coarser level, the proxy or the far side of a

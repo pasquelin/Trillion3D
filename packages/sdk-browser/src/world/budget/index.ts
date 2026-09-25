@@ -6,10 +6,11 @@ import type { World } from '../core/world.ts';
  */
 export const budget = {
   /** The memory budgets a world holds right now: the GPU and CPU totals, how the rule splits them,
-   *  both pools and the largest each may grow to. */
+   *  both pools and the largest each may grow to, and the canvas the effect targets are reserved at. */
   memory: ({ budget: b }: World) => ({
     gpu: b.gpu,
     cpu: b.cpu,
+    canvas: b.canvas,
     split: b.split,
     geometryPool: b.geometryPool,
     texturePool: b.texturePool,
