@@ -984,8 +984,12 @@ as `world.budget.split`:
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
   and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
   residency sets and the cut's differences), which follow what the view asks for and the pool
-  holds, never the size of the world, and are read each time the cache weighs itself. A change
-  applies at once: pages
+  holds, never the size of the world, and are read each time the cache weighs itself. The scene's
+  resident proxy takes its announced size from the moment it is asked, and keeps it, never
+  evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
+  beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
+  a device loss. It is read on its own request, beside the page queue, and is not counted among
+  the pages read. A change applies at once: pages
   leave by last use until they fit, save those the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
@@ -1304,9 +1308,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
-  session on it and rebuilds from its decoded-page cache, fetching no page or bundle it still holds.
+  session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
+  it still holds (the proxy is kept whole inside `world.budget.cpu` unless it yielded to the pages).
   `gpu-device-recovered` says the time from the loss to the first frame drawn after it
-  (`recoveryMs`). Baked texture levels are read again, and cross-API fallback is not implemented.
+  (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
+  not implemented.
 - Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
   lost device.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
