@@ -70,7 +70,6 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapp
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
-export { GraphGeometry } from '../../sdk-browser/src/host/graph/geometry.ts';
 export { GraphMesh } from '../../sdk-browser/src/host/graph/mesh.ts';
 export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';
 export type { GraphNodeKind } from '../../sdk-browser/src/host/graph/nodeKind.ts';
@@ -81,6 +80,13 @@ export type {
   WorldPhysics,
   WorldPhysicsOptions,
 } from '../../sdk-browser/src/physics/worldPhysics.ts';
+export { GUIDE_VERTEX_CEILING } from '../../sdk-browser/src/guides/guideSet.ts';
+export type {
+  GuideHandle,
+  GuideLines,
+  GuidePoints,
+  Guides,
+} from '../../sdk-browser/src/guides/guideSet.ts';
 export type { HeadSettings, PersonHead } from '../../sdk-browser/src/camera/controls/look.ts';
 export type {
   HostAttribute,
@@ -91,7 +97,6 @@ export type {
   HostDiagnosticGeometry,
   HostDiagnosticMaterial,
   HostDisposable,
-  HostGeometry,
   HostMaterial,
   HostMaterials,
   HostMesh,

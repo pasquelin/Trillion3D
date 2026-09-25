@@ -1,16 +1,12 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { GraphMesh } from '../../host/graph/mesh.ts';
-import type {
-  HostAttributes,
-  HostGeometry,
-  HostMaterials,
-  HostMesh,
-} from '../../host/resources.ts';
+import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/readiness.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type PageRec = {
   id: number;
@@ -64,7 +60,7 @@ export type PageRec = {
   windingCw?: boolean;
   windingEpoch?: number;
   renderOrder: number;
-  geometry?: HostGeometry;
+  geometry?: Geometry;
   /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
   mesh?: GraphMesh;
   attached: boolean;
@@ -113,14 +109,12 @@ export type ClusterRoot<T> = {
   world: MatrixElements;
   pages: T[];
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
-   *  `links`: parent of each node and leaf node of each cluster, the same shared prepare.
-   *  `marks`: the nodes forcing touches, owned by this placement and zeroed each image. */
+   *  `links`: parent of each node and leaf node of each cluster, the same shared prepare. */
   culling?: {
     nodes: Float64Array;
     stride: number;
     bounds: Float64Array;
     links?: CullingLinks;
-    marks?: Int32Array;
   };
   /** Root world box, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`). */
   worldBox?: Float64Array;
@@ -130,8 +124,6 @@ export type ClusterRoot<T> = {
   stretch?: number;
   stretchKey?: Float64Array;
   structure?: ClusterStructureIndex;
-  forced?: Uint8Array;
-  forcedList?: number[];
   /** What the root declares of its normal cones, once and for all at prepare time: `false` says
    *  none of its pages carry one, and the cut then stops reading `cone` per cluster. Absent or
    *  `true`, the cut tests every page as before. Whoever sets a cone on a page sets this flag on
@@ -149,14 +141,10 @@ export type ClusterRoot<T> = {
   parked?: boolean;
   /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean;
-  /** True when its surface is never culled (`neverCulled`): no camera cut rejects its nodes or
-   *  pages, and the shadow scene box leaves it out. Set once at collection. */
-  unculled?: boolean;
+  /** Its surface's sprite mark (`spriteMark`), absent on any other surface: `SPRITE_ROOT` keeps it
+   *  out of every light cut and of the shadow scene box, `SPRITE_UNCULLED` opens it to every camera
+   *  cut. Set once at collection. */
+  sprite?: number;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };
-
-/** Rounds of climb toward a resident ancestor before the CPU cut's pinned root cover takes over
- *  (`../cut/repair.ts`). The GPU cut has none: it draws the nearest resident ancestor
- *  (`../cut/rule.ts`). */
-export const ESCALATION_ROUNDS = 3;

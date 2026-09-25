@@ -14,6 +14,7 @@ fn two_bundles() -> Value {
     let mut second = streams["pages"][0].clone();
     second["dependencies"] = json!([0]);
     streams["pages"].as_array_mut().unwrap().push(second);
+    streams["dependencyBound"] = json!(1);
     streams["maxDependencies"] = json!(1);
     manifest
 }
@@ -35,11 +36,13 @@ fn bundle_dependencies_are_a_count_per_bundle_then_the_flat_lists() {
     };
     assert_eq!(words(BUNDLE_DEPENDENCY_COUNT), vec![0, 1]);
     assert_eq!(words(BUNDLE_DEPENDENCY), vec![0]);
-    assert_eq!(
-        slim["primitives"][0]["binary"]["streams"]["maxDependencies"],
-        json!(1),
-        "the published bound travels in the small JSON"
-    );
+    for field in ["dependencyBound", "maxDependencies"] {
+        assert_eq!(
+            slim["primitives"][0]["binary"]["streams"][field],
+            json!(1),
+            "the published {field} travels in the small JSON"
+        );
+    }
 }
 
 #[test]

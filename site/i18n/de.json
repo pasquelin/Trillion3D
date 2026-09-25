@@ -837,7 +837,6 @@
       "residency": "Speicherresidenz und Streaming",
       "residentPages": "Geladene Seiten",
       "requestedPages": "Angeforderte Seiten",
-      "budgetThreshold": "Budgetschwelle",
       "texturesPending": "Ausstehende Texturen",
       "texturesEvicted": "Verdrängte Texturen",
       "gpuAllocations": "Erfasste GPU-Speicherbelegungen",

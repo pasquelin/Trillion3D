@@ -18,11 +18,11 @@ disagreement is reported to the maintainer.
    the shared checkout, never touch another session's worktree. Every worktree lives in
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
-5. **Only the maintainer opens issues** (the maintainer's own session, with the writer role). No
-   other session opens one, not even to split an issue. What a pull request does not deliver
+5. **Only the CTO opens issues**, from the boss's words, with the writer role. No
+   other agent opens one, not even to split an issue. What a pull request does not deliver
    stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
    open. A regression reopens the measured issue with `measure ko`; a finding reopens the audited
-   issue with `audit ko`. A defect found on the way is one line in your report to the maintainer.
+   issue with `audit ko`. A defect found on the way is one line in your report to the CTO.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **The witness library stays a witness**: named only in bench, measurement and migration
@@ -30,27 +30,37 @@ disagreement is reported to the maintainer.
 8. **Commits carry no trailer, no co-author, no tool name, no forced identity.** Branch
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
-   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped.
+   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. The
+   depth is fixed: the CTO → a lead or the architect → one coder or reviewer → the review agents
+   of the real `simplify` and `code-review` skills (at most 4), which launch none. The measurer,
+   acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
 
 ## Roles
 
-Three kinds of session, started by the maintainer — lead, measurer, auditor — two roles a lead
-launches as subagents — coder, reviewer — and the writer, which only the maintainer's session uses.
-Each role is `docs/roles/<role>.md`.
+A company. The **boss** (the maintainer) opens **one session**, the CTO's (`/t3d-cto`), talks
+only to it, tests the result and sets priorities. Every other role is a **background agent** the
+CTO starts with the Agent tool and supervises; the boss never opens another session. Each role is
+`docs/roles/<role>.md`, and its skill in `skills/` is the agent's brief.
 
-| Role     | Started by | Does                                                              | Never                        |
-| -------- | ---------- | ----------------------------------------------------------------- | ---------------------------- |
-| lead     | maintainer | owns one domain, delegates, merges, labels                        | writes code, measures        |
-| coder    | lead       | implements one issue, opens the pull request                      | merges, measures             |
-| reviewer | lead       | simplification then correctness pass on one pull request, verdict | merges, measures             |
-| measurer | maintainer | browser proofs, benchmarks and example thumbnails, after merge    | edits code, merges           |
-| auditor  | maintainer | re-reads every merge on `develop` against CONTRIBUTING.md         | edits code, merges, measures |
-| writer   | maintainer | writes one issue on the template, from its patterns               | codes, measures              |
+| Role       | Started by | Does                                                                                                                                      | Never                                                         |
+| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                         |
+| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                    | writes code, measures                                         |
+| coder      | lead       | implements one issue, opens the pull request                                                                                              | merges, measures                                              |
+| reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                              |
+| architect  | CTO        | the `architecture` domain: finds duplicates, bloat and tangles through the graph, proposes, delivers behaviour-preserving refactors       | changes behaviour, measures                                   |
+| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; nothing applies without the boss's approval |
+| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                            |
+| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                  |
+| writer     | CTO        | writes one issue on the template, from the boss's words                                                                                   | codes, measures                                               |
 
-Several leads may run at once, one domain each (a label or an issue list given at launch). There
-is one measurer and one auditor.
+Domains: geometry, lighting, compiler, physics, sdk, and architecture (the architect's). A bug goes to its domain's lead; there is no
+bug domain. There is one CTO session, one measurer and one acceptance agent. Every agent reports
+to the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 % (or the
+threshold the boss sets) it winds the company down (current agents finish, nothing new starts) so
+no work is cut midway.
 
 ## Leads: limits that hold at every moment
 
@@ -83,8 +93,11 @@ auditor only comment on it. A regression or an audit finding **reopens** the ori
 
 ## Interaction
 
-- Replies to the maintainer are in simple, short French: outcome first, 1–5 lines, no jargon, one
-  question at a time. Everything written in the repository is in English.
+- The CTO's replies to the boss are in simple, short French: outcome first, 1–5 lines, no jargon,
+  one question at a time. Every agent addresses the CTO. Everything written in the repository
+  is in English.
+- No pollution: a merged or abandoned branch loses its worktree and its local and remote branch
+  at once, and every agent cleans its own before it stops.
 - A session with no role explains and waits: no code before the maintainer asks for it.
 - Read this file, then only the task's issue and the files it names.
 

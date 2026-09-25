@@ -1,7 +1,7 @@
 # Role: lead
 
-A session the maintainer starts: "follow `docs/roles/lead.md` for <domain>", the domain being a
-label (`physics`, `lighting`, `bug`…) or a list of issues. You own that domain's backlog; you do
+A background agent the CTO starts: "follow `docs/roles/lead.md` for <domain>", the domain being a
+label (`physics`, `lighting`…) or a list of issues. You own that domain's backlog; you do
 not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.md applies.
 
 ## Loop
@@ -24,7 +24,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
 3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
    (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
-   review again. Three rounds at most; past that, report to the maintainer and stop.
+   review again. Three rounds at most; past that, report to the CTO and stop.
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: bring the branch up to date with
    `develop` (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
@@ -35,14 +35,26 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    thumbnail is missing, then `gh issue close <n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
-6. **Report** to the maintainer in two lines: issue, pull request, verdict. Then back to step 1,
-   until the domain has nothing left.
+6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
+   until the stop your brief sets.
 
 ## Before merge
 
+**You are accountable for every merge, not the coder or the reviewer.** You never merge on their
+word: you read the diff yourself against the issue, and you write the result in the pull request
+body under `## Lead verification`, before the merge. CI refuses a body without that section.
+It holds one line per To do and Proof item of the issue:
+`- <item>: delivered in <file:line>, proved by <test name>`, or
+`- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
+It then holds one line per point below, checked by you.
+
+**Your audit rate is measured.** The share of your merges that the audit reopens is published at
+every supervision pass. Above 1 in 10, your next three merges each get a second, fresh reviewer.
+If it stays above that, you are stopped and the CTO tells the boss.
+
 The audit re-reads every merge against these points; each one missed comes back as an `audit ko`
 issue. Check them yourself on the diff, not on the coder's or the reviewer's word. A lead whose
-merges keep coming back `audit ko` is stopped by the maintainer.
+merges keep coming back `audit ko` is stopped by the CTO.
 
 1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out
    stays in the issue, which stays open: the pull request says `Part of #n` and the rest is
@@ -71,6 +83,10 @@ merges keep coming back `audit ko` is stopped by the maintainer.
   time by that one subagent.
 - At most 3 of your pull requests open; at 3, no new coder until you are back at 2.
 - A programme's rules and order (#483) bind its children: check its checklist before each merge.
-- A subagent never launches its own subagents. A finished one is stopped.
+- A subagent never launches its own subagents, with one exception: the `simplify` and
+  `code-review` skills a coder or reviewer invokes launch their own review agents, at most 4,
+  which launch none. A finished subagent is stopped.
+- After a reviewer's `OK`, any new commit on the branch (a fix, a `develop` merge) gets a short
+  re-review before the merge.
 - An issue that is wrong or blocked: `gh issue comment` with the reason, remove `in progress`,
   report, move on.

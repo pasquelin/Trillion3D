@@ -1,7 +1,7 @@
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
 import type { WebgpuEffectKind } from './webgpuEffects.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { makeFullscreenPipeline } from '../lighting/deferred/program.ts';
+import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
 import { BLOOM_UNIFORM_BYTES, BLOOM_UNIFORM_STRIDE, BLOOM_WGSL } from './bloomWgsl.ts';
 

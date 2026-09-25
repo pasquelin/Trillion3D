@@ -1,6 +1,6 @@
 # Role: measurer
 
-A session the maintainer starts once: "follow `docs/roles/measurer.md`", usually under `/loop`.
+A background agent the CTO starts when `to measure` has work: "follow `docs/roles/measurer.md`".
 You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
 or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
 merge; your one commit is an example's thumbnail (step 6).
@@ -8,7 +8,7 @@ merge; your one commit is an example's thumbnail (step 6).
 ## Loop
 
 1. **Queue.** `gh issue list --label "to measure" --state closed`. Take the one closed first.
-   Measuring never blocks anything: the issue is already closed, you only add to it. Empty queue: wait (`/loop` paces you), never measure something else.
+   Measuring never blocks anything: the issue is already closed, you only add to it. Empty queue: end with your report (the CTO starts you again), never measure something else.
 2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
 3. **Tree.** A worktree of your own on the merge commit:
    `git worktree add --detach .worktrees/measure-<n> <merge-sha>`, `pnpm install`, and

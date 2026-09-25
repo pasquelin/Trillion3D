@@ -9,8 +9,9 @@ import { holdWebgpuFrame, keepWebgpuFrame } from '../../frame/hold.ts';
 import { settledRt } from '../../frame/hold.fixture.ts';
 import { encodeEffects } from './encodeEffects.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
+import type { AccumulatedImage } from '../../../lighting/deferred/program.ts';
 
-const input = {} as GPUTextureView;
+const input = { color: {}, share: {} } as AccumulatedImage;
 /** Counts the passes the chain begins. */
 let begun = 0;
 const encoder = {
@@ -44,6 +45,14 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   chain.add(bloom);
   encodeEffects(rt, device, encoder, input);
   while (rt.gpu.effects!.loading) await new Promise((resolve) => setImmediate(resolve));
+  drawTwice(rt, device);
+  const composed = encodeEffects(rt, device, encoder, input);
+  assert.notEqual(composed?.color, input.color, 'composition reads the chain\'s output');
+  assert.equal(composed?.share, input.share, 'with the as-is share of the image it read');
+  const lit = {} as GPUTextureView;
+  rt.gpu.hdrView = lit;
+  const still = encodeEffects(rt, device, encoder, undefined);
+  assert.ok(still?.color && still.color !== lit && still.share === undefined, 'a still image too');
   drawTwice(rt, device);
   const drawn = begun;
   assert.ok(drawn > 0, 'the full frames drew the bloom');
