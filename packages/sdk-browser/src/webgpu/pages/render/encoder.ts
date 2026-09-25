@@ -81,6 +81,9 @@ export function submitColorCopy(
   rt.lights.cull?.counts.submitted();
   rt.lights.occlusion?.counts.submitted();
   settleShadowRequests(rt, true);
+  // Every encode path has sent what its rows need before it submits: the image that leaves consumed
+  // the row change, whether it drew rows or had none to draw (#198).
+  rt.layout.rows.rowsChanged = false;
   run.imageRevision++;
   if (owned) {
     timing.frameEncoder = undefined;
