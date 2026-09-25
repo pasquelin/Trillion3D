@@ -716,7 +716,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identitas cache untuk galat DAG per-cluster: galat QEM grup diproyeksikan lewat bola grup."
+    "summary": "Identitas cache untuk galat DAG per klaster: galat QEM absolut grup atas posisi, normal, dan koordinat tekstur, dibatasi pada bentang grup; cache v1 ditolak."
   },
   "DEFAULT_SCOPE": {
     "summary": "Cakupan tempat sebuah model dikompilasi saat tidak ada yang disebutkan: streaming per halaman."
