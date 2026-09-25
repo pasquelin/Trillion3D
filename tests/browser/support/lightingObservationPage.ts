@@ -69,7 +69,7 @@ function witnessPixels(
     // straight from a source mesh's own geometry (`createObservationMeshes`): the witness draws
     // the library's copy of it.
     const mesh = new THREE.Mesh(
-      threeGeometry(copy.geometry as G.GraphGeometry),
+      threeGeometry(copy.geometry as G.Geometry),
       new THREE.ShaderMaterial({
         vertexShader,
         fragmentShader: fragmentShader(resources.surfaceCount),

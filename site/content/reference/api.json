@@ -4783,7 +4783,7 @@
     "kind": "Type",
     "title": "Geometry",
     "signature": "class Geometry\nnew Geometry(): Geometry",
-    "summary": "The shape alone: named per-vertex attributes, an optional triangle index, material groups.",
+    "summary": "The shape alone: named per-vertex attributes, an optional triangle index, material groups, the morph targets that move it and the range of it drawn.",
     "members": [
       {
         "name": "isGeometry",
@@ -4791,14 +4791,34 @@
         "desc": "Always `true`: tells a geometry apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'geometry'",
+        "desc": "What the resource is, as a reader of the scene tells resources apart."
+      },
+      {
         "name": "type",
         "type": "string",
         "desc": "The kind of the geometry, `'Geometry'`."
       },
       {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
         "name": "attributes",
-        "type": "Record<string, BufferAttribute>",
-        "desc": "The per-vertex lists by name: `position`, `normal`, `uv`, `color`."
+        "type": "Record<string, VertexAttribute>",
+        "desc": "The per-vertex lists by name: `position`, `normal`, `uv`, `color`; each owns its numbers or views an interleaved buffer."
+      },
+      {
+        "name": "morphAttributes",
+        "type": "Record<string, VertexAttribute[]>",
+        "desc": "Per morphed attribute, one attribute per morph target."
+      },
+      {
+        "name": "morphTargetsRelative",
+        "type": "boolean",
+        "desc": "True when a morph target holds displacements, not positions."
       },
       {
         "name": "index",
@@ -4809,6 +4829,21 @@
         "name": "groups",
         "type": "{ start: number; count: number; materialIndex: number; }[]",
         "desc": "Index ranges drawn with `material[materialIndex]` when a mesh carries several."
+      },
+      {
+        "name": "drawRange",
+        "type": "{ start: number; count: number; }",
+        "desc": "The range of the index drawn."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "Free room for the data of whoever built the geometry."
+      },
+      {
+        "name": "released",
+        "type": "Set<() => void>",
+        "desc": "Called when the geometry is given back: what a renderer's own copy of it listens to."
       },
       {
         "name": "boundingBox",
@@ -4831,19 +4866,24 @@
         "desc": "Bumped by every change of shape: what the world compares to cut the pages again."
       },
       {
-        "name": "setAttribute(name: string, attribute: BufferAttribute)",
+        "name": "setAttribute(name: string, attribute: VertexAttribute)",
         "type": "Geometry",
         "desc": "Stores a per-vertex list under `name`."
       },
       {
         "name": "getAttribute(name: string)",
-        "type": "BufferAttribute | undefined",
+        "type": "VertexAttribute | undefined",
         "desc": "The per-vertex list stored under `name`, if any."
       },
       {
         "name": "deleteAttribute(name: string)",
         "type": "Geometry",
         "desc": "Removes the per-vertex list stored under `name`."
+      },
+      {
+        "name": "getIndex()",
+        "type": "BufferAttribute | null",
+        "desc": "The triangle list, or `null`."
       },
       {
         "name": "hasAttribute(name: string)",
@@ -4873,12 +4913,12 @@
       {
         "name": "computeBoundingBox()",
         "type": "Box3",
-        "desc": "Measures the box around every vertex and keeps it in `boundingBox`."
+        "desc": "Measures the box around every vertex, and every shape a morph target gives it, and keeps it in `boundingBox`."
       },
       {
         "name": "computeBoundingSphere()",
         "type": "Sphere",
-        "desc": "Measures the ball around every vertex and keeps it in `boundingSphere`."
+        "desc": "Measures the ball centred on the box and reaching the farthest vertex or morphed vertex, and keeps it in `boundingSphere`."
       },
       {
         "name": "applyMatrix4(m: Matrix4)",
@@ -4918,12 +4958,17 @@
       {
         "name": "clone()",
         "type": "Geometry",
-        "desc": "A new geometry with copies of every list, and the recipe that still builds it."
+        "desc": "A new geometry with copies of every list, its groups, range, data and bounds, and the recipe that still builds it."
+      },
+      {
+        "name": "toNonIndexed()",
+        "type": "Geometry",
+        "desc": "A geometry drawing the same triangles with no index: every corner a vertex of its own."
       },
       {
         "name": "dispose()",
         "type": "void",
-        "desc": "Forgets the holders and the raycast tree: a disposed geometry is drawn and cast at by nobody."
+        "desc": "Gives the geometry back: runs every release hook once, forgets the holders and the raycast tree; a disposed geometry is drawn and cast at by nobody."
       }
     ],
     "description": ""
@@ -5228,136 +5273,18 @@
     "description": ""
   },
   {
-    "id": "GraphGeometry",
-    "module": "packages/sdk-browser/src/host/graph/geometry.ts",
-    "exports": ["GraphGeometry"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphGeometry",
-    "signature": "class GraphGeometry extends Releasable\nnew GraphGeometry(): HostGeometry",
-    "summary": "The attributes a mesh draws, the triangle list they are indexed through, the morph targets that move them, and the local box and sphere computed over them.",
-    "members": [
-      {
-        "name": "kind",
-        "type": "'geometry'",
-        "desc": "What the resource is."
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "Its name."
-      },
-      {
-        "name": "index",
-        "type": "BufferAttribute | null",
-        "desc": "The triangle list, or `null` to draw the vertices in order."
-      },
-      {
-        "name": "attributes",
-        "type": "Record<string, VertexAttribute>",
-        "desc": "Its vertex attributes, by name."
-      },
-      {
-        "name": "morphAttributes",
-        "type": "Record<string, VertexAttribute[]>",
-        "desc": "Per morphed attribute, one attribute per morph target."
-      },
-      {
-        "name": "morphTargetsRelative",
-        "type": "boolean",
-        "desc": "True when a morph target holds displacements, not positions."
-      },
-      {
-        "name": "groups",
-        "type": "{ start: number; count: number; materialIndex?: number; }[]",
-        "desc": "Ranges of the index drawn with one surface each."
-      },
-      {
-        "name": "drawRange",
-        "type": "{ start: number; count: number; }",
-        "desc": "The range of the index drawn."
-      },
-      {
-        "name": "boundingBox",
-        "type": "Box3 | null",
-        "desc": "The local box, once computed or declared."
-      },
-      {
-        "name": "boundingSphere",
-        "type": "Sphere | null",
-        "desc": "The local sphere, once computed or declared."
-      },
-      {
-        "name": "userData",
-        "type": "Record<string, unknown>",
-        "desc": "Free room for the data of whoever built the geometry."
-      },
-      {
-        "name": "getIndex()",
-        "type": "BufferAttribute | null",
-        "desc": "The triangle list."
-      },
-      {
-        "name": "setIndex(index: BufferAttribute | null)",
-        "type": "HostGeometry",
-        "desc": "Sets the triangle list."
-      },
-      {
-        "name": "getAttribute(name: string)",
-        "type": "VertexAttribute",
-        "desc": "The attribute of that name."
-      },
-      {
-        "name": "setAttribute(name: string, attribute: VertexAttribute)",
-        "type": "HostGeometry",
-        "desc": "Names an attribute."
-      },
-      {
-        "name": "deleteAttribute(name: string)",
-        "type": "HostGeometry",
-        "desc": "Forgets an attribute."
-      },
-      {
-        "name": "hasAttribute(name: string)",
-        "type": "boolean",
-        "desc": "Whether it has an attribute of that name."
-      },
-      {
-        "name": "clone()",
-        "type": "HostGeometry",
-        "desc": "A geometry holding copies of every buffer, its groups, range and bounds."
-      },
-      {
-        "name": "toNonIndexed()",
-        "type": "HostGeometry",
-        "desc": "A geometry drawing the same triangles with no index: every corner a vertex of its own."
-      },
-      {
-        "name": "computeBoundingBox()",
-        "type": "void",
-        "desc": "Computes the local box over every vertex."
-      },
-      {
-        "name": "computeBoundingSphere()",
-        "type": "void",
-        "desc": "Computes the local sphere: centred on the box, reaching the farthest vertex."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "GraphMesh",
     "module": "packages/sdk-browser/src/host/graph/mesh.ts",
     "exports": ["GraphMesh"],
     "section": "types",
     "kind": "Type",
     "title": "GraphMesh",
-    "signature": "class GraphMesh extends GraphNode\nnew GraphMesh(geometry: HostGeometry, material: GraphSurface | GraphSurface[]): HostMesh",
+    "signature": "class GraphMesh extends GraphNode\nnew GraphMesh(geometry: Geometry, material: GraphSurface | GraphSurface[]): HostMesh",
     "summary": "A drawn node: a geometry and its surface, or one surface per geometry group.",
     "parameters": [
       {
         "name": "geometry",
-        "type": "HostGeometry",
+        "type": "Geometry",
         "desc": ""
       },
       {
@@ -5384,7 +5311,7 @@
       },
       {
         "name": "geometry",
-        "type": "HostGeometry",
+        "type": "Geometry",
         "desc": "Its shape."
       },
       {
@@ -6385,17 +6312,6 @@
         "desc": "Height in pixels."
       }
     ],
-    "description": ""
-  },
-  {
-    "id": "HostGeometry",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostGeometry"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostGeometry",
-    "signature": "type HostGeometry = GraphGeometry",
-    "summary": "A geometry of the graph: its attributes, its triangle list and the local box over them.",
     "description": ""
   },
   {
@@ -15028,9 +14944,14 @@
         "name": "center",
         "type": "Vector2",
         "desc": "The point of the picture that sits on the sprite's position: `(0.5, 0.5)` its middle, `(0, 0)` its bottom-left corner, `(0.5, 0)` the middle of its bottom edge."
+      },
+      {
+        "name": "material",
+        "type": "Material | Material[]",
+        "desc": "The sprite's `material.sprite`; set another to change it."
       }
     ],
-    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow."
+    "description": "Its size is its world scale on `x` and `y`; its turn in the image plane is its material's `rotation`; its own rotation is not read. A sprite casts no shadow. Like the reference's `Sprite`, which takes only a `SpriteMaterial`, it wears only a `material.sprite`: any other material, given or set, throws a `TypeError` that names its kind."
   },
   {
     "id": "StablePreview",
@@ -31896,7 +31817,7 @@
       {
         "name": "material?",
         "type": "Material",
-        "desc": "What the square shows: a `material.sprite`."
+        "desc": "What the square shows: a `material.sprite`; any other kind throws."
       }
     ],
     "returns": {
