@@ -1,7 +1,8 @@
 // #42: the WebGL2 binder reduces its mip chains as the WebGPU chain does — one draw per level,
 // colours weighted by alpha for a map every surface of the frame takes for coverage, plain
 // otherwise —, never through `generateMipmap`'s box filter; and a surface switched between masked
-// and opaque after its first image reduces the same texture again, with no new upload.
+// and opaque after its first image reduces the same texture again, with no new upload. A data
+// binding of the same texture never weighs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WebglClusterTextures } from './textures.ts';
@@ -41,7 +42,7 @@ test('a chain is reduced by the coverage rule of the surfaces the frame draws', 
   const masked = G.standardSurface({ map: host, alphaTest: 0.5 }),
     opaque = G.standardSurface({ map: host });
   const image = (...surfaces: G.GraphSurface[]) => {
-    binder.beginFrame(surfaces);
+    binder.beginFrame([surfaces.map((material) => ({ material }))]);
     binder.bind(0, map, true);
   };
   image(masked);
@@ -56,6 +57,10 @@ test('a chain is reduced by the coverage rule of the surfaces the frame draws', 
   image(masked);
   assert.deepEqual(calls.rules, [1, 0, 1, 0], 'switched to opaque after its image: plain again');
   assert.deepEqual([calls.uploads, calls.boxFilters], [1, 0], 'one upload, never a box filter');
+  masked.alphaTest = 0.5;
+  image(masked);
+  binder.bind(1, map);
+  assert.deepEqual(calls.rules.slice(4), [1, 0], 'its linear record, a data map, stays plain');
   masked.dispose();
   opaque.dispose();
 });
