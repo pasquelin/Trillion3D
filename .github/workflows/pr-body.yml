@@ -31,6 +31,8 @@ jobs:
           BODY: ${{ github.event.pull_request.body }}
           PR_DRAFT: ${{ github.event.pull_request.draft }}
         run: printf '%s\n' "$BODY" | scripts/check-pr-body.sh
+      # A release into main carries every merged pull request: rule 11 bounds each step into
+      # develop.
       - name: At most 600 hand-written lines added (AGENTS.md rule 11)
-        if: success() || failure()
+        if: (success() || failure()) && github.base_ref == 'develop'
         run: scripts/check-pr-size.sh HEAD^1

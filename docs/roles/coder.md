@@ -17,7 +17,8 @@ run by the measurer after the merge.
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, then the group your diff touches —
    `pnpm run validate --group quick` (sources), `--group typescript` (build and products),
    `--group native` (Rust and the unit suite). `scripts/check-pr-size.sh` refuses more than 600
-   added lines, `.gitattributes`'s generated paths excepted: above, split (AGENTS.md rule 11).
+   added lines, generated and vendored paths of `.gitattributes` excepted: above, split the pull
+   request (AGENTS.md rule 11).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
 6. Push, then open the pull request as a draft, `gh pr create --draft --base develop`, with the
    body on `.github/PULL_REQUEST_TEMPLATE.md`:
