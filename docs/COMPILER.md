@@ -625,7 +625,7 @@ ones exactly as the page's `softBodyOf` makes them (`soft_record.rs`): those at 
 their masses from the area — a rope's length — each holds at the node's world scale, or the
 declared `mass` spread so, the pins held, a volume's default pressure. Each stored value is rounded
 to 32 bits where the page rounds it, and the two agree bit for bit: the cook writes the records of a
-cloth, a scaled welded rope and a volume (`soft_page_tests.rs`,
+cloth, a scaled welded rope and a volume (`soft_tests.rs`,
 `tests/fixtures/physics/soft-records.bin`), and the page rebuilds each with `softBodyOf`
 (`packages/sdk-core/src/physics/softCook.test.ts`). Native Jolt then builds the
 `SoftBodySharedSettings` with the physics worker's own builder

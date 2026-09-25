@@ -27,19 +27,15 @@ export function createCookedSoftBodies(
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  /** The slots of each open model's soft bodies, and the model of each slot. */
-  const held = new Map<Model, number[]>();
-  const owners = new Map<number, Model>();
+  /** Each open model's opening: its soft bodies, and the slots of those made. */
+  const held = new Map<Model, { softBodies: readonly CookedSoftBody[]; slots: number[] }>();
   /** `soft`'s world pose in `model` (scratch), refused when the model is placed at another scale
    *  than the one it was cooked at. */
   function poseOf(model: Model, soft: CookedSoftBody) {
     const pose = tilePose({ model, instance: soft });
-    const { scale } = pose,
-      at = soft.scale;
+    const at = soft.scale;
     if (
-      [scale.x, scale.y, scale.z].some(
-        (s, k) => Math.abs(s - at[k]) > SCALE_TOLERANCE * Math.abs(at[k]),
-      )
+      pose.scale.toArray().some((s, k) => Math.abs(s - at[k]) > SCALE_TOLERANCE * Math.abs(at[k]))
     )
       throw new EngineError(
         'PHYSICS_FAILED',
@@ -48,19 +44,15 @@ export function createCookedSoftBodies(
       );
     return pose;
   }
-  async function add(model: Model, slots: number[], soft: CookedSoftBody) {
-    // Refused before its bytes are fetched: a scale is read from the model alone.
-    poseOf(model, soft);
+  async function add(model: Model, opening: { slots: number[] }, soft: CookedSoftBody) {
     const cooked = await cookedBytes(model, soft.settings.url, 'Soft body settings');
-    // Forgotten, or opened again, meanwhile: this opening's bodies are no longer wanted.
-    if (held.get(model) !== slots) return;
-    // Posed again once fetched: the model may have moved or been rescaled meanwhile.
+    // Forgotten, opened again or moved meanwhile: this opening's bodies are no longer wanted.
+    if (held.get(model) !== opening) return;
     const { position, quaternion } = poseOf(model, soft);
     const p = new ObjectPhysics(soft.physics);
     const id = bodies.claim(0, soft.vertices);
     // Held at once: a throw below still leaves the slot for `forget` to release.
-    slots.push(id & BODY_INDEX);
-    owners.set(id & BODY_INDEX, model);
+    opening.slots.push(id & BODY_INDEX);
     // The collider's matter picked: `physics`, the options, is no preset name here.
     const matter = physicsMatterOf({ friction: soft.friction, restitution: soft.restitution });
     const record = { cooked, pressure: soft.pressure };
@@ -69,25 +61,31 @@ export function createCookedSoftBodies(
     invalidate();
   }
   const forget = (model: Model) => {
-    for (const slot of held.get(model) ?? []) {
-      bodies.release(slot);
-      owners.delete(slot);
-    }
+    held.get(model)?.slots.forEach(bodies.release);
     held.delete(model);
   };
+  /** Makes the soft bodies `model` was cooked with, the last opening's out: none held twice. */
+  function open(model: Model, softBodies: readonly CookedSoftBody[] = []) {
+    forget(model);
+    const opening = { softBodies, slots: [] as number[] };
+    held.set(model, opening);
+    for (const soft of softBodies)
+      add(model, opening, soft).catch((error) => failed(error as EngineError));
+  }
   return {
-    /** Makes the soft bodies `model` was cooked with. */
-    open(model: Model, softBodies: readonly CookedSoftBody[] = []) {
-      // Opened again: the bodies of the last opening out, none held twice.
-      forget(model);
-      const slots: number[] = [];
-      held.set(model, slots);
-      for (const soft of softBodies)
-        add(model, slots, soft).catch((error) => failed(error as EngineError));
-    },
+    open,
     /** A model left the scene, or physics turned off: its soft bodies out. */
     forget,
+    /** A model moved: its soft bodies made again where it now is, as a page-built one is, and
+     *  refused by name when it was rescaled — Jolt scales no soft body once made. */
+    moved(model: Model) {
+      const softBodies = held.get(model)?.softBodies;
+      if (softBodies?.length) open(model, softBodies);
+    },
     /** The model a cooked soft body's engine id belongs to, or `null`: what a ray on it hits. */
-    modelOf: (id: number) => owners.get(id & BODY_INDEX) ?? null,
+    modelOf(id: number) {
+      for (const [model, { slots }] of held) if (slots.includes(id & BODY_INDEX)) return model;
+      return null;
+    },
   };
 }
