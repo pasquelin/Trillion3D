@@ -119,7 +119,8 @@ export function preparedGeometries(document: TableDocument, binary: ArrayBuffer 
       .join('')}`;
     let geometry = geometries.get(key);
     if (geometry) return geometry;
-    geometry = new Geometry('host');
+    geometry = new Geometry();
+    geometry._owner = 'host';
     for (const semantic of semantics) {
       const name = NAMES[semantic] ?? semantic.toLowerCase();
       if (!(name in geometry.attributes))

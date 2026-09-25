@@ -47,7 +47,8 @@ function saveGeometry(g: Geometry): SavedGeometry {
       normalized: a.normalized,
     };
   const index = g.index ? Array.from(g.index.array) : undefined;
-  return { attributes, index, groups: g.groups.map((group) => ({ ...group })) };
+  const owner = g._owner === 'host' ? g._owner : undefined;
+  return { attributes, index, groups: g.groups.map((group) => ({ ...group })), owner };
 }
 
 /** The matter: its kind and each parameter; a texture or a shader cannot be stored. */

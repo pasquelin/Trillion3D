@@ -12,7 +12,7 @@ import { applyMatrix3Vector3, normalizeVector3 } from '../../math/primitives/vec
  *  the world and the host always moved it; an interleaved one vertex by vertex. A normal is read
  *  and written as its stored numbers where the geometry reads it so (`readsStored`), else at the
  *  value it stands for, written normalised. */
-export function transformVertices(geometry: Pick<Geometry, 'attributes' | 'owner'>, m: Matrix4) {
+export function transformVertices(geometry: Pick<Geometry, 'attributes' | '_owner'>, m: Matrix4) {
   const { position, normal } = geometry.attributes;
   if (position?.kind === 'attribute') {
     const points = position.array as Float32Array;
@@ -26,20 +26,16 @@ export function transformVertices(geometry: Pick<Geometry, 'attributes' | 'owner
   }
   if (normal) {
     const n = normalMatrix3(new Float64Array(9), m.elements),
-      v = new Float64Array(3);
-    if (readsStored(geometry, normal)) {
-      const { array, itemSize } = normal;
-      for (let i = 0; i < normal.count; i++) {
-        const at = i * itemSize;
-        applyMatrix3Vector3(v, n, array[at], array[at + 1], array[at + 2]);
-        normalizeVector3(v);
-        for (let c = 0; c < 3; c++) array[at + c] = v[c];
-      }
-    } else
-      for (let i = 0; i < normal.count; i++) {
-        applyMatrix3Vector3(v, n, normal.getX(i), normal.getY(i), normal.getZ(i));
-        normalizeVector3(v);
-        normal.setXYZ(i, v[0], v[1], v[2]);
-      }
+      v = new Float64Array(3),
+      stored = readsStored(geometry, normal);
+    const read = (i: number, c: number) =>
+      stored ? normal.stored(i, c) : normal.getComponent(i, c);
+    for (let i = 0; i < normal.count; i++) {
+      applyMatrix3Vector3(v, n, read(i, 0), read(i, 1), read(i, 2));
+      normalizeVector3(v);
+      for (let c = 0; c < 3; c++)
+        if (stored) normal.array[i * normal.itemSize + c] = v[c];
+        else normal.setComponent(i, c, v[c]);
+    }
   }
 }
