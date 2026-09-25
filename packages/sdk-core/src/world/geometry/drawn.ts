@@ -6,7 +6,7 @@ import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
 import { drawnSprite } from './drawnSprite.ts';
 import { flatten } from './drawnFlat.ts';
-import { readPoints } from './bounds.ts';
+import { readComponent, readPoints } from './bounds.ts';
 
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
@@ -70,7 +70,7 @@ export function drawnTriangles(
     const out = new Float32Array(position.count * width);
     for (let v = 0; v < position.count; v++)
       for (let c = 0; c < width; c++)
-        out[v * width + c] = c < a.itemSize ? a.getComponent(v, c) : 1;
+        out[v * width + c] = c < a.itemSize ? readComponent(geometry, a, v, c) : 1;
     return out;
   };
   const drawn = {

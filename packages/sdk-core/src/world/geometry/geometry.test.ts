@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Geometry, withRecipe } from './geometry.ts';
+import { Geometry } from './geometry.ts';
+import { withRecipe } from './builder.ts';
 import { drawnTriangles } from './drawn.ts';
+import { edges, wireframe } from './lines.ts';
 import {
   BufferAttribute,
   InterleavedBuffer,
@@ -40,6 +42,8 @@ test('a copied geometry keeps every value it held: lists, morphs, groups, range,
   assert.deepEqual(box(copy), box(g));
   assert.equal(copy.boundingSphere!.radius, g.boundingSphere!.radius);
   assert.deepEqual(copy.recipe, { type: 'triangle', args: [1] });
+  assert.equal(owned('host').setIndex([0]).toNonIndexed()._owner, 'host', 'keeps its owner');
+  assert.equal(owned('host').clone()._owner, 'host', 'a copy keeps its owner');
 });
 
 test('a normalised position is bounded and drawn as its stored numbers, an interleaved one through its stride', () => {
@@ -73,6 +77,73 @@ test('a two-wide position is drawn with z = 1, a moved one as its stored numbers
   );
   moved.translate(1, 0, 0);
   assert.deepEqual(Array.from(moved.attributes.position.array), [2, 2, 3]);
+});
+
+// #457: a list a world geometry owns has always been drawn, edged and turned as its stored
+// numbers, a normalised integer unscaled; a host geometry's (a quantized glTF's) at its value.
+const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3);
+const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
+  new BufferAttribute(array, itemSize, true);
+type Owner = Geometry['_owner'];
+/** An empty geometry built by `owner`, as its maker marks it. */
+const owned = (owner: Owner) => Object.assign(new Geometry(), { _owner: owner });
+
+test('a world geometry draws the normalised colour, normal and uv it owns as stored, a host one at their value', () => {
+  const shaded = (owner: Owner) =>
+    drawnTriangles(
+      owned(owner)
+        .setAttribute('position', triangle())
+        .setAttribute('normal', normalised(new Int8Array([0, 0, 127, 0, 0, 127, 0, 0, -128]), 3))
+        .setAttribute('uv', normalised(new Uint16Array([0, 0, 65535, 0, 0, 65535]), 2))
+        .setAttribute('color', normalised(new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 255]), 3)),
+      'triangles',
+    )!;
+  const world = shaded('world'),
+    host = shaded('host');
+  assert.deepEqual(Array.from(world.normals), [0, 0, 127, 0, 0, 127, 0, 0, -128]);
+  assert.deepEqual(Array.from(world.uvs!), [0, 0, 65535, 0, 0, 65535]);
+  assert.deepEqual(Array.from(world.colors!), [255, 0, 0, 1, 0, 255, 0, 1, 0, 0, 255, 1]);
+  assert.deepEqual(Array.from(host.normals), [0, 0, 1, 0, 0, 1, 0, 0, -1]);
+  assert.deepEqual(Array.from(host.uvs!), [0, 0, 1, 0, 0, 1]);
+  assert.deepEqual(Array.from(host.colors!), [1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1]);
+});
+
+test('a normalised position gives its edges as stored in a world geometry, at its value in a host one', () => {
+  const lines = (owner: Owner, of: typeof wireframe) =>
+    Array.from(
+      of(
+        owned(owner).setAttribute(
+          'position',
+          normalised(new Int16Array([0, 0, 0, 32767, 0, 0, 0, 32767, 0]), 3),
+        ),
+      ).attributes.position.array,
+    );
+  const world = [0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 0];
+  const host = [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
+  assert.deepEqual(lines('world', wireframe), world);
+  assert.deepEqual(lines('world', edges), world);
+  assert.deepEqual(lines('host', wireframe), host);
+  assert.deepEqual(lines('host', edges), host);
+});
+
+test('a world geometry turns a normalised normal it owns as stored, a host one and a view at their value', () => {
+  const turned = (owner: Owner) => {
+    const g = owned(owner)
+      .setAttribute('position', triangle())
+      .setAttribute('normal', normalised(new Int8Array([127, 0, 0, 0, 0, 127, 0, 0, 127]), 3));
+    return Array.from(g.rotateZ(Math.PI / 2).attributes.normal.array);
+  };
+  // (127, 0, 0) turned is the unit (0, 1, 0): written as it is into a world list, normalised
+  // into a host one.
+  assert.deepEqual(turned('world'), [0, 1, 0, 0, 0, 1, 0, 0, 1]);
+  assert.deepEqual(turned('host'), [0, 127, 0, 0, 0, 127, 0, 0, 127]);
+  // A view of an interleaved buffer is turned at the value it stands for, written normalised.
+  const pack = new InterleavedBuffer(new Int8Array([127, 0, 0, 0, 0, 127, 0, 0, 127]), 3);
+  new Geometry()
+    .setAttribute('position', triangle())
+    .setAttribute('normal', new InterleavedBufferAttribute(pack, 3, 0, true))
+    .rotateZ(Math.PI / 2);
+  assert.deepEqual(Array.from(pack.array), [0, 127, 0, 0, 0, 127, 0, 0, 127]);
 });
 
 test('a sphere reaches the farthest vertex from the centre of the box', () => {
