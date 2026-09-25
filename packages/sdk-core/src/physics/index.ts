@@ -28,3 +28,17 @@ export {
   type VehicleOptions,
 } from './vehicle.ts';
 export { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts';
+export * from './softLayout.ts';
+export {
+  SOFT_AREAL_DENSITY,
+  SOFT_LINEAR_DENSITY,
+  SOFT_FOOTPRINT,
+  isSoftType,
+  softBodyOf,
+  type SoftBodyCommon,
+  type SoftBodyOptions,
+  type SoftBodyType,
+  type SoftSettings,
+  type SoftVolumeOptions,
+} from './soft.ts';
+export { writeSoft, type SoftBodyRecord } from './softCommands.ts';

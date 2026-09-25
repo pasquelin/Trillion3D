@@ -2085,5 +2085,31 @@
     "words": {
       "credit": "Vallée modélisée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "Le drapeau pend à son mât et les cordes se balancent sous la poutre. Raidis le drapeau, ou laisse les cordes s’étirer.",
+    "controls": {
+      "stiff": "Drapeau raide",
+      "stretch": "Étirement des cordes",
+      "again": "Encore",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "vertices": "Sommets",
+      "step": "Pas"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Lâche des volumes mous sur la marche. Règle la pression de leur gaz, ou 0 pour celle par défaut.",
+    "controls": {
+      "pressure": "Pression (Pa)",
+      "drop": "Lâcher",
+      "again": "Encore",
+      "slowMotion": "Ralenti"
+    },
+    "readouts": {
+      "volumes": "Volumes",
+      "awake": "Éveillés"
+    }
   }
 }
