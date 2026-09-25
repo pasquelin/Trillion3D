@@ -1,6 +1,7 @@
 import { Vector3 } from '../world/math/vector3.ts';
 import { listen } from '../world/math/observed.ts';
 import type { Object3D } from '../world/object/object3d.ts';
+import { DAMPING } from './layout.ts';
 import type { PhysicsBodyOptions, PhysicsOption, PhysicsShape, PhysicsType } from './options.ts';
 
 /** What a contact hands its listeners: the other object, the impulse and where it touched. */
@@ -43,6 +44,8 @@ export class ObjectPhysics {
   /** Whether the body only reports contacts. */ readonly sensor: boolean;
   /** Whether continuous collision is on. */ readonly ccd: boolean;
   /** Whether the body is decorative debris. */ readonly decorative: boolean;
+  /** The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`). */
+  readonly damping: { readonly linear: number; readonly angular: number };
   private readonly _velocity = new Vector3();
   private _asleep = false;
   /** The tick the velocity was last read from. */
@@ -69,6 +72,10 @@ export class ObjectPhysics {
     this.sensor = o.sensor ?? false;
     this.ccd = o.ccd ?? false;
     this.decorative = o.decorative ?? false;
+    const { linear = DAMPING, angular = DAMPING } = o.damping ?? {};
+    if (!(linear >= 0 && angular >= 0))
+      throw new RangeError(`A body's damping is 0 and up: ${linear} linear, ${angular} angular.`);
+    this.damping = { linear, angular };
     this._mass = o.mass;
     this._gravityScale = o.gravityScale ?? 1;
     this._friction = o.friction;

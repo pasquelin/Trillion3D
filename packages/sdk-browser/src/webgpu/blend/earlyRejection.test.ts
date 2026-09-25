@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBlendPipelines } from './pipelines.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { BLEND_SHADER } from './shader.ts';
 
 /**
@@ -31,13 +31,7 @@ test('the blend fragment stage writes nothing to memory', () => {
 });
 
 test('the blend layout declares no writable storage buffer', async () => {
-  installGpuGlobals();
-  const device = {
-    createBindGroupLayout: (descriptor: unknown) => descriptor,
-    createPipelineLayout: () => ({}),
-    createRenderPipeline: () => ({}),
-    createShaderModule: () => ({}),
-  } as unknown as GPUDevice;
+  const { device } = fakeDevice();
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
   const entries = (blendBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] })
     .entries;

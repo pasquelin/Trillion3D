@@ -716,7 +716,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identitas cache untuk galat DAG per-cluster: galat QEM grup diproyeksikan lewat bola grup."
+    "summary": "Identitas cache untuk galat DAG per klaster: galat QEM absolut grup atas posisi, normal, dan koordinat tekstur, dibatasi pada bentang grup; cache v1 ditolak."
   },
   "DEFAULT_SCOPE": {
     "summary": "Cakupan tempat sebuah model dikompilasi saat tidak ada yang disebutkan: streaming per halaman."
@@ -6968,6 +6968,7 @@
       "sensor": "Apakah benda hanya melaporkan kontak.",
       "ccd": "Apakah tabrakan kontinu aktif.",
       "decorative": "Apakah benda adalah puing dekoratif.",
+      "damping": "Bagian kecepatannya yang hilang dengan sendirinya setiap detik, linear dan sudut (`dv/dt = −c·v`).",
       "velocity": "Kecepatan linear, m/s, seperti ditinggalkan langkah terakhir; tulis untuk melempar benda.",
       "asleep": "Apakah benda tidur: diam, dan tidak disimulasikan sampai sesuatu membangunkannya.",
       "mass": "Massa dalam kilogram; `undefined` memakai massa jenis material kali volume.",
@@ -7002,7 +7003,8 @@
       "ccd": "Tabrakan kontinu, untuk benda kecil cepat yang bisa menembus dinding tipis.",
       "decorative": "Puing: hanya bertemu dunia statis, dan hanya disimulasikan dalam jangkauan dan terlihat. Dibatasi `budget.physics.decorative`.",
       "friction": "Mengganti gesekan material, 0 ke atas.",
-      "restitution": "Mengganti pantulan material, 0 sampai 1."
+      "restitution": "Mengganti pantulan material, 0 sampai 1.",
+      "damping": "Seberapa banyak kecepatan yang hilang dari benda dengan sendirinya, per detik, seperti oleh udara dan gelinding: `dv/dt = −c·v`, 0 ke atas, linear dan sudut terpisah; 0 menyimpan semuanya. Ditetapkan saat benda dibuat: setel ulang `obj.physics` untuk mengubahnya."
     }
   },
   "PhysicsBudget": {
@@ -7387,6 +7389,103 @@
       "setW": "Menulis angka keempat vertex `i`.",
       "setXY": "Menulis dua angka untuk vertex `i`.",
       "setXYZ": "Menulis tiga angka untuk vertex `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Tiga mesin tempat kendaraan bermula, menurut jenis.",
+    "members": {
+      "car": "Chevrolet Corvette C5: penggerak roda belakang, 0,32 N·m per kilogram, enam gigi.",
+      "motorcycle": "Yamaha XJ900 beserta pengendaranya: 0,26 N·m per kilogram, enam gigi.",
+      "tracked": "Sebuah M1 Abrams: turbin gas, 0,083 N·m per kilogram, empat gigi."
+    }
+  },
+  "Vehicle": {
+    "summary": "Sebuah kendaraan: bodi yang dibawa di atas roda oleh batasan kendaraan Jolt, dengan mesin, girboks, diferensial, suspensi, dan batang anti-guling, dibuat oleh `vehicle.*` dan ditambahkan ke simulasi oleh `world.physics.add`.",
+    "description": "Ia sebuah `VehicleDriver`: `world.controls.vehicle = car` mengemudikannya.",
+    "parameters": {
+      "options": "Yang diterima `vehicle.*`: roda, dan berapa pun nilai mesin (`VehicleSpec`).",
+      "options.wheels": "Roda: mesh, anak dari bodi, masing-masing diletakkan di pusatnya seperti bertumpu di tanah datar, porosnya sepanjang x bodi. Jari-jari dan lebarnya dibaca dari batasnya. Bodi menghadap −z: roda depan berbelok.",
+      "options.torquePerKg": "Torsi puncak mesin per kilogram bodi, N·m/kg.",
+      "options.idleRPM": "Putaran langsam mesin, rpm.",
+      "options.maxRPM": "Garis merah mesin, rpm.",
+      "options.torqueCurve": "Hingga lima titik `[rpm / maxRPM, torsi / puncak]`, pecahan putaran menaik.",
+      "options.gears": "Hingga enam rasio gigi maju, gigi pertama lebih dulu.",
+      "options.reverse": "Rasio gigi mundur.",
+      "options.finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
+      "options.shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
+      "options.shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
+      "options.clutch": "Torsi kopling per rad/s selip, N·m·s.",
+      "options.suspensionFrequency": "Frekuensi suspensi, Hz.",
+      "options.suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
+      "options.suspensionTravel": "Jarak gerak roda dari terentang penuh hingga tertekan penuh, meter.",
+      "options.antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang.",
+      "options.turnRadius": "Jari-jari belok pada setir penuh, meter.",
+      "options.steerTime": "Detik dari tengah hingga setir penuh.",
+      "options.brakeGrip": "Gesekan saat rem mengunci roda.",
+      "options.drive": "Roda penggerak sebuah mobil.",
+      "options.trackTurn": "Kecepatan trek bagian dalam kendaraan rantai saat berbelok, dibanding trek luar.",
+      "options.maxLean": "Kemiringan terbesar sebuah motor, dalam radian."
+    },
+    "members": {
+      "kind": "Apa kendaraan itu.",
+      "body": "Bodi yang dibawa roda.",
+      "wheels": "Roda, anak dari bodi.",
+      "spec": "Mesinnya: milik jenisnya (`VEHICLE_SPECS`), dengan opsi di atasnya.",
+      "input": "Pedal dan setir yang diterimanya sekarang.",
+      "speed": "Meter per detik ke depan setelah langkah terakhir, negatif ke belakang.",
+      "rpm": "Putaran mesin per menit setelah langkah terakhir.",
+      "gear": "Gigi setelah langkah terakhir: 1 ke atas maju, −1 mundur, 0 netral.",
+      "drive": "Menerima pedal dan setir setiap kali sebuah tombol mengubahnya, saat mulai dikemudikan, dan semuanya lepas saat berhenti dikemudikan."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Kendaraan fisika, masing-masing di atas batasan kendaraan Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Yang diterima `vehicle.*`: roda, dan berapa pun nilai mesin (`VehicleSpec`).",
+    "members": {
+      "wheels": "Roda: mesh, anak dari bodi, masing-masing diletakkan di pusatnya seperti bertumpu di tanah datar, porosnya sepanjang x bodi. Jari-jari dan lebarnya dibaca dari batasnya. Bodi menghadap −z: roda depan berbelok."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Terbuat dari apa sebuah kendaraan: mesin, girboks, suspensi, kemudi, dan rem, tiap nilai bawaan milik mesin sungguhan (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Torsi puncak mesin per kilogram bodi, N·m/kg.",
+      "idleRPM": "Putaran langsam mesin, rpm.",
+      "maxRPM": "Garis merah mesin, rpm.",
+      "torqueCurve": "Hingga lima titik `[rpm / maxRPM, torsi / puncak]`, pecahan putaran menaik.",
+      "gears": "Hingga enam rasio gigi maju, gigi pertama lebih dulu.",
+      "reverse": "Rasio gigi mundur.",
+      "finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
+      "shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
+      "shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
+      "clutch": "Torsi kopling per rad/s selip, N·m·s.",
+      "suspensionFrequency": "Frekuensi suspensi, Hz.",
+      "suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
+      "suspensionTravel": "Jarak gerak roda dari terentang penuh hingga tertekan penuh, meter.",
+      "antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang.",
+      "turnRadius": "Jari-jari belok pada setir penuh, meter.",
+      "steerTime": "Detik dari tengah hingga setir penuh.",
+      "brakeGrip": "Gesekan saat rem mengunci roda.",
+      "drive": "Roda penggerak sebuah mobil.",
+      "trackTurn": "Kecepatan trek bagian dalam kendaraan rantai saat berbelok, dibanding trek luar.",
+      "maxLean": "Kemiringan terbesar sebuah motor, dalam radian."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "Mesin awal setiap jenis kendaraan.",
+    "members": {
+      "car": "Chevrolet Corvette C5: penggerak roda belakang, 0,32 N·m per kilogram, enam gigi.",
+      "motorcycle": "Yamaha XJ900 beserta pengendaranya: 0,26 N·m per kilogram, enam gigi.",
+      "tracked": "M1 Abrams: turbin gas, 0,083 N·m per kilogram, empat gigi."
+    }
+  },
+  "vehicle": {
+    "summary": "Keluarga `vehicle`: sebuah bodi dan rodanya, dikemudikan oleh `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Tiga roda atau lebih pada dua poros atau lebih, yang depan berbelok, yang `drive` menggerakkan.",
+      "motorcycle": "Dua roda, yang depan berbelok, yang belakang menggerakkan; ia tetap tegak sendiri.",
+      "tracked": "Roda di dua rantai, kiri dan kanan, masing-masing digerakkan roda paling belakangnya; berbelok dengan memperlambat satu rantai, dan berputar di tempat saat diam."
     }
   }
 }

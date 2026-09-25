@@ -65,7 +65,8 @@ export function createWorldMaterials() {
   /** The entry each material object was last read into, at its version: a material read again
    *  unchanged is neither a new entry nor a fold, and its key is not built again. */
   const known = new WeakMap<Material, { version: number; entry: MaterialEntry }>();
-  const repainted = new Set<MaterialEntry>();
+  /** The entries repainted since the last take, each with whether its values were written. */
+  const repainted = new Map<MaterialEntry, boolean>();
   const counts = { duplicates: 0 };
   let ids = 0;
   /** Writes `material`'s values into its sole entry, when nothing but values changed. */
@@ -91,7 +92,7 @@ export function createWorldMaterials() {
     if (!pictures && !repaintValues(material, entry)) return false;
     entries.delete(entry.key);
     entries.set((entry.key = key), entry);
-    repainted.add(entry);
+    repainted.set(entry, !pictures || !!repainted.get(entry));
     return true;
   };
   return {
@@ -115,9 +116,10 @@ export function createWorldMaterials() {
       known.set(material, { version: material.version, entry });
       return entry;
     },
-    /** The entries repainted since the last call, handed over once. */
+    /** The entries repainted since the last call, handed over once; `values` false when only
+     *  their textures moved — a picture, a sampling, a placement —, which no value reads. */
     takeRepainted() {
-      const taken = [...repainted];
+      const taken = [...repainted].map(([entry, values]) => ({ entry, values }));
       repainted.clear();
       return taken;
     },

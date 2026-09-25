@@ -1,5 +1,6 @@
 import {
   ADD_WORDS,
+  DAMPING,
   JOINT_WORDS,
   OP,
   PART_WORDS,
@@ -29,12 +30,13 @@ export interface BodyRecord {
   quaternion: ArrayLike<number>;
   /** Primitive sizes, a cooked shape's scale; unused for triangles and hulls. */
   size: readonly [number, number, number];
-  /** Kilograms; 0 takes `density × volume`. */
-  mass: number;
+  /** Kilograms; 0 takes `density × volume`. */ mass: number;
   density: number;
   friction: number;
   restitution: number;
   gravityScale: number;
+  /** Speed lost per second, linear then angular; left out, `DAMPING`. */
+  damping?: readonly [number, number];
   vertices?: ArrayLike<number>;
   indices?: ArrayLike<number>;
   /** A compound's parts (shape `SHAPE.compound`). */
@@ -62,10 +64,13 @@ export class CommandWriter {
     this.floats = new Float32Array(grown.buffer);
   }
   private op(op: number, index: number, values: ArrayLike<number>) {
-    this.reserve(2 + values.length);
-    this.words[this.length++] = op;
-    this.words[this.length++] = index;
-    for (let i = 0; i < values.length; i++) this.floats[this.length++] = values[i];
+    this.put([op, index], values);
+  }
+  /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`). */
+  put(words: readonly number[], floats: ArrayLike<number>) {
+    this.reserve(words.length + floats.length);
+    for (const word of words) this.words[this.length++] = word >>> 0;
+    for (let i = 0; i < floats.length; i++) this.floats[this.length++] = floats[i];
   }
   /** Creates a body. */
   add(body: BodyRecord) {
@@ -80,8 +85,9 @@ export class CommandWriter {
     f.set(body.quaternion, at + 9);
     f.set(body.size, at + 13);
     f.set([body.mass, body.density, body.friction, body.restitution, body.gravityScale], at + 16);
-    w[at + 21] = vertexCount;
-    w[at + 22] = indexCount;
+    f.set(body.damping ?? [DAMPING, DAMPING], at + 21);
+    w[at + 23] = vertexCount;
+    w[at + 24] = indexCount;
     if (body.vertices) f.set(body.vertices, at + ADD_WORDS);
     if (body.indices) w.set(body.indices, at + ADD_WORDS + vertexCount * 3);
     body.parts?.forEach((part, i) => {
@@ -125,12 +131,6 @@ export class CommandWriter {
   wake(index: number) {
     this.op(OP.wake, index, []);
   }
-  /** A command whose one argument is an unsigned word. */
-  private word(op: number, index: number, value: number) {
-    this.op(op, index, []);
-    this.reserve(1);
-    this.words[this.length++] = value >>> 0;
-  }
   /** Restores a cooked shape's Jolt binary state under `handle`, for the ADDs that follow. */
   restore(handle: number, bytes: Uint8Array) {
     const words = Math.ceil(bytes.length / 4);
@@ -146,7 +146,7 @@ export class CommandWriter {
   }
   /** Replaces a body's flag bits (`FLAG`). */
   flags(index: number, flags: number) {
-    this.word(OP.flags, index, flags);
+    this.put([OP.flags, index, flags], []);
   }
   /** Scales gravity for one body. */
   gravityScale(index: number, scale: number) {

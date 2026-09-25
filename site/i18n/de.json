@@ -478,7 +478,6 @@
       "breaking-things": "Anbindung einer Physik-Engine",
       "cloth-and-rope": "Anbindung einer Physik-Engine",
       "soft-bodies": "Anbindung einer Physik-Engine",
-      "drive-a-car": "Anbindung einer Physik-Engine",
       "a-room-in-vr": "WebXR-Sitzung",
       "a-360-photo-in-vr": "WebXR-Sitzung",
       "vr-composition-layers": "WebXR-Sitzung: Ebenen",
@@ -1078,7 +1077,8 @@
           "<code>limits</code> hält das Gelenk an: Radiant für ein Scharnier, Meter für eine Schiene. Eine <code>spring</code> macht den Anschlag weich.",
           "Ein <code>motor</code> treibt ein Scharnier oder eine Schiene auf eine Geschwindigkeit oder eine Position. Ändere <code>joint.motor</code> jederzeit.",
           "<code>breakForce</code> ist der Zug in Newton, ab dem das Gelenk reißt: <code>joint.broken</code> wird wahr und <code>joint.on('break', …)</code> wird aufgerufen.",
-          "Fortgeschrittene Gelenke koppeln Bewegungen: <code>joint.gear(a, b, { ratio })</code> dreht zwei Räder auf Scharnieren wie ein Getriebe, <code>joint.rackAndPinion</code> macht aus einer Drehung ein Gleiten, <code>joint.pulley(a, b, { over })</code> hängt zwei Lasten an ein Seil, <code>joint.path(a, b, { path })</code> hält einen Wagen auf seiner Bahn, und <code>swingTwist</code> und <code>sixDof</code> bauen Schultern und eigene Gelenke."
+          "Fortgeschrittene Gelenke koppeln Bewegungen: <code>joint.gear(a, b, { ratio })</code> dreht zwei Räder auf Scharnieren wie ein Getriebe, <code>joint.rackAndPinion</code> macht aus einer Drehung ein Gleiten, <code>joint.pulley(a, b, { over })</code> hängt zwei Lasten an ein Seil, <code>joint.path(a, b, { path })</code> hält einen Wagen auf seiner Bahn, und <code>swingTwist</code> und <code>sixDof</code> bauen Schultern und eigene Gelenke.",
+          "Ein Fahrzeug ist ein Körper auf Rädern: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> oder <code>vehicle.tracked</code>; seine Räder sind Meshes, die dort am Körper sitzen, wo sie aufliegen. Füge es mit <code>world.physics.add</code> hinzu und fahre es mit der Tastatur: <code>world.controls.vehicle = car</code>, dann <code>world.controls.kind = 'vehicle'</code>. Motor, Getriebe, Federung und Bremsen stammen von einer echten Maschine; <code>car.speed</code>, <code>car.gear</code> und <code>car.rpm</code> zeigen, wie es fährt."
         ],
         "tryIt": "Öffne die Tür und die Schublade, dann lass den Stein auf die Brücke fallen. Senke die Festigkeit der Brücke und baue sie neu: Sie bricht unter ihrem eigenen Gewicht."
       },

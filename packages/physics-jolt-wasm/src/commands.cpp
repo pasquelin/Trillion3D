@@ -1,6 +1,6 @@
 // The command buffer: body creation with its shape, cooked shapes restored and released, removal
-// (its joints first), teleport, kinematic moves, velocity, impulses, wake/freeze, gravity; joints
-// are `joints.cpp`'s. Word layouts: `packages/sdk-core/src/physics/layout.ts`.
+// (its joints and vehicles first), teleport, kinematic moves, velocity, impulses, wake/freeze,
+// gravity; joints are `joints.cpp`'s, vehicles `vehicles.cpp`'s. Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
 #include "restore.h"
 #include "words.h"
@@ -45,6 +45,8 @@ bool add(const uint32_t *w) {
   settings.mFriction = f32(w + 18);
   settings.mRestitution = f32(w + 19);
   settings.mGravityFactor = f32(w + 20);
+  settings.mLinearDamping = f32(w + 21);
+  settings.mAngularDamping = f32(w + 22);
   if (type == EMotionType::Dynamic) {
     float mass = f32(w + 16);
     if (mass <= 0) mass = f32(w + 17) * shape->GetMassProperties().mMass / SHAPE_DENSITY;
@@ -75,12 +77,16 @@ bool runCommands(const uint32_t *w, uint32_t count) {
     uint32_t op = w[0];
     if (op == ADD) {
       if (!add(w)) return false;
-      w += ADD_WORDS + w[21] * 3 + w[22];
+      w += ADD_WORDS + w[23] * 3 + w[24];
       ++added;
       continue;
     }
     if (op == JOINT || op == UNJOINT || op == MOTOR) {
       w += jointCommand(w);
+      continue;
+    }
+    if (op == VEHICLE || op == UNVEHICLE || op == DRIVE) {
+      w += vehicleCommand(w);
       continue;
     }
     if (op == CHARACTER || op == CHARACTER_MOVE) {
@@ -127,6 +133,7 @@ bool runCommands(const uint32_t *w, uint32_t count) {
         BodyID id = slot.id;
         leaveAll(slot.engine);
         dropJoints(index);
+        dropVehicles(index);
         slot = Slot{};
         bodies.RemoveBody(id);
         bodies.DestroyBody(id);
