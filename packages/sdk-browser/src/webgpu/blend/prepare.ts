@@ -52,7 +52,7 @@ export function prepareWebgpuBlend(
     const normal = paged
       ? undefined
       : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
-    const hasNormal = !!copy.geometry.attributes.normal;
+    const hasNormal = paged ? !!copy.geometry.attributes.normal : !!normal;
     const opacity = mat.opacity;
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
