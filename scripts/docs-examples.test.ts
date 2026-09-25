@@ -80,6 +80,10 @@ test('every example is one standalone HTML file that imports the built engine', 
     // A scene built in code loads nothing; one that loads a compiled cache names a published one.
     const manifest = html.match(/scene\.load\('\.\.\/(assets\/[^']+)'\)/)?.[1];
     if (!manifest) continue;
+    // #719: a scene file carries no sky (`KHR_lights_punctual` has none), so a page loading the
+    // outdoor gallery scene adds one; with the file's sun alone, what it misses is pure black.
+    if (manifest.startsWith('assets/gallery/'))
+      assert.match(html, /\blight\.hemisphere\(/, entry.id);
     await access(new URL(manifest, site));
     // A scene built around an imported model credits its author on the page, in its words.
     if (
