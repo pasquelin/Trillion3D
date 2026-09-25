@@ -176,7 +176,8 @@ export function createTileSources(options: {
     /** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied. */
     reduce(atlas: WebgpuTileAtlas, slot: number) {
       if (!pictureFits(atlas.textures[slot])) return false;
-      const kept = live.get(scratchId(atlas, slot)) ?? scratches.get(scratchId(atlas, slot)),
+      const id = scratchId(atlas, slot),
+        kept = live.get(id) ?? scratches.get(id),
         scratch = kept ?? build(atlas, slot);
       kept?.reduce();
       copyIntoPlaces(atlas, slot, scratch);
