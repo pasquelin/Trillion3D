@@ -4267,6 +4267,13 @@
   "pageCarriesClusterError": {
     "summary": "Ein Cluster, der sein eigenes Fehlerband auf dem Bildschirm trägt, braucht keine Hierarchie: die Wahl ist ein flacher Test pro Seite."
   },
+  "PageCacheHolder": {
+    "summary": "Der Anteil einer Sitzung am Cache: was sie vom Gesamtbudget reserviert und wie sie verdrängt — an ihren angehefteten Seiten und Übertragungen vorbei —, wenn das Gesamtbudget sinkt.",
+    "members": {
+      "reservedBytes": "Bytes, die die Sitzung vom Gesamtbudget reserviert: ihre Manifesttabellen und ihre Übertragungswarteschlange.",
+      "evict": "Verdrängt Seiten nach letzter Nutzung, bis sie passen, an den angehefteten Seiten und Übertragungen der Sitzung vorbei."
+    }
+  },
   "PageCutPage": {
     "summary": "Eine von einem `cut` geschriebene Seite: ihre Index- und Geometriebytes, ihre Fingerabdrücke, und ihr Deskriptor.",
     "members": {
