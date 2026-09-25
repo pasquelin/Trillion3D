@@ -3,53 +3,64 @@
 // yet. Served under `/runner/` and imported by URL; only types come from the packages.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { FluidsPayload, FluidsScene } from './fluids.ts';
-import type { PhysicsPrimitive } from '../../packages/sdk-core/src/physics/options.ts';
+import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
+import type { PhysicsPart } from '../../packages/sdk-core/src/physics/options.ts';
 import { posterCapture } from './measurePage.ts';
 
 type Sdk = typeof SdkBrowser;
 
-/** A primitive's drawn geometry at its place in the body's frame: the fixture's bodies are boxes
- *  and spheres. */
-function drawnPart(sdk: Sdk, part: PhysicsPrimitive & { position?: readonly number[] }) {
-  const [x, y, z] = part.position ?? [0, 0, 0];
-  if (part.type !== 'box') return sdk.geometry.sphere(part.radius, 16, 12).translate(x, y, z);
-  const [a, b, c] = part.halfExtents;
-  return sdk.geometry.box(a * 2, b * 2, c * 2).translate(x, y, z);
-}
-
-/** A floating body: a mesh drawn as its shape, a compound's parts as children of the first. */
-function floatingMesh(sdk: Sdk, body: FluidsScene['bodies'][number]) {
-  const wood = sdk.material.meshStandard({
-    color: '#b7793f',
-    roughness: 0.8,
-    density: body.density,
+/** The bodies, one geometry per distinct part and one material per density shared among them:
+ *  a compound's parts are children of its first, each at its place in the body's frame. */
+function floatingMeshes(sdk: Sdk, bodies: FluidsScene['bodies']) {
+  const geometries = new Map<string, ReturnType<Sdk['geometry']['box']>>(),
+    woods = new Map<number, ReturnType<Sdk['material']['meshStandard']>>();
+  // The fixture's parts are boxes and spheres.
+  const drawn = (part: PhysicsPart) => {
+    const key = JSON.stringify(part);
+    let shape = geometries.get(key);
+    if (!shape) {
+      const [x, y, z] = part.position ?? [0, 0, 0];
+      const [a, b, c] = part.type === 'box' ? part.halfExtents : [0, 0, 0];
+      shape = (
+        part.type === 'box'
+          ? sdk.geometry.box(a * 2, b * 2, c * 2)
+          : sdk.geometry.sphere(part.radius, 16, 12)
+      ).translate(x, y, z);
+      geometries.set(key, shape);
+    }
+    return shape;
+  };
+  return bodies.map(({ position, density, shape }) => {
+    let wood = woods.get(density);
+    if (!wood)
+      woods.set(density, (wood = sdk.material.meshStandard({ color: '#b7793f', density })));
+    const parts = shape.type === 'compound' ? shape.parts : [shape];
+    const [first, ...rest] = parts.map((part) => sdk.object.mesh(drawn(part), wood));
+    first.add(...rest);
+    first.position.set(...position);
+    first.physics = { type: 'dynamic', shape };
+    return first;
   });
-  const parts =
-    body.shape.type === 'compound' ? body.shape.parts : [body.shape as PhysicsPrimitive];
-  const [first, ...rest] = parts.map((part) => sdk.object.mesh(drawnPart(sdk, part), wood));
-  first.add(...rest);
-  first.position.set(...body.position);
-  first.physics = { type: 'dynamic', shape: body.shape };
-  return first;
 }
 
 /** Throwaway stand-ins (#422, #423): a flat transmissive ocean, fires and smoke volumes. */
-function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, o: FluidsPayload) {
+function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: FluidsScene) {
   const { geometry, material, object, light } = sdk;
   const sea = object.mesh(
     geometry.plane(400, 400),
     material.meshPhysical({ color: '#1d6d8c', roughness: 0.05, transmission: 1, thickness: 2 }),
   );
   sea.rotation.set(-Math.PI / 2, 0, 0);
-  sea.position.set(27, o.scene.water.level, 27);
+  sea.position.set(27, scene.water.level, 27);
   world.scene.add(sea);
   const flame = material.meshBasic({ color: '#ff8a2a', transparent: true, blending: 'additive' });
-  const fires = o.scene.fires.map(([x, y, z]) => {
+  const cone = geometry.cone(0.4, 1.2, 12);
+  const fires = scene.fires.map(([x, y, z]) => {
     const lamp = light.point({ color: '#ff9a3c', intensity: 40, distance: 12 });
     lamp.position.set(x, y + 0.6, z);
-    const cone = object.mesh(geometry.cone(0.4, 1.2, 12), flame);
-    cone.position.set(x, y, z);
-    world.scene.add(lamp, cone);
+    const body = object.mesh(cone, flame);
+    body.position.set(x, y, z);
+    world.scene.add(lamp, body);
     return lamp;
   });
   const haze = material.meshStandard({
@@ -58,11 +69,12 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, o: FluidsPayl
     opacity: 0.15,
     depthWrite: false,
   });
-  for (const [x, y, z] of o.scene.smokes)
-    for (let layer = 1; layer <= 4; layer++) {
-      const shell = object.mesh(geometry.sphere(layer, 16, 12), haze);
-      shell.position.set(x, y, z);
-      world.scene.add(shell);
+  const shells = [1, 2, 3, 4].map((radius) => geometry.sphere(radius, 16, 12));
+  for (const [x, y, z] of scene.smokes)
+    for (const shell of shells) {
+      const layer = object.mesh(shell, haze);
+      layer.position.set(x, y, z);
+      world.scene.add(layer);
     }
   // Flicker modulates intensity alone, as the fire lights of #417 will.
   return (frame: number) =>
@@ -72,16 +84,26 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, o: FluidsPayl
 const nextFrame = () => new Promise<number>((done) => requestAnimationFrame(done));
 
 /** Builds the scene, waits for every body to be simulated, then measures `frames` frames. */
-export async function measureFluids(o: FluidsPayload) {
-  const sdk = (await import(o.sdkUrl)) as Sdk;
+export async function measureFluids({
+  sdkUrl,
+  renderer,
+  settings,
+  captureFile,
+  scene,
+}: FluidsPayload) {
+  const { width, height, warmup, frames, temporalAntialiasing } = settings;
+  const sdk = (await import(sdkUrl)) as Sdk;
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = `display:block;width:${o.width}px;height:${o.height}px`;
+  canvas.style.cssText = `display:block;width:${width}px;height:${height}px`;
   document.body.append(canvas);
+  // A lost context is published where the bench rereads it (`withGpuIncidents`).
+  const lost: string[] = (globalThis.incidentsGpu = []);
+  canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'));
   const world = sdk.createWorld(canvas, {
-    renderer: o.renderer,
+    renderer,
     interactive: false,
     physics: true,
-    temporalAntialiasing: o.temporalAntialiasing,
+    temporalAntialiasing,
   });
   try {
     await world.ready;
@@ -92,12 +114,12 @@ export async function measureFluids(o: FluidsPayload) {
     const sun = sdk.light.directional({ intensity: 3, color: '#fff4e2', castShadow: true });
     sun.position.set(40, 60, -20);
     world.scene.add(sun, sdk.light.hemisphere({ intensity: 1.2 }));
-    world.physics.water = o.scene.water;
-    for (const body of o.scene.bodies) world.scene.add(floatingMesh(sdk, body));
-    const flicker = standIns(sdk, world, o);
+    world.physics.water = scene.water;
+    world.scene.add(...floatingMeshes(sdk, scene.bodies));
+    const flicker = standIns(sdk, world, scene);
     // Jolt is fetched on first use: the warmup counts from the frame every body is simulated.
-    for (let wait = 0; world.physics.stats.bodies < o.scene.bodies.length; wait++) {
-      if (wait > 1800) return { erreur: `${world.physics.stats.bodies} bodies simulated` };
+    for (let wait = 0; world.physics.stats.bodies < scene.bodies.length; wait++) {
+      if (wait > 1800) throw new Error(`${world.physics.stats.bodies} bodies simulated`);
       world.render();
       await nextFrame();
     }
@@ -105,16 +127,16 @@ export async function measureFluids(o: FluidsPayload) {
       cpuFrameMs: [] as number[],
       gpuFrameMs: [] as number[],
       rafIntervalMs: [] as number[],
-      gpuPassSamples: [] as NonNullable<ReturnType<typeof sdk.metric.frame>['gpuPassMs']>[],
+      gpuPassSamples: [] as GpuPassTimings[],
       physicsStepMs: [] as number[],
       physicsMainMs: [] as number[],
     };
     let previous: number | null = null;
-    for (let i = 0; i < o.warmup + o.frames; i++) {
+    for (let i = 0; i < warmup + frames; i++) {
       const now = await nextFrame();
       flicker(i);
       world.render();
-      if (i < o.warmup) continue;
+      if (i < warmup) continue;
       if (previous !== null) result.rafIntervalMs.push(now - previous);
       previous = now;
       const frame = sdk.metric.frame(world);
@@ -128,12 +150,10 @@ export async function measureFluids(o: FluidsPayload) {
       result.physicsStepMs.push(world.physics.stats.stepMs);
       result.physicsMainMs.push(world.physics.stats.mainMs);
     }
-    const shot = await sdk.capture.buffer(world, { width: o.width, height: o.height });
-    await posterCapture(o.captureFile, shot.data, shot.width, shot.height);
+    const shot = await sdk.capture.buffer(world, { width, height });
+    await posterCapture(captureFile, shot.data, shot.width, shot.height);
     const size = { width: canvas.width, height: canvas.height, dpr: devicePixelRatio };
     return { ...result, bodies: world.physics.stats.bodies, size };
-  } catch (error) {
-    return { erreur: String(error) };
   } finally {
     world.dispose();
     canvas.remove();

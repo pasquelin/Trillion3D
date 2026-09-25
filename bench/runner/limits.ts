@@ -22,9 +22,8 @@ function numbers(limits: object) {
  */
 export function limitsOf(
   webgl: { extensions: string[] } | null,
-  webgpu: { features: Iterable<string>; adapter: object; defaults: object } | null,
+  webgpu: { features: ReadonlySet<string>; adapter: object; defaults: object } | null,
 ) {
-  const defaults = webgpu ? numbers(webgpu.defaults) : {};
   return {
     webgl2: webgl && {
       halfFloatColor: webgl.extensions.includes('EXT_color_buffer_half_float'),
@@ -32,10 +31,10 @@ export function limitsOf(
       timerQuery: webgl.extensions.includes('EXT_disjoint_timer_query_webgl2'),
     },
     webgpu: webgpu && {
-      timestampQuery: [...webgpu.features].includes('timestamp-query'),
+      timestampQuery: webgpu.features.has('timestamp-query'),
       limits: Object.entries(numbers(webgpu.adapter)).map(([name, adapter]) => ({
         name,
-        default: defaults[name] ?? null,
+        default: numbers(webgpu.defaults)[name] ?? null,
         adapter,
       })),
     },
@@ -47,8 +46,10 @@ export type LimitsProbe = ReturnType<typeof limitsOf>;
 export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
   const sdk = (await import(sdkUrl)) as typeof SdkBrowser;
   const canvas = document.createElement('canvas');
-  const webgl = await sdk.detectCapabilities('webgl', canvas);
-  const { adapter } = await sdk.detectCapabilities('webgpu', canvas);
+  const [webgl, { adapter }] = await Promise.all([
+    sdk.detectCapabilities('webgl', canvas),
+    sdk.detectCapabilities('webgpu', canvas),
+  ]);
   // A device asked with no limit holds the defaults; one refused leaves them unknown (`null`).
   const device = await adapter?.requestDevice().catch(() => undefined);
   const probe = limitsOf(
@@ -73,7 +74,7 @@ const yes = (value: boolean) => (value ? 'yes' : 'no');
 
 /** The probe in `resume.md`: capabilities, then the WebGPU limits the adapter raises. */
 export function limitsLines(probe: LimitsProbe | undefined) {
-  if (!probe) return ['## Browser limits', '', 'Not probed.', ''];
+  if (!probe) return [];
   const { webgl2, webgpu } = probe;
   const raised = webgpu?.limits.filter((limit) => limit.adapter !== limit.default) ?? [];
   return [
