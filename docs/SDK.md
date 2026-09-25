@@ -913,9 +913,10 @@ as `world.budget.split`:
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
-  and its transfer queue. A change
-  applies at once: pages leave by last use until they fit, save those the frame keeps. The default
-  total is the mirror plus the cache's own default; a total not above the mirror is refused
+  and its transfer queue, and the engine's cut tables (group closure and residency readiness,
+  sized by the scene's placed pages) once the scene is prepared. A change applies at once: pages
+  leave by last use until they fit, save those the frame keeps. The default total is the mirror
+  plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
 ```js
@@ -1138,7 +1139,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   frequency, damping and travel, the anti-roll bars, the turning radius the steering lock is read
   from, the time a hand takes to full lock, the brakes' grip, a motorcycle's lean and a track's
   turn; any of them is an option. A wheel that is not a child of the body, a wrong wheel count or
-  more than six gears throws `RangeError`. Live example: [drive a car](../site/examples/drive-a-car.html).
+  more than six gears throws `RangeError`, and so does an option its kind would ignore (a car's
+  `trackTurn` or `maxLean`; a motorcycle's `drive`, `trackTurn` or `antiRoll`; a tracked
+  vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
+  longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
@@ -1179,8 +1183,9 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
 
 - `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
   and non-standard glTF extensions are not drawn.
-- Specular environment-map IBL, area lights and screen-space reflections are not implemented; the
-  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)).
+- Specular environment-map IBL and screen-space reflections are not implemented; the
+  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
+  with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its

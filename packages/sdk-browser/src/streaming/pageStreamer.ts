@@ -51,6 +51,7 @@ export function createPageStreamerWith(
     admissionBlocked: 0,
     dropped: 0,
     disposed: false,
+    reservedBytes: 0,
   };
   const emit = (phase: string, message: string, context: () => Record<string, unknown>) => {
     if (onDiagnostic)
@@ -80,10 +81,17 @@ export function createPageStreamerWith(
     emit,
     abortError,
   };
-  const { touch, evict, retain, retainRanks } = createStreamingCache(context);
+  const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
   // A kept page the catalogue names at another size is another page: it leaves before the first read.
   store.dropResized(catalog);
-  const release = store.hold({ reservedBytes: tableBytes + maxTransferBytes, evict });
+  // The engine's own tables (`reserve`) come out of the pages' share, beside the manifest tables
+  // and the transfer queue.
+  const release = store.hold({
+    get reservedBytes() {
+      return tableBytes + maxTransferBytes + state.reservedBytes;
+    },
+    evict,
+  });
   if (kept) evict();
   else store.resize(store.cpuBytes + store.reservedBytes);
   emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
@@ -128,6 +136,7 @@ export function createPageStreamerWith(
       return subscribe(url, requestSignal, 0);
     },
     retain,
+    reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
     /** Reads `urls` the catalog holds, once each; `onPage` hears 0 resident, then each landing. */

@@ -70,10 +70,11 @@ export function worldBudget(
   // What the last frame published, `null` or `undefined` when it held no such pool.
   const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   const split = () => splitOf(pools);
-  /** What the GPU total leaves a pool beside the shadows and the other pool as asked. */
+  /** What the GPU total leaves a pool beside the shadows, the bounce probes and the other pool
+   *  as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
     const shares = split();
-    const left = (pools.gpu ?? DEFAULT_GPU_BUDGET) - shares.shadowPool;
+    const left = (pools.gpu ?? DEFAULT_GPU_BUDGET) - shares.shadowPool - shares.bounceProbes;
     return Math.max(1, Math.min(ceiling, left - (pools[other] ?? shares[other])));
   };
   return {
@@ -94,9 +95,10 @@ export function worldBudget(
       rebalance();
     },
     /** Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the
-     *  decoded pages, their manifest tables and their transfer queue together. A change applies at
-     *  once: pages leave by last use until they fit. A total not above the mirror is refused
-     *  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine. */
+     *  decoded pages, their manifest tables, their transfer queue and the engine's cut tables
+     *  together. A change applies at once: pages leave by last use until they fit. A total not
+     *  above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the
+     *  machine. */
     get cpu() {
       return pools.cpu ?? DEFAULT_CPU_BUDGET;
     },
@@ -105,11 +107,11 @@ export function worldBudget(
       pools.cpu = bytes;
       pools.pageCache.resize(pageCache);
     },
-    /** How the two totals are shared: the shadow pool at its largest, then half each to the
-     *  geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then
-     *  the decoded-page cache takes the whole rest of the CPU total, within which the session in
-     *  place reserves its manifest tables and its transfer queue. What the rule gives, before a
-     *  pool set on its own. */
+    /** How the two totals are shared: the shadow pool and the bounce probes at their largest,
+     *  then half each to the geometry and texture pools, capped at their ceilings; the shadow
+     *  table's host mirror, then the decoded-page cache takes the whole rest of the CPU total,
+     *  within which the session in place reserves its manifest tables, its transfer queue and the
+     *  engine's cut tables. What the rule gives, before a pool set on its own. */
     get split() {
       return split();
     },
@@ -122,7 +124,7 @@ export function worldBudget(
       return DEFAULT_TEXTURE_POOL_BUDGET;
     },
     /** Bytes of GPU memory kept for geometry pages; set it to change the envelope, within what
-     *  `gpu` leaves beside the shadows and the texture pool. */
+     *  `gpu` leaves beside the shadows, the bounce probes and the texture pool. */
     get geometryPool() {
       return held('geometryPoolBytes') ?? pools.geometryPool ?? split().geometryPool;
     },
@@ -131,8 +133,8 @@ export function worldBudget(
       rebalance();
     },
     /** Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool
-     *  (WebGL2); set it to change the envelope, within what `gpu` leaves beside the shadows and
-     *  the geometry pool. */
+     *  (WebGL2); set it to change the envelope, within what `gpu` leaves beside the shadows, the
+     *  bounce probes and the geometry pool. */
     get texturePool(): number | null {
       if (renderer() === 'webgl2') return null;
       return held('texturePoolBytes') ?? pools.texturePool ?? split().texturePool;
