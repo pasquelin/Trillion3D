@@ -3201,7 +3201,8 @@
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
       "pages": "번들 수.",
-      "maxDependencies": "번들의 최대 의존 수: 컴파일러가 공개하는 상한."
+      "maxDependencies": "번들의 가장 긴 닫힌 의존성 목록.",
+      "dependencyBound": "한 번들의 클러스터 부모를 담는 번들의 최대 수로, 패킹 전에 고정됩니다."
     }
   },
   "SlimStructure": {
@@ -3306,7 +3307,8 @@
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
       "pages": "모든 번들.",
-      "maxDependencies": "번들의 최대 의존 수, 컴파일러가 공개한 그대로."
+      "maxDependencies": "번들의 가장 긴 닫힌 의존성 목록으로, 컴파일러가 게시한 그대로입니다.",
+      "dependencyBound": "한 번들의 클러스터 부모를 담는 번들의 최대 수로, 패킹 전에 고정됩니다."
     }
   },
   "StreamPage": {

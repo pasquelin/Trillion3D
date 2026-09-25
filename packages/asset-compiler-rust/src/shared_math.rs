@@ -98,6 +98,10 @@ pub fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 pub fn scale(a: [f64; 3], k: f64) -> [f64; 3] {
     [a[0] * k, a[1] * k, a[2] * k]
 }
+/// Divides each axis by `k`: not `scale(a, 1.0 / k)`, which rounds once more.
+pub fn divide(a: [f64; 3], k: f64) -> [f64; 3] {
+    [a[0] / k, a[1] / k, a[2] / k]
+}
 pub fn length(a: [f64; 3]) -> f64 {
     dot(a, a).sqrt()
 }
@@ -106,9 +110,9 @@ pub fn length(a: [f64; 3]) -> f64 {
 /// vector carries no direction and division makes no sense. Fallback belongs to
 /// site — light looks towards `-Z`, missing normal points up — so passed in.
 pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
-    let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
-    if length > 1e-12 {
-        [vector[0] / length, vector[1] / length, vector[2] / length]
+    let norm = length(vector);
+    if norm > 1e-12 {
+        divide(vector, norm)
     } else {
         fallback
     }
@@ -126,13 +130,11 @@ pub fn elapsed_ms(since: std::time::Instant) -> f64 {
 /// mean of three scales, mirror yields same scale as reflection, degenerate
 /// matrix yields zero: zero length discarded by caller.
 pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
-    let column = |c: usize| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]];
-    let (x, y, z) = (column(0), column(1), column(2));
-    let cross = [
-        y[1] * z[2] - y[2] * z[1],
-        y[2] * z[0] - y[0] * z[2],
-        y[0] * z[1] - y[1] * z[0],
-    ];
-    let determinant = x[0] * cross[0] + x[1] * cross[1] + x[2] * cross[2];
-    determinant.abs().cbrt()
+    let [x, y, z] = linear_columns(m);
+    dot(x, cross(y, z)).abs().cbrt()
+}
+
+/// The three columns of the linear part of a column-major 4x4 matrix.
+pub(crate) fn linear_columns(m: &[f64; 16]) -> [[f64; 3]; 3] {
+    [0, 1, 2].map(|c| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]])
 }
