@@ -8018,7 +8018,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/soft.fixture.ts",
         "packages/sdk-browser/src/physics/soft.test.ts",
-        "packages/sdk-browser/src/physics/softContact.test.ts"
+        "packages/sdk-browser/src/physics/softContact.test.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftBodyOptions"

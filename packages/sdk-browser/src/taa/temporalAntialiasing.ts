@@ -1,57 +1,44 @@
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { makeFullscreenPipeline } from '../lighting/deferred/program.ts';
-import { TAA_BINDINGS, TAA_PASS, TAA_SHADER, TAA_VIEW_BYTES } from './shaderWgsl.ts';
+import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
+import {
+  TAA_BINDINGS,
+  TAA_PASS,
+  TAA_SHADER,
+  TAA_VIEW_BYTES,
+  createTaaLayout,
+} from './shaderWgsl.ts';
 import { createTaaCheckpoint, createTaaFrameState } from './frame.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
-import { readOnly } from '../webgpu/core/bindLayout.ts';
+import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
-/** Bytes per pixel of the two history targets: two `rgba16float`. */
-export const TAA_HISTORY_BYTES_PER_PIXEL = 16;
+/** Format of the as-is share accumulated beside the colour: one channel, filtered like it. */
+const SHARE_FORMAT: GPUTextureFormat = 'r8unorm';
+/** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares. */
+export const TAA_HISTORY_BYTES_PER_PIXEL = 18;
 
 /** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
- *  identifiers, the page-record table and placement motion matrices. */
+ *  identifiers, the page-record table, placement motion matrices and the surface flags. */
 export interface TaaInputs {
   current: GPUTextureView;
   depth: GPUTextureView;
   ids: GPUTextureView;
   pages: GPUBuffer;
   motion: GPUBuffer;
-}
-
-function createTaaLayout(device: GPUDevice) {
-  const fragment = GPUShaderStage.FRAGMENT;
-  return device.createBindGroupLayout({
-    entries: [
-      {
-        binding: TAA_BINDINGS.current,
-        visibility: fragment,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-      { binding: TAA_BINDINGS.history, visibility: fragment, texture: { sampleType: 'float' } },
-      {
-        binding: TAA_BINDINGS.historySampler,
-        visibility: fragment,
-        sampler: { type: 'filtering' },
-      },
-      { binding: TAA_BINDINGS.depth, visibility: fragment, texture: { sampleType: 'depth' } },
-      { binding: TAA_BINDINGS.ids, visibility: fragment, texture: { sampleType: 'uint' } },
-      { binding: TAA_BINDINGS.pages, visibility: fragment, buffer: readOnly },
-      { binding: TAA_BINDINGS.motion, visibility: fragment, buffer: readOnly },
-      { binding: TAA_BINDINGS.view, visibility: fragment, buffer: { type: 'uniform' } },
-    ],
-  });
+  flags: GPUTextureView;
 }
 
 /**
- * Temporal antialiasing pass: two history targets in ping-pong, one read and the other
- * written each frame, and composition reads the one just written. Targets follow the
- * image size (`resize`); bind groups are rebuilt when an input changes identity, never per frame.
+ * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share,
+ * one read and the other written each frame, and composition reads the one just written. Targets
+ * follow the image size (`resize`); bind groups are rebuilt when an input changes identity, never
+ * per frame.
  */
 export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
   const layout = createTaaLayout(device);
   const module = await createCheckedShaderModule(device, TAA_SHADER, 'TAA_RESOLVE');
   const pipeline = await makeFullscreenPipeline(device, module, layout, 'resolve', [
     { format: 'rgba16float' },
+    { format: SHARE_FORMAT },
   ]);
   const motion = createPlacementMotion(device, roots);
   const uniform = device.createBuffer({
@@ -67,7 +54,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     addressModeV: 'clamp-to-edge',
   });
   const textures: GPUTexture[] = [],
-    views: GPUTextureView[] = [],
+    images: AccumulatedImage[] = [],
     groups: (GPUBindGroup | undefined)[] = [undefined, undefined];
   let width = 0,
     height = 0,
@@ -79,7 +66,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
   const dropTargets = () => {
     for (const texture of textures) texture.destroy();
     textures.length = 0;
-    views.length = 0;
+    images.length = 0;
     groups[0] = groups[1] = undefined;
   };
   return {
@@ -123,36 +110,39 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     /** True when the targets have the requested size; otherwise they are remade and history
      *  no longer exists. Returns true when something was reallocated. */
     resize(w: number, h: number) {
-      if (w === width && h === height && textures.length === 2) return false;
+      if (w === width && h === height && images.length === 2) return false;
       dropTargets();
       width = w;
       height = h;
-      for (let i = 0; i < 2; i++) {
-        const texture = device.createTexture({
-          label: `Trillion3D TAA history ${i}`,
-          size: { width: w, height: h },
-          format: 'rgba16float',
-          usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-        });
+      const usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+        size = { width: w, height: h };
+      const target = (label: string, format: GPUTextureFormat) => {
+        const texture = device.createTexture({ label, size, format, usage });
         textures.push(texture);
-        views.push(texture.createView());
-      }
+        return texture.createView();
+      };
+      for (let i = 0; i < 2; i++)
+        images.push({
+          color: target(`Trillion3D TAA history ${i}`, 'rgba16float'),
+          share: target(`Trillion3D TAA as-is share ${i}`, SHARE_FORMAT),
+        });
       bound = undefined;
       return true;
     },
     /**
      * Encode the pass: reads `inputs.current` and history, writes the other target, then swaps
-     * roles. The uniform must have been written first. Returns the written view.
+     * roles. The uniform must have been written first. Returns the written colour and share.
      */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
-      if (textures.length !== 2) throw new Error('TAA_TARGETS_MISSING');
+      if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING');
       if (
         !bound ||
         bound.current !== inputs.current ||
         bound.depth !== inputs.depth ||
         bound.ids !== inputs.ids ||
         bound.pages !== inputs.pages ||
-        bound.motion !== inputs.motion
+        bound.motion !== inputs.motion ||
+        bound.flags !== inputs.flags
       ) {
         bound = { ...inputs };
         for (let i = 0; i < 2; i++)
@@ -160,13 +150,15 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
             layout,
             entries: [
               { binding: TAA_BINDINGS.current, resource: inputs.current },
-              { binding: TAA_BINDINGS.history, resource: views[i] },
+              { binding: TAA_BINDINGS.history, resource: images[i].color },
               { binding: TAA_BINDINGS.historySampler, resource: sampler },
               { binding: TAA_BINDINGS.depth, resource: inputs.depth },
               { binding: TAA_BINDINGS.ids, resource: inputs.ids },
               { binding: TAA_BINDINGS.pages, resource: { buffer: inputs.pages } },
               { binding: TAA_BINDINGS.motion, resource: { buffer: inputs.motion } },
               { binding: TAA_BINDINGS.view, resource: { buffer: uniform } },
+              { binding: TAA_BINDINGS.flags, resource: inputs.flags },
+              { binding: TAA_BINDINGS.shareHistory, resource: images[i].share },
             ],
           });
       }
@@ -174,7 +166,18 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       const pass = encoder.beginRenderPass({
         label: TAA_PASS,
         colorAttachments: [
-          { view: views[write], loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
+          {
+            view: images[write].color,
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: [0, 0, 0, 0],
+          },
+          {
+            view: images[write].share,
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: [0, 0, 0, 0],
+          },
         ],
       });
       pass.setPipeline(pipeline);
@@ -182,7 +185,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       pass.draw(3);
       pass.end();
       read = write;
-      return views[write];
+      return images[write];
     },
     dispose() {
       dropTargets();

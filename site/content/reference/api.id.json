@@ -2073,7 +2073,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Apa yang diterima `obj.physics` untuk benda lunak: verteksnya disimulasikan satu per satu.",
+    "description": "Materi dan tarikannya seperti benda kaku; tanpa redaman sudut, bentuk, sensor, CCD, maupun puing.",
     "members": {
+      "damping": "Bagian kecepatan titik-titiknya yang hilang per detik, `dv/dt = −c·v`, 0 ke atas.",
       "pins": "Indeks verteks geometri yang ditahan di tempatnya: tiang bendera, kait tali.",
       "mass": "Kilogram, dibagi ke verteks menurut luas (tali: panjang) yang ditanggung masing-masing; bila dihilangkan, `SOFT_AREAL_DENSITY` per m² (tali: `SOFT_LINEAR_DENSITY` per m).",
       "stretch": "Seberapa rusuk mengalah saat ditarik, m/N (kebalikan kekakuannya): 0 tak pernah meregang.",

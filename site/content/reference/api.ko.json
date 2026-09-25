@@ -2055,7 +2055,9 @@
   },
   "SoftBodyCommon": {
     "summary": "연체로서 `obj.physics`가 받는 것: 꼭짓점이 하나씩 시뮬레이션된다.",
+    "description": "재질과 중력은 강체와 같습니다. 각 감쇠, 형상, 센서, CCD, 잔해는 없습니다.",
     "members": {
+      "damping": "꼭짓점 속도 중 초당 잃는 비율, `dv/dt = −c·v`, 0 이상.",
       "pins": "제자리에 고정할 지오메트리 꼭짓점 인덱스: 깃발의 깃대, 밧줄의 고리.",
       "mass": "킬로그램. 각 꼭짓점이 맡는 면적(밧줄은 길이)에 따라 나눈다. 생략하면 m²당 `SOFT_AREAL_DENSITY`(밧줄은 m당 `SOFT_LINEAR_DENSITY`).",
       "stretch": "모서리를 당길 때 늘어나는 정도, m/N(강성의 역수): 0은 절대 늘어나지 않는다.",

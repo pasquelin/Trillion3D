@@ -4,10 +4,8 @@ import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { softBodyOf, type SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
 import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
-import { addSoft, at, ropeLine, settle, softWorld } from './soft.fixture.ts';
+import { addSoft, at, FLAT, ropeLine, settle, softWorld } from './soft.fixture.ts';
 
-/** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
-const FLAT = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
 /** A cloth of 1 m, 10 × 10 squares, and its rows of 11 vertices from `y = −0.5`. */
 const cloth = () => plane(1, 1, 10, 10);
 const row = (r: number) => Array.from({ length: 11 }, (_, i) => r * 11 + i);
