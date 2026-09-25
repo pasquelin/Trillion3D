@@ -51,3 +51,68 @@ test('gear and rack and pinion: a braked train keeps its teeth in phase over 10,
     assert.ok(w < tolerances[i], `pair ${i} in phase: ${w} < ${tolerances[i]}`),
   );
 });
+
+test('gear linking: a joint costs the same link work whatever the other joints', async () => {
+  // Three gears between hinged wheels, then `plain` point joints; the link work of those joints,
+  // and of one more hinge on a geared wheel.
+  async function work(plain: number) {
+    const rig = await jointRig([0, 0, 0]);
+    const wheels = [0, 1, 2, 3, 4, 5].map((i) => rig.cube(i * 3, 0, 0));
+    wheels.forEach((wheel) => rig.wanted.add(joint.hinge(wheel, null)));
+    [0, 2, 4].forEach((i) => rig.wanted.add(joint.gear(wheels[i], wheels[i + 1], { ratio: 2 })));
+    rig.run(1);
+    const anchor = rig.cube(0, 0, 6);
+    const before = rig.linkVisits();
+    for (let i = 0; i < plain; i++) rig.wanted.add(joint.point(anchor, null));
+    rig.run(1);
+    const plainWork = rig.linkVisits() - before;
+    rig.wanted.add(joint.hinge(wheels[0], null));
+    rig.run(1);
+    return { plainWork, hingeWork: rig.linkVisits() - before - plainWork };
+  }
+  const [few, many] = [await work(4), await work(40)];
+  assert.equal(few.plainWork, 0, 'a plain joint links no gear');
+  assert.equal(many.plainWork, 0, 'forty plain joints link no gear');
+  assert.ok(few.hingeWork > 0, 'a hinge on a geared wheel relinks its gear');
+  assert.equal(
+    many.hingeWork,
+    few.hingeWork,
+    'the hinge costs the same beside 40 joints as beside 4',
+  );
+});
+
+test('gear linking: a wheel whose hinge is taken out and made again is held in phase', async () => {
+  const rig = await jointRig([0, 0, 0]);
+  const [driver, driven] = [rig.cube(0, 0, 0), rig.cube(3, 0, 0)];
+  rig.wanted.add(joint.hinge(driver, null));
+  const first = joint.hinge(driven, null);
+  rig.wanted.add(first);
+  // 24 teeth driving 12: the driven wheel turns twice per turn of the driver.
+  rig.wanted.add(joint.gear(driver, driven, { ratio: 2 }));
+  rig.run(1);
+  rig.wanted.delete(first);
+  rig.run(1);
+  rig.wanted.add(joint.hinge(driven, null));
+  rig.run(1);
+  const turns = [driver, driven].map((body) => turnOf(rig, body));
+  const phase = () => {
+    const [t0, t1] = turns.map((turn) => turn());
+    return t1 + 2 * t0;
+  };
+  const before = phase();
+  // Turned a third of a radian out of mesh: only the gear's position correction, reading the
+  // hinges it was handed, brings it back.
+  const half = 1 / 6;
+  rig.writer.teleport(driven.physics!._index, rig.at(driven), [
+    0,
+    Math.sin(half),
+    0,
+    Math.cos(half),
+  ]);
+  rig.run(1);
+  assert.ok(Math.abs(phase() - before) > 0.1, 'the wheel was turned out of mesh');
+  rig.run(120);
+  const error = Math.abs(phase() - before);
+  const tolerance = (2 * Math.PI) / 12 / 100;
+  assert.ok(error < tolerance, `back in phase after the hinge came back: ${error} < ${tolerance}`);
+});
