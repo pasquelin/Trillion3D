@@ -521,6 +521,40 @@ values another material shares — is copied on write and opens the session agai
 `world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
 reopen.
 
+### Guides: lines, points and helpers over the image
+
+`world.guides` draws what a page shows _about_ its scene — an axis, a grid, a box, a measured
+segment, a light's cone — without adding it to the scene. A guide is not cut into pages: it is
+drawn by a small pass of its own after the image is composed, as quads of a fixed width in
+device pixels (the drawing buffer's, not CSS pixels), hidden by whatever stands in front of it (the scene's depth is read, never
+written). It never enters temporal accumulation, so it does not smear behind a moving camera
+nor shimmer on a still one.
+
+```js
+const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper, as it stands
+const ruler = world.guides.lines({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', width: 3 });
+const marks = world.guides.points({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', size: 8 });
+ruler.setVisible(false); // kept, not drawn
+grid.setTransform(model.matrixWorld); // placed again, e.g. every frame to follow a node
+marks.remove();
+```
+
+- `add(object, { width, size })` reads the line and point meshes of an object — every `helper`
+  builds them — in their material colours; triangles, like an arrow's head, are not guides.
+  `lines` takes two ends per segment, `points` one position per dot.
+- Every call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
+  numbers or a matrix), `remove()`. `world.guides.clear()` removes them all.
+- The guides of a world hold at most `GUIDE_VERTEX_CEILING` (65,536) vertices, two per segment and
+  one per dot, hidden ones included; a call beyond it throws `EngineError` `GUIDE_CEILING` and
+  adds nothing. `world.guides.vertexCount` reads what is held.
+- Off by default and free when unused: while no guide is shown the pass is not built and not
+  encoded, and a still view is held as before. Changing a guide redraws one frame and leaves
+  temporal accumulation as it was.
+- Both paths draw them: WebGPU over its display target with the reversed depth, WebGL2 over the
+  composed frame with the forward depth. Positions are packed relative to the first guide, in
+  double precision, so a guide far from the origin keeps its detail.
+- Text labels are not guides yet (#264).
+
 ## Installation and environment API
 
 The package is private and installed from this repository or a local tarball; it is not published
