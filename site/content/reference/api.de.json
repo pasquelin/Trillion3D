@@ -7111,6 +7111,7 @@
       "bodies": "Körper, die die Simulation hält.",
       "active": "Wache Körper nach dem letzten Tick.",
       "stepMs": "Worker-Millisekunden pro festem Schritt, letzter Tick: die Uhr des Workers, nie zu der der Seite addiert.",
+      "stepMaxMs": "Worker-Millisekunden des langsamsten festen Schritts des letzten Ticks: ein langsamer Schritt, den der Mittelwert verbirgt.",
       "mainMs": "Seiten-Millisekunden der Physik im letzten Bild (die CPU-Stufe `physics`).",
       "poses": "Posen, die der letzte Tick zurückgab.",
       "events": "Kontaktereignisse, die der letzte Tick zurückgab.",
