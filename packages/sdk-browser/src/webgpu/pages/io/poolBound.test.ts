@@ -66,8 +66,8 @@ test('the geometry held never passes the declared pool, at prepare and mid-sessi
   const floor = geometryAllocationBytes!,
     slot = geometryPoolAllocatedBytes! / geometryPoolSlots!;
   assert.ok(floor > slot, 'vertex buffers are held beside the root slot');
-  // The floor and one byte under it, every value one byte off a slot boundary, one off every
-  // alignment, the whole scene, and the two budgets #487 measured.
+  // The floor and one byte under it, one byte past it, a value off every 4-byte alignment, each
+  // slot boundary and one byte under it, and the two budgets #487 measured (the whole scene).
   const budgets = [floor - 1, floor, floor + 1, floor + 37, 393_024, 393_048];
   for (const slots of [1, 2]) budgets.push(floor + slots * slot - 1, floor + slots * slot);
   let streamed = 0;

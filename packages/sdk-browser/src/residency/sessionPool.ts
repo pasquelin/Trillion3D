@@ -15,14 +15,13 @@ export function sessionGeometryPool(
   budgetBytes: number | undefined,
   ceilingBytes: number | undefined,
 ) {
-  const poolFor = (bytes: number, ceilingSlots?: number) =>
-    geometryPoolFor({ ...options, budgetBytes: bytes, ceilingSlots });
+  const poolFor = (bytes: number, ceilingSlots?: number, heldBytes?: number) =>
+    geometryPoolFor({ ...options, budgetBytes: bytes, ceilingSlots, heldBytes });
   const pool = poolFor(budgetBytes ?? DEFAULT_GEOMETRY_POOL_BUDGET);
   const ceilingSlots = poolFor(Math.max(pool.budgetBytes, ceilingBytes ?? 0)).slots;
   return {
     pool,
     ceilingSlots,
-    poolFor: (bytes: number, heldBytes?: number) =>
-      geometryPoolFor({ ...options, budgetBytes: bytes, ceilingSlots, heldBytes }),
+    poolFor: (bytes: number, heldBytes?: number) => poolFor(bytes, ceilingSlots, heldBytes),
   };
 }

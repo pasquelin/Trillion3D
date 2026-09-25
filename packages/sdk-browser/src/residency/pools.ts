@@ -56,8 +56,8 @@ export function geometryPoolFor(options: {
   heldBytes?: number;
   limits?: Parameters<typeof pageBufferCap>[0];
 }): GeometryPool {
-  const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options,
-    { heldBytes = 0 } = options;
+  const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options;
+  const { heldBytes = 0 } = options;
   checkBudget(budgetBytes, 'INVALID_GEOMETRY_POOL_BUDGET');
   const floor = Math.max(1, options.rootPages);
   let slots = Math.floor(Math.max(0, budgetBytes - heldBytes) / pageBytes),
