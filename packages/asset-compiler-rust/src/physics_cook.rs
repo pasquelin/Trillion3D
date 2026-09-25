@@ -30,7 +30,7 @@ pub(crate) use stage::stage_physics;
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
 pub const PHYSICS_COOK_VERSION: u32 = 4;
 /// Version of `physics.json`, its own: a reader refuses any other.
-pub const PHYSICS_FORMAT_VERSION: u32 = 1;
+pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
 pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
