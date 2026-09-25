@@ -14575,9 +14575,14 @@
     "section": "types",
     "kind": "Type",
     "title": "SoftBodyCommon",
-    "signature": "interface SoftBodyCommon",
+    "signature": "interface SoftBodyCommon extends Pick<\n  PhysicsBodyOptions,\n  'friction' | 'restitution' | 'gravityScale'\n>",
     "summary": "What `obj.physics` accepts for a soft body: its vertices are simulated one by one.",
     "members": [
+      {
+        "name": "damping?",
+        "type": "{ linear?: number; } | undefined",
+        "desc": "The share of its vertices' speed lost per second, `dv/dt = −c·v`, 0 and up."
+      },
       {
         "name": "pins?",
         "type": "readonly number[] | undefined",
@@ -14599,7 +14604,7 @@
         "desc": "How much it gives when folded, rad/(N·m) (a rope: m/N); `Infinity` folds freely."
       }
     ],
-    "description": ""
+    "description": "Its matter and pull as a rigid body's; no angular damping, shape, sensor, CCD nor debris."
   },
   {
     "id": "SoftBodyOptions",
