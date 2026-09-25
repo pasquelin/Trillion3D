@@ -12,7 +12,7 @@ import { createTestContext } from '../core/testContext.fixture.ts';
 /** A WebGL2 double that samples a unit as GL does, replayed from the calls it recorded: its
  *  level 0, or black when its min filter reads levels the texture does not have. */
 function sampledContext() {
-  const { gl, calls } = createTestContext();
+  const { gl, calls, of } = createTestContext();
   const sample = (unit: number) => {
     const held = new Map<unknown, { picture?: Uint8Array; chain?: boolean; minFilter?: string }>(),
       units = new Map<unknown, unknown>();
@@ -33,14 +33,14 @@ function sampledContext() {
     const { picture, chain, minFilter } = held.get(units.get(`TEXTURE0${unit}`))!;
     return minFilter?.includes('MIPMAP') && !chain ? [0, 0, 0, 0] : [...picture!.slice(0, 4)];
   };
-  return { gl, sample };
+  return { gl, sample, chains: () => of('generateMipmap').length };
 }
 
 /** A 2×2 texel map of one colour read through `minFilter`, as the host declares it: no
- *  `generateMipmaps`. */
-function colourMap(minFilter: number) {
+ *  `generateMipmaps` unless `asked`. */
+function colourMap(minFilter: number, asked = false) {
   const host = G.dataTexture(new Uint8Array(16).fill(200), 2, 2);
-  host.minFilter = minFilter;
+  Object.assign(host, { minFilter, generateMipmaps: asked });
   return { host, map: importHostTexture(host as unknown as HostTexture) };
 }
 
@@ -64,4 +64,12 @@ test('a sampling moved to a mip filter with no new picture samples its colour', 
   binder.bind(0, map);
   assert.equal(map.version, version, 'the sampler moved alone');
   assert.deepEqual(sample(0), [200, 200, 200, 200]);
+});
+
+test('a filter without mip builds no chain on WebGL2 though the host asks one', () => {
+  const { gl, sample, chains } = sampledContext();
+  const { map } = colourMap(G.HOST_FILTER_LINEAR, true);
+  new WebglClusterTextures(gl).bind(0, map);
+  assert.deepEqual(sample(0), [200, 200, 200, 200]);
+  assert.equal(chains(), 0);
 });
