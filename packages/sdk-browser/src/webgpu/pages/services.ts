@@ -28,7 +28,7 @@ export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots } = rt.layout,
-    { tracking, bootstrap, bootstrapUrls, bootstrapKey, slots } = rt.setup,
+    { tracking, bootstrap, bootstrapUrls, bootstrapKey } = rt.setup,
     { sourceBytes, byUrl, geometryUrls } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
@@ -121,7 +121,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const bootstrapState = createWebgpuBootstrap({
     pages: bootstrap,
     urls: bootstrapUrls,
-    slots,
+    // The pool the device granted, read when said: prepare grants it after the services exist.
+    getSlots: () => rt.setup.slots,
     tracking,
     signal: context.signal,
     readPage: context.readPage,
