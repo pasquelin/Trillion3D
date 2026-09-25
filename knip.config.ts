@@ -72,8 +72,6 @@ const config: KnipConfig = {
   // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
   ignoreDependencies: ['daisyui', 'flag-icons'],
   ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config'],
-  // These specifiers are harness server URLs resolved by the browser, not local Node modules.
-  ignoreUnresolved: ['/runner/witnessPage.ts'],
 };
 
 export default config;
