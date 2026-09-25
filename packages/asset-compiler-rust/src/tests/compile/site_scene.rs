@@ -51,9 +51,15 @@ pub(super) fn cook_site_scene(
         serde_json::from_slice(&fs::read(source.join(gltf)).expect("gltf")).expect("json");
     let bin = fs::read(source.join(format!("{tag}.bin"))).expect("bin");
     let (root, mut options) = gltf_fixture(tag, &document, &bin);
-    for uri in document["images"].as_array().into_iter().flatten() {
-        let uri = uri["uri"].as_str().expect("image uri");
-        fs::copy(source.join(uri), options.source.join(uri)).expect("image");
+    // Images read from files beside the glTF; one in a buffer view or a data URI travels with it.
+    let files = document["images"].as_array().into_iter().flatten();
+    for uri in files.filter_map(|image| image["uri"].as_str()) {
+        if uri.starts_with("data:") {
+            continue;
+        }
+        let target = options.source.join(uri);
+        fs::create_dir_all(target.parent().expect("image folder")).expect("image folder");
+        fs::copy(source.join(uri), target).expect("image");
     }
     options.simplification = simplification.into();
     options.texture_formats = Vec::new();

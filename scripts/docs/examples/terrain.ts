@@ -16,7 +16,7 @@ const height = (x: number, z: number) =>
 /**
  * A regular grid of `side` × `side` samples `step` metres apart from `(x0, z0)`, lifted by
  * `height`, the shape the compiler cooks into a height field: heights on a 1/256 m grid, the
- * surface's normals, and (u, v) repeating every `tiling` samples.
+ * surface's normals, and (u, v) repeating every `tiling` steps.
  */
 export function heightGrid(
   side: number,
