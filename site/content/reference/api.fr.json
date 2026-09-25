@@ -1988,11 +1988,11 @@
     }
   },
   "Geometry": {
-    "summary": "La forme seule : des attributs nommés par sommet, un index de triangles facultatif, des groupes de matériaux.",
+    "summary": "La forme seule : des attributs nommés par sommet, un index de triangles facultatif, des groupes de matériaux, les cibles de morphose qui la déplacent et la plage dessinée.",
     "members": {
       "isGeometry": "Toujours `true` : distingue une géométrie de tout le reste.",
       "type": "Le genre de la géométrie, `'Geometry'`.",
-      "attributes": "Les listes par sommet, par nom : `position`, `normal`, `uv`, `color`.",
+      "attributes": "Les listes par sommet, par nom : `position`, `normal`, `uv`, `color` ; chacune possède ses nombres ou lit un tampon entrelacé.",
       "index": "Quels sommets forment chaque triangle, trois nombres par triangle ; `null` les lit dans l’ordre.",
       "groups": "Plages d’indices dessinées avec `material[materialIndex]` quand un maillage en porte plusieurs.",
       "boundingBox": "La boîte autour de chaque sommet, une fois calculée ; `null` avant.",
@@ -2006,8 +2006,8 @@
       "addGroup": "Dessine `count` indices à partir de `start` avec le matériau numéro `materialIndex` du maillage.",
       "clearGroups": "Retire chaque groupe de matériau.",
       "computeVertexNormals": "Normales lisses : chaque sommet fait la moyenne des faces qui le partagent, pondérées par leur aire.",
-      "computeBoundingBox": "Mesure la boîte autour de chaque sommet et la garde dans `boundingBox`.",
-      "computeBoundingSphere": "Mesure la boule autour de chaque sommet et la garde dans `boundingSphere`.",
+      "computeBoundingBox": "Mesure la boîte autour de chaque sommet et de chaque forme que lui donne une cible de morphose, et la garde dans `boundingBox`.",
+      "computeBoundingSphere": "Mesure la boule centrée sur la boîte qui atteint le sommet le plus lointain, morphé ou non, et la garde dans `boundingSphere`.",
       "applyMatrix4": "Déplace chaque position, tourne chaque normale : c’est la géométrie qui change, pas une pose.",
       "translate": "Déplace chaque sommet de `(x, y, z)`.",
       "rotateX": "Tourne chaque sommet autour de l’axe x, de `angle` radians.",
@@ -2015,9 +2015,18 @@
       "rotateZ": "Tourne chaque sommet autour de l’axe z, de `angle` radians.",
       "scale": "Étire chaque sommet de `(x, y, z)`.",
       "center": "Déplace la géométrie pour que sa boîte soit centrée sur l’origine.",
-      "clone": "Une nouvelle géométrie avec des copies de chaque liste.",
-      "dispose": "Oublie ceux qui la tiennent : une géométrie libérée n’est dessinée par personne.",
-      "recipe": "Le membre de la famille et les arguments qui ont construit cette forme, tant qu’elle est encore ce qu’ils ont construit : ce qu’une scène enregistrée stocke au lieu des sommets. Tout changement ultérieur l’oublie."
+      "clone": "Une nouvelle géométrie avec des copies de chaque liste, ses groupes, sa plage, ses données et ses bornes, et la recette qui la construit encore.",
+      "dispose": "Rend la géométrie : lance chaque crochet de libération une fois, oublie ceux qui la tiennent et l’arbre de lancer de rayons ; personne ne dessine ni ne vise une géométrie libérée.",
+      "recipe": "Le membre de la famille et les arguments qui ont construit cette forme, tant qu’elle est encore ce qu’ils ont construit : ce qu’une scène enregistrée stocke au lieu des sommets. Tout changement ultérieur l’oublie.",
+      "kind": "Ce qu’est la ressource, comme un lecteur de la scène distingue les ressources.",
+      "name": "Son nom.",
+      "morphAttributes": "Pour chaque attribut morphé, un attribut par cible de morphose.",
+      "morphTargetsRelative": "Vrai quand une cible de morphose contient des déplacements, pas des positions.",
+      "drawRange": "La plage de l’index dessinée.",
+      "userData": "Place libre pour les données de celui qui a construit la géométrie.",
+      "released": "Appelés quand la géométrie est rendue : ce qu’écoute la copie qu’en garde un moteur de rendu.",
+      "getIndex": "La liste de triangles, ou `null`.",
+      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2422,9 +2431,6 @@
       "width": "Largeur en pixels.",
       "height": "Hauteur en pixels."
     }
-  },
-  "HostGeometry": {
-    "summary": "Une géométrie de l’hôte : ses attributs, et la boîte locale que l’hôte a calculée dessus."
   },
   "HostMaterial": {
     "summary": "Un matériau de l’hôte tel que le lit le moteur : les paramètres de surface que partage tout matériau de l’hôte, lus une fois à la frontière dans le `VisMaterial` du moteur ; seul `sideOf` lit `side`."
@@ -7279,32 +7285,6 @@
       "steer": "Volant, de −1 tout à gauche à 1 tout à droite.",
       "handbrake": "Si le frein à main est tiré."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Ses attributs de sommets.",
-      "boundingBox": "La boîte locale calculée par l’hôte.",
-      "kind": "Ce qu’est la ressource.",
-      "name": "Son nom.",
-      "index": "La liste des triangles, ou `null` pour dessiner les sommets dans l’ordre.",
-      "morphAttributes": "Pour chaque attribut déformé, un attribut par cible de morphose.",
-      "morphTargetsRelative": "Vrai quand une cible de morphose tient des déplacements, pas des positions.",
-      "groups": "Plages de l’index dessinées chacune avec une surface.",
-      "drawRange": "La plage de l’index dessinée.",
-      "boundingSphere": "La sphère locale, une fois calculée ou déclarée.",
-      "userData": "Place libre pour les données de celui qui a construit la géométrie.",
-      "getIndex": "La liste des triangles.",
-      "setIndex": "Fixe la liste des triangles.",
-      "getAttribute": "L’attribut de ce nom.",
-      "setAttribute": "Nomme un attribut.",
-      "deleteAttribute": "Oublie un attribut.",
-      "hasAttribute": "Si elle a un attribut de ce nom.",
-      "clone": "Une géométrie qui tient une copie de chaque tampon, ses groupes, sa plage et ses bornes.",
-      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui.",
-      "computeBoundingBox": "Calcule la boîte locale sur tous les sommets.",
-      "computeBoundingSphere": "Calcule la sphère locale : centrée sur la boîte, jusqu’au sommet le plus lointain."
-    },
-    "summary": "Les attributs qu’un maillage dessine, la liste de triangles qui les indexe, les cibles de morphose qui les déplacent, et la boîte et la sphère locales calculées dessus."
   },
   "GraphNode": {
     "members": {
