@@ -59,6 +59,10 @@ export type HostShadedMaterial = HostMaterial & {
   /** A dashed line's dash and gap along the line, in world units; absent on any other surface. */
   readonly dashSize?: number;
   readonly gapSize?: number;
+  /** Set on a surface that draws a sprite's quad, with its turn and its size rule. */
+  readonly sprite?: boolean;
+  readonly rotation?: number;
+  readonly sizeAttenuation?: boolean;
   readonly envMap?: HostMap;
   readonly lightMap?: HostMap;
   readonly bumpMap?: HostMap;

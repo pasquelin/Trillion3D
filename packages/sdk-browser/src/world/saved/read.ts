@@ -5,6 +5,7 @@ import { RECIPES } from '../../../../sdk-core/src/world/geometry/recipes.ts';
 import { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Mesh, type Primitive } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
 import { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
@@ -81,7 +82,13 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     if (saved.mesh) {
       const worn = saved.mesh.material;
       const matter = Array.isArray(worn) ? worn.map((i) => materials[i]) : materials[worn];
-      o = new Mesh(geometries[saved.mesh.geometry], matter, saved.mesh.primitive as Primitive);
+      const { geometry, primitive, center } = saved.mesh;
+      if (primitive === 'sprite') {
+        const sprite = new Sprite(matter as Material);
+        sprite.geometry = geometries[geometry];
+        if (center) sprite.center.set(center[0], center[1]);
+        o = sprite;
+      } else o = new Mesh(geometries[geometry], matter, primitive as Primitive);
     } else if (saved.light) {
       const { kind, color, groundColor, values, target, sh } = saved.light;
       o = new Light(kind, { ...values, color, groundColor, target, sh: sh ?? undefined });

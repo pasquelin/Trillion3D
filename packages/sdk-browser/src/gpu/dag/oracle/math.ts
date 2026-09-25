@@ -10,6 +10,7 @@ import {
   type LightPages,
 } from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts';
+import { OPEN_PLANES } from '../../../page/cut/select.ts';
 import { DAG_NODE_FLOATS } from '../types.ts';
 import {
   NODE_CEIL,
@@ -22,7 +23,7 @@ import {
   NODE_SPHERE,
   NODE_WORLD,
 } from '../packNodes.ts';
-import type { DagViewUniforms } from '../types.ts';
+import type { DagViewUniforms, PackedDag } from '../types.ts';
 
 /** Column-major 4×4 buffers rewritten per world, never reallocated. */
 export const dagScratch = {
@@ -82,7 +83,7 @@ export type DagViewFrames = {
   light?: LightPages;
 };
 export function dagViewFrames(
-  packed: { worlds: Float32Array; worldStretch: Float32Array; worldCount: number },
+  packed: Pick<PackedDag, 'worlds' | 'worldStretch' | 'worldCount'> & Partial<PackedDag>,
   uniforms: DagViewUniforms,
 ): DagViewFrames {
   const cameraStretch = uniforms.cameraStretch ?? 1,
@@ -96,6 +97,7 @@ export function dagViewFrames(
     copyMatrix4(world, packed.worlds, 0, w * 16);
     const object = new Float64Array(24);
     frustumPlanesToLocal(object, uniforms.planes, world);
+    if (packed.unculled?.[w] && !uniforms.light) object.set(OPEN_PLANES);
     planes.push(object);
     multiplyMatrix4(viewMatrix, view, world);
     views.push(Array.from(viewMatrix));
