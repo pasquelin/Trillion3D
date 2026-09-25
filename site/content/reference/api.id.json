@@ -368,6 +368,7 @@
       "top": "Tepi atas kotak orthographic.",
       "bottom": "Tepi bawah kotak orthographic.",
       "projection": "`'perspective'` membuat benda jauh kecil; `'orthographic'` menjaga setiap ukuran.",
+      "copy": "Mengambil nilai simpul dari `source` dan, dari kamera, optiknya; `projection` miliknya sendiri tetap.",
       "updateProjectionMatrix": "Disimpan untuk halaman yang ditulis terhadap sebuah perender yang membutuhkannya: setiap penulisan optik sudah menggambar ulang.",
       "rayThrough": "Sinar dunia yang melewati sebuah titik gambar, menurut proyeksi mesin itu sendiri (`engineCamera.ts`): dari mata sepanjang arah pandang untuk kamera perspektif, lurus searah pandang dari kotak untuk kamera ortografis. Arahnya adalah vektor satuan.",
       "set": "Menaruh mata di `pose.position`, melihat ke `pose.target`, pada bidang yang disebutkannya."
@@ -1610,6 +1611,7 @@
       "height": "Tinggi sebuah rectangle light.",
       "radius": "Radius bola pemancar; `emitterRadius` dalam penyimpanan mesin.",
       "kind": "Jenis cahaya apa ini: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Mengambil nilai simpul dari `source` dan, dari cahaya, angka, warna, koefisien, dan arahnya; `kind` miliknya sendiri tetap.",
       "needsUpdate": "`light.needsUpdate = true` setelah menulis `sh` di tempat: dunia membacanya lagi.",
       "lookAt": "Membidikkan cahaya ke sebuah titik dunia: sebuah cahaya directional atau spot menggerakkan `target`-nya ke sana — arahnya dibaca darinya —, dan node itu juga berputar, yang menjadi arah hadap sebuah rectangle."
     }
