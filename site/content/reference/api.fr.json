@@ -15,6 +15,13 @@
       "clipTime": "Où en est l’action dans le clip, selon son mode de boucle."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Le plus grand canevas qu’un budget déclare : les cibles de la chaîne d’effets sont réservées à sa taille.",
+    "members": {
+      "width": "Largeur en pixels du tampon de dessin.",
+      "height": "Hauteur en pixels du tampon de dessin."
+    }
+  },
   "adaptivePixelError": {
     "summary": "Le seuil adaptatif monte avec la vitesse de la caméra pour qu’une vue en mouvement puisse simplifier ; une vue immobile garde le pixelError de base."
   },

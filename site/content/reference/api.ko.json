@@ -266,6 +266,13 @@
       "out": "`6 · n`개의 숫자: 변환된 박스들."
     }
   },
+  "BudgetCanvas": {
+    "summary": "예산이 선언하는 가장 큰 캔버스: 이펙트 체인의 타깃이 그 크기로 예약된다.",
+    "members": {
+      "width": "드로잉 버퍼의 픽셀 단위 너비.",
+      "height": "드로잉 버퍼의 픽셀 단위 높이."
+    }
+  },
   "BufferAttribute": {
     "summary": "정점별 값을 담는 타입 배열로, 정점당 `itemSize`개의 숫자를 가진다: 페이지 코덱의 `PageAttribute`(`page-codec/pageAttributes.ts`)이며, 페이지가 여기에 무엇을 쓰는지를 나타낸다.",
     "members": {
