@@ -1570,7 +1570,8 @@
       "PHYSICS_FAILED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, Dreiecke, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
       "PHYSICS_FORMAT": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` wurde auf `'vehicle'` gesetzt, während `world.controls.vehicle` `null` ist: Es gibt nichts zu fahren."
+      "NO_VEHICLE": "`world.controls.kind` wurde auf `'vehicle'` gesetzt, während `world.controls.vehicle` `null` ist: Es gibt nichts zu fahren.",
+      "GUIDE_CEILING": "Ein Aufruf von `world.guides` würde mehr Eckpunkte halten als `GUIDE_VERTEX_CEILING`; nichts davon wurde hinzugefügt."
     }
   },
   "enginePose": {
@@ -2132,6 +2133,42 @@
     "members": {
       "isGroup": "Immer `true`: unterscheidet eine Gruppe.",
       "type": "Die Art des Knotens, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Ein Satz Hilfslinien, den eine Seite gezeichnet hat; jeder Setter gibt das Handle zurück.",
+    "members": {
+      "visible": "Ob er gezeichnet wird; `setVisible` schreibt es.",
+      "setVisible": "Zeigt oder verbirgt ihn; seine Eckpunkte zählen weiter gegen die Obergrenze.",
+      "setTransform": "Platziert ihn: sechzehn Zahlen spaltenweise oder eine Matrix — `node.matrixWorld` folgt einem Knoten.",
+      "remove": "Nimmt ihn aus der Welt, seine Eckpunkte werden freigegeben; ein zweiter Aufruf tut nichts."
+    }
+  },
+  "GuideLines": {
+    "summary": "Zu zeichnende Liniensegmente.",
+    "members": {
+      "positions": "Zwei Enden pro Segment, je drei Zahlen.",
+      "color": "Ihre Farbe; standardmäßig weiß.",
+      "width": "Breite auf dem Bildschirm, in Pixeln."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Zu zeichnende Punkte.",
+    "members": {
+      "positions": "Drei Zahlen pro Punkt.",
+      "color": "Ihre Farbe; standardmäßig weiß.",
+      "size": "Seitenlänge jedes quadratischen Punkts auf dem Bildschirm, in Pixeln."
+    }
+  },
+  "Guides": {
+    "summary": "Die Hilfslinien einer Welt, wie eine Seite sie zeichnet: `world.guides`.",
+    "members": {
+      "ceiling": "Höchstzahl an Eckpunkten, die die Hilfslinien zusammen halten (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Jetzt gehaltene Eckpunkte, zwei pro Segment und einer pro Punkt, verborgene eingeschlossen.",
+      "lines": "Zeichnet Liniensegmente mit je zwei Enden; über der Obergrenze abgelehnt (`GUIDE_CEILING`).",
+      "points": "Zeichnet quadratische Punkte mit je einer Position; über der Obergrenze abgelehnt (`GUIDE_CEILING`).",
+      "add": "Zeichnet die Linien- und Punkt-Meshes von `object` — jeder `helper` baut solche —, in ihren Materialfarben, dort platziert, wo das Objekt jetzt steht; seine Dreiecke sind keine Hilfslinien und werden übersprungen.",
+      "clear": "Entfernt alle Hilfslinien."
     }
   },
   "HALF_PI": {
@@ -6470,6 +6507,9 @@
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },
+  "world.guides": {
+    "summary": "Linien, Punkte und Helfer, über das Bild gezeichnet (`Guides`)."
+  },
   "world.onFrame": {
     "summary": "Startet eine Funktion vor jedem Bild, mit der Bildzeit.",
     "parameters": {
@@ -7031,6 +7071,10 @@
       "mars": "Die des Mars.",
       "none": "Keine Schwerkraft."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Höchstzahl an Eckpunkten, die die Hilfslinien einer Welt zusammen halten: zwei pro Segment, einer pro Punkt.",
+    "description": "Festgelegt, nicht abgeleitet: Sie begrenzt den einen Instanzpuffer, den der Pass hochlädt, auf 64 Ki × 32 Byte = 2 MiB, was auch immer eine Seite verlangt — ein Raster aus 16 000 Linien passt, die Punktwolke einer gescannten Stadt nicht, sie gehört in die Szene."
   },
   "GravityInput": {
     "summary": "Eine Schwerkraft: der Name einer Vorgabe oder ein Vektor in m/s²."

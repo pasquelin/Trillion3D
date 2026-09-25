@@ -150,6 +150,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** The world's memory pools, read and set in bytes, and the physics envelopes. */
     budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
     diagnostic: diagnostic.handle,
+    /** Lines, points and helpers drawn over the image (`Guides`). */ guides: switches.guides,
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
     raycast: createWorldRaycast(scene, () => camera, canvas, physics.session),
@@ -164,8 +165,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
-    /** Draws one frame now, whoever leads the loop. */
-    render() {
+    /** Draws one frame now, whoever leads the loop. */ render() {
       if (live()) frames.prepare(frames.advance());
       runtime.render();
     },
