@@ -4,7 +4,7 @@ import type {
   HostDiagnosticMaterial,
 } from './resources.ts';
 import type { GraphGeometry } from './graph/geometry.ts';
-import { GraphAttribute } from './graph/attributes.ts';
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './graph/surface.ts';
 import { clusterColor } from '../diagnostic/colors.ts';
 
@@ -21,7 +21,7 @@ export const pageDiagnostics: HostDiagnosticFactory = {
   triangleGeometry: (geometry) =>
     (geometry as unknown as GraphGeometry).toNonIndexed() as unknown as HostDiagnosticGeometry,
   vertexColors(geometry, colors) {
-    (geometry as unknown as GraphGeometry).setAttribute('color', new GraphAttribute(colors, 3));
+    (geometry as unknown as GraphGeometry).setAttribute('color', new BufferAttribute(colors, 3));
   },
   triangleMaterial: (side) => unshaded({ vertexColors: true, toneMapped: false }, side),
   clusterMaterial: (id, side) => unshaded({ color: clusterColor(id, 0.75) }, side),

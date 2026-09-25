@@ -12,7 +12,7 @@ import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basi
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { resolveCameraWorld } from '../../camera/world.ts';
 import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts';
-import { GraphAttribute } from './attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphCamera } from './camera.ts';
 import { GraphGeometry } from './geometry.ts';
 import { GraphMesh } from './mesh.ts';
@@ -29,7 +29,11 @@ export { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 export { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
 export { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 export * from '../surfaceConstants.ts';
-export { GraphAttribute, GraphInterleavedAttribute, GraphInterleavedBuffer } from './attributes.ts';
+export {
+  BufferAttribute,
+  InterleavedBufferAttribute,
+  InterleavedBuffer,
+} from '../../../../sdk-core/src/world/buffer/attribute.ts';
 export { GraphCamera } from './camera.ts';
 export { GraphGeometry } from './geometry.ts';
 export { GraphLight } from './light.ts';
@@ -77,7 +81,7 @@ function surface(family: GraphSurfaceFamily, parameters: SurfaceParameters = {})
 
 /** Numbers stored as 32-bit floats, `itemSize` per vertex. */
 export const floatAttribute = (values: ArrayLike<number>, itemSize: number, normalized = false) =>
-  new GraphAttribute(new Float32Array(values), itemSize, normalized);
+  new BufferAttribute(new Float32Array(values), itemSize, normalized);
 
 /** A perspective eye by its optics. */
 export const perspectiveCamera = (fov = 50, aspect = 1, near = 0.1, far = 2000) =>
@@ -139,7 +143,7 @@ export const sphereGeometry = (...sizes: Parameters<typeof sphere>) =>
 
 /** A triangle list as the reference stores one: 16-bit while every vertex fits, else 32-bit. */
 export const indices = (list: readonly number[]) =>
-  new GraphAttribute(
+  new BufferAttribute(
     list.some((i) => i >= 65535) ? new Uint32Array(list) : new Uint16Array(list),
     1,
   );

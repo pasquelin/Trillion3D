@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Luôn là `true`: phân biệt một thuộc tính bộ đệm với bất cứ thứ gì khác.",
       "type": "Cách các giá trị được khai báo; một thuộc tính half-float được giữ ở độ chính xác float.",
-      "normalized": "Các số nguyên có được đọc thành giá trị giữa 0 và 1 hay không.",
       "version": "Tăng lên ở mỗi lần ghi đã khai báo: đó là điều mà thế giới so sánh để biết nội dung đã thay đổi.",
       "array": "Chính các con số đó.",
-      "itemSize": "Có bao nhiêu số thuộc về một đỉnh: 3 cho một vị trí.",
       "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
-      "needsUpdate": "`attribute.needsUpdate = true` sau khi ghi `array`: thế giới sẽ đọc lại nó.",
-      "getComponent": "Số `component` của đỉnh `index`.",
-      "getX": "Số đầu tiên của đỉnh `i`.",
-      "getY": "Số thứ hai của đỉnh `i`.",
-      "getZ": "Số thứ ba của đỉnh `i`.",
-      "getW": "Số thứ tư của đỉnh `i`.",
-      "setXYZ": "Ghi ba số cho đỉnh `i`.",
-      "setXY": "Ghi hai số cho đỉnh `i`.",
-      "setX": "Ghi số đầu tiên của đỉnh `i`.",
-      "clone": "Một thuộc tính mới với bản sao các con số."
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại.",
+      "clone": "Một thuộc tính mới với bản sao các số, kiểu, chuẩn hóa và tên của chúng.",
+      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
+      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
+      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
+      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên."
     }
   },
   "BufferNumbers": {
@@ -1446,7 +1440,10 @@
       "array": "Các con số của từng đỉnh, được đóng gói lần lượt.",
       "stride": "Mỗi đỉnh chiếm bao nhiêu con số.",
       "count": "Nó đóng gói bao nhiêu đỉnh.",
-      "attribute": "Một thuộc tính được đọc ra khỏi gói đó, như thuộc tính số thực của riêng nó."
+      "attribute": "Một thuộc tính được đọc ra khỏi gói đó, như thuộc tính của riêng nó.",
+      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
+      "version": "Tăng bởi `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
     }
   },
   "Intersection": {
@@ -7130,25 +7127,6 @@
       "handbrake": "Phanh tay có đang kéo không."
     }
   },
-  "GraphArray": {
-    "summary": "Các mảng có kiểu mà một thuộc tính giữ."
-  },
-  "GraphAttribute": {
-    "summary": "Một thuộc tính sở hữu vùng lưu trữ của nó: `itemSize` số mỗi đỉnh, nối tiếp nhau.",
-    "members": {
-      "kind": "Thuộc tính sở hữu bộ đệm của nó.",
-      "count": "Có bao nhiêu đỉnh.",
-      "version": "Tăng bởi `needsUpdate`.",
-      "array": "Nơi lưu trữ.",
-      "updateRanges": "Các khoảng của `array` đã ghi từ lần tải lên cuối, gửi riêng.",
-      "addUpdateRange": "Đánh dấu `count` số đã ghi bắt đầu từ `start`.",
-      "clearUpdateRanges": "Quên các khoảng đã ghi sau khi tải lên.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
-    }
-  },
-  "GraphElements": {
-    "summary": "Một trong hai loại thuộc tính."
-  },
   "GraphGeometry": {
     "summary": "Các thuộc tính mà một lưới vẽ, danh sách tam giác đánh chỉ mục chúng, các mục tiêu morph di chuyển chúng, cùng hộp và hình cầu cục bộ tính trên chúng.",
     "members": {
@@ -7173,28 +7151,6 @@
       "toNonIndexed": "Một hình học vẽ cùng các tam giác mà không có chỉ mục: mỗi góc là một đỉnh riêng.",
       "computeBoundingBox": "Tính hộp cục bộ trên mọi đỉnh.",
       "computeBoundingSphere": "Tính hình cầu cục bộ: tâm ở hộp, chạm tới đỉnh xa nhất."
-    }
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
-    "members": {
-      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
-      "data": "Bộ đệm mà nó xem.",
-      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
-      "array": "Vùng lưu trữ chứa các phần tử.",
-      "count": "Bao nhiêu đỉnh.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem, mỗi `stride` số là một đỉnh.",
-    "members": {
-      "kind": "Một vùng lưu trữ mà nhiều thuộc tính cùng xem.",
-      "count": "Bao nhiêu đỉnh.",
-      "version": "Tăng bởi `needsUpdate`.",
-      "array": "Vùng lưu trữ.",
-      "stride": "Số lượng số mỗi đỉnh.",
-      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại."
     }
   },
   "GraphMesh": {
@@ -7366,6 +7322,45 @@
       "pulley": "Một sợi dây từ `a` vắt qua hai bánh xe (`over`) xuống `b`: vật này lên khi vật kia xuống.",
       "gear": "Hai bánh xe quay cùng nhau theo `ratio`, mỗi bánh quanh chốt riêng (`axis`, `axisB`) và được giữ bởi bản lề riêng (bánh xe là `a` của nó); khi `ratio` hoặc 1 / `ratio` là số nguyên, răng của chúng cũng giữ pha lúc được tạo.",
       "rackAndPinion": "Bánh răng nhỏ `a` quay quanh `axis` đẩy thanh răng `b` dọc `axisB`, mỗi cái được giữ bởi bản lề hoặc khớp trượt riêng (vật là `a` của nó), răng giữ đúng pha lúc được tạo."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Một thuộc tính xem `itemSize` số tại `offset` của mỗi đỉnh trong một bộ đệm xen kẽ.",
+    "members": {
+      "isInterleavedBufferAttribute": "Luôn là `true`: phân biệt một khung nhìn xen kẽ với bất cứ thứ gì khác.",
+      "kind": "Thuộc tính xem một bộ đệm dùng chung.",
+      "data": "Bộ đệm mà nó xem.",
+      "offset": "Nơi các số của nó bắt đầu trong mỗi đỉnh.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
+      "needsUpdate": "`needsUpdate = true` sau khi ghi `array`: bên đọc tải nó lên lại.",
+      "clone": "Các số của riêng nó, được sao ra khỏi gói vào một thuộc tính sở hữu chúng."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Một trong hai loại thuộc tính: sở hữu bộ nhớ của mình hoặc xem một bộ nhớ xen kẽ."
+  },
+  "VertexElements": {
+    "summary": "Các phần tử của một thuộc tính đỉnh, được đọc và ghi theo từng thành phần.",
+    "members": {
+      "name": "Tên mà một mục tiêu morph được biết đến; để trống với các thuộc tính khác.",
+      "itemSize": "Có bao nhiêu số thuộc về một đỉnh: 3 cho một vị trí.",
+      "normalized": "Các số nguyên có được đọc thành giá trị giữa 0 và 1 hay không.",
+      "array": "Vùng lưu trữ chứa các phần tử.",
+      "count": "Có bao nhiêu đỉnh được các con số đó mô tả.",
+      "stored": "Số `component` của đỉnh `index` như được lưu trữ; một số nguyên chuẩn hóa chưa được co giãn.",
+      "getComponent": "Số `component` của đỉnh `index`, được đọc như số mà nó biểu thị.",
+      "setComponent": "Ghi số `component` của đỉnh `index`.",
+      "getX": "Số đầu tiên của đỉnh `i`.",
+      "getY": "Số thứ hai của đỉnh `i`.",
+      "getZ": "Số thứ ba của đỉnh `i`.",
+      "getW": "Số thứ tư của đỉnh `i`.",
+      "setX": "Ghi số đầu tiên của đỉnh `i`.",
+      "setY": "Ghi số thứ hai của đỉnh `i`.",
+      "setZ": "Ghi số thứ ba của đỉnh `i`.",
+      "setW": "Ghi số thứ tư của đỉnh `i`.",
+      "setXY": "Ghi hai số cho đỉnh `i`.",
+      "setXYZ": "Ghi ba số cho đỉnh `i`."
     }
   }
 }

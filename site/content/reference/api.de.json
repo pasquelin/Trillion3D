@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Immer `true`: unterscheidet ein Pufferattribut von allem anderen.",
       "type": "Wie die Werte deklariert wurden; ein Attribut in Halbfließkommazahlen wird in Fließkommagenauigkeit gehalten.",
-      "normalized": "Ob sich die Ganzzahlen als Werte zwischen 0 und 1 lesen.",
       "version": "Bei jedem deklarierten Schreibvorgang erhöht: das, was die Welt vergleicht, um zu sehen, dass sich der Inhalt geändert hat.",
       "array": "Die Zahlen selbst.",
-      "itemSize": "Wie viele Zahlen zu einem Scheitelpunkt gehören: 3 für eine Position.",
       "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
-      "needsUpdate": "`attribute.needsUpdate = true`, nachdem `array` geschrieben wurde: die Welt liest es dann erneut.",
-      "getComponent": "Die Zahl `component` des Scheitelpunkts `index`.",
-      "getX": "Die erste Zahl des Scheitelpunkts `i`.",
-      "getY": "Die zweite Zahl des Scheitelpunkts `i`.",
-      "getZ": "Die dritte Zahl des Scheitelpunkts `i`.",
-      "getW": "Die vierte Zahl des Scheitelpunkts `i`.",
-      "setXYZ": "Schreibt drei Zahlen für den Scheitelpunkt `i`.",
-      "setXY": "Schreibt zwei Zahlen für den Scheitelpunkt `i`.",
-      "setX": "Schreibt die erste Zahl des Scheitelpunkts `i`.",
-      "clone": "Ein neues Attribut mit einer Kopie der Zahlen."
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch.",
+      "clone": "Ein neues Attribut mit einer Kopie der Zahlen, ihres Typs, ihrer Normalisierung und des Namens.",
+      "kind": "Das Attribut besitzt seinen Puffer.",
+      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
+      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
+      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen."
     }
   },
   "BufferNumbers": {
@@ -2469,7 +2463,10 @@
       "array": "Die Zahlen jedes Scheitelpunkts, nacheinander angeordnet.",
       "stride": "Wie viele Zahlen jeder Scheitelpunkt einnimmt.",
       "count": "Wie viele Scheitelpunkte er verpackt.",
-      "attribute": "Ein aus dem Paket extrahiertes Attribut, als eigenständiges Fließkomma-Attribut."
+      "attribute": "Ein aus dem Paket extrahiertes Attribut, als eigenständiges Attribut.",
+      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
+      "version": "Von `needsUpdate` erhöht.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
     }
   },
   "invertMatrix4": {
@@ -7129,19 +7126,6 @@
       "handbrake": "Ob die Handbremse gezogen ist."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Wie viele Scheitelpunkte.",
-      "array": "Die Speicherung.",
-      "kind": "Das Attribut besitzt seinen Puffer.",
-      "version": "Von `needsUpdate` erhöht.",
-      "updateRanges": "Seit dem letzten Hochladen geschriebene Bereiche von `array`, allein gesendet.",
-      "addUpdateRange": "Markiert `count` Zahlen ab `start` als geschrieben.",
-      "clearUpdateRanges": "Vergisst die geschriebenen Bereiche, sobald hochgeladen.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    },
-    "summary": "Ein Attribut mit eigenem Speicher: `itemSize` Zahlen pro Vertex, hintereinander."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Ihre Scheitelpunktattribute.",
@@ -7236,34 +7220,6 @@
       "rotation": "Die Rotation, in Radiant."
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
-  },
-  "GraphArray": {
-    "summary": "Die typisierten Arrays, die ein Attribut hält."
-  },
-  "GraphElements": {
-    "summary": "Eine der beiden Attributarten."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
-    "members": {
-      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
-      "data": "Der Puffer, den es betrachtet.",
-      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
-      "array": "Der Speicher, in dem die Elemente liegen.",
-      "count": "Wie viele Vertices.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Ein Speicher, den mehrere Attribute betrachten, ein Vertex alle `stride` Zahlen.",
-    "members": {
-      "kind": "Ein Speicher, den mehrere Attribute betrachten.",
-      "count": "Wie viele Vertices.",
-      "version": "Von `needsUpdate` erhöht.",
-      "array": "Der Speicher.",
-      "stride": "Zahlen pro Vertex.",
-      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch."
-    }
   },
   "GraphMesh": {
     "summary": "Ein gezeichneter Knoten: eine Geometrie und ihre Oberfläche, oder eine Oberfläche pro Geometriegruppe.",
@@ -7365,6 +7321,45 @@
       "pulley": "Ein Seil von `a` über zwei Rollen (`over`) hinunter zu `b`: Das eine steigt, wenn das andere sinkt.",
       "gear": "Zwei Räder, die sich im Verhältnis `ratio` zusammen drehen, jedes um seinen eigenen Stift (`axis`, `axisB`) und von seinem eigenen Scharnier gehalten (das Rad als dessen `a`); ist `ratio` oder 1 / `ratio` ganzzahlig, behalten ihre Zähne auch die Phase, in der sie gemacht wurden.",
       "rackAndPinion": "Ein Ritzel `a`, das sich um `axis` dreht, treibt eine Zahnstange `b` entlang `axisB`, jedes von seinem eigenen Scharnier oder Schiebegelenk gehalten (der Körper als dessen `a`), ihre Zähne in der Phase gehalten, in der sie gemacht wurden."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Ein Attribut, das `itemSize` Zahlen bei `offset` jedes Vertex eines verschachtelten Puffers betrachtet.",
+    "members": {
+      "isInterleavedBufferAttribute": "Immer `true`: unterscheidet eine verschachtelte Ansicht von allem anderen.",
+      "kind": "Das Attribut betrachtet einen geteilten Puffer.",
+      "data": "Der Puffer, den es betrachtet.",
+      "offset": "Wo seine Zahlen in jedem Vertex beginnen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
+      "needsUpdate": "`needsUpdate = true` nach dem Schreiben von `array`: ein Leser lädt es erneut hoch.",
+      "clone": "Seine eigenen Zahlen, aus dem Paket in ein Attribut kopiert, das sie besitzt."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Eine der beiden Attributarten: mit eigenem Speicher oder als Ansicht eines verschachtelten Speichers."
+  },
+  "VertexElements": {
+    "summary": "Die Elemente eines Vertex-Attributs, komponentenweise gelesen und geschrieben.",
+    "members": {
+      "name": "Der Name, unter dem ein Morph-Ziel bekannt ist; leer für die anderen.",
+      "itemSize": "Wie viele Zahlen zu einem Scheitelpunkt gehören: 3 für eine Position.",
+      "normalized": "Ob sich die Ganzzahlen als Werte zwischen 0 und 1 lesen.",
+      "array": "Der Speicher, in dem die Elemente liegen.",
+      "count": "Wie viele Scheitelpunkte die Zahlen beschreiben.",
+      "stored": "Die Zahl `component` des Scheitelpunkts `index`, wie sie gespeichert ist; eine normalisierte Ganzzahl unskaliert.",
+      "getComponent": "Die Zahl `component` des Scheitelpunkts `index`, gelesen als die Zahl, für die sie steht.",
+      "setComponent": "Schreibt die Zahl `component` des Scheitelpunkts `index`.",
+      "getX": "Die erste Zahl des Scheitelpunkts `i`.",
+      "getY": "Die zweite Zahl des Scheitelpunkts `i`.",
+      "getZ": "Die dritte Zahl des Scheitelpunkts `i`.",
+      "getW": "Die vierte Zahl des Scheitelpunkts `i`.",
+      "setX": "Schreibt die erste Zahl des Scheitelpunkts `i`.",
+      "setY": "Schreibt die zweite Zahl des Scheitelpunkts `i`.",
+      "setZ": "Schreibt die dritte Zahl des Scheitelpunkts `i`.",
+      "setW": "Schreibt die vierte Zahl des Scheitelpunkts `i`.",
+      "setXY": "Schreibt zwei Zahlen für den Scheitelpunkt `i`.",
+      "setXYZ": "Schreibt drei Zahlen für den Scheitelpunkt `i`."
     }
   }
 }
