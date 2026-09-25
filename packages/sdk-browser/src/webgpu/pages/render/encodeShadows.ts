@@ -69,6 +69,7 @@ export function planShadowRegions(
     { rows, packedPages } = rt.layout;
   runs.reset();
   regions.reset();
+  lights.packedBatch.frame = -1;
   // Residency this frame's light cuts see changed since the last plan: those pages alone restale.
   let residencyMoved = false;
   const { residentFlags, residentOffsetWords } = rows;

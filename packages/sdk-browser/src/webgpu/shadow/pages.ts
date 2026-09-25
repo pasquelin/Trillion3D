@@ -91,21 +91,33 @@ function composePage(lights: WebgpuLightState, slots: Int32Array, page: number, 
  * Pages `[from, to)` of the frame's list — one batch (`admit.ts`, `batchEnd`) —, as the depth pass
  * draws them: each page's regions (`regions.ts`) — its matrix, its own projection, and cull volume,
  * the physical page its viewport lands on —, and the runs its light cuts select in, one per light
- * view, the pages of a view contiguous. Returns the regions.
+ * view, the pages of a view contiguous, at the image's records (`shadowSlots`) and threshold
+ * (`shadowPixelError`). Returns the regions.
+ *
+ * The batch composed last is kept (`packedBatch`): the CPU cut composes every batch to select its
+ * casters, then the depth pass composes them again to draw, and a frame of one batch — the most a
+ * frame drew before #489 — finds it composed and composes it once, as it did.
  */
 export function writeShadowPages(
   lights: WebgpuLightState,
-  slots: Int32Array,
   origin: ArrayLike<number>,
-  pixelError: number,
   from: number,
   to: number,
 ) {
-  const { plan, shadows, cull, runs, regions, faceMatrices } = lights,
+  const { plan, shadows, cull, runs, regions, faceMatrices, packedBatch } = lights,
     { pool, admission } = plan;
+  if (
+    packedBatch.frame === lights.plannedFrame &&
+    packedBatch.from === from &&
+    packedBatch.to === to
+  )
+    return regions.count;
+  packedBatch.frame = -1;
   runs.reset();
   regions.reset();
   if (!shadows || !cull) return 0;
+  const slots = lights.shadowSlots,
+    pixelError = lights.shadowPixelError;
   const list = admission.list;
   let open = -1;
   for (let i = from; i < to; i++) {
@@ -135,6 +147,9 @@ export function writeShadowPages(
     runs.add(pool.x[page], pool.y[page], taken);
   }
   if (open >= 0) close(lights, slots, open, to, origin, pixelError);
+  packedBatch.frame = lights.plannedFrame;
+  packedBatch.from = from;
+  packedBatch.to = to;
   return regions.count;
 }
 

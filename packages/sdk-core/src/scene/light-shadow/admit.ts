@@ -1,5 +1,6 @@
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
+import { ringOf } from './virtual.ts';
 
 /** The light view a page is drawn in — its light, then its sun level or lamp face and mip: the
  *  pages of one view share one caster selection. */
@@ -42,7 +43,7 @@ export function createShadowAdmission(poolPages: number) {
       }
       order.subarray(0, count).sort();
       // A sun level may be negative: the page is the key's remainder, taken positive.
-      for (let i = 0; i < count; i++) list[i] = ((order[i] % poolPages) + poolPages) % poolPages;
+      for (let i = 0; i < count; i++) list[i] = ringOf(order[i], poolPages);
       return count;
     },
     /**

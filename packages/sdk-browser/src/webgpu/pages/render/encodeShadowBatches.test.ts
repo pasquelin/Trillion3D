@@ -8,6 +8,9 @@ import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
+import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
+import { SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -64,4 +67,32 @@ test('a frame draws at most the batches its memory holds, the rest pending', () 
   });
   assert.equal(batches, MAX_SHADOW_BATCHES);
   assert.equal(drawn, MAX_SHADOW_BATCHES, 'where it stopped: the rest wait');
+});
+
+// Under the CPU cut, the selection composes every batch to select its casters, then the depth pass
+// composes them again to draw: the batch composed last is not composed again in the same image, so
+// a frame of one batch — all a frame drew before #489 — composes its pages once, as it did.
+test('the batch composed last is not composed again in its image, any other is', () => {
+  const { lights, pages } = frame(8);
+  assert.ok(pages > MAX_SHADOW_PAGES, `${pages} pages, two batches`);
+  let written = 0;
+  const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS);
+  const noop = () => {};
+  Object.assign(lights, {
+    shadows: { writePage: () => written++, writeSun: noop, writeLamp: noop, clearRecord: noop },
+    cull: { volumes, volumeWords: new Uint32Array(volumes.buffer) },
+    plannedFrame: 1,
+  });
+  lights.shadowSlots = writeShadowRecords(lights);
+  const first = writeShadowPages(lights, VIEW.position, 0, MAX_SHADOW_PAGES);
+  assert.ok(first > 0 && written === first, 'one page matrix per region');
+  assert.equal(writeShadowPages(lights, VIEW.position, 0, MAX_SHADOW_PAGES), first);
+  assert.equal(written, first, 'the same batch of the same image is kept');
+  const second = writeShadowPages(lights, VIEW.position, MAX_SHADOW_PAGES, pages);
+  assert.equal(writeShadowPages(lights, VIEW.position, 0, MAX_SHADOW_PAGES), first);
+  const again = written;
+  assert.equal(again, 2 * first + second, 'another batch, then the first again, are composed');
+  lights.plannedFrame = 2;
+  writeShadowPages(lights, VIEW.position, 0, MAX_SHADOW_PAGES);
+  assert.equal(written, again + first, 'the next image composes it anew');
 });
