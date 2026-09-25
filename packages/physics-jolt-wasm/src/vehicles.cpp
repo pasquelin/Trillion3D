@@ -7,6 +7,7 @@
 #include "words.h"
 
 #include <Jolt/Physics/Body/BodyLock.h>
+#include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
 #include <Jolt/Physics/Vehicle/MotorcycleController.h>
 #include <Jolt/Physics/Vehicle/TrackedVehicleController.h>
 #include <Jolt/Physics/Vehicle/VehicleCollisionTester.h>
@@ -41,12 +42,18 @@ constexpr float TRACK_GRIP = 1.0f, TRACK_SLIDE = 0.5f, TRACK_MASS = 0.05f;
 
 struct Vehicle {
   Ref<VehicleConstraint> constraint;
+  /** The body's shape before its centre of mass was lowered, given back when the vehicle leaves. */
+  RefConst<Shape> shape;
   /** The page's vehicle id, the body's slot, the kind. */
   uint32_t id = 0, body = 0, kind = 0;
   /** The driver's input (DRIVE), and the wheel as the hand has turned it so far. */
   float throttle = 0, brake = 0, steer = 0, handbrake = 0, steered = 0;
   /** Of full lock per second, and a tracked vehicle's inner track ratio (vehicleSpec.ts). */
   float steerRate = 4, trackTurn = 0.6f;
+  /** Per anti-roll bar, in order: its stiffness, N/m, and the body's mass felt at its wheels, kg. */
+  std::vector<float> bars;
+  /** The suspension's angular frequency and damping ratio, and the step the bars are set for. */
+  float omega = 0, damping = 0, barStep = 0;
 };
 
 std::vector<Vehicle> vehicles;
@@ -86,13 +93,15 @@ void powertrainOf(VehicleEngineSettings &engine, VehicleTransmissionSettings &ge
   gearbox.mReverseGearRatios = {-f32(s + 22)};
 }
 
-/// The settings of a vehicle on `body` from the VEHICLE words at `w`.
-VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
+/// The settings of a vehicle on `body` from the VEHICLE words at `w`; its anti-roll bars and
+/// suspension kept in `vehicle` (`setBars`).
+VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body, Vehicle &vehicle) {
   const uint32_t kind = w[2], count = w[4], *s = w + 5;
   float mass = 1.0f / std::max(body.GetMotionProperties()->GetInverseMass(), 1e-9f);
   float frequency = f32(s + 24), damping = f32(s + 25), travel = f32(s + 26), antiRoll = f32(s + 27);
   float maxSteer = f32(s + 28), grip = f32(s + 30), finalDrive = f32(s + 23);
   float omega = 2 * JPH_PI * frequency, gravity = world().system->GetGravity().Length();
+  vehicle.omega = omega, vehicle.damping = damping;
   float share = mass / float(count), lock = grip * share * STANDARD_GRAVITY;
   const MotionProperties &motion = *body.GetMotionProperties();
   const Mat44 inverse = motion.GetLocalSpaceInverseInertia();
@@ -100,7 +109,7 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
   settings.mUp = UP;
   settings.mForward = FORWARD;
   std::vector<const uint32_t *> wheels;
-  std::vector<float> rates;
+  std::vector<float> felts;
   for (uint32_t i = 0; i < count; ++i) {
     const uint32_t *p = w + 5 + 33 + i * WHEEL_WORDS;
     wheels.push_back(p);
@@ -125,8 +134,8 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
     // leaves it: the centre the page placed it at.
     Vec3 arm = (vec3(p) - body.GetShape()->GetCenterOfMass()).Cross(-UP);
     float felt = 1.0f / (motion.GetInverseMass() + arm.Dot(inverse.Multiply3x3(arm)));
-    rates.push_back(felt * omega * omega);
-    float sag = share * gravity / rates.back();
+    felts.push_back(felt);
+    float sag = share * gravity / (felt * omega * omega);
     wheel->mSuspensionMinLength = radius;
     wheel->mSuspensionMaxLength = radius + travel;
     wheel->mPosition = vec3(p) + UP * std::max(radius, radius + travel - sag);
@@ -167,8 +176,10 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
     int j = partnerOf(wheels, i, 0);
     if (antiRoll > 0 && f32(wheels[i]) < 0 && j >= 0) {
       VehicleAntiRollBar bar;
-      bar.mLeftWheel = int(i), bar.mRightWheel = j, bar.mStiffness = antiRoll * rates[i];
+      bar.mLeftWheel = int(i), bar.mRightWheel = j;
       settings.mAntiRollBars.push_back(bar);
+      float felt = (felts[i] + felts[j]) / 2;
+      vehicle.bars.insert(vehicle.bars.end(), {antiRoll * felt * omega * omega, felt});
     }
     if (!(uint32_t(f32(wheels[i] + 5)) & DRIVEN)) continue;
     int k = partnerOf(wheels, i, DRIVEN);
@@ -184,10 +195,39 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
   return settings;
 }
 
+/// Gives `body` the shape `shape` and the mass properties the body was made with for it (its
+/// mass, the shape's inertia scaled to it: `commands.cpp`), keeping its origin where it is; the
+/// joints on it follow their anchors.
+void reshape(Body &body, const Shape *shape) {
+  Vec3 moved = shape->GetCenterOfMass() - body.GetShape()->GetCenterOfMass();
+  MotionProperties &motion = *body.GetMotionProperties();
+  MassProperties mass = shape->GetMassProperties();
+  mass.ScaleToMass(1.0f / std::max(motion.GetInverseMass(), 1e-9f));
+  world().system->GetBodyInterfaceNoLock().SetShape(body.GetID(), shape, false, EActivation::Activate);
+  motion.SetMassProperties(motion.GetAllowedDOFs(), mass);
+  for (const Ref<Constraint> &constraint : world().system->GetConstraints())
+    constraint->NotifyShapeChanged(body.GetID(), moved);
+}
+
+/// The body of the VEHICLE command `w` with its centre of mass lowered to the bottom of its shape,
+/// midway between its wheels along and across, as Jolt's vehicle samples build theirs
+/// (`OffsetCenterOfMassShape`): a body of even density has it at mid-height, where a machine's
+/// heavy engine, floor and axles are not.
+void lower(Body &body, const uint32_t *w) {
+  float x = 0, z = 0, count = float(w[4]);
+  for (const uint32_t *wheel = w + VEHICLE_WORDS; wheel < w + VEHICLE_WORDS + w[4] * WHEEL_WORDS; wheel += WHEEL_WORDS)
+    x += f32(wheel), z += f32(wheel + 2);
+  const Shape &shape = *body.GetShape();
+  Vec3 centre = shape.GetCenterOfMass();
+  Vec3 low(x / count, centre.GetY() + shape.GetLocalBounds().mMin.GetY(), z / count);
+  reshape(body, new OffsetCenterOfMassShape(&shape, low - centre));
+}
+
 void remove(Vehicle &vehicle) {
   if (vehicle.constraint) {
     world().system->RemoveStepListener(vehicle.constraint);
     world().system->RemoveConstraint(vehicle.constraint);
+    reshape(*vehicle.constraint->GetVehicleBody(), vehicle.shape);
   }
   vehicle = Vehicle();
 }
@@ -202,15 +242,35 @@ void add(const uint32_t *w) {
   BodyLockWrite lock(world().system->GetBodyLockInterfaceNoLock(), slots[slotIndex].id);
   if (!lock.Succeeded() || !lock.GetBody().IsDynamic()) return;
   Vehicle &vehicle = vehicles[index];
-  vehicle.constraint = new VehicleConstraint(lock.GetBody(), settingsOf(w, lock.GetBody()));
+  vehicle.shape = lock.GetBody().GetShape();
+  lower(lock.GetBody(), w);
+  vehicle.constraint = new VehicleConstraint(lock.GetBody(), settingsOf(w, lock.GetBody(), vehicle));
   if (w[2] == TRACKED) vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterRay(MOVING, UP));
-  else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING));
+  // A motorcycle's tyre is rounded across (the whole half width as convex radius, as Jolt's
+  // motorcycle sample casts it): leaned, it rolls on its shoulder rather than on an edge.
+  else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING, w[2] == MOTORCYCLE ? 1.0f : 0.1f));
   vehicle.id = id, vehicle.body = slotIndex, vehicle.kind = w[2];
   float steerTime = f32(w + 5 + 29);
   vehicle.steerRate = steerTime > 0 ? 1.0f / steerTime : FLT_MAX;
   vehicle.trackTurn = Clamp(f32(w + 5 + 31), 0.01f, 1.0f);
   world().system->AddConstraint(vehicle.constraint);
   world().system->AddStepListener(vehicle.constraint);
+}
+
+/// Sets the anti-roll bars for a step of `dt`. Jolt adds a bar's `stiffness × travel × dt` to its
+/// wheels' suspension constraint as a velocity bias, which the soft spring turns into an impulse
+/// through its effective mass `1 / (1 / felt + softness)`, softness `1 / (dt (c + dt k))`
+/// (`SpringPart.h`): the stiffness handed to Jolt is the bar's over that mass, so that the bar
+/// pushes with its own N/m at any mass and step.
+void setBars(Vehicle &v, float dt) {
+  if (dt == v.barStep) return;
+  v.barStep = dt;
+  VehicleAntiRollBars &bars = v.constraint->GetAntiRollBars();
+  for (size_t b = 0; b < bars.size(); ++b) {
+    float stiffness = v.bars[2 * b], felt = v.bars[2 * b + 1];
+    float softness = 1 / (felt * dt * (2 * v.damping * v.omega + dt * v.omega * v.omega));
+    bars[b].mStiffness = stiffness * (1 / felt + softness);
+  }
 }
 
 /// Hands the driver's input to the controller: the brake pedal backs a vehicle up once it stands
@@ -272,6 +332,7 @@ void driveVehicles(float dt) {
   BodyInterface &bodies = world().system->GetBodyInterfaceNoLock();
   for (Vehicle &vehicle : vehicles) {
     if (!vehicle.constraint) continue;
+    setBars(vehicle, dt);
     applyInput(vehicle, dt);
     // A vehicle driven, or whose wheel still turns back, stays awake.
     if (vehicle.throttle > 0 || vehicle.brake > 0 || vehicle.handbrake > 0 || vehicle.steered != 0)

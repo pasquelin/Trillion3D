@@ -32,10 +32,10 @@
  *   Jolt makes each spring as stiff as its frequency asks of the body's mass felt at that wheel,
  *   and the suspension is hung so that under the body's weight each wheel rests where the page
  *   placed it.
- * - ANTI-ROLL 0.3, a game's choice, declared: a road car's bars range from a third of its axle's
- *   spring stiffness to twice it (Gillespie, "Fundamentals of Vehicle Dynamics", 1992). Jolt
- *   applies a bar's force a step late, and at 60 Hz a bar as stiff as its springs rocks a body
- *   with a box's roll inertia over; a third holds it.
+ * - ANTI-ROLL 1: a road car's bars range from a third of its axle's spring stiffness to twice it
+ *   (Gillespie, "Fundamentals of Vehicle Dynamics", 1992); a bar as stiff as its springs is within
+ *   it. Each bar pushes with that stiffness in N/m (`vehicles.cpp` setBars). Sensitivity, on the
+ *   Corvette of the tests at 0.84 g: 2.6° of roll with no bar, 1.1° at 0.5, 0.7° at 1, 0.4° at 2.
  * - STEERING: a road car turns in a 10 to 12 m kerb-to-kerb circle, a radius of 5.5 m; a road
  *   motorcycle's full lock fits a 5.5 m circle too. The steered wheels' lock is the angle that
  *   radius asks of the vehicle's own wheelbase, `asin(wheelbase / radius)`. A hand turns the wheel
@@ -45,8 +45,10 @@
  *   (0.8 to 1.0): each wheel brakes with the torque that locks it under its share of the weight,
  *   on Earth. The handbrake holds the rear wheels with twice that: it locks them outright.
  * - LEAN 45°: what a road tyre's shoulder allows a street motorcycle (45 to 50°). Jolt's lean
- *   controller rights the body at its own sample's natural frequency and damping ratio (12.5
- *   rad/s, 1.25), whatever the body's roll inertia.
+ *   controller leans the body towards the tyres' force at its own sample's natural frequency and
+ *   damping ratio (12.5 rad/s, 1.25), whatever the body's roll inertia; the tyre is rounded across
+ *   as in that sample. In a steady turn it leans to 0.7 to 0.8 of `atan(v² / (r g))`: the
+ *   controller's own righting impulse carries the rest of the turn.
  * - TRACKS grip their ground with a friction of 1 along and 0.5 across, the tractive and lateral
  *   resistance coefficients of a track on firm ground (Wong, "Theory of Ground Vehicles"); a
  *   track and its road wheels weigh a twentieth of the vehicle, turning at the sprocket's radius.
@@ -90,7 +92,7 @@ function shifts(peakPowerRPM: number, maxRPM: number, gears: readonly number[]) 
 
 const COMMON = {
   suspensionDamping: 0.5,
-  antiRoll: 0.3,
+  antiRoll: 1,
   turnRadius: 5.5,
   steerTime: 0.25,
   brakeGrip: 1,

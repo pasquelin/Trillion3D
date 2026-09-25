@@ -86,6 +86,22 @@ export async function vehicleRig(kind: VehicleKind, options: Partial<VehicleOpti
       driven.drive({ ...RELEASED, ...input });
       rig.run(Math.round(seconds * 60));
     },
+    /** The body's roll about its forward axis, radians: its right side's rise. */
+    roll() {
+      const [x, y, z, w] = rig.turn(body);
+      return Math.asin(2 * (x * y + w * z));
+    },
+    /** Steers with `input` for `seconds`: the turn's lateral acceleration `v × yaw rate` over g,
+     *  as a lean `atan(a / g)`, radians. */
+    turning(input: Partial<VehicleInput>, seconds: number) {
+      const yaw = rig.yaw(body);
+      driven.drive({ ...RELEASED, ...input });
+      rig.run(Math.round(seconds * 60));
+      const turned = Math.abs(
+        Math.atan2(Math.sin(rig.yaw(body) - yaw), Math.cos(rig.yaw(body) - yaw)),
+      );
+      return Math.atan((driven.speed * turned) / seconds / 9.81);
+    },
     /** How far the body's up leans from the world's, radians. */
     tilt() {
       const [x, , z] = rig.turn(body);
