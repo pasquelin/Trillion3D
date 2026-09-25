@@ -327,7 +327,6 @@
       "a-walker-among-balls": "Um caminhante entre bolas"
     },
     "missing": {
-      "colours-on-the-vertices": "cores por vértice no WebGPU",
       "dashed-lines": "linhas tracejadas",
       "floating-crates": "geometria reescrita a cada quadro",
       "thick-lines": "linhas largas",
@@ -427,8 +426,6 @@
       "reflections-from-the-screen": "reflexos em espaço de tela",
       "an-ocean": "renderização em textura: reflexo e refração da água",
       "a-raging-sea": "materiais com shader sob medida",
-      "a-town-in-the-fog": "neblina",
-      "fog-on-the-ground": "neblina: neblina por altura",
       "fog-that-scatters-light": "neblina volumétrica e raios de luz",
       "a-cloud-in-a-box": "renderização volumétrica",
       "a-fire-in-a-volume": "renderização volumétrica",

@@ -360,6 +360,22 @@
       "up": "上"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "拖动以环顾四周。选择雾的类型、范围和颜色。",
+    "controls": {
+      "fog": "雾",
+      "reach": "范围",
+      "height": "高度",
+      "colour": "颜色"
+    },
+    "choices": {
+      "fog": {
+        "distance": "距离",
+        "thick": "浓雾",
+        "ground": "地面"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "拖动四处看看。珠子沿着管子滑动。",
     "controls": {
