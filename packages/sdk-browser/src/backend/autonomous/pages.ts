@@ -66,10 +66,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
-  // The display graph's page ceiling: the host's, which refuses a larger root cover by name, or the
-  // default raised to the cover, as the pool raises its budget to it (#527).
+  // The display graph's page ceiling: the host's, or the default raised to the root cover (#527).
   const hostCeiling = context.maxResidentPages ?? Infinity,
-    ceiling = () => context.maxResidentPages ?? Math.max(pageDefault, heldFloor.meshes());
+    ceiling = () =>
+      hostCeiling < Infinity ? hostCeiling : Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...tables,
     baseRoots,
