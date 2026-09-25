@@ -7135,6 +7135,95 @@
       "handbrake": "Si le frein à main est tiré."
     }
   },
+  "VEHICLE_SPECS": {
+    "summary": "Les trois machines d’où partent les véhicules, par type.",
+    "members": {
+      "car": "Une Chevrolet Corvette C5 : propulsion, 0,32 N·m par kilogramme, six rapports.",
+      "motorcycle": "Une Yamaha XJ900 et son pilote : 0,26 N·m par kilogramme, six rapports.",
+      "tracked": "Un M1 Abrams : une turbine à gaz, 0,083 N·m par kilogramme, quatre rapports."
+    }
+  },
+  "Vehicle": {
+    "summary": "Un véhicule : un corps porté sur des roues par la contrainte de véhicule de Jolt, avec son moteur, sa boîte, ses différentiels, sa suspension et ses barres antiroulis, créé par `vehicle.*` et ajouté à la simulation par `world.physics.add`.",
+    "description": "C’est un `VehicleDriver` : `world.controls.vehicle = car` le conduit.",
+    "parameters": {
+      "options": "Ce qu’accepte `vehicle.*` : les roues, et autant de réglages de la machine qu’on veut (`VehicleSpec`).",
+      "options.wheels": "Les roues : des maillages, enfants du corps, chacun placé à son centre tel qu’il repose sur un sol plat, son essieu le long du x du corps. Rayon et largeur se lisent dans ses bornes. Le corps regarde vers −z : les roues avant braquent.",
+      "options.torquePerKg": "Couple maximal du moteur par kilogramme du corps, en N·m/kg.",
+      "options.idleRPM": "Le ralenti du moteur, en tr/min.",
+      "options.maxRPM": "La zone rouge du moteur, en tr/min.",
+      "options.torqueCurve": "Jusqu’à cinq points `[rpm / maxRPM, couple / pic]`, fractions de régime croissantes.",
+      "options.gears": "Jusqu’à six rapports avant, la première d’abord.",
+      "options.reverse": "Le rapport de la marche arrière.",
+      "options.finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
+      "options.shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
+      "options.shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
+      "options.clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
+      "options.suspensionFrequency": "Fréquence de suspension, en Hz.",
+      "options.suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
+      "options.suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
+      "options.antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
+      "options.turnRadius": "Le rayon de braquage en butée, en mètres.",
+      "options.steerTime": "Secondes du centre à la butée de direction.",
+      "options.brakeGrip": "Le frottement auquel les freins bloquent les roues.",
+      "options.drive": "Les roues motrices d’une voiture.",
+      "options.trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
+      "options.maxLean": "L’inclinaison maximale d’une moto, en radians."
+    },
+    "members": {
+      "kind": "Ce qu’est le véhicule.",
+      "body": "Le corps que portent les roues.",
+      "wheels": "Les roues, enfants du corps.",
+      "spec": "La machine : celle de son type (`VEHICLE_SPECS`), les options par-dessus.",
+      "input": "Les pédales et le volant qu’il reçoit maintenant.",
+      "speed": "Mètres par seconde vers l’avant après le dernier pas, négatif en arrière.",
+      "rpm": "Les tours par minute du moteur après le dernier pas.",
+      "gear": "Le rapport après le dernier pas : 1 et plus en avant, −1 en marche arrière, 0 au point mort.",
+      "drive": "Reçoit les pédales et le volant, à chaque touche qui les change, quand il commence à être conduit, et tout relâché quand il ne l’est plus."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Les véhicules de la physique, chacun sur la contrainte de véhicule de Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Ce qu’accepte `vehicle.*` : les roues, et autant de réglages de la machine qu’on veut (`VehicleSpec`).",
+    "members": {
+      "wheels": "Les roues : des maillages, enfants du corps, chacun placé à son centre tel qu’il repose sur un sol plat, son essieu le long du x du corps. Rayon et largeur se lisent dans ses bornes. Le corps regarde vers −z : les roues avant braquent."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "De quoi est fait un véhicule : moteur, boîte, suspension, direction et freins, chaque défaut celui d’une vraie machine (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Couple maximal du moteur par kilogramme du corps, en N·m/kg.",
+      "idleRPM": "Le ralenti du moteur, en tr/min.",
+      "maxRPM": "La zone rouge du moteur, en tr/min.",
+      "torqueCurve": "Jusqu’à cinq points `[rpm / maxRPM, couple / pic]`, fractions de régime croissantes.",
+      "gears": "Jusqu’à six rapports avant, la première d’abord.",
+      "reverse": "Le rapport de la marche arrière.",
+      "finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
+      "shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
+      "shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
+      "clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
+      "suspensionFrequency": "Fréquence de suspension, en Hz.",
+      "suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
+      "suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
+      "antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
+      "turnRadius": "Le rayon de braquage en butée, en mètres.",
+      "steerTime": "Secondes du centre à la butée de direction.",
+      "brakeGrip": "Le frottement auquel les freins bloquent les roues.",
+      "drive": "Les roues motrices d’une voiture.",
+      "trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
+      "maxLean": "L’inclinaison maximale d’une moto, en radians."
+    }
+  },
+  "vehicle": {
+    "summary": "La famille `vehicle` : un corps et ses roues, conduits par `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Trois roues ou plus sur deux essieux ou plus, celles de l’avant qui braquent, celles de `drive` motrices.",
+      "motorcycle": "Deux roues, l’avant qui braque, l’arrière motrice ; elle se tient droite d’elle-même.",
+      "tracked": "Des roues sur deux chenilles, gauche et droite, chacune entraînée par sa roue la plus en arrière ; il tourne en ralentissant une chenille, et pivote sur place à l’arrêt."
+    }
+  },
   "GraphAttribute": {
     "members": {
       "count": "Combien de sommets.",

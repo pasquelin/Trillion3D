@@ -2029,5 +2029,27 @@
       "load": "おもり",
       "rope": "ロープの移動"
     }
+  },
+  "drive-a-car": {
+    "banner": "W か ↑ で加速、S か ↓ でブレーキ、止まるとバック、A D か ← → でハンドル、スペースでサイドブレーキ。パネルで車・バイク・戦車を選べます。",
+    "controls": {
+      "vehicle": "乗り物",
+      "reset": "車輪の上に戻す"
+    },
+    "readouts": {
+      "speed": "速度",
+      "gear": "ギア",
+      "rpm": "エンジン (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "スポーツカー",
+        "motorcycle": "バイク",
+        "tracked": "戦車"
+      }
+    },
+    "words": {
+      "credit": "この例のためにコードでモデリングした谷、CC0 — assets/examples/CREDITS.md を参照"
+    }
   }
 }

@@ -7135,6 +7135,95 @@
       "handbrake": "Si el freno de mano está echado."
     }
   },
+  "VEHICLE_SPECS": {
+    "summary": "Las tres máquinas de las que parten los vehículos, por tipo.",
+    "members": {
+      "car": "Un Chevrolet Corvette C5: tracción trasera, 0,32 N·m por kilogramo, seis marchas.",
+      "motorcycle": "Una Yamaha XJ900 y su piloto: 0,26 N·m por kilogramo, seis marchas.",
+      "tracked": "Un M1 Abrams: una turbina de gas, 0,083 N·m por kilogramo, cuatro marchas."
+    }
+  },
+  "Vehicle": {
+    "summary": "Un vehículo: un cuerpo llevado sobre ruedas por la restricción de vehículo de Jolt, con su motor, caja de cambios, diferenciales, suspensión y barras estabilizadoras, creado por `vehicle.*` y añadido a la simulación por `world.physics.add`.",
+    "description": "Es un `VehicleDriver`: `world.controls.vehicle = car` lo conduce.",
+    "parameters": {
+      "options": "Lo que acepta `vehicle.*`: las ruedas, y tantos valores de la máquina como se quiera (`VehicleSpec`).",
+      "options.wheels": "Las ruedas: mallas, hijas del cuerpo, cada una colocada en su centro tal como descansa en suelo llano, su eje a lo largo del x del cuerpo. Su radio y su anchura se leen de sus límites. El cuerpo mira hacia −z: las ruedas delanteras giran.",
+      "options.torquePerKg": "Par máximo del motor por kilogramo del cuerpo, en N·m/kg.",
+      "options.idleRPM": "El ralentí del motor, en rpm.",
+      "options.maxRPM": "La zona roja del motor, en rpm.",
+      "options.torqueCurve": "Hasta cinco puntos `[rpm / maxRPM, par / pico]`, fracciones de régimen crecientes.",
+      "options.gears": "Hasta seis relaciones hacia delante, la primera primero.",
+      "options.reverse": "La relación de la marcha atrás.",
+      "options.finalDrive": "La relación del grupo final (la reducción de la rueda motriz de un vehículo de orugas).",
+      "options.shiftUpRPM": "La caja sube de marcha por encima de esto, en rpm.",
+      "options.shiftDownRPM": "Y reduce por debajo de esto, en rpm.",
+      "options.clutch": "Par del embrague por rad/s de deslizamiento, en N·m·s.",
+      "options.suspensionFrequency": "Frecuencia de la suspensión, en Hz.",
+      "options.suspensionDamping": "Relación de amortiguamiento, de 0 (ninguno) a 1 (crítico).",
+      "options.suspensionTravel": "Recorrido de la rueda de la extensión total a la compresión total, en metros.",
+      "options.antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna.",
+      "options.turnRadius": "El radio de giro con la dirección al tope, en metros.",
+      "options.steerTime": "Segundos del centro al tope de la dirección.",
+      "options.brakeGrip": "La fricción a la que los frenos bloquean las ruedas.",
+      "options.drive": "Las ruedas motrices de un coche.",
+      "options.trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar, respecto a la exterior.",
+      "options.maxLean": "La mayor inclinación de una moto, en radianes."
+    },
+    "members": {
+      "kind": "Lo que es el vehículo.",
+      "body": "El cuerpo que llevan las ruedas.",
+      "wheels": "Las ruedas, hijas del cuerpo.",
+      "spec": "La máquina: la de su tipo (`VEHICLE_SPECS`), con las opciones encima.",
+      "input": "Los pedales y el volante que recibe ahora.",
+      "speed": "Metros por segundo hacia delante tras el último paso, negativo hacia atrás.",
+      "rpm": "Las revoluciones por minuto del motor tras el último paso.",
+      "gear": "La marcha tras el último paso: 1 o más hacia delante, −1 marcha atrás, 0 punto muerto.",
+      "drive": "Recibe los pedales y el volante, cada vez que una tecla los cambia, cuando empieza a ser conducido, y todo suelto cuando deja de serlo."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Los vehículos de la física, cada uno sobre la restricción de vehículo de Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Lo que acepta `vehicle.*`: las ruedas, y tantos valores de la máquina como se quiera (`VehicleSpec`).",
+    "members": {
+      "wheels": "Las ruedas: mallas, hijas del cuerpo, cada una colocada en su centro tal como descansa en suelo llano, su eje a lo largo del x del cuerpo. Su radio y su anchura se leen de sus límites. El cuerpo mira hacia −z: las ruedas delanteras giran."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "De qué está hecho un vehículo: motor, caja de cambios, suspensión, dirección y frenos, cada valor por defecto el de una máquina real (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Par máximo del motor por kilogramo del cuerpo, en N·m/kg.",
+      "idleRPM": "El ralentí del motor, en rpm.",
+      "maxRPM": "La zona roja del motor, en rpm.",
+      "torqueCurve": "Hasta cinco puntos `[rpm / maxRPM, par / pico]`, fracciones de régimen crecientes.",
+      "gears": "Hasta seis relaciones hacia delante, la primera primero.",
+      "reverse": "La relación de la marcha atrás.",
+      "finalDrive": "La relación del grupo final (la reducción de la rueda motriz de un vehículo de orugas).",
+      "shiftUpRPM": "La caja sube de marcha por encima de esto, en rpm.",
+      "shiftDownRPM": "Y reduce por debajo de esto, en rpm.",
+      "clutch": "Par del embrague por rad/s de deslizamiento, en N·m·s.",
+      "suspensionFrequency": "Frecuencia de la suspensión, en Hz.",
+      "suspensionDamping": "Relación de amortiguamiento, de 0 (ninguno) a 1 (crítico).",
+      "suspensionTravel": "Recorrido de la rueda de la extensión total a la compresión total, en metros.",
+      "antiRoll": "La rigidez de cada barra estabilizadora respecto a los muelles de su eje; 0 es ninguna.",
+      "turnRadius": "El radio de giro con la dirección al tope, en metros.",
+      "steerTime": "Segundos del centro al tope de la dirección.",
+      "brakeGrip": "La fricción a la que los frenos bloquean las ruedas.",
+      "drive": "Las ruedas motrices de un coche.",
+      "trackTurn": "La velocidad de la oruga interior de un vehículo de orugas al girar, respecto a la exterior.",
+      "maxLean": "La mayor inclinación de una moto, en radianes."
+    }
+  },
+  "vehicle": {
+    "summary": "La familia `vehicle`: un cuerpo y sus ruedas, conducidos por `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Tres ruedas o más en dos ejes o más, las delanteras giran, las de `drive` son motrices.",
+      "motorcycle": "Dos ruedas, la delantera gira, la trasera es motriz; se mantiene recta sola.",
+      "tracked": "Ruedas sobre dos orugas, izquierda y derecha, cada una movida por su rueda más trasera; gira frenando una oruga, y pivota sobre sí mismo parado."
+    }
+  },
   "GraphAttribute": {
     "members": {
       "count": "Cuántos vértices.",

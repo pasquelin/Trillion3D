@@ -481,7 +481,6 @@
       "breaking-things": "integrazione di un motore fisico",
       "cloth-and-rope": "integrazione di un motore fisico",
       "soft-bodies": "integrazione di un motore fisico",
-      "drive-a-car": "integrazione di un motore fisico",
       "a-room-in-vr": "sessione WebXR",
       "a-360-photo-in-vr": "sessione WebXR",
       "vr-composition-layers": "sessione WebXR: livelli",
@@ -1081,7 +1080,8 @@
           "<code>limits</code> ferma il giunto: radianti per un cardine, metri per una guida. Uno <code>spring</code> rende morbido il fermo.",
           "Un <code>motor</code> porta un cardine o una guida a una velocità o a una posizione. Cambia <code>joint.motor</code> quando vuoi.",
           "<code>breakForce</code> è la trazione, in newton, oltre la quale il giunto si spezza: <code>joint.broken</code> diventa vero e viene chiamato <code>joint.on('break', …)</code>.",
-          "I giunti avanzati legano i movimenti: <code>joint.gear(a, b, { ratio })</code> fa girare due ruote su cardini come un unico treno, <code>joint.rackAndPinion</code> trasforma una rotazione in uno scorrimento, <code>joint.pulley(a, b, { over })</code> appende due carichi alla stessa fune, <code>joint.path(a, b, { path })</code> tiene un vagone sul suo tracciato, e <code>swingTwist</code> e <code>sixDof</code> creano spalle e giunti su misura."
+          "I giunti avanzati legano i movimenti: <code>joint.gear(a, b, { ratio })</code> fa girare due ruote su cardini come un unico treno, <code>joint.rackAndPinion</code> trasforma una rotazione in uno scorrimento, <code>joint.pulley(a, b, { over })</code> appende due carichi alla stessa fune, <code>joint.path(a, b, { path })</code> tiene un vagone sul suo tracciato, e <code>swingTwist</code> e <code>sixDof</code> creano spalle e giunti su misura.",
+          "Un veicolo è un corpo su ruote: <code>vehicle.car(body, { wheels })</code>, <code>vehicle.motorcycle</code> o <code>vehicle.tracked</code>, con le ruote come mesh poste sul corpo dove appoggiano. Aggiungilo con <code>world.physics.add</code> e guidalo con la tastiera: <code>world.controls.vehicle = car</code>, poi <code>world.controls.kind = 'vehicle'</code>. Motore, cambio, sospensioni e freni sono quelli di una macchina vera; <code>car.speed</code>, <code>car.gear</code> e <code>car.rpm</code> dicono come va."
         ],
         "tryIt": "Apri la porta e il cassetto, poi lascia cadere la pietra sul ponte. Abbassa la resistenza del ponte e ricostruiscilo: si spezza sotto il suo stesso peso."
       },
