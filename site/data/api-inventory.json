@@ -2418,6 +2418,7 @@
         "packages/sdk-browser/src/physics/tickResults.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudgetCanvas.test.ts",
         "scripts/bench-fluids.ts",
         "scripts/bench-physics.ts"
       ],
@@ -2694,6 +2695,7 @@
         "packages/sdk-browser/src/effects/webgpuEffects.test.ts",
         "packages/sdk-browser/src/residency/memoryBudget.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudgetCanvas.test.ts",
         "packages/sdk-browser/src/world/core/worldSwitches.test.ts",
         "packages/sdk-browser/src/world/render/composeEffects.test.ts"
       ],

@@ -13,6 +13,7 @@ import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts';
 import { sessionPools, worldBudget, worldPools } from './worldBudget.ts';
+import { noticeEffectBudget } from '../diagnostic/worldNotices.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
@@ -119,8 +120,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       exposure = value;
       runtime.displayChanged();
     },
-    /** The DAG cut's screen error, in pixels. */
-    get pixelError() {
+    /** The DAG cut's screen error, in pixels. */ get pixelError() {
       return pixelError ?? 0;
     },
     set pixelError(value: number) {
@@ -164,8 +164,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
-    /** Draws one frame now, whoever leads the loop. */
-    render() {
+    /** Draws one frame now, whoever leads the loop. */ render() {
       if (live()) frames.prepare(frames.advance());
       runtime.render();
     },
@@ -192,6 +191,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       device.dispose();
     },
   };
+  frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
   registerWorld(world, { session: () => runtime.explorer, last: () => frames.last });
   return world;
 }
