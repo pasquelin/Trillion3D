@@ -43,7 +43,7 @@ export function createDagLightCut(resources: DagResources) {
   const { worldCount, blockCount, buffers } = resources;
   const capacity = lightCutCapacity(device.limits, resources),
     queueCap = lightQueueCap(resources, capacity),
-    layout = dagWorkLayout(blockCount, capacity);
+    layout = dagWorkLayout(blockCount, capacity, pageCount);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const own = (descriptor: GPUBufferDescriptor) => {
     const buffer = device.createBuffer(descriptor);
@@ -141,6 +141,8 @@ export function createDagLightCut(resources: DagResources) {
       count: number,
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
+      // The frame's first cut starts its list, and forgets what the last frame asked for.
+      if (!listed) encoder.clearBuffer(work, layout.asked * 4, layout.askedWords * 4);
       cutViews.count = light.views = count;
       cutViews.append = listed;
       listed = true;
