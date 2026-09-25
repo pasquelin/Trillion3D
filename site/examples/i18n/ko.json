@@ -1972,6 +1972,16 @@
       "Look for": "살펴볼 것"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "불투명도를 움직이면 가운데 유리의 그림자가 따라 변합니다. 0이면 사라지고 1이면 짙어집니다.",
+    "controls": {
+      "opacity": "불투명도",
+      "sunHeight": "태양 높이"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "가운데 유리의 불투명도"
+    }
+  },
   "walk-with-collisions": {
     "banner": "클릭해 둘러본 뒤 W A S D로 걷고 스페이스로 점프하세요: 계단과 경사로를 오르고, 발판에 올라타고, 상자를 밀고, 얼음 위에서 키를 놓아 미끄러져 보세요.",
     "controls": {

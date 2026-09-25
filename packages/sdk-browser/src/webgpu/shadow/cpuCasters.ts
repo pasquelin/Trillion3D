@@ -112,7 +112,8 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
 
 /**
  * Once the rows are written: each face's casters as rows, one after the other in one buffer,
- * and one indirect command per face that says how many — what the region cull reads.
+ * and one indirect command per face that says how many — what the region cull reads. A blended
+ * cluster the face keeps is listed at its caster row.
  */
 export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, run, layout } = rt,
@@ -145,7 +146,10 @@ export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
     lists.bases[r] = at;
     for (const rec of shown[r]) {
       const page = rows.pageIndexOf(rec);
-      if (page !== undefined && marks[page] === stamp) words[at++] = rowOf[page];
+      if (page === undefined) continue;
+      // A blended cluster casts from its own row, behind the table (`../row/blendCasters.ts`).
+      if (marks[page] === stamp) words[at++] = rowOf[page];
+      else if (rows.blendRowOf[page] >= 0) words[at++] = rows.blendRowOf[page];
     }
     lists.lengths[r] = at - lists.bases[r];
     commands[r * 4 + 1] = lists.lengths[r];
