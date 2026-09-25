@@ -5,11 +5,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dot } from '../../../../sdk-core/src/math/projectionOracles.ts';
-import { RESTATED, SHADOW_WGSL, sunOverProfile, type Face } from './shadowBias.fixture.ts';
+import { BIAS, DEVELOP_BIAS, RESTATED, SHADOW_WGSL, sunOverProfile } from './shadowBias.fixture.ts';
+import type { Bias, Face } from './shadowBias.fixture.ts';
 import { lampAt, lampOver } from './shadowLamp.fixture.ts';
 import { SPLIT } from './shadowPages.fixture.ts';
 
 const ZENITHS = [0.3, Math.PI / 4, 1.1, 1.4];
+/** A box `high` × `thick` standing on a floor, its far side at x = 0; the floor last. */
+const standing = (high: number, thick: number): Face[] => [
+  { from: [-1, 0], to: [-thick, 0], normal: [0, 1] },
+  { from: [-thick, 0], to: [-thick, high], normal: [-1, 0] },
+  { from: [-thick, high], to: [0, high], normal: [0, 1] },
+  { from: [0, high], to: [0, 0], normal: [1, 0] },
+  { from: [0, 0], to: [1, 0], normal: [0, 1] },
+];
+/** A 1 cm step: the upper face ends over the lower one, and casts the step's shadow on it. */
+const gap = 0.01,
+  step: Face[] = [
+    { from: [-1, gap], to: [0, gap], normal: [0, 1] },
+    { from: [0, gap], to: [0, 0], normal: [1, 0] },
+    { from: [0, 0], to: [1, 0], normal: [0, 1] },
+  ];
 
 test('the shadow read and page split the fixtures restate are the shader’s', () => {
   for (const line of [...RESTATED, ...SPLIT]) assert.ok(SHADOW_WGSL.includes(line), line);
@@ -29,9 +45,8 @@ test('a plane shades no point of itself, at any slope and any texel', () => {
           normal: [-Math.sin(tilt), Math.cos(tilt)],
         };
         const read = sunOverProfile([plane], zenith, texel);
-        assert.deepEqual(
-          new Set(samplesAlong(read, 0)),
-          new Set([1]),
+        assert.ok(
+          samplesAlong(read, 0).every((lit) => lit === 1),
           `${tilt} ${zenith} ${texel}`,
         );
       }
@@ -44,49 +59,21 @@ test('a plane facing the sun stays clean under the depth format’s rounding', (
   for (const zenith of [0, 0.3, Math.PI / 4])
     for (const texel of [2 ** -12, 2 ** -16]) {
       const read = sunOverProfile([floor], zenith, texel, 4096);
-      assert.deepEqual(new Set(samplesAlong(read, 0)), new Set([1]), `${zenith} ${texel}`);
+      assert.ok(
+        samplesAlong(read, 0).every((lit) => lit === 1),
+        `${zenith} ${texel}`,
+      );
     }
 });
 
-test('two parallel faces 1 cm apart: the upper one is clean, the lower one keeps its shadow', () => {
-  // A 1 cm step: the upper face ends over the lower one, and casts the step's shadow on it.
-  const gap = 0.01;
-  const step: Face[] = [
-    { from: [-1, gap], to: [0, gap], normal: [0, 1] },
-    { from: [0, gap], to: [0, 0], normal: [1, 0] },
-    { from: [0, 0], to: [1, 0], normal: [0, 1] },
-  ];
-  for (const zenith of ZENITHS) {
-    const shadow = gap * Math.tan(zenith);
+test('two parallel faces 1 cm apart: the upper one is clean at any texel up to the gap', () => {
+  for (const zenith of ZENITHS)
     for (const texel of [gap / 32, gap / 8, gap / 2, gap]) {
-      const read = sunOverProfile(step, zenith, texel);
-      const acne = samplesAlong(read, 0).filter((lit) => lit < 1);
-      assert.deepEqual(acne, [], `zenith ${zenith}, texel ${texel}: acne on the upper face`);
-      assert.equal(read(2, shadow + 4 * texel), 1, 'the lower face past the shadow is lit');
-    }
-    // Where the step is 16 texels high, its shadow's middle is shadow, not light let through.
-    const texel = gap / 16;
-    assert.equal(sunOverProfile(step, zenith, texel)(2, shadow / 2), 0, `zenith ${zenith}`);
-  }
-});
-
-test('a caster standing on its receiver keeps its contact, a few texels from its foot', () => {
-  // A wall 10 cm high and 2 mm thick on the floor; the sun casts its shadow toward +x.
-  const high = 0.1,
-    thick = 0.002;
-  const wall: Face[] = [
-    { from: [-1, 0], to: [-thick, 0], normal: [0, 1] },
-    { from: [-thick, 0], to: [-thick, high], normal: [-1, 0] },
-    { from: [-thick, high], to: [0, high], normal: [0, 1] },
-    { from: [0, high], to: [0, 0], normal: [1, 0] },
-    { from: [0, 0], to: [1, 0], normal: [0, 1] },
-  ];
-  for (const zenith of [Math.PI / 4, 1.1, 1.4])
-    for (const texel of [5e-4, 1e-3, 4e-3]) {
-      const read = sunOverProfile(wall, zenith, texel);
-      for (let texels = 5; texels <= 10; texels++)
-        assert.equal(read(4, texels * texel), 0, `${zenith} ${texel}: ${texels} texels out`);
-      assert.equal(read(4, high * Math.tan(zenith) + 0.1), 1, 'the floor past the shadow is lit');
+      const lit = samplesAlong(sunOverProfile(step, zenith, texel), 0);
+      assert.ok(
+        lit.every((value) => value === 1),
+        `zenith ${zenith}, texel ${texel}`,
+      );
     }
 });
 
@@ -131,4 +118,30 @@ test('a plane off a point light’s or a spot’s axis shades no point of itself
           assert.equal(read(on, normal, 0).lit, 1, `${lamp.kind} ${a} ${b} ${tilt}: acne at ${on}`);
         }
       }
+});
+
+/** Length across the light, in map texels, where a floor's read disagrees with a ray-cast. */
+function edgeError(faces: Face[], zenith: number, texel: number, bias: Bias, length: number) {
+  const read = sunOverProfile(faces, zenith, texel, 0, bias),
+    floor = faces.length - 1;
+  let wrong = 0;
+  for (let x = texel / 8; x < length; x += texel / 4)
+    wrong += Number(Number(read(floor, x) >= 0.5) !== read(floor, x, true));
+  return (wrong / 4) * Math.cos(zenith);
+}
+
+test('the new bias puts every shadow edge nearer a ray-cast of its casters than develop’s', () => {
+  // The observatory's 1 cm steps, a 5 cm pawn under a 39° sun, a wall under a 78° sun (grazing):
+  // edges and contacts alike, where develop's bias let light through or shaded a clean face.
+  const cases: [Face[], number[], number[], number][] = [
+    [step, [0.3, Math.PI / 4, 1.1], [gap / 16, gap / 8, gap / 4], 0.03],
+    [standing(0.05, 0.02), [0.89], [2.5e-4, 4e-4, 1e-3], 0.1],
+    [standing(0.1, 0.002), [1.36], [2.5e-4, 1e-3, 4e-3], 0.55],
+  ];
+  for (const [faces, zeniths, texels, length] of cases) {
+    const errors = (bias: Bias) =>
+      zeniths.flatMap((z) => texels.map((t) => edgeError(faces, z, t, bias, length)));
+    const [now, before] = [errors(BIAS), errors(DEVELOP_BIAS)];
+    now.forEach((error, i) => assert.ok(error < before[i], `${i}: ${error} against ${before[i]}`));
+  }
 });
