@@ -99,7 +99,6 @@ export function createExactPagesRender(options: {
     pixelError: 0,
     viewport,
     holdResident: true,
-    pageBudget: cap,
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
