@@ -182,9 +182,11 @@ more than half of it, so a `64 × 64`-pixel tile on one surface reads at most th
 straddles, and a third more while coarser levels stand in for pages not drawn yet: a frame asks for
 at most `⁴⁄₃ · 4 · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages. The pool holds twice that — the report being read
 and the next one, which a turn of the camera may renew in full. At 1280 × 720 that is 1 280 pages a
-frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, and as much again for
-the static layer once something moves. The atlas stops at the 8 192-texel side every WebGPU device
-offers (4 096 pages, 256 MiB), reached at 1920 × 1080; above it the pages past the pool wait,
+frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, as much again for
+the static layer once something moves, and half as much for the transmittance layer once a blended
+surface casts (8 bytes per 4 page texels, 81 MiB). The atlas stops at the 8 192-texel side every
+WebGPU device offers (4 096 pages, 256 MiB, and 128 MiB of transmittance), reached at 1920 × 1080;
+above it the pages past the pool wait,
 read at the coarser level meanwhile, and are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
 The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
@@ -306,6 +308,38 @@ nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the l
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
+
+**Blended surfaces cast a shadow attenuated by their opacity.** A blended cluster is drawn by the
+blend pass and never enters the visibility tables: to cast, it takes a row of the page table
+_behind_ the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
+row follows residency like a visibility row — taken when the cluster's slot arrives, given back
+when it leaves — and the pool bounds how many exist; a scene that blends nothing has none. The
+light cut finds the cluster at that row (`gpu/draw/lightRows.ts`, pinned by the host), the CPU cut
+lists it there, and the same cull draws it. It never writes the pool's depth: it fills the
+**transmittance layer** (`gpu/shadow/transmittance.ts`), two textures at half the pool's
+resolution — one texel for each 2 × 2 depth texels, addressed by the same pages and page table
+(texel / 2): the transmittance, `rgba8unorm`, whose RGB keeps `Π(1 − coverage)`, the coverage being
+the material's opacity times its colour map's alpha, and the nearest translucent depth,
+`depth32float` like the pool's. Transmittance is low-frequency, and the same PCF filters it. A pass
+of its own follows the pool's (`webgpu/pages/render/encodeShadowPass.ts`): each page the pool drew
+is cleared to full transmittance and far depth, then draws its list twice, where only the blended
+rows survive, from the same shader entry — depth only, depth-tested, for the nearest depth; then
+colour only, blended multiplicatively, without depth. Both discard a fragment the pool's opaque
+depth hides at all four of its texels. The shadow read multiplies its filtered PCF result by
+the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
+lie within one texel of it: the four texels around it, kept within its page, each its transmittance
+where the receiver lies behind its translucent depth, filtered bilinearly. A pixel the opaque depth
+already darkens fully reads nothing of the layer. A constant opacity gives a constant shadow, two panes multiply, a
+receiver in front of a pane keeps its light, and a receiver 2 m behind a pane at a 4 km sun range
+is attenuated: the depth is single precision. Blended rows count as moving, so the static layer
+keeps depth alone and a restored page starts from full transmittance. The layer exists from the
+first blended caster on, 8 bytes per 4 page texels (`shadowTransmittanceBytes`, counted in
+`SHADOW_POOL_BYTES`); before, the passes and the read are those of an opaque scene, the read
+binding one-texel stand-ins it never samples. One nearest depth per texel: a receiver between two
+stacked panes takes both. Each product is kept in 8 bits. Opacity 0 takes no row and casts
+nothing; opacity 1 lets no light through. Additive and transmissive surfaces cast nothing yet: the tinted
+shadow of transmission is #33's, which colours the same RGB layer. An unpaged blended mesh casts
+nothing. WebGL2 has no shadow path, so none of this exists there.
 
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's

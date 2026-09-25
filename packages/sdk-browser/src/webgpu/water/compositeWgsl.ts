@@ -6,7 +6,10 @@ import {
   WORLD_AT_WGSL,
 } from '../../lighting/deferred/shaders.ts';
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts';
-import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import {
+  CONTRACT_SHADOW_BINDINGS,
+  declaredLightingWgsl,
+} from '../../lighting/direct/lightingWgsl.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
@@ -36,6 +39,9 @@ export const WATER_BINDINGS = {
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
   uniform: 16,
   volumes: 17,
+  /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
+  shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
+  shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
 };
 
 /**
@@ -67,7 +73,7 @@ ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
 @group(0) @binding(${WATER_BINDINGS.volumes}) var<storage,read> volumes:array<Volume>;
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData)}
+${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData, WATER_BINDINGS.shadowTransmittance)}
 ${bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes)}
 ${WATER_UNPACK_WGSL}
 ${FULLSCREEN_VERTEX}
