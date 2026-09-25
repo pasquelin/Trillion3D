@@ -191,10 +191,3 @@ export class Geometry {
     forgetTree(this);
   }
 }
-
-/** Stamps `geometry` with the family call that built it (`Geometry.recipe`): a saved scene
- *  stores the call and builds the same shape again. */
-export function withRecipe(geometry: Geometry, type: string, args: ArrayLike<unknown>) {
-  geometry.recipe = { type, args: Array.from(args) };
-  return geometry;
-}
