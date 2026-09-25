@@ -111,9 +111,34 @@ pub(super) struct SiteScene {
     pub result: Value,
 }
 
-/// Cooks a committed glTF whose one buffer is `<tag>.bin`, found under `folder` from the
-/// repository root.
-pub(super) fn cook_site_scene(folder: &str, gltf: &str, tag: &str) -> SiteScene {
+impl SiteScene {
+    /// The positions and the indices of the source primitive `primitive` was cooked from.
+    pub fn source(&self, primitive: &Value) -> (Vec<f32>, Vec<u32>) {
+        let at = |key: &str| primitive[key].as_u64().expect(key) as usize;
+        let written = &self.gltf["meshes"][at("mesh")]["primitives"][at("primitive")];
+        let read = |id: &Value| {
+            accessor(
+                &self.gltf,
+                &self.bin,
+                id.as_u64().expect("accessor") as usize,
+                None,
+            )
+            .expect("accessor")
+        };
+        let positions = read(&written["attributes"]["POSITION"]).collect_f32();
+        let indices = read(&written["indices"]).collect_u32();
+        (positions.expect("positions"), indices.expect("indices"))
+    }
+}
+
+/// Cooks a committed glTF whose one buffer is `<tag>.bin` and whose images lie beside it, found
+/// under `folder` from the repository root, on `simplification`.
+pub(super) fn cook_site_scene(
+    folder: &str,
+    gltf: &str,
+    tag: &str,
+    simplification: &str,
+) -> SiteScene {
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(folder);
@@ -121,6 +146,11 @@ pub(super) fn cook_site_scene(folder: &str, gltf: &str, tag: &str) -> SiteScene 
         serde_json::from_slice(&fs::read(source.join(gltf)).expect("gltf")).expect("json");
     let bin = fs::read(source.join(format!("{tag}.bin"))).expect("bin");
     let (root, mut options) = gltf_fixture(tag, &document, &bin);
+    for uri in document["images"].as_array().into_iter().flatten() {
+        let uri = uri["uri"].as_str().expect("image uri");
+        fs::copy(source.join(uri), options.source.join(uri)).expect("image");
+    }
+    options.simplification = simplification.into();
     options.texture_formats = Vec::new();
     let result = compile(&options, |_| {}).expect("compile");
     let objects = options.cache.join("native/objects");
@@ -136,7 +166,7 @@ pub(super) fn cook_site_scene(folder: &str, gltf: &str, tag: &str) -> SiteScene 
 /// Checks every streamed primitive of a site scene (`cook_site_scene`); returns the bundles past
 /// the root cover.
 fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
-    let SiteScene { root, result, .. } = cook_site_scene(folder, gltf, tag);
+    let SiteScene { root, result, .. } = cook_site_scene(folder, gltf, tag, "qem-endpoints");
     let past_roots = result["primitives"]
         .as_array()
         .expect("primitives")
