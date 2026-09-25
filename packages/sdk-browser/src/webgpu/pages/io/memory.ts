@@ -79,7 +79,9 @@ export async function setWebgpuMemoryBudgets(
       draw = geometryPoolDrawer(rt);
     let pool: GeometryPool | undefined = draw(bytes);
     if (pool.slots !== setup.slots && gpu.cache && device && !run.lost)
-      pool = await probed(grantedGeometryPool(device, bytes, draw, diagnose, geometryProbe(device)));
+      pool = await probed(
+        grantedGeometryPool(device, bytes, draw, diagnose, geometryProbe(device)),
+      );
     if (pool && pool.slots !== setup.slots && gpu.cache && !run.lost) {
       // The root cover keeps its place before any other page: the pool never goes below it, and a
       // cut can only be completed from it.

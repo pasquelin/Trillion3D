@@ -8,7 +8,10 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts';
  * outside the slots, which the budget pays first (`geometryPoolFor`).
  */
 export function sessionGeometryPool(
-  options: Omit<Parameters<typeof geometryPoolFor>[0], 'budgetBytes' | 'ceilingSlots' | 'heldBytes'>,
+  options: Omit<
+    Parameters<typeof geometryPoolFor>[0],
+    'budgetBytes' | 'ceilingSlots' | 'heldBytes'
+  >,
   budgetBytes: number | undefined,
   ceilingBytes: number | undefined,
 ) {
