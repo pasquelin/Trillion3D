@@ -27,7 +27,9 @@ origin/develop`, nothing else written there) at start and after every merge you 
    domain), priority domain first; the **architect**, naming the area of its round
    (`docs/roles/architect.md`); the **analyst** (every two hours, below), with the time of its last
    run; one **measurer** when `to measure` has work; one **acceptance** session when merges are not
-   yet `audited`. Never two sessions on one domain. You start none of them yourself.
+   yet `audited`. Never two sessions on one domain. You start none of them yourself. Each prompt
+   starts with its command: `/t3d-lead <domain>`, `/t3d-architect`, `/loop 2h /t3d-analyst`,
+   `/loop /t3d-measure`, `/loop /t3d-audit`; the architect and the analyst are always given.
 3. **Brief.** Every prompt starts with the role's skill (`/t3d-lead <domain>`…) and carries, in
    this order:
    - the role and the repository root (the main checkout, never written to): worktrees go in
