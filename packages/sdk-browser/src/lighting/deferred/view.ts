@@ -9,7 +9,7 @@ import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environme
 
 const DEFERRED_VIEW_BYTES = 144;
 
-/** With no declared light: zero lights, zero tiles, exposure 1, the ACES curve. */
+/** With no declared light: zero lights, zero tiles, exposure 1, the ACES curve, the eye unread. */
 export const ZERO_DIRECT = [0, 0, 0, 1, TONE_MAPPING_RANK.aces, 0, 0, 0] as const;
 
 export function createDeferredView(device: GPUDevice) {
@@ -23,7 +23,7 @@ export function createDeferredView(device: GPUDevice) {
     buffer,
     /** `rawOutput` skips the display chain; `sampledRank` non-zero draws a subset of each
      *  pixel's lights (`../direct/lightSamplingWgsl.ts`); `direct` carries the contract lights, the
-     *  tiles in X and Y, the exposure, then the display curve's rank. */
+     *  tiles in X and Y, the exposure, then the display curve's rank and the eye. */
     write(
       inverseViewProjection: ArrayLike<number>,
       camera: readonly number[],

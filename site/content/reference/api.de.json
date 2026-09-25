@@ -1694,6 +1694,10 @@
       "autoForward": "REISEFLUG, standardmäßig deaktiviert: die Kamera fliegt ohne gehaltene Taste mit `movementSpeed` nach vorn, wie ein Flugzeug. W fügt dann `movementSpeed` hinzu (doppelt so schnell) und S nimmt es weg (die Kamera bleibt stehen); sie fliegt nie rückwärts. Nichts bewegt sich vor dem nächsten `update`, sodass ein Host, der bei `change` neu zeichnet, ein Bild anfordert, wenn er den Reiseflug aktiviert."
     }
   },
+  "Fog": {
+    "summary": "Nebel auf jeder Fläche: linear von `near` bis `far`, oder mit der Entfernung dichter werdend nach `density`, nach oben über `baseHeight` dünner, wenn `heightFalloff` gesetzt ist.",
+    "description": "Die Farbe ist das Licht, das der Nebel zum Auge streut, belichtet und durch die Anzeigekurve geführt wie das einer Fläche."
+  },
   "FORMAT_VERSION": {
     "summary": "Cache-Format, das diese Engine liest.",
     "description": "Format 5 trägt `scene-tables.json`, die Knoten- und Materialtabellen, gegen die die vorbereitete Szene geprüft wird; die Formate 3 und 4 haben dieses Produkt nicht und werden anhand ihrer Nummer abgelehnt, statt halb gelesen zu werden."
@@ -4957,8 +4961,8 @@
     "members": {
       "isScene": "Immer `true`: unterscheidet die Szenenwurzel von jedem anderen Objekt.",
       "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
-      "fog": "Ein Nebel, der Objekte in `color` zwischen `near` und `far` verschmelzen lässt; `null` für keinen.",
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
+      "fog": "Nebel auf jeder Fläche, deckend oder transparent, in beiden Renderern; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
       "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
@@ -4997,8 +5001,21 @@
     "members": {
       "exposure": "Multiplikator der linearen Radianz, vor der Kurve angewendet.",
       "toneMapping": "Die Anzeigekurve; `DEFAULT_TONE_MAPPING`, wenn sie fehlt.",
-      "irradiance": "Die aus allen Richtungen ankommende Bestrahlungsstärke, in 27 Zahlen: neun Koeffizienten, jeder ein RGB-Tripel, in der Reihenfolge der Bänder konstant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Fehlt sie, oder ist sie ganz null, beleuchtet nichts eine Oberfläche außer den deklarierten Lampen."
+      "irradiance": "Die aus allen Richtungen ankommende Bestrahlungsstärke, in 27 Zahlen: neun Koeffizienten, jeder ein RGB-Tripel, in der Reihenfolge der Bänder konstant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Fehlt sie, oder ist sie ganz null, beleuchtet nichts eine Oberfläche außer den deklarierten Lampen.",
+      "fog": "Entfernungs- oder Höhennebel auf jeder Fläche (`SceneFog`); fehlt er, keiner."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Nebel, der mit der Entfernung dichter wird: `density` pro Szeneneinheit; mit `heightFalloff` wird er über `baseHeight` dünner, alle `1 / heightFalloff` Einheiten nach oben durch e geteilt.",
+    "members": {
+      "color": "Die Strahldichte, in die der Nebel übergeht, in linearem RGB.",
+      "density": "Extinktion pro Szeneneinheit, auf `baseHeight`; ≥ 0.",
+      "heightFalloff": "Wie schnell die Dichte mit der Höhe abnimmt, pro Szeneneinheit; 0, der Standard, hält sie in jeder Höhe gleich.",
+      "baseHeight": "Die Höhe, in der die Dichte `density` beträgt; standardmäßig 0."
+    }
+  },
+  "SceneFog": {
+    "summary": "Entfernungs- oder Höhennebel, wie die Beleuchtung ihn liest."
   },
   "SceneLight": {
     "summary": "Ein Szenenlicht, Version 2.",
@@ -5023,6 +5040,14 @@
     "summary": "Was der Host zu sehen verlangt.",
     "description": "`lit` ist die echte Beleuchtung und nur diese; `unlit` ist die Diagnoseansicht in rohem Albedo — die Materialfarbe unverändert, ohne Licht, ohne Umgebungslicht und ohne Emission — für Geometrie-Prüfstände, die Bilder pixelgenau vergleichen. `auto`, standardmäßig, gibt `unlit`, solange kein Licht deklariert ist, und `lit`, sobald eines existiert. `bounce` ist die dritte Diagnoseansicht: allein die indirekte Bestrahlungsstärke, multipliziert mit der Belichtung und in linearen Werten ohne ACES oder sRGB ausgegeben. Das ist es, was der Prüfstand mit dem Compiler-Orakel vergleicht; es ist kein anzusehendes Bild, und es ist schwarz ohne eingestellten Rückstrahl."
   },
+  "SceneLinearFog": {
+    "summary": "Nebel, der bei `near` beginnt und ab `far` alles verdeckt, Entfernungen vom Auge.",
+    "members": {
+      "color": "Die Strahldichte, in die der Nebel übergeht, in linearem RGB.",
+      "near": "Entfernung vom Auge, bei der der Nebel beginnt.",
+      "far": "Entfernung vom Auge, ab der nur noch Nebel zu sehen ist."
+    }
+  },
   "SceneLightStore": {
     "summary": "Die Lichter einer Szene, so wie die GPU sie liest, angeordnet und auf dem neuesten Stand gehalten.",
     "members": {
@@ -5034,6 +5059,7 @@
       "ids": "Der Name des Lichts an jedem Platz.",
       "count": "Wie viele Lichter.",
       "epoch": "Erhöht, wenn sich die Lichtmenge ändert.",
+      "transportEpoch": "Wird mit der Epoche erhöht, außer durch eine Änderung allein des Nebels: Nebel ist ein Term des Sichtstrahls, kein Lichttransport, daher behält, was transportiertes Licht zwischenspeichert (die Bounce-Sonden), es bei.",
       "environment": "Die Umgebung der Szene.",
       "lightingView": "Vom Host angeforderte Ansicht, unverändert: `auto`, solange er nichts angefordert hat.",
       "unlit": "Wahr, wenn das Bild in rohem Albedo ausgegeben werden muss, ohne Licht. Das ist das Standardverhalten, solange kein Licht deklariert ist: eine Szene ohne Quelle hat nichts zu beleuchten, und ein schwarzes Bild würde keinem Geometrie-Prüfstand helfen. Sobald ein Licht existiert, übernimmt die echte Beleuchtung — außer der Host hat explizit die Diagnoseansicht angefordert.",
@@ -5567,7 +5593,7 @@
       "baseMetal": "Grundfarbe in RGB, A für Metall.",
       "normalRough": "Normale XYZ in der Welt, A für Rauheit.",
       "emissiveAo": "Emission RGB, A für Umgebungsverdeckung.",
-      "flags": "0 Hintergrund, 1 unbeleuchtet, 2 Lesevorgänge, 3 Diagnose im Anzeigeraum.",
+      "flags": "0 Hintergrund, 1 unbeleuchtet (im Nebel), 2 gelesen, 3 unverändert gezeigt: eine Diagnose, eine Normalen- oder Tiefenansicht.",
       "views": "Ihre GPU-Textursichten.",
       "dispose": "Gibt sie frei."
     }
@@ -6793,7 +6819,7 @@
       "format": "Immer `'trillion3d-scene'`.",
       "formatVersion": "Die Version dieses Aufbaus; eine andere wird abgelehnt.",
       "background": "Die Hintergrundfarbe oder `null`.",
-      "fog": "Der Nebel oder `null`.",
+      "fog": "Der Nebel, seine Farbe in linearen Komponenten, oder `null`.",
       "camera": "Die mit der Szene gespeicherte Kamera oder `null`.",
       "geometries": "Jede Form, einmal, egal wie viele Meshes sie tragen.",
       "materials": "Jedes Material, einmal, egal wie viele Meshes es tragen.",
