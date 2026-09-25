@@ -56,7 +56,7 @@ function together(radius: number, stretch: Stretch | null) {
 }
 
 /** How many nodes of each mesh `cells` place. */
-export function meshTotals(cells: readonly Pick<TableCell, 'meshes'>[]) {
+function meshTotals(cells: readonly Pick<TableCell, 'meshes'>[]) {
   const totals = new Map<number, number>();
   for (const cell of cells)
     for (const [mesh, nodes] of cell.meshes) totals.set(mesh, (totals.get(mesh) ?? 0) + nodes);
