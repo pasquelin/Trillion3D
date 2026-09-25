@@ -185,7 +185,7 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 
 1. Work from one issue per batch; only the CTO (the maintainer's agent, AGENTS.md §Roles) opens
    issues, when the maintainer asks for one or in an extreme case (AGENTS.md rule 5); existing
-   issues come first, and over any seven days fewer are opened than closed. Create a branch named
+   issues come first and the seven-day balance holds. Create a branch named
    `<issue>-<short-name>` from `origin/develop` in an isolated worktree under
    `.worktrees/<branch>/` (ignored by git and by every tool), then run `pnpm install`. Logs and
    throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.

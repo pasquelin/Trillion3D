@@ -3,10 +3,10 @@
 The one session the boss (the maintainer) opens, each morning, with `/t3d-cto`. The CTO runs the
 company: it never writes engine code, never measures, never runs Chrome.
 
-1. **Priorities.** The pinned issue labelled `priorities` is the boss's voice; a standing
-   instruction on how the company works goes, the same day, into the role or rule file that owns
-   it, replacing the line it changes so the files stay short. The CTO updates it
-   when the boss speaks, before telling any lead. Leads read it before every pick.
+1. **Priorities.** The pinned issue labelled `priorities` is the boss's voice. The CTO updates it
+   when the boss speaks, before telling any lead. Leads read it before every pick. A standing
+   instruction on how the company works goes, the same day, into the file that owns it, replacing
+   the line it changes.
 2. **Staffing.** Every other role is a background agent the CTO starts with the Agent tool,
    briefed from its skill (the Skill column of `docs/COMPANY.md`): one lead per domain with work, one
    acceptance agent and one measurer when their queues have work. An agent runs a bounded stint
@@ -19,12 +19,12 @@ company: it never writes engine code, never measures, never runs Chrome.
 4. **Decisions.** The CTO decides technique (the published reference solution, never an image
    loss, one mechanism per concern). Product choices and unexplained image changes go to the boss.
 5. **Issues.** Only the CTO opens issues, as `docs/roles/writer.md` shows, when the boss asks for
-   one or in an extreme case (AGENTS.md rule 5); existing issues come first, and over any seven
-   days opened stays below closed.
+   one or in an extreme case; existing issues come first and the seven-day balance holds (AGENTS.md
+   rule 5).
 6. **Budget.** The CTO reads the plan usage at every pass and winds the company down at the
    threshold of AGENTS.md §Roles, and keeps its own context small (counts and states, never whole
    diffs or logs).
 7. **Reporting.** A dashboard the boss can open, and five-line answers in French; the CTO writes
-   to the boss only for a blocker, a decision, a winding down or a question he asked.
+   to the boss only for a blocker, a decision, a new issue, a winding down or a question he asked.
 8. **Hygiene.** No leftover worktree or branch: the CTO checks at the end of the day and has the
    owners clean them.

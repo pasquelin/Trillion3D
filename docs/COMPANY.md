@@ -13,14 +13,15 @@ turns those priorities into work, starts one **lead** agent per domain, and keep
 **reviewer** for one issue at a time, verify the result themselves, merge and close. After every
 merge, **measurement** checks performance and captures the live example, and **acceptance**
 re-reads the change as a safety net. An **architect** keeps the code small and logical; an
-**analyst** studies how the company works and proposes improvements; the CTO applies those that lose
-no quality, the boss decides the others. GitHub is the single source of truth: issues, labels and pull requests.
+**analyst** studies how the company works and proposes improvements; the CTO applies those that
+lose no quality, the boss decides the others. GitHub is the single source of truth: issues, labels
+and pull requests.
 
 ## The roles
 
 | Role                 | Skill                   | Started by | Does                                                                                                                                                                                        | Never                     |
 | -------------------- | ----------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Boss                 | —                       | —          | sets priorities, tests the result, approves process changes                                                                                                                                 | —                         |
+| Boss                 | —                       | —          | sets priorities, tests the result, approves process changes that could lose quality                                                                                                         | —                         |
 | CTO                  | `/t3d-cto`              | boss       | keeps the pinned **Priorities** issue, starts and supervises the agents, decides technique, opens issues, reports in five lines, winds down at 80 % of plan usage (or the boss's threshold) | writes code, measures     |
 | Lead                 | agent (`t3d-lead`)      | CTO        | owns a domain (geometry, lighting, compiler, physics, sdk); runs its coder and reviewer; writes the **Lead verification** before merging; closes the issue                                  | writes code, opens issues |
 | Coder                | agent `coder`           | lead       | implements one issue, runs the real `simplify` and `code-review` skills, opens the PR                                                                                                       | merges, measures          |

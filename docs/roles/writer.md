@@ -10,13 +10,13 @@ write issues; you never code, never measure. Every issue is in English, on
 
 1. **Search first.** `gh issue list --state all --search "<keywords>"`. A need an open issue
    covers joins it (a To-do item with `gh issue edit --body-file`, or `gh issue comment`), never
-   duplicated. A new issue only when the boss asks for one or in an extreme case, and over any
-   seven days opened stays below closed (AGENTS.md rule 5).
+   duplicated. A new issue only when AGENTS.md rule 5 allows one.
 2. **Map what exists.** Find the functions, modules and docs the work touches (the knowledge graph
    first, then a bounded search). Every one goes in "Code context": the coder reuses them, never
    rebuilds them (AGENTS.md rule 6).
 3. **One subject per issue.** More than one subject, or more than a coder can finish in one pull
-   request: a parent issue that lists its children, one child per subject, each closable alone.
+   request: a parent issue that lists its children, one child per subject, each closable alone. A
+   new step of an existing programme is a To-do item of its parent (AGENTS.md §Leads).
 
 ## The five sections
 
