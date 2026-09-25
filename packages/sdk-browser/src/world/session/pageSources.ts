@@ -45,9 +45,15 @@ export async function createExplorerPageSources(
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS);
   // The resident proxy is read through the same queue, so the world keeps its bytes with the
   // pages across sessions: a device lost and granted again does not fetch it twice (`proxyLoad.ts`).
+  // It is `proxy.bin` in every key folder, where a page is named by its digest: it is kept under
+  // its full address, or another scene the world loads would read this one's.
+  const proxy = metadata.proxy && {
+    ...metadata.proxy,
+    url: new URL(metadata.proxy.url, base).href,
+  };
   const streamer = createPageStreamerWith(
     options.pageCache,
-    [...pages, ...geometryPages, ...bundles, ...extra, ...(metadata.proxy ? [metadata.proxy] : [])],
+    [...pages, ...geometryPages, ...bundles, ...extra, ...(proxy ? [proxy] : [])],
     base,
     signal,
     options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
@@ -85,6 +91,7 @@ export async function createExplorerPageSources(
     attachCap,
     cacheCap,
     streamer,
+    proxy,
     loaded,
     pageBytesRead,
     indices,
