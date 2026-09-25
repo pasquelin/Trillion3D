@@ -3,7 +3,8 @@ import { CommandWriter, type PhysicsBudget } from '../../../sdk-core/src/physics
 import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createPhysicsBodies, flagsOf, hasBody, worldPoseOf } from './bodies.ts';
+import { createPhysicsBodies, hasBody } from './bodies.ts';
+import { placeBodies } from './placeBodies.ts';
 import { emitContacts } from './contacts.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { emptyPhysicsStats, eventsAt, type FromPhysics, type PhysicsResults } from './protocol.ts';
@@ -12,6 +13,7 @@ import { startPhysicsWorker } from './sessionWorker.ts';
 import { createPhysicsJoints } from './joints.ts';
 import type { createJointList } from './jointList.ts';
 import { createPhysicsVehicles } from './vehicles.ts';
+import { receiveSoft } from './softBodies.ts';
 import { createTileStreamer } from './tiles.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
@@ -74,7 +76,7 @@ export function createPhysicsSession(
     const words = new Uint32Array(m.buffer);
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
-    const moved = poses.receive(words, m.poses, posed, ms);
+    const moved = poses.receive(words, m.poses, posed, ms) + receiveSoft(m.soft, bodies).length;
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
     waves.received(m.water, m.active, began, m.waterEpoch);
     if (m.character) character.hear?.(m.character);
@@ -142,13 +144,7 @@ export function createPhysicsSession(
     },
     /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
-      node.traverse((child) => {
-        if (!hasBody(child) || child.physics._host !== host) return;
-        const { position, quaternion } = worldPoseOf(child);
-        const move = child.physics.type === 'kinematic' ? 'moveKinematic' : 'teleport';
-        writer[move](child.physics._index, position, quaternion);
-        writer.flags(child.physics._index, flagsOf(child));
-      });
+      placeBodies(node, host, writer);
       tiles.moved(node);
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
