@@ -32,7 +32,7 @@ export function transformVertices(geometry: Pick<Geometry, 'attributes' | '_owne
     for (let i = 0; i < normal.count; i++) {
       applyMatrix3Vector3(v, n, read(i, 0), read(i, 1), read(i, 2));
       normalizeVector3(v);
-      if (stored) normal.array.set(v, i * normal.itemSize);
+      if (stored) for (let c = 0; c < 3; c++) normal.array[i * normal.itemSize + c] = v[c];
       else normal.setXYZ(i, v[0], v[1], v[2]);
     }
   }
