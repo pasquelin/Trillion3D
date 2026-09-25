@@ -21,7 +21,7 @@ review=$(printf '%s\n' "$body" | sed -n '/^## Local review before push/,/^## /p'
 }
 # A thumbnail-only pull request carries no code to review.
 case "$body" in *'Thumbnail only'*) exit 0 ;; esac
-if [ "${PR_DRAFT:-false}" != true ]; then
+if [ "${PR_DRAFT:-}" != true ]; then
   lead=$(printf '%s\n' "$body" | sed -n '/^## Lead verification/,/^## /p' | sed '1d;/^## /d')
   printf '%s\n' "$lead" | grep -Eq '^[-*] .+: (delivered|not delivered)' || {
     echo 'The section "Lead verification" is missing or empty: the lead maps every To-do item to its file and test before marking the pull request ready.' >&2
