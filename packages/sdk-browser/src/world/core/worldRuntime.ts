@@ -1,4 +1,4 @@
-import type { FrameMetrics, SceneToneMapping } from '../../../../sdk-core/src/index.ts';
+import type { FrameMetrics, SceneFog, SceneToneMapping } from '../../../../sdk-core/src/index.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts';
@@ -26,8 +26,8 @@ type Inputs = {
   /** Runs on every new session, before its first frame: diagnostic mode, pools. */
   opened: (explorer: MeasuredWorld) => void;
   frame: (metrics: FrameMetrics) => void;
-  /** The display chain the page set: exposure and curve; the lights add their irradiance. */
-  display: () => { exposure: number; toneMapping: SceneToneMapping };
+  /** What the page set: exposure, curve and fog; the lights add their irradiance. */
+  display: () => { exposure: number; toneMapping: SceneToneMapping; fog?: SceneFog };
   /** Whether the world has drawn a frame yet. */
   drawn: () => boolean;
   /** Settles once the world's renderer — and its device — is granted, a lost one asked again. */
