@@ -4787,6 +4787,9 @@
     "summary": "L'atlante servito da un'anteprima: colore (`rgba8unorm-srgb`, colore di base ed emissione) o dati (`rgba8unorm`, metallo-ruvidità, normale, occlusione).",
     "description": "La stessa texture può avere una voce per ciascuno."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Una catena dell'atlante dei colori, per una texture il cui alfa ogni lettore prende come copertura (solo il colore di base dei materiali MASK o BLEND): l'unica catena i cui colori sono pesati per l'alfa, nominata a parte da quella semplice (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "L'atlante dei dati: immagini di metallo-ruvidità, normali e occlusione."
   },
@@ -6041,7 +6044,7 @@
       "sourceKind": "0 quando i byte venivano da un uri di immagine, 1 quando venivano da sourceBufferView.",
       "sourceBufferView": "Vista di buffer della scena preparata, o -1 per una fonte uri.",
       "sha256": "SHA-256 dei byte sorgente decodificati.",
-      "atlas": "L'atlante servito da questa voce: PREVIEW_ATLAS_COLOR o PREVIEW_ATLAS_DATA.",
+      "atlas": "La catena che questa voce porta: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, o PREVIEW_ATLAS_COVERAGE, campionata nell'atlante dei colori.",
       "firstLevel": "Indice del primo livello portato nella catena di mip della sorgente; 0 quando rientra già sotto PREVIEW_BASE e il file separato porta quindi tutta la sua risoluzione.",
       "bakedLevels": "Livelli cotti in file nella cache, da 0 a bakedLevels - 1; firstLevel quando la catena è completa, 0 quando nulla è stato scritto e il motore carica l'immagine sorgente.",
       "levels": "Livelli portati in ordine, dal più fine a 1×1, ciascuno una vista sui byte del file separato.",

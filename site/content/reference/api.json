@@ -10010,6 +10010,17 @@
     "description": "The same texture may have one entry each."
   },
   {
+    "id": "PREVIEW_ATLAS_COVERAGE",
+    "module": "packages/sdk-core/src/texture/previewFormat.ts",
+    "exports": ["PREVIEW_ATLAS_COVERAGE"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "PREVIEW_ATLAS_COVERAGE",
+    "signature": "const PREVIEW_ATLAS_COVERAGE: 2",
+    "summary": "A chain of the colour atlas, for a texture every reader of which takes its alpha for coverage (the base colour of MASK or BLEND materials only): the one chain whose colours are weighted by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42).",
+    "description": ""
+  },
+  {
     "id": "PREVIEW_ATLAS_DATA",
     "module": "packages/sdk-core/src/texture/previewFormat.ts",
     "exports": ["PREVIEW_ATLAS_DATA"],
@@ -10027,7 +10038,7 @@
     "section": "types",
     "kind": "Constant",
     "title": "PREVIEW_ATLAS_NAMES",
-    "signature": "const PREVIEW_ATLAS_NAMES: readonly ['srgb', 'linear']",
+    "signature": "const PREVIEW_ATLAS_NAMES: readonly ['srgb', 'linear', 'srgb-coverage']",
     "summary": "The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them.",
     "description": ""
   },
@@ -16489,7 +16500,7 @@
       {
         "name": "atlas",
         "type": "number",
-        "desc": "The atlas this entry serves: PREVIEW_ATLAS_COLOR or PREVIEW_ATLAS_DATA."
+        "desc": "The chain this entry holds: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, or PREVIEW_ATLAS_COVERAGE, sampled in the colour atlas."
       },
       {
         "name": "firstLevel",

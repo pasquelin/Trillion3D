@@ -2231,6 +2231,9 @@
     "summary": "一个预览所服务的图集:颜色图集(`rgba8unorm-srgb`,基础颜色和自发光),或数据图集(`rgba8unorm`,金属度-粗糙度、法线、遮蔽)。",
     "description": "同一张纹理可能分别拥有各一条记录。"
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "颜色图集中的一条链,用于每个读取者都把其 alpha 当作覆盖率的纹理(仅限 MASK 或 BLEND 材质的基础色):唯一一条颜色按 alpha 加权的链,与普通链分开命名(`reduce.rs`、`AtlasKind::Coverage`、#42)。"
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "数据图集:金属度-粗糙度贴图、法线贴图和遮蔽贴图。"
   },
@@ -3613,7 +3616,7 @@
       "sourceKind": "当字节来自图像 uri 时为 0,来自 sourceBufferView 时为 1。",
       "sourceBufferView": "预处理场景中的缓冲区视图,若来源为 uri 则为 -1。",
       "sha256": "解码后源字节的 SHA-256。",
-      "atlas": "这条记录所服务的图集:PREVIEW_ATLAS_COLOR 或 PREVIEW_ATLAS_DATA。",
+      "atlas": "这条记录所承载的链:PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA 或 PREVIEW_ATLAS_COVERAGE,后者在颜色图集中采样。",
       "firstLevel": "源 mip 链中携带的第一个层级的索引;当它本身已经满足 PREVIEW_BASE 以内、旁挂文件因而携带其完整分辨率时为 0。",
       "bakedLevels": "在缓存中被烘焙成文件的层级数,从 0 到 bakedLevels - 1;当链条完整时等于 firstLevel,当没有写入任何内容、引擎需要加载源图像时为 0。",
       "levels": "按顺序携带的各个层级,从最精细的一级到 1x1,每一级都是对旁挂文件字节的一个视图。",

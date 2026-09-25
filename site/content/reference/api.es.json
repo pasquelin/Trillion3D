@@ -4787,6 +4787,9 @@
     "summary": "El atlas al que sirve una vista previa: color (`rgba8unorm-srgb`, color base y emisión) o datos (`rgba8unorm`, metal-rugosidad, normal, oclusión).",
     "description": "Una misma textura puede tener una entrada para cada uno."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Una cadena del atlas de color, para una textura cuyo alfa toma cada lector como cobertura (solo el color base de materiales MASK o BLEND): la única cadena cuyos colores se ponderan por el alfa, nombrada aparte de la cadena simple (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "El atlas de datos: imágenes de metal-rugosidad, normales y oclusión."
   },
@@ -6041,7 +6044,7 @@
       "sourceKind": "0 cuando los bytes venían de una uri de imagen, 1 cuando venían de sourceBufferView.",
       "sourceBufferView": "Vista de búfer de la escena preparada, o -1 para una fuente uri.",
       "sha256": "SHA-256 de los bytes fuente decodificados.",
-      "atlas": "El atlas al que sirve esta entrada: PREVIEW_ATLAS_COLOR o PREVIEW_ATLAS_DATA.",
+      "atlas": "La cadena que lleva esta entrada: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, o PREVIEW_ATLAS_COVERAGE, muestreada en el atlas de color.",
       "firstLevel": "Índice del primer nivel llevado en la cadena de mips de la fuente; 0 cuando ya cabe bajo PREVIEW_BASE y el archivo aparte lleva por tanto toda su resolución.",
       "bakedLevels": "Niveles horneados en archivos en la caché, de 0 a bakedLevels - 1; firstLevel cuando la cadena está completa, 0 cuando nada se ha escrito y el motor carga la imagen fuente.",
       "levels": "Niveles llevados en orden, del más fino a 1×1, cada uno una vista sobre los bytes del archivo aparte.",
