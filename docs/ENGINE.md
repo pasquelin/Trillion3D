@@ -189,7 +189,8 @@ revision and asks for a frame.
 
 Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
-runs no pass, a changed chain breaks the hold; targets are made at the first frame with a pass, fixed
+runs no pass, a changed chain breaks the hold and leaves the temporal accumulation still, as
+guides do (the chain runs after the resolve); targets are made at the first frame with a pass, fixed
 at the image size, freed when the chain empties, and counted in `gpuFrameTargetBytes` (on WebGL2,
 which counts no other target, the chain's alone). The GPU total reserves them on the largest canvas
 the budget declares (`world.budget.canvas`, 3840 × 2160 by default: two pass targets, the WebGL2
