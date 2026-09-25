@@ -9,7 +9,7 @@ import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 
 test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {
-  const rig = new G.GraphNode();
+  const rig = new G.Object3D();
   rig.position.set(-3, 8, 2);
   const camera = G.perspectiveCamera(45, 1, 0.1, 50);
   rig.add(camera);

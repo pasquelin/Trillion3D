@@ -1,11 +1,4 @@
-import type {
-  HostDiagnosticFactory,
-  HostNode,
-  HostScene,
-  HostTexture,
-  HostTraversable,
-} from '../host/resources.ts';
-import type { HostGraphNode } from '../host/scene/graphNodes.ts';
+import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
 import type { HostCamera, HostDrawCamera } from '../camera/world.ts';
 import type { HostDrawOutput } from '../webgl/core/renderTarget.ts';
 import type {
@@ -22,6 +15,7 @@ import type { CpuStepSummary } from '../stage/cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts';
 import type { PlacementRows } from '../placement/rows.ts';
 import type { BackendSceneUpdates } from '../placement/backendSceneUpdates.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
 type ViewSize = { width: number; height: number };
 export interface RenderBackend extends BackendSceneUpdates {
@@ -121,11 +115,11 @@ export interface RenderBackend extends BackendSceneUpdates {
   dispose(): void | Promise<void>; // A release that finishes later resolves when it has.
 }
 export interface BackendContext {
-  source: HostGraphNode;
+  source: Object3D;
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
   /** Node → primitive; `placements`, the instance rows drawn in place of its pose (`rows.ts`). */
-  associations: Map<HostNode, { meshes?: number; primitives?: number; placements?: PlacementRows }>;
+  associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows }>;
   /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
   textureIndices?: Map<HostTexture, number>;
   /** Reader of texture levels baked in the cache; absent from a cache that has none. */
@@ -170,7 +164,7 @@ export interface BackendContext {
   /** Temporal antialiasing, on by default as in the reference: `false` renders the
    *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
-  sceneLighting?: HostTraversable;
+  sceneLighting?: Object3D;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Identifiers of the lights the source file carried, in cache order; the host rereads them
