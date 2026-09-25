@@ -83,14 +83,16 @@ fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
  * per region of the frame, every view in the same dispatch. A region's view (`Face.view`) names its
  * range of the log — its start and its count, words of the cut's `work` — and each page finds the
  * row that holds it through `rowOf` (`../draw/lightRows.ts`); an entry the map no longer vouches
- * for — the row moved or left — is skipped. No list is built between the cut and the cull.
+ * for — the row moved or left — is skipped. A row of `[blendFirst, blendEnd)` is a blended
+ * cluster's caster row, which no draw record names: the host pins it and unpins it itself, so it
+ * is kept as it is. No list is built between the cut and the cull.
  *
  * The volumes come in as a uniform — a frame's regions are few — so that the draw records and the
  * map fit the eight storage buffers a compute stage is guaranteed.
  */
 export const SHADOW_LIGHT_CULL_SHADER = `${CULL_COMMON}
 ${DRAW_ITEM_WGSL}
-struct Uni{logBase:u32,offsetWord:u32,countWord:u32,capacity:u32,rows:u32,pad0:u32,pad1:u32,pad2:u32,}
+struct Uni{logBase:u32,offsetWord:u32,countWord:u32,capacity:u32,rows:u32,blendFirst:u32,blendEnd:u32,pad0:u32,}
 @group(0) @binding(1) var<storage, read> drawn:array<u32>;
 @group(0) @binding(2) var<storage, read> work:array<u32>;
 @group(0) @binding(5) var<uniform> uni:Uni;
@@ -105,6 +107,7 @@ fn shadowCullLight(@builtin(global_invocation_id) id:vec3u){
  if(s>=min(work[uni.countWord+view],uni.capacity)){return;}
  let page=drawn[uni.logBase+work[uni.offsetWord+view]+s];
  let row=rowOf[page];
+ if(row>=uni.blendFirst&&row<uni.blendEnd){keepCaster(face,row,uni.capacity);return;}
  if(row>=uni.rows||items[row].selectionIndex!=page){return;}
  keepCaster(face,items[row].pageIndex,uni.capacity);
 }
