@@ -89,11 +89,7 @@ test('five lamps moving over the page cap: a face not drawn reads nothing stale,
   plan.commit();
   const slices = ids.map((k) => store.sliceOf(k)),
     sun = store.sliceOf(ids.length);
-  // Every face read: face 0 down to mip 3, the others at their floor.
-  const read = slices.flatMap((slice) => [
-    ...lampPages(plan, slice, 0, 3),
-    ...[1, 2, 3, 4, 5].map((face) => lampFloor(plan, slice, face)),
-  ]);
+  const read = slices.flatMap((slice) => lampPages(plan, slice, 0, 3));
   const level = sunFloorLevel(plan.sun.finest[sun]),
     reach = new Int32Array(4),
     drewFloor = new Int32Array(ids.length * 6);

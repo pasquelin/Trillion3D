@@ -85,10 +85,10 @@ test('a light moved every frame draws coarse first: no finer page overtakes by i
 test('after a move, no page drawn at a past pose is read, and each face floor takes its turn', () => {
   const { store, plan, slice } = lampScene();
   const read = [...lampPages(plan, slice, 0, 4), ...lampPages(plan, slice, 0, 3)];
-  for (let face = 1; face < 6; face++) read.push(lampFloor(plan, slice, face));
   for (let frame = 1; frame < 6; frame++) cycle(plan, store, frame, () => read);
-  // One view a frame: six face floors, one drawn per frame, and the finer pages wait.
-  plan.admission.setViewLimit(1);
+  // Two views a frame: the floor of face 0, read, every frame; the five others one per frame, in
+  // turn; and the finer pages wait.
+  plan.admission.setViewLimit(2);
   const floorDrawn = new Int32Array(6).fill(5);
   for (let frame = 6; frame < 30; frame++) {
     store.set('lamp', { position: [0, 3 + frame / 10, 0] });
@@ -97,12 +97,13 @@ test('after a move, no page drawn at a past pose is read, and each face floor ta
       assert.ok(drawn.has(page), `page ${page} read at frame ${frame} was drawn at a past pose`);
     for (let face = 0; face < 6; face++) {
       if (drawn.has(floorPage(plan, slice, face))) floorDrawn[face] = frame;
-      assert.ok(frame - floorDrawn[face] < 6, `face ${face} floor waits past frame ${frame}`);
+      const wait = face === 0 ? 1 : 6;
+      assert.ok(frame - floorDrawn[face] < wait, `face ${face} floor waits past frame ${frame}`);
     }
   }
 });
 
-test('one lamp moving under the page cap draws the floor of every face read in the frame', () => {
+test('one lamp moving under the page cap draws the floor of every face in the frame', () => {
   const { store, plan, slice } = lampScene();
   const read = [...lampPages(plan, slice, 0, 3), ...lampPages(plan, slice, 1, 3)];
   for (let frame = 1; frame < 4; frame++) cycle(plan, store, frame, () => read);
@@ -111,7 +112,7 @@ test('one lamp moving under the page cap draws the floor of every face read in t
   for (let frame = 4; frame < 12; frame++) {
     store.set('lamp', { position: [frame / 10, 3, 0] });
     const drawn = cycleDrawn(plan, store, frame, () => read);
-    for (const face of [0, 1]) {
+    for (let face = 0; face < 6; face++) {
       const entry = lampFloor(plan, slice, face);
       assert.ok(valid(plan, entry), `face ${face} floor read at frame ${frame}`);
       assert.ok(drawn.has(floorPage(plan, slice, face)), `face ${face} drawn at frame ${frame}`);
