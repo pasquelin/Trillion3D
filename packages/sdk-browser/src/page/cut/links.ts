@@ -4,16 +4,11 @@ import type { ClusterStructureIndex } from '../selection/types.ts';
  *  resident. A property of the DAG like its links, derived once and shared by its placements. */
 const baseOpenOf = new WeakMap<CullingLinks, Int32Array>();
 
-export function baseOpen(
-  links: CullingLinks,
-  structure: ClusterStructureIndex,
-  pageCount: number,
-  nodeCount: number,
-) {
+export function baseOpen(links: CullingLinks, structure: ClusterStructureIndex) {
   let base = baseOpenOf.get(links);
-  if (base?.length === nodeCount) return base;
-  base = new Int32Array(nodeCount);
-  for (let page = 0; page < pageCount; page++)
+  if (base) return base;
+  base = new Int32Array(links.parents.length);
+  for (let page = 0; page < links.leafOfPage.length; page++)
     if (structure.sources[page] >= 0)
       for (let node = links.leafOfPage[page]; node >= 0; node = links.parents[node]) base[node]++;
   baseOpenOf.set(links, base);
@@ -50,4 +45,19 @@ export function cullingLinks(
     for (let i = 0; i < pageCount; i++) leafOfPage[firstPage + i] = node;
   }
   return { parents, leafOfPage };
+}
+
+/** Links derived for a hierarchy collected without them, shared by its placements and by every
+ *  backend that reads it: one `baseOpen` per DAG. */
+const linksOf = new WeakMap<Float64Array, CullingLinks>();
+
+/** The hierarchy's own links, or those derived once for it. */
+export function linksFor(
+  culling: { nodes: Float64Array; stride: number; links?: CullingLinks },
+  pages: number,
+) {
+  if (culling.links) return culling.links;
+  let links = linksOf.get(culling.nodes);
+  if (!links) linksOf.set(culling.nodes, (links = cullingLinks(culling, pages)));
+  return links;
 }
