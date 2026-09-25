@@ -1747,7 +1747,7 @@
       "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
-      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectMs": "CPU-Zeit des Cluster-Schnitts dieses Bildes, gemessen allein um die Auswahl herum. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt.",
       "gpuSelectionFallback": "Wahr, wenn die Engine eine GPU-Auswahl hatte und sie aufgegeben hat: was seitdem gemessen wird, ist der CPU-Rückfallschnitt. Ein Rückfall sendet auch einmal die Diagnose `gpu-selection-fallback`; der Host kopiert sie unverändert, und sie fehlt bei einer Engine ohne GPU-Auswahl.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
@@ -5525,7 +5525,8 @@
       "pinned": "Immer gehaltene Pakete.",
       "bundleBytes": "Angestrebte Größe eines Pakets.",
       "pages": "Wie viele Pakete.",
-      "maxDependencies": "Größte Zahl von Abhängigkeiten eines Pakets: die Grenze, die der Compiler veröffentlicht."
+      "maxDependencies": "Längste geschlossene Abhängigkeitsliste eines Bündels.",
+      "dependencyBound": "Höchstzahl der Bündel mit den Eltern der Cluster eines Bündels, vor dem Packen festgelegt."
     }
   },
   "SlimStructure": {
@@ -5672,7 +5673,8 @@
       "pinned": "Immer gehaltene Pakete.",
       "bundleBytes": "Angestrebte Größe eines Pakets.",
       "pages": "Jedes Paket.",
-      "maxDependencies": "Größte Zahl von Abhängigkeiten eines Pakets, wie der Compiler sie veröffentlicht hat."
+      "maxDependencies": "Längste geschlossene Abhängigkeitsliste eines Bündels, wie der Compiler sie veröffentlicht hat.",
+      "dependencyBound": "Höchstzahl der Bündel mit den Eltern der Cluster eines Bündels, vor dem Packen festgelegt."
     }
   },
   "StreamPage": {
@@ -6612,7 +6614,7 @@
       "gpuFrameMs": "GPU-Dauer des Bildes, die `gpuPassMs.frame` beschreibt. Nie zu einem `cpu*`-Feld addiert. Das Gerät wird alle paar Bilder abgetastet, eine Zahl kann also einige Bilder alt sein. Null vor der ersten Messung, von einem gehaltenen Bild bis zur nächsten Gerätemessung, auf einem Gerät ohne `timestamp-query` und unter WebGL2.",
       "gpuHostGapMs": "CPU-Zeit, die dasselbe Bild zwischen zwei seiner eigenen Sendungen verbracht hat, und null, wenn es nur einmal sendet. Das ist Host-Zeit, keine GPU-Zeit, deshalb schließt `gpuFrameMs` sie aus. Null, wenn nicht gemessen.",
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
-      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen, minus die Cluster ohne residente Seite, die `uncoveredTriangles` zählt. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Im selben Durchlauf gezählt wie `uncoveredTriangles`, bei der Übernahme des Schnitts: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`. Erwartete Abdeckungsbeziehung bei dieser Messung: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectMs": "CPU-Zeit des Cluster-Schnitts dieses Bildes, gemessen allein um die Auswahl herum. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt.",
       "gpuSelectionFallback": "Wahr, wenn die Engine eine GPU-Auswahl hatte und sie aufgegeben hat: was seitdem gemessen wird, ist der CPU-Rückfallschnitt. Ein Rückfall sendet auch einmal die Diagnose `gpu-selection-fallback`; der Host kopiert sie unverändert, und sie fehlt bei einer Engine ohne GPU-Auswahl.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
@@ -7047,8 +7049,8 @@
     "summary": "Was ein Kontakt seinen Zuhörern gibt: das andere Objekt, den Impuls und den Berührungspunkt.",
     "members": {
       "other": "Das berührte Objekt; `null`, sobald es die Szene verlassen hat.",
-      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt; 0 bei `leave`.",
-      "point": "Der Kontaktpunkt im Weltrahmen; der Ursprung bei `leave`."
+      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt (auf der Seite eines weichen Körpers: seine mittlere Geschwindigkeit und die Masse seiner berührenden Vertices); 0 bei `leave` und zwischen einem weichen Körper und einem Sensor.",
+      "point": "Der Kontaktpunkt im Weltrahmen (bei einem weichen Körper: das Mittel seiner berührenden Vertices, vor einem Sensor sein Zentrum); der Ursprung bei `leave`."
     }
   },
   "ContactEventName": {
