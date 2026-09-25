@@ -3,7 +3,7 @@ import { cameraAdopter } from './worldLink.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
-import { holdWorldDevice } from './worldDevice.ts';
+import { holdWorldDevice, worldRecovered } from './worldDevice.ts';
 import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, sceneFogOf, type LoadOptions } from './scene.ts';
@@ -12,7 +12,7 @@ import { createWorldRaycast } from './worldRaycast.ts';
 import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts';
-import { sessionPools, worldBudget, type Pools } from './worldBudget.ts';
+import { sessionPools, worldBudget, worldPools } from './worldBudget.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
@@ -27,17 +27,17 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   if (options.controls === 'vehicle') throw noVehicle();
   const canvas = resolveWorldTarget(target);
   const frames = createWorldFrames();
-  const pools: Pools = {};
+  const pools = worldPools();
   let camera = new Camera('perspective'),
     toneMapping: ToneMapping = 'aces',
     exposure = 1,
     pixelError: number | undefined,
     animating = false,
     disposed = false;
-  // A lost device is asked for again, and the session reopened on it.
-  const device = holdWorldDevice(canvas, options.renderer, () => runtime.renew());
-  const ready = device.ready;
-  const scene = new Scene(worldModelLoader(ready, options.signal, () => device.renderer));
+  const device = holdWorldDevice(canvas, options.renderer, (lostAt) =>
+    worldRecovered(runtime, frames, diagnostic.notices, pools.pageCache, lostAt),
+  );
+  const scene = new Scene(worldModelLoader(device.ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
   const switches = worldSwitches(options, () => runtime, device, invalidate);
@@ -89,7 +89,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   };
   const world = {
     /** The canvas the world draws into. */ canvas,
-    /** A promise that settles once the world knows how it will draw. */ ready,
+    /** A promise that settles once the world knows how it will draw. */ ready: device.ready,
     /** The scene: everything added to it is drawn. */ scene,
     /** The mouse and keyboard controller that moves the camera. */ controls,
     /** `'webgpu'` or `'webgl2'`: how the world draws; `null` before `ready`. */ get renderer() {
@@ -165,8 +165,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
-    /** Draws one frame now, whoever leads the loop. */
-    render() {
+    /** Draws one frame now, whoever leads the loop. */ render() {
       if (live()) frames.prepare(frames.advance());
       runtime.render();
     },
@@ -187,6 +186,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       controls.dispose();
       physics.dispose();
       runtime.dispose();
+      pools.pageCache.clear();
       diagnostic.notices.close();
       frames.clear();
       device.dispose();

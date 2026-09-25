@@ -49,6 +49,8 @@ struct Slot {
   bool withheld = false;
   /** Deactivated beyond the range; its velocities are kept here and given back on return. */
   bool frozen = false;
+  /** A soft body (`soft.cpp`): it takes no pose, velocity, impulse, joint or vehicle. */
+  bool soft = false;
   JPH::Vec3 linear = JPH::Vec3::sZero(), angular = JPH::Vec3::sZero();
 };
 
@@ -142,7 +144,31 @@ constexpr uint32_t JOINT_WORDS = 33, UNJOINT_WORDS = 2, MOTOR_WORDS = 6;
 uint32_t jointCommand(const uint32_t *w);
 /// Takes out the joints of the body in slot `index`, before the body is removed.
 void dropJoints(uint32_t index);
+/// Before a step, notes where each path joint's body stands along its path; after it, turns the
+/// body's velocity along the path's bend, its speed kept (`pathCarry.cpp`).
+void notePaths();
+void carryPaths();
 /// After a step of `dt` seconds, takes out the joints pulled past their break force.
 void breakJoints(float dt);
+
+/// The vehicles' commands (`vehicles.cpp`, vehicleLayout.ts); VEHICLE is followed by its wheels.
+constexpr uint32_t VEHICLE = 21, UNVEHICLE = 22, DRIVE = 23;
+constexpr uint32_t VEHICLE_WORDS = 38, UNVEHICLE_WORDS = 2, DRIVE_WORDS = 6;
+/// Runs one vehicle command; returns its word count.
+uint32_t vehicleCommand(const uint32_t *w);
+/// Takes out the vehicles on the body in slot `index`, before the body is removed.
+void dropVehicles(uint32_t index);
+/// Hands each vehicle its driver's input before a step of `dt` seconds.
+void driveVehicles(float dt);
+/// Writes the vehicles' state once the bodies have stepped.
+void writeVehicles();
+
+/// The soft bodies' command (`soft.cpp`, softLayout.ts): its fixed words, then per vertex
+/// `SOFT_VERTEX_WORDS`, then its triangle corners.
+constexpr uint32_t SOFT = 24, SOFT_WORDS = 21, SOFT_VERTEX_WORDS = 4;
+/// Makes the soft body a SOFT command describes; false (with `world().error`) on a bad command.
+bool addSoft(const uint32_t *w);
+/// Writes the vertices of the soft bodies the step moved, once the bodies have stepped.
+void writeSoft();
 
 }  // namespace trillion

@@ -8,6 +8,7 @@ import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import { holdWebgpuFrame } from './hold.ts';
 import { metricsOf } from '../pages/io/metrics.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** An engine whose every `frameSettled` condition is true and whose last complete frame drew a
@@ -28,7 +29,6 @@ function tenue() {
     cutHeld: true,
     overBudget: false,
     coverageBudgetLimited: false,
-    uncoveredTriangles: 0,
     noOccluderHistory: false,
     deferredDrops: new Set(),
     imageRevision: 3,
@@ -98,10 +98,7 @@ function tenue() {
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },
   } as unknown as WebgpuPagesRuntime;
-  const device = {
-    createCommandEncoder: () => ({ finish: () => ({}) }),
-    queue: { submit: () => {} },
-  } as unknown as GPUDevice;
+  const { device } = fakeDevice();
   return { rt, run, timing, device };
 }
 

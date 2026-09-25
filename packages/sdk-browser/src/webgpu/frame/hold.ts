@@ -4,6 +4,7 @@ import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
+import { shadowPoolPending } from '../shadow/poolSize.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -15,7 +16,6 @@ const REASONS = [
   'gpuFrameInactive',
   'cutMoving',
   'overBudget',
-  'uncoveredTriangles',
   'noOccluderHistory',
   'deferredDrops',
   'bootstrap',
@@ -51,8 +51,9 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   if (!vis.visEnabled || !vis.gpuDraw) mask |= BIT.visDisabled;
   if (!run.gpuFrameActive || !run.gpuMetricsReady) mask |= BIT.gpuFrameInactive;
   if (!run.cutHeld) mask |= BIT.cutMoving;
-  if (run.overBudget || run.coverageBudgetLimited) mask |= BIT.overBudget;
-  if (run.uncoveredTriangles !== 0) mask |= BIT.uncoveredTriangles;
+  // A cut past the page budget is a steady state: its surface is drawn by the nearest resident
+  // ancestor, and the pages the pool accepted are counted by `cutPending` below.
+  if (run.overBudget) mask |= BIT.overBudget;
   // Only the partition establishes that history, and it runs only on opaque rows: a view without
   // any — blend clusters alone, the sky — has no occluder to remember. The bit stays set, so the
   // first frame that packs a row still frees the rows the partition kept.
@@ -123,6 +124,15 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
 }
 
 /**
+ * A frame that casts a shadow while the device still answers for its shadow pool (`poolSize.ts`)
+ * would be drawn without it, an incomplete image (#483): it is held instead, showing the previous
+ * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. A
+ * capture is never held: it waited for that answer before it began.
+ */
+const awaitsShadowPool = (rt: WebgpuPagesRuntime) =>
+  shadowPoolPending(rt) !== undefined && !rt.capture.capturing;
+
+/**
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
  * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
  * redisplayed.
@@ -134,21 +144,24 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt;
-  // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
-  // input of temporal accumulation, which restarts there in a fixed phase and converges over a
-  // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
-  const quiet = run.gate.held() && unsettledMask(rt) === 0;
-  beginTaaFrame(rt, run.gate.cam, quiet);
-  // Guides the page changed are drawn by a full image; the accumulation stays still for it.
-  if (!quiet || !taaSettled(rt) || guidesMoved(rt)) {
-    run.frameHeld = false;
-    return false;
+  if (!awaitsShadowPool(rt)) {
+    // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
+    // input of temporal accumulation, which restarts there in a fixed phase and converges over a
+    // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
+    const quiet = run.gate.held() && unsettledMask(rt) === 0;
+    beginTaaFrame(rt, run.gate.cam, quiet);
+    // Guides the page changed are drawn by a full image; the accumulation stays still for it.
+    if (!quiet || !taaSettled(rt) || guidesMoved(rt)) {
+      run.frameHeld = false;
+      return false;
+    }
   }
   run.frameHeld = true;
   run.frame++;
   const start = performance.now();
   let presented = false;
-  if (gpu.presenter && gpu.colorTexture) {
+  // Nothing drawn yet — a first frame waiting on its shadow pool —: nothing is shown.
+  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
     device.queue.submit([encoder.finish()]);

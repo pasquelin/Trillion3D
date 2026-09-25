@@ -3,28 +3,9 @@ import { createDeferredLayouts } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
-
-/** Builds a render pipeline, asynchronously when the device offers it. */
-export const buildRenderPipeline = (device: GPUDevice, descriptor: GPURenderPipelineDescriptor) =>
-  device.createRenderPipelineAsync
-    ? device.createRenderPipelineAsync(descriptor)
-    : Promise.resolve(device.createRenderPipeline(descriptor));
-
-/** A fullscreen-triangle pipeline on one bind group layout, at the colour targets given. */
-export function makeFullscreenPipeline(
-  device: GPUDevice,
-  module: GPUShaderModule,
-  bind: GPUBindGroupLayout,
-  entryPoint: string,
-  targets: GPUColorTargetState[],
-) {
-  return buildRenderPipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bind] }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: { module, entryPoint, targets },
-    primitive: { topology: 'triangle-list' },
-  });
-}
+import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
+import type { ComposeInput } from './shaders.ts';
+import { makeFullscreenPipeline } from './fullscreen.ts';
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
 export interface DirectLightResources {
@@ -33,19 +14,26 @@ export interface DirectLightResources {
   slices?: GPUBuffer;
   requests?: GPUBuffer;
   atlas?: GPUTextureView;
-  /** Probe grid and their coefficients; when absent, bounce is not of this frame. */
+  transmittance?: { view: GPUTextureView; depthView: GPUTextureView };
+  /** Probe grid, coefficients, mirror surface cache: one lifetime, the probes' identity. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
-  /** Resident proxy, distant-shadow settings and counters included; when absent, the
-   *  zero substitute leaves the distant surface lit with no cast shadow. */
+  surfaceCache?: GPUBuffer;
+  /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
   proxy?: GPUBuffer;
 }
 export interface DeferredSources {
   lighting: string;
-  compose: string;
+  /** One composition per input it reads the as-is share from (`AS_IS_READ`). */
+  compose: Record<ComposeInput, string>;
   label: string;
   direct: boolean;
   bounce?: boolean;
+}
+/** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
+export interface AccumulatedImage {
+  color: GPUTextureView;
+  share: GPUTextureView;
 }
 export interface DeferredBindings {
   uniform: GPUBuffer;
@@ -55,6 +43,7 @@ export interface DeferredBindings {
     slices: GPUBuffer;
     requests: GPUBuffer;
     atlasView: GPUTextureView;
+    transmittanceView: GPUTextureView;
     sampler: GPUSampler;
     proxy: GPUBuffer;
   };
@@ -63,63 +52,79 @@ export interface DeferredBindings {
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>;
 
 /**
- * A deferred-pass program: its two modules, its three pipelines, and the bind groups it
- * keeps as long as its resources do not change. The engine holds two — the unlit view and
- * the contract one — and compiles the second only when a light asks for it.
+ * A deferred-pass program: its two modules, its three pipelines, and the bind groups it keeps as
+ * long as its resources do not change. The engine holds two, the unlit view and the contract
+ * one, and compiles the second only when a light asks for it.
  */
 export async function createDeferredProgram(
   device: GPUDevice,
   sources: DeferredSources,
   bindings: DeferredBindings,
 ) {
-  const modules = [
-    await createCheckedShaderModule(device, sources.lighting, `${sources.label}_LIGHTING`),
-    await createCheckedShaderModule(device, sources.compose, `${sources.label}_COMPOSE`),
-  ];
+  const lighting = await createCheckedShaderModule(
+    device,
+    sources.lighting,
+    `${sources.label}_LIGHTING`,
+  );
   const layouts = createDeferredLayouts(device, sources.direct, sources.bounce);
   const make = makeFullscreenPipeline,
     hdr = { format: 'rgba16float' as const },
     display = { format: 'rgba8unorm' as const };
-  const light = await make(device, modules[0], layouts.lighting, 'lightSurface', [hdr]);
-  const compose = await make(device, modules[1], layouts.composition, 'compose', [display]);
-  const composePresent = await make(device, modules[1], layouts.composition, 'composePresent', [
-    display,
-    { format: 'bgra8unorm' },
-  ]);
+  const light = await make(device, lighting, layouts.lighting, 'lightSurface', [hdr]);
+  /** The composition of one input: into the capture target, or into it and the canvas at once. */
+  const compile = async (input: ComposeInput) => {
+    const label = `${sources.label}_COMPOSE_${input.toUpperCase()}`;
+    const module = await createCheckedShaderModule(device, sources.compose[input], label);
+    const layout = layouts.composition[input];
+    return {
+      layout,
+      draw: await make(device, module, layout, 'compose', [display]),
+      present: await make(device, module, layout, 'composePresent', [
+        display,
+        { format: 'bgra8unorm' },
+      ]),
+    };
+  };
+  const compositions = {
+    still: await compile('still'),
+    accumulated: await compile('accumulated'),
+  };
   let boundSurface: SurfaceBuffer | undefined,
     boundTiles: GPUBuffer | undefined,
     boundAtlas: GPUTextureView | undefined,
+    boundTransmittance: GPUTextureView | undefined,
     boundRequests: GPUBuffer | undefined,
     boundProbes: GPUBuffer | undefined,
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  /** One composition group per source read: the lit image, or one of the two temporal-
-   *  antialiasing history targets. Three at most, held as long as the uniform lives. */
-  const composeGroups = new Map<GPUTextureView, GPUBindGroup>();
+  // One composition per source read: the lit image or a TAA history, three at most.
+  type Composition = { group: GPUBindGroup; draw: GPURenderPipeline; present: GPURenderPipeline };
+  const composed = new Map<GPUTextureView, Composition>();
   return {
     light,
-    compose,
-    composePresent,
     get lightGroup() {
       return lightGroup;
     },
-    /** The group that reads `source`, the lit image bound by default. `undefined` before `bind`. */
-    composeGroup(source?: GPUTextureView) {
-      const view = source ?? boundHdr;
-      if (!view) return undefined;
-      let group = composeGroups.get(view);
-      if (!group) {
-        group = device.createBindGroup({
-          layout: layouts.composition,
+    /** The pipelines and group reading the lit image and its surface flags, or an accumulated
+     *  image and its as-is share; `undefined` before `bind`. */
+    composition(accumulated?: AccumulatedImage) {
+      const view = accumulated?.color ?? boundHdr;
+      if (!view || !boundSurface) return undefined;
+      let composition = composed.get(view);
+      if (!composition) {
+        const { layout, draw, present } = compositions[accumulated ? 'accumulated' : 'still'];
+        const group = device.createBindGroup({
+          layout,
           entries: [
             { binding: 0, resource: view },
             { binding: 1, resource: { buffer: bindings.uniform } },
+            { binding: 2, resource: accumulated?.share ?? boundSurface.views()[3] },
           ],
         });
-        composeGroups.set(view, group);
+        composed.set(view, (composition = { group, draw, present }));
       }
-      return group;
+      return composition;
     },
     bind(
       surface: SurfaceBuffer,
@@ -131,15 +136,18 @@ export async function createDeferredProgram(
       const tiles = direct.tiles ?? placeholders.tiles,
         slices = direct.slices ?? placeholders.slices,
         atlas = direct.atlas ?? placeholders.atlasView,
-        requests = direct.requests ?? placeholders.requests;
-      const probes = direct.probes;
-      const proxy = direct.proxy ?? placeholders.proxy;
-      if (boundHdr !== hdr) composeGroups.clear();
+        transmittance = direct.transmittance?.view ?? placeholders.transmittanceView,
+        translucentDepth = direct.transmittance?.depthView ?? placeholders.atlasView,
+        requests = direct.requests ?? placeholders.requests,
+        probes = direct.probes,
+        proxy = direct.proxy ?? placeholders.proxy;
+      if (boundHdr !== hdr || boundSurface !== surface) composed.clear();
       boundHdr = hdr;
       if (
         boundSurface === surface &&
         boundTiles === tiles &&
         boundAtlas === atlas &&
+        boundTransmittance === transmittance &&
         boundRequests === requests &&
         boundProbes === probes &&
         boundProxy === proxy
@@ -148,6 +156,7 @@ export async function createDeferredProgram(
       boundSurface = surface;
       boundTiles = tiles;
       boundAtlas = atlas;
+      boundTransmittance = transmittance;
       boundRequests = requests;
       boundProbes = probes;
       boundProxy = proxy;
@@ -163,28 +172,24 @@ export async function createDeferredProgram(
           { binding: 8, resource: { buffer: slices } },
           { binding: 9, resource: atlas },
           { binding: 10, resource: placeholders.sampler },
-          // The resident proxy, as-is: the sun's distant shadow traverses it without keeping
-          // a second copy, and its header says whether there is something to traverse.
+          // The resident proxy as-is, no copy: its header says whether there is anything to trace.
           { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
           { binding: CONTRACT_SHADOW_BINDINGS.requests, resource: { buffer: requests } },
+          { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: transmittance },
+          { binding: CONTRACT_SHADOW_BINDINGS.translucentDepth, resource: translucentDepth },
         );
-      if (sources.bounce && direct.bounceGrid && direct.probes)
+      if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)
         entries.push(
           { binding: 11, resource: { buffer: direct.bounceGrid } },
           { binding: 12, resource: { buffer: direct.probes } },
+          { binding: BOUNCE_SURFACE_BINDING, resource: { buffer: direct.surfaceCache } },
         );
       lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
     },
     release() {
-      boundSurface = undefined;
-      boundTiles = undefined;
-      boundAtlas = undefined;
-      boundRequests = undefined;
-      boundProbes = undefined;
-      boundProxy = undefined;
-      boundHdr = undefined;
-      lightGroup = undefined;
-      composeGroups.clear();
+      boundSurface = boundTiles = boundAtlas = boundTransmittance = undefined;
+      boundRequests = boundProbes = boundProxy = boundHdr = lightGroup = undefined;
+      composed.clear();
     },
   };
 }

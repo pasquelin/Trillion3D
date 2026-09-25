@@ -19,6 +19,8 @@ test('a tick steps on only while one more step of events fits its results', () =
     refused: () => [],
     broken: () => [],
     overflow: () => [],
+    vehicles: () => new Uint32Array(0),
+    soft: () => new Uint32Array(0),
   } as unknown as JoltModule;
   const buffers = [new ArrayBuffer(resultWords(budget) * 4)];
   const sent: unknown[] = [];
@@ -29,7 +31,13 @@ test('a tick steps on only while one more step of events fits its results', () =
     steps++;
   }
   assert.equal(steps, MAX_CATCH_UP_STEPS, 'as many steps as the results hold, none cut');
-  assert.ok(results.post(steps, 0, 1, () => null, { time: 0, epoch: 0 }));
+  const work = { steps, stepMs: 12, stepMaxMs: 7 };
+  assert.ok(results.post(work, 1, () => null, { time: 0, epoch: 0 }));
   assert.ok(results.room(), 'a posted tick frees the room');
   assert.equal(sent.length, 1);
+  assert.deepEqual(
+    [(sent[0] as { stepMs: number }).stepMs, (sent[0] as { stepMaxMs: number }).stepMaxMs],
+    [12, 7],
+    'the tick carries its steps total and its slowest step apart',
+  );
 });

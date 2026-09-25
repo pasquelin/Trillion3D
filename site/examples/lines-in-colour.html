@@ -54,27 +54,23 @@
 
       // A line in the engine carries one colour: its material's. So each path is cut into
       // pieces that follow one another, each piece a line of its own colour — ninety-six steps of
-      // a gradient. A line's thickness follows its own size, so each piece's width is set against
-      // the whole figure's: every piece draws as thick as the others.
-      const PIECES = 96, WIDTH = 2.4;
+      // a gradient. A line's width is in CSS pixels, the same near and far: every piece draws as
+      // thick as the others.
+      const PIECES = 96, WIDTH = 2.5;
       const figure = object.group();
       world.scene.add(figure);
-      const size = (points) => {
-        const span = [0, 1, 2].map((axis) => Math.max(...points.map((q) => q[axis])) - Math.min(...points.map((q) => q[axis])));
-        return Math.hypot(...span) || 1;
-      };
       const drawings = Object.fromEntries(Object.entries(FIGURES).map(([name, rule]) => {
-        const points = trace(rule), whole = size(points), per = Math.ceil(points.length / PIECES);
+        const points = trace(rule), per = Math.ceil(points.length / PIECES);
         const pieces = Array.from({ length: PIECES }, (_, index) => {
           const run = points.slice(index * per, (index + 1) * per + 1);
-          const ink = material.line({ linewidth: (WIDTH * whole) / size(run) });
+          const ink = material.line({ linewidth: WIDTH });
           const line = object.line(geometry.createBuffer({ position: buffer.float32(new Float32Array(run.flat()), 3) }), ink);
           line.visible = false;
           return { line, ink };
         });
         return [name, { points, pieces, joined: false }];
       }));
-      // The world cuts every line into small prisms before it draws them, a cost that grows with
+      // The world cuts every line into pages before it draws them, a cost that grows with
       // the segments: the scene opens on the first figure alone, and the other three join it a
       // second later — or at once, when one of them is picked.
       const join = (drawing) => {

@@ -1,4 +1,4 @@
-# Cache formats 5 and 6 — produced and read by the SDK
+# Cache formats 7 and 8 — produced and read by the SDK
 
 This is the on-disk contract implemented today: what the compiler writes and the SDK reads.
 
@@ -17,7 +17,7 @@ Every served object carries the `.bin` extension and every object name is the SH
 ```json
 {
   "status": "ready",
-  "formatVersion": 5,
+  "formatVersion": 7,
   "compiler": "native-rust",
   "key": "<cache-key>",
   "scope": "slice",
@@ -25,20 +25,20 @@ Every served object carries the `.bin` extension and every object name is the SH
 }
 ```
 
-`status` must be `ready`. `url` is resolved relative to the pointer. A cache containing `clustered-blend` uses `formatVersion: 6` in both this pointer and its metadata. Other caches are format 5. Formats below these are refused whole, by their number: format 5 is the one that carries the [prepared-scene tables](#prepared-scene-tables), which a reader builds its scene from, and an earlier folder has no answer to give it; the tables carry a version of their own, refused by name when it is not the one the reader builds from.
+`status` must be `ready`. `url` is resolved relative to the pointer. A cache containing `clustered-blend` uses `formatVersion: 8` in both this pointer and its metadata. Other caches are format 7. Formats below these are refused whole, by their number, before any field is read: format 5 added the [prepared-scene tables](#prepared-scene-tables), which a reader builds its scene from, and formats 7 and 8 write `selectedNodes` as a count where 5 and 6 wrote a list, so an earlier folder has no answer to give; the tables carry a version of their own, refused by name when it is not the one the reader builds from.
 
 ## `clusters.json`
 
 Required fields consumed by the browser adapter:
 
-- `schema` / `formatVersion` — must agree: `6` when the cache contains `clustered-blend`, otherwise `5`
+- `schema` / `formatVersion` — must agree: `8` when the cache contains `clustered-blend`, otherwise `7`
 - `status` — `ready`
 - `scope` — `slice` or `full`
 - `selectedTriangles`, `selectedNodes` — how many triangles and nodes were kept: counts, not lists, so they do not grow with the number of placed objects
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams, dag, topology }`
   - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
   - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.
-  - `errorModel` is `dag-group-qem-v1`, the one model this runtime reads. Every cluster carries its own screen-error band, so nothing walks a tree. A cache whose clusters carry no band — the page tree earlier compilers emitted — is rejected by `assertCacheIdentity` with `STALE_CACHE`, naming the primitive that lacks one, so a host recompiles instead of half-reading a cache.
+  - `errorModel` is `dag-group-qem-v2`, the one model this runtime reads: absolute group error weighing positions, normals and texture coordinates, clamped to the group's extent. A `dag-group-qem-v1` cache (positions only) is refused with `STALE_CACHE`. Every cluster carries its own screen-error band, so nothing walks a tree. A cache whose clusters carry no band — the page tree earlier compilers emitted — is rejected by `assertCacheIdentity` with `STALE_CACHE`, naming the primitive that lacks one, so a host recompiles instead of half-reading a cache.
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
@@ -78,7 +78,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 
 Static BLEND geometry joins the DAG on the same terms as opaque geometry but keeps its transparent forward pass, original material flags, vertex attributes and source mesh sorting; `start` restores the source draw order that spatial clustering would otherwise scramble. Simplification changes indices only: it keeps existing vertices and locks every vertex shared with another group, so group borders stay watertight. A group that cannot be reduced keeps its children. The positional error does not bound texture-alpha or compositing error: `pixelError=0` is the exact-geometry comparison, and nonzero error settings require a visual check. Transmission remains unsplit because its refraction semantics are separate from alpha blending.
 
-The reader accepts cache formats 5 and 6 and rejects every other version. Format 6 is required for `clustered-blend`, so an older reader rejects it instead of treating transparent pages as opaque; every other cache is format 5 (`FORMAT_VERSION`, `CLUSTERED_BLEND_FORMAT_VERSION`). SDK, compiler and cache versions are independent; the compiler fingerprint additionally changes the cache key.
+The reader accepts cache formats 7 and 8 and rejects every other version. Format 8 is required for `clustered-blend`, so an older reader rejects it instead of treating transparent pages as opaque; every other cache is format 7 (`FORMAT_VERSION`, `CLUSTERED_BLEND_FORMAT_VERSION`). SDK, compiler and cache versions are independent; the compiler fingerprint additionally changes the cache key.
 
 The compiler validates selected accessors against their own `bufferView` length, including stride and sparse index/value ranges, before publishing a ready pointer. Sparse indices must be strictly increasing and within the accessor count. The Rust fingerprint includes its source modules, `Cargo.toml` and `Cargo.lock` at build time. Source JSON, declared sidecars, geometry bytes, compilation options and the error-model identity also participate in the cache key. Changes create a new key and leave source assets untouched. External image bytes referred to by URI are not embedded in the manifest or included in this geometry key — their SHA-256 is, and the baked levels under `native/textures/` are addressed by it; hosts own their resource identity.
 
@@ -86,7 +86,7 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
-Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 6. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 8 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 8. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 8 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
@@ -108,7 +108,7 @@ A record word holds the width of each component in six-bit fields from bit 0 (ea
 
 Decoding is one multiply and one add per component, on 32-bit floats: `value = min + q × 2^exponent`, the product exact because the step is a power of two, the sum rounded once — so the three decoders (`geometryPage.ts` through `Math.fround`, the Rust codec, the WGSL routines) produce the same 32-bit float, which `tests/browser/probes/cluster-decoding-gpu.ts` proves on the graphics card bit for bit. A normal is two bytes, `x` low and `y` high, `(q × 2/255 − 1)` per byte, the lower hemisphere folded (`z < 0`) then normalized; the constant is `2/255` rounded to the nearest `f32` by each language. The sign of zero is not kept: `-0` lands on the cell of `0`.
 
-The compiler chooses the position grid per primitive, the finer of two rules: `exponent = floor(log2(widest extent)) − 16`, so a primitive spans about 2^16 steps, and `floor(log2(finest group error / 8))`, so a cluster's displacement projects below an eighth of the threshold wherever the cut selects it (the finest group error is the smallest non-zero `lodError` the DAG published). The error rule is bounded below by `floor(log2(widest extent)) − 22`, so the primitive never spans more than 2^23 steps and every page fits the 24-bit field on the primitive's own exponent: every page of a primitive shares that exponent, which is what makes a vertex shared by two clusters land on the same cell in both. Each cluster then spends only the bits its own box needs; a page that would still need more than 24 bits on its primitive grid — a texture coordinate range past 1024, a colour range past 65,536 — is refused whole (`PAGE_ATTRIBUTE_RANGE`), never re-gridded on its own. Texture coordinates sit on a fixed grid of `2^-14` — a quarter of a texel on a 4096-wide map — and colours, clamped to `[0, 1]`, on `2^-8`, with the same per-page minima and widths: a constant channel costs no bits. The cost is declared, never hidden: word 20 carries the page's worst position displacement, rounded up to the `f32` so that no position exceeds it — every decoder returns it, and the autonomous backend widens a page's box by exactly that —, and `primitives[].quantization` — `{ positionExponent, uvExponent, maxPositionError }`, the step being `2^positionExponent` — carries the primitive's for reporting, `null` on a primitive without pages, which was quantized on no grid. The cut adds it to a cluster's error: a cluster **a group produced** is certified at `lodError + maxPositionError`, a group at `error + maxPositionError`, and every cluster box and culling-node box grows by the same length, so the pixel threshold bounds the quantized surface an engine actually draws rather than the source one it was measured on (spec C4; the colour and texture-coordinate terms of that line remain open). **A cluster no group produced keeps its band**: it is the floor of the ladder, the cache holds nothing finer, and raising it would leave the cut with nothing to draw at zero pixels — its boxes grow all the same, since they bound the surface drawn. Both sides of a replacement therefore swap at the same threshold and the cut stays a partition. A normal is within 1° of its source, a colour within half a level of 256.
+The compiler chooses the position grid per primitive, the finer of two rules: `exponent = floor(log2(widest extent)) − 16`, so a primitive spans about 2^16 steps, and `floor(log2(finest group error / 8))`, so a cluster's displacement projects below an eighth of the threshold wherever the cut selects it (the finest group error is the smallest non-zero `lodError` the DAG published). The error rule is bounded below by `floor(log2(widest extent)) − 22`, so the primitive never spans more than 2^23 steps and every page fits the 24-bit field on the primitive's own exponent: every page of a primitive shares that exponent, which is what makes a vertex shared by two clusters land on the same cell in both. Each cluster then spends only the bits its own box needs; a page that would still need more than 24 bits on its primitive grid — a texture coordinate range past 1024, a colour range past 65,536 — is refused whole (`PAGE_ATTRIBUTE_RANGE`), never re-gridded on its own. Texture coordinates sit on a grid of `2^-14` — a quarter of a texel on a 4096-wide map; the compiler never leaves it, and the engine's runtime cutter takes the finest coarser grid only for a primitive whose widest cluster spans past 1024, such as a long dashed line's distance along it, the record word carrying the exponent every decoder reads — and colours, clamped to `[0, 1]`, on `2^-8`, with the same per-page minima and widths: a constant channel costs no bits. The cost is declared, never hidden: word 20 carries the page's worst position displacement, rounded up to the `f32` so that no position exceeds it — every decoder returns it, and the autonomous backend widens a page's box by exactly that —, and `primitives[].quantization` — `{ positionExponent, uvExponent, maxPositionError }`, the step being `2^positionExponent` — carries the primitive's for reporting, `null` on a primitive without pages, which was quantized on no grid. The cut adds it to a cluster's error: a cluster **a group produced** is certified at `lodError + maxPositionError`, a group at `error + maxPositionError`, and every cluster box and culling-node box grows by the same length, so the pixel threshold bounds the quantized surface an engine actually draws rather than the source one it was measured on (spec C4; the colour and texture-coordinate terms of that line remain open). **A cluster no group produced keeps its band**: it is the floor of the ladder, the cache holds nothing finer, and raising it would leave the cut with nothing to draw at zero pixels — its boxes grow all the same, since they bound the surface drawn. Both sides of a replacement therefore swap at the same threshold and the cut stays a partition. A normal is within 1° of its source, a colour within half a level of 256.
 
 Two source vertices that land on the same cells decode alike, so the page keeps one and remaps its corners: a source that repeats a vertex per corner — Whisperwind's FBX import carries 2.6 vertices per triangle — comes down to its distinct vertices without changing a triangle. Tangents are never written: every lighting pass rebuilds one cotangent frame from a triangle's normal, two edges and the texture deltas along them (`cotangentFrame`, in WGSL beside the decode routines and in GLSL for the WebGL2 renderer; a raster passes the triangle's edges, a fragment stage its screen derivatives), as the reference does. A texture coordinate set that no texture of the primitive's material names in `texCoord` is not written either — residency follows what the frame reads —, while the DAG still welds along it, so clusters do not depend on what a material samples.
 
@@ -213,9 +213,9 @@ instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a 
 row at the world matrix the engine composes for a child of its parent — the same bits a host node
 there would carry, proven against the host loader on `site/assets/examples/ten-thousand-objects`
 (`host/prepared/partition.test.ts`) — and gives it back, parked, when its cell leaves. A page may
-move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's box is
-that parent's box under its current matrix (`boxes.ts`), so the cell is read where its placements
-stand. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
+move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's boxes are
+its parents' boxes under their current matrices (`boxes.ts`), so the cell is read where its
+placements stand, at the distance of its nearest box. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
 diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
 The error target does not shorten it: nothing coarser stands for a cell that is not read (the
 proxy of #23), so an object dropped below the target would be missing from the image, not
@@ -226,14 +226,23 @@ nothing else. Then, before every frame, cells within the reach are
 asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
 leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
 never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
-— one request queue — and placed within the arrival budget (`ARRIVAL_BUDGET_MS`), one cell at
-least per frame. The rows are sized once, when a session opens and before its engines read them,
-for every placement its camera's reach can hold at once (`residentRows`): two cells held together
-are within `2 × 1.5 × reach` of each other, so the largest sum of `meshes` over the cells that close
-to any one cell bounds each mesh's rows — set by the reach and the cells' size, not by the world.
-Nothing grows under a drawing engine: a camera whose reach later outgrows the rows, or parents
-moved so close together that a cell is short of them, asks the session's owner, once, to open it
-again sized for that reach and where the cells stand (the world does). A session no owner
+— one request queue — and placed within the frame's one integration budget, the arrival queue's
+(`ARRIVAL_BUDGET_MS`, `FrameBudget`): its clock starts once per frame, the cells spend from it
+first and the page arrivals drain the rest; the first integration of a frame always goes through.
+The rows are sized once, when a session opens and before its engines read them, for every
+placement its camera's reach can hold at once **wherever the page moves the core parents**
+(`sizing.ts`). A held cell has a box within `1.5 × reach` of the eye; the boxes one parent carries
+move together, so those held at once are close in that parent's own frame — centres within
+`(2 × 1.5 × reach + √3 · most · (r₁ + r₂)) / least`, `r` the radius around a box and `least`,
+`most` how far the parent stretches the root's frame (the root's own boxes: a gap within
+`2 × 1.5 × reach`). The largest sum of `meshes` over the cells that close to any one box of a
+parent, summed over the parents and never past every placement, bounds each mesh's rows — set by
+the reach, the cells' size and the parents' count, not by the world or where its parents stand.
+Parents moved together never run the rows short, so they never reopen the session nor leave a
+placement undrawn (CONTRIBUTING.md §Streaming rule 10). Nothing grows under a drawing engine: a
+camera whose reach later outgrows the rows, or a parent scaled down or stretched more unevenly
+than at opening (moved, turned or scaled up, it holds), asks
+the session's owner, once, to open it again sized for them (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
 asked for within reach are read and placed. A partitioned scene is not

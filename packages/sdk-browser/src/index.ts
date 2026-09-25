@@ -12,13 +12,7 @@ export * from '../../sdk-core/src/world/constants/index.ts';
 export * from './world/texture/index.ts';
 export * from './world/loader/index.ts';
 export * from './world/helper/index.ts';
-export {
-  GUIDE_VERTEX_CEILING,
-  type Guides,
-  type GuideHandle,
-  type GuideLines,
-  type GuidePoints,
-} from './guides/guideSet.ts';
+export * from './guides/index.ts';
 export * from './world/controls/index.ts';
 export * from './world/page/index.ts';
 export * from './world/budget/index.ts';
@@ -37,6 +31,14 @@ export {
   type PhysicsMaterialPreset,
   type PhysicsMatter,
   type PhysicsBudget,
+  SOFT_AREAL_DENSITY,
+  SOFT_LINEAR_DENSITY,
+  SOFT_FOOTPRINT,
+  type SoftBodyCommon,
+  type SoftBodyOptions,
+  type SoftBodyType,
+  type SoftSettings,
+  type SoftVolumeOptions,
   type ContactEvent,
   type ContactEventName,
   type PhysicsHost,
@@ -94,13 +96,6 @@ export type {
 export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 /** The engine's own scene graph (`host/graph/`): the classes every `Host*` name above stands for,
  *  the nodes, geometries, surfaces and textures a loaded scene hands back. */
-export type {
-  GraphArray,
-  GraphAttribute,
-  GraphElements,
-  GraphInterleavedAttribute,
-  GraphInterleavedBuffer,
-} from './host/graph/attributes.ts';
 export type { GraphGeometry } from './host/graph/geometry.ts';
 export type { GraphMesh } from './host/graph/mesh.ts';
 export type { GraphNode } from './host/graph/node.ts';
@@ -195,6 +190,11 @@ export type {
 } from '../../sdk-core/src/collision/characterCollision.ts';
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
 export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
-export type { VehicleDriver, VehicleInput } from '../../sdk-core/src/physics/vehicle.ts';
+export * from '../../sdk-core/src/physics/vehicle.ts';
+export {
+  VEHICLE_SPECS,
+  type VehicleSpec,
+  type VehicleSpecs,
+} from '../../sdk-core/src/physics/vehicleSpec.ts';
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts';
 export type { PanZoomCameraControls } from './camera/controls/panZoomControls.ts';

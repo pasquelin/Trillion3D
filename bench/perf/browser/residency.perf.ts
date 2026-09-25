@@ -1,6 +1,6 @@
 // GPU residency bits, DAG readback and world stretch.
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
-import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/runtime.ts';
+import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/residencyUpload.ts';
 import { parseDagOutput } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { residentBase, residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { graine, mesure, rapport } from '../../core/index.ts';
@@ -46,7 +46,7 @@ for (let i = 0; i < 20000; i++) sortieGpu[4 + 12000 + i] = i % 7 ? 1 : 0;
 
 const resResidencyBits = await mesure({
   name: 'residency-bit update',
-  fichier: 'packages/sdk-browser/src/gpu/dag/runtime.ts',
+  fichier: 'packages/sdk-browser/src/gpu/dag/residencyUpload.ts',
   cas: [{ name: '8 frames, 20 000 pages', input: images, size: PAGES * 8 }],
   calcul: (imgs) => ({
     drapeaux: imgs.map((next) => updateResidencyBits(next, bits, base, undefined, motsTouches) > 0),

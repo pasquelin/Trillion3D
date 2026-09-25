@@ -2,8 +2,10 @@ import { TRANSMISSION_GLSL } from './transmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
-import { INVERSE_PI, PI } from '../../lighting/shaderConstants.ts';
+import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { FOG_GLSL } from '../../lighting/fogShader.ts';
+import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';
+import { SPRITE_GLSL } from '../../visibility/shader/spriteWgsl.ts';
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
 // then the normal, scaled back by the matrix's axes before it is turned — the reference's order.
@@ -11,17 +13,28 @@ import { FOG_GLSL } from '../../lighting/fogShader.ts';
 // reference's does: sharing one with the instanced branch moves its last bit. The position is
 // carried to the fragment negated, toward the eye, as the reference carries it: the compiler
 // rounds a negated product-sum otherwise, and the flat normals its derivatives give move by an ulp.
+// A line surface (`lineWidth` above zero) widens its quads on screen after the projection
+// (`lineClip`, `../../visibility/shader/lineWgsl.ts`), along the direction its normal carries.
+// A sprite surface (`sprite.y` not zero) turns its quad to face the camera in view space
+// (`spriteAt`, `../../visibility/shader/spriteWgsl.ts`), about the origin of its placement.
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
 in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;in mat4 instanceMatrix;
 uniform mat4 modelViewMatrix,projectionMatrix;uniform mat3 normalMatrix;uniform bool instanced;
+uniform float lineWidth,pixelRatio;uniform vec2 viewport,sprite;
 out vec3 toEye;out vec3 viewNormal;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
+${LINE_CLIP_GLSL}
+${SPRITE_GLSL}
 void main(){vec4 view;vec3 objectNormal=normal;
 if(instanced){view=modelViewMatrix*(instanceMatrix*vec4(position,1.0));mat3 im=mat3(instanceMatrix);
 objectNormal/=vec3(dot(im[0],im[0]),dot(im[1],im[1]),dot(im[2],im[2]));objectNormal=im*objectNormal;}
 else view=modelViewMatrix*vec4(position,1.0);toEye=-view.xyz;
 viewNormal=normalize(normalMatrix*objectNormal);
-texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;}`;
+texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;
+if(lineWidth>0.0){vec4 along=instanced?instanceMatrix*vec4(normal,0.0):vec4(normal,0.0);
+gl_Position=lineClip(gl_Position,projectionMatrix*(modelViewMatrix*along),lineWidth,viewport,pixelRatio);}
+if(sprite.y!=0.0){view=spriteAt(projectionMatrix,instanced?modelViewMatrix*instanceMatrix:modelViewMatrix,position.xy,sprite);
+toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`;
 
 // The view vector reads the camera as one homogeneous point (`EngineCamera.viewPoint`), in view
 // space: the origin under a perspective projection, +z under an orthographic one — its weight p
@@ -31,11 +44,13 @@ texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;}
 // operation, so the three lighting passes bend a normal map in one frame.
 // A surface declared flat (`flatShaded`) takes the face's normal from the same derivatives of
 // position, as the reference does, already facing the eye: it is never turned for a back face.
+// A dashed line (`lineDash` above zero) discards its gaps at the distance along the line its
+// first texture coordinate carries (`lineDash`, `../../visibility/shader/lineWgsl.ts`).
 export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=${PI},INVERSE_PI=${INVERSE_PI};const int MAX_LIGHTS=64;
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
-uniform vec3 emissiveFactor;uniform vec2 depthRamp;uniform bool depthShaded,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
+uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform bool depthShaded,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
@@ -59,6 +74,7 @@ ${OUTPUT_TRANSFER_GLSL}
 ${RECT_LIGHT_GLSL}
 ${PROBE_IRRADIANCE_GLSL}
 ${FOG_GLSL}
+${LINE_DASH_GLSL}
 // The declared lights on one surface: the engine's only lighting formula, ambient and probe included.
 // In the reference's order of operations, so that a lit view writes its image to the last bit:
 // each direct light's irradiance (its colour already scaled by its intensity, lights.ts) weighs
@@ -75,11 +91,11 @@ color*=attenuation(length(toLight),positionRange.w,cone.z);}
 vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*specularLobe(L,V,N,f0,rough);direct+=E*(INVERSE_PI*diffuse);}
 irradiance+=probeIrradiance(N);return(direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular;}
 ${TRANSMISSION_GLSL}
-void main(){viewPosition=-toEye;vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
+void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0);
 float facing=gl_FrontFacing?1.0:-1.0;vec3 N;if(flatShaded)N=normalize(cross(dFdx(viewPosition),dFdy(viewPosition)));else{N=normalize(viewNormal);if(faceSides!=0)N*=facing;}
-float rough=min(max(roughFactor*roughSample,0.0525)+geometryRoughness(N),1.0);
+float rough=min(max(roughFactor*roughSample,${ROUGHNESS_FLOOR})+geometryRoughness(N),1.0);
 if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
 CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));vec3 T=frame.T,B=frame.B;if(faceSides==2&&!flatShaded){T*=facing;B*=facing;}N=normalize(mat3(T,B,N)*n);}
 float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0)*aoStrength+1.0;

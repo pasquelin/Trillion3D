@@ -10,12 +10,12 @@ import type {
   TableDocument,
 } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import {
-  GraphAttribute,
-  GraphInterleavedAttribute,
-  GraphInterleavedBuffer,
-  normalisedUnit,
-  type GraphElements,
-} from '../graph/attributes.ts';
+  BufferAttribute,
+  InterleavedBufferAttribute,
+  InterleavedBuffer,
+  type VertexAttribute,
+} from '../../../../sdk-core/src/world/buffer/attribute.ts';
+import { normalisedUnit } from '../../../../sdk-core/src/world/buffer/elements.ts';
 
 /** Storage of each glTF component type. */
 const COMPONENTS = {
@@ -32,7 +32,7 @@ const WIDTHS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 1
 export const normalisedScale = (componentType: number) =>
   normalisedUnit(COMPONENTS[componentType as keyof typeof COMPONENTS]);
 
-type Attribute = GraphElements;
+type Attribute = VertexAttribute;
 
 /** Writes the substituted elements of a sparse accessor into a copy of its base, as the loader does. */
 function substitute(
@@ -48,8 +48,8 @@ function substitute(
   const values = new Values(viewOf(sparse.values.view), sparse.values.offset, sparse.count * width);
   const out =
     accessor.view === null
-      ? (base as GraphAttribute)
-      : new GraphAttribute(base.array.slice(), width, base.normalized);
+      ? (base as BufferAttribute)
+      : new BufferAttribute(base.array.slice(), width, base.normalized);
   out.normalized = false;
   for (let i = 0; i < ranks.length; i++) {
     out.setX(ranks[i], values[i * width]);
@@ -66,7 +66,7 @@ function substitute(
 export function preparedAccessors(document: TableDocument, binary: ArrayBuffer | null) {
   const views = new Map<number, ArrayBuffer>();
   const attributes = new Map<number, Attribute>();
-  const interleaved = new Map<string, GraphInterleavedBuffer>();
+  const interleaved = new Map<string, InterleavedBuffer>();
 
   /** A copy of one view, as the host loader held it: attributes view into it, never beyond. */
   const viewOf = (rank: number) => {
@@ -90,10 +90,10 @@ export function preparedAccessors(document: TableDocument, binary: ArrayBuffer |
     const stride = accessor.view === null ? null : document.views[accessor.view].stride;
     const itemBytes = Storage.BYTES_PER_ELEMENT * width;
     if (accessor.view === null)
-      return new GraphAttribute(new Storage(accessor.count * width), width, accessor.normalized);
+      return new BufferAttribute(new Storage(accessor.count * width), width, accessor.normalized);
     const view = viewOf(accessor.view);
     if (!stride || stride === itemBytes)
-      return new GraphAttribute(
+      return new BufferAttribute(
         new Storage(view, accessor.offset, accessor.count * width),
         width,
         accessor.normalized,
@@ -104,14 +104,14 @@ export function preparedAccessors(document: TableDocument, binary: ArrayBuffer |
     let buffer = interleaved.get(key);
     if (!buffer) {
       const elements = (accessor.count * stride) / Storage.BYTES_PER_ELEMENT;
-      buffer = new GraphInterleavedBuffer(
+      buffer = new InterleavedBuffer(
         new Storage(view, slice * stride, elements),
         stride / Storage.BYTES_PER_ELEMENT,
       );
       interleaved.set(key, buffer);
     }
     const offset = (accessor.offset % stride) / Storage.BYTES_PER_ELEMENT;
-    return new GraphInterleavedAttribute(buffer, width, offset, accessor.normalized);
+    return new InterleavedBufferAttribute(buffer, width, offset, accessor.normalized);
   };
 
   const attributeOf = (rank: number) => {

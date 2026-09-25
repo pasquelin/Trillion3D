@@ -12,7 +12,7 @@ import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
-import { ESCALATION_SLACK } from '../../../page/selection/types.ts';
+import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
 import {
   CONE_LENGTH_RATIO_WGSL,
   CONE_ORTHO_EPS_WGSL,
@@ -20,15 +20,15 @@ import {
 } from '../../../../../sdk-core/src/index.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
-struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,nodeFlags:u32,pad0:u32,pad1:u32,}
+struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
 // \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
 // \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
-// \`view*\` words; \`queueCap\` is the capacity of each descent queue.
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,stateRow:u32,}
-struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
+// \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`pad\` brings the block to its 256-byte stride.
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,pad:u32,}
+struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,reserved:array<u32,2>,pages:array<u32>,}
 ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
@@ -103,20 +103,8 @@ fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  return !outsideFrustum(slotOf(w)*FRAME,boxMin(r),boxMax(r))&&!pageMissed(w,boxMin(r),boxMax(r));
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStretch;}
-/** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
- *  The threshold is set STRICTLY above the parent's error (\`ESCALATION_SLACK\` slack): passes that
- *  reread it recompute that error in another entry point, where the driver does not return the
- *  same f32 to the last bit. An exact equality there left the missing cluster kept by \`dagMask\`
- *  — a non-resident page drawn, hence coverage declared incomplete. */
-fn escalate(slot:u32,parentPixels:f32){
- noteEscalation();
- let raised=parentPixels*${ESCALATION_SLACK};
- if(parentPixels>0.0&&raised<INF){atomicMax(&work[slot],bitcast<u32>(raised));}
- else{atomicOr(&work[slots()+slot],1u);}
-}
-/** Reset and per-primitive planes: two kernels yesterday, a single dispatch today.
- *  Nothing tied them — the first writes the thresholds, output counters and block counts that
- *  \`dagMask\` accumulates, the second the frustum planes — and only the descent reads the second.
+/** Reset and per-primitive planes in a single dispatch: the output counters and block counts
+ *  \`dagMask\` accumulates, and the frustum planes only the descent reads.
  *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
@@ -131,10 +119,10 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  // The primitive's root opens the descent: one thread, one root, no counter to contend for.
  let root=rootOf(w);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
- atomicStore(&work[slot],bitcast<u32>(resetPrune(slot)));
- atomicStore(&work[slots()+slot],0u);
  let m=transpose(worlds[w]);let base=slot*FRAME;
- for(var i=0u;i<6u;i++){frames[base+i]=m*views[vi].planes[i];}
+ // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
+ let open=!isLightCut()&&unculledOf(w);
+ for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -147,21 +135,14 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
   let w=pageWorld(i);let r=recordOf(i,w);
   let cluster=clusters[r];
   var draw=false;
-  var trou=false;
+  // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
+  // cut without residency holds every cluster and every finer group.
   if(!coneRejected(i)){
-   let slot=slotOf(w);
-   if(views[0u].residentCut!=0u&&(atomicLoad(&work[slots()+slot])!=0u||pruneCrossed(slot))){
-    // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
-    draw=(cluster.flags&1u)!=0u;
-    if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
-   }else{
-    let e=views[vi].view*worlds[w];
-    let threshold=select(views[vi].pixelError,bitcast<f32>(atomicLoad(&work[slot])),views[0u].residentCut!=0u);
-    draw=selects(cluster,e,stretchOf(w),focalPixels(),threshold);
-    if(draw&&views[0u].residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
-   }
+   let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+   let all=views[0u].residentCut==0u;
+   draw=drawsCluster(all||isResident(i),projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal),all||childResident(i),views[vi].pixelError);
   }
-  noteImage(r,cluster.flags,draw||trou,draw,trou);
+  noteImage(r,cluster.flags,draw);
   // A light cut keeps no draw flag — two views may draw the same cluster —, only its view's log.
   if(isLightCut()){if(draw){viewDrawnAppend(i);}}
   else{
@@ -174,6 +155,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  verseTotaux(lid);
 }
 ${DAG_ERROR_WGSL}
+${CUT_RULE_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}

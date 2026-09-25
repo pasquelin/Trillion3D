@@ -117,3 +117,18 @@ export function boxTransform(
   for (let at = 0; at < 24; at += 3)
     boxExpandByPoint(out, o, corners[at], corners[at + 1], corners[at + 2]);
 }
+
+/** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face, as Box3's
+ *  `distanceToPoint` (the clamped point's distance) takes it. */
+export function boxPointDistance(
+  box: ArrayLike<number>,
+  o: number,
+  x: number,
+  y: number,
+  z: number,
+) {
+  const dx = Math.max(box[o] - x, 0, x - box[o + 3]),
+    dy = Math.max(box[o + 1] - y, 0, y - box[o + 4]),
+    dz = Math.max(box[o + 2] - z, 0, z - box[o + 5]);
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
