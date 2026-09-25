@@ -50,6 +50,10 @@ export interface PhysicsBodyOptions {
   friction?: number;
   /** Overrides the material's restitution (bounciness), 0 to 1. */
   restitution?: number;
+  /** How much of its speed the body loses by itself, per second, as air and rolling do:
+   *  `dv/dt = −c·v`, 0 and up, linear and angular apart; 0 keeps every bit. Set when the body is
+   *  made: set `obj.physics` again to change it. @defaultValue { linear: 0.05, angular: 0.05 } */
+  damping?: { linear?: number; angular?: number };
 }
 
 /** What `obj.physics` may be set to. */
