@@ -4,9 +4,7 @@ import { createConeContext, type ConeContext, type NormalCone } from '../cone/co
 import type { EngineCamera } from '../../camera/world.ts';
 import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElements.ts';
 import type { ClusterCut } from '../selection/math.ts';
-import type { ClusterStructureIndex } from '../selection/types.ts';
 import type { PageSurface } from '../surface.ts';
-import { cutCharge, type CutCharge } from './charge.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -18,10 +16,8 @@ export interface PageRecord extends ClusterCut {
   array?: Uint32Array;
 }
 
-export interface SelectionState<T extends PageRecord> extends CutCharge<T> {
+export interface SelectionState<T extends PageRecord> {
   cam: EngineCamera;
-  hold: boolean;
-  rootFallback: boolean;
   wanted: T[];
   shown: T[];
   isResident?: (page: T) => boolean;
@@ -36,9 +32,11 @@ export interface SelectionState<T extends PageRecord> extends CutCharge<T> {
   flatElements: ArrayLike<number>;
   flatStretch: number;
   flatFocal: number;
-  flatStructure?: ClusterStructureIndex;
-  flatForced?: Uint8Array;
-  flatForcedList?: number[];
+  /** The cut rule's residency of this root's pages (`./held.ts`), and the open count of each of
+   *  its culling nodes; absent when nothing is held, every page then deemed resident. */
+  flatReady?: Uint8Array;
+  flatChildReady?: Uint8Array;
+  flatOpen?: Int32Array;
   /** What cone rejection reads of the root and the camera, set at the root's first cone. */
   flatCone: ConeContext;
   /** This root declares it carries cones: the per-cluster path reads `cone`. A root that
@@ -52,15 +50,11 @@ export interface SelectionState<T extends PageRecord> extends CutCharge<T> {
   /** Residency rule of this cut, resolved once: `RESIDENT_ALL` when nothing is held
    *  (everything is deemed resident), `RESIDENT_ASK` when the host supplies its answer,
    *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
-   *  mode instead of re-reading `hold` and `isResident` on the state at each kept cluster; fallbacks
-   *  apply it through `residentUnder`. */
+   *  mode instead of re-reading the request on the state at each page. */
   residentMode: number;
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */
   flatExact: boolean;
-  flatUseForcing: boolean;
-  flatMissing: boolean;
-  flatShort: boolean;
   /** What the two lists actually hold. The arrays are no longer cleared with `length = 0` each
    *  image — they would lose their capacity and grow it back from zero to eighty thousand — but
    *  rewritten by index, and their length is set only once the cut is finished. During the cut,
@@ -71,10 +65,6 @@ export interface SelectionState<T extends PageRecord> extends CutCharge<T> {
    *  sweep of `wanted` and `shown`, in the same order and at the same bits. */
   wantedTriangles: number;
   shownTriangles: number;
-  /** Page budget beyond which a pass has nothing left to say; `0` when there is none. */
-  budget: number;
-  /** This pass overflowed the budget: its result is discarded, the descent stops there. */
-  over: boolean;
 }
 
 /** Cut result, filled in place: the caller supplies the object, the image allocates none. */
@@ -116,9 +106,8 @@ export const RESIDENT_ASK = 1;
 /** A page's residency is its index array. */
 export const RESIDENT_ARRAY = 2;
 
-/** Residency rule of a cut, stated once per call: `keep` receives it as a parameter and no longer
- *  re-reads the state per cluster. A single write of the rule, for the hot path as for the
- *  fallbacks. */
+/** Residency rule of a cut, stated once per call: the cut rule's readiness reads it once per page
+ *  (`./held.ts`). */
 export function residentModeOf(hold: boolean, isResident: unknown) {
   return !hold ? RESIDENT_ALL : isResident ? RESIDENT_ASK : RESIDENT_ARRAY;
 }
@@ -145,16 +134,14 @@ export const selectionScratch = {
   /** Frustum planes in the current root's space, raw: those of the exact descent. */
   planes: new Float64Array(FRUSTUM_PLANE_VALUES),
   stack: new Int32Array(4096),
+  /** A cluster's `[own, parent]` screen errors, as the cut rule compares them. */
+  pixels: new Float64Array(2),
 };
-export const fallbackScratch: unknown[] = [];
-export const forceScratch: number[] = [];
 
 /** State of a cut, set only once. Selection is synchronous and non-reentrant, like
  *  `selectionScratch`: reusing this state removes the last per-image allocation. */
 const reusedState: SelectionState<PageRecord> = {
   cam: undefined as unknown as EngineCamera,
-  hold: false,
-  rootFallback: false,
   wanted: [],
   shown: [],
   isResident: undefined,
@@ -173,26 +160,11 @@ const reusedState: SelectionState<PageRecord> = {
   flatBoxes: false,
   residentMode: RESIDENT_ALL,
   flatExact: false,
-  flatUseForcing: false,
-  flatMissing: false,
-  flatShort: false,
   shownCount: 0,
   wantedCount: 0,
   wantedTriangles: 0,
   shownTriangles: 0,
-  budget: 0,
-  over: false,
-  ...cutCharge(),
 };
-
-/** Shrinks `shown` to a prefix and its triangle sum with it: same order, same bits as the
- *  sweep this sum replaces. Fallbacks are the only ones that shorten the cut. */
-export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: number) {
-  s.shownCount = to;
-  let sum = 0;
-  for (let i = 0; i < to; i++) sum += s.shown[i].triangles;
-  s.shownTriangles = sum;
-}
 
 /** The reused state, viewed at the requested page type. */
 export function selectionState<T extends PageRecord>(): SelectionState<T> {

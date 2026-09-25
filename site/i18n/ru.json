@@ -838,7 +838,6 @@
       "residency": "Резидентность и потоковая загрузка",
       "residentPages": "Резидентные страницы",
       "requestedPages": "Запрошенные страницы",
-      "budgetThreshold": "Порог бюджета",
       "texturesPending": "Ожидающие текстуры",
       "texturesEvicted": "Вытесненные текстуры",
       "gpuAllocations": "Отслеживаемые выделения GPU",
