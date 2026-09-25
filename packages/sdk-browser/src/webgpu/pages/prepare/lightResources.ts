@@ -66,7 +66,10 @@ function growAlphaReaders(
   let touched = 0;
   for (let row = from; row < to; row++) {
     const base = row * ROW_WORDS;
-    if (!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) || !slots.has(ints[base + ROW_MAP_LAYER_WORD]))
+    if (
+      !(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) ||
+      !slots.has(ints[base + ROW_MAP_LAYER_WORD])
+    )
       continue;
     const rec = rows.packedRecs[row];
     if (!rec) continue;
