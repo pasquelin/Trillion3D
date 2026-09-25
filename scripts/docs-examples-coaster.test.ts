@@ -14,6 +14,7 @@ interface Coaster {
   along(track: Track, point: ArrayLike<number>): number;
   ride(track: Track): { path: Vec[]; motorAt(s: number, waiting: boolean): Motor };
   MASS: number;
+  LOSS: number;
   STATION: number;
 }
 
@@ -25,23 +26,24 @@ const page = readFileSync(
 const script = page.slice(page.indexOf('<script type="module">'), page.indexOf('</script>'));
 const block = page.slice(page.indexOf('const plus ='), page.indexOf("// The track's meshes"));
 const coaster = () =>
-  new Function('mix', `${block}\nreturn { layout, poseAt, along, ride, MASS, STATION };`)(
+  new Function('mix', `${block}\nreturn { layout, poseAt, along, ride, MASS, LOSS, STATION };`)(
     mix,
   ) as Coaster;
 
 test('the roller coaster moves no car by hand: its train rides a looped path joint', () => {
   assert.match(script, /joint\.path\(train, null, \{[^}]*loop: true/);
+  assert.match(script, /damping: \{ linear: LOSS \}/, 'the train declares what it loses');
   assert.doesNotMatch(script, /travel \+=|speedAt/, 'no position integrated by the page');
 });
 
 test('the train climbs the lift on its chain, runs a lap by gravity and never leaves the track', async () => {
-  const { layout, poseAt, along, ride, MASS, STATION } = coaster();
+  const { layout, poseAt, along, ride, MASS, LOSS, STATION } = coaster();
   const track = layout(3);
   const plan = ride(track);
   const rig = await jointRig();
   const start = poseAt(track, 6).p;
   const train = rig.cube(...start);
-  train.physics = { type: 'dynamic', mass: MASS };
+  train.physics = { type: 'dynamic', mass: MASS, damping: { linear: LOSS } };
   const rail = joint.path(train, null, {
     path: plan.path,
     loop: true,
@@ -71,7 +73,10 @@ test('the train climbs the lift on its chain, runs a lap by gravity and never le
     const motor = plan.motorAt(s, waiting);
     if (motor !== rail.motor) rail.motor = motor;
   }
-  assert.ok(laps === 1, `a lap within ${bound / 60} s: ${steps / 60} s, at ${last} of ${track.total}`);
+  assert.ok(
+    laps === 1,
+    `a lap within ${bound / 60} s: ${steps / 60} s, at ${last} of ${track.total}`,
+  );
   assert.ok(farthest < 0.1, `held on the track: ${farthest} m off at most`);
   assert.ok(fastest > 3 * STATION, `gravity drives it past the crest: ${fastest} m/s`);
 });
