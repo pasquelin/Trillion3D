@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { object, Sprite } from './index.ts';
 import { material } from '../material/index.ts';
 import { drawnTriangles } from '../geometry/drawn.ts';
+import type { Material } from '../material/material.ts';
 
 test('object.sprite is a Sprite centred on its origin, in a see-through sprite material', () => {
   const sprite = object.sprite();
@@ -38,7 +39,7 @@ test('a moved centre reaches the world, and a clone keeps it', () => {
   const sprite = object.sprite(material.sprite({ rotation: 0.3 }));
   const heard: unknown[] = [];
   sprite._link = {
-    content: (node) => heard.push(node),
+    content: (node: unknown) => heard.push(node),
     pose: () => {},
     structure: () => {},
   } as unknown as typeof sprite._link;
@@ -48,6 +49,6 @@ test('a moved centre reaches the world, and a clone keeps it', () => {
   for (const copy of [sprite.clone(), object.clone(sprite)!]) {
     assert.ok(copy instanceof Sprite);
     assert.deepEqual([copy.center.x, copy.center.y], [0.5, 0]);
-    assert.equal((copy.material as { rotation: number }).rotation, 0.3);
+    assert.equal((copy.material as Material).rotation, 0.3);
   }
 });
