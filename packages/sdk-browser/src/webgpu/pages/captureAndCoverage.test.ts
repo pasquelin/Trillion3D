@@ -97,7 +97,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     scope: DEFAULT_SCOPE,
     sourceTriangles: 0,
     selectedTriangles: 0,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
     primitives: fixture.metadata.primitives as Primitive[],
   };
