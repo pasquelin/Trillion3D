@@ -107,6 +107,7 @@ export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: num
   if (!gpu.uniformBuffer || gpu.uniformBuffer.size < bytes) {
     gpu.uniformBuffer?.destroy();
     gpu.uniformBuffer = device.createBuffer({
+      label: 'Trillion3D fallback uniforms',
       size: bytes,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
