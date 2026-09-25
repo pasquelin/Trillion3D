@@ -79,5 +79,9 @@ export const tierEnsurer = (
 ) =>
   createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
-    lowerTiers: () => [shadowPages(), aheadPages()],
+    lowerTiers: () =>
+      [shadowPages(), aheadPages()].map((pages) => ({
+        pages,
+        has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
+      })),
   });
