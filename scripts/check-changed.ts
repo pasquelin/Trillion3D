@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
 import { repositoryFiles } from './repository-files.ts';
+import { compileSiteCaches } from './site-caches.ts';
 import { INVENTORY_TEST, isUnitTest, movesInventory } from './unit-tests.ts';
 
 const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
@@ -74,8 +75,10 @@ async function main(): Promise<void> {
   );
   const testFiles = relatedTests(files, changed);
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`);
-  // The lint and the tests read the generated API files, which git never tracks.
+  // The lint and the tests read the generated API files and the scene caches, which git never
+  // tracks; a run with no compiler names the caches it left, for tests that may read none.
   await generateApiFiles();
+  compileSiteCaches(false);
   if (!process.argv.includes('--tests-only')) {
     run('node', ['scripts/check-file-lines.ts', '--changed']);
     const formatted = existing.filter((file) => formatPattern.test(file));

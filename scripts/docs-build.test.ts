@@ -91,6 +91,10 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     // Back to a local build: the published copies, longer by their tag, are replaced.
     await copyStatics(source, out);
     assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), example);
+    // No report staged or fetched, since git tracks none: the portal lists no campaign.
+    await rm(join(source, 'reports/index.json'));
+    await copyStatics(source, out);
+    assert.equal(await readFile(join(out, 'reports/index.json'), 'utf8'), '[]\n');
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

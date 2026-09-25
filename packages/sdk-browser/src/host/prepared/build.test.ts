@@ -72,7 +72,7 @@ test('the scene built from the tables is the scene the loader built, on every pu
       assert.deepEqual(
         await prepared(folder, document),
         await witness(folder, document),
-        `${pathToFileURL(fileURLToPath(folder)).pathname.split('site/assets/')[1]}${document}`,
+        `${pathToFileURL(fileURLToPath(folder)).pathname.split(/site\/assets\/|scenes\//)[1]}${document}`,
       );
     }
   }
