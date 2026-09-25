@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LINE_CLIP_GLSL, LINE_CLIP_WGSL, lineClip } from './lineWgsl.ts';
-import { runLineText } from './lineClip.fixture.ts';
+import { runShaderText } from './shaderText.fixture.ts';
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
@@ -43,7 +43,7 @@ function corners(
   width: number,
   pixelRatio = 1,
 ) {
-  const run = runLineText(SOURCES[language]),
+  const run = runShaderText(SOURCES[language]),
     project = PROJECTIONS[language];
   const clip = project(p[0], p[1], p[2], 1);
   return [1, -1].map((side) =>
@@ -81,7 +81,7 @@ for (const language of ['wgsl', 'glsl'] as const)
 // The CPU software raster widens a corner with `lineClip`, the WGSL text's twin: the same numbers,
 // in front of the eye, behind it, seen end-on, at every ratio.
 test('the CPU lineClip is the WGSL text, statement for statement', () => {
-  const run = runLineText(LINE_CLIP_WGSL),
+  const run = runShaderText(LINE_CLIP_WGSL),
     project = PROJECTIONS.wgsl;
   const cases: Array<[number[], number[]]> = [
     [
@@ -164,5 +164,5 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
   for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)])
     assert.ok(text.includes('page.lineWidth,uni.viewport.xy,uni.pixelRatio)'));
   assert.match(BLEND_SHADER, /it\.lineWidth,uni\.viewport,uni\.pixelRatio\)/);
-  assert.match(CLUSTER_VERTEX, /lineWidth,viewport,pixelRatio\);\}\}$/);
+  assert.match(CLUSTER_VERTEX, /lineWidth,viewport,pixelRatio\);\}\n/);
 });
