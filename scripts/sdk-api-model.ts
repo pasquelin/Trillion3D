@@ -137,15 +137,20 @@ function addConsumer(consumers: Map<string, Set<string>>, name: string, file: st
 }
 
 /**
- * Writes a generated file, formatted by the repository's Prettier settings; with `--check` on the
- * command line, fails instead when the file on disk differs from what would be written.
+ * Writes a generated file, formatted by the repository's Prettier settings; with `check` (by
+ * default, `--check` on the command line), fails instead when the file on disk differs from what
+ * would be written. A file git never tracks is always written: there is nothing to compare it to.
  */
-export async function writeGenerated(path: string, content: string): Promise<void> {
+export async function writeGenerated(
+  path: string,
+  content: string,
+  check = process.argv.includes('--check'),
+): Promise<void> {
   const absolute = join(ROOT, path);
   const prettierConfig = await prettier.resolveConfig(absolute);
   const formatted = await prettier.format(content, { ...prettierConfig, filepath: absolute });
   mkdirSync(dirname(absolute), { recursive: true });
-  if (!process.argv.includes('--check')) writeFileSync(absolute, formatted);
+  if (!check) writeFileSync(absolute, formatted);
   else if (readFileSync(absolute, 'utf8') !== formatted) {
     const [was, now] = [readFileSync(absolute, 'utf8').split('\n'), formatted.split('\n')];
     const at = was.findIndex((line, index) => line !== now[index]);

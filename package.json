@@ -66,7 +66,7 @@
     "check:links": "node scripts/check-links.ts",
     "check:docs-three": "node scripts/check-docs-three.ts",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
-    "check:api-reference": "node scripts/generate-api-reference.ts --check",
+    "generate:api": "node scripts/generate-api-reference.ts",
     "check:i18n": "node scripts/check-i18n.ts",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
